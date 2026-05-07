@@ -3,16 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Fishing Logbook</title>
+    <title>Detailed Fishing Logbook</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar" aria-label="Logbook summary">
         <div class="brand-block">
-          <div class="brand-mark">FL</div>
-          <h1>Fishing Logbook</h1>
-          <p>Private one-person trip journal</p>
+          <h1>Detailed Fishing Logbook</h1>
+          <div class="brand-spotlight" id="brandSpotlight" aria-label="Recent fishing photos"></div>
         </div>
 
         <section class="side-section">
@@ -25,6 +24,7 @@
             <div><dt>Hours Fished</dt><dd id="statHours">0</dd></div>
             <div><dt>Waterbodies</dt><dd id="statWaterbodies">0</dd></div>
             <div><dt>Catch Rate</dt><dd id="statCatchRate">0</dd></div>
+            <div><dt>Lbs / Hour</dt><dd id="statPoundsPerHour">0</dd></div>
           </dl>
         </section>
 

@@ -60,11 +60,13 @@ let activeNotePhotos = [];
 let activeStatsMethod = "All methods";
 
 const els = {
+  brandSpotlight: document.querySelector("#brandSpotlight"),
   statTrips: document.querySelector("#statTrips"),
   statFish: document.querySelector("#statFish"),
   statHours: document.querySelector("#statHours"),
   statWaterbodies: document.querySelector("#statWaterbodies"),
   statCatchRate: document.querySelector("#statCatchRate"),
+  statPoundsPerHour: document.querySelector("#statPoundsPerHour"),
   speciesBars: document.querySelector("#speciesBars"),
   lureBars: document.querySelector("#lureBars"),
   tripTable: document.querySelector("#tripTable"),
@@ -199,6 +201,15 @@ function totalCaught(trip) {
   return (trip.catches || []).reduce((sum, catchItem) => sum + fishCount(catchItem), 0);
 }
 
+function totalWeight(trip) {
+  return (trip.catches || []).reduce((sum, catchItem) => sum + catchWeight(catchItem), 0);
+}
+
+function catchWeight(catchItem) {
+  const weight = parseFirstNumber(catchItem?.weight);
+  return weight ? weight * fishCount(catchItem) : 0;
+}
+
 function fishCount(catchItem) {
   if (!catchItem) return 0;
   if (catchItem.quantity !== undefined && catchItem.quantity !== "") return Math.max(0, number(catchItem.quantity));
@@ -251,6 +262,7 @@ function renderStats() {
   const allCatches = state.trips.flatMap((trip) => trip.catches || []);
   const fish = state.trips.reduce((sum, trip) => sum + totalCaught(trip), 0);
   const hours = state.trips.reduce((sum, trip) => sum + tripHours(trip), 0);
+  const pounds = state.trips.reduce((sum, trip) => sum + totalWeight(trip), 0);
   const waterbodies = new Set(state.trips.map((trip) => trip.location).filter(Boolean));
 
   els.statTrips.textContent = state.trips.length;
@@ -258,11 +270,47 @@ function renderStats() {
   els.statHours.textContent = trimNumber(hours);
   els.statWaterbodies.textContent = waterbodies.size;
   els.statCatchRate.textContent = hours ? trimNumber(fish / hours) : "0";
+  els.statPoundsPerHour.textContent = hours ? trimNumber(pounds / hours) : "0";
 
   const speciesCounts = countBy(allCatches, (item) => item.species, fishCount);
   const lureCounts = countBy(allCatches, (item) => lureName(item.lureId), fishCount);
   renderBars(els.speciesBars, topEntries(speciesCounts));
   renderBars(els.lureBars, topEntries(lureCounts));
+}
+
+function renderBrandSpotlight() {
+  const photos = state.trips
+    .flatMap((trip) => (trip.notePhotos || []).map((photo) => ({
+      ...photo,
+      tripTitle: trip.title || trip.location || "Trip photo",
+      date: trip.date
+    })))
+    .filter((photo) => photo.image)
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+    .slice(0, 5);
+
+  if (!photos.length) {
+    els.brandSpotlight.innerHTML = `
+      <div class="brand-spotlight-empty">
+        <span>Trip, gear, catch, and pattern tracker</span>
+      </div>
+    `;
+    return;
+  }
+
+  els.brandSpotlight.innerHTML = `
+    <div class="spotlight-slides">
+      ${photos.map((photo, index) => `
+        <figure class="spotlight-slide" style="--slide-index:${index}; --slide-count:${photos.length};">
+          <img src="${photo.image}" alt="">
+          <figcaption>
+            <strong>${escapeHtml(photo.caption || photo.tripTitle)}</strong>
+            <span>${escapeHtml(photo.tripTitle)}</span>
+          </figcaption>
+        </figure>
+      `).join("")}
+    </div>
+  `;
 }
 
 function renderFilters() {
@@ -385,6 +433,7 @@ function renderAll() {
   renderSelectOptions();
   renderFilters();
   renderStatsMethodFilter();
+  renderBrandSpotlight();
   renderStats();
   renderTrips();
   renderAdvancedStats();
@@ -1146,6 +1195,7 @@ function renderAdvancedStats() {
   const releasedFish = records.filter((record) => record.released).length;
   const keptFish = Math.max(0, fish - releasedFish);
   const hours = trips.reduce((sum, trip) => sum + tripHours(trip), 0);
+  const pounds = records.reduce((sum, record) => sum + catchWeight(record), 0);
   const lureMinutes = gearRecords.reduce((sum, record) => sum + number(record.lureMinutes), 0);
   const flasherMinutes = gearRecords.reduce((sum, record) => sum + number(record.flasherMinutes), 0);
   const skunkTrips = trips.filter((trip) => totalCaught(trip) === 0).length;
@@ -1162,6 +1212,8 @@ function renderAdvancedStats() {
     ["Fish lost %", formatPercent(lostFish, fishInteractions)],
     ["Fish / trip", trips.length ? trimNumber(fish / trips.length) : "0"],
     ["Fish / hour", hours ? trimNumber(fish / hours) : "0"],
+    ["Lbs / hour", hours ? trimNumber(pounds / hours) : "0"],
+    ["Pounds landed", trimNumber(pounds)],
     ["Lure use time", minutesToHours(lureMinutes)],
     ["Flasher use time", isTrollingScope ? minutesToHours(flasherMinutes) : "Trolling only"],
     ["Skunk trips", skunkTrips],

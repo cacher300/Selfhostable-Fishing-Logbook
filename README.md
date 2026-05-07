@@ -1,10 +1,10 @@
 # Fishing Logbook
 
-A private, one-person, self-hosted fishing logbook. It is a small Python app with a browser interface and a local JSON data file, built for detailed trip notes, gear tracking, and fishing stats.
+A private, one-person, self-hosted fishing logbook. It is a small Flask app with a browser interface and a local JSON data file, built for detailed trip notes, gear tracking, and fishing stats.
 
 ## Features
 
-- Dashboard with trip table, quick stats, search, target filter, year filter, and sorting.
+- Dashboard with trip table, quick stats including lbs/hour, search, target filter, year filter, and sorting.
 - Add, edit, and delete trips.
 - Track trip title, date, location, start time, end time, target species, method, intent, weather, water conditions, structure, notes, and note photos.
 - Remember previously fished waterbodies for quick future location selection.
@@ -20,7 +20,7 @@ A private, one-person, self-hosted fishing logbook. It is a small Python app wit
 - Log a setup timeline for lures that did not catch fish, lure/flasher combos, setup changes, depth changes, and time windows.
 - Show flasher and trolling setup fields only for Trolling trips.
 - Track trolling setups for downrigger, cheater, flatline/leadcore, dipsey diver, trolling direction, and speed.
-- Advanced Stats page with an overall view or per-method filter, covering outcomes, catch/release ratio, percent lost, lures, flashers, lure/flasher combos, lost fish, species, locations, trolling direction, trolling setup efficiency, 10-foot FOW ranges, trolling speed performance, depth down, methods, trip intent, people, and month patterns.
+- Advanced Stats page with an overall view or per-method filter, covering outcomes, catch/release ratio, percent lost, lbs/hour, lures, flashers, lure/flasher combos, lost fish, species, locations, trolling direction, trolling setup efficiency, 10-foot FOW ranges, trolling speed performance, depth down, methods, trip intent, people, and month patterns.
 - JSON import/export is available from the Data menu for backups.
 
 ## Run Locally
@@ -28,6 +28,7 @@ A private, one-person, self-hosted fishing logbook. It is a small Python app wit
 From this folder:
 
 ```powershell
+py -m pip install -r requirements.txt
 python server.py
 ```
 
@@ -69,7 +70,8 @@ This version has no login system because it is designed for one person. If you e
 
 ## Project Files
 
-- `server.py` serves the app and saves JSON data.
+- `server.py` is the Flask backend that serves the app and saves JSON data.
+- `requirements.txt` lists the Python backend dependencies.
 - `index.html` contains the app markup and form templates.
 - `styles.css` contains the layout and visual styling.
 - `app.js` contains the browser-side app logic.

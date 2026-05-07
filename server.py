@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-import mimetypes
 from copy import deepcopy
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+
+from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
 
 
 ROOT = Path(__file__).resolve().parent
@@ -53,7 +52,7 @@ DEFAULT_LOGBOOK = {
         "Flasher/Fly",
         "Jerkbait",
         "Topwater",
-        "Blade Bait"
+        "Blade Bait",
         "Other",
     ],
     "flasherTypes": [
@@ -76,19 +75,34 @@ def normalize_logbook(payload: dict | None = None) -> dict:
     normalized["methods"] = deepcopy(DEFAULT_LOGBOOK["methods"])
     normalized.pop("tripTypes", None)
 
-    for key in ("species", "lureTypes", "flasherTypes", "lures", "flashers", "people", "locations", "trips"):
+    list_keys = ("species", "lureTypes", "flasherTypes", "lures", "flashers", "people", "locations", "trips")
+    for key in list_keys:
         if not isinstance(normalized.get(key), list):
             normalized[key] = deepcopy(DEFAULT_LOGBOOK[key])
 
-    known_people = {person.get("id"): person for person in normalized["people"] if isinstance(person, dict) and person.get("id")}
+    known_people = {
+        person.get("id"): person
+        for person in normalized["people"]
+        if isinstance(person, dict) and person.get("id")
+    }
     for trip in normalized["trips"]:
         if not isinstance(trip, dict):
             continue
         for person in trip.get("people", []):
-            if isinstance(person, dict) and person.get("id") and person.get("name") and person.get("id") not in known_people:
+            if (
+                isinstance(person, dict)
+                and person.get("id")
+                and person.get("name")
+                and person.get("id") not in known_people
+            ):
                 known_people[person["id"]] = {"id": person["id"], "name": person["name"]}
     normalized["people"] = list(known_people.values())
-    known_locations = {str(location).strip().lower(): str(location).strip() for location in normalized["locations"] if str(location).strip()}
+
+    known_locations = {
+        str(location).strip().lower(): str(location).strip()
+        for location in normalized["locations"]
+        if str(location).strip()
+    }
     for trip in normalized["trips"]:
         if isinstance(trip, dict) and str(trip.get("location", "")).strip():
             location = str(trip["location"]).strip()
@@ -117,77 +131,70 @@ def write_logbook(payload: dict) -> None:
         json.dump(normalize_logbook(payload), file, indent=2)
 
 
-class LogbookHandler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(ROOT), **kwargs)
+def validate_logbook(payload: object) -> tuple[bool, str | None]:
+    if not isinstance(payload, dict):
+        return False, "Logbook must be a JSON object"
 
-    def do_GET(self) -> None:
-        path = urlparse(self.path).path
-        if path == "/api/logbook":
-            self.send_json(read_logbook())
-            return
+    required_lists = ("trips", "lures", "flashers")
+    if any(not isinstance(payload.get(key), list) for key in required_lists):
+        return False, "Logbook must include trips, lures, and flashers lists"
 
-        if path == "/api/export":
-            payload = json.dumps(read_logbook(), indent=2).encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Disposition", "attachment; filename=fishing-logbook.json")
-            self.send_header("Content-Length", str(len(payload)))
-            self.end_headers()
-            self.wfile.write(payload)
-            return
+    if not isinstance(payload.get("people", []), list):
+        return False, "Logbook people must be a list"
 
-        if path == "/favicon.ico":
-            self.send_response(204)
-            self.end_headers()
-            return
+    return True, None
 
-        if path == "/":
-            self.path = "/index.html"
 
-        super().do_GET()
+def create_app() -> Flask:
+    app = Flask(__name__, static_folder=None)
 
-    def do_PUT(self) -> None:
-        path = urlparse(self.path).path
-        if path != "/api/logbook":
-            self.send_error(404)
-            return
+    @app.after_request
+    def add_no_store_header(response: Response) -> Response:
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
-        try:
-            length = int(self.headers.get("Content-Length", "0"))
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
-        except (ValueError, json.JSONDecodeError):
-            self.send_error(400, "Invalid JSON")
-            return
+    @app.get("/api/logbook")
+    def get_logbook() -> Response:
+        return jsonify(read_logbook())
 
-        if (
-            not isinstance(payload.get("trips"), list)
-            or not isinstance(payload.get("lures"), list)
-            or not isinstance(payload.get("flashers"), list)
-            or not isinstance(payload.get("people", []), list)
-        ):
-            self.send_error(400, "Logbook must include trips, lures, flashers, and people lists")
-            return
+    @app.put("/api/logbook")
+    def update_logbook() -> tuple[Response, int] | Response:
+        payload = request.get_json(silent=True)
+        is_valid, error = validate_logbook(payload)
+        if not is_valid:
+            return jsonify({"error": error}), 400
 
         write_logbook(normalize_logbook(payload))
-        self.send_json({"ok": True})
+        return jsonify({"ok": True})
 
-    def end_headers(self) -> None:
-        self.send_header("Cache-Control", "no-store")
-        super().end_headers()
+    @app.get("/api/export")
+    def export_logbook() -> Response:
+        body = json.dumps(read_logbook(), indent=2)
+        return Response(
+            body,
+            mimetype="application/json",
+            headers={"Content-Disposition": "attachment; filename=fishing-logbook.json"},
+        )
 
-    def send_json(self, payload: dict) -> None:
-        body = json.dumps(payload).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+    @app.get("/favicon.ico")
+    def favicon() -> tuple[str, int]:
+        return "", 204
 
-    def guess_type(self, path: str) -> str:
-        if path.endswith(".js"):
-            return "text/javascript"
-        return mimetypes.guess_type(path)[0] or "application/octet-stream"
+    @app.get("/")
+    def index() -> Response:
+        return send_file(ROOT / "index.html")
+
+    @app.get("/<path:filename>")
+    def static_files(filename: str) -> Response:
+        requested = (ROOT / filename).resolve()
+        if ROOT not in requested.parents or not requested.is_file():
+            abort(404)
+        return send_from_directory(ROOT, filename)
+
+    return app
+
+
+app = create_app()
 
 
 def main() -> None:
@@ -195,10 +202,9 @@ def main() -> None:
     if not DATA_FILE.exists():
         write_logbook(DEFAULT_LOGBOOK)
 
-    server = ThreadingHTTPServer((HOST, PORT), LogbookHandler)
     print(f"Fishing Logbook running at http://{HOST}:{PORT}")
     print(f"Data file: {DATA_FILE}")
-    server.serve_forever()
+    app.run(host=HOST, port=PORT, threaded=True)
 
 
 if __name__ == "__main__":
