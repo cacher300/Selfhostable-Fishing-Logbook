@@ -1,0 +1,16 @@
+.git/
+.idea/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Keep private/local logbook data out of images.
+data/logbook.json
+
+# Local/editor noise.
+.DS_Store
+Thumbs.db
+*.bak
+*.db
+*.sqlite
+*.sqlite3

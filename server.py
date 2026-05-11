@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 
@@ -10,8 +11,8 @@ from flask import Flask, Response, abort, jsonify, request, send_file, send_from
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 DATA_FILE = DATA_DIR / "logbook.json"
-HOST = "127.0.0.1"
-PORT = 8080
+HOST = os.environ.get("HOST", "127.0.0.1")
+PORT = int(os.environ.get("PORT", "8080"))
 
 
 DEFAULT_LOGBOOK = {

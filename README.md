@@ -38,6 +38,42 @@ Then open:
 http://127.0.0.1:8080
 ```
 
+## Run with Docker
+
+From this folder:
+
+```sh
+./launch-container.sh
+```
+
+The script stops any currently running Fishing Logbook container, rebuilds the image, and starts it in the background.
+
+Then open:
+
+```text
+http://127.0.0.1:8080
+```
+
+Docker Compose mounts your local data folder into the container:
+
+```text
+./data:/app/data
+```
+
+That means `data/logbook.json` stays on your machine, survives container rebuilds, and is not copied into the Docker image.
+
+Without the script, you can run:
+
+```sh
+docker compose up --build -d
+```
+
+To stop it:
+
+```sh
+docker compose down
+```
+
 Your data is saved here:
 
 ```text
@@ -64,7 +100,7 @@ data/logbook.json
 
 ## Self-hosting Notes
 
-The current server binds to `127.0.0.1`, which is best for running on the same machine. To access it from another device on your network, change `HOST` in `server.py` to `0.0.0.0` and run it behind your normal local-network or reverse-proxy setup.
+The normal local Python run binds to `127.0.0.1`, which is best for running on the same machine. Docker runs with `HOST=0.0.0.0` so the container can receive traffic through the published port. If you expose it beyond your own machine or home network, run it behind your normal password-protected reverse-proxy setup.
 
 This version has no login system because it is designed for one person. If you expose it beyond your own machine or home network, put it behind a password-protected reverse proxy first.
 
@@ -72,6 +108,8 @@ This version has no login system because it is designed for one person. If you e
 
 - `server.py` is the Flask backend that serves the app and saves JSON data.
 - `requirements.txt` lists the Python backend dependencies.
+- `Dockerfile` builds the self-hosted app image.
+- `docker-compose.yml` runs the app with `./data` mounted for persistent local data.
 - `index.html` contains the app markup and form templates.
 - `styles.css` contains the layout and visual styling.
 - `app.js` contains the browser-side app logic.

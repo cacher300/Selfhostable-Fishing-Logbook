@@ -91,6 +91,7 @@ const els = {
   locationStatsTable: document.querySelector("#locationStatsTable"),
   methodStatsTable: document.querySelector("#methodStatsTable"),
   intentStatsTable: document.querySelector("#intentStatsTable"),
+  ratingStatsTable: document.querySelector("#ratingStatsTable"),
   personStatsTable: document.querySelector("#personStatsTable"),
   monthStatsTable: document.querySelector("#monthStatsTable"),
   emptyState: document.querySelector("#emptyState"),
@@ -109,6 +110,8 @@ const els = {
   tripDialog: document.querySelector("#tripDialog"),
   tripForm: document.querySelector("#tripForm"),
   tripDialogTitle: document.querySelector("#tripDialogTitle"),
+  tripRating: document.querySelector("#tripRating"),
+  tripRatingLabel: document.querySelector("#tripRatingLabel"),
   deleteTripButton: document.querySelector("#deleteTripButton"),
   deleteLureButton: document.querySelector("#deleteLureButton"),
   deleteFlasherButton: document.querySelector("#deleteFlasherButton"),
@@ -347,6 +350,7 @@ function filteredTrips() {
       trip.targetSpecies,
       trip.method,
       trip.intent,
+      tripRatingLabel(tripRatingValue(trip)),
       ...(trip.people || []).map((person) => person.name),
       trip.notes,
       trip.weather,
@@ -400,6 +404,7 @@ function renderTrips() {
       <span>
         <span class="target-pill">${escapeHtml(trip.targetSpecies)}</span>
         <span class="intent-pill ${tripIntent(trip) === "experimental" ? "experimental" : ""}">${escapeHtml(intentLabel(tripIntent(trip)))}</span>
+        <span class="rating-pill ${escapeHtml(tripRatingClass(tripRatingValue(trip)))}">${escapeHtml(tripRatingLabel(tripRatingValue(trip)))}</span>
       </span>
       <button class="row-button" type="button" data-edit-trip="${trip.id}" aria-label="Open trip">&gt;</button>
     `;
@@ -462,6 +467,7 @@ function openTripDialog(trip = null) {
   setValue("targetSpecies", trip?.targetSpecies || "");
   setValue("method", trip?.method || "");
   setTripIntent(tripIntent(trip || {}));
+  setTripRating(tripRatingValue(trip || {}));
   setValue("waterTemp", trip?.waterTemp || "");
   setValue("waterClarity", trip?.waterClarity || "");
   setValue("weather", trip?.weather || "");
@@ -495,6 +501,33 @@ function setTripIntent(value) {
   const normalized = value === "experimental" ? "experimental" : "serious";
   const input = document.querySelector(`input[name="tripIntent"][value="${normalized}"]`);
   if (input) input.checked = true;
+}
+
+function tripRatingValue(trip) {
+  if (trip?.tripRating === null || trip?.tripRating === undefined || trip?.tripRating === "") return null;
+  const value = Number(trip.tripRating);
+  if (!Number.isFinite(value)) return null;
+  if (value <= 0) return null;
+  return Math.min(3, Math.max(1, Math.round(value)));
+}
+
+function setTripRating(value) {
+  els.tripRating.value = String(tripRatingValue({ tripRating: value }) || 0);
+  updateTripRatingLabel();
+}
+
+function updateTripRatingLabel() {
+  els.tripRatingLabel.textContent = tripRatingLabel(tripRatingValue({ tripRating: els.tripRating.value }));
+}
+
+function tripRatingLabel(value) {
+  const rating = tripRatingValue({ tripRating: value });
+  if (rating === null) return "Not rated";
+  return ["Bad", "Good", "Outstanding"][rating - 1];
+}
+
+function tripRatingClass(value) {
+  return tripRatingLabel(value).toLowerCase().replaceAll(" ", "-");
 }
 
 function mergePeople(...personLists) {
@@ -793,6 +826,7 @@ function collectTripFromForm() {
     targetSpecies: getValue("targetSpecies"),
     method: getValue("method"),
     intent: getTripIntent(),
+    tripRating: tripRatingValue({ tripRating: els.tripRating.value }),
     waterTemp: getValue("waterTemp"),
     waterClarity: getValue("waterClarity"),
     weather: getValue("weather"),
@@ -1333,6 +1367,10 @@ function renderAdvancedStats() {
   renderStatsTable(els.methodStatsTable, ["Method", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(state.trips.map((trip) => ({ ...trip, fish: totalCaught(trip), rate: catchRate(trip) })), (trip) => trip.method));
 
   renderStatsTable(els.intentStatsTable, ["Intent", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => intentLabel(tripIntent(trip))));
+  renderStatsTable(els.ratingStatsTable, ["Rating", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => {
+    const rating = tripRatingValue(trip);
+    return rating === null ? "" : tripRatingLabel(rating);
+  }));
 
   renderStatsTable(els.personStatsTable, ["Person", "Fish", "Setups", "Gear Time", "Trips"], summarizePeople(records, gearRecords));
 
@@ -1751,6 +1789,7 @@ async function importJson(event) {
 
 els.newTripButton.addEventListener("click", () => openTripDialog());
 els.tripForm.addEventListener("submit", saveTrip);
+els.tripRating.addEventListener("input", updateTripRatingLabel);
 els.deleteTripButton.addEventListener("click", deleteActiveTrip);
 els.addCatchButton.addEventListener("click", () => addCatchRow());
 els.addLostFishButton.addEventListener("click", () => addLostFishRow());

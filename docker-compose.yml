@@ -1,0 +1,12 @@
+services:
+  fishing-logbook:
+    build: .
+    container_name: detailed-fishing-logbook
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+    restart: unless-stopped

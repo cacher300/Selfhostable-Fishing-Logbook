@@ -591,6 +591,84 @@ textarea:focus {
   color: var(--green-dark);
 }
 
+.trip-rating-control {
+  display: grid;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid #cbd3df;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.rating-heading,
+.rating-scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rating-heading span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rating-heading strong {
+  color: var(--green-dark);
+  font-size: 15px;
+}
+
+.trip-rating-control input[type="range"] {
+  width: 100%;
+  accent-color: var(--green);
+}
+
+.rating-scale {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.rating-pill {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin-top: 5px;
+  border: 1px solid #cbd3df;
+  color: var(--muted);
+  background: #fff;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.rating-pill.bad {
+  border-color: #f1b4b4;
+  color: #8e2727;
+  background: #fff0f0;
+}
+
+.rating-pill.not-rated {
+  border-color: #d9dee6;
+  color: var(--muted);
+  background: #f7f8fa;
+}
+
+.rating-pill.good {
+  border-color: #cbd3df;
+  color: var(--muted);
+  background: #fff;
+}
+
+.rating-pill.outstanding {
+  border-color: #a9d8bd;
+  color: var(--green-dark);
+  background: #ecf7f1;
+}
+
 .checkbox-label {
   align-self: end;
   display: flex;

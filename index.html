@@ -174,6 +174,10 @@
               <div class="analytics-table" id="intentStatsTable"></div>
             </article>
             <article class="analytics-card">
+              <h3>Trip Rating Breakdown</h3>
+              <div class="analytics-table" id="ratingStatsTable"></div>
+            </article>
+            <article class="analytics-card">
               <h3>Person Breakdown</h3>
               <div class="analytics-table" id="personStatsTable"></div>
             </article>
@@ -258,6 +262,19 @@
               <span>Experimental</span>
             </label>
           </fieldset>
+          <div class="trip-rating-control">
+            <div class="rating-heading">
+              <span>Trip rating</span>
+              <strong id="tripRatingLabel">Not rated</strong>
+            </div>
+            <input id="tripRating" type="range" min="0" max="3" step="1" value="0" />
+            <div class="rating-scale" aria-hidden="true">
+              <span>Not rated</span>
+              <span>Bad</span>
+              <span>Good</span>
+              <span>Outstanding</span>
+            </div>
+          </div>
           <label>
             <span>Water temperature</span>
             <input id="waterTemp" type="text" placeholder="54 F" />
