@@ -1,5 +1,18 @@
 const storageKey = "fishing-logbook-v1";
 
+function createId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+
+  const fallbackId = "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (char) => {
+    const randomValue = globalThis.crypto?.getRandomValues
+      ? globalThis.crypto.getRandomValues(new Uint8Array(1))[0]
+      : Math.floor(Math.random() * 256);
+    return (Number(char) ^ (randomValue & (15 >> (Number(char) / 4)))).toString(16);
+  });
+
+  return fallbackId;
+}
+
 const defaults = {
   species: [
     "Lake Trout",
@@ -22,7 +35,7 @@ const defaults = {
   flasherTypes: ["Paddle", "Dodger", "Spin Doctor", "Meat Rig", "Attractor", "Other"],
   lures: [
     {
-      id: crypto.randomUUID(),
+      id: createId(),
       name: "Blue/Silver Spoon",
       type: "Spoon",
       brand: "",
@@ -36,7 +49,7 @@ const defaults = {
   locations: [],
   trips: [
     {
-      id: crypto.randomUUID(),
+      id: createId(),
       title: "Morning salmon troll",
       date: "2026-04-28",
       location: "Lake Ontario",
@@ -569,7 +582,7 @@ function intentLabel(value) {
 function addPersonRow(person = {}) {
   const template = document.querySelector("#personRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
-  node.dataset.personId = person.id || crypto.randomUUID();
+  node.dataset.personId = person.id || createId();
   node.querySelector(".person-name").value = person.name || "";
   els.personRows.append(node);
   populatePersonSelects();
@@ -578,7 +591,7 @@ function addPersonRow(person = {}) {
 function collectPeople() {
   return [...els.personRows.querySelectorAll(".person-row")]
     .map((row) => ({
-      id: row.dataset.personId || crypto.randomUUID(),
+      id: row.dataset.personId || createId(),
       name: row.querySelector(".person-name").value.trim()
     }))
     .filter((person) => person.name);
@@ -613,7 +626,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   const template = document.querySelector("#catchRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
   if (lost) node.classList.add("lost-fish-row");
-  node.dataset.rowId = crypto.randomUUID();
+  node.dataset.rowId = createId();
   node.dataset.catchId = catchItem.id || "";
   node.querySelector(".remove-catch").setAttribute("aria-label", lost ? "Remove lost fish" : "Remove catch");
   node.querySelector(".catch-released-field").classList.toggle("hidden", lost);
@@ -652,7 +665,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
 function addTripGearRow(gearItem = {}) {
   const template = document.querySelector("#tripGearRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
-  node.dataset.rowId = crypto.randomUUID();
+  node.dataset.rowId = createId();
   node.dataset.gearId = gearItem.id || "";
 
   populatePersonSelect(node.querySelector(".trip-gear-person"), gearItem.personId || "");
@@ -764,7 +777,7 @@ function collectTripFromForm() {
   const people = collectPeople();
   const gearUsed = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
     .map((row) => ({
-      id: row.dataset.gearId || crypto.randomUUID(),
+      id: row.dataset.gearId || createId(),
       personId: row.querySelector(".trip-gear-person").value,
       startTime: row.querySelector(".trip-gear-start-time").value,
       endTime: row.querySelector(".trip-gear-end-time").value,
@@ -787,7 +800,7 @@ function collectTripFromForm() {
 
   const collectFishRows = (container, lost = false) => [...container.querySelectorAll(".catch-row")]
     .map((row) => ({
-      id: row.dataset.catchId || crypto.randomUUID(),
+      id: row.dataset.catchId || createId(),
       personId: row.querySelector(".catch-person").value,
       species: row.querySelector(".catch-species").value.trim(),
       released: lost ? false : row.querySelector(".catch-released").checked,
@@ -816,7 +829,7 @@ function collectTripFromForm() {
   const lostFish = collectFishRows(els.lostFishRows, true);
 
   return {
-    id: getValue("tripId") || crypto.randomUUID(),
+    id: getValue("tripId") || createId(),
     title: getValue("tripTitle"),
     date: getValue("tripDate"),
     location: getValue("tripLocation"),
@@ -886,7 +899,7 @@ async function saveLure(event) {
   const imageFile = document.querySelector("#lureImage").files[0];
   const image = imageFile ? await fileToDataUrl(imageFile) : existing?.image || "";
   const lure = {
-    id: editingId || crypto.randomUUID(),
+    id: editingId || createId(),
     name: getValue("lureName"),
     type: getValue("lureType"),
     brand: getValue("lureBrand"),
@@ -920,7 +933,7 @@ async function saveFlasher(event) {
   const imageFile = document.querySelector("#flasherImage").files[0];
   const image = imageFile ? await fileToDataUrl(imageFile) : existing?.image || "";
   const flasher = {
-    id: editingId || crypto.randomUUID(),
+    id: editingId || createId(),
     name: getValue("flasherName"),
     type: getValue("flasherType"),
     brand: getValue("flasherBrand"),
@@ -961,7 +974,7 @@ async function addNotePhotos(event) {
   if (!files.length) return;
 
   const photos = await Promise.all(files.map(async (file) => ({
-    id: crypto.randomUUID(),
+    id: createId(),
     name: file.name,
     caption: "",
     image: await fileToDataUrl(file)
