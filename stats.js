@@ -197,6 +197,8 @@ function renderAdvancedStats() {
   renderStatsTable(els.locationStatsTable, ["Location", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.location));
 
   renderStatsTable(els.methodStatsTable, ["Method", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(state.trips.map((trip) => ({ ...trip, fish: totalCaught(trip), rate: catchRate(trip) })), (trip) => trip.method));
+  renderStatsTable(els.waterClarityStatsTable, ["Water Clarity", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.waterClarity));
+  renderStatsTable(els.weatherStatsTable, ["Weather", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.weather));
 
   renderStatsTable(els.intentStatsTable, ["Intent", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => intentLabel(tripIntent(trip))));
   renderStatsTable(els.ratingStatsTable, ["Rating", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => tripRatingLabel(tripRatingValue(trip))));

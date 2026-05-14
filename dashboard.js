@@ -159,6 +159,7 @@ function filteredTrips() {
       trip.method,
       trip.intent,
       tripRatingLabel(tripRatingValue(trip)),
+      trip.waterClarity,
       ...(trip.people || []).map((person) => person.name),
       trip.notes,
       trip.weather,
@@ -226,6 +227,8 @@ function renderSelectOptions() {
   populateDatalist(document.querySelector("#locationOptions"), state.locations);
   populateOptionSelect(document.querySelector("#targetSpecies"), state.species, "Select target species");
   populateOptionSelect(document.querySelector("#method"), state.methods, "Select method");
+  populateOptionSelect(document.querySelector("#waterClarity"), waterClarityOptions, "Select water clarity");
+  populateOptionSelect(document.querySelector("#weather"), weatherOptions, "Select weather");
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
   document.querySelectorAll(".catch-species").forEach((select) => populateOptionSelect(select, state.species, "Select species"));

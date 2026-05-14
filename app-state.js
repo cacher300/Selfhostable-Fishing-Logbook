@@ -1,5 +1,26 @@
 const storageKey = "fishing-logbook-v1";
 
+const waterClarityOptions = [
+  "Crystal Clear",
+  "Clear",
+  "Slightly Stained",
+  "Stained",
+  "Muddy",
+  "Algae Bloom"
+];
+
+const weatherOptions = [
+  "Sunny",
+  "Partly Cloudy",
+  "Overcast",
+  "Light Rain",
+  "Heavy Rain",
+  "Thunderstorms",
+  "Fog",
+  "Snow",
+  "Mixed"
+];
+
 function createId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
 
@@ -120,6 +141,8 @@ const els = {
   depthDownStatsTable: document.querySelector("#depthDownStatsTable"),
   locationStatsTable: document.querySelector("#locationStatsTable"),
   methodStatsTable: document.querySelector("#methodStatsTable"),
+  waterClarityStatsTable: document.querySelector("#waterClarityStatsTable"),
+  weatherStatsTable: document.querySelector("#weatherStatsTable"),
   intentStatsTable: document.querySelector("#intentStatsTable"),
   ratingStatsTable: document.querySelector("#ratingStatsTable"),
   personStatsTable: document.querySelector("#personStatsTable"),
