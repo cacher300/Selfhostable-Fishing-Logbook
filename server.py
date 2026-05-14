@@ -7,6 +7,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
+from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.utils import secure_filename
 
 
@@ -17,6 +18,9 @@ UPLOADS_DIR = DATA_DIR / "uploads"
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8080"))
 UPLOAD_CATEGORIES = {"catch-photos", "trip-photos", "lures", "flashers", "queue"}
+ALLOWED_IMAGE_EXTENSIONS = {".avif", ".gif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".webp"}
+PREVIEW_DIRNAME = "_previews"
+PREVIEW_MAX_SIZE = (1200, 1200)
 
 
 DEFAULT_LOGBOOK = {
@@ -148,6 +152,12 @@ def upload_metadata_path(category: str, filename: str) -> Path:
     return upload_category_path(category) / f"{filename}.json"
 
 
+def upload_preview_path(category: str, filename: str) -> Path:
+    preview_dir = upload_category_path(category) / PREVIEW_DIRNAME
+    preview_dir.mkdir(parents=True, exist_ok=True)
+    return preview_dir / f"{Path(filename).stem}.jpg"
+
+
 def write_upload_metadata(category: str, filename: str, metadata: dict) -> None:
     upload_metadata_path(category, filename).write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
@@ -162,8 +172,24 @@ def read_upload_metadata(category: str, filename: str) -> dict:
         return {}
 
 
+def create_upload_preview(category: str, filename: str) -> str:
+    source = upload_category_path(category) / filename
+    preview = upload_preview_path(category, filename)
+    try:
+        with Image.open(source) as image:
+            image = ImageOps.exif_transpose(image)
+            image.thumbnail(PREVIEW_MAX_SIZE)
+            if image.mode not in ("RGB", "L"):
+                image = image.convert("RGB")
+            image.save(preview, "JPEG", quality=78, optimize=True)
+    except (OSError, UnidentifiedImageError):
+        return ""
+    return preview.name
+
+
 def upload_payload(category: str, filename: str, metadata: dict | None = None) -> dict:
     metadata = metadata or {}
+    preview_filename = metadata.get("previewFilename") or ""
     return {
         **metadata,
         "filename": filename,
@@ -171,6 +197,10 @@ def upload_payload(category: str, filename: str, metadata: dict | None = None) -
         "path": f"{category}/{filename}",
         "url": f"/uploads/{category}/{filename}",
         "image": f"/uploads/{category}/{filename}",
+        "previewFilename": preview_filename,
+        "previewPath": f"{category}/{PREVIEW_DIRNAME}/{preview_filename}" if preview_filename else "",
+        "previewUrl": f"/uploads/{category}/{PREVIEW_DIRNAME}/{preview_filename}" if preview_filename else "",
+        "previewImage": f"/uploads/{category}/{PREVIEW_DIRNAME}/{preview_filename}" if preview_filename else "",
     }
 
 
@@ -216,14 +246,16 @@ def create_app() -> Flask:
         upload = request.files.get("file")
         if upload is None or not upload.filename:
             return jsonify({"error": "No file uploaded"}), 400
-        if not (upload.mimetype or "").startswith("image/"):
+
+        filename = secure_filename(upload.filename) or "upload.jpg"
+        suffix = Path(filename).suffix.lower() or ".jpg"
+        if not (upload.mimetype or "").startswith("image/") and suffix not in ALLOWED_IMAGE_EXTENSIONS:
             return jsonify({"error": "Only image uploads are supported"}), 400
 
-        filename = secure_filename(upload.filename)
-        suffix = Path(filename).suffix.lower() or ".jpg"
         stored_name = f"{uuid.uuid4().hex}{suffix}"
         destination = upload_category_path(category) / stored_name
         upload.save(destination)
+        preview_filename = create_upload_preview(category, stored_name)
         metadata = request.form.get("metadata")
         try:
             metadata_payload = json.loads(metadata) if metadata else {}
@@ -233,6 +265,7 @@ def create_app() -> Flask:
             **metadata_payload,
             "name": filename,
             "mimeType": upload.mimetype,
+            "previewFilename": preview_filename,
         }
         write_upload_metadata(category, stored_name, metadata_payload)
 
@@ -270,6 +303,18 @@ def create_app() -> Flask:
         source.replace(destination)
 
         metadata = read_upload_metadata("queue", filename)
+        preview_filename = metadata.get("previewFilename") or ""
+        if preview_filename:
+            source_preview = upload_preview_path("queue", filename)
+            target_preview = upload_preview_path(target_category, target_name)
+            if source_preview.exists():
+                source_preview.replace(target_preview)
+                preview_filename = target_preview.name
+            else:
+                preview_filename = create_upload_preview(target_category, target_name)
+        else:
+            preview_filename = create_upload_preview(target_category, target_name)
+        metadata["previewFilename"] = preview_filename
         source_metadata = upload_metadata_path("queue", filename)
         if source_metadata.exists():
             source_metadata.unlink()
@@ -281,11 +326,18 @@ def create_app() -> Flask:
         safe_name = secure_filename(filename)
         photo = upload_category_path("queue") / safe_name
         metadata = upload_metadata_path("queue", safe_name)
+        preview = upload_preview_path("queue", safe_name)
         if photo.exists() and photo.is_file():
             photo.unlink()
         if metadata.exists():
             metadata.unlink()
+        if preview.exists():
+            preview.unlink()
         return jsonify({"ok": True})
+
+    @app.get("/uploads/<category>/_previews/<filename>")
+    def uploaded_preview_file(category: str, filename: str) -> Response:
+        return send_from_directory(upload_category_path(category) / PREVIEW_DIRNAME, filename)
 
     @app.get("/uploads/<category>/<filename>")
     def uploaded_file(category: str, filename: str) -> Response:

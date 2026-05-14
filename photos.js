@@ -1,0 +1,325 @@
+function getExifAscii(view, offset, count) {
+  let value = "";
+  for (let index = 0; index < count; index += 1) {
+    const charCode = view.getUint8(offset + index);
+    if (charCode) value += String.fromCharCode(charCode);
+  }
+  return value;
+}
+
+async function uploadImageFile(file, category, metadata = {}) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("metadata", JSON.stringify(metadata));
+  const response = await fetch(`/api/uploads/${category}`, {
+    method: "POST",
+    body: formData
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || "Image upload failed");
+  }
+  const payload = await response.json();
+  return {
+    ...payload,
+    image: payload.url,
+    previewImage: payload.previewUrl || payload.url
+  };
+}
+
+function getExifRational(view, offset, littleEndian) {
+  const numerator = view.getUint32(offset, littleEndian);
+  const denominator = view.getUint32(offset + 4, littleEndian);
+  return denominator ? numerator / denominator : 0;
+}
+
+function getExifValueOffset(view, tiffStart, entryOffset, type, count, littleEndian) {
+  const valueOffset = entryOffset + 8;
+  const byteCounts = {
+    1: 1,
+    2: 1,
+    3: 2,
+    4: 4,
+    5: 8
+  };
+  const totalBytes = (byteCounts[type] || 0) * count;
+  return totalBytes <= 4 ? valueOffset : tiffStart + view.getUint32(valueOffset, littleEndian);
+}
+
+function readExifIfd(view, tiffStart, ifdOffset, littleEndian) {
+  if (!ifdOffset || tiffStart + ifdOffset + 2 > view.byteLength) return new Map();
+  const entries = new Map();
+  const entryCount = view.getUint16(tiffStart + ifdOffset, littleEndian);
+  for (let index = 0; index < entryCount; index += 1) {
+    const entryOffset = tiffStart + ifdOffset + 2 + index * 12;
+    if (entryOffset + 12 > view.byteLength) break;
+    const tag = view.getUint16(entryOffset, littleEndian);
+    const type = view.getUint16(entryOffset + 2, littleEndian);
+    const count = view.getUint32(entryOffset + 4, littleEndian);
+    const valueOffset = getExifValueOffset(view, tiffStart, entryOffset, type, count, littleEndian);
+    entries.set(tag, { type, count, valueOffset });
+  }
+  return entries;
+}
+
+function exifCoordinate(view, entry, reference, littleEndian) {
+  if (!entry || entry.type !== 5 || entry.count < 3) return null;
+  const degrees = getExifRational(view, entry.valueOffset, littleEndian);
+  const minutes = getExifRational(view, entry.valueOffset + 8, littleEndian);
+  const seconds = getExifRational(view, entry.valueOffset + 16, littleEndian);
+  const sign = reference === "S" || reference === "W" ? -1 : 1;
+  return sign * (degrees + minutes / 60 + seconds / 3600);
+}
+
+function parseExifGps(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+  if (view.byteLength < 4 || view.getUint16(0) !== 0xffd8) return null;
+
+  let offset = 2;
+  while (offset + 4 < view.byteLength) {
+    if (view.getUint8(offset) !== 0xff) return null;
+    const marker = view.getUint8(offset + 1);
+    const segmentLength = view.getUint16(offset + 2);
+    if (marker === 0xe1 && getExifAscii(view, offset + 4, 6) === "Exif") {
+      const tiffStart = offset + 10;
+      const byteOrder = getExifAscii(view, tiffStart, 2);
+      const littleEndian = byteOrder === "II";
+      if (!littleEndian && byteOrder !== "MM") return null;
+      if (view.getUint16(tiffStart + 2, littleEndian) !== 42) return null;
+
+      const firstIfdOffset = view.getUint32(tiffStart + 4, littleEndian);
+      const firstIfd = readExifIfd(view, tiffStart, firstIfdOffset, littleEndian);
+      const gpsPointer = firstIfd.get(0x8825);
+      if (!gpsPointer) return null;
+
+      const gpsIfd = readExifIfd(view, tiffStart, view.getUint32(gpsPointer.valueOffset, littleEndian), littleEndian);
+      const latRefEntry = gpsIfd.get(0x0001);
+      const lonRefEntry = gpsIfd.get(0x0003);
+      const latitude = exifCoordinate(view, gpsIfd.get(0x0002), latRefEntry ? getExifAscii(view, latRefEntry.valueOffset, latRefEntry.count) : "N", littleEndian);
+      const longitude = exifCoordinate(view, gpsIfd.get(0x0004), lonRefEntry ? getExifAscii(view, lonRefEntry.valueOffset, lonRefEntry.count) : "E", littleEndian);
+      if (latitude === null || longitude === null) return null;
+      return { latitude, longitude };
+    }
+    offset += 2 + segmentLength;
+  }
+
+  return null;
+}
+
+async function extractPhotoCoordinates(file) {
+  if (!file.type || !file.type.includes("jpeg")) return null;
+  try {
+    return parseExifGps(await file.arrayBuffer());
+  } catch (error) {
+    console.warn("Could not read photo GPS metadata.", error);
+    return null;
+  }
+}
+
+async function addNotePhotos(event) {
+  const files = [...event.target.files];
+  if (!files.length) return;
+
+  try {
+    const photos = await Promise.all(files.map(async (file) => ({
+      id: createId(),
+      name: file.name,
+      caption: "",
+      ...await uploadImageFile(file, "trip-photos")
+    })));
+
+    activeNotePhotos = [...activeNotePhotos, ...photos];
+    event.target.value = "";
+    renderNotePhotos();
+  } catch (error) {
+    console.error("Could not add note photos.", error);
+    showTripFormMessage(error.message || "Those trip photos could not be uploaded.");
+  }
+}
+
+function renderNotePhotos() {
+  if (!activeNotePhotos.length) {
+    els.notePhotoGrid.innerHTML = `<div class="empty-state"><p>No note photos attached.</p></div>`;
+    return;
+  }
+
+  els.notePhotoGrid.innerHTML = activeNotePhotos.map((photo) => `
+    <article class="note-photo-card" data-note-photo="${photo.id}">
+      <img src="${previewImage(photo)}" alt="">
+      <div class="note-photo-body">
+        <input class="note-photo-caption" type="text" value="${escapeHtml(photo.caption || "")}" placeholder="Caption, like fishfinder, launch, rig" />
+        <button class="button danger remove-note-photo" type="button">Remove</button>
+      </div>
+    </article>
+  `).join("");
+}
+
+function collectNotePhotos() {
+  const captions = new Map([...els.notePhotoGrid.querySelectorAll("[data-note-photo]")].map((card) => [
+    card.dataset.notePhoto,
+    card.querySelector(".note-photo-caption").value.trim()
+  ]));
+
+  return activeNotePhotos.map((photo) => ({
+    ...photo,
+    caption: captions.get(photo.id) ?? photo.caption ?? ""
+  }));
+}
+
+async function addCatchPhotos(event) {
+  const row = event.target.closest(".catch-row");
+  const files = [...event.target.files];
+  if (!row || !files.length) return;
+
+  try {
+    const photos = await Promise.all(files.map(async (file) => {
+      const coordinates = await extractPhotoCoordinates(file);
+      return {
+        id: createId(),
+        name: file.name,
+        ...await uploadImageFile(file, "catch-photos", { coordinates }),
+        coordinates
+      };
+    }));
+
+    row.catchPhotos = [...(row.catchPhotos || []), ...photos];
+    event.target.value = "";
+    renderCatchPhotos(row);
+    updateRowSummary(row);
+  } catch (error) {
+    console.error("Could not add catch photos.", error);
+    showTripFormMessage(error.message || "Those catch photos could not be uploaded.");
+  }
+}
+
+function renderCatchPhotos(row) {
+  const grid = row.querySelector(".catch-photo-grid");
+  if (!grid) return;
+
+  const photos = row.catchPhotos || [];
+  grid.innerHTML = photos.map((photo) => `
+    <article class="catch-photo-card" data-catch-photo="${photo.id}">
+      <img src="${previewImage(photo)}" alt="">
+      <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch photo">x</button>
+      <span>${escapeHtml(photo.name || "Catch photo")}</span>
+      ${photo.coordinates ? `<small>${formatCoordinates(photo.coordinates)}</small>` : `<small>No GPS metadata</small>`}
+    </article>
+  `).join("");
+}
+
+function collectCatchPhotos(row) {
+  return (row.catchPhotos || []).map((photo) => ({ ...photo }));
+}
+
+function firstCatchCoordinates(row) {
+  return (row.catchPhotos || []).find((photo) => photo.coordinates)?.coordinates || null;
+}
+
+async function loadPhotoQueue() {
+  const response = await fetch("/api/photo-queue");
+  if (!response.ok) throw new Error("Could not load photo queue");
+  const payload = await response.json();
+  return payload.photos || [];
+}
+
+async function renderPhotoQueue() {
+  const photos = await loadPhotoQueue();
+  els.photoQueueStatus.textContent = photos.length === 1 ? "1 queued photo" : `${photos.length} queued photos`;
+  if (!photos.length) {
+    els.photoQueueGrid.innerHTML = `<div class="empty-state"><p>No queued photos. Upload from your phone, then pick them here while logging.</p></div>`;
+    return;
+  }
+
+  els.photoQueueGrid.innerHTML = photos.map((photo) => `
+    <article class="photo-queue-card" data-queue-photo="${photo.filename}">
+      <div class="photo-queue-image-wrap">
+        <img src="${previewImage(photo)}" alt="">
+        <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${photo.filename}" aria-label="Remove queued photo">x</button>
+      </div>
+      <div>
+        <strong>${escapeHtml(photo.name || "Queued photo")}</strong>
+        <span>${photo.coordinates ? escapeHtml(formatCoordinates(photo.coordinates)) : "No GPS metadata"}</span>
+      </div>
+      <div class="photo-queue-card-actions">
+        ${activePhotoQueueTarget ? `<button class="button primary" type="button" data-select-queued-photo="${photo.filename}">Use Photo</button>` : ""}
+      </div>
+    </article>
+  `).join("");
+}
+
+async function openPhotoQueue(target = null) {
+  activePhotoQueueTarget = target;
+  returnToTripDialog.queue = Boolean(target) && els.tripDialog.open;
+  if (returnToTripDialog.queue) els.tripDialog.close();
+  els.photoQueueDialog.showModal();
+  await renderPhotoQueue();
+}
+
+async function addPhotosToQueue(event) {
+  const files = [...event.target.files];
+  if (!files.length) return;
+  els.photoQueueStatus.textContent = "Uploading photos...";
+  try {
+    await Promise.all(files.map(async (file) => {
+      const coordinates = await extractPhotoCoordinates(file);
+      return uploadImageFile(file, "queue", { coordinates });
+    }));
+    event.target.value = "";
+    await renderPhotoQueue();
+  } catch (error) {
+    console.error("Could not add photos to queue.", error);
+    els.photoQueueStatus.textContent = error.message || "Photos could not be uploaded.";
+  }
+}
+
+async function claimQueuedPhoto(filename) {
+  if (!activePhotoQueueTarget) return;
+  try {
+    const response = await fetch("/api/photo-queue/claim", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename,
+        targetCategory: activePhotoQueueTarget.category
+      })
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "Could not use queued photo");
+    }
+    const photo = await response.json();
+  const photoItem = {
+    id: createId(),
+    ...photo,
+    image: photo.url,
+    previewImage: photo.previewUrl || photo.url
+  };
+
+    if (activePhotoQueueTarget.type === "catch") {
+      const row = activePhotoQueueTarget.row;
+      row.catchPhotos = [...(row.catchPhotos || []), photoItem];
+      renderCatchPhotos(row);
+      updateRowSummary(row);
+    }
+    if (activePhotoQueueTarget.type === "trip") {
+      activeNotePhotos = [...activeNotePhotos, { ...photoItem, caption: "" }];
+      renderNotePhotos();
+    }
+
+    await renderPhotoQueue();
+  } catch (error) {
+    console.error("Could not claim queued photo.", error);
+    els.photoQueueStatus.textContent = error.message || "Queued photo could not be used.";
+  }
+}
+
+async function deleteQueuedPhoto(filename) {
+  try {
+    const response = await fetch(`/api/photo-queue/${encodeURIComponent(filename)}`, { method: "DELETE" });
+    if (!response.ok) throw new Error("Could not delete queued photo");
+    await renderPhotoQueue();
+  } catch (error) {
+    console.error("Could not delete queued photo.", error);
+    els.photoQueueStatus.textContent = error.message || "Queued photo could not be deleted.";
+  }
+}

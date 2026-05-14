@@ -1,0 +1,255 @@
+function formatDate(value) {
+  if (!value) return "";
+  return new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function number(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function totalCaught(trip) {
+  return (trip.catches || []).reduce((sum, catchItem) => sum + fishCount(catchItem), 0);
+}
+
+function totalWeight(trip) {
+  return (trip.catches || []).reduce((sum, catchItem) => sum + catchWeight(catchItem), 0);
+}
+
+function catchWeight(catchItem) {
+  const weight = parseFirstNumber(catchItem?.weight);
+  return weight ? weight * fishCount(catchItem) : 0;
+}
+
+function fishCount(catchItem) {
+  if (!catchItem) return 0;
+  if (catchItem.quantity !== undefined && catchItem.quantity !== "") return Math.max(0, number(catchItem.quantity));
+  return 1;
+}
+
+function catchRate(trip) {
+  const hours = tripHours(trip);
+  return hours > 0 ? totalCaught(trip) / hours : 0;
+}
+
+function tripHours(trip) {
+  const calculated = calculateHours(trip.startTime, trip.endTime);
+  return calculated || number(trip.hours);
+}
+
+function countBy(items, getKey, getCount = () => 1) {
+  return items.reduce((map, item) => {
+    const key = getKey(item);
+    if (!key) return map;
+    map.set(key, (map.get(key) || 0) + getCount(item));
+    return map;
+  }, new Map());
+}
+
+function topEntries(map, limit = 4) {
+  return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
+}
+
+function renderBars(container, entries) {
+  container.innerHTML = "";
+  if (!entries.length) {
+    container.innerHTML = `<p class="muted">No data yet</p>`;
+    return;
+  }
+
+  const max = Math.max(...entries.map(([, count]) => count));
+  entries.forEach(([label, count]) => {
+    const row = document.createElement("div");
+    row.className = "bar-item";
+    row.innerHTML = `
+      <div class="bar-meta"><span>${escapeHtml(label)}</span><strong>${count}</strong></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(count / max) * 100}%"></div></div>
+    `;
+    container.append(row);
+  });
+}
+
+function renderStats() {
+  const allCatches = state.trips.flatMap((trip) => trip.catches || []);
+  const fish = state.trips.reduce((sum, trip) => sum + totalCaught(trip), 0);
+  const hours = state.trips.reduce((sum, trip) => sum + tripHours(trip), 0);
+  const pounds = state.trips.reduce((sum, trip) => sum + totalWeight(trip), 0);
+  const waterbodies = new Set(state.trips.map((trip) => trip.location).filter(Boolean));
+
+  els.statTrips.textContent = state.trips.length;
+  els.statFish.textContent = fish;
+  els.statHours.textContent = trimNumber(hours);
+  els.statWaterbodies.textContent = waterbodies.size;
+  els.statCatchRate.textContent = hours ? trimNumber(fish / hours) : "0";
+  els.statPoundsPerHour.textContent = hours ? trimNumber(pounds / hours) : "0";
+
+  const speciesCounts = countBy(allCatches, (item) => item.species, fishCount);
+  const lureCounts = countBy(allCatches, (item) => lureName(item.lureId), fishCount);
+  renderBars(els.speciesBars, topEntries(speciesCounts));
+  renderBars(els.lureBars, topEntries(lureCounts));
+}
+
+function renderBrandSpotlight() {
+  const photos = state.trips
+    .flatMap((trip) => (trip.notePhotos || []).map((photo) => ({
+      ...photo,
+      tripTitle: trip.title || trip.location || "Trip photo",
+      date: trip.date
+    })))
+    .filter((photo) => photo.image)
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+    .slice(0, 5);
+
+  if (!photos.length) {
+    els.brandSpotlight.innerHTML = `
+      <div class="brand-spotlight-empty">
+        <span>Trip, gear, catch, and pattern tracker</span>
+      </div>
+    `;
+    return;
+  }
+
+  els.brandSpotlight.innerHTML = `
+    <div class="spotlight-slides">
+      ${photos.map((photo, index) => `
+        <figure class="spotlight-slide" style="--slide-index:${index}; --slide-count:${photos.length};">
+          <img src="${previewImage(photo)}" alt="">
+          <figcaption>
+            <strong>${escapeHtml(photo.caption || photo.tripTitle)}</strong>
+            <span>${escapeHtml(photo.tripTitle)}</span>
+          </figcaption>
+        </figure>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderFilters() {
+  const targets = ["All targets", ...new Set(state.trips.map((trip) => trip.targetSpecies).filter(Boolean))];
+  const selectedTarget = els.targetFilter.value || "All targets";
+  els.targetFilter.innerHTML = targets.map((target) => `<option ${target === selectedTarget ? "selected" : ""}>${escapeHtml(target)}</option>`).join("");
+
+  const years = ["All years", ...new Set(state.trips.map((trip) => new Date(`${trip.date}T12:00:00`).getFullYear()).filter(Boolean))].sort((a, b) => {
+    if (a === "All years") return -1;
+    if (b === "All years") return 1;
+    return b - a;
+  });
+  const selectedYear = els.yearFilter.value || "All years";
+  els.yearFilter.innerHTML = years.map((year) => `<option ${String(year) === selectedYear ? "selected" : ""}>${year}</option>`).join("");
+}
+
+function renderStatsMethodFilter() {
+  const methods = ["All methods", ...new Set([...state.methods, ...state.trips.map((trip) => trip.method)].filter(Boolean))];
+  if (!methods.includes(activeStatsMethod)) activeStatsMethod = "All methods";
+  els.statsMethodFilter.innerHTML = methods.map((method) => (
+    `<option value="${escapeHtml(method)}" ${method === activeStatsMethod ? "selected" : ""}>${escapeHtml(method)}</option>`
+  )).join("");
+}
+
+function filteredTrips() {
+  const query = els.searchInput.value.trim().toLowerCase();
+  const target = els.targetFilter.value;
+  const year = els.yearFilter.value;
+
+  const trips = state.trips.filter((trip) => {
+    const haystack = [
+      trip.title,
+      trip.location,
+      trip.targetSpecies,
+      trip.method,
+      trip.intent,
+      tripRatingLabel(tripRatingValue(trip)),
+      ...(trip.people || []).map((person) => person.name),
+      trip.notes,
+      trip.weather,
+      trip.structure,
+      ...(trip.catches || []).flatMap((catchItem) => [catchItem.species, catchItem.notes, lureName(catchItem.lureId), flasherName(catchItem.flasherId)]),
+      ...(trip.lostFish || []).flatMap((fish) => [fish.species, fish.notes, lureName(fish.lureId), flasherName(fish.flasherId)])
+    ].join(" ").toLowerCase();
+
+    const matchesQuery = !query || haystack.includes(query);
+    const matchesTarget = target === "All targets" || trip.targetSpecies === target;
+    const matchesYear = year === "All years" || String(new Date(`${trip.date}T12:00:00`).getFullYear()) === year;
+    return matchesQuery && matchesTarget && matchesYear;
+  });
+
+  return trips.sort((a, b) => {
+    switch (els.sortSelect.value) {
+      case "date-asc":
+        return a.date.localeCompare(b.date);
+      case "catch-rate-desc":
+        return catchRate(b) - catchRate(a);
+      case "caught-desc":
+        return totalCaught(b) - totalCaught(a);
+      case "hours-desc":
+        return tripHours(b) - tripHours(a);
+      default:
+        return b.date.localeCompare(a.date);
+    }
+  });
+}
+
+function renderTrips() {
+  const trips = filteredTrips();
+  els.tripTable.innerHTML = `
+    <div class="table-row header">
+      <span>Location</span><span>Title</span><span>Date</span><span>Hours</span><span>Caught</span><span>Catch Rate</span><span>Target</span><span></span>
+    </div>
+  `;
+
+  trips.forEach((trip) => {
+    const row = document.createElement("div");
+    row.className = "table-row";
+    row.innerHTML = `
+      <button class="location-link" type="button" data-view-trip="${trip.id}">
+        ${escapeHtml(trip.location)}
+      </button>
+      <span>${escapeHtml(trip.title || "")}</span>
+      <span>${formatDate(trip.date)}</span>
+      <span>${trimNumber(tripHours(trip))}</span>
+      <span>${totalCaught(trip)}</span>
+      <span>${trimNumber(catchRate(trip))}</span>
+      <span>
+        <span class="target-pill">${escapeHtml(trip.targetSpecies)}</span>
+        <span class="intent-pill ${tripIntent(trip) === "experimental" ? "experimental" : ""}">${escapeHtml(intentLabel(tripIntent(trip)))}</span>
+        <span class="rating-pill ${escapeHtml(tripRatingClass(tripRatingValue(trip)))}">${escapeHtml(tripRatingLabel(tripRatingValue(trip)))}</span>
+      </span>
+      <button class="row-button" type="button" data-view-trip="${trip.id}" aria-label="Open trip">&gt;</button>
+    `;
+    els.tripTable.append(row);
+  });
+
+  els.emptyState.classList.toggle("hidden", trips.length > 0);
+}
+
+function renderSelectOptions() {
+  populateDatalist(document.querySelector("#locationOptions"), state.locations);
+  populateOptionSelect(document.querySelector("#targetSpecies"), state.species, "Select target species");
+  populateOptionSelect(document.querySelector("#method"), state.methods, "Select method");
+  populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
+  populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
+  document.querySelectorAll(".catch-species").forEach((select) => populateOptionSelect(select, state.species, "Select species"));
+}
+
+function populateDatalist(datalist, options) {
+  datalist.innerHTML = options.map((item) => `<option value="${escapeHtml(item)}"></option>`).join("");
+}
+
+function populateOptionSelect(select, options, placeholder) {
+  const current = select.value;
+  select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` + options.map((item) => (
+    `<option value="${escapeHtml(item)}" ${item === current ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
+}
+
+function renderAll() {
+  renderSelectOptions();
+  renderFilters();
+  renderStatsMethodFilter();
+  renderBrandSpotlight();
+  renderStats();
+  renderTrips();
+  renderAdvancedStats();
+  renderGearLibrary();
+  updateAllRowSummaries();
+}

@@ -10,7 +10,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY server.py index.html styles.css app.js ./
+COPY server.py index.html styles.css ./
+COPY *.js ./
 RUN mkdir -p data/uploads
 
 EXPOSE 8080

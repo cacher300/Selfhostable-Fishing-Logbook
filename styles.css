@@ -853,17 +853,44 @@ textarea[aria-invalid="true"] {
 }
 
 .photo-queue-card {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
 }
 
-.photo-queue-card img {
+.photo-queue-image-wrap {
+  position: relative;
+  padding: 0;
+}
+
+.photo-queue-card .photo-queue-image-wrap {
+  padding: 0;
+}
+
+.photo-queue-image-wrap img {
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border-bottom: 1px solid var(--line);
+}
+
+.photo-queue-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  border-color: rgba(11, 18, 32, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--danger);
+  box-shadow: 0 8px 18px rgba(11, 18, 32, 0.16);
+}
+
+.photo-queue-remove:hover {
+  background: #fff;
+  border-color: rgba(194, 65, 12, 0.36);
 }
 
 .photo-queue-card div {

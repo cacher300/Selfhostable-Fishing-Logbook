@@ -80,17 +80,13 @@ Your data is saved here:
 data/logbook.json
 ```
 
-`data/logbook.json` is intentionally ignored by git so your private fishing data, saved people, locations, notes, and photos do not get pushed to GitHub. A clean starter file is included at:
-
-```text
-data/logbook.example.json
-```
+`data/logbook.json` is intentionally ignored by git so your private fishing data, saved people, locations, notes, and photo metadata do not get pushed to GitHub.
 
 If you ever clone the repo onto a new machine, run the app once and it will create `data/logbook.json` automatically.
 
 ## Backups
 
-Use the Data menu in the app to export a JSON backup. The export contains trips, lures, flashers, setup timeline entries, catches, and photo metadata. Uploaded image files are stored separately under `data/uploads/`, so use the backup script below for a complete backup.
+Use the Data menu in the app to export a JSON backup. The export contains trips, lures, flashers, setup timeline entries, catches, and photo metadata. Uploaded image files are stored separately under `data/uploads/`, with lower-resolution previews in each category's `_previews/` folder for faster loading, so use the backup script below for a complete backup.
 
 For a manual backup, copy:
 
