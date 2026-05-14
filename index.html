@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Detailed Fishing Logbook</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -52,7 +53,9 @@
           <div class="topbar-actions">
             <button class="button secondary" id="tripsViewButton" type="button">Trips</button>
             <button class="button secondary" id="statsViewButton" type="button">Advanced Stats</button>
+            <button class="button secondary" id="mapViewButton" type="button">Map</button>
             <button class="button secondary" id="gearViewButton" type="button">Gear</button>
+            <button class="button secondary" id="photoQueueButton" type="button">Photo Queue</button>
             <details class="data-menu">
               <summary class="button secondary">Data</summary>
               <div class="data-menu-panel">
@@ -188,6 +191,24 @@
           </div>
         </section>
 
+        <section class="map-page hidden" id="mapPanel" aria-label="Fish catch map">
+          <div class="map-header">
+            <div>
+              <p class="eyebrow">Photo GPS</p>
+              <h3>Fish Map</h3>
+            </div>
+            <div class="map-tools">
+              <label>
+                <span>Species</span>
+                <select id="mapSpeciesFilter"></select>
+              </label>
+              <span id="mapSummary" class="map-summary">No geotagged fish yet</span>
+            </div>
+          </div>
+          <div id="fishMap" class="fish-map"></div>
+          <div id="mapCatchList" class="map-catch-list"></div>
+        </section>
+
         <section class="gear-page hidden" id="gearPanel" aria-label="Saved lure and flasher library">
           <div class="gear-header">
             <div>
@@ -209,6 +230,26 @@
         </section>
       </main>
     </div>
+
+    <dialog id="tripSummaryDialog" class="dialog trip-summary-dialog">
+      <div class="trip-summary-shell">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Trip summary</p>
+            <h2 id="tripSummaryTitle">Trip Summary</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close">x</button>
+        </div>
+        <div id="tripSummaryBody" class="trip-summary-body"></div>
+        <div class="dialog-actions">
+          <button class="button danger" id="summaryDeleteTripButton" type="button">Delete</button>
+          <div>
+            <button class="button secondary" type="button" data-close-dialog>Close</button>
+            <button class="button primary" id="summaryEditTripButton" type="button">Edit Trip</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
 
     <dialog id="tripDialog" class="dialog">
       <form id="tripForm" method="dialog" novalidate>
@@ -309,6 +350,7 @@
               Add Photos
               <input id="notePhotoInput" type="file" accept="image/*" multiple />
             </label>
+            <button class="button secondary" type="button" data-use-photo-queue="trip-photos">Use Queue</button>
           </div>
           <div id="notePhotoGrid" class="note-photo-grid"></div>
         </section>
@@ -353,6 +395,29 @@
           </div>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="photoQueueDialog" class="dialog">
+      <div class="photo-queue-shell">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Phone photo dump</p>
+            <h2>Photo Queue</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close">x</button>
+        </div>
+        <div class="photo-queue-actions">
+          <label class="button primary file-button">
+            Upload to Queue
+            <input id="photoQueueInput" type="file" accept="image/*" multiple />
+          </label>
+          <span id="photoQueueStatus" class="map-summary">No queued photos loaded</span>
+        </div>
+        <div id="photoQueueGrid" class="photo-queue-grid"></div>
+        <div class="dialog-actions end-only">
+          <button class="button secondary" type="button" data-close-dialog>Close</button>
+        </div>
+      </div>
     </dialog>
 
     <dialog id="lureDialog" class="dialog small-dialog">
@@ -569,6 +634,7 @@
               Add Photos
               <input class="catch-photo-input" type="file" accept="image/*" multiple />
             </label>
+            <button class="button secondary use-catch-photo-queue" type="button">Use Queue</button>
             <div class="catch-photo-grid"></div>
           </div>
         </div>
@@ -665,6 +731,7 @@
       </article>
     </template>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -2,17 +2,21 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from copy import deepcopy
 from pathlib import Path
 
 from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
+from werkzeug.utils import secure_filename
 
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 DATA_FILE = DATA_DIR / "logbook.json"
+UPLOADS_DIR = DATA_DIR / "uploads"
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8080"))
+UPLOAD_CATEGORIES = {"catch-photos", "trip-photos", "lures", "flashers", "queue"}
 
 
 DEFAULT_LOGBOOK = {
@@ -126,11 +130,48 @@ def read_logbook() -> dict:
 
     return normalize_logbook(loaded)
 
-
 def write_logbook(payload: dict) -> None:
     DATA_DIR.mkdir(exist_ok=True)
     with DATA_FILE.open("w", encoding="utf-8") as file:
         json.dump(normalize_logbook(payload), file, indent=2)
+
+
+def upload_category_path(category: str) -> Path:
+    if category not in UPLOAD_CATEGORIES:
+        abort(404)
+    path = UPLOADS_DIR / category
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def upload_metadata_path(category: str, filename: str) -> Path:
+    return upload_category_path(category) / f"{filename}.json"
+
+
+def write_upload_metadata(category: str, filename: str, metadata: dict) -> None:
+    upload_metadata_path(category, filename).write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+
+def read_upload_metadata(category: str, filename: str) -> dict:
+    metadata_path = upload_metadata_path(category, filename)
+    if not metadata_path.exists():
+        return {}
+    try:
+        return json.loads(metadata_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def upload_payload(category: str, filename: str, metadata: dict | None = None) -> dict:
+    metadata = metadata or {}
+    return {
+        **metadata,
+        "filename": filename,
+        "name": metadata.get("name") or filename,
+        "path": f"{category}/{filename}",
+        "url": f"/uploads/{category}/{filename}",
+        "image": f"/uploads/{category}/{filename}",
+    }
 
 
 def validate_logbook(payload: object) -> tuple[bool, str | None]:
@@ -168,6 +209,87 @@ def create_app() -> Flask:
 
         write_logbook(normalize_logbook(payload))
         return jsonify({"ok": True})
+
+    @app.post("/api/uploads/<category>")
+    def upload_photo(category: str) -> tuple[Response, int] | Response:
+        upload_category_path(category)
+        upload = request.files.get("file")
+        if upload is None or not upload.filename:
+            return jsonify({"error": "No file uploaded"}), 400
+        if not (upload.mimetype or "").startswith("image/"):
+            return jsonify({"error": "Only image uploads are supported"}), 400
+
+        filename = secure_filename(upload.filename)
+        suffix = Path(filename).suffix.lower() or ".jpg"
+        stored_name = f"{uuid.uuid4().hex}{suffix}"
+        destination = upload_category_path(category) / stored_name
+        upload.save(destination)
+        metadata = request.form.get("metadata")
+        try:
+            metadata_payload = json.loads(metadata) if metadata else {}
+        except json.JSONDecodeError:
+            metadata_payload = {}
+        metadata_payload = {
+            **metadata_payload,
+            "name": filename,
+            "mimeType": upload.mimetype,
+        }
+        write_upload_metadata(category, stored_name, metadata_payload)
+
+        return jsonify(upload_payload(category, stored_name, metadata_payload))
+
+    @app.get("/api/photo-queue")
+    def list_photo_queue() -> Response:
+        queue_dir = upload_category_path("queue")
+        items = []
+        for file_path in queue_dir.iterdir():
+            if not file_path.is_file() or file_path.suffix == ".json":
+                continue
+            metadata = read_upload_metadata("queue", file_path.name)
+            items.append({
+                **upload_payload("queue", file_path.name, metadata),
+                "modified": file_path.stat().st_mtime,
+            })
+        items.sort(key=lambda item: item["modified"], reverse=True)
+        return jsonify({"photos": items})
+
+    @app.post("/api/photo-queue/claim")
+    def claim_photo_queue_item() -> tuple[Response, int] | Response:
+        payload = request.get_json(silent=True) or {}
+        filename = secure_filename(str(payload.get("filename", "")))
+        target_category = str(payload.get("targetCategory", ""))
+        if target_category not in UPLOAD_CATEGORIES or target_category == "queue":
+            return jsonify({"error": "Invalid target category"}), 400
+        source = upload_category_path("queue") / filename
+        if not filename or not source.exists() or not source.is_file():
+            return jsonify({"error": "Queued photo not found"}), 404
+
+        suffix = source.suffix.lower() or ".jpg"
+        target_name = f"{uuid.uuid4().hex}{suffix}"
+        destination = upload_category_path(target_category) / target_name
+        source.replace(destination)
+
+        metadata = read_upload_metadata("queue", filename)
+        source_metadata = upload_metadata_path("queue", filename)
+        if source_metadata.exists():
+            source_metadata.unlink()
+        write_upload_metadata(target_category, target_name, metadata)
+        return jsonify(upload_payload(target_category, target_name, metadata))
+
+    @app.delete("/api/photo-queue/<filename>")
+    def delete_photo_queue_item(filename: str) -> Response:
+        safe_name = secure_filename(filename)
+        photo = upload_category_path("queue") / safe_name
+        metadata = upload_metadata_path("queue", safe_name)
+        if photo.exists() and photo.is_file():
+            photo.unlink()
+        if metadata.exists():
+            metadata.unlink()
+        return jsonify({"ok": True})
+
+    @app.get("/uploads/<category>/<filename>")
+    def uploaded_file(category: str, filename: str) -> Response:
+        return send_from_directory(upload_category_path(category), filename)
 
     @app.get("/api/export")
     def export_logbook() -> Response:

@@ -69,11 +69,19 @@ const defaults = {
 
 let state = structuredClone(defaults);
 let activeTripId = null;
+let activeSummaryTripId = null;
 let activeNotePhotos = [];
 let activeStatsMethod = "All methods";
+let activeMapSpecies = "All species";
+let fishMap = null;
+let fishMapMarkers = null;
+let tripSummaryMap = null;
+let tripSummaryMapMarkers = null;
+let activePhotoQueueTarget = null;
 const returnToTripDialog = {
   lure: false,
-  flasher: false
+  flasher: false,
+  queue: false
 };
 
 const els = {
@@ -90,6 +98,11 @@ const els = {
   tripControls: document.querySelector("#tripControls"),
   tripListPanel: document.querySelector("#tripListPanel"),
   advancedStatsPanel: document.querySelector("#advancedStatsPanel"),
+  mapPanel: document.querySelector("#mapPanel"),
+  fishMap: document.querySelector("#fishMap"),
+  mapSummary: document.querySelector("#mapSummary"),
+  mapCatchList: document.querySelector("#mapCatchList"),
+  mapSpeciesFilter: document.querySelector("#mapSpeciesFilter"),
   statsMethodFilter: document.querySelector("#statsMethodFilter"),
   advancedMetricGrid: document.querySelector("#advancedMetricGrid"),
   outcomeStatsTable: document.querySelector("#outcomeStatsTable"),
@@ -119,11 +132,22 @@ const els = {
   newTripButton: document.querySelector("#newTripButton"),
   tripsViewButton: document.querySelector("#tripsViewButton"),
   statsViewButton: document.querySelector("#statsViewButton"),
+  mapViewButton: document.querySelector("#mapViewButton"),
   gearViewButton: document.querySelector("#gearViewButton"),
   newLibraryLureButton: document.querySelector("#newLibraryLureButton"),
   newLibraryFlasherButton: document.querySelector("#newLibraryFlasherButton"),
+  photoQueueButton: document.querySelector("#photoQueueButton"),
+  photoQueueDialog: document.querySelector("#photoQueueDialog"),
+  photoQueueInput: document.querySelector("#photoQueueInput"),
+  photoQueueGrid: document.querySelector("#photoQueueGrid"),
+  photoQueueStatus: document.querySelector("#photoQueueStatus"),
   exportButton: document.querySelector("#exportButton"),
   importInput: document.querySelector("#importInput"),
+  tripSummaryDialog: document.querySelector("#tripSummaryDialog"),
+  tripSummaryTitle: document.querySelector("#tripSummaryTitle"),
+  tripSummaryBody: document.querySelector("#tripSummaryBody"),
+  summaryEditTripButton: document.querySelector("#summaryEditTripButton"),
+  summaryDeleteTripButton: document.querySelector("#summaryDeleteTripButton"),
   tripDialog: document.querySelector("#tripDialog"),
   tripForm: document.querySelector("#tripForm"),
   tripFormMessage: document.querySelector("#tripFormMessage"),
@@ -411,7 +435,7 @@ function renderTrips() {
     const row = document.createElement("div");
     row.className = "table-row";
     row.innerHTML = `
-      <button class="location-link" type="button" data-edit-trip="${trip.id}">
+      <button class="location-link" type="button" data-view-trip="${trip.id}">
         ${escapeHtml(trip.location)}
       </button>
       <span>${escapeHtml(trip.title || "")}</span>
@@ -424,7 +448,7 @@ function renderTrips() {
         <span class="intent-pill ${tripIntent(trip) === "experimental" ? "experimental" : ""}">${escapeHtml(intentLabel(tripIntent(trip)))}</span>
         <span class="rating-pill ${escapeHtml(tripRatingClass(tripRatingValue(trip)))}">${escapeHtml(tripRatingLabel(tripRatingValue(trip)))}</span>
       </span>
-      <button class="row-button" type="button" data-edit-trip="${trip.id}" aria-label="Open trip">&gt;</button>
+      <button class="row-button" type="button" data-view-trip="${trip.id}" aria-label="Open trip">&gt;</button>
     `;
     els.tripTable.append(row);
   });
@@ -857,6 +881,7 @@ function collectTripFromForm() {
       lineOut: trolling ? row.querySelector(".catch-line-out").value.trim() : "",
       estimatedDepth: trolling ? row.querySelector(".catch-estimated-depth").value.trim() : "",
       notes: row.querySelector(".catch-notes").value.trim(),
+      coordinates: firstCatchCoordinates(row),
       photos: collectCatchPhotos(row)
     }))
     .filter((item) => item.species || item.lureId || item.flasherId || item.notes || item.photos.length);
@@ -940,7 +965,7 @@ async function saveLure(event) {
   const editingId = getValue("editingLureId");
   const existing = state.lures.find((item) => item.id === editingId);
   const imageFile = document.querySelector("#lureImage").files[0];
-  const image = imageFile ? await fileToDataUrl(imageFile) : existing?.image || "";
+  const uploadedImage = imageFile ? await uploadImageFile(imageFile, "lures") : null;
   const lure = {
     id: editingId || createId(),
     name: getValue("lureName"),
@@ -948,7 +973,9 @@ async function saveLure(event) {
     brand: getValue("lureBrand"),
     color: getValue("lureColor"),
     notes: getValue("lureNotes"),
-    image
+    image: uploadedImage?.image || existing?.image || "",
+    imagePath: uploadedImage?.path || existing?.imagePath || "",
+    imageFilename: uploadedImage?.filename || existing?.imageFilename || ""
   };
 
   const lureIndex = state.lures.findIndex((item) => item.id === lure.id);
@@ -974,7 +1001,7 @@ async function saveFlasher(event) {
   const editingId = getValue("editingFlasherId");
   const existing = state.flashers.find((item) => item.id === editingId);
   const imageFile = document.querySelector("#flasherImage").files[0];
-  const image = imageFile ? await fileToDataUrl(imageFile) : existing?.image || "";
+  const uploadedImage = imageFile ? await uploadImageFile(imageFile, "flashers") : null;
   const flasher = {
     id: editingId || createId(),
     name: getValue("flasherName"),
@@ -982,7 +1009,9 @@ async function saveFlasher(event) {
     brand: getValue("flasherBrand"),
     color: getValue("flasherColor"),
     notes: getValue("flasherNotes"),
-    image
+    image: uploadedImage?.image || existing?.image || "",
+    imagePath: uploadedImage?.path || existing?.imagePath || "",
+    imageFilename: uploadedImage?.filename || existing?.imageFilename || ""
   };
 
   const flasherIndex = state.flashers.findIndex((item) => item.id === flasher.id);
@@ -1003,13 +1032,121 @@ async function saveFlasher(event) {
   renderAll();
 }
 
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+function getExifAscii(view, offset, count) {
+  let value = "";
+  for (let index = 0; index < count; index += 1) {
+    const charCode = view.getUint8(offset + index);
+    if (charCode) value += String.fromCharCode(charCode);
+  }
+  return value;
+}
+
+async function uploadImageFile(file, category, metadata = {}) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("metadata", JSON.stringify(metadata));
+  const response = await fetch(`/api/uploads/${category}`, {
+    method: "POST",
+    body: formData
   });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || "Image upload failed");
+  }
+  const payload = await response.json();
+  return {
+    ...payload,
+    image: payload.url
+  };
+}
+
+function getExifRational(view, offset, littleEndian) {
+  const numerator = view.getUint32(offset, littleEndian);
+  const denominator = view.getUint32(offset + 4, littleEndian);
+  return denominator ? numerator / denominator : 0;
+}
+
+function getExifValueOffset(view, tiffStart, entryOffset, type, count, littleEndian) {
+  const valueOffset = entryOffset + 8;
+  const byteCounts = {
+    1: 1,
+    2: 1,
+    3: 2,
+    4: 4,
+    5: 8
+  };
+  const totalBytes = (byteCounts[type] || 0) * count;
+  return totalBytes <= 4 ? valueOffset : tiffStart + view.getUint32(valueOffset, littleEndian);
+}
+
+function readExifIfd(view, tiffStart, ifdOffset, littleEndian) {
+  if (!ifdOffset || tiffStart + ifdOffset + 2 > view.byteLength) return new Map();
+  const entries = new Map();
+  const entryCount = view.getUint16(tiffStart + ifdOffset, littleEndian);
+  for (let index = 0; index < entryCount; index += 1) {
+    const entryOffset = tiffStart + ifdOffset + 2 + index * 12;
+    if (entryOffset + 12 > view.byteLength) break;
+    const tag = view.getUint16(entryOffset, littleEndian);
+    const type = view.getUint16(entryOffset + 2, littleEndian);
+    const count = view.getUint32(entryOffset + 4, littleEndian);
+    const valueOffset = getExifValueOffset(view, tiffStart, entryOffset, type, count, littleEndian);
+    entries.set(tag, { type, count, valueOffset });
+  }
+  return entries;
+}
+
+function exifCoordinate(view, entry, reference, littleEndian) {
+  if (!entry || entry.type !== 5 || entry.count < 3) return null;
+  const degrees = getExifRational(view, entry.valueOffset, littleEndian);
+  const minutes = getExifRational(view, entry.valueOffset + 8, littleEndian);
+  const seconds = getExifRational(view, entry.valueOffset + 16, littleEndian);
+  const sign = reference === "S" || reference === "W" ? -1 : 1;
+  return sign * (degrees + minutes / 60 + seconds / 3600);
+}
+
+function parseExifGps(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+  if (view.byteLength < 4 || view.getUint16(0) !== 0xffd8) return null;
+
+  let offset = 2;
+  while (offset + 4 < view.byteLength) {
+    if (view.getUint8(offset) !== 0xff) return null;
+    const marker = view.getUint8(offset + 1);
+    const segmentLength = view.getUint16(offset + 2);
+    if (marker === 0xe1 && getExifAscii(view, offset + 4, 6) === "Exif") {
+      const tiffStart = offset + 10;
+      const byteOrder = getExifAscii(view, tiffStart, 2);
+      const littleEndian = byteOrder === "II";
+      if (!littleEndian && byteOrder !== "MM") return null;
+      if (view.getUint16(tiffStart + 2, littleEndian) !== 42) return null;
+
+      const firstIfdOffset = view.getUint32(tiffStart + 4, littleEndian);
+      const firstIfd = readExifIfd(view, tiffStart, firstIfdOffset, littleEndian);
+      const gpsPointer = firstIfd.get(0x8825);
+      if (!gpsPointer) return null;
+
+      const gpsIfd = readExifIfd(view, tiffStart, view.getUint32(gpsPointer.valueOffset, littleEndian), littleEndian);
+      const latRefEntry = gpsIfd.get(0x0001);
+      const lonRefEntry = gpsIfd.get(0x0003);
+      const latitude = exifCoordinate(view, gpsIfd.get(0x0002), latRefEntry ? getExifAscii(view, latRefEntry.valueOffset, latRefEntry.count) : "N", littleEndian);
+      const longitude = exifCoordinate(view, gpsIfd.get(0x0004), lonRefEntry ? getExifAscii(view, lonRefEntry.valueOffset, lonRefEntry.count) : "E", littleEndian);
+      if (latitude === null || longitude === null) return null;
+      return { latitude, longitude };
+    }
+    offset += 2 + segmentLength;
+  }
+
+  return null;
+}
+
+async function extractPhotoCoordinates(file) {
+  if (!file.type || !file.type.includes("jpeg")) return null;
+  try {
+    return parseExifGps(await file.arrayBuffer());
+  } catch (error) {
+    console.warn("Could not read photo GPS metadata.", error);
+    return null;
+  }
 }
 
 async function addNotePhotos(event) {
@@ -1020,7 +1157,7 @@ async function addNotePhotos(event) {
     id: createId(),
     name: file.name,
     caption: "",
-    image: await fileToDataUrl(file)
+    ...await uploadImageFile(file, "trip-photos")
   })));
 
   activeNotePhotos = [...activeNotePhotos, ...photos];
@@ -1062,11 +1199,15 @@ async function addCatchPhotos(event) {
   const files = [...event.target.files];
   if (!row || !files.length) return;
 
-  const photos = await Promise.all(files.map(async (file) => ({
-    id: createId(),
-    name: file.name,
-    image: await fileToDataUrl(file)
-  })));
+  const photos = await Promise.all(files.map(async (file) => {
+    const coordinates = await extractPhotoCoordinates(file);
+    return {
+      id: createId(),
+      name: file.name,
+      ...await uploadImageFile(file, "catch-photos", { coordinates }),
+      coordinates
+    };
+  }));
 
   row.catchPhotos = [...(row.catchPhotos || []), ...photos];
   event.target.value = "";
@@ -1084,12 +1225,104 @@ function renderCatchPhotos(row) {
       <img src="${photo.image}" alt="">
       <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch photo">x</button>
       <span>${escapeHtml(photo.name || "Catch photo")}</span>
+      ${photo.coordinates ? `<small>${formatCoordinates(photo.coordinates)}</small>` : `<small>No GPS metadata</small>`}
     </article>
   `).join("");
 }
 
 function collectCatchPhotos(row) {
   return (row.catchPhotos || []).map((photo) => ({ ...photo }));
+}
+
+function firstCatchCoordinates(row) {
+  return (row.catchPhotos || []).find((photo) => photo.coordinates)?.coordinates || null;
+}
+
+async function loadPhotoQueue() {
+  const response = await fetch("/api/photo-queue");
+  if (!response.ok) throw new Error("Could not load photo queue");
+  const payload = await response.json();
+  return payload.photos || [];
+}
+
+async function renderPhotoQueue() {
+  const photos = await loadPhotoQueue();
+  els.photoQueueStatus.textContent = photos.length === 1 ? "1 queued photo" : `${photos.length} queued photos`;
+  if (!photos.length) {
+    els.photoQueueGrid.innerHTML = `<div class="empty-state"><p>No queued photos. Upload from your phone, then pick them here while logging.</p></div>`;
+    return;
+  }
+
+  els.photoQueueGrid.innerHTML = photos.map((photo) => `
+    <article class="photo-queue-card" data-queue-photo="${photo.filename}">
+      <img src="${photo.image}" alt="">
+      <div>
+        <strong>${escapeHtml(photo.name || "Queued photo")}</strong>
+        <span>${photo.coordinates ? escapeHtml(formatCoordinates(photo.coordinates)) : "No GPS metadata"}</span>
+      </div>
+      <div class="photo-queue-card-actions">
+        ${activePhotoQueueTarget ? `<button class="button primary" type="button" data-select-queued-photo="${photo.filename}">Use Photo</button>` : ""}
+        <button class="button danger" type="button" data-delete-queued-photo="${photo.filename}">Delete</button>
+      </div>
+    </article>
+  `).join("");
+}
+
+async function openPhotoQueue(target = null) {
+  activePhotoQueueTarget = target;
+  returnToTripDialog.queue = Boolean(target) && els.tripDialog.open;
+  if (returnToTripDialog.queue) els.tripDialog.close();
+  els.photoQueueDialog.showModal();
+  await renderPhotoQueue();
+}
+
+async function addPhotosToQueue(event) {
+  const files = [...event.target.files];
+  if (!files.length) return;
+  els.photoQueueStatus.textContent = "Uploading photos...";
+  await Promise.all(files.map(async (file) => {
+    const coordinates = await extractPhotoCoordinates(file);
+    return uploadImageFile(file, "queue", { coordinates });
+  }));
+  event.target.value = "";
+  await renderPhotoQueue();
+}
+
+async function claimQueuedPhoto(filename) {
+  if (!activePhotoQueueTarget) return;
+  const response = await fetch("/api/photo-queue/claim", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      filename,
+      targetCategory: activePhotoQueueTarget.category
+    })
+  });
+  if (!response.ok) throw new Error("Could not use queued photo");
+  const photo = await response.json();
+  const photoItem = {
+    id: createId(),
+    ...photo,
+    image: photo.url
+  };
+
+  if (activePhotoQueueTarget.type === "catch") {
+    const row = activePhotoQueueTarget.row;
+    row.catchPhotos = [...(row.catchPhotos || []), photoItem];
+    renderCatchPhotos(row);
+    updateRowSummary(row);
+  }
+  if (activePhotoQueueTarget.type === "trip") {
+    activeNotePhotos = [...activeNotePhotos, { ...photoItem, caption: "" }];
+    renderNotePhotos();
+  }
+
+  await renderPhotoQueue();
+}
+
+async function deleteQueuedPhoto(filename) {
+  await fetch(`/api/photo-queue/${encodeURIComponent(filename)}`, { method: "DELETE" });
+  await renderPhotoQueue();
 }
 
 function lureName(id) {
@@ -1100,6 +1333,11 @@ function lureName(id) {
 function flasherName(id) {
   if (!id) return "";
   return state.flashers.find((flasher) => flasher.id === id)?.name || "";
+}
+
+function formatCoordinates(coordinates) {
+  if (!coordinates) return "";
+  return `${Number(coordinates.latitude).toFixed(5)}, ${Number(coordinates.longitude).toFixed(5)}`;
 }
 
 function renderLurePreview(row) {
@@ -1270,6 +1508,339 @@ function renderGearGrid(container, items, type) {
       </article>
     `;
   }).join("");
+}
+
+function catchMapRecords() {
+  return state.trips.flatMap((trip) => (trip.catches || []).map((catchItem, catchIndex) => {
+    const photoWithCoordinates = (catchItem.photos || []).find((photo) => photo.coordinates);
+    const coordinates = catchItem.coordinates || photoWithCoordinates?.coordinates;
+    if (!coordinates) return null;
+    return {
+      id: catchItem.id || `${trip.id}-${catchIndex}`,
+      trip,
+      catchItem,
+      photo: photoWithCoordinates,
+      coordinates
+    };
+  })).filter(Boolean);
+}
+
+const speciesMarkerColors = [
+  "#0b6e43",
+  "#2763a7",
+  "#bc2f2f",
+  "#9a5b00",
+  "#6f42c1",
+  "#087990",
+  "#b4236b",
+  "#4d7c0f",
+  "#795548",
+  "#344054"
+];
+
+function speciesColor(species = "Fish") {
+  const value = species || "Fish";
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return speciesMarkerColors[hash % speciesMarkerColors.length];
+}
+
+function addSpeciesMarker(layerGroup, record) {
+  const color = speciesColor(record.catchItem.species);
+  return L.circleMarker([record.coordinates.latitude, record.coordinates.longitude], {
+    radius: 8,
+    color,
+    fillColor: color,
+    fillOpacity: 0.86,
+    weight: 2
+  }).bindPopup(mapPopupHtml(record)).addTo(layerGroup);
+}
+
+function mapSpeciesOptions(records) {
+  return ["All species", ...new Set(records.map((record) => record.catchItem.species || "Unknown species"))];
+}
+
+function renderMapSpeciesFilter(records) {
+  const options = mapSpeciesOptions(records);
+  if (!options.includes(activeMapSpecies)) activeMapSpecies = "All species";
+  els.mapSpeciesFilter.innerHTML = options.map((option) => (
+    `<option value="${escapeHtml(option)}" ${option === activeMapSpecies ? "selected" : ""}>${escapeHtml(option)}</option>`
+  )).join("");
+}
+
+function filteredMapRecords(records) {
+  if (activeMapSpecies === "All species") return records;
+  return records.filter((record) => (record.catchItem.species || "Unknown species") === activeMapSpecies);
+}
+
+function renderMapLegend(records) {
+  const species = mapSpeciesOptions(records).slice(1);
+  if (!species.length) return "";
+  return `
+    <div class="map-legend">
+      ${species.map((name) => `
+        <span><i style="--pin-color:${speciesColor(name)}"></i>${escapeHtml(name)}</span>
+      `).join("")}
+    </div>
+  `;
+}
+
+function mapPopupHtml(record) {
+  const { catchItem, trip, photo, coordinates } = record;
+  const title = [catchItem.species || "Fish", trip.location].filter(Boolean).join(" at ");
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`;
+  return `
+    <div class="map-popup">
+      ${photo?.image ? `<img src="${photo.image}" alt="">` : ""}
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(formatDate(trip.date))}</span>
+      <span>${escapeHtml(formatCoordinates(coordinates))}</span>
+      <a href="${mapsUrl}" target="_blank" rel="noreferrer">Open in Maps</a>
+    </div>
+  `;
+}
+
+function renderMapList(records) {
+  if (!records.length) {
+    els.mapCatchList.innerHTML = `<div class="empty-state"><p>No geotagged fish match this filter.</p></div>`;
+    return;
+  }
+
+  els.mapCatchList.innerHTML = records.map((record) => {
+    const { catchItem, trip, photo, coordinates } = record;
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`;
+    return `
+      <article class="map-catch-card">
+        ${photo?.image ? `<img src="${photo.image}" alt="">` : ""}
+        <div>
+          <strong>${escapeHtml(catchItem.species || "Fish")}</strong>
+          <span>${escapeHtml([formatDate(trip.date), trip.location].filter(Boolean).join(" / "))}</span>
+          <span>${escapeHtml(formatCoordinates(coordinates))}</span>
+          <a href="${mapsUrl}" target="_blank" rel="noreferrer">Open in Maps</a>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderFishMap() {
+  const allRecords = catchMapRecords();
+  renderMapSpeciesFilter(allRecords);
+  const records = filteredMapRecords(allRecords);
+  const totalText = allRecords.length === 1 ? "1 geotagged fish" : `${allRecords.length} geotagged fish`;
+  const filteredText = records.length === allRecords.length ? totalText : `${records.length} shown of ${totalText}`;
+  els.mapSummary.textContent = filteredText;
+  renderMapList(records);
+  els.mapCatchList.insertAdjacentHTML("afterbegin", renderMapLegend(allRecords));
+
+  if (!window.L) {
+    els.fishMap.innerHTML = `<div class="empty-state"><p>Map tiles are unavailable, but saved GPS coordinates are listed below.</p></div>`;
+    return;
+  }
+
+  if (!fishMap) {
+    fishMap = L.map(els.fishMap);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(fishMap);
+    fishMapMarkers = L.layerGroup().addTo(fishMap);
+  }
+
+  fishMapMarkers.clearLayers();
+  if (!records.length) {
+    fishMap.setView([43.8, -79.5], 6);
+    return;
+  }
+
+  const bounds = [];
+  records.forEach((record) => {
+    const point = [record.coordinates.latitude, record.coordinates.longitude];
+    bounds.push(point);
+    addSpeciesMarker(fishMapMarkers, record);
+  });
+
+  if (bounds.length === 1) fishMap.setView(bounds[0], 13);
+  else fishMap.fitBounds(bounds, { padding: [28, 28] });
+  setTimeout(() => fishMap.invalidateSize(), 0);
+}
+
+function catchMapRecordsForTrip(trip) {
+  return (trip.catches || []).map((catchItem, catchIndex) => {
+    const photoWithCoordinates = (catchItem.photos || []).find((photo) => photo.coordinates);
+    const coordinates = catchItem.coordinates || photoWithCoordinates?.coordinates;
+    if (!coordinates) return null;
+    return {
+      id: catchItem.id || `${trip.id}-${catchIndex}`,
+      trip,
+      catchItem,
+      photo: photoWithCoordinates,
+      coordinates
+    };
+  }).filter(Boolean);
+}
+
+function renderTripSummaryMap(trip) {
+  const mapNode = document.querySelector("#tripSummaryMap");
+  if (!mapNode) return;
+  const records = catchMapRecordsForTrip(trip);
+
+  if (!window.L) {
+    mapNode.innerHTML = `<div class="empty-state"><p>Map tiles are unavailable.</p></div>`;
+    return;
+  }
+
+  if (!tripSummaryMap) {
+    tripSummaryMap = L.map(mapNode);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(tripSummaryMap);
+    tripSummaryMapMarkers = L.layerGroup().addTo(tripSummaryMap);
+  } else if (tripSummaryMap.getContainer() !== mapNode) {
+    tripSummaryMap.remove();
+    tripSummaryMap = L.map(mapNode);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(tripSummaryMap);
+    tripSummaryMapMarkers = L.layerGroup().addTo(tripSummaryMap);
+  }
+
+  tripSummaryMapMarkers.clearLayers();
+  if (!records.length) {
+    tripSummaryMap.setView([43.8, -79.5], 6);
+    return;
+  }
+
+  const bounds = [];
+  records.forEach((record) => {
+    const point = [record.coordinates.latitude, record.coordinates.longitude];
+    bounds.push(point);
+    addSpeciesMarker(tripSummaryMapMarkers, record);
+  });
+
+  if (bounds.length === 1) tripSummaryMap.setView(bounds[0], 13);
+  else tripSummaryMap.fitBounds(bounds, { padding: [24, 24] });
+  setTimeout(() => tripSummaryMap.invalidateSize(), 0);
+}
+
+function summaryMetric(label, value) {
+  return `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "0")}</strong></article>`;
+}
+
+function summaryPhotoGrid(photos = [], emptyText = "No photos") {
+  if (!photos.length) return `<div class="empty-state compact-empty"><p>${escapeHtml(emptyText)}</p></div>`;
+  return `
+    <div class="summary-photo-grid">
+      ${photos.map((photo) => `
+        <figure class="summary-photo-card">
+          <img src="${photo.image}" alt="">
+          <figcaption>${escapeHtml(photo.caption || photo.name || "Photo")}</figcaption>
+        </figure>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderTripSummaryCatches(trip) {
+  const catches = trip.catches || [];
+  if (!catches.length) return `<div class="empty-state compact-empty"><p>No catches logged.</p></div>`;
+  return catches.map((catchItem, index) => {
+    const details = [
+      catchItem.released ? "Released" : "",
+      catchItem.length,
+      catchItem.weight,
+      catchItem.time,
+      catchItem.depthDown ? `${catchItem.depthDown} down` : "",
+      catchItem.waterDepth ? `${catchItem.waterDepth} water` : "",
+      lureName(catchItem.lureId),
+      flasherName(catchItem.flasherId),
+      catchItem.coordinates ? formatCoordinates(catchItem.coordinates) : ""
+    ].filter(Boolean).join(" / ");
+    return `
+      <article class="summary-catch-card">
+        <div>
+          <strong>${escapeHtml(catchItem.species || `Catch ${index + 1}`)}</strong>
+          <span>${escapeHtml(details || "No extra details")}</span>
+          ${catchItem.notes ? `<p>${escapeHtml(catchItem.notes)}</p>` : ""}
+        </div>
+        ${summaryPhotoGrid(catchItem.photos || [], "No catch photos")}
+      </article>
+    `;
+  }).join("");
+}
+
+function renderTripSummaryGear(trip) {
+  const gearUsed = trip.gearUsed || [];
+  if (!gearUsed.length) return `<div class="empty-state compact-empty"><p>No setup timeline entries.</p></div>`;
+  return `
+    <div class="summary-list">
+      ${gearUsed.map((gearItem, index) => {
+        const timeRange = [gearItem.startTime, gearItem.endTime].filter(Boolean).join("-");
+        const gear = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
+        const details = [timeRange, personName(trip, gearItem.personId), presentationLabel(gearItem.presentation), gearItem.speed].filter(Boolean).join(" / ");
+        return `
+          <article>
+            <strong>Setup ${index + 1}${gear ? `: ${escapeHtml(gear)}` : ""}</strong>
+            <span>${escapeHtml(details || "No setup details")}</span>
+            ${gearItem.changeNote ? `<p>${escapeHtml(gearItem.changeNote)}</p>` : ""}
+          </article>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function openTripSummary(trip) {
+  activeSummaryTripId = trip.id;
+  els.tripSummaryTitle.textContent = trip.title || trip.location || "Trip Summary";
+  const mapRecords = catchMapRecordsForTrip(trip);
+  els.tripSummaryBody.innerHTML = `
+    <section class="summary-hero">
+      <div>
+        <p class="eyebrow">${escapeHtml(formatDate(trip.date))}</p>
+        <h3>${escapeHtml(trip.location || "Unknown location")}</h3>
+        <p>${escapeHtml([trip.targetSpecies, trip.method, intentLabel(tripIntent(trip)), tripRatingLabel(tripRatingValue(trip))].filter(Boolean).join(" / "))}</p>
+      </div>
+    </section>
+    <div class="metric-grid summary-metrics">
+      ${summaryMetric("Hours", trimNumber(tripHours(trip)))}
+      ${summaryMetric("Caught", totalCaught(trip))}
+      ${summaryMetric("Catch Rate", trimNumber(catchRate(trip)))}
+      ${summaryMetric("Geotagged Fish", mapRecords.length)}
+    </div>
+    <section class="summary-section">
+      <div class="summary-section-heading">
+        <h3>Fish Map</h3>
+        <span>${escapeHtml(mapRecords.length ? `${mapRecords.length} plotted` : "No geotagged catches")}</span>
+      </div>
+      <div id="tripSummaryMap" class="fish-map trip-summary-map"></div>
+    </section>
+    <section class="summary-section">
+      <h3>Trip Notes</h3>
+      <p>${escapeHtml(trip.notes || "No notes logged.")}</p>
+      <div class="summary-detail-grid">
+        <span><strong>Weather</strong>${escapeHtml(trip.weather || "Not logged")}</span>
+        <span><strong>Wind</strong>${escapeHtml(trip.wind || "Not logged")}</span>
+        <span><strong>Water Temp</strong>${escapeHtml(trip.waterTemp || "Not logged")}</span>
+        <span><strong>Structure</strong>${escapeHtml(trip.structure || "Not logged")}</span>
+      </div>
+    </section>
+    <section class="summary-section">
+      <h3>Catches</h3>
+      <div class="summary-catch-grid">${renderTripSummaryCatches(trip)}</div>
+    </section>
+    <section class="summary-section">
+      <h3>Setup Timeline</h3>
+      ${renderTripSummaryGear(trip)}
+    </section>
+    <section class="summary-section">
+      <h3>Trip Photos</h3>
+      ${summaryPhotoGrid(trip.notePhotos || [], "No trip photos")}
+    </section>
+  `;
+  els.tripSummaryDialog.showModal();
+  renderTripSummaryMap(trip);
 }
 
 function scopedTrips() {
@@ -1899,14 +2470,33 @@ els.addLostFishButton.addEventListener("click", () => addLostFishRow());
 els.addTripGearButton.addEventListener("click", () => addTripGearRow());
 els.addPersonButton.addEventListener("click", () => addPersonRow());
 els.notePhotoInput.addEventListener("change", addNotePhotos);
+els.photoQueueButton.addEventListener("click", () => openPhotoQueue());
+els.photoQueueInput.addEventListener("change", addPhotosToQueue);
 els.lureForm.addEventListener("submit", saveLure);
 els.flasherForm.addEventListener("submit", saveFlasher);
 els.lureDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("lure"));
 els.flasherDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("flasher"));
+els.photoQueueDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("queue"));
+els.summaryEditTripButton.addEventListener("click", () => {
+  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+  if (!trip) return;
+  els.tripSummaryDialog.close();
+  openTripDialog(trip);
+});
+els.summaryDeleteTripButton.addEventListener("click", () => {
+  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+  if (!trip || !confirm(`Delete ${trip.title || trip.location || "this trip"}?`)) return;
+  state.trips = state.trips.filter((item) => item.id !== trip.id);
+  activeSummaryTripId = null;
+  saveState();
+  els.tripSummaryDialog.close();
+  renderAll();
+});
 els.deleteLureButton.addEventListener("click", deleteLure);
 els.deleteFlasherButton.addEventListener("click", deleteFlasher);
 els.tripsViewButton.addEventListener("click", () => setView("trips"));
 els.statsViewButton.addEventListener("click", () => setView("stats"));
+els.mapViewButton.addEventListener("click", () => setView("map"));
 els.gearViewButton.addEventListener("click", () => setView("gear"));
 els.newLibraryLureButton.addEventListener("click", () => openLureDialog());
 els.newLibraryFlasherButton.addEventListener("click", () => openFlasherDialog());
@@ -1915,6 +2505,10 @@ els.importInput.addEventListener("change", importJson);
 els.statsMethodFilter.addEventListener("change", () => {
   activeStatsMethod = els.statsMethodFilter.value;
   renderAdvancedStats();
+});
+els.mapSpeciesFilter.addEventListener("change", () => {
+  activeMapSpecies = els.mapSpeciesFilter.value;
+  renderFishMap();
 });
 
 [els.searchInput, els.targetFilter, els.yearFilter, els.sortSelect].forEach((control) => {
@@ -1934,10 +2528,10 @@ document.addEventListener("click", (event) => {
     toggleRow.setAttribute("aria-expanded", String(!collapsed));
   }
 
-  const editButton = event.target.closest("[data-edit-trip]");
-  if (editButton) {
-    const trip = state.trips.find((item) => item.id === editButton.dataset.editTrip);
-    if (trip) openTripDialog(trip);
+  const viewButton = event.target.closest("[data-view-trip]");
+  if (viewButton) {
+    const trip = state.trips.find((item) => item.id === viewButton.dataset.viewTrip);
+    if (trip) openTripSummary(trip);
   }
 
   const removeCatch = event.target.closest(".remove-catch");
@@ -1976,6 +2570,30 @@ document.addEventListener("click", (event) => {
     row.catchPhotos = (row.catchPhotos || []).filter((photo) => photo.id !== card.dataset.catchPhoto);
     renderCatchPhotos(row);
     updateRowSummary(row);
+  }
+
+  const tripQueueButton = event.target.closest("[data-use-photo-queue='trip-photos']");
+  if (tripQueueButton) {
+    openPhotoQueue({ type: "trip", category: "trip-photos" });
+  }
+
+  const catchQueueButton = event.target.closest(".use-catch-photo-queue");
+  if (catchQueueButton) {
+    openPhotoQueue({
+      type: "catch",
+      category: "catch-photos",
+      row: catchQueueButton.closest(".catch-row")
+    });
+  }
+
+  const selectQueuedPhoto = event.target.closest("[data-select-queued-photo]");
+  if (selectQueuedPhoto) {
+    claimQueuedPhoto(selectQueuedPhoto.dataset.selectQueuedPhoto);
+  }
+
+  const deleteQueuedPhotoButton = event.target.closest("[data-delete-queued-photo]");
+  if (deleteQueuedPhotoButton) {
+    deleteQueuedPhoto(deleteQueuedPhotoButton.dataset.deleteQueuedPhoto);
   }
 
   const newLureButton = event.target.closest(".add-lure-inline");
@@ -2049,13 +2667,16 @@ els.personRows.addEventListener("input", () => {
 
 function setView(view) {
   const showingStats = view === "stats";
+  const showingMap = view === "map";
   const showingGear = view === "gear";
-  els.tripControls.classList.toggle("hidden", showingStats || showingGear);
-  els.tripListPanel.classList.toggle("hidden", showingStats || showingGear);
+  els.tripControls.classList.toggle("hidden", showingStats || showingMap || showingGear);
+  els.tripListPanel.classList.toggle("hidden", showingStats || showingMap || showingGear);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
+  els.mapPanel.classList.toggle("hidden", !showingMap);
   els.gearPanel.classList.toggle("hidden", !showingGear);
-  document.querySelector(".topbar h2").textContent = showingStats ? "Advanced Stats" : showingGear ? "Gear" : "Trips";
+  document.querySelector(".topbar h2").textContent = showingStats ? "Advanced Stats" : showingMap ? "Map" : showingGear ? "Gear" : "Trips";
   renderAdvancedStats();
+  if (showingMap) renderFishMap();
   renderGearLibrary();
 }
 

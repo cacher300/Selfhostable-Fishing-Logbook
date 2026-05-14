@@ -90,17 +90,18 @@ If you ever clone the repo onto a new machine, run the app once and it will crea
 
 ## Backups
 
-Use the Data menu in the app to export a JSON backup. The backup contains trips, lures, flashers, setup timeline entries, catches, and note photos.
+Use the Data menu in the app to export a JSON backup. The export contains trips, lures, flashers, setup timeline entries, catches, and photo metadata. Uploaded image files are stored separately under `data/uploads/`, so use the backup script below for a complete backup.
 
 For a manual backup, copy:
 
 ```text
 data/logbook.json
+data/uploads/
 ```
 
 ## Nightly NAS Backups
 
-The app includes a host-side backup script for the local JSON database. It creates a monthly backup from `data/logbook.json`, keeps local copies in `backups/`, and can copy each backup to your NAS.
+The app includes a host-side backup script for the local JSON database and uploaded photos. It creates a monthly backup from `data/logbook.json`, syncs `data/uploads/`, keeps local copies in `backups/`, and can copy everything to your NAS.
 
 If your NAS supports SSH/SCP or rsync, create a dedicated no-passphrase backup key:
 
@@ -115,7 +116,7 @@ Then install the 3:00 AM nightly cron job like this:
 ./scripts/install-nightly-backup.sh Default@192.168.3.30:/volume1/FishingBackups
 ```
 
-The script creates `logbook-YYYY-MM.json`, so nightly backups overwrite the current month's file. When a new month starts, a new monthly backup file is created. It keeps the latest 3 monthly backups and deletes older monthly backup files locally and on the NAS.
+The script creates `logbook-YYYY-MM.json` and an `uploads/` folder, so nightly backups overwrite the current month's JSON and sync current uploaded photos. When a new month starts, a new monthly JSON backup file is created. It keeps the latest 3 monthly JSON backups and deletes older monthly backup files locally and on the NAS.
 
 `launch-container.sh` also refreshes this nightly backup cron job automatically every time it runs, using:
 
