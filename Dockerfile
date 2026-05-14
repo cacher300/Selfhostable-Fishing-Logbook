@@ -11,7 +11,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY server.py index.html styles.css app.js ./
-COPY data/logbook.example.json ./data/logbook.example.json
+RUN mkdir -p data/uploads
 
 EXPOSE 8080
 
