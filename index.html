@@ -211,7 +211,7 @@
     </div>
 
     <dialog id="tripDialog" class="dialog">
-      <form id="tripForm" method="dialog">
+      <form id="tripForm" method="dialog" novalidate>
         <div class="dialog-header">
           <div>
             <p class="eyebrow">Trip log</p>
@@ -221,6 +221,7 @@
         </div>
 
         <input type="hidden" id="tripId" />
+        <div class="form-message hidden" id="tripFormMessage" role="alert"></div>
         <div class="form-grid">
           <label>
             <span>Trip title</span>
@@ -562,6 +563,14 @@
             <span>Catch notes</span>
             <textarea class="catch-notes" rows="2" placeholder="Retrieve, strike, release notes"></textarea>
           </label>
+          <div class="row-section-title catch-photo-title">Catch Photos</div>
+          <div class="catch-photo-editor">
+            <label class="button secondary file-button">
+              Add Photos
+              <input class="catch-photo-input" type="file" accept="image/*" multiple />
+            </label>
+            <div class="catch-photo-grid"></div>
+          </div>
         </div>
       </article>
     </template>
@@ -615,20 +624,6 @@
               <option value="cheater">Cheater</option>
               <option value="flatline-leadcore">Planer Board / Leadcore</option>
               <option value="dipsey-diver">Dipsey Diver</option>
-            </select>
-          </label>
-          <label class="trolling-field">
-            <span>Trolling direction</span>
-            <select class="catch-direction">
-              <option value="">Select direction</option>
-              <option value="N">N</option>
-              <option value="NE">NE</option>
-              <option value="E">E</option>
-              <option value="SE">SE</option>
-              <option value="S">S</option>
-              <option value="SW">SW</option>
-              <option value="W">W</option>
-              <option value="NW">NW</option>
             </select>
           </label>
           <label class="trolling-field">

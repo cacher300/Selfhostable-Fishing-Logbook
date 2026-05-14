@@ -71,6 +71,10 @@ let state = structuredClone(defaults);
 let activeTripId = null;
 let activeNotePhotos = [];
 let activeStatsMethod = "All methods";
+const returnToTripDialog = {
+  lure: false,
+  flasher: false
+};
 
 const els = {
   brandSpotlight: document.querySelector("#brandSpotlight"),
@@ -122,6 +126,7 @@ const els = {
   importInput: document.querySelector("#importInput"),
   tripDialog: document.querySelector("#tripDialog"),
   tripForm: document.querySelector("#tripForm"),
+  tripFormMessage: document.querySelector("#tripFormMessage"),
   tripDialogTitle: document.querySelector("#tripDialogTitle"),
   tripRating: document.querySelector("#tripRating"),
   tripRatingLabel: document.querySelector("#tripRatingLabel"),
@@ -459,11 +464,43 @@ function renderAll() {
   updateAllRowSummaries();
 }
 
+function clearTripFormMessage() {
+  els.tripFormMessage.classList.add("hidden");
+  els.tripFormMessage.textContent = "";
+  els.tripForm.querySelectorAll("[aria-invalid='true']").forEach((field) => {
+    field.removeAttribute("aria-invalid");
+  });
+}
+
+function showTripFormMessage(message, fields = []) {
+  els.tripFormMessage.textContent = message;
+  els.tripFormMessage.classList.remove("hidden");
+  fields.forEach((field) => field.setAttribute("aria-invalid", "true"));
+  fields[0]?.scrollIntoView({ behavior: "smooth", block: "center" });
+  fields[0]?.focus({ preventScroll: true });
+}
+
+function validateTripForm() {
+  clearTripFormMessage();
+  const requiredFields = [
+    { field: document.querySelector("#tripDate"), label: "Date" },
+    { field: document.querySelector("#tripLocation"), label: "Location / waterbody" },
+    { field: document.querySelector("#targetSpecies"), label: "Target species" }
+  ];
+  const missing = requiredFields.filter(({ field }) => !field.value.trim());
+  if (!missing.length) return true;
+
+  const labels = missing.map((item) => item.label).join(", ");
+  showTripFormMessage(`Please fill out: ${labels}.`, missing.map((item) => item.field));
+  return false;
+}
+
 function openTripDialog(trip = null) {
   activeTripId = trip?.id || null;
   els.tripDialogTitle.textContent = trip ? "Edit Trip" : "New Trip";
   els.deleteTripButton.classList.toggle("hidden", !trip);
   els.tripForm.reset();
+  clearTripFormMessage();
   els.catchRows.innerHTML = "";
   els.lostFishRows.innerHTML = "";
   els.tripGearRows.innerHTML = "";
@@ -627,6 +664,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   if (lost) node.classList.add("lost-fish-row");
   node.dataset.rowId = createId();
   node.dataset.catchId = catchItem.id || "";
+  node.catchPhotos = structuredClone(catchItem.photos || []);
   node.querySelector(".remove-catch").setAttribute("aria-label", lost ? "Remove lost fish" : "Remove catch");
   node.querySelector(".catch-released-field").classList.toggle("hidden", lost);
 
@@ -654,6 +692,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   populateFlasherSelect(node.querySelector(".catch-flasher"), catchItem.flasherId || "");
   renderLurePreview(node);
   renderFlasherPreview(node);
+  renderCatchPhotos(node);
   updatePresentationFields(node);
 
   container.append(node);
@@ -672,7 +711,6 @@ function addTripGearRow(gearItem = {}) {
   node.querySelector(".trip-gear-end-time").value = gearItem.endTime || "";
   node.querySelector(".trip-gear-change-note").value = gearItem.changeNote || gearItem.notes || "";
   node.querySelector(".catch-presentation").value = gearItem.presentation || "";
-  node.querySelector(".catch-direction").value = gearItem.direction || "";
   node.querySelector(".catch-speed").value = gearItem.speed || "";
   node.querySelector(".catch-ball-depth").value = gearItem.ballDepth || "";
   node.querySelector(".catch-line-behind-board").value = gearItem.lineBehindBoard || "";
@@ -760,7 +798,6 @@ function updateRowSummary(row) {
     `Setup ${rowNumber(row, ".gear-used-row")}`,
     timeRange,
     summaryOption(row.querySelector(".trip-gear-person"), ["No person"]),
-    summaryOption(row.querySelector(".catch-direction"), ["Select direction"]),
     gear,
     row.querySelector(".trip-gear-change-note").value.trim()
   ].filter(Boolean);
@@ -784,7 +821,6 @@ function collectTripFromForm() {
       lureId: row.querySelector(".trip-gear-lure").value,
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",
-      direction: trolling ? row.querySelector(".catch-direction").value : "",
       speed: trolling ? row.querySelector(".catch-speed").value.trim() : "",
       ballDepth: trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
       lineBehindBoard: trolling ? row.querySelector(".catch-line-behind-board").value.trim() : "",
@@ -795,7 +831,7 @@ function collectTripFromForm() {
       lureMinutes: setupMinutesFromRow(row),
       flasherMinutes: trolling && row.querySelector(".trip-gear-flasher").value ? setupMinutesFromRow(row) : 0
     }))
-    .filter((item) => item.startTime || item.endTime || item.changeNote || item.lureId || item.flasherId || item.lureMinutes || item.flasherMinutes || item.presentation || item.direction);
+    .filter((item) => item.startTime || item.endTime || item.changeNote || item.lureId || item.flasherId || item.lureMinutes || item.flasherMinutes || item.presentation);
 
   const collectFishRows = (container, lost = false) => [...container.querySelectorAll(".catch-row")]
     .map((row) => ({
@@ -820,9 +856,10 @@ function collectTripFromForm() {
       dipseySetting: trolling ? row.querySelector(".catch-dipsey-setting").value.trim() : "",
       lineOut: trolling ? row.querySelector(".catch-line-out").value.trim() : "",
       estimatedDepth: trolling ? row.querySelector(".catch-estimated-depth").value.trim() : "",
-      notes: row.querySelector(".catch-notes").value.trim()
+      notes: row.querySelector(".catch-notes").value.trim(),
+      photos: collectCatchPhotos(row)
     }))
-    .filter((item) => item.species || item.lureId || item.flasherId || item.notes);
+    .filter((item) => item.species || item.lureId || item.flasherId || item.notes || item.photos.length);
 
   const catches = collectFishRows(els.catchRows);
   const lostFish = collectFishRows(els.lostFishRows, true);
@@ -859,26 +896,33 @@ function upsertListValue(listName, value) {
 
 function saveTrip(event) {
   event.preventDefault();
-  const trip = collectTripFromForm();
-  state.people = mergePeople(state.people, trip.people);
-  state.locations = mergeTextList(state.locations, trip.location);
-  const usedPersonIds = new Set([
-    ...trip.catches.map((catchItem) => catchItem.personId).filter(Boolean),
-    ...trip.lostFish.map((fish) => fish.personId).filter(Boolean),
-    ...trip.gearUsed.map((gearItem) => gearItem.personId).filter(Boolean)
-  ]);
-  trip.people = trip.people.filter((person) => usedPersonIds.has(person.id));
-  upsertListValue("species", trip.targetSpecies);
-  trip.catches.forEach((catchItem) => upsertListValue("species", catchItem.species));
-  trip.lostFish.forEach((fish) => upsertListValue("species", fish.species));
+  if (!validateTripForm()) return;
 
-  const index = state.trips.findIndex((item) => item.id === trip.id);
-  if (index >= 0) state.trips[index] = trip;
-  else state.trips.push(trip);
+  try {
+    const trip = collectTripFromForm();
+    state.people = mergePeople(state.people, trip.people);
+    state.locations = mergeTextList(state.locations, trip.location);
+    const usedPersonIds = new Set([
+      ...trip.catches.map((catchItem) => catchItem.personId).filter(Boolean),
+      ...trip.lostFish.map((fish) => fish.personId).filter(Boolean),
+      ...trip.gearUsed.map((gearItem) => gearItem.personId).filter(Boolean)
+    ]);
+    trip.people = trip.people.filter((person) => usedPersonIds.has(person.id));
+    upsertListValue("species", trip.targetSpecies);
+    trip.catches.forEach((catchItem) => upsertListValue("species", catchItem.species));
+    trip.lostFish.forEach((fish) => upsertListValue("species", fish.species));
 
-  saveState();
-  els.tripDialog.close();
-  renderAll();
+    const index = state.trips.findIndex((item) => item.id === trip.id);
+    if (index >= 0) state.trips[index] = trip;
+    else state.trips.push(trip);
+
+    saveState();
+    els.tripDialog.close();
+    renderAll();
+  } catch (error) {
+    console.error("Could not save trip.", error);
+    showTripFormMessage("The trip could not be saved. Check that required fields are filled and try again.");
+  }
 }
 
 function deleteActiveTrip() {
@@ -1013,6 +1057,41 @@ function collectNotePhotos() {
   }));
 }
 
+async function addCatchPhotos(event) {
+  const row = event.target.closest(".catch-row");
+  const files = [...event.target.files];
+  if (!row || !files.length) return;
+
+  const photos = await Promise.all(files.map(async (file) => ({
+    id: createId(),
+    name: file.name,
+    image: await fileToDataUrl(file)
+  })));
+
+  row.catchPhotos = [...(row.catchPhotos || []), ...photos];
+  event.target.value = "";
+  renderCatchPhotos(row);
+  updateRowSummary(row);
+}
+
+function renderCatchPhotos(row) {
+  const grid = row.querySelector(".catch-photo-grid");
+  if (!grid) return;
+
+  const photos = row.catchPhotos || [];
+  grid.innerHTML = photos.map((photo) => `
+    <article class="catch-photo-card" data-catch-photo="${photo.id}">
+      <img src="${photo.image}" alt="">
+      <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch photo">x</button>
+      <span>${escapeHtml(photo.name || "Catch photo")}</span>
+    </article>
+  `).join("");
+}
+
+function collectCatchPhotos(row) {
+  return (row.catchPhotos || []).map((photo) => ({ ...photo }));
+}
+
 function lureName(id) {
   if (!id) return "";
   return state.lures.find((lure) => lure.id === id)?.name || "";
@@ -1069,7 +1148,21 @@ function renderFlasherPreview(row) {
   `;
 }
 
+function prepareInlineGearDialog(type, pendingRowId) {
+  returnToTripDialog[type] = Boolean(pendingRowId) && els.tripDialog.open;
+  if (returnToTripDialog[type]) els.tripDialog.close();
+}
+
+function restoreTripDialogAfterInlineGear(type) {
+  if (!returnToTripDialog[type]) return;
+  returnToTripDialog[type] = false;
+  setTimeout(() => {
+    if (!els.tripDialog.open) els.tripDialog.showModal();
+  }, 0);
+}
+
 function openLureDialog(lure = null, pendingRowId = "") {
+  prepareInlineGearDialog("lure", pendingRowId);
   els.lureForm.reset();
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   const editing = Boolean(lure);
@@ -1086,6 +1179,7 @@ function openLureDialog(lure = null, pendingRowId = "") {
 }
 
 function openFlasherDialog(flasher = null, pendingRowId = "") {
+  prepareInlineGearDialog("flasher", pendingRowId);
   els.flasherForm.reset();
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
   const editing = Boolean(flasher);
@@ -1807,6 +1901,8 @@ els.addPersonButton.addEventListener("click", () => addPersonRow());
 els.notePhotoInput.addEventListener("change", addNotePhotos);
 els.lureForm.addEventListener("submit", saveLure);
 els.flasherForm.addEventListener("submit", saveFlasher);
+els.lureDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("lure"));
+els.flasherDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("flasher"));
 els.deleteLureButton.addEventListener("click", deleteLure);
 els.deleteFlasherButton.addEventListener("click", deleteFlasher);
 els.tripsViewButton.addEventListener("click", () => setView("trips"));
@@ -1873,6 +1969,15 @@ document.addEventListener("click", (event) => {
     renderNotePhotos();
   }
 
+  const removeCatchPhoto = event.target.closest(".remove-catch-photo");
+  if (removeCatchPhoto) {
+    const row = removeCatchPhoto.closest(".catch-row");
+    const card = removeCatchPhoto.closest("[data-catch-photo]");
+    row.catchPhotos = (row.catchPhotos || []).filter((photo) => photo.id !== card.dataset.catchPhoto);
+    renderCatchPhotos(row);
+    updateRowSummary(row);
+  }
+
   const newLureButton = event.target.closest(".add-lure-inline");
   if (newLureButton) {
     const row = newLureButton.closest(".catch-row, .gear-used-row");
@@ -1911,6 +2016,11 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches(".catch-photo-input")) {
+    addCatchPhotos(event);
+    return;
+  }
+  if (event.target.closest("#tripForm")) clearTripFormMessage();
   if (event.target.matches(".catch-lure, .trip-gear-lure")) {
     renderLurePreview(event.target.closest(".catch-row, .gear-used-row"));
   }
@@ -1925,6 +2035,7 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("input", (event) => {
+  if (event.target.closest("#tripForm")) clearTripFormMessage();
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);
 });

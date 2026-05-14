@@ -389,6 +389,24 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(17, 135, 83, 0.14);
 }
 
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(188, 47, 47, 0.12);
+}
+
+.form-message {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid #e4b0b0;
+  border-radius: 8px;
+  background: #fff2f2;
+  color: #8b1f1f;
+  font-size: 14px;
+  font-weight: 800;
+}
+
 .table-card,
 .analytics-card,
 .metric-card,
@@ -511,6 +529,7 @@ textarea:focus {
 .dialog {
   width: min(960px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0;
@@ -526,14 +545,22 @@ textarea:focus {
 }
 
 .dialog form {
+  overflow: auto;
+  max-height: calc(100vh - 32px);
   padding: 22px;
 }
 
 .dialog-header {
+  position: sticky;
+  top: -22px;
+  z-index: 3;
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin: -22px -22px 18px;
+  padding: 22px 22px 16px;
+  background: #fff;
+  border-bottom: 1px solid transparent;
 }
 
 .icon-button {
@@ -746,6 +773,55 @@ textarea:focus {
 
 .note-photo-body input {
   padding: 8px;
+}
+
+.catch-photo-title,
+.catch-photo-editor {
+  grid-column: 1 / -1;
+}
+
+.catch-photo-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.catch-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.catch-photo-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.catch-photo-card img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-bottom: 1px solid var(--line);
+}
+
+.catch-photo-card .icon-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+}
+
+.catch-photo-card span {
+  display: block;
+  overflow: hidden;
+  padding: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .catch-rows,
@@ -1121,8 +1197,19 @@ textarea:focus {
 }
 
 .dialog-actions {
+  position: sticky;
+  bottom: -22px;
+  z-index: 3;
   justify-content: space-between;
-  margin-top: 20px;
+  margin: 20px -22px -22px;
+  padding: 14px 22px;
+  background: #fff;
+  border-top: 1px solid var(--line);
+}
+
+.dialog-actions > div {
+  display: flex;
+  gap: 10px;
 }
 
 .end-only {
@@ -1200,11 +1287,98 @@ textarea:focus {
 }
 
 @media (max-width: 640px) {
+  body {
+    background: #fff;
+  }
+
+  .app-shell {
+    border: 0;
+  }
+
+  .brand-block {
+    padding: 16px;
+  }
+
+  .brand-block h1 {
+    font-size: 22px;
+  }
+
+  .brand-spotlight,
+  .brand-spotlight-empty {
+    min-height: 118px;
+  }
+
+  .spotlight-slides {
+    height: 132px;
+  }
+
+  .main-panel {
+    padding: 16px 12px 28px;
+  }
+
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topbar h2 {
+    font-size: 25px;
+  }
+
   .topbar,
   .topbar-actions,
   .dialog-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .topbar-actions,
+  .dialog-actions > div,
+  .section-heading {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .button,
+  .file-button,
+  .dialog-actions button {
+    width: 100%;
+  }
+
+  .dialog {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .dialog form {
+    max-height: 100dvh;
+    padding: 16px;
+  }
+
+  .dialog-header {
+    top: -16px;
+    margin: -16px -16px 14px;
+    padding: 16px 16px 12px;
+    border-bottom-color: var(--line);
+  }
+
+  .dialog-actions {
+    bottom: -16px;
+    margin: 18px -16px -16px;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .dialog-actions > div {
+    gap: 10px;
+  }
+
+  .catch-row,
+  .gear-used-row {
+    padding: 12px;
   }
 
   .controls,
@@ -1225,5 +1399,10 @@ textarea:focus {
   .table-row > :nth-child(6),
   .table-row > :nth-child(7) {
     display: none;
+  }
+
+  .catch-photo-grid,
+  .note-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
