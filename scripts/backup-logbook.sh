@@ -7,10 +7,12 @@ APP_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 DATA_FILE="${DATA_FILE:-$APP_DIR/data/logbook.json}"
 LOCAL_BACKUP_DIR="${LOCAL_BACKUP_DIR:-$APP_DIR/backups}"
 NAS_BACKUP_TARGET="${NAS_BACKUP_TARGET:-}"
-KEEP_LOCAL_BACKUPS="${KEEP_LOCAL_BACKUPS:-14}"
+SSH_KEY_PATH="${SSH_KEY_PATH:-}"
+KEEP_MONTHLY_BACKUPS="${KEEP_MONTHLY_BACKUPS:-3}"
+LOCK_DIR="$LOCAL_BACKUP_DIR/.backup.lock"
 
-timestamp=$(date +"%Y%m%d-%H%M%S")
-backup_name="logbook-$timestamp.json"
+month=$(date +"%Y-%m")
+backup_name="logbook-$month.json"
 backup_path="$LOCAL_BACKUP_DIR/$backup_name"
 
 if [ ! -f "$DATA_FILE" ]; then
@@ -19,6 +21,13 @@ if [ ! -f "$DATA_FILE" ]; then
 fi
 
 mkdir -p "$LOCAL_BACKUP_DIR"
+
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  echo "A backup is already running; exiting." >&2
+  exit 0
+fi
+trap 'rmdir "$LOCK_DIR"' EXIT INT TERM
+
 cp "$DATA_FILE" "$backup_path"
 
 if command -v python3 >/dev/null 2>&1; then
@@ -32,23 +41,37 @@ if [ -n "$NAS_BACKUP_TARGET" ]; then
     *:*)
       remote_host=${NAS_BACKUP_TARGET%%:*}
       remote_dir=${NAS_BACKUP_TARGET#*:}
-      ssh "$remote_host" "mkdir -p '$remote_dir'"
-      if command -v rsync >/dev/null 2>&1; then
-        rsync -a "$backup_path" "$NAS_BACKUP_TARGET/"
+      if [ -n "$SSH_KEY_PATH" ]; then
+        ssh -i "$SSH_KEY_PATH" -o BatchMode=yes "$remote_host" "mkdir -p '$remote_dir'"
+        if command -v rsync >/dev/null 2>&1; then
+          rsync -a -e "ssh -i $SSH_KEY_PATH -o BatchMode=yes" "$backup_path" "$NAS_BACKUP_TARGET/"
+        else
+          scp -i "$SSH_KEY_PATH" -o BatchMode=yes "$backup_path" "$NAS_BACKUP_TARGET/"
+        fi
+        ssh -i "$SSH_KEY_PATH" -o BatchMode=yes "$remote_host" "cd '$remote_dir' && ls -1 logbook-????-??.json 2>/dev/null | sort -r | awk 'NR > $KEEP_MONTHLY_BACKUPS' | xargs -r rm -f"
       else
-        scp "$backup_path" "$NAS_BACKUP_TARGET/"
+        ssh -o BatchMode=yes "$remote_host" "mkdir -p '$remote_dir'"
+        if command -v rsync >/dev/null 2>&1; then
+          rsync -a -e "ssh -o BatchMode=yes" "$backup_path" "$NAS_BACKUP_TARGET/"
+        else
+          scp -o BatchMode=yes "$backup_path" "$NAS_BACKUP_TARGET/"
+        fi
+        ssh -o BatchMode=yes "$remote_host" "cd '$remote_dir' && ls -1 logbook-????-??.json 2>/dev/null | sort -r | awk 'NR > $KEEP_MONTHLY_BACKUPS' | xargs -r rm -f"
       fi
       ;;
     *)
       mkdir -p "$NAS_BACKUP_TARGET"
       cp "$backup_path" "$NAS_BACKUP_TARGET/"
+      find "$NAS_BACKUP_TARGET" -name "logbook-????-??.json" -type f | sort -r | awk "NR > $KEEP_MONTHLY_BACKUPS" | while IFS= read -r old_backup; do
+        rm -f "$old_backup"
+      done
       ;;
   esac
 else
   echo "NAS_BACKUP_TARGET is not set; kept local backup only at $backup_path" >&2
 fi
 
-find "$LOCAL_BACKUP_DIR" -name "logbook-*.json" -type f | sort -r | awk "NR > $KEEP_LOCAL_BACKUPS" | while IFS= read -r old_backup; do
+find "$LOCAL_BACKUP_DIR" -name "logbook-????-??.json" -type f | sort -r | awk "NR > $KEEP_MONTHLY_BACKUPS" | while IFS= read -r old_backup; do
   rm -f "$old_backup"
 done
 

@@ -100,15 +100,34 @@ data/logbook.json
 
 ## Nightly NAS Backups
 
-The app includes a host-side backup script for the local JSON database. It creates a timestamped backup from `data/logbook.json`, keeps local copies in `backups/`, and can copy each backup to your NAS.
+The app includes a host-side backup script for the local JSON database. It creates a monthly backup from `data/logbook.json`, keeps local copies in `backups/`, and can copy each backup to your NAS.
 
-If your NAS supports SSH/SCP or rsync, install the 3:00 AM nightly cron job like this:
+If your NAS supports SSH/SCP or rsync, create a dedicated no-passphrase backup key:
 
 ```sh
-./scripts/install-nightly-backup.sh user@192.168.3.30:/path/to/fishing-logbook-backups
+ssh-keygen -t ed25519 -f ~/.ssh/fishing_logbook_backup -C "fishing-logbook-backup"
+ssh-copy-id -i ~/.ssh/fishing_logbook_backup.pub Default@192.168.3.30
 ```
 
-Replace `user` and `/path/to/fishing-logbook-backups` with the SSH user and folder on your NAS. SSH key login is recommended so cron can run without prompting for a password.
+Then install the 3:00 AM nightly cron job like this:
+
+```sh
+./scripts/install-nightly-backup.sh Default@192.168.3.30:/volume1/FishingBackups
+```
+
+The script creates `logbook-YYYY-MM.json`, so nightly backups overwrite the current month's file. When a new month starts, a new monthly backup file is created. It keeps the latest 3 monthly backups and deletes older monthly backup files locally and on the NAS.
+
+`launch-container.sh` also refreshes this nightly backup cron job automatically every time it runs, using:
+
+```text
+Default@192.168.3.30:/volume1/FishingBackups
+```
+
+Override the target or key if needed:
+
+```sh
+NAS_BACKUP_TARGET='Default@192.168.3.30:/volume1/FishingBackups' SSH_KEY_PATH="$HOME/.ssh/fishing_logbook_backup" ./launch-container.sh
+```
 
 If you mount the NAS share on the laptop instead, pass the mounted folder:
 
@@ -119,7 +138,7 @@ If you mount the NAS share on the laptop instead, pass the mounted folder:
 Run a backup immediately to test it:
 
 ```sh
-NAS_BACKUP_TARGET='user@192.168.3.30:/path/to/fishing-logbook-backups' ./scripts/backup-logbook.sh
+NAS_BACKUP_TARGET='Default@192.168.3.30:/volume1/FishingBackups' SSH_KEY_PATH="$HOME/.ssh/fishing_logbook_backup" ./scripts/backup-logbook.sh
 ```
 
 Backup logs are written to:
