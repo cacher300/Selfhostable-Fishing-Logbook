@@ -224,7 +224,7 @@ function renderCatchPhotos(row) {
       <img src="${previewImage(photo)}" alt="">
       <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch photo">x</button>
       <span>${escapeHtml(photo.name || "Catch photo")}</span>
-      ${photo.coordinates ? `<small>${formatCoordinates(photo.coordinates)}</small>` : `<small>No GPS metadata</small>`}
+      ${isUsableCoordinates(photo.coordinates) ? `<small>${formatCoordinates(photo.coordinates)}</small>` : `<small>No GPS metadata</small>`}
     </article>
   `).join("");
 }
@@ -234,14 +234,19 @@ function collectCatchPhotos(row) {
 }
 
 function firstCatchCoordinates(row) {
-  return (row.catchPhotos || []).find((photo) => photo.coordinates)?.coordinates || null;
+  return (row.catchPhotos || []).find((photo) => isUsableCoordinates(photo.coordinates))?.coordinates || null;
 }
 
 function manualCoordinatesFromRow(row) {
-  const latitude = Number(row.querySelector(".catch-latitude")?.value);
-  const longitude = Number(row.querySelector(".catch-longitude")?.value);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
-  return { latitude, longitude, manual: true };
+  const latitudeText = row.querySelector(".catch-latitude")?.value.trim() || "";
+  const longitudeText = row.querySelector(".catch-longitude")?.value.trim() || "";
+  if (!latitudeText && !longitudeText) return null;
+  const coordinates = {
+    latitude: Number(latitudeText),
+    longitude: Number(longitudeText),
+    manual: true
+  };
+  return isUsableCoordinates(coordinates) ? coordinates : null;
 }
 
 function fishCoordinatesFromRow(row) {
@@ -271,7 +276,7 @@ async function renderPhotoQueue() {
       </div>
       <div>
         <strong>${escapeHtml(photo.name || "Queued photo")}</strong>
-        <span>${photo.coordinates ? escapeHtml(formatCoordinates(photo.coordinates)) : "No GPS metadata"}</span>
+        <span>${isUsableCoordinates(photo.coordinates) ? escapeHtml(formatCoordinates(photo.coordinates)) : "No GPS metadata"}</span>
       </div>
       <div class="photo-queue-card-actions">
         ${activePhotoQueueTarget ? `<button class="button primary" type="button" data-select-queued-photo="${photo.filename}">Use Photo</button>` : ""}

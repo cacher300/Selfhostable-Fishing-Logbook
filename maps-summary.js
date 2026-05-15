@@ -1,8 +1,8 @@
 function catchMapRecords() {
   return state.trips.flatMap((trip) => (trip.catches || []).map((catchItem, catchIndex) => {
-    const photoWithCoordinates = (catchItem.photos || []).find((photo) => photo.coordinates);
-    const coordinates = catchItem.coordinates || photoWithCoordinates?.coordinates;
-    if (!coordinates) return null;
+    const photoWithCoordinates = (catchItem.photos || []).find((photo) => isUsableCoordinates(photo.coordinates));
+    const coordinates = isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : photoWithCoordinates?.coordinates;
+    if (!isUsableCoordinates(coordinates)) return null;
     return {
       id: catchItem.id || `${trip.id}-${catchIndex}`,
       trip,
@@ -156,9 +156,9 @@ function renderFishMap() {
 
 function catchMapRecordsForTrip(trip) {
   return (trip.catches || []).map((catchItem, catchIndex) => {
-    const photoWithCoordinates = (catchItem.photos || []).find((photo) => photo.coordinates);
-    const coordinates = catchItem.coordinates || photoWithCoordinates?.coordinates;
-    if (!coordinates) return null;
+    const photoWithCoordinates = (catchItem.photos || []).find((photo) => isUsableCoordinates(photo.coordinates));
+    const coordinates = isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : photoWithCoordinates?.coordinates;
+    if (!isUsableCoordinates(coordinates)) return null;
     return {
       id: catchItem.id || `${trip.id}-${catchIndex}`,
       trip,

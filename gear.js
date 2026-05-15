@@ -101,7 +101,7 @@ function flasherName(id) {
 }
 
 function formatCoordinates(coordinates) {
-  if (!coordinates) return "";
+  if (!isUsableCoordinates(coordinates)) return "";
   return `${Number(coordinates.latitude).toFixed(5)}, ${Number(coordinates.longitude).toFixed(5)}`;
 }
 

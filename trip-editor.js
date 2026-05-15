@@ -221,7 +221,9 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-time").value = catchItem.time || "";
   node.querySelector(".catch-water-depth").value = catchItem.waterDepth || catchItem.depth || "";
   node.querySelector(".catch-depth-down").value = catchItem.depthDown || catchItem.depth || "";
-  const manualCoordinates = catchItem.manualCoordinates || (catchItem.coordinates?.manual ? catchItem.coordinates : null);
+  const manualCoordinates = isUsableCoordinates(catchItem.manualCoordinates)
+    ? catchItem.manualCoordinates
+    : (catchItem.coordinates?.manual && isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : null);
   node.querySelector(".catch-latitude").value = manualCoordinates?.latitude ?? "";
   node.querySelector(".catch-longitude").value = manualCoordinates?.longitude ?? "";
   node.querySelector(".catch-presentation").value = catchItem.presentation || "";

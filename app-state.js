@@ -293,3 +293,12 @@ async function saveState() {
 function previewImage(item) {
   return item?.previewImage || item?.previewUrl || item?.image || item?.url || "";
 }
+
+function isUsableCoordinates(coordinates) {
+  if (!coordinates) return false;
+  const latitude = Number(coordinates.latitude);
+  const longitude = Number(coordinates.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return false;
+  return !(latitude === 0 && longitude === 0);
+}

@@ -90,6 +90,7 @@ function renderStats() {
 }
 
 function renderBrandSpotlight() {
+  const randomSort = () => Math.random() - 0.5;
   const photos = state.trips
     .flatMap((trip) => {
       const tripTitle = trip.title || trip.location || "Trip photo";
@@ -108,7 +109,7 @@ function renderBrandSpotlight() {
       return [...notePhotos, ...catchPhotos];
     })
     .filter((photo) => photo.image)
-    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+    .sort(randomSort)
     .slice(0, 8);
 
   if (!photos.length) {
