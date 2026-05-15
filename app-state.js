@@ -93,16 +93,26 @@ let activeTripId = null;
 let activeSummaryTripId = null;
 let activeNotePhotos = [];
 let activeStatsMethod = "All methods";
+const activeStatsFilters = {
+  species: "All species",
+  waterClarity: "All clarity",
+  weather: "All weather",
+  month: "All months"
+};
 let activeMapSpecies = "All species";
 let fishMap = null;
 let fishMapMarkers = null;
 let tripSummaryMap = null;
 let tripSummaryMapMarkers = null;
 let activePhotoQueueTarget = null;
+let pendingLureImage = null;
+let pendingFlasherImage = null;
 const returnToTripDialog = {
   lure: false,
   flasher: false,
-  queue: false
+  queue: false,
+  lureImage: false,
+  flasherImage: false
 };
 
 const els = {
@@ -125,6 +135,10 @@ const els = {
   mapCatchList: document.querySelector("#mapCatchList"),
   mapSpeciesFilter: document.querySelector("#mapSpeciesFilter"),
   statsMethodFilter: document.querySelector("#statsMethodFilter"),
+  statsSpeciesFilter: document.querySelector("#statsSpeciesFilter"),
+  statsWaterClarityFilter: document.querySelector("#statsWaterClarityFilter"),
+  statsWeatherFilter: document.querySelector("#statsWeatherFilter"),
+  statsMonthFilter: document.querySelector("#statsMonthFilter"),
   advancedMetricGrid: document.querySelector("#advancedMetricGrid"),
   outcomeStatsTable: document.querySelector("#outcomeStatsTable"),
   lureStatsTable: document.querySelector("#lureStatsTable"),

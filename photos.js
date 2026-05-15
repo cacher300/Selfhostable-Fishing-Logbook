@@ -106,10 +106,32 @@ function parseExifGps(arrayBuffer) {
   return null;
 }
 
+const ignoredPhotoLocation = { latitude: 43.16142, longitude: -79.33851 };
+const ignoredPhotoLocationRadiusMeters = 400;
+
+function distanceMeters(a, b) {
+  const radius = 6371000;
+  const toRadians = (value) => (Number(value) * Math.PI) / 180;
+  const deltaLat = toRadians(b.latitude - a.latitude);
+  const deltaLon = toRadians(b.longitude - a.longitude);
+  const lat1 = toRadians(a.latitude);
+  const lat2 = toRadians(b.latitude);
+  const value = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+  return radius * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+}
+
+function shouldIgnorePhotoCoordinates(coordinates) {
+  if (!coordinates) return false;
+  return distanceMeters(coordinates, ignoredPhotoLocation) <= ignoredPhotoLocationRadiusMeters;
+}
+
 async function extractPhotoCoordinates(file) {
-  if (!file.type || !file.type.includes("jpeg")) return null;
+  const isJpeg = file.type?.includes("jpeg") || /\.(jpe?g)$/i.test(file.name || "");
+  if (!isJpeg) return null;
   try {
-    return parseExifGps(await file.arrayBuffer());
+    const coordinates = parseExifGps(await file.arrayBuffer());
+    return shouldIgnorePhotoCoordinates(coordinates) ? null : coordinates;
   } catch (error) {
     console.warn("Could not read photo GPS metadata.", error);
     return null;
@@ -215,6 +237,17 @@ function firstCatchCoordinates(row) {
   return (row.catchPhotos || []).find((photo) => photo.coordinates)?.coordinates || null;
 }
 
+function manualCoordinatesFromRow(row) {
+  const latitude = Number(row.querySelector(".catch-latitude")?.value);
+  const longitude = Number(row.querySelector(".catch-longitude")?.value);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return { latitude, longitude, manual: true };
+}
+
+function fishCoordinatesFromRow(row) {
+  return manualCoordinatesFromRow(row) || firstCatchCoordinates(row);
+}
+
 async function loadPhotoQueue() {
   const response = await fetch("/api/photo-queue");
   if (!response.ok) throw new Error("Could not load photo queue");
@@ -250,9 +283,34 @@ async function renderPhotoQueue() {
 async function openPhotoQueue(target = null) {
   activePhotoQueueTarget = target;
   returnToTripDialog.queue = Boolean(target) && els.tripDialog.open;
+  returnToTripDialog.lureImage = target?.type === "lure" && els.lureDialog.open;
+  returnToTripDialog.flasherImage = target?.type === "flasher" && els.flasherDialog.open;
   if (returnToTripDialog.queue) els.tripDialog.close();
+  if (returnToTripDialog.lureImage) els.lureDialog.close();
+  if (returnToTripDialog.flasherImage) els.flasherDialog.close();
   els.photoQueueDialog.showModal();
   await renderPhotoQueue();
+}
+
+function restoreDialogAfterPhotoQueue() {
+  if (returnToTripDialog.queue) {
+    returnToTripDialog.queue = false;
+    setTimeout(() => {
+      if (!els.tripDialog.open) els.tripDialog.showModal();
+    }, 0);
+  }
+  if (returnToTripDialog.lureImage) {
+    returnToTripDialog.lureImage = false;
+    setTimeout(() => {
+      if (!els.lureDialog.open) els.lureDialog.showModal();
+    }, 0);
+  }
+  if (returnToTripDialog.flasherImage) {
+    returnToTripDialog.flasherImage = false;
+    setTimeout(() => {
+      if (!els.flasherDialog.open) els.flasherDialog.showModal();
+    }, 0);
+  }
 }
 
 async function addPhotosToQueue(event) {
@@ -305,8 +363,21 @@ async function claimQueuedPhoto(filename) {
       activeNotePhotos = [...activeNotePhotos, { ...photoItem, caption: "" }];
       renderNotePhotos();
     }
+    if (activePhotoQueueTarget.type === "lure") {
+      pendingLureImage = photoItem;
+      document.querySelector("#lureImage").value = "";
+      renderQueuedGearImage("lure");
+    }
+    if (activePhotoQueueTarget.type === "flasher") {
+      pendingFlasherImage = photoItem;
+      document.querySelector("#flasherImage").value = "";
+      renderQueuedGearImage("flasher");
+    }
 
     await renderPhotoQueue();
+    if (["lure", "flasher"].includes(activePhotoQueueTarget.type)) {
+      els.photoQueueDialog.close();
+    }
   } catch (error) {
     console.error("Could not claim queued photo.", error);
     els.photoQueueStatus.textContent = error.message || "Queued photo could not be used.";

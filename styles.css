@@ -917,6 +917,32 @@ textarea[aria-invalid="true"] {
   padding-top: 0;
 }
 
+.queued-gear-image {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.queued-gear-image img {
+  width: 54px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.queued-gear-image span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .catch-rows,
 .gear-used-rows {
   display: grid;
@@ -1370,6 +1396,97 @@ textarea[aria-invalid="true"] {
 
 .summary-list p {
   margin: 0;
+}
+
+.trip-timeline {
+  display: grid;
+  gap: 0;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 88px 20px 1fr;
+  gap: 10px;
+  min-width: 0;
+}
+
+.timeline-time {
+  padding-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.timeline-dot {
+  position: relative;
+}
+
+.timeline-dot::before {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+}
+
+.timeline-dot::after {
+  position: absolute;
+  top: 18px;
+  bottom: -10px;
+  left: 9px;
+  width: 2px;
+  background: var(--line);
+  content: "";
+}
+
+.timeline-item:last-child .timeline-dot::after {
+  display: none;
+}
+
+.timeline-content {
+  min-width: 0;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.timeline-content > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.timeline-content strong {
+  display: block;
+  color: var(--ink);
+}
+
+.timeline-content p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.timeline-catch .timeline-dot::before {
+  background: #0b6e43;
+}
+
+.timeline-lost .timeline-dot::before {
+  background: var(--danger);
+}
+
+.timeline-photo .timeline-dot::before {
+  background: #2763a7;
 }
 
 .summary-catch-grid {

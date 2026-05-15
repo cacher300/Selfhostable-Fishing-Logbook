@@ -1,6 +1,24 @@
+function tripMonthName(trip) {
+  if (!trip.date) return "";
+  return new Date(`${trip.date}T12:00:00`).toLocaleDateString(undefined, { month: "long" });
+}
+
+function tripHasSpecies(trip, species) {
+  if (species === "All species") return true;
+  return [
+    ...(trip.catches || []).map((catchItem) => catchItem.species),
+    ...(trip.lostFish || []).map((fish) => fish.possibleSpecies || fish.species)
+  ].includes(species);
+}
+
 function scopedTrips() {
-  if (activeStatsMethod === "All methods") return state.trips;
-  return state.trips.filter((trip) => trip.method === activeStatsMethod);
+  return state.trips.filter((trip) => (
+    (activeStatsMethod === "All methods" || trip.method === activeStatsMethod)
+    && (activeStatsFilters.waterClarity === "All clarity" || trip.waterClarity === activeStatsFilters.waterClarity)
+    && (activeStatsFilters.weather === "All weather" || trip.weather === activeStatsFilters.weather)
+    && (activeStatsFilters.month === "All months" || tripMonthName(trip) === activeStatsFilters.month)
+    && tripHasSpecies(trip, activeStatsFilters.species)
+  ));
 }
 
 function catchRecords(trips = state.trips) {
@@ -19,6 +37,16 @@ function gearUseRecords(trips = state.trips) {
       .map((catchItem) => ({ ...catchItem, trip, source: "catch" }));
     return [...tripGear, ...catchGear];
   });
+}
+
+function filterRecordsBySpecies(records) {
+  if (activeStatsFilters.species === "All species") return records;
+  return records.filter((record) => (record.species || record.possibleSpecies) === activeStatsFilters.species);
+}
+
+function filterGearRecordsBySpecies(records) {
+  if (activeStatsFilters.species === "All species") return records;
+  return records.filter((record) => record.source === "catch" && record.species === activeStatsFilters.species);
 }
 
 function summarizeBy(records, keyFn, minutesFn = () => 0) {
@@ -51,9 +79,9 @@ function summarizeGearPerformance(records, keyFn, minutesFn = () => 0) {
 
 function renderAdvancedStats() {
   const trips = scopedTrips();
-  const records = catchRecords(trips);
-  const lostRecords = lostFishRecords(trips);
-  const gearRecords = gearUseRecords(trips);
+  const records = filterRecordsBySpecies(catchRecords(trips));
+  const lostRecords = filterRecordsBySpecies(lostFishRecords(trips));
+  const gearRecords = filterGearRecordsBySpecies(gearUseRecords(trips));
   const isTrollingScope = activeStatsMethod === "All methods" || activeStatsMethod === "Trolling";
   const fish = records.reduce((sum, record) => sum + fishCount(record), 0);
   const lostFish = lostRecords.length;
@@ -193,10 +221,16 @@ function renderAdvancedStats() {
   renderStatsTable(els.fowStatsTable, ["FOW", "Landed", "Lost", "Trips"], summarizeFieldWithLost(records, lostRecords, (record) => record.fowCaught));
   renderStatsTable(els.depthDownStatsTable, ["Depth Down", "Landed", "Lost", "Trips"], summarizeFieldWithLost(records, lostRecords, (record) => record.depthDown || record.estimatedDepth));
 
-  const locationRows = trips.map((trip) => ({ ...trip, fish: totalCaught(trip), rate: catchRate(trip) }));
+  const locationRows = trips.map((trip) => ({
+    ...trip,
+    catches: filterRecordsBySpecies(trip.catches || []),
+    lostFish: filterRecordsBySpecies(trip.lostFish || []),
+    fish: filterRecordsBySpecies(trip.catches || []).reduce((sum, catchItem) => sum + fishCount(catchItem), 0),
+    rate: catchRate(trip)
+  }));
   renderStatsTable(els.locationStatsTable, ["Location", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.location));
 
-  renderStatsTable(els.methodStatsTable, ["Method", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(state.trips.map((trip) => ({ ...trip, fish: totalCaught(trip), rate: catchRate(trip) })), (trip) => trip.method));
+  renderStatsTable(els.methodStatsTable, ["Method", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.method));
   renderStatsTable(els.waterClarityStatsTable, ["Water Clarity", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.waterClarity));
   renderStatsTable(els.weatherStatsTable, ["Weather", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.weather));
 
@@ -207,7 +241,7 @@ function renderAdvancedStats() {
 
   renderStatsTable(els.monthStatsTable, ["Month", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => {
     if (!trip.date) return "";
-    return new Date(`${trip.date}T12:00:00`).toLocaleDateString(undefined, { month: "long" });
+    return tripMonthName(trip);
   }));
 
   if (bestCatchRateTrip) {
@@ -230,7 +264,7 @@ function outcomeRows(landed, released, kept, lost) {
 }
 
 function summarizeLostFish(records, totalLost) {
-  return summarizeBy(records.filter((record) => record.species), (record) => record.species)
+  return summarizeBy(records.filter((record) => record.species || record.possibleSpecies), (record) => record.species || record.possibleSpecies)
     .map((item) => [
       item.name,
       item.uses,
@@ -490,7 +524,7 @@ function summarizeTrips(trips, keyFn) {
     if (!key) return;
     const current = map.get(key) || { name: key, trips: 0, fish: 0, hours: 0 };
     current.trips += 1;
-    current.fish += totalCaught(trip);
+    current.fish += trip.fish ?? totalCaught(trip);
     current.hours += tripHours(trip);
     map.set(key, current);
   });

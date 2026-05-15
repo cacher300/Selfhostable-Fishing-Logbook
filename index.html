@@ -109,6 +109,22 @@
               <span>Stats scope</span>
               <select id="statsMethodFilter"></select>
             </label>
+            <label>
+              <span>Species</span>
+              <select id="statsSpeciesFilter"></select>
+            </label>
+            <label>
+              <span>Water clarity</span>
+              <select id="statsWaterClarityFilter"></select>
+            </label>
+            <label>
+              <span>Weather</span>
+              <select id="statsWeatherFilter"></select>
+            </label>
+            <label>
+              <span>Month</span>
+              <select id="statsMonthFilter"></select>
+            </label>
           </div>
           <div class="metric-grid" id="advancedMetricGrid"></div>
           <div class="analytics-grid">
@@ -460,6 +476,8 @@
             <span>Lure image</span>
             <input id="lureImage" type="file" accept="image/*" />
           </label>
+          <button class="button secondary" type="button" data-use-photo-queue="lures">Use Queue</button>
+          <div id="lureQueuedImage" class="queued-gear-image hidden"></div>
           <label>
             <span>Notes</span>
             <textarea id="lureNotes" rows="3" placeholder="When and where this lure shines"></textarea>
@@ -505,6 +523,8 @@
             <span>Flasher image</span>
             <input id="flasherImage" type="file" accept="image/*" />
           </label>
+          <button class="button secondary" type="button" data-use-photo-queue="flashers">Use Queue</button>
+          <div id="flasherQueuedImage" class="queued-gear-image hidden"></div>
           <label>
             <span>Notes</span>
             <textarea id="flasherNotes" rows="3" placeholder="Leader length, speed, water color, species"></textarea>
@@ -533,15 +553,19 @@
             <span>Person</span>
             <select class="catch-person"></select>
           </label>
-          <label>
+          <label class="catch-species-field">
             <span>Species</span>
             <select class="catch-species"></select>
           </label>
-          <label>
+          <label class="possible-species-field hidden">
+            <span>Possible species</span>
+            <select class="catch-possible-species"></select>
+          </label>
+          <label class="catch-length-field">
             <span>Length</span>
             <input class="catch-length" type="text" placeholder="28 in" />
           </label>
-          <label>
+          <label class="catch-weight-field">
             <span>Weight</span>
             <input class="catch-weight" type="text" placeholder="9 lb" />
           </label>
@@ -560,6 +584,14 @@
           <label>
             <span>Estimated depth down</span>
             <input class="catch-depth-down" type="text" placeholder="45 ft" />
+          </label>
+          <label class="manual-coordinate-field">
+            <span>Latitude override</span>
+            <input class="catch-latitude" type="text" inputmode="decimal" placeholder="43.16142" />
+          </label>
+          <label class="manual-coordinate-field">
+            <span>Longitude override</span>
+            <input class="catch-longitude" type="text" inputmode="decimal" placeholder="-79.33851" />
           </label>
           <div class="row-section-title">Gear</div>
           <label>

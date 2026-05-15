@@ -198,19 +198,32 @@ function addFishRow(catchItem = {}, { container, lost }) {
   if (lost) node.classList.add("lost-fish-row");
   node.dataset.rowId = createId();
   node.dataset.catchId = catchItem.id || "";
-  node.catchPhotos = structuredClone(catchItem.photos || []);
+  node.catchPhotos = lost ? [] : structuredClone(catchItem.photos || []);
   node.querySelector(".remove-catch").setAttribute("aria-label", lost ? "Remove lost fish" : "Remove catch");
   node.querySelector(".catch-released-field").classList.toggle("hidden", lost);
+  node.querySelector(".catch-species-field").classList.toggle("hidden", lost);
+  node.querySelector(".possible-species-field").classList.toggle("hidden", !lost);
+  node.querySelector(".catch-length-field").classList.toggle("hidden", lost);
+  node.querySelector(".catch-weight-field").classList.toggle("hidden", lost);
+  node.querySelector(".manual-coordinate-field")?.classList.toggle("hidden", lost);
+  node.querySelectorAll(".manual-coordinate-field").forEach((field) => field.classList.toggle("hidden", lost));
+  node.querySelector(".catch-photo-title").classList.toggle("hidden", lost);
+  node.querySelector(".catch-photo-editor").classList.toggle("hidden", lost);
 
   populatePersonSelect(node.querySelector(".catch-person"), catchItem.personId || "");
   populateOptionSelect(node.querySelector(".catch-species"), state.species, "Select species");
-  node.querySelector(".catch-species").value = catchItem.species || "";
+  populateOptionSelect(node.querySelector(".catch-possible-species"), state.species, "Select possible species");
+  node.querySelector(".catch-species").value = lost ? "" : (catchItem.species || "");
+  node.querySelector(".catch-possible-species").value = catchItem.possibleSpecies || catchItem.species || "";
   node.querySelector(".catch-released").checked = Boolean(catchItem.released);
-  node.querySelector(".catch-length").value = catchItem.length || "";
-  node.querySelector(".catch-weight").value = catchItem.weight || "";
+  node.querySelector(".catch-length").value = lost ? "" : (catchItem.length || "");
+  node.querySelector(".catch-weight").value = lost ? "" : (catchItem.weight || "");
   node.querySelector(".catch-time").value = catchItem.time || "";
   node.querySelector(".catch-water-depth").value = catchItem.waterDepth || catchItem.depth || "";
   node.querySelector(".catch-depth-down").value = catchItem.depthDown || catchItem.depth || "";
+  const manualCoordinates = catchItem.manualCoordinates || (catchItem.coordinates?.manual ? catchItem.coordinates : null);
+  node.querySelector(".catch-latitude").value = manualCoordinates?.latitude ?? "";
+  node.querySelector(".catch-longitude").value = manualCoordinates?.longitude ?? "";
   node.querySelector(".catch-presentation").value = catchItem.presentation || "";
   node.querySelector(".catch-direction").value = catchItem.direction || "";
   node.querySelector(".catch-fow").value = catchItem.fowCaught || "";
@@ -306,7 +319,9 @@ function updateRowSummary(row) {
     const released = row.querySelector(".catch-released")?.checked && !row.classList.contains("lost-fish-row");
     const pieces = [
       fishRowLabel(row),
-      summaryOption(row.querySelector(".catch-species"), ["Select species"]),
+      row.classList.contains("lost-fish-row")
+        ? summaryOption(row.querySelector(".catch-possible-species"), ["Select possible species"])
+        : summaryOption(row.querySelector(".catch-species"), ["Select species"]),
       released ? "Released" : "",
       fowCaught,
       depthDown ? `${depthDown} down` : "",
@@ -371,10 +386,11 @@ function collectTripFromForm() {
     .map((row) => ({
       id: row.dataset.catchId || createId(),
       personId: row.querySelector(".catch-person").value,
-      species: row.querySelector(".catch-species").value.trim(),
+      species: lost ? "" : row.querySelector(".catch-species").value.trim(),
+      possibleSpecies: lost ? row.querySelector(".catch-possible-species").value.trim() : "",
       released: lost ? false : row.querySelector(".catch-released").checked,
-      length: row.querySelector(".catch-length").value.trim(),
-      weight: row.querySelector(".catch-weight").value.trim(),
+      length: lost ? "" : row.querySelector(".catch-length").value.trim(),
+      weight: lost ? "" : row.querySelector(".catch-weight").value.trim(),
       time: row.querySelector(".catch-time").value,
       waterDepth: row.querySelector(".catch-water-depth").value.trim(),
       depthDown: row.querySelector(".catch-depth-down").value.trim(),
@@ -391,10 +407,11 @@ function collectTripFromForm() {
       lineOut: trolling ? row.querySelector(".catch-line-out").value.trim() : "",
       estimatedDepth: trolling ? row.querySelector(".catch-estimated-depth").value.trim() : "",
       notes: row.querySelector(".catch-notes").value.trim(),
-      coordinates: firstCatchCoordinates(row),
-      photos: collectCatchPhotos(row)
+      manualCoordinates: lost ? null : manualCoordinatesFromRow(row),
+      coordinates: lost ? null : fishCoordinatesFromRow(row),
+      photos: lost ? [] : collectCatchPhotos(row)
     }))
-    .filter((item) => item.species || item.lureId || item.flasherId || item.notes || item.photos.length);
+    .filter((item) => item.species || item.possibleSpecies || item.lureId || item.flasherId || item.notes || item.photos.length);
 
   const catches = collectFishRows(els.catchRows);
   const lostFish = collectFishRows(els.lostFishRows, true);
@@ -445,7 +462,7 @@ async function saveTrip(event) {
     trip.people = trip.people.filter((person) => usedPersonIds.has(person.id));
     upsertListValue("species", trip.targetSpecies);
     trip.catches.forEach((catchItem) => upsertListValue("species", catchItem.species));
-    trip.lostFish.forEach((fish) => upsertListValue("species", fish.species));
+    trip.lostFish.forEach((fish) => upsertListValue("species", fish.possibleSpecies));
 
     const index = state.trips.findIndex((item) => item.id === trip.id);
     if (index >= 0) state.trips[index] = trip;

@@ -279,6 +279,119 @@ function renderTripSummaryGear(trip) {
   `;
 }
 
+function timelineTimeValue(time) {
+  if (!time) return 9999;
+  const [hours = "0", minutes = "0"] = String(time).split(":");
+  return Number(hours) * 60 + Number(minutes);
+}
+
+function timelineTimeLabel(item) {
+  if (item.startTime && item.endTime) return `${item.startTime}-${item.endTime}`;
+  return item.time || item.startTime || item.endTime || "No time";
+}
+
+function tripTimelineItems(trip) {
+  const items = [];
+  (trip.gearUsed || []).forEach((gearItem, index) => {
+    const gear = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
+    const details = [
+      gear,
+      personName(trip, gearItem.personId),
+      presentationLabel(gearItem.presentation),
+      gearItem.speed ? `${gearItem.speed}` : "",
+      gearItem.ballDepth ? `${gearItem.ballDepth} ball` : "",
+      gearItem.estimatedLureDepth ? `${gearItem.estimatedLureDepth} lure` : "",
+      gearItem.estimatedDepth ? `${gearItem.estimatedDepth} estimated` : ""
+    ].filter(Boolean).join(" / ");
+    items.push({
+      type: "Setup",
+      title: gear || `Setup ${index + 1}`,
+      details,
+      note: gearItem.changeNote,
+      startTime: gearItem.startTime,
+      endTime: gearItem.endTime,
+      sortTime: timelineTimeValue(gearItem.startTime || gearItem.endTime)
+    });
+  });
+
+  (trip.catches || []).forEach((catchItem, index) => {
+    const details = [
+      catchItem.released ? "Released" : "Kept",
+      catchItem.length,
+      catchItem.weight,
+      catchItem.fowCaught,
+      catchItem.depthDown ? `${catchItem.depthDown} down` : "",
+      catchItem.waterDepth ? `${catchItem.waterDepth} water` : "",
+      lureName(catchItem.lureId),
+      flasherName(catchItem.flasherId),
+      catchItem.speed
+    ].filter(Boolean).join(" / ");
+    items.push({
+      type: "Catch",
+      title: catchItem.species || `Catch ${index + 1}`,
+      details,
+      note: catchItem.notes,
+      time: catchItem.time,
+      photos: catchItem.photos || [],
+      sortTime: timelineTimeValue(catchItem.time)
+    });
+  });
+
+  (trip.lostFish || []).forEach((fish, index) => {
+    const details = [
+      fish.possibleSpecies || fish.species,
+      fish.fowCaught,
+      fish.depthDown ? `${fish.depthDown} down` : "",
+      fish.waterDepth ? `${fish.waterDepth} water` : "",
+      lureName(fish.lureId),
+      flasherName(fish.flasherId),
+      fish.speed
+    ].filter(Boolean).join(" / ");
+    items.push({
+      type: "Lost",
+      title: fish.possibleSpecies || fish.species || `Lost Fish ${index + 1}`,
+      details,
+      note: fish.notes,
+      time: fish.time,
+      sortTime: timelineTimeValue(fish.time)
+    });
+  });
+
+  (trip.notePhotos || []).forEach((photo) => {
+    items.push({
+      type: "Photo",
+      title: photo.caption || photo.name || "Trip photo",
+      details: "Trip photo",
+      photos: [photo],
+      sortTime: 10000
+    });
+  });
+
+  return items.sort((a, b) => a.sortTime - b.sortTime || a.type.localeCompare(b.type));
+}
+
+function renderTripTimeline(trip) {
+  const items = tripTimelineItems(trip);
+  if (!items.length) return `<div class="empty-state compact-empty"><p>No timeline events logged.</p></div>`;
+  return `
+    <div class="trip-timeline">
+      ${items.map((item) => `
+        <article class="timeline-item timeline-${item.type.toLowerCase()}">
+          <div class="timeline-time">${escapeHtml(timelineTimeLabel(item))}</div>
+          <div class="timeline-dot" aria-hidden="true"></div>
+          <div class="timeline-content">
+            <span>${escapeHtml(item.type)}</span>
+            <strong>${escapeHtml(item.title)}</strong>
+            ${item.details ? `<p>${escapeHtml(item.details)}</p>` : ""}
+            ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
+            ${item.photos?.length ? summaryPhotoGrid(item.photos, "No photos") : ""}
+          </div>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
 function openTripSummary(trip) {
   activeSummaryTripId = trip.id;
   els.tripSummaryTitle.textContent = trip.title || trip.location || "Trip Summary";
@@ -313,6 +426,10 @@ function openTripSummary(trip) {
         <span><strong>Water Temp</strong>${escapeHtml(trip.waterTemp || "Not logged")}</span>
         <span><strong>Structure</strong>${escapeHtml(trip.structure || "Not logged")}</span>
       </div>
+    </section>
+    <section class="summary-section">
+      <h3>Trip Timeline</h3>
+      ${renderTripTimeline(trip)}
     </section>
     <section class="summary-section">
       <h3>Catches</h3>

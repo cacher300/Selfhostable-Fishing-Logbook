@@ -13,7 +13,7 @@ els.lureForm.addEventListener("submit", saveLure);
 els.flasherForm.addEventListener("submit", saveFlasher);
 els.lureDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("lure"));
 els.flasherDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("flasher"));
-els.photoQueueDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("queue"));
+els.photoQueueDialog.addEventListener("close", restoreDialogAfterPhotoQueue);
 els.summaryEditTripButton.addEventListener("click", () => {
   const trip = state.trips.find((item) => item.id === activeSummaryTripId);
   if (!trip) return;
@@ -47,6 +47,17 @@ els.importInput.addEventListener("change", importJson);
 els.statsMethodFilter.addEventListener("change", () => {
   activeStatsMethod = els.statsMethodFilter.value;
   renderAdvancedStats();
+});
+[
+  ["species", els.statsSpeciesFilter],
+  ["waterClarity", els.statsWaterClarityFilter],
+  ["weather", els.statsWeatherFilter],
+  ["month", els.statsMonthFilter]
+].forEach(([key, control]) => {
+  control.addEventListener("change", () => {
+    activeStatsFilters[key] = control.value;
+    renderAdvancedStats();
+  });
 });
 els.mapSpeciesFilter.addEventListener("change", () => {
   activeMapSpecies = els.mapSpeciesFilter.value;
@@ -119,8 +130,18 @@ document.addEventListener("click", (event) => {
     openPhotoQueue({ type: "trip", category: "trip-photos" });
   }
 
+  const lureQueueButton = event.target.closest("[data-use-photo-queue='lures']");
+  if (lureQueueButton) {
+    openPhotoQueue({ type: "lure", category: "lures" });
+  }
+
+  const flasherQueueButton = event.target.closest("[data-use-photo-queue='flashers']");
+  if (flasherQueueButton) {
+    openPhotoQueue({ type: "flasher", category: "flashers" });
+  }
+
   const catchQueueButton = event.target.closest(".use-catch-photo-queue");
-  if (catchQueueButton) {
+  if (catchQueueButton && !catchQueueButton.closest(".lost-fish-row")) {
     openPhotoQueue({
       type: "catch",
       category: "catch-photos",
@@ -179,6 +200,14 @@ document.addEventListener("change", (event) => {
   if (event.target.matches(".catch-photo-input")) {
     addCatchPhotos(event);
     return;
+  }
+  if (event.target.matches("#lureImage")) {
+    pendingLureImage = null;
+    renderQueuedGearImage("lure");
+  }
+  if (event.target.matches("#flasherImage")) {
+    pendingFlasherImage = null;
+    renderQueuedGearImage("flasher");
   }
   if (event.target.closest("#tripForm")) clearTripFormMessage();
   if (event.target.matches(".catch-lure, .trip-gear-lure")) {

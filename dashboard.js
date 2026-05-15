@@ -91,14 +91,25 @@ function renderStats() {
 
 function renderBrandSpotlight() {
   const photos = state.trips
-    .flatMap((trip) => (trip.notePhotos || []).map((photo) => ({
-      ...photo,
-      tripTitle: trip.title || trip.location || "Trip photo",
-      date: trip.date
-    })))
+    .flatMap((trip) => {
+      const tripTitle = trip.title || trip.location || "Trip photo";
+      const notePhotos = (trip.notePhotos || []).map((photo) => ({
+        ...photo,
+        tripTitle,
+        spotlightTitle: photo.caption || tripTitle,
+        date: trip.date
+      }));
+      const catchPhotos = (trip.catches || []).flatMap((catchItem) => (catchItem.photos || []).map((photo) => ({
+        ...photo,
+        tripTitle,
+        spotlightTitle: catchItem.species || "Fish photo",
+        date: trip.date
+      })));
+      return [...notePhotos, ...catchPhotos];
+    })
     .filter((photo) => photo.image)
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
-    .slice(0, 5);
+    .slice(0, 8);
 
   if (!photos.length) {
     els.brandSpotlight.innerHTML = `
@@ -115,7 +126,7 @@ function renderBrandSpotlight() {
         <figure class="spotlight-slide" style="--slide-index:${index}; --slide-count:${photos.length};">
           <img src="${previewImage(photo)}" alt="">
           <figcaption>
-            <strong>${escapeHtml(photo.caption || photo.tripTitle)}</strong>
+            <strong>${escapeHtml(photo.spotlightTitle || photo.caption || photo.tripTitle)}</strong>
             <span>${escapeHtml(photo.tripTitle)}</span>
           </figcaption>
         </figure>
@@ -144,6 +155,33 @@ function renderStatsMethodFilter() {
   els.statsMethodFilter.innerHTML = methods.map((method) => (
     `<option value="${escapeHtml(method)}" ${method === activeStatsMethod ? "selected" : ""}>${escapeHtml(method)}</option>`
   )).join("");
+
+  const species = ["All species", ...new Set([...state.species, ...state.trips.flatMap((trip) => [
+    ...(trip.catches || []).map((catchItem) => catchItem.species),
+    ...(trip.lostFish || []).map((fish) => fish.possibleSpecies || fish.species)
+  ])].filter(Boolean))];
+  if (!species.includes(activeStatsFilters.species)) activeStatsFilters.species = "All species";
+  els.statsSpeciesFilter.innerHTML = species.map((item) => (
+    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.species ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
+
+  const clarity = ["All clarity", ...waterClarityOptions];
+  if (!clarity.includes(activeStatsFilters.waterClarity)) activeStatsFilters.waterClarity = "All clarity";
+  els.statsWaterClarityFilter.innerHTML = clarity.map((item) => (
+    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.waterClarity ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
+
+  const weather = ["All weather", ...weatherOptions];
+  if (!weather.includes(activeStatsFilters.weather)) activeStatsFilters.weather = "All weather";
+  els.statsWeatherFilter.innerHTML = weather.map((item) => (
+    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.weather ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
+
+  const months = ["All months", ...new Set(state.trips.map((trip) => tripMonthName(trip)).filter(Boolean))];
+  if (!months.includes(activeStatsFilters.month)) activeStatsFilters.month = "All months";
+  els.statsMonthFilter.innerHTML = months.map((item) => (
+    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.month ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
 }
 
 function filteredTrips() {
@@ -165,7 +203,7 @@ function filteredTrips() {
       trip.weather,
       trip.structure,
       ...(trip.catches || []).flatMap((catchItem) => [catchItem.species, catchItem.notes, lureName(catchItem.lureId), flasherName(catchItem.flasherId)]),
-      ...(trip.lostFish || []).flatMap((fish) => [fish.species, fish.notes, lureName(fish.lureId), flasherName(fish.flasherId)])
+      ...(trip.lostFish || []).flatMap((fish) => [fish.possibleSpecies, fish.species, fish.notes, lureName(fish.lureId), flasherName(fish.flasherId)])
     ].join(" ").toLowerCase();
 
     const matchesQuery = !query || haystack.includes(query);
@@ -232,6 +270,7 @@ function renderSelectOptions() {
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
   document.querySelectorAll(".catch-species").forEach((select) => populateOptionSelect(select, state.species, "Select species"));
+  document.querySelectorAll(".catch-possible-species").forEach((select) => populateOptionSelect(select, state.species, "Select possible species"));
 }
 
 function populateDatalist(datalist, options) {

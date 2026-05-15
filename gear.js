@@ -4,7 +4,7 @@ async function saveLure(event) {
     const editingId = getValue("editingLureId");
     const existing = state.lures.find((item) => item.id === editingId);
     const imageFile = document.querySelector("#lureImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "lures") : null;
+    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "lures") : pendingLureImage;
     const lure = {
       id: editingId || createId(),
       name: getValue("lureName"),
@@ -35,6 +35,8 @@ async function saveLure(event) {
 
     els.lureDialog.close();
     els.lureForm.reset();
+    pendingLureImage = null;
+    renderQueuedGearImage("lure");
     renderAll();
   } catch (error) {
     console.error("Could not save lure.", error);
@@ -48,7 +50,7 @@ async function saveFlasher(event) {
     const editingId = getValue("editingFlasherId");
     const existing = state.flashers.find((item) => item.id === editingId);
     const imageFile = document.querySelector("#flasherImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "flashers") : null;
+    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "flashers") : pendingFlasherImage;
     const flasher = {
       id: editingId || createId(),
       name: getValue("flasherName"),
@@ -79,6 +81,8 @@ async function saveFlasher(event) {
 
     els.flasherDialog.close();
     els.flasherForm.reset();
+    pendingFlasherImage = null;
+    renderQueuedGearImage("flasher");
     renderAll();
   } catch (error) {
     console.error("Could not save flasher.", error);
@@ -99,6 +103,17 @@ function flasherName(id) {
 function formatCoordinates(coordinates) {
   if (!coordinates) return "";
   return `${Number(coordinates.latitude).toFixed(5)}, ${Number(coordinates.longitude).toFixed(5)}`;
+}
+
+function renderQueuedGearImage(type) {
+  const photo = type === "lure" ? pendingLureImage : pendingFlasherImage;
+  const container = document.querySelector(type === "lure" ? "#lureQueuedImage" : "#flasherQueuedImage");
+  if (!container) return;
+  container.classList.toggle("hidden", !photo);
+  container.innerHTML = photo ? `
+    <img src="${previewImage(photo)}" alt="">
+    <span>${escapeHtml(photo.name || "Queued photo selected")}</span>
+  ` : "";
 }
 
 function renderLurePreview(row) {
@@ -163,6 +178,8 @@ function restoreTripDialogAfterInlineGear(type) {
 function openLureDialog(lure = null, pendingRowId = "") {
   prepareInlineGearDialog("lure", pendingRowId);
   els.lureForm.reset();
+  pendingLureImage = null;
+  renderQueuedGearImage("lure");
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   const editing = Boolean(lure);
   document.querySelector("#lureDialog h2").textContent = editing ? "Edit Lure" : "Add Lure";
@@ -180,6 +197,8 @@ function openLureDialog(lure = null, pendingRowId = "") {
 function openFlasherDialog(flasher = null, pendingRowId = "") {
   prepareInlineGearDialog("flasher", pendingRowId);
   els.flasherForm.reset();
+  pendingFlasherImage = null;
+  renderQueuedGearImage("flasher");
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
   const editing = Boolean(flasher);
   document.querySelector("#flasherDialog h2").textContent = editing ? "Edit Flasher" : "Add Flasher";
