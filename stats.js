@@ -11,13 +11,47 @@ function tripHasSpecies(trip, species) {
   ].includes(species);
 }
 
+function tripHasPerson(trip, person) {
+  if (person === "All people") return true;
+  const personIds = new Set((trip.people || []).filter((item) => item.name === person).map((item) => item.id));
+  if ((trip.people || []).some((item) => item.name === person)) return true;
+  return [
+    ...(trip.catches || []),
+    ...(trip.lostFish || []),
+    ...(trip.gearUsed || [])
+  ].some((record) => personName(trip, record.personId) === person || personIds.has(record.personId));
+}
+
+function tripHasLure(trip, lure) {
+  if (lure === "All lures") return true;
+  return [
+    ...(trip.catches || []),
+    ...(trip.lostFish || []),
+    ...(trip.gearUsed || [])
+  ].some((record) => lureName(record.lureId) === lure);
+}
+
+function tripHasFlasher(trip, flasher) {
+  if (flasher === "All flashers") return true;
+  return [
+    ...(trip.catches || []),
+    ...(trip.lostFish || []),
+    ...(trip.gearUsed || [])
+  ].some((record) => flasherName(record.flasherId) === flasher);
+}
+
 function scopedTrips() {
   return state.trips.filter((trip) => (
     (activeStatsMethod === "All methods" || trip.method === activeStatsMethod)
+    && (activeStatsFilters.location === "All locations" || trip.location === activeStatsFilters.location)
     && (activeStatsFilters.waterClarity === "All clarity" || trip.waterClarity === activeStatsFilters.waterClarity)
     && (activeStatsFilters.weather === "All weather" || trip.weather === activeStatsFilters.weather)
     && (activeStatsFilters.month === "All months" || tripMonthName(trip) === activeStatsFilters.month)
+    && (activeStatsFilters.rating === "All ratings" || tripRatingLabel(tripRatingValue(trip)) === activeStatsFilters.rating)
     && tripHasSpecies(trip, activeStatsFilters.species)
+    && tripHasPerson(trip, activeStatsFilters.person)
+    && tripHasLure(trip, activeStatsFilters.lure)
+    && tripHasFlasher(trip, activeStatsFilters.flasher)
   ));
 }
 
@@ -39,14 +73,24 @@ function gearUseRecords(trips = state.trips) {
   });
 }
 
-function filterRecordsBySpecies(records) {
-  if (activeStatsFilters.species === "All species") return records;
-  return records.filter((record) => (record.species || record.possibleSpecies) === activeStatsFilters.species);
+function recordMatchesStatsFilters(record) {
+  return (
+    (activeStatsFilters.species === "All species" || (record.species || record.possibleSpecies) === activeStatsFilters.species)
+    && (activeStatsFilters.person === "All people" || personName(record.trip, record.personId) === activeStatsFilters.person)
+    && (activeStatsFilters.lure === "All lures" || lureName(record.lureId) === activeStatsFilters.lure)
+    && (activeStatsFilters.flasher === "All flashers" || flasherName(record.flasherId) === activeStatsFilters.flasher)
+  );
 }
 
-function filterGearRecordsBySpecies(records) {
-  if (activeStatsFilters.species === "All species") return records;
-  return records.filter((record) => record.source === "catch" && record.species === activeStatsFilters.species);
+function filterRecordsByStats(records) {
+  return records.filter(recordMatchesStatsFilters);
+}
+
+function filterGearRecordsByStats(records) {
+  return records.filter((record) => {
+    if (activeStatsFilters.species !== "All species" && record.source !== "catch") return false;
+    return recordMatchesStatsFilters(record);
+  });
 }
 
 function summarizeBy(records, keyFn, minutesFn = () => 0) {
@@ -79,9 +123,9 @@ function summarizeGearPerformance(records, keyFn, minutesFn = () => 0) {
 
 function renderAdvancedStats() {
   const trips = scopedTrips();
-  const records = filterRecordsBySpecies(catchRecords(trips));
-  const lostRecords = filterRecordsBySpecies(lostFishRecords(trips));
-  const gearRecords = filterGearRecordsBySpecies(gearUseRecords(trips));
+  const records = filterRecordsByStats(catchRecords(trips));
+  const lostRecords = filterRecordsByStats(lostFishRecords(trips));
+  const gearRecords = filterGearRecordsByStats(gearUseRecords(trips));
   const isTrollingScope = activeStatsMethod === "All methods" || activeStatsMethod === "Trolling";
   const fish = records.reduce((sum, record) => sum + fishCount(record), 0);
   const lostFish = lostRecords.length;
@@ -171,6 +215,10 @@ function renderAdvancedStats() {
   ]));
 
   renderStatsTable(els.lostFishStatsTable, ["Species", "Lost", "Trips", "Share"], summarizeLostFish(lostRecords, lostFish));
+  renderStatsTable(els.bestPatternStatsTable, ["Pattern", "Fish", "Trips", "Fish / hr"], summarizeBestPatterns(records, trips));
+  renderStatsTable(els.timeOfDayStatsTable, ["Time", "Landed", "Lost", "Share"], summarizeTimeOfDay(records, lostRecords, fishInteractions));
+  renderStatsTable(els.releaseStatsTable, ["Species", "Landed", "Released", "Kept", "Release %"], summarizeReleasePatterns(records));
+  renderStatsTable(els.photoCoverageStatsTable, ["Coverage", "Count", "Share"], summarizePhotoCoverage(records));
 
   if (isTrollingScope) {
     const trollingCatches = records.filter(isTrollingRecord);
@@ -223,9 +271,9 @@ function renderAdvancedStats() {
 
   const locationRows = trips.map((trip) => ({
     ...trip,
-    catches: filterRecordsBySpecies(trip.catches || []),
-    lostFish: filterRecordsBySpecies(trip.lostFish || []),
-    fish: filterRecordsBySpecies(trip.catches || []).reduce((sum, catchItem) => sum + fishCount(catchItem), 0),
+    catches: filterRecordsByStats((trip.catches || []).map((catchItem) => ({ ...catchItem, trip }))),
+    lostFish: filterRecordsByStats((trip.lostFish || []).map((fish) => ({ ...fish, trip }))),
+    fish: filterRecordsByStats((trip.catches || []).map((catchItem) => ({ ...catchItem, trip }))).reduce((sum, catchItem) => sum + fishCount(catchItem), 0),
     rate: catchRate(trip)
   }));
   renderStatsTable(els.locationStatsTable, ["Location", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.location));
@@ -271,6 +319,88 @@ function summarizeLostFish(records, totalLost) {
       item.trips.size,
       totalLost ? `${trimNumber((item.uses / totalLost) * 100)}%` : "0%"
     ]);
+}
+
+function summarizeBestPatterns(records, trips) {
+  const tripHoursById = new Map(trips.map((trip) => [trip.id, tripHours(trip)]));
+  const map = new Map();
+  records.forEach((record) => {
+    const pattern = [
+      record.species,
+      lureName(record.lureId),
+      flasherName(record.flasherId),
+      record.trip.waterClarity,
+      record.trip.weather
+    ].filter(Boolean).join(" / ");
+    if (!pattern) return;
+    const current = map.get(pattern) || { name: pattern, fish: 0, trips: new Set() };
+    current.fish += fishCount(record);
+    current.trips.add(record.trip.id);
+    map.set(pattern, current);
+  });
+  return [...map.values()]
+    .sort((a, b) => b.fish - a.fish || b.trips.size - a.trips.size)
+    .slice(0, 12)
+    .map((item) => {
+      const hours = [...item.trips].reduce((sum, tripId) => sum + (tripHoursById.get(tripId) || 0), 0);
+      return [item.name, item.fish, item.trips.size, hours ? trimNumber(item.fish / hours) : "0"];
+    });
+}
+
+function timeBucket(time) {
+  if (!time) return "No time";
+  const hour = Number(String(time).split(":")[0]);
+  if (!Number.isFinite(hour)) return "No time";
+  if (hour < 5) return "Night";
+  if (hour < 10) return "Morning";
+  if (hour < 14) return "Midday";
+  if (hour < 18) return "Afternoon";
+  if (hour < 21) return "Evening";
+  return "Night";
+}
+
+function summarizeTimeOfDay(catches, lostRecords, totalInteractions) {
+  const order = ["Morning", "Midday", "Afternoon", "Evening", "Night", "No time"];
+  const map = new Map(order.map((name) => [name, { name, landed: 0, lost: 0 }]));
+  catches.forEach((record) => {
+    const current = map.get(timeBucket(record.time));
+    current.landed += fishCount(record);
+  });
+  lostRecords.forEach((record) => {
+    const current = map.get(timeBucket(record.time));
+    current.lost += 1;
+  });
+  return [...map.values()]
+    .filter((item) => item.landed || item.lost)
+    .map((item) => [item.name, item.landed, item.lost, formatPercent(item.landed + item.lost, totalInteractions)]);
+}
+
+function summarizeReleasePatterns(records) {
+  const map = new Map();
+  records.forEach((record) => {
+    const key = record.species || "Unknown";
+    const current = map.get(key) || { name: key, landed: 0, released: 0 };
+    const count = fishCount(record);
+    current.landed += count;
+    if (record.released) current.released += count;
+    map.set(key, current);
+  });
+  return [...map.values()]
+    .sort((a, b) => b.landed - a.landed)
+    .map((item) => [item.name, item.landed, item.released, Math.max(0, item.landed - item.released), formatPercent(item.released, item.landed)]);
+}
+
+function summarizePhotoCoverage(records) {
+  const total = records.reduce((sum, record) => sum + fishCount(record), 0);
+  const withPhotos = records.filter((record) => (record.photos || []).length).reduce((sum, record) => sum + fishCount(record), 0);
+  const withGps = records.filter((record) => record.coordinates).reduce((sum, record) => sum + fishCount(record), 0);
+  const manualGps = records.filter((record) => record.manualCoordinates || record.coordinates?.manual).reduce((sum, record) => sum + fishCount(record), 0);
+  return [
+    ["Fish logged", total, "100%"],
+    ["With photos", withPhotos, formatPercent(withPhotos, total)],
+    ["With GPS", withGps, formatPercent(withGps, total)],
+    ["Manual GPS overrides", manualGps, formatPercent(manualGps, total)]
+  ];
 }
 
 function summarizeFieldWithLost(catches, lostRecords, keyFn) {

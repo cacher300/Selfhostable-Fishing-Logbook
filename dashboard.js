@@ -165,6 +165,33 @@ function renderStatsMethodFilter() {
     `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.species ? "selected" : ""}>${escapeHtml(item)}</option>`
   )).join("");
 
+  const people = ["All people", ...mergePeople(
+    state.people,
+    state.trips.flatMap((trip) => trip.people || [])
+  ).map((person) => person.name)];
+  if (!people.includes(activeStatsFilters.person)) activeStatsFilters.person = "All people";
+  els.statsPersonFilter.innerHTML = people.map((item) => (
+    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.person ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
+
+  const locations = ["All locations", ...new Set([...state.locations, ...state.trips.map((trip) => trip.location)].filter(Boolean))];
+  if (!locations.includes(activeStatsFilters.location)) activeStatsFilters.location = "All locations";
+  els.statsLocationFilter.innerHTML = locations.map((item) => (
+    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.location ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
+
+  const lures = ["All lures", ...state.lures.map((lure) => lure.name).filter(Boolean)];
+  if (!lures.includes(activeStatsFilters.lure)) activeStatsFilters.lure = "All lures";
+  els.statsLureFilter.innerHTML = lures.map((item) => (
+    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.lure ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
+
+  const flashers = ["All flashers", ...state.flashers.map((flasher) => flasher.name).filter(Boolean)];
+  if (!flashers.includes(activeStatsFilters.flasher)) activeStatsFilters.flasher = "All flashers";
+  els.statsFlasherFilter.innerHTML = flashers.map((item) => (
+    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.flasher ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
+
   const clarity = ["All clarity", ...waterClarityOptions];
   if (!clarity.includes(activeStatsFilters.waterClarity)) activeStatsFilters.waterClarity = "All clarity";
   els.statsWaterClarityFilter.innerHTML = clarity.map((item) => (
@@ -181,6 +208,12 @@ function renderStatsMethodFilter() {
   if (!months.includes(activeStatsFilters.month)) activeStatsFilters.month = "All months";
   els.statsMonthFilter.innerHTML = months.map((item) => (
     `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.month ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
+
+  const ratings = ["All ratings", "Bad", "Good", "Outstanding"];
+  if (!ratings.includes(activeStatsFilters.rating)) activeStatsFilters.rating = "All ratings";
+  els.statsRatingFilter.innerHTML = ratings.map((item) => (
+    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.rating ? "selected" : ""}>${escapeHtml(item)}</option>`
   )).join("");
 }
 

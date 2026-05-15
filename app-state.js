@@ -95,9 +95,14 @@ let activeNotePhotos = [];
 let activeStatsMethod = "All methods";
 const activeStatsFilters = {
   species: "All species",
+  person: "All people",
+  location: "All locations",
+  lure: "All lures",
+  flasher: "All flashers",
   waterClarity: "All clarity",
   weather: "All weather",
-  month: "All months"
+  month: "All months",
+  rating: "All ratings"
 };
 let activeMapSpecies = "All species";
 let fishMap = null;
@@ -136,9 +141,14 @@ const els = {
   mapSpeciesFilter: document.querySelector("#mapSpeciesFilter"),
   statsMethodFilter: document.querySelector("#statsMethodFilter"),
   statsSpeciesFilter: document.querySelector("#statsSpeciesFilter"),
+  statsPersonFilter: document.querySelector("#statsPersonFilter"),
+  statsLocationFilter: document.querySelector("#statsLocationFilter"),
+  statsLureFilter: document.querySelector("#statsLureFilter"),
+  statsFlasherFilter: document.querySelector("#statsFlasherFilter"),
   statsWaterClarityFilter: document.querySelector("#statsWaterClarityFilter"),
   statsWeatherFilter: document.querySelector("#statsWeatherFilter"),
   statsMonthFilter: document.querySelector("#statsMonthFilter"),
+  statsRatingFilter: document.querySelector("#statsRatingFilter"),
   advancedMetricGrid: document.querySelector("#advancedMetricGrid"),
   outcomeStatsTable: document.querySelector("#outcomeStatsTable"),
   lureStatsTable: document.querySelector("#lureStatsTable"),
@@ -146,6 +156,10 @@ const els = {
   comboStatsTable: document.querySelector("#comboStatsTable"),
   speciesStatsTable: document.querySelector("#speciesStatsTable"),
   lostFishStatsTable: document.querySelector("#lostFishStatsTable"),
+  bestPatternStatsTable: document.querySelector("#bestPatternStatsTable"),
+  timeOfDayStatsTable: document.querySelector("#timeOfDayStatsTable"),
+  releaseStatsTable: document.querySelector("#releaseStatsTable"),
+  photoCoverageStatsTable: document.querySelector("#photoCoverageStatsTable"),
   trollingHighlightsTable: document.querySelector("#trollingHighlightsTable"),
   directionStatsTable: document.querySelector("#directionStatsTable"),
   trollingSetupStatsTable: document.querySelector("#trollingSetupStatsTable"),

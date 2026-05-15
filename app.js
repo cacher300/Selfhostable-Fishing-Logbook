@@ -50,9 +50,14 @@ els.statsMethodFilter.addEventListener("change", () => {
 });
 [
   ["species", els.statsSpeciesFilter],
+  ["person", els.statsPersonFilter],
+  ["location", els.statsLocationFilter],
+  ["lure", els.statsLureFilter],
+  ["flasher", els.statsFlasherFilter],
   ["waterClarity", els.statsWaterClarityFilter],
   ["weather", els.statsWeatherFilter],
-  ["month", els.statsMonthFilter]
+  ["month", els.statsMonthFilter],
+  ["rating", els.statsRatingFilter]
 ].forEach(([key, control]) => {
   control.addEventListener("change", () => {
     activeStatsFilters[key] = control.value;
