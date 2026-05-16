@@ -108,7 +108,7 @@ function renderBrandSpotlight() {
       })));
       return [...notePhotos, ...catchPhotos];
     })
-    .filter((photo) => photo.image)
+    .filter((photo) => photo.image && !isVideoMedia(photo))
     .sort(randomSort)
     .slice(0, 8);
 
