@@ -408,7 +408,7 @@
             <h3>Note Photos</h3>
             <label class="button secondary file-button">
               Add Photos
-              <input id="notePhotoInput" type="file" accept="image/*" multiple />
+              <input id="notePhotoInput" type="file" accept="image/*,video/*" multiple />
             </label>
             <button class="button secondary" type="button" data-use-photo-queue="trip-photos">Use Queue</button>
           </div>
@@ -469,7 +469,7 @@
         <div class="photo-queue-actions">
           <label class="button primary file-button">
             Upload to Queue
-            <input id="photoQueueInput" type="file" accept="image/*" multiple />
+            <input id="photoQueueInput" type="file" accept="image/*,video/*" multiple />
           </label>
           <span id="photoQueueStatus" class="map-summary">No queued photos loaded</span>
         </div>
@@ -510,7 +510,7 @@
           </label>
           <label>
             <span>Lure image</span>
-            <input id="lureImage" type="file" accept="image/*" />
+            <input id="lureImage" type="file" accept="image/*,video/*" />
           </label>
           <button class="button secondary" type="button" data-use-photo-queue="lures">Use Queue</button>
           <div id="lureQueuedImage" class="queued-gear-image hidden"></div>
@@ -557,7 +557,7 @@
           </label>
           <label>
             <span>Flasher image</span>
-            <input id="flasherImage" type="file" accept="image/*" />
+            <input id="flasherImage" type="file" accept="image/*,video/*" />
           </label>
           <button class="button secondary" type="button" data-use-photo-queue="flashers">Use Queue</button>
           <div id="flasherQueuedImage" class="queued-gear-image hidden"></div>
@@ -708,7 +708,7 @@
           <div class="catch-photo-editor">
             <label class="button secondary file-button">
               Add Photos
-              <input class="catch-photo-input" type="file" accept="image/*" multiple />
+              <input class="catch-photo-input" type="file" accept="image/*,video/*" multiple />
             </label>
             <button class="button secondary use-catch-photo-queue" type="button">Use Queue</button>
             <div class="catch-photo-grid"></div>

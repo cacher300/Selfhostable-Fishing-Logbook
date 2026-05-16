@@ -81,7 +81,7 @@ function mapPopupHtml(record) {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`;
   return `
     <div class="map-popup">
-      ${photo?.image ? `<img src="${previewImage(photo)}" alt="">` : ""}
+      ${photo?.image ? mediaMarkup(photo) : ""}
       <strong>${escapeHtml(title)}</strong>
       <span>${escapeHtml(formatDate(trip.date))}</span>
       <span>${escapeHtml(formatCoordinates(coordinates))}</span>
@@ -101,7 +101,7 @@ function renderMapList(records) {
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`;
     return `
       <article class="map-catch-card">
-        ${photo?.image ? `<img src="${previewImage(photo)}" alt="">` : ""}
+        ${photo?.image ? mediaMarkup(photo) : ""}
         <div>
           <strong>${escapeHtml(catchItem.species || "Fish")}</strong>
           <span>${escapeHtml([formatDate(trip.date), trip.location].filter(Boolean).join(" / "))}</span>
@@ -222,7 +222,7 @@ function summaryPhotoGrid(photos = [], emptyText = "No photos") {
     <div class="summary-photo-grid">
       ${photos.map((photo) => `
         <figure class="summary-photo-card">
-          <img src="${previewImage(photo)}" alt="">
+          ${mediaMarkup(photo)}
           <figcaption>${escapeHtml(photo.caption || photo.name || "Photo")}</figcaption>
         </figure>
       `).join("")}
@@ -361,9 +361,10 @@ function tripTimelineItems(trip) {
     items.push({
       type: "Photo",
       title: photo.caption || photo.name || "Trip photo",
-      details: "Trip photo",
+      details: photo.captureTime ? "Trip photo time from image metadata" : "Trip photo",
+      time: photo.captureTime || "",
       photos: [photo],
-      sortTime: 10000
+      sortTime: photo.captureTime ? timelineTimeValue(photo.captureTime) : 10000
     });
   });
 

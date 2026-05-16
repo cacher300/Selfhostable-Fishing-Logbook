@@ -19,6 +19,8 @@ HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8080"))
 UPLOAD_CATEGORIES = {"catch-photos", "trip-photos", "lures", "flashers", "queue"}
 ALLOWED_IMAGE_EXTENSIONS = {".avif", ".gif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".webp"}
+ALLOWED_VIDEO_EXTENSIONS = {".mov", ".mp4", ".m4v", ".webm", ".avi", ".mpeg", ".mpg", ".3gp"}
+ALLOWED_MEDIA_EXTENSIONS = ALLOWED_IMAGE_EXTENSIONS | ALLOWED_VIDEO_EXTENSIONS
 PREVIEW_DIRNAME = "_previews"
 PREVIEW_MAX_SIZE = (1200, 1200)
 
@@ -187,6 +189,18 @@ def create_upload_preview(category: str, filename: str) -> str:
     return preview.name
 
 
+def upload_media_type(mimetype: str, suffix: str) -> str:
+    if suffix in ALLOWED_IMAGE_EXTENSIONS:
+        return "image"
+    if suffix in ALLOWED_VIDEO_EXTENSIONS:
+        return "video"
+    if mimetype.startswith("image/"):
+        return "image"
+    if mimetype.startswith("video/"):
+        return "video"
+    return ""
+
+
 def upload_payload(category: str, filename: str, metadata: dict | None = None) -> dict:
     metadata = metadata or {}
     preview_filename = metadata.get("previewFilename") or ""
@@ -197,6 +211,7 @@ def upload_payload(category: str, filename: str, metadata: dict | None = None) -
         "path": f"{category}/{filename}",
         "url": f"/uploads/{category}/{filename}",
         "image": f"/uploads/{category}/{filename}",
+        "mediaType": metadata.get("mediaType") or "image",
         "previewFilename": preview_filename,
         "previewPath": f"{category}/{PREVIEW_DIRNAME}/{preview_filename}" if preview_filename else "",
         "previewUrl": f"/uploads/{category}/{PREVIEW_DIRNAME}/{preview_filename}" if preview_filename else "",
@@ -249,13 +264,14 @@ def create_app() -> Flask:
 
         filename = secure_filename(upload.filename) or "upload.jpg"
         suffix = Path(filename).suffix.lower() or ".jpg"
-        if not (upload.mimetype or "").startswith("image/") and suffix not in ALLOWED_IMAGE_EXTENSIONS:
-            return jsonify({"error": "Only image uploads are supported"}), 400
+        media_type = upload_media_type(upload.mimetype or "", suffix)
+        if not media_type or suffix not in ALLOWED_MEDIA_EXTENSIONS:
+            return jsonify({"error": "Only photo and video uploads are supported"}), 400
 
         stored_name = f"{uuid.uuid4().hex}{suffix}"
         destination = upload_category_path(category) / stored_name
         upload.save(destination)
-        preview_filename = create_upload_preview(category, stored_name)
+        preview_filename = create_upload_preview(category, stored_name) if media_type == "image" else ""
         metadata = request.form.get("metadata")
         try:
             metadata_payload = json.loads(metadata) if metadata else {}
@@ -265,6 +281,7 @@ def create_app() -> Flask:
             **metadata_payload,
             "name": filename,
             "mimeType": upload.mimetype,
+            "mediaType": media_type,
             "previewFilename": preview_filename,
         }
         write_upload_metadata(category, stored_name, metadata_payload)
@@ -303,6 +320,7 @@ def create_app() -> Flask:
         source.replace(destination)
 
         metadata = read_upload_metadata("queue", filename)
+        media_type = metadata.get("mediaType") or upload_media_type(metadata.get("mimeType", ""), suffix)
         preview_filename = metadata.get("previewFilename") or ""
         if preview_filename:
             source_preview = upload_preview_path("queue", filename)
@@ -313,7 +331,8 @@ def create_app() -> Flask:
             else:
                 preview_filename = create_upload_preview(target_category, target_name)
         else:
-            preview_filename = create_upload_preview(target_category, target_name)
+            preview_filename = create_upload_preview(target_category, target_name) if media_type == "image" else ""
+        metadata["mediaType"] = media_type or "image"
         metadata["previewFilename"] = preview_filename
         source_metadata = upload_metadata_path("queue", filename)
         if source_metadata.exists():

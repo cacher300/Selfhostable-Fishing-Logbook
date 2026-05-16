@@ -86,7 +86,7 @@ If you ever clone the repo onto a new machine, run the app once and it will crea
 
 ## Backups
 
-Use the Data menu in the app to export a JSON backup. The export contains trips, lures, flashers, setup timeline entries, catches, and photo metadata. Uploaded image files are stored separately under `data/uploads/`, with lower-resolution previews in each category's `_previews/` folder for faster loading, so use the backup script below for a complete backup.
+Use the Data menu in the app to export a JSON backup. The export contains trips, lures, flashers, setup timeline entries, catches, and photo/video metadata. Uploaded media files are stored separately under `data/uploads/`, with lower-resolution previews for photos in each category's `_previews/` folder for faster loading, so use the backup script below for a complete backup.
 
 For a manual backup, copy:
 

@@ -71,39 +71,69 @@ function exifCoordinate(view, entry, reference, littleEndian) {
   return sign * (degrees + minutes / 60 + seconds / 3600);
 }
 
-function parseExifGps(arrayBuffer) {
+function exifText(view, entry) {
+  if (!entry || entry.type !== 2 || !entry.count) return "";
+  return getExifAscii(view, entry.valueOffset, entry.count).trim();
+}
+
+function parseExifDateTime(value) {
+  const match = String(value || "").match(/^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second = "00"] = match;
+  return {
+    captureDate: `${year}-${month}-${day}`,
+    captureTime: `${hour}:${minute}`,
+    capturedAt: `${year}-${month}-${day}T${hour}:${minute}:${second}`
+  };
+}
+
+function parseExifMetadata(arrayBuffer) {
   const view = new DataView(arrayBuffer);
-  if (view.byteLength < 4 || view.getUint16(0) !== 0xffd8) return null;
+  if (view.byteLength < 4 || view.getUint16(0) !== 0xffd8) return {};
 
   let offset = 2;
   while (offset + 4 < view.byteLength) {
-    if (view.getUint8(offset) !== 0xff) return null;
+    if (view.getUint8(offset) !== 0xff) return {};
     const marker = view.getUint8(offset + 1);
     const segmentLength = view.getUint16(offset + 2);
     if (marker === 0xe1 && getExifAscii(view, offset + 4, 6) === "Exif") {
       const tiffStart = offset + 10;
       const byteOrder = getExifAscii(view, tiffStart, 2);
       const littleEndian = byteOrder === "II";
-      if (!littleEndian && byteOrder !== "MM") return null;
-      if (view.getUint16(tiffStart + 2, littleEndian) !== 42) return null;
+      if (!littleEndian && byteOrder !== "MM") return {};
+      if (view.getUint16(tiffStart + 2, littleEndian) !== 42) return {};
 
       const firstIfdOffset = view.getUint32(tiffStart + 4, littleEndian);
       const firstIfd = readExifIfd(view, tiffStart, firstIfdOffset, littleEndian);
+      const exifPointer = firstIfd.get(0x8769);
+      const exifIfd = exifPointer ? readExifIfd(view, tiffStart, view.getUint32(exifPointer.valueOffset, littleEndian), littleEndian) : new Map();
+
+      const capturedAt = parseExifDateTime(
+        exifText(view, exifIfd.get(0x9003))
+        || exifText(view, exifIfd.get(0x9004))
+        || exifText(view, firstIfd.get(0x9003))
+        || exifText(view, firstIfd.get(0x9004))
+        || exifText(view, firstIfd.get(0x0132))
+      );
+
       const gpsPointer = firstIfd.get(0x8825);
-      if (!gpsPointer) return null;
+      if (!gpsPointer) return { ...(capturedAt || {}) };
 
       const gpsIfd = readExifIfd(view, tiffStart, view.getUint32(gpsPointer.valueOffset, littleEndian), littleEndian);
       const latRefEntry = gpsIfd.get(0x0001);
       const lonRefEntry = gpsIfd.get(0x0003);
       const latitude = exifCoordinate(view, gpsIfd.get(0x0002), latRefEntry ? getExifAscii(view, latRefEntry.valueOffset, latRefEntry.count) : "N", littleEndian);
       const longitude = exifCoordinate(view, gpsIfd.get(0x0004), lonRefEntry ? getExifAscii(view, lonRefEntry.valueOffset, lonRefEntry.count) : "E", littleEndian);
-      if (latitude === null || longitude === null) return null;
-      return { latitude, longitude };
+      const coordinates = latitude === null || longitude === null ? null : { latitude, longitude };
+      return {
+        ...(capturedAt || {}),
+        coordinates: shouldIgnorePhotoCoordinates(coordinates) ? null : coordinates
+      };
     }
     offset += 2 + segmentLength;
   }
 
-  return null;
+  return {};
 }
 
 const ignoredPhotoLocation = { latitude: 43.16142, longitude: -79.33851 };
@@ -127,14 +157,17 @@ function shouldIgnorePhotoCoordinates(coordinates) {
 }
 
 async function extractPhotoCoordinates(file) {
+  return (await extractPhotoMetadata(file)).coordinates || null;
+}
+
+async function extractPhotoMetadata(file) {
   const isJpeg = file.type?.includes("jpeg") || /\.(jpe?g)$/i.test(file.name || "");
-  if (!isJpeg) return null;
+  if (!isJpeg) return {};
   try {
-    const coordinates = parseExifGps(await file.arrayBuffer());
-    return shouldIgnorePhotoCoordinates(coordinates) ? null : coordinates;
+    return parseExifMetadata(await file.arrayBuffer());
   } catch (error) {
-    console.warn("Could not read photo GPS metadata.", error);
-    return null;
+    console.warn("Could not read photo metadata.", error);
+    return {};
   }
 }
 
@@ -143,12 +176,16 @@ async function addNotePhotos(event) {
   if (!files.length) return;
 
   try {
-    const photos = await Promise.all(files.map(async (file) => ({
-      id: createId(),
-      name: file.name,
-      caption: "",
-      ...await uploadImageFile(file, "trip-photos")
-    })));
+    const photos = await Promise.all(files.map(async (file) => {
+      const metadata = await extractPhotoMetadata(file);
+      return {
+        id: createId(),
+        name: file.name,
+        caption: "",
+        ...await uploadImageFile(file, "trip-photos", metadata),
+        ...metadata
+      };
+    }));
 
     activeNotePhotos = [...activeNotePhotos, ...photos];
     event.target.value = "";
@@ -167,7 +204,7 @@ function renderNotePhotos() {
 
   els.notePhotoGrid.innerHTML = activeNotePhotos.map((photo) => `
     <article class="note-photo-card" data-note-photo="${photo.id}">
-      <img src="${previewImage(photo)}" alt="">
+      ${mediaMarkup(photo)}
       <div class="note-photo-body">
         <input class="note-photo-caption" type="text" value="${escapeHtml(photo.caption || "")}" placeholder="Caption, like fishfinder, launch, rig" />
         <button class="button danger remove-note-photo" type="button">Remove</button>
@@ -195,12 +232,12 @@ async function addCatchPhotos(event) {
 
   try {
     const photos = await Promise.all(files.map(async (file) => {
-      const coordinates = await extractPhotoCoordinates(file);
+      const metadata = await extractPhotoMetadata(file);
       return {
         id: createId(),
         name: file.name,
-        ...await uploadImageFile(file, "catch-photos", { coordinates }),
-        coordinates
+        ...await uploadImageFile(file, "catch-photos", metadata),
+        ...metadata
       };
     }));
 
@@ -221,7 +258,7 @@ function renderCatchPhotos(row) {
   const photos = row.catchPhotos || [];
   grid.innerHTML = photos.map((photo) => `
     <article class="catch-photo-card" data-catch-photo="${photo.id}">
-      <img src="${previewImage(photo)}" alt="">
+      ${mediaMarkup(photo)}
       <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch photo">x</button>
       <span>${escapeHtml(photo.name || "Catch photo")}</span>
       ${isUsableCoordinates(photo.coordinates) ? `<small>${formatCoordinates(photo.coordinates)}</small>` : `<small>No GPS metadata</small>`}
@@ -271,7 +308,7 @@ async function renderPhotoQueue() {
   els.photoQueueGrid.innerHTML = photos.map((photo) => `
     <article class="photo-queue-card" data-queue-photo="${photo.filename}">
       <div class="photo-queue-image-wrap">
-        <img src="${previewImage(photo)}" alt="">
+        ${mediaMarkup(photo)}
         <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${photo.filename}" aria-label="Remove queued photo">x</button>
       </div>
       <div>
@@ -324,8 +361,8 @@ async function addPhotosToQueue(event) {
   els.photoQueueStatus.textContent = "Uploading photos...";
   try {
     await Promise.all(files.map(async (file) => {
-      const coordinates = await extractPhotoCoordinates(file);
-      return uploadImageFile(file, "queue", { coordinates });
+      const metadata = await extractPhotoMetadata(file);
+      return uploadImageFile(file, "queue", metadata);
     }));
     event.target.value = "";
     await renderPhotoQueue();

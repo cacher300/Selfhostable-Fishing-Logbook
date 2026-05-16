@@ -214,6 +214,9 @@ document.addEventListener("change", (event) => {
     pendingFlasherImage = null;
     renderQueuedGearImage("flasher");
   }
+  if (event.target.matches("#startTime, #endTime")) {
+    syncTripTimesToBlankRows();
+  }
   if (event.target.closest("#tripForm")) clearTripFormMessage();
   if (event.target.matches(".catch-lure, .trip-gear-lure")) {
     renderLurePreview(event.target.closest(".catch-row, .gear-used-row"));
@@ -229,6 +232,9 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("input", (event) => {
+  if (event.target.matches("#startTime, #endTime")) {
+    syncTripTimesToBlankRows();
+  }
   if (event.target.closest("#tripForm")) clearTripFormMessage();
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);

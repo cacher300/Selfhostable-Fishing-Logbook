@@ -125,7 +125,7 @@ function renderBrandSpotlight() {
     <div class="spotlight-slides">
       ${photos.map((photo, index) => `
         <figure class="spotlight-slide" style="--slide-index:${index}; --slide-count:${photos.length};">
-          <img src="${previewImage(photo)}" alt="">
+          ${mediaMarkup(photo)}
           <figcaption>
             <strong>${escapeHtml(photo.spotlightTitle || photo.caption || photo.tripTitle)}</strong>
             <span>${escapeHtml(photo.tripTitle)}</span>

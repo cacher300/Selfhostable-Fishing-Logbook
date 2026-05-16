@@ -111,7 +111,7 @@ function renderQueuedGearImage(type) {
   if (!container) return;
   container.classList.toggle("hidden", !photo);
   container.innerHTML = photo ? `
-    <img src="${previewImage(photo)}" alt="">
+    ${mediaMarkup(photo)}
     <span>${escapeHtml(photo.name || "Queued photo selected")}</span>
   ` : "";
 }
@@ -126,7 +126,7 @@ function renderLurePreview(row) {
     return;
   }
 
-  const image = lure.image ? `<img src="${previewImage(lure)}" alt="">` : "";
+  const image = lure.image ? mediaMarkup(lure) : "";
   const details = [lure.type, lure.brand, lure.color].filter(Boolean).join(" / ");
   preview.innerHTML = `
     <div class="lure-preview-card">
@@ -149,7 +149,7 @@ function renderFlasherPreview(row) {
     return;
   }
 
-  const image = flasher.image ? `<img src="${previewImage(flasher)}" alt="">` : "";
+  const image = flasher.image ? mediaMarkup(flasher) : "";
   const details = [flasher.type, flasher.brand, flasher.color].filter(Boolean).join(" / ");
   preview.innerHTML = `
     <div class="flasher-preview-card">
@@ -279,7 +279,7 @@ function renderGearGrid(container, items, type) {
   }
 
   container.innerHTML = items.map((item) => {
-    const image = item.image ? `<img src="${previewImage(item)}" alt="">` : `<div class="gear-image-placeholder">No Image</div>`;
+    const image = item.image ? mediaMarkup(item) : `<div class="gear-image-placeholder">No Image</div>`;
     const details = [item.type, item.brand, item.color].filter(Boolean).join(" / ");
     const editAttr = type === "lure" ? "data-edit-lure" : "data-edit-flasher";
     const deleteAttr = type === "lure" ? "data-delete-lure" : "data-delete-flasher";

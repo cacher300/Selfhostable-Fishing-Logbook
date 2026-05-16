@@ -192,6 +192,34 @@ function addLostFishRow(fishItem = {}) {
   addFishRow(fishItem, { container: els.lostFishRows, lost: true });
 }
 
+function defaultFishTime(catchItem = {}) {
+  return catchItem.time ?? getValue("startTime");
+}
+
+function defaultSetupStartTime(gearItem = {}) {
+  return gearItem.startTime ?? getValue("startTime");
+}
+
+function defaultSetupEndTime(gearItem = {}) {
+  return gearItem.endTime ?? getValue("endTime");
+}
+
+function syncTripTimesToBlankRows() {
+  const startTime = getValue("startTime");
+  const endTime = getValue("endTime");
+  if (startTime) {
+    document.querySelectorAll("#catchRows .catch-time, #lostFishRows .catch-time, #tripGearRows .trip-gear-start-time").forEach((field) => {
+      if (!field.value) field.value = startTime;
+    });
+  }
+  if (endTime) {
+    document.querySelectorAll("#tripGearRows .trip-gear-end-time").forEach((field) => {
+      if (!field.value) field.value = endTime;
+    });
+  }
+  updateAllRowSummaries();
+}
+
 function addFishRow(catchItem = {}, { container, lost }) {
   const template = document.querySelector("#catchRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
@@ -218,7 +246,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-released").checked = Boolean(catchItem.released);
   node.querySelector(".catch-length").value = lost ? "" : (catchItem.length || "");
   node.querySelector(".catch-weight").value = lost ? "" : (catchItem.weight || "");
-  node.querySelector(".catch-time").value = catchItem.time || "";
+  node.querySelector(".catch-time").value = defaultFishTime(catchItem);
   node.querySelector(".catch-water-depth").value = catchItem.waterDepth || catchItem.depth || "";
   node.querySelector(".catch-depth-down").value = catchItem.depthDown || catchItem.depth || "";
   const manualCoordinates = isUsableCoordinates(catchItem.manualCoordinates)
@@ -256,8 +284,8 @@ function addTripGearRow(gearItem = {}) {
   node.dataset.gearId = gearItem.id || "";
 
   populatePersonSelect(node.querySelector(".trip-gear-person"), gearItem.personId || "");
-  node.querySelector(".trip-gear-start-time").value = gearItem.startTime || "";
-  node.querySelector(".trip-gear-end-time").value = gearItem.endTime || "";
+  node.querySelector(".trip-gear-start-time").value = defaultSetupStartTime(gearItem);
+  node.querySelector(".trip-gear-end-time").value = defaultSetupEndTime(gearItem);
   node.querySelector(".trip-gear-change-note").value = gearItem.changeNote || gearItem.notes || "";
   node.querySelector(".catch-presentation").value = gearItem.presentation || "";
   node.querySelector(".catch-speed").value = gearItem.speed || "";

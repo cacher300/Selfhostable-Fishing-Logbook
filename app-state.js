@@ -294,6 +294,20 @@ function previewImage(item) {
   return item?.previewImage || item?.previewUrl || item?.image || item?.url || "";
 }
 
+function isVideoMedia(item) {
+  return item?.mediaType === "video" || item?.mimeType?.startsWith?.("video/");
+}
+
+function mediaMarkup(item, className = "") {
+  const source = previewImage(item);
+  if (!source) return "";
+  if (isVideoMedia(item)) {
+    const videoSource = item.url || item.image || source;
+    return `<video class="${escapeHtml(className)}" src="${escapeHtml(videoSource)}" controls preload="metadata"></video>`;
+  }
+  return `<img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">`;
+}
+
 function isUsableCoordinates(coordinates) {
   if (!coordinates) return false;
   const latitude = Number(coordinates.latitude);
