@@ -326,6 +326,7 @@ function renderAll() {
   renderStats();
   renderTrips();
   renderAdvancedStats();
+  renderPatterns();
   renderGearLibrary();
   updateAllRowSummaries();
 }

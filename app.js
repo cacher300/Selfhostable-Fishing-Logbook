@@ -38,6 +38,7 @@ els.deleteLureButton.addEventListener("click", deleteLure);
 els.deleteFlasherButton.addEventListener("click", deleteFlasher);
 els.tripsViewButton.addEventListener("click", () => setView("trips"));
 els.statsViewButton.addEventListener("click", () => setView("stats"));
+els.patternsViewButton.addEventListener("click", () => setView("patterns"));
 els.mapViewButton.addEventListener("click", () => setView("map"));
 els.gearViewButton.addEventListener("click", () => setView("gear"));
 els.newLibraryLureButton.addEventListener("click", () => openLureDialog());
@@ -67,6 +68,19 @@ els.statsMethodFilter.addEventListener("change", () => {
 els.mapSpeciesFilter.addEventListener("change", () => {
   activeMapSpecies = els.mapSpeciesFilter.value;
   renderFishMap();
+});
+[
+  ["species", els.patternSpeciesFilter],
+  ["location", els.patternLocationFilter],
+  ["method", els.patternMethodFilter],
+  ["month", els.patternMonthFilter],
+  ["waterClarity", els.patternWaterClarityFilter],
+  ["weather", els.patternWeatherFilter]
+].forEach(([key, control]) => {
+  control.addEventListener("change", () => {
+    activePatternFilters[key] = control.value;
+    renderPatterns();
+  });
 });
 
 [els.searchInput, els.targetFilter, els.yearFilter, els.sortSelect].forEach((control) => {
@@ -249,15 +263,18 @@ els.personRows.addEventListener("input", () => {
 
 function setView(view) {
   const showingStats = view === "stats";
+  const showingPatterns = view === "patterns";
   const showingMap = view === "map";
   const showingGear = view === "gear";
-  els.tripControls.classList.toggle("hidden", showingStats || showingMap || showingGear);
-  els.tripListPanel.classList.toggle("hidden", showingStats || showingMap || showingGear);
+  els.tripControls.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear);
+  els.tripListPanel.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
+  els.patternsPanel.classList.toggle("hidden", !showingPatterns);
   els.mapPanel.classList.toggle("hidden", !showingMap);
   els.gearPanel.classList.toggle("hidden", !showingGear);
-  document.querySelector(".topbar h2").textContent = showingStats ? "Advanced Stats" : showingMap ? "Map" : showingGear ? "Gear" : "Trips";
+  document.querySelector(".topbar h2").textContent = showingStats ? "Advanced Stats" : showingPatterns ? "Patterns" : showingMap ? "Map" : showingGear ? "Gear" : "Trips";
   renderAdvancedStats();
+  if (showingPatterns) renderPatterns();
   if (showingMap) renderFishMap();
   renderGearLibrary();
 }

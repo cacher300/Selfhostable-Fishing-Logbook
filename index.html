@@ -53,6 +53,7 @@
           <div class="topbar-actions">
             <button class="button secondary" id="tripsViewButton" type="button">Trips</button>
             <button class="button secondary" id="statsViewButton" type="button">Advanced Stats</button>
+            <button class="button secondary" id="patternsViewButton" type="button">Patterns</button>
             <button class="button secondary" id="mapViewButton" type="button">Map</button>
             <button class="button secondary" id="gearViewButton" type="button">Gear</button>
             <button class="button secondary" id="photoQueueButton" type="button">Photo Queue</button>
@@ -249,6 +250,44 @@
               <div class="analytics-table" id="monthStatsTable"></div>
             </article>
           </div>
+        </section>
+
+        <section class="patterns-page hidden" id="patternsPanel" aria-label="Fish pattern recommendations">
+          <div class="patterns-header">
+            <div>
+              <p class="eyebrow">Pattern finder</p>
+              <h3>What Should I Run?</h3>
+            </div>
+            <span id="patternsSummary" class="map-summary">No patterns loaded</span>
+          </div>
+          <div class="patterns-toolbar">
+            <label>
+              <span>Species</span>
+              <select id="patternSpeciesFilter"></select>
+            </label>
+            <label>
+              <span>Location</span>
+              <select id="patternLocationFilter"></select>
+            </label>
+            <label>
+              <span>Method</span>
+              <select id="patternMethodFilter"></select>
+            </label>
+            <label>
+              <span>Month</span>
+              <select id="patternMonthFilter"></select>
+            </label>
+            <label>
+              <span>Water clarity</span>
+              <select id="patternWaterClarityFilter"></select>
+            </label>
+            <label>
+              <span>Weather</span>
+              <select id="patternWeatherFilter"></select>
+            </label>
+          </div>
+          <div class="metric-grid patterns-metrics" id="patternsMetricGrid"></div>
+          <div class="patterns-grid" id="patternsGrid"></div>
         </section>
 
         <section class="map-page hidden" id="mapPanel" aria-label="Fish catch map">
@@ -817,6 +856,7 @@
     <script src="stats.js"></script>
     <script src="form-utils.js"></script>
     <script src="data-transfer.js"></script>
+    <script src="patterns.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
