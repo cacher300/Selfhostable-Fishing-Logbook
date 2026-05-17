@@ -290,15 +290,28 @@ function setupLineCounts(trip, gearItem) {
   return { fish, lost };
 }
 
-function spreadLineEnd(gearItem, index) {
-  const side = gearItem.side || "center";
+function spreadPresentationDistance(gearItem) {
   const presentation = gearItem.presentation || "";
-  const spread = presentation === "flatline-leadcore" ? 170 : presentation === "dipsey-diver" ? 116 : 38;
-  const sideSign = side === "port" ? -1 : side === "starboard" ? 1 : 0;
-  const stagger = side === "center" ? 0 : index * 10;
+  if (presentation === "flatline-leadcore") return "wide";
+  if (presentation === "dipsey-diver") return "mid";
+  return "straight";
+}
+
+function spreadLaneY(gearItem, sideIndex) {
+  const side = gearItem.side || "center";
+  const distance = spreadPresentationDistance(gearItem);
+  if (side === "center") return 215 + sideIndex * 26;
+  const portY = { wide: 72, mid: 116, straight: 160 };
+  const starboardY = { wide: 374, mid: 330, straight: 286 };
+  const lanes = side === "port" ? portY : starboardY;
+  return lanes[distance] + (side === "port" ? sideIndex * 18 : -sideIndex * 18);
+}
+
+function spreadLineEnd(gearItem, sideIndex) {
+  const distance = spreadPresentationDistance(gearItem);
   return {
-    x: presentation === "flatline-leadcore" ? 940 : presentation === "dipsey-diver" ? 900 : 860,
-    y: 215 + sideSign * (spread + stagger)
+    x: distance === "wide" ? 1050 : distance === "mid" ? 1018 : 955,
+    y: spreadLaneY(gearItem, sideIndex)
   };
 }
 
@@ -312,11 +325,9 @@ function spreadBendPoint(start, end, gearItem) {
   const presentation = gearItem.presentation || "";
   const side = gearItem.side || "center";
   if (side === "center" || ["downrigger", "cheater"].includes(presentation)) return null;
-  const sideSign = side === "port" ? -1 : 1;
-  const outDistance = presentation === "flatline-leadcore" ? 145 : 105;
   return {
-    x: start.x + outDistance,
-    y: start.y + sideSign * outDistance
+    x: presentation === "flatline-leadcore" ? 690 : 640,
+    y: end.y
   };
 }
 
@@ -327,21 +338,30 @@ function spreadLinePath(start, end, gearItem) {
   return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
 }
 
+function truncateSpreadText(value, maxLength = 46) {
+  const text = String(value || "");
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
+}
+
 function renderTrollingSpread(trip) {
   if (!isTrollingTripRecord(trip)) return "";
   const lines = (trip.gearUsed || []).filter((gearItem) => gearItem.lureId || gearItem.flasherId || gearItem.presentation);
   if (!lines.length) return `<div class="empty-state compact-empty"><p>No trolling setup lines logged.</p></div>`;
 
-  const renderedLines = lines.map((gearItem, index) => {
+  const sideIndexes = { port: 0, center: 0, starboard: 0 };
+  const renderedLines = lines.map((gearItem) => {
+    const side = gearItem.side || "center";
+    const sideIndex = sideIndexes[side] || 0;
+    sideIndexes[side] = sideIndex + 1;
     const counts = setupLineCounts(trip, gearItem);
-    const end = spreadLineEnd(gearItem, index);
+    const end = spreadLineEnd(gearItem, sideIndex);
     const start = spreadLineStart(gearItem);
     const bend = spreadBendPoint(start, end, gearItem);
     const marker = bend || end;
-    const labelX = bend ? bend.x + 14 : 560;
+    const labelX = bend ? bend.x + 18 : 572;
     const labelAnchor = "start";
-    const label = setupLineDisplayLabel(trip, gearItem);
-    const detail = [gearComboName(gearItem.lureId, gearItem.flasherId), `${counts.fish} fish`, counts.lost ? `${counts.lost} lost` : ""].filter(Boolean).join(" / ");
+    const label = truncateSpreadText(setupLineDisplayLabel(trip, gearItem));
+    const detail = truncateSpreadText([gearComboName(gearItem.lureId, gearItem.flasherId), `${counts.fish} fish`, counts.lost ? `${counts.lost} lost` : ""].filter(Boolean).join(" / "), 52);
     return `
       <g class="spread-line spread-${escapeHtml(gearItem.side || "center")}">
         <path d="${spreadLinePath(start, end, gearItem)}" />
@@ -354,7 +374,7 @@ function renderTrollingSpread(trip) {
 
   return `
     <div class="spread-diagram-wrap">
-      <svg class="spread-diagram" viewBox="0 0 980 430" role="img" aria-label="Trolling spread diagram">
+      <svg class="spread-diagram" viewBox="0 0 1120 430" role="img" aria-label="Trolling spread diagram">
         <defs>
           <linearGradient id="boatHull" x1="0" x2="1" y1="0" y2="0">
             <stop offset="0" stop-color="#f8fbfd" />
@@ -362,7 +382,7 @@ function renderTrollingSpread(trip) {
             <stop offset="1" stop-color="#dbe7ef" />
           </linearGradient>
         </defs>
-        <path class="spread-water" d="M40 292 C150 274 236 306 344 282 C470 254 650 284 940 258 L940 410 L40 410 Z" />
+        <path class="spread-water" d="M40 292 C150 274 236 306 344 282 C470 254 760 284 1080 258 L1080 410 L40 410 Z" />
         <g class="spread-boat">
           <path class="spread-hull" d="M112 215 C155 160 217 128 304 126 L438 126 C470 126 490 149 490 181 L490 249 C490 281 470 304 438 304 L304 304 C217 302 155 270 112 215 Z" />
           <path class="spread-rub-rail" d="M146 215 C184 173 234 151 306 151 L430 151 C447 151 459 164 459 181 L459 249 C459 266 447 279 430 279 L306 279 C234 279 184 257 146 215 Z" />
