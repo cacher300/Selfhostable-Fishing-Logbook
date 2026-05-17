@@ -56,6 +56,7 @@
             <button class="button secondary" id="patternsViewButton" type="button">Patterns</button>
             <button class="button secondary" id="mapViewButton" type="button">Map</button>
             <button class="button secondary" id="gearViewButton" type="button">Gear</button>
+            <button class="button secondary" id="galleryViewButton" type="button">Gallery</button>
             <button class="button secondary" id="photoQueueButton" type="button">Photo Queue</button>
             <details class="data-menu">
               <summary class="button secondary">Data</summary>
@@ -326,6 +327,23 @@
             <button class="button primary" id="newLibraryFlasherButton" type="button">New Flasher</button>
           </div>
           <div class="gear-grid" id="flasherLibraryGrid"></div>
+        </section>
+
+        <section class="gallery-page hidden" id="galleryPanel" aria-label="Uploaded photo gallery">
+          <div class="gallery-header">
+            <div>
+              <p class="eyebrow">Raw media</p>
+              <h3>Photo Gallery</h3>
+            </div>
+            <div class="gallery-tools">
+              <label>
+                <span>Category</span>
+                <select id="galleryCategoryFilter"></select>
+              </label>
+              <span id="galleryStatus" class="map-summary">No uploads loaded</span>
+            </div>
+          </div>
+          <div id="galleryGrid" class="gallery-grid"></div>
         </section>
       </main>
     </div>
@@ -874,6 +892,7 @@
     <script src="form-utils.js"></script>
     <script src="data-transfer.js"></script>
     <script src="patterns.js"></script>
+    <script src="gallery.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

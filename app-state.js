@@ -113,6 +113,7 @@ const activeStatsFilters = {
   rating: "All ratings"
 };
 let activeMapSpecies = "All species";
+let activeGalleryCategory = "all";
 let fishMap = null;
 let fishMapMarkers = null;
 let tripSummaryMap = null;
@@ -204,6 +205,7 @@ const els = {
   patternsViewButton: document.querySelector("#patternsViewButton"),
   mapViewButton: document.querySelector("#mapViewButton"),
   gearViewButton: document.querySelector("#gearViewButton"),
+  galleryViewButton: document.querySelector("#galleryViewButton"),
   newLibraryLureButton: document.querySelector("#newLibraryLureButton"),
   newLibraryFlasherButton: document.querySelector("#newLibraryFlasherButton"),
   photoQueueButton: document.querySelector("#photoQueueButton"),
@@ -242,6 +244,10 @@ const els = {
   flasherDialog: document.querySelector("#flasherDialog"),
   flasherForm: document.querySelector("#flasherForm"),
   gearPanel: document.querySelector("#gearPanel"),
+  galleryPanel: document.querySelector("#galleryPanel"),
+  galleryCategoryFilter: document.querySelector("#galleryCategoryFilter"),
+  galleryStatus: document.querySelector("#galleryStatus"),
+  galleryGrid: document.querySelector("#galleryGrid"),
   lureLibraryGrid: document.querySelector("#lureLibraryGrid"),
   flasherLibraryGrid: document.querySelector("#flasherLibraryGrid")
 };

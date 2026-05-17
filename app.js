@@ -41,6 +41,7 @@ els.statsViewButton.addEventListener("click", () => setView("stats"));
 els.patternsViewButton.addEventListener("click", () => setView("patterns"));
 els.mapViewButton.addEventListener("click", () => setView("map"));
 els.gearViewButton.addEventListener("click", () => setView("gear"));
+els.galleryViewButton.addEventListener("click", () => setView("gallery"));
 els.newLibraryLureButton.addEventListener("click", () => openLureDialog());
 els.newLibraryFlasherButton.addEventListener("click", () => openFlasherDialog());
 els.exportButton.addEventListener("click", exportJson);
@@ -68,6 +69,10 @@ els.statsMethodFilter.addEventListener("change", () => {
 els.mapSpeciesFilter.addEventListener("change", () => {
   activeMapSpecies = els.mapSpeciesFilter.value;
   renderFishMap();
+});
+els.galleryCategoryFilter.addEventListener("change", () => {
+  activeGalleryCategory = els.galleryCategoryFilter.value;
+  renderGallery();
 });
 [
   ["species", els.patternSpeciesFilter],
@@ -273,16 +278,19 @@ function setView(view) {
   const showingPatterns = view === "patterns";
   const showingMap = view === "map";
   const showingGear = view === "gear";
-  els.tripControls.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear);
-  els.tripListPanel.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear);
+  const showingGallery = view === "gallery";
+  els.tripControls.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear || showingGallery);
+  els.tripListPanel.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear || showingGallery);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
   els.patternsPanel.classList.toggle("hidden", !showingPatterns);
   els.mapPanel.classList.toggle("hidden", !showingMap);
   els.gearPanel.classList.toggle("hidden", !showingGear);
-  document.querySelector(".topbar h2").textContent = showingStats ? "Advanced Stats" : showingPatterns ? "Patterns" : showingMap ? "Map" : showingGear ? "Gear" : "Trips";
+  els.galleryPanel.classList.toggle("hidden", !showingGallery);
+  document.querySelector(".topbar h2").textContent = showingStats ? "Advanced Stats" : showingPatterns ? "Patterns" : showingMap ? "Map" : showingGear ? "Gear" : showingGallery ? "Gallery" : "Trips";
   renderAdvancedStats();
   if (showingPatterns) renderPatterns();
   if (showingMap) renderFishMap();
+  if (showingGallery) renderGallery();
   renderGearLibrary();
 }
 

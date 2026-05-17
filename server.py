@@ -219,6 +219,23 @@ def upload_payload(category: str, filename: str, metadata: dict | None = None) -
     }
 
 
+def upload_gallery_items(category: str) -> list[dict]:
+    directory = upload_category_path(category)
+    items = []
+    for file_path in directory.iterdir():
+        if not file_path.is_file() or file_path.suffix == ".json":
+            continue
+        metadata = read_upload_metadata(category, file_path.name)
+        items.append({
+            **upload_payload(category, file_path.name, metadata),
+            "category": category,
+            "size": file_path.stat().st_size,
+            "modified": file_path.stat().st_mtime,
+            "downloadUrl": f"/uploads/{category}/{file_path.name}",
+        })
+    return items
+
+
 def validate_logbook(payload: object) -> tuple[bool, str | None]:
     if not isinstance(payload, dict):
         return False, "Logbook must be a JSON object"
@@ -302,6 +319,18 @@ def create_app() -> Flask:
             })
         items.sort(key=lambda item: item["modified"], reverse=True)
         return jsonify({"photos": items})
+
+    @app.get("/api/gallery")
+    def list_gallery() -> Response:
+        category = request.args.get("category", "all")
+        categories = sorted(UPLOAD_CATEGORIES) if category == "all" else [category]
+        if any(item not in UPLOAD_CATEGORIES for item in categories):
+            return jsonify({"error": "Invalid upload category"}), 400
+        items = []
+        for item_category in categories:
+            items.extend(upload_gallery_items(item_category))
+        items.sort(key=lambda item: item["modified"], reverse=True)
+        return jsonify({"media": items})
 
     @app.post("/api/photo-queue/claim")
     def claim_photo_queue_item() -> tuple[Response, int] | Response:
