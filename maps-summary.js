@@ -216,14 +216,15 @@ function summaryMetric(label, value) {
   return `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "0")}</strong></article>`;
 }
 
-function summaryPhotoGrid(photos = [], emptyText = "No photos") {
+function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
   if (!photos.length) return `<div class="empty-state compact-empty"><p>${escapeHtml(emptyText)}</p></div>`;
+  const className = ["summary-photo-grid", options.compact ? "compact-photo-grid" : ""].filter(Boolean).join(" ");
   return `
-    <div class="summary-photo-grid">
+    <div class="${className}">
       ${photos.map((photo) => `
         <figure class="summary-photo-card">
           ${mediaMarkup(photo)}
-          <figcaption>${escapeHtml(photo.caption || photo.name || "Photo")}</figcaption>
+          ${photo.caption && !options.hideCaptions ? `<figcaption>${escapeHtml(photo.caption)}</figcaption>` : ""}
         </figure>
       `).join("")}
     </div>
@@ -490,7 +491,7 @@ function renderTripTimeline(trip) {
             <strong>${escapeHtml(item.title)}</strong>
             ${item.details ? `<p>${escapeHtml(item.details)}</p>` : ""}
             ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}
-            ${item.photos?.length ? summaryPhotoGrid(item.photos, "No photos") : ""}
+            ${item.photos?.length ? summaryPhotoGrid(item.photos, "No photos", { compact: item.type === "Photo", hideCaptions: item.type === "Photo" }) : ""}
           </div>
         </article>
       `).join("")}

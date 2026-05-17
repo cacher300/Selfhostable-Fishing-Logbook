@@ -112,8 +112,8 @@ button {
   inset: 0;
   margin: 0;
   opacity: 0;
-  animation: spotlightFade calc(var(--slide-count) * 5s) infinite;
-  animation-delay: calc(var(--slide-index) * 5s);
+  animation: spotlightFade calc(var(--slide-count) * 3.5s) infinite;
+  animation-delay: calc(var(--slide-index) * 3.5s);
 }
 
 .spotlight-slide img,
@@ -166,7 +166,7 @@ button {
   }
 
   6%,
-  28% {
+  22% {
     opacity: 1;
   }
 }
@@ -1752,6 +1752,10 @@ textarea[aria-invalid="true"] {
   background: #fff;
 }
 
+.timeline-photo .timeline-content {
+  max-width: 560px;
+}
+
 .timeline-content > span {
   display: block;
   margin-bottom: 3px;
@@ -1820,6 +1824,10 @@ textarea[aria-invalid="true"] {
   gap: 10px;
 }
 
+.compact-photo-grid {
+  grid-template-columns: minmax(180px, 320px);
+}
+
 .summary-photo-card {
   overflow: hidden;
   margin: 0;
@@ -1834,6 +1842,11 @@ textarea[aria-invalid="true"] {
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border-bottom: 1px solid var(--line);
+}
+
+.compact-photo-grid .summary-photo-card img,
+.compact-photo-grid .summary-photo-card video {
+  max-height: 220px;
 }
 
 .summary-photo-card figcaption {
