@@ -70,7 +70,7 @@ function renderBars(container, entries) {
 }
 
 function renderStats() {
-  const allCatches = state.trips.flatMap((trip) => trip.catches || []);
+  const allCatches = state.trips.flatMap((trip) => (trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip })));
   const fish = state.trips.reduce((sum, trip) => sum + totalCaught(trip), 0);
   const hours = state.trips.reduce((sum, trip) => sum + tripHours(trip), 0);
   const pounds = state.trips.reduce((sum, trip) => sum + totalWeight(trip), 0);
@@ -236,8 +236,14 @@ function filteredTrips() {
       trip.notes,
       trip.weather,
       trip.structure,
-      ...(trip.catches || []).flatMap((catchItem) => [catchItem.species, catchItem.notes, lureName(catchItem.lureId), flasherName(catchItem.flasherId)]),
-      ...(trip.lostFish || []).flatMap((fish) => [fish.possibleSpecies, fish.species, fish.notes, lureName(fish.lureId), flasherName(fish.flasherId)])
+      ...(trip.catches || []).flatMap((catchItem) => {
+        const record = resolveTripLineRecord({ ...catchItem, trip });
+        return [record.species, record.notes, lureName(record.lureId), flasherName(record.flasherId)];
+      }),
+      ...(trip.lostFish || []).flatMap((fish) => {
+        const record = resolveTripLineRecord({ ...fish, trip });
+        return [record.possibleSpecies, record.species, record.notes, lureName(record.lureId), flasherName(record.flasherId)];
+      })
     ].join(" ").toLowerCase();
 
     const matchesQuery = !query || haystack.includes(query);

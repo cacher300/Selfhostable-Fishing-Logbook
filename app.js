@@ -115,6 +115,7 @@ document.addEventListener("click", (event) => {
   const removeTripGear = event.target.closest(".remove-trip-gear");
   if (removeTripGear) {
     removeTripGear.closest(".gear-used-row").remove();
+    populateSetupLineSelects();
     updateAllRowSummaries();
   }
 
@@ -241,6 +242,9 @@ document.addEventListener("change", (event) => {
   if (event.target.matches(".catch-presentation")) {
     updatePresentationFields(event.target.closest(".catch-row, .gear-used-row"));
   }
+  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label")) {
+    populateSetupLineSelects();
+  }
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);
 });
@@ -250,6 +254,9 @@ document.addEventListener("input", (event) => {
     syncTripTimesToBlankRows();
   }
   if (event.target.closest("#tripForm")) clearTripFormMessage();
+  if (event.target.matches(".trip-gear-line-label, .trip-gear-start-time, .trip-gear-end-time")) {
+    populateSetupLineSelects();
+  }
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);
 });
@@ -281,6 +288,10 @@ function setView(view) {
 
 async function init() {
   state = await loadState();
+  if (pendingTrollingLineMigration) {
+    pendingTrollingLineMigration = false;
+    await saveState();
+  }
   renderAll();
 }
 

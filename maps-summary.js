@@ -234,16 +234,18 @@ function renderTripSummaryCatches(trip) {
   const catches = trip.catches || [];
   if (!catches.length) return `<div class="empty-state compact-empty"><p>No catches logged.</p></div>`;
   return catches.map((catchItem, index) => {
+    const record = resolveTripLineRecord({ ...catchItem, trip });
     const details = [
-      catchItem.released ? "Released" : "",
-      catchItem.length,
-      catchItem.weight,
-      catchItem.time,
-      catchItem.depthDown ? `${catchItem.depthDown} down` : "",
-      catchItem.waterDepth ? `${catchItem.waterDepth} water` : "",
-      lureName(catchItem.lureId),
-      flasherName(catchItem.flasherId),
-      catchItem.coordinates ? formatCoordinates(catchItem.coordinates) : ""
+      record.released ? "Released" : "",
+      record.length,
+      record.weight,
+      record.time,
+      record.depthDown ? `${record.depthDown} down` : "",
+      record.waterDepth ? `${record.waterDepth} water` : "",
+      record.setupLine ? setupLineDisplayLabel(trip, record.setupLine) : "",
+      lureName(record.lureId),
+      flasherName(record.flasherId),
+      record.coordinates ? formatCoordinates(record.coordinates) : ""
     ].filter(Boolean).join(" / ");
     return `
       <article class="summary-catch-card">
@@ -266,15 +268,81 @@ function renderTripSummaryGear(trip) {
       ${gearUsed.map((gearItem, index) => {
         const timeRange = [gearItem.startTime, gearItem.endTime].filter(Boolean).join("-");
         const gear = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
-        const details = [timeRange, personName(trip, gearItem.personId), presentationLabel(gearItem.presentation), gearItem.speed].filter(Boolean).join(" / ");
+        const details = [timeRange, setupLineSideLabel(gearItem.side), personName(trip, gearItem.personId), presentationLabel(gearItem.presentation), gearItem.speed].filter(Boolean).join(" / ");
         return `
           <article>
-            <strong>Setup ${index + 1}${gear ? `: ${escapeHtml(gear)}` : ""}</strong>
+            <strong>${escapeHtml(setupLineDisplayLabel(trip, gearItem) || `Setup ${index + 1}`)}${gear && gearItem.lineLabel ? `: ${escapeHtml(gear)}` : ""}</strong>
             <span>${escapeHtml(details || "No setup details")}</span>
             ${gearItem.changeNote ? `<p>${escapeHtml(gearItem.changeNote)}</p>` : ""}
           </article>
         `;
       }).join("")}
+    </div>
+  `;
+}
+
+function setupLineCounts(trip, gearItem) {
+  const fish = (trip.catches || [])
+    .filter((catchItem) => catchItem.setupLineId === gearItem.id)
+    .reduce((sum, catchItem) => sum + fishCount(catchItem), 0);
+  const lost = (trip.lostFish || []).filter((fishItem) => fishItem.setupLineId === gearItem.id).length;
+  return { fish, lost };
+}
+
+function spreadLineEnd(gearItem, index) {
+  const side = gearItem.side || "center";
+  const presentation = gearItem.presentation || "";
+  const wide = presentation === "flatline-leadcore" ? 250 : presentation === "dipsey-diver" ? 175 : 70;
+  const sideSign = side === "port" ? -1 : side === "starboard" ? 1 : 0;
+  const stagger = index * 18;
+  return {
+    x: 360 + sideSign * wide,
+    y: 305 + stagger
+  };
+}
+
+function renderTrollingSpread(trip) {
+  if (!isTrollingTripRecord(trip)) return "";
+  const lines = (trip.gearUsed || []).filter((gearItem) => gearItem.lureId || gearItem.flasherId || gearItem.presentation);
+  if (!lines.length) return `<div class="empty-state compact-empty"><p>No trolling setup lines logged.</p></div>`;
+
+  const renderedLines = lines.map((gearItem, index) => {
+    const counts = setupLineCounts(trip, gearItem);
+    const end = spreadLineEnd(gearItem, index);
+    const startX = gearItem.side === "port" ? 310 : gearItem.side === "starboard" ? 410 : 360;
+    const startY = gearItem.side === "center" ? 232 : 202;
+    const labelX = Math.max(18, Math.min(570, end.x + (gearItem.side === "port" ? -104 : 14)));
+    const labelAnchor = gearItem.side === "port" ? "end" : "start";
+    const label = setupLineDisplayLabel(trip, gearItem);
+    const detail = [gearComboName(gearItem.lureId, gearItem.flasherId), `${counts.fish} fish`, counts.lost ? `${counts.lost} lost` : ""].filter(Boolean).join(" / ");
+    return `
+      <g class="spread-line spread-${escapeHtml(gearItem.side || "center")}">
+        <path d="M ${startX} ${startY} L ${end.x} ${end.y}" />
+        <circle cx="${end.x}" cy="${end.y}" r="4" />
+        <text x="${labelX}" y="${end.y - 8}" text-anchor="${labelAnchor}" class="spread-line-label">${escapeHtml(label)}</text>
+        <text x="${labelX}" y="${end.y + 12}" text-anchor="${labelAnchor}" class="spread-line-detail">${escapeHtml(detail)}</text>
+      </g>
+    `;
+  }).join("");
+
+  return `
+    <div class="spread-diagram-wrap">
+      <svg class="spread-diagram" viewBox="0 0 720 430" role="img" aria-label="Trolling spread diagram">
+        <defs>
+          <linearGradient id="boatHull" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#ffffff" />
+            <stop offset="1" stop-color="#dce7ef" />
+          </linearGradient>
+        </defs>
+        <path class="spread-water" d="M40 260 C160 235 260 278 390 250 C520 222 610 245 690 226 L690 410 L40 410 Z" />
+        <g class="spread-boat">
+          <path class="spread-hull" d="M360 44 C304 78 278 124 286 184 C294 242 330 270 360 286 C390 270 426 242 434 184 C442 124 416 78 360 44 Z" />
+          <path class="spread-deck" d="M326 118 L394 118 L406 214 L360 246 L314 214 Z" />
+          <path class="spread-cabin" d="M338 136 L382 136 L388 198 L360 216 L332 198 Z" />
+          <line x1="310" y1="204" x2="410" y2="204" class="spread-stern" />
+        </g>
+        ${renderedLines}
+      </svg>
     </div>
   `;
 }
@@ -305,7 +373,7 @@ function tripTimelineItems(trip) {
     ].filter(Boolean).join(" / ");
     items.push({
       type: "Setup",
-      title: gear || `Setup ${index + 1}`,
+      title: setupLineDisplayLabel(trip, gearItem) || gear || `Setup ${index + 1}`,
       details,
       note: gearItem.changeNote,
       startTime: gearItem.startTime,
@@ -315,16 +383,18 @@ function tripTimelineItems(trip) {
   });
 
   (trip.catches || []).forEach((catchItem, index) => {
+    const record = resolveTripLineRecord({ ...catchItem, trip });
     const details = [
-      catchItem.released ? "Released" : "Kept",
-      catchItem.length,
-      catchItem.weight,
-      catchItem.fowCaught,
-      catchItem.depthDown ? `${catchItem.depthDown} down` : "",
-      catchItem.waterDepth ? `${catchItem.waterDepth} water` : "",
-      lureName(catchItem.lureId),
-      flasherName(catchItem.flasherId),
-      catchItem.speed
+      record.released ? "Released" : "Kept",
+      record.length,
+      record.weight,
+      record.fowCaught,
+      record.depthDown ? `${record.depthDown} down` : "",
+      record.waterDepth ? `${record.waterDepth} water` : "",
+      record.setupLine ? setupLineDisplayLabel(trip, record.setupLine) : "",
+      lureName(record.lureId),
+      flasherName(record.flasherId),
+      record.speed
     ].filter(Boolean).join(" / ");
     items.push({
       type: "Catch",
@@ -338,14 +408,16 @@ function tripTimelineItems(trip) {
   });
 
   (trip.lostFish || []).forEach((fish, index) => {
+    const record = resolveTripLineRecord({ ...fish, trip });
     const details = [
-      fish.possibleSpecies || fish.species,
-      fish.fowCaught,
-      fish.depthDown ? `${fish.depthDown} down` : "",
-      fish.waterDepth ? `${fish.waterDepth} water` : "",
-      lureName(fish.lureId),
-      flasherName(fish.flasherId),
-      fish.speed
+      record.possibleSpecies || record.species,
+      record.fowCaught,
+      record.depthDown ? `${record.depthDown} down` : "",
+      record.waterDepth ? `${record.waterDepth} water` : "",
+      record.setupLine ? setupLineDisplayLabel(trip, record.setupLine) : "",
+      lureName(record.lureId),
+      flasherName(record.flasherId),
+      record.speed
     ].filter(Boolean).join(" / ");
     items.push({
       type: "Lost",
@@ -432,6 +504,12 @@ function openTripSummary(trip) {
       <h3>Trip Timeline</h3>
       ${renderTripTimeline(trip)}
     </section>
+    ${isTrollingTripRecord(trip) ? `
+      <section class="summary-section">
+        <h3>Trolling Spread</h3>
+        ${renderTrollingSpread(trip)}
+      </section>
+    ` : ""}
     <section class="summary-section">
       <h3>Catches</h3>
       <div class="summary-catch-grid">${renderTripSummaryCatches(trip)}</div>

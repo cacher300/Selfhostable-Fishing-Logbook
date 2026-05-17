@@ -25,8 +25,8 @@ function tripHasPerson(trip, person) {
 function tripHasLure(trip, lure) {
   if (lure === "All lures") return true;
   return [
-    ...(trip.catches || []),
-    ...(trip.lostFish || []),
+    ...(trip.catches || []).map((record) => resolveTripLineRecord({ ...record, trip })),
+    ...(trip.lostFish || []).map((record) => resolveTripLineRecord({ ...record, trip })),
     ...(trip.gearUsed || [])
   ].some((record) => lureName(record.lureId) === lure);
 }
@@ -34,8 +34,8 @@ function tripHasLure(trip, lure) {
 function tripHasFlasher(trip, flasher) {
   if (flasher === "All flashers") return true;
   return [
-    ...(trip.catches || []),
-    ...(trip.lostFish || []),
+    ...(trip.catches || []).map((record) => resolveTripLineRecord({ ...record, trip })),
+    ...(trip.lostFish || []).map((record) => resolveTripLineRecord({ ...record, trip })),
     ...(trip.gearUsed || [])
   ].some((record) => flasherName(record.flasherId) === flasher);
 }
@@ -56,19 +56,20 @@ function scopedTrips() {
 }
 
 function catchRecords(trips = state.trips) {
-  return trips.flatMap((trip) => (trip.catches || []).map((catchItem) => ({ ...catchItem, trip })));
+  return trips.flatMap((trip) => (trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip })));
 }
 
 function lostFishRecords(trips = state.trips) {
-  return trips.flatMap((trip) => (trip.lostFish || []).map((fish) => ({ ...fish, trip })));
+  return trips.flatMap((trip) => (trip.lostFish || []).map((fish) => resolveTripLineRecord({ ...fish, trip })));
 }
 
 function gearUseRecords(trips = state.trips) {
   return trips.flatMap((trip) => {
-    const tripGear = (trip.gearUsed || []).map((gearItem) => ({ ...gearItem, trip, source: "trip" }));
+    const tripGear = (trip.gearUsed || []).map((gearItem) => ({ ...gearItem, trip, source: "trip", quantity: 0 }));
     const catchGear = (trip.catches || [])
+      .map((catchItem) => resolveTripLineRecord({ ...catchItem, trip }))
       .filter((catchItem) => catchItem.lureId || catchItem.flasherId)
-      .map((catchItem) => ({ ...catchItem, trip, source: "catch" }));
+      .map((catchItem) => ({ ...catchItem, source: "catch" }));
     return [...tripGear, ...catchGear];
   });
 }
@@ -271,9 +272,9 @@ function renderAdvancedStats() {
 
   const locationRows = trips.map((trip) => ({
     ...trip,
-    catches: filterRecordsByStats((trip.catches || []).map((catchItem) => ({ ...catchItem, trip }))),
-    lostFish: filterRecordsByStats((trip.lostFish || []).map((fish) => ({ ...fish, trip }))),
-    fish: filterRecordsByStats((trip.catches || []).map((catchItem) => ({ ...catchItem, trip }))).reduce((sum, catchItem) => sum + fishCount(catchItem), 0),
+    catches: filterRecordsByStats((trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip }))),
+    lostFish: filterRecordsByStats((trip.lostFish || []).map((fish) => resolveTripLineRecord({ ...fish, trip }))),
+    fish: filterRecordsByStats((trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip }))).reduce((sum, catchItem) => sum + fishCount(catchItem), 0),
     rate: catchRate(trip)
   }));
   renderStatsTable(els.locationStatsTable, ["Location", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.location));

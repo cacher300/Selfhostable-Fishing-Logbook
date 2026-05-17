@@ -1096,37 +1096,47 @@ textarea[aria-invalid="true"] {
 }
 
 .gear-used-row .gear-title {
+  grid-row: 4;
+}
+
+.gear-used-row .gear-side-field {
+  grid-column: 1 / 2;
+  grid-row: 3;
+}
+
+.gear-used-row .gear-label-field {
+  grid-column: 2 / 6;
   grid-row: 3;
 }
 
 .gear-used-row .gear-lure-field {
   grid-column: 1 / 3;
-  grid-row: 4;
+  grid-row: 5;
 }
 
 .gear-used-row .gear-lure-action {
   grid-column: 3 / 4;
-  grid-row: 4;
+  grid-row: 5;
 }
 
 .gear-used-row .lure-preview {
   grid-column: 4 / 6;
-  grid-row: 4;
+  grid-row: 5;
 }
 
 .gear-used-row .gear-flasher-field {
   grid-column: 1 / 3;
-  grid-row: 5;
+  grid-row: 6;
 }
 
 .gear-used-row .gear-flasher-action {
   grid-column: 3 / 4;
-  grid-row: 5;
+  grid-row: 6;
 }
 
 .gear-used-row .flasher-preview {
   grid-column: 4 / 6;
-  grid-row: 5;
+  grid-row: 6;
 }
 
 .trolling-param {
@@ -1530,6 +1540,69 @@ textarea[aria-invalid="true"] {
 
 .trip-summary-map {
   min-height: 360px;
+}
+
+.spread-diagram-wrap {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7fbfd;
+}
+
+.spread-diagram {
+  display: block;
+  width: 100%;
+  min-height: 360px;
+}
+
+.spread-water {
+  fill: #e4f0f5;
+}
+
+.spread-hull {
+  fill: url("#boatHull");
+  stroke: #172033;
+  stroke-width: 4;
+}
+
+.spread-deck,
+.spread-cabin {
+  fill: #ffffff;
+  stroke: #344054;
+  stroke-width: 3;
+}
+
+.spread-stern,
+.spread-line path {
+  fill: none;
+  stroke: #1f2937;
+  stroke-linecap: round;
+}
+
+.spread-stern {
+  stroke-width: 5;
+}
+
+.spread-line path {
+  stroke-width: 3;
+}
+
+.spread-line circle {
+  fill: var(--green);
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.spread-line-label {
+  fill: var(--text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.spread-line-detail {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .summary-detail-grid {
@@ -1938,6 +2011,8 @@ textarea[aria-invalid="true"] {
   .gear-used-row .gear-start-field,
   .gear-used-row .gear-end-field,
   .gear-used-row .gear-change-field,
+  .gear-used-row .gear-side-field,
+  .gear-used-row .gear-label-field,
   .gear-used-row .gear-title,
   .gear-used-row .gear-lure-action,
   .gear-used-row .lure-preview,
@@ -2138,6 +2213,10 @@ textarea[aria-invalid="true"] {
 
   .trip-summary-map {
     min-height: 320px;
+  }
+
+  .spread-diagram {
+    min-height: 300px;
   }
 
   .summary-section-heading {

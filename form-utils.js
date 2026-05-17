@@ -14,6 +14,12 @@ function updateTrollingVisibility() {
   document.querySelectorAll("#tripDialog .trolling-field").forEach((element) => {
     element.classList.toggle("hidden", !trolling);
   });
+  document.querySelectorAll("#tripDialog .trolling-catch-line-field").forEach((element) => {
+    element.classList.toggle("hidden", !trolling);
+  });
+  document.querySelectorAll("#tripDialog .catch-row .direct-catch-gear").forEach((element) => {
+    element.classList.toggle("hidden", trolling);
+  });
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updatePresentationFields);
 }
 

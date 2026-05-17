@@ -669,20 +669,24 @@
             <input class="catch-longitude" type="text" inputmode="decimal" placeholder="-79.33851" />
           </label>
           <div class="row-section-title">Gear</div>
-          <label>
+          <label class="trolling-catch-line-field">
+            <span>Setup line</span>
+            <select class="catch-setup-line"></select>
+          </label>
+          <label class="direct-catch-gear">
             <span>Lure</span>
             <select class="catch-lure"></select>
           </label>
-          <button class="button secondary add-lure-inline" type="button">New Lure</button>
-          <div class="lure-preview"></div>
-          <label class="trolling-field">
+          <button class="button secondary add-lure-inline direct-catch-gear" type="button">New Lure</button>
+          <div class="lure-preview direct-catch-gear"></div>
+          <label class="trolling-field direct-catch-gear">
             <span>Flasher</span>
             <select class="catch-flasher"></select>
           </label>
-          <button class="button secondary add-flasher-inline trolling-field" type="button">New Flasher</button>
-          <div class="flasher-preview trolling-field"></div>
+          <button class="button secondary add-flasher-inline trolling-field direct-catch-gear" type="button">New Flasher</button>
+          <div class="flasher-preview trolling-field direct-catch-gear"></div>
           <div class="row-section-title trolling-field">Trolling Details</div>
-          <label class="trolling-field">
+          <label class="trolling-field direct-catch-gear">
             <span>Trolling setup</span>
             <select class="catch-presentation">
               <option value="">Select setup</option>
@@ -783,6 +787,18 @@
             <span>Change note</span>
             <input class="trip-gear-change-note" type="text" placeholder="Started spoon/flasher, changed depth, switched lure" />
           </label>
+          <label class="trolling-field gear-side-field">
+            <span>Line side</span>
+            <select class="trip-gear-side">
+              <option value="port">Port</option>
+              <option value="center">Center</option>
+              <option value="starboard">Starboard</option>
+            </select>
+          </label>
+          <label class="trolling-field gear-label-field">
+            <span>Line label</span>
+            <input class="trip-gear-line-label" type="text" placeholder="Auto label, or name this line" />
+          </label>
           <div class="row-section-title gear-title">Gear</div>
           <label class="gear-lure-field">
             <span>Lure</span>
@@ -852,6 +868,7 @@
     <script src="photos.js"></script>
     <script src="trip-editor.js"></script>
     <script src="gear.js"></script>
+    <script src="trolling-spread.js"></script>
     <script src="maps-summary.js"></script>
     <script src="stats.js"></script>
     <script src="form-utils.js"></script>

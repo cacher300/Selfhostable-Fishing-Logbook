@@ -74,14 +74,14 @@ function patternSpeciesMatches(record) {
 function patternCatchRecords() {
   return state.trips
     .filter(patternTripMatches)
-    .flatMap((trip) => (trip.catches || []).map((catchItem) => ({ ...catchItem, trip })))
+    .flatMap((trip) => (trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip })))
     .filter((record) => record.species && patternSpeciesMatches(record));
 }
 
 function patternLostRecords() {
   return state.trips
     .filter(patternTripMatches)
-    .flatMap((trip) => (trip.lostFish || []).map((fish) => ({ ...fish, trip })))
+    .flatMap((trip) => (trip.lostFish || []).map((fish) => resolveTripLineRecord({ ...fish, trip })))
     .filter((record) => {
       const species = record.possibleSpecies || record.species;
       return activePatternFilters.species === "All species" || species === activePatternFilters.species;
