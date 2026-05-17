@@ -466,7 +466,7 @@ function tripTimelineItems(trip) {
     items.push({
       type: "Photo",
       title: photo.caption || photo.name || "Trip photo",
-      details: photo.captureTime ? "Trip photo time from image metadata" : "Trip photo",
+      details: "",
       time: photo.captureTime || "",
       photos: [photo],
       sortTime: photo.captureTime ? timelineTimeValue(photo.captureTime) : 10000
