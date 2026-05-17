@@ -93,7 +93,6 @@ let activeTripId = null;
 let activeSummaryTripId = null;
 let activeNotePhotos = [];
 let activeStatsMethod = "All methods";
-let pendingTrollingLineMigration = false;
 const activePatternFilters = {
   species: "",
   location: "All locations",
@@ -289,9 +288,6 @@ function normalizeState(nextState) {
     normalized.locations,
     normalized.trips.map((trip) => trip.location)
   );
-  if (typeof normalizeTrollingSpreadData === "function" && normalizeTrollingSpreadData(normalized)) {
-    pendingTrollingLineMigration = true;
-  }
 
   return normalized;
 }

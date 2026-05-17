@@ -288,10 +288,6 @@ function setView(view) {
 
 async function init() {
   state = await loadState();
-  if (pendingTrollingLineMigration) {
-    pendingTrollingLineMigration = false;
-    await saveState();
-  }
   renderAll();
 }
 

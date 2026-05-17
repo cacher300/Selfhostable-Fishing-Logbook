@@ -748,12 +748,20 @@ textarea[aria-invalid="true"] {
 
 .note-photo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: 180px;
+  grid-template-columns: none;
   gap: 12px;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+  overscroll-behavior-inline: contain;
 }
 
 .note-photo-card {
   overflow: hidden;
+  width: 180px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -761,8 +769,9 @@ textarea[aria-invalid="true"] {
 
 .note-photo-card img,
 .note-photo-card video {
+  display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 128px;
   object-fit: cover;
   border-bottom: 1px solid var(--line);
 }
@@ -789,13 +798,21 @@ textarea[aria-invalid="true"] {
 
 .catch-photo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: 150px;
+  grid-template-columns: none;
   gap: 10px;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+  overscroll-behavior-inline: contain;
 }
 
 .catch-photo-card {
   position: relative;
   overflow: hidden;
+  width: 150px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -803,8 +820,9 @@ textarea[aria-invalid="true"] {
 
 .catch-photo-card img,
 .catch-photo-card video {
+  display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 106px;
   object-fit: cover;
   border-bottom: 1px solid var(--line);
 }
@@ -2189,7 +2207,7 @@ textarea[aria-invalid="true"] {
 
   .catch-photo-grid,
   .note-photo-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: none;
   }
 
   .map-header {
