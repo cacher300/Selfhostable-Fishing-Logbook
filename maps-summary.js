@@ -292,12 +292,12 @@ function setupLineCounts(trip, gearItem) {
 function spreadLineEnd(gearItem, index) {
   const side = gearItem.side || "center";
   const presentation = gearItem.presentation || "";
-  const wide = presentation === "flatline-leadcore" ? 250 : presentation === "dipsey-diver" ? 175 : 70;
+  const spread = presentation === "flatline-leadcore" ? 186 : presentation === "dipsey-diver" ? 132 : 48;
   const sideSign = side === "port" ? -1 : side === "starboard" ? 1 : 0;
-  const stagger = index * 18;
+  const stagger = side === "center" ? 0 : index * 12;
   return {
-    x: 360 + sideSign * wide,
-    y: 305 + stagger
+    x: presentation === "flatline-leadcore" ? 700 : presentation === "dipsey-diver" ? 682 : 650,
+    y: 215 + sideSign * (spread + stagger)
   };
 }
 
@@ -309,10 +309,10 @@ function renderTrollingSpread(trip) {
   const renderedLines = lines.map((gearItem, index) => {
     const counts = setupLineCounts(trip, gearItem);
     const end = spreadLineEnd(gearItem, index);
-    const startX = gearItem.side === "port" ? 310 : gearItem.side === "starboard" ? 410 : 360;
-    const startY = gearItem.side === "center" ? 232 : 202;
-    const labelX = Math.max(18, Math.min(570, end.x + (gearItem.side === "port" ? -104 : 14)));
-    const labelAnchor = gearItem.side === "port" ? "end" : "start";
+    const startX = gearItem.side === "center" ? 462 : 404;
+    const startY = gearItem.side === "port" ? 158 : gearItem.side === "starboard" ? 272 : 215;
+    const labelX = Math.max(18, Math.min(700, end.x - 12));
+    const labelAnchor = "end";
     const label = setupLineDisplayLabel(trip, gearItem);
     const detail = [gearComboName(gearItem.lureId, gearItem.flasherId), `${counts.fish} fish`, counts.lost ? `${counts.lost} lost` : ""].filter(Boolean).join(" / ");
     return `
@@ -327,19 +327,26 @@ function renderTrollingSpread(trip) {
 
   return `
     <div class="spread-diagram-wrap">
-      <svg class="spread-diagram" viewBox="0 0 720 430" role="img" aria-label="Trolling spread diagram">
+      <svg class="spread-diagram" viewBox="0 0 780 430" role="img" aria-label="Trolling spread diagram">
         <defs>
-          <linearGradient id="boatHull" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stop-color="#ffffff" />
-            <stop offset="1" stop-color="#dce7ef" />
+          <linearGradient id="boatHull" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0" stop-color="#f8fbfd" />
+            <stop offset="0.55" stop-color="#ffffff" />
+            <stop offset="1" stop-color="#dbe7ef" />
           </linearGradient>
         </defs>
-        <path class="spread-water" d="M40 260 C160 235 260 278 390 250 C520 222 610 245 690 226 L690 410 L40 410 Z" />
+        <path class="spread-water" d="M40 292 C150 274 236 306 344 282 C470 254 600 284 740 258 L740 410 L40 410 Z" />
         <g class="spread-boat">
-          <path class="spread-hull" d="M360 44 C304 78 278 124 286 184 C294 242 330 270 360 286 C390 270 426 242 434 184 C442 124 416 78 360 44 Z" />
-          <path class="spread-deck" d="M326 118 L394 118 L406 214 L360 246 L314 214 Z" />
-          <path class="spread-cabin" d="M338 136 L382 136 L388 198 L360 216 L332 198 Z" />
-          <line x1="310" y1="204" x2="410" y2="204" class="spread-stern" />
+          <path class="spread-hull" d="M112 215 C155 160 217 128 304 126 L438 126 C470 126 490 149 490 181 L490 249 C490 281 470 304 438 304 L304 304 C217 302 155 270 112 215 Z" />
+          <path class="spread-rub-rail" d="M146 215 C184 173 234 151 306 151 L430 151 C447 151 459 164 459 181 L459 249 C459 266 447 279 430 279 L306 279 C234 279 184 257 146 215 Z" />
+          <path class="spread-bow-deck" d="M168 215 C202 185 239 172 292 171 L292 259 C239 258 202 245 168 215 Z" />
+          <rect class="spread-cockpit" x="306" y="159" width="88" height="112" rx="14" />
+          <rect class="spread-console" x="338" y="181" width="34" height="68" rx="9" />
+          <path class="spread-transom" d="M458 170 L486 181 L486 249 L458 260 Z" />
+          <rect class="spread-motor" x="494" y="187" width="38" height="56" rx="10" />
+          <circle class="spread-bow-eye" cx="142" cy="215" r="10" />
+          <line x1="292" y1="151" x2="292" y2="279" class="spread-seat-line" />
+          <line x1="404" y1="151" x2="404" y2="279" class="spread-seat-line" />
         </g>
         ${renderedLines}
       </svg>

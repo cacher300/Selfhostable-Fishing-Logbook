@@ -1563,16 +1563,48 @@ textarea[aria-invalid="true"] {
   fill: url("#boatHull");
   stroke: #172033;
   stroke-width: 4;
+  filter: drop-shadow(0 10px 18px rgba(7, 21, 46, 0.12));
 }
 
+.spread-rub-rail {
+  fill: none;
+  stroke: #415066;
+  stroke-width: 4;
+}
+
+.spread-bow-deck,
 .spread-deck,
-.spread-cabin {
+.spread-cabin,
+.spread-cockpit,
+.spread-console,
+.spread-transom,
+.spread-motor {
   fill: #ffffff;
   stroke: #344054;
   stroke-width: 3;
 }
 
+.spread-cockpit {
+  fill: #edf3f7;
+}
+
+.spread-console,
+.spread-transom {
+  fill: #f9fbfc;
+}
+
+.spread-motor {
+  fill: #d9e3eb;
+}
+
+.spread-bow-eye {
+  fill: none;
+  stroke: #172033;
+  stroke-width: 4;
+}
+
 .spread-stern,
+.spread-seat-line,
 .spread-line path {
   fill: none;
   stroke: #1f2937;
@@ -1585,6 +1617,7 @@ textarea[aria-invalid="true"] {
 
 .spread-line path {
   stroke-width: 3;
+  stroke-linejoin: round;
 }
 
 .spread-line circle {
