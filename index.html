@@ -50,16 +50,19 @@
             <h2>Trips</h2>
           </div>
           <div class="topbar-actions">
-            <button class="button secondary" id="tripsViewButton" type="button">Trips</button>
-            <button class="button secondary" id="statsViewButton" type="button">Advanced Stats</button>
-            <button class="button secondary" id="patternsViewButton" type="button">Patterns</button>
-            <button class="button secondary" id="mapViewButton" type="button">Map</button>
-            <button class="button secondary" id="gearViewButton" type="button">Gear</button>
-            <button class="button secondary" id="galleryViewButton" type="button">Gallery</button>
-            <button class="button secondary" id="photoQueueButton" type="button">Photo Queue</button>
+            <nav class="view-nav" aria-label="Primary views">
+              <button class="button secondary" id="tripsViewButton" type="button">Trips</button>
+              <button class="button secondary" id="statsViewButton" type="button">Stats</button>
+              <button class="button secondary" id="patternsViewButton" type="button">Patterns</button>
+              <button class="button secondary" id="mapViewButton" type="button">Map</button>
+              <button class="button secondary" id="gearViewButton" type="button">Gear</button>
+              <button class="button secondary" id="galleryViewButton" type="button">Gallery</button>
+            </nav>
+            <div class="utility-actions">
             <details class="data-menu">
               <summary class="button secondary">Data</summary>
               <div class="data-menu-panel">
+                <button class="button secondary" id="photoQueueButton" type="button">Photo Queue</button>
                 <button class="button secondary" id="exportButton" type="button">Export JSON</button>
                 <label class="button secondary file-button">
                   Import JSON
@@ -68,6 +71,7 @@
               </div>
             </details>
             <button class="button primary" id="newTripButton" type="button">New Trip</button>
+            </div>
           </div>
         </header>
 
@@ -255,8 +259,8 @@
         <section class="patterns-page hidden" id="patternsPanel" aria-label="Fish pattern recommendations">
           <div class="patterns-header">
             <div>
-              <p class="eyebrow">Pattern finder</p>
-              <h3>What Should I Run?</h3>
+              <p class="eyebrow">Recommendations</p>
+              <h3>Fish Pattern Finder</h3>
             </div>
             <span id="patternsSummary" class="map-summary">No patterns loaded</span>
           </div>
@@ -293,7 +297,7 @@
         <section class="map-page hidden" id="mapPanel" aria-label="Fish catch map">
           <div class="map-header">
             <div>
-              <p class="eyebrow">Photo GPS</p>
+              <p class="eyebrow">Fish locations</p>
               <h3>Fish Map</h3>
             </div>
             <div class="map-tools">
@@ -311,8 +315,8 @@
         <section class="gear-page hidden" id="gearPanel" aria-label="Saved lure and flasher library">
           <div class="gear-header">
             <div>
-              <p class="eyebrow">Reusable gear</p>
-              <h3>Saved Lures</h3>
+              <p class="eyebrow">Gear library</p>
+              <h3>Lures</h3>
             </div>
             <button class="button primary" id="newLibraryLureButton" type="button">New Lure</button>
           </div>
@@ -320,8 +324,8 @@
 
           <div class="gear-header">
             <div>
-              <p class="eyebrow">Reusable attractors</p>
-              <h3>Saved Flashers</h3>
+              <p class="eyebrow">Gear library</p>
+              <h3>Flashers</h3>
             </div>
             <button class="button primary" id="newLibraryFlasherButton" type="button">New Flasher</button>
           </div>
@@ -332,7 +336,7 @@
           <div class="gallery-header">
             <div>
               <p class="eyebrow">Raw media</p>
-              <h3>Photo Gallery</h3>
+              <h3>Media Gallery</h3>
             </div>
             <div class="gallery-tools">
               <label>

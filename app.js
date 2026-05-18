@@ -7,7 +7,10 @@ els.addLostFishButton.addEventListener("click", () => addLostFishRow());
 els.addTripGearButton.addEventListener("click", () => addTripGearRow());
 els.addPersonButton.addEventListener("click", () => addPersonRow());
 els.notePhotoInput.addEventListener("change", addNotePhotos);
-els.photoQueueButton.addEventListener("click", () => openPhotoQueue());
+els.photoQueueButton.addEventListener("click", () => {
+  els.photoQueueButton.closest("details")?.removeAttribute("open");
+  openPhotoQueue();
+});
 els.photoQueueInput.addEventListener("change", addPhotosToQueue);
 els.lureForm.addEventListener("submit", saveLure);
 els.flasherForm.addEventListener("submit", saveFlasher);
@@ -279,6 +282,22 @@ function setView(view) {
   const showingMap = view === "map";
   const showingGear = view === "gear";
   const showingGallery = view === "gallery";
+  const viewButtons = {
+    trips: els.tripsViewButton,
+    stats: els.statsViewButton,
+    patterns: els.patternsViewButton,
+    map: els.mapViewButton,
+    gear: els.gearViewButton,
+    gallery: els.galleryViewButton,
+  };
+  const viewTitles = {
+    trips: "Trips",
+    stats: "Advanced Stats",
+    patterns: "Patterns",
+    map: "Map",
+    gear: "Gear",
+    gallery: "Gallery",
+  };
   els.tripControls.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear || showingGallery);
   els.tripListPanel.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear || showingGallery);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
@@ -286,7 +305,11 @@ function setView(view) {
   els.mapPanel.classList.toggle("hidden", !showingMap);
   els.gearPanel.classList.toggle("hidden", !showingGear);
   els.galleryPanel.classList.toggle("hidden", !showingGallery);
-  document.querySelector(".topbar h2").textContent = showingStats ? "Advanced Stats" : showingPatterns ? "Patterns" : showingMap ? "Map" : showingGear ? "Gear" : showingGallery ? "Gallery" : "Trips";
+  Object.entries(viewButtons).forEach(([buttonView, button]) => {
+    button.classList.toggle("is-active", buttonView === view);
+    button.setAttribute("aria-current", buttonView === view ? "page" : "false");
+  });
+  document.querySelector(".topbar h2").textContent = viewTitles[view] || "Trips";
   renderAdvancedStats();
   if (showingPatterns) renderPatterns();
   if (showingMap) renderFishMap();
@@ -297,6 +320,7 @@ function setView(view) {
 async function init() {
   state = await loadState();
   renderAll();
+  setView("trips");
 }
 
 init();
