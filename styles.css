@@ -1595,7 +1595,8 @@ textarea[aria-invalid="true"] {
 }
 
 .spread-diagram-wrap {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f7fbfd;
@@ -1604,7 +1605,8 @@ textarea[aria-invalid="true"] {
 .spread-diagram {
   display: block;
   width: 100%;
-  min-height: 360px;
+  min-width: 900px;
+  min-height: 390px;
 }
 
 .spread-water {
@@ -1657,6 +1659,7 @@ textarea[aria-invalid="true"] {
 
 .spread-stern,
 .spread-seat-line,
+.spread-side-spreader,
 .spread-line path {
   fill: none;
   stroke: #1f2937;
@@ -1668,8 +1671,18 @@ textarea[aria-invalid="true"] {
 }
 
 .spread-line path {
-  stroke-width: 3;
+  stroke-width: 2.6;
   stroke-linejoin: round;
+}
+
+.spread-side-spreader {
+  stroke-width: 2.4;
+  stroke-dasharray: 6 7;
+  opacity: 0.75;
+}
+
+.spread-cheater path {
+  stroke-width: 2;
 }
 
 .spread-line circle {
@@ -1680,13 +1693,41 @@ textarea[aria-invalid="true"] {
 
 .spread-line-label {
   fill: var(--text);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
 }
 
 .spread-line-detail {
   fill: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.spread-detail-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.spread-detail-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.spread-detail-card strong,
+.spread-detail-card span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spread-detail-card span {
+  color: var(--muted);
+  font-size: 13px;
   font-weight: 800;
 }
 

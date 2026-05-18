@@ -297,48 +297,185 @@ function spreadPresentationDistance(gearItem) {
   return "straight";
 }
 
-function spreadLaneY(gearItem, sideIndex) {
-  const side = gearItem.side || "center";
+function spreadPresentationRank(gearItem) {
   const distance = spreadPresentationDistance(gearItem);
-  if (side === "center") return 215 + sideIndex * 26;
-  const portY = { wide: 72, mid: 116, straight: 160 };
-  const starboardY = { wide: 374, mid: 330, straight: 286 };
-  const lanes = side === "port" ? portY : starboardY;
-  return lanes[distance] + (side === "port" ? sideIndex * 18 : -sideIndex * 18);
+  if (distance === "wide") return 0;
+  if (distance === "mid") return 1;
+  if (gearItem.presentation === "downrigger") return 2;
+  if (gearItem.presentation === "cheater") return 3;
+  return 4;
 }
 
-function spreadLineEnd(gearItem, sideIndex) {
-  const distance = spreadPresentationDistance(gearItem);
-  return {
-    x: distance === "wide" ? 1050 : distance === "mid" ? 1018 : 955,
-    y: spreadLaneY(gearItem, sideIndex)
+function normalizeSpreadSide(gearItem) {
+  if (["port", "center", "starboard"].includes(gearItem.side)) return gearItem.side;
+  if (["downrigger", "cheater"].includes(gearItem.presentation)) return "center";
+  return "starboard";
+}
+
+function spreadLineKind(gearItem) {
+  if (gearItem.presentation === "downrigger") return "downrigger";
+  if (gearItem.presentation === "cheater") return "cheater";
+  return "branch";
+}
+
+function spreadSternSide(gearItem) {
+  const side = normalizeSpreadSide(gearItem);
+  return side === "port" || side === "starboard" ? side : "center";
+}
+
+function spreadBranchSide(gearItem) {
+  return normalizeSpreadSide(gearItem) === "port" ? "port" : "starboard";
+}
+
+function spreadSternStart(side) {
+  if (side === "port") return { x: 494, y: 209 };
+  if (side === "starboard") return { x: 494, y: 271 };
+  return { x: 536, y: 240 };
+}
+
+function spreadBranchAnchor(side) {
+  if (side === "port") return { x: 350, y: 176 };
+  return { x: 350, y: 304 };
+}
+
+function spreadBranchPoint(side, laneY) {
+  const anchor = spreadBranchAnchor(side);
+  return { x: anchor.x + Math.abs(anchor.y - laneY), y: laneY };
+}
+
+function spreadSternLaneYs(side, count) {
+  if (!count) return [];
+  if (side === "center") {
+    const middle = 240;
+    const step = 34;
+    const offset = ((count - 1) * step) / 2;
+    return Array.from({ length: count }, (_, index) => middle - offset + step * index);
+  }
+  const zones = {
+    port: { start: 206, step: -26 },
+    starboard: { start: 274, step: 26 }
   };
+  const zone = zones[side] || { start: 240, step: 34 };
+  return Array.from({ length: count }, (_, index) => zone.start + zone.step * index);
 }
 
-function spreadLineStart(gearItem) {
-  if (gearItem.side === "port") return { x: 532, y: 188 };
-  if (gearItem.side === "starboard") return { x: 532, y: 242 };
-  return { x: 538, y: 215 };
-}
-
-function spreadBendPoint(start, end, gearItem) {
-  const presentation = gearItem.presentation || "";
-  const side = gearItem.side || "center";
-  if (side === "center" || ["downrigger", "cheater"].includes(presentation)) return null;
-  return {
-    x: presentation === "flatline-leadcore" ? 690 : 640,
-    y: end.y
+function spreadBranchLaneYs(side, count) {
+  if (!count) return [];
+  const zones = {
+    port: { start: 66, step: 46 },
+    starboard: { start: 474, step: -46 }
   };
+  const zone = zones[side];
+  return Array.from({ length: count }, (_, index) => zone.start + zone.step * index);
 }
 
-function spreadLinePath(start, end, gearItem) {
-  const bend = spreadBendPoint(start, end, gearItem);
-  if (bend) return `M ${start.x} ${start.y} L ${bend.x} ${bend.y} L ${end.x} ${bend.y}`;
-  if (Math.abs(start.y - end.y) < 4) return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
-  return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+function buildSpreadLayouts(trip, lines) {
+  const branchGroups = { port: [], starboard: [] };
+  const downriggerGroups = { port: [], center: [], starboard: [] };
+  const cheaterGroups = { port: [], center: [], starboard: [] };
+  lines.forEach((gearItem, originalIndex) => {
+    const kind = spreadLineKind(gearItem);
+    if (kind === "branch") {
+      const side = spreadBranchSide(gearItem);
+      branchGroups[side].push({ gearItem, originalIndex, side, kind });
+      return;
+    }
+    const side = spreadSternSide(gearItem);
+    const group = kind === "cheater" ? cheaterGroups : downriggerGroups;
+    group[side].push({ gearItem, originalIndex, side, kind });
+  });
+
+  [...Object.values(branchGroups), ...Object.values(downriggerGroups), ...Object.values(cheaterGroups)].forEach((group) => {
+    group.sort((a, b) => (
+      spreadPresentationRank(a.gearItem) - spreadPresentationRank(b.gearItem) ||
+      a.originalIndex - b.originalIndex
+    ));
+  });
+
+  const layouts = [];
+  const spreaders = [];
+  const labelX = 790;
+  const lineEndX = labelX - 24;
+  const downriggerBySide = {};
+
+  ["port", "starboard"].forEach((side) => {
+    const laneYs = spreadBranchLaneYs(side, branchGroups[side].length);
+    if (branchGroups[side].length) {
+      const anchor = spreadBranchAnchor(side);
+      const end = spreadBranchPoint(side, laneYs[0]);
+      spreaders.push({ side, path: `M ${anchor.x} ${anchor.y} L ${end.x} ${end.y}` });
+    }
+    branchGroups[side].forEach((item, index) => {
+      const laneY = laneYs[index];
+      const branch = spreadBranchPoint(side, laneY);
+      layouts.push({
+        ...item,
+        laneY,
+        labelY: laneY,
+        path: `M ${branch.x} ${branch.y} L ${lineEndX} ${laneY}`,
+        marker: branch,
+        labelX,
+        lineEndX,
+        counts: setupLineCounts(trip, item.gearItem)
+      });
+    });
+  });
+
+  ["port", "center", "starboard"].forEach((side) => {
+    const laneYs = spreadSternLaneYs(side, downriggerGroups[side].length);
+    downriggerGroups[side].forEach((item, index) => {
+      const start = spreadSternStart(side);
+      const laneY = laneYs[index];
+      const layout = {
+        ...item,
+        start,
+        laneY,
+        labelY: laneY,
+        path: `M ${start.x} ${start.y} L ${lineEndX} ${laneY}`,
+        marker: { x: lineEndX, y: laneY },
+        labelX,
+        lineEndX,
+        counts: setupLineCounts(trip, item.gearItem)
+      };
+      downriggerBySide[side] = downriggerBySide[side] || layout;
+      layouts.push(layout);
+    });
+  });
+
+  ["port", "center", "starboard"].forEach((side) => {
+    const laneYs = spreadSternLaneYs(side, cheaterGroups[side].length);
+    cheaterGroups[side].forEach((item, index) => {
+      const parent = downriggerBySide[side];
+      const start = parent?.start || spreadSternStart(side);
+      const laneY = parent?.laneY || laneYs[index] || start.y;
+      const endX = parent?.lineEndX || lineEndX;
+      const marker = { x: start.x + (endX - start.x) * 0.5, y: start.y + (laneY - start.y) * 0.5 };
+      layouts.push({
+        ...item,
+        start,
+        laneY,
+        labelY: marker.y - 12,
+        path: `M ${marker.x - 18} ${marker.y} L ${marker.x + 18} ${marker.y}`,
+        marker,
+        labelX: marker.x + 14,
+        lineEndX: endX,
+        counts: setupLineCounts(trip, item.gearItem)
+      });
+    });
+  });
+
+  return { layouts, spreaders };
 }
 
-function truncateSpreadText(value, maxLength = 46) {
+function spreadLineTitle(gearItem) {
+  return [setupLineSideLabel(normalizeSpreadSide(gearItem)), presentationLabel(gearItem.presentation) || "Setup"].filter(Boolean).join(" ");
+}
+
+function spreadCountText(counts) {
+  return `${counts.fish} fish${counts.lost ? ` / ${counts.lost} lost` : ""}`;
+}
+
+function truncateSpreadText(value, maxLength = 34) {
   const text = String(value || "");
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
 }
@@ -348,33 +485,37 @@ function renderTrollingSpread(trip) {
   const lines = (trip.gearUsed || []).filter((gearItem) => gearItem.lureId || gearItem.flasherId || gearItem.presentation);
   if (!lines.length) return `<div class="empty-state compact-empty"><p>No trolling setup lines logged.</p></div>`;
 
-  const sideIndexes = { port: 0, center: 0, starboard: 0 };
-  const renderedLines = lines.map((gearItem) => {
-    const side = gearItem.side || "center";
-    const sideIndex = sideIndexes[side] || 0;
-    sideIndexes[side] = sideIndex + 1;
-    const counts = setupLineCounts(trip, gearItem);
-    const end = spreadLineEnd(gearItem, sideIndex);
-    const start = spreadLineStart(gearItem);
-    const bend = spreadBendPoint(start, end, gearItem);
-    const marker = bend || end;
-    const labelX = bend ? bend.x + 18 : 572;
-    const labelAnchor = "start";
-    const label = truncateSpreadText(setupLineDisplayLabel(trip, gearItem));
-    const detail = truncateSpreadText([gearComboName(gearItem.lureId, gearItem.flasherId), `${counts.fish} fish`, counts.lost ? `${counts.lost} lost` : ""].filter(Boolean).join(" / "), 52);
+  const spreadPlan = buildSpreadLayouts(trip, lines);
+  const layouts = spreadPlan.layouts;
+  const renderedSpreaders = spreadPlan.spreaders.map((spreader) => (
+    `<path class="spread-side-spreader spread-${escapeHtml(spreader.side)}" d="${spreader.path}" />`
+  )).join("");
+  const renderedLines = layouts.map((layout) => {
+    const gear = gearComboName(layout.gearItem.lureId, layout.gearItem.flasherId) || "No gear logged";
+    const label = truncateSpreadText(spreadLineTitle(layout.gearItem), 32);
+    const detail = truncateSpreadText(`${gear} / ${spreadCountText(layout.counts)}`, 42);
     return `
-      <g class="spread-line spread-${escapeHtml(gearItem.side || "center")}">
-        <path d="${spreadLinePath(start, end, gearItem)}" />
-        <circle cx="${marker.x}" cy="${marker.y}" r="5" />
-        <text x="${labelX}" y="${marker.y - 8}" text-anchor="${labelAnchor}" class="spread-line-label">${escapeHtml(label)}</text>
-        <text x="${labelX}" y="${marker.y + 12}" text-anchor="${labelAnchor}" class="spread-line-detail">${escapeHtml(detail)}</text>
+      <g class="spread-line spread-${escapeHtml(layout.side)} spread-${escapeHtml(layout.kind)}">
+        <path d="${layout.path}" />
+        <circle cx="${layout.marker.x}" cy="${layout.marker.y}" r="5" />
+        <text x="${layout.labelX}" y="${layout.labelY - 8}" text-anchor="start" class="spread-line-label">${escapeHtml(label)}</text>
+        <text x="${layout.labelX}" y="${layout.labelY + 12}" text-anchor="start" class="spread-line-detail">${escapeHtml(detail)}</text>
       </g>
+    `;
+  }).join("");
+  const detailList = layouts.map((layout) => {
+    const gear = gearComboName(layout.gearItem.lureId, layout.gearItem.flasherId) || "No gear logged";
+    return `
+      <article class="spread-detail-card">
+        <strong>${escapeHtml(setupLineDisplayLabel(trip, layout.gearItem))}</strong>
+        <span>${escapeHtml([gear, spreadCountText(layout.counts)].filter(Boolean).join(" / "))}</span>
+      </article>
     `;
   }).join("");
 
   return `
     <div class="spread-diagram-wrap">
-      <svg class="spread-diagram" viewBox="0 0 1120 430" role="img" aria-label="Trolling spread diagram">
+      <svg class="spread-diagram" viewBox="0 0 1200 520" role="img" aria-label="Trolling spread diagram">
         <defs>
           <linearGradient id="boatHull" x1="0" x2="1" y1="0" y2="0">
             <stop offset="0" stop-color="#f8fbfd" />
@@ -382,21 +523,25 @@ function renderTrollingSpread(trip) {
             <stop offset="1" stop-color="#dbe7ef" />
           </linearGradient>
         </defs>
-        <path class="spread-water" d="M40 292 C150 274 236 306 344 282 C470 254 760 284 1080 258 L1080 410 L40 410 Z" />
+        <path class="spread-water" d="M40 330 C154 310 238 340 356 316 C492 288 814 318 1160 292 L1160 502 L40 502 Z" />
         <g class="spread-boat">
-          <path class="spread-hull" d="M112 215 C155 160 217 128 304 126 L438 126 C470 126 490 149 490 181 L490 249 C490 281 470 304 438 304 L304 304 C217 302 155 270 112 215 Z" />
-          <path class="spread-rub-rail" d="M146 215 C184 173 234 151 306 151 L430 151 C447 151 459 164 459 181 L459 249 C459 266 447 279 430 279 L306 279 C234 279 184 257 146 215 Z" />
-          <path class="spread-bow-deck" d="M168 215 C202 185 239 172 292 171 L292 259 C239 258 202 245 168 215 Z" />
-          <rect class="spread-cockpit" x="306" y="159" width="88" height="112" rx="14" />
-          <rect class="spread-console" x="338" y="181" width="34" height="68" rx="9" />
-          <path class="spread-transom" d="M458 170 L486 181 L486 249 L458 260 Z" />
-          <rect class="spread-motor" x="494" y="187" width="38" height="56" rx="10" />
-          <circle class="spread-bow-eye" cx="142" cy="215" r="10" />
-          <line x1="292" y1="151" x2="292" y2="279" class="spread-seat-line" />
-          <line x1="404" y1="151" x2="404" y2="279" class="spread-seat-line" />
+          <path class="spread-hull" d="M92 240 C134 184 204 152 292 150 L440 150 C475 150 498 174 498 209 L498 271 C498 306 475 330 440 330 L292 330 C204 328 134 296 92 240 Z" />
+          <path class="spread-rub-rail" d="M128 240 C168 198 224 176 294 176 L430 176 C448 176 462 190 462 209 L462 271 C462 290 448 304 430 304 L294 304 C224 304 168 282 128 240 Z" />
+          <path class="spread-bow-deck" d="M152 240 C188 210 230 196 284 196 L284 284 C230 284 188 270 152 240 Z" />
+          <rect class="spread-cockpit" x="302" y="184" width="94" height="112" rx="14" />
+          <rect class="spread-console" x="338" y="206" width="36" height="68" rx="9" />
+          <path class="spread-transom" d="M462 194 L494 209 L494 271 L462 286 Z" />
+          <rect class="spread-motor" x="504" y="212" width="42" height="56" rx="10" />
+          <circle class="spread-bow-eye" cx="124" cy="240" r="10" />
+          <line x1="284" y1="176" x2="284" y2="304" class="spread-seat-line" />
+          <line x1="408" y1="176" x2="408" y2="304" class="spread-seat-line" />
         </g>
+        ${renderedSpreaders}
         ${renderedLines}
       </svg>
+    </div>
+    <div class="spread-detail-list">
+      ${detailList}
     </div>
   `;
 }
