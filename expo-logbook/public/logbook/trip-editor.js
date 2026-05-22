@@ -168,16 +168,7 @@ function collectPeople() {
     .filter((person) => person.name);
 }
 
-function syncPersonRowIds() {
-  els.personRows.querySelectorAll(".person-row").forEach((row) => {
-    const name = row.querySelector(".person-name").value.trim().toLowerCase();
-    const existingPerson = state.people.find((person) => person.name?.trim().toLowerCase() === name);
-    if (existingPerson) row.dataset.personId = existingPerson.id;
-  });
-}
-
 function currentPeople() {
-  syncPersonRowIds();
   return mergePeople(state.people, collectPeople());
 }
 
@@ -189,8 +180,7 @@ function populatePersonSelect(select, selectedId = "") {
 }
 
 function populatePersonSelects() {
-  populateDatalist(els.personOptions, currentPeople().map((person) => person.name).filter(Boolean));
-  document.querySelectorAll(".catch-person").forEach((select) => {
+  document.querySelectorAll(".catch-person, .trip-gear-person").forEach((select) => {
     populatePersonSelect(select, select.value);
   });
 }
@@ -296,6 +286,7 @@ function addTripGearRow(gearItem = {}) {
   node.dataset.rowId = createId();
   node.dataset.gearId = gearItem.id || "";
 
+  populatePersonSelect(node.querySelector(".trip-gear-person"), gearItem.personId || "");
   node.querySelector(".trip-gear-start-time").value = defaultSetupStartTime(gearItem);
   node.querySelector(".trip-gear-end-time").value = defaultSetupEndTime(gearItem);
   node.querySelector(".trip-gear-change-note").value = gearItem.changeNote || gearItem.notes || "";
@@ -364,7 +355,7 @@ function populateSetupLineSelect(select, selectedId = "") {
   const options = setupLineOptionsFromForm();
   const selected = selectedId || select.dataset.selectedSetupLine || "";
   select.dataset.selectedSetupLine = "";
-  select.innerHTML = `<option value="">Select rod number</option>` + options.map((item) => (
+  select.innerHTML = `<option value="">Select setup line</option>` + options.map((item) => (
     `<option value="${item.id}" ${item.id === selected ? "selected" : ""}>${escapeHtml(item.label)}</option>`
   )).join("");
 }
@@ -416,7 +407,7 @@ function updateRowSummary(row) {
       row.querySelector(".catch-time").value,
       summaryOption(row.querySelector(".catch-direction"), ["Select direction"]),
       trolling
-        ? summaryOption(row.querySelector(".catch-setup-line"), ["Select rod number"])
+        ? summaryOption(row.querySelector(".catch-setup-line"), ["Select setup line"])
         : summaryOption(row.querySelector(".catch-lure"), ["No lure selected"])
     ].filter(Boolean);
     summary.textContent = pieces.join(" / ");
@@ -436,9 +427,10 @@ function updateRowSummary(row) {
     summaryOption(row.querySelector(".catch-presentation"), ["Select setup"])
   ].filter(Boolean).join(" ");
   const pieces = [
-    `Rod ${rowNumber(row, ".gear-used-row")}`,
+    `Setup ${rowNumber(row, ".gear-used-row")}`,
     timeRange,
     lineMeta,
+    summaryOption(row.querySelector(".trip-gear-person"), ["No person"]),
     gear,
     row.querySelector(".trip-gear-change-note").value.trim()
   ].filter(Boolean);
@@ -455,7 +447,7 @@ function collectTripFromForm() {
   const gearUsed = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
     .map((row) => ({
       id: row.dataset.gearId || createId(),
-      personId: "",
+      personId: row.querySelector(".trip-gear-person").value,
       startTime: row.querySelector(".trip-gear-start-time").value,
       endTime: row.querySelector(".trip-gear-end-time").value,
       changeNote: row.querySelector(".trip-gear-change-note").value.trim(),
@@ -552,7 +544,8 @@ async function saveTrip(event) {
     state.locations = mergeTextList(state.locations, trip.location);
     const usedPersonIds = new Set([
       ...trip.catches.map((catchItem) => catchItem.personId).filter(Boolean),
-      ...trip.lostFish.map((fish) => fish.personId).filter(Boolean)
+      ...trip.lostFish.map((fish) => fish.personId).filter(Boolean),
+      ...trip.gearUsed.map((gearItem) => gearItem.personId).filter(Boolean)
     ]);
     trip.people = trip.people.filter((person) => usedPersonIds.has(person.id));
     upsertListValue("species", trip.targetSpecies);

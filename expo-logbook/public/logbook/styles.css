@@ -1115,9 +1115,18 @@ textarea[aria-invalid="true"] {
   grid-column: 1 / -1;
 }
 
+.gear-used-row .gear-person-field {
+  grid-column: 1 / 2;
+  grid-row: 2;
+}
+
 .gear-used-row .gear-start-field {
   grid-column: 1 / 2;
   grid-row: 2;
+}
+
+.gear-used-row .gear-person-field:not(.hidden) ~ .gear-start-field {
+  grid-column: 2 / 3;
 }
 
 .gear-used-row .gear-end-field {
@@ -1125,9 +1134,17 @@ textarea[aria-invalid="true"] {
   grid-row: 2;
 }
 
+.gear-used-row .gear-person-field:not(.hidden) ~ .gear-end-field {
+  grid-column: 3 / 4;
+}
+
 .gear-used-row .gear-change-field {
   grid-column: 3 / 6;
   grid-row: 2;
+}
+
+.gear-used-row .gear-person-field:not(.hidden) ~ .gear-change-field {
+  grid-column: 4 / 6;
 }
 
 .gear-used-row .gear-title {
@@ -2211,6 +2228,7 @@ textarea[aria-invalid="true"] {
   }
 
   .gear-used-row .gear-lure-field,
+  .gear-used-row .gear-person-field,
   .gear-used-row .gear-start-field,
   .gear-used-row .gear-end-field,
   .gear-used-row .gear-change-field,

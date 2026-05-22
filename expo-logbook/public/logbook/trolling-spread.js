@@ -24,10 +24,10 @@ function gearComboName(lureId, flasherId) {
 function setupLineAutoLabel(gearItem, index = 0) {
   const pieces = [
     setupLineSideLabel(gearItem.side),
-    presentationLabel(gearItem.presentation) || `Rod ${index + 1}`
+    presentationLabel(gearItem.presentation) || `Setup ${index + 1}`
   ].filter(Boolean);
   const gear = gearComboName(gearItem.lureId, gearItem.flasherId);
-  return [pieces.join(" "), gear].filter(Boolean).join(": ") || `Rod ${index + 1}`;
+  return [pieces.join(" "), gear].filter(Boolean).join(": ") || `Setup ${index + 1}`;
 }
 
 function setupLineDisplayLabel(trip, gearItem) {

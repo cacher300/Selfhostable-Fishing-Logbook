@@ -269,10 +269,10 @@ function renderTripSummaryGear(trip) {
       ${gearUsed.map((gearItem, index) => {
         const timeRange = [gearItem.startTime, gearItem.endTime].filter(Boolean).join("-");
         const gear = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
-        const details = [timeRange, setupLineSideLabel(gearItem.side), presentationLabel(gearItem.presentation), gearItem.speed].filter(Boolean).join(" / ");
+        const details = [timeRange, setupLineSideLabel(gearItem.side), personName(trip, gearItem.personId), presentationLabel(gearItem.presentation), gearItem.speed].filter(Boolean).join(" / ");
         return `
           <article>
-            <strong>${escapeHtml(setupLineDisplayLabel(trip, gearItem) || `Rod ${index + 1}`)}${gear && gearItem.lineLabel ? `: ${escapeHtml(gear)}` : ""}</strong>
+            <strong>${escapeHtml(setupLineDisplayLabel(trip, gearItem) || `Setup ${index + 1}`)}${gear && gearItem.lineLabel ? `: ${escapeHtml(gear)}` : ""}</strong>
             <span>${escapeHtml(details || "No setup details")}</span>
             ${gearItem.changeNote ? `<p>${escapeHtml(gearItem.changeNote)}</p>` : ""}
           </article>
@@ -563,6 +563,7 @@ function tripTimelineItems(trip) {
     const gear = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
     const details = [
       gear,
+      personName(trip, gearItem.personId),
       presentationLabel(gearItem.presentation),
       gearItem.speed ? `${gearItem.speed}` : "",
       gearItem.ballDepth ? `${gearItem.ballDepth} ball` : "",
@@ -570,8 +571,8 @@ function tripTimelineItems(trip) {
       gearItem.estimatedDepth ? `${gearItem.estimatedDepth} estimated` : ""
     ].filter(Boolean).join(" / ");
     items.push({
-      type: "Rod",
-      title: setupLineDisplayLabel(trip, gearItem) || gear || `Rod ${index + 1}`,
+      type: "Setup",
+      title: setupLineDisplayLabel(trip, gearItem) || gear || `Setup ${index + 1}`,
       details,
       note: gearItem.changeNote,
       startTime: gearItem.startTime,

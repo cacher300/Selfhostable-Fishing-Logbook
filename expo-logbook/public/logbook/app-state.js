@@ -1,4 +1,30 @@
 const storageKey = "fishing-logbook-v1";
+const apiBaseStorageKey = "fishing-logbook-api-base";
+
+function expoApiBase() {
+  const params = new URLSearchParams(location.search);
+  const fromQuery = params.get("apiBase");
+  if (fromQuery !== null) {
+    localStorage.setItem(apiBaseStorageKey, fromQuery.trim());
+    return fromQuery.trim().replace(/\/$/, "");
+  }
+  const saved = localStorage.getItem(apiBaseStorageKey);
+  if (saved) return saved.replace(/\/$/, "");
+  if (location.port && location.port !== "8080") return "http://127.0.0.1:8080";
+  return "";
+}
+
+const apiBase = expoApiBase();
+
+function apiUrl(path) {
+  if (!apiBase || /^https?:\/\//i.test(path)) return path;
+  return `${apiBase}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function mediaUrl(path) {
+  if (!path || /^https?:\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:")) return path || "";
+  return apiUrl(path);
+}
 
 const waterClarityOptions = [
   "Crystal Clear",
@@ -131,7 +157,6 @@ const returnToTripDialog = {
 
 const els = {
   brandSpotlight: document.querySelector("#brandSpotlight"),
-  personOptions: document.querySelector("#personOptions"),
   statTrips: document.querySelector("#statTrips"),
   statFish: document.querySelector("#statFish"),
   statHours: document.querySelector("#statHours"),
@@ -259,7 +284,7 @@ const els = {
 
 async function loadState() {
   try {
-    const response = await fetch("/api/logbook");
+    const response = await fetch(apiUrl("/api/logbook"));
     if (response.ok) return normalizeState({ ...structuredClone(defaults), ...(await response.json()) });
   } catch {
     // Opening index.html directly still works as a local fallback.
@@ -309,7 +334,7 @@ async function saveState() {
 
   if (location.protocol === "file:") return;
 
-  const response = await fetch("/api/logbook", {
+  const response = await fetch(apiUrl("/api/logbook"), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(state)
@@ -321,7 +346,7 @@ async function saveState() {
 }
 
 function previewImage(item) {
-  return item?.previewImage || item?.previewUrl || item?.image || item?.url || "";
+  return mediaUrl(item?.previewImage || item?.previewUrl || item?.image || item?.url || "");
 }
 
 function isVideoMedia(item) {
@@ -332,7 +357,7 @@ function mediaMarkup(item, className = "") {
   const source = previewImage(item);
   if (!source) return "";
   if (isVideoMedia(item)) {
-    const videoSource = item.url || item.image || source;
+    const videoSource = mediaUrl(item.url || item.image || source);
     return `<video class="${escapeHtml(className)}" src="${escapeHtml(videoSource)}" controls preload="metadata"></video>`;
   }
   return `<img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">`;

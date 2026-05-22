@@ -365,7 +365,6 @@ function renderTrips() {
 
 function renderSelectOptions() {
   populateDatalist(document.querySelector("#locationOptions"), state.locations);
-  populateDatalist(els.personOptions, state.people.map((person) => person.name).filter(Boolean));
   populateOptionSelect(document.querySelector("#targetSpecies"), state.species, "Select target species");
   populateOptionSelect(document.querySelector("#method"), state.methods, "Select method");
   populateOptionSelect(document.querySelector("#waterClarity"), waterClarityOptions, "Select water clarity");
@@ -377,7 +376,6 @@ function renderSelectOptions() {
 }
 
 function populateDatalist(datalist, options) {
-  if (!datalist) return;
   datalist.innerHTML = options.map((item) => `<option value="${escapeHtml(item)}"></option>`).join("");
 }
 

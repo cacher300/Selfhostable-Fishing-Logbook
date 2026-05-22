@@ -400,7 +400,6 @@
             <span>Location / waterbody</span>
             <input id="tripLocation" type="text" required placeholder="Lake Ontario" list="locationOptions" />
             <datalist id="locationOptions"></datalist>
-            <datalist id="personOptions"></datalist>
           </label>
           <label>
             <span>Start time</span>
@@ -491,7 +490,7 @@
         <section class="gear-used-editor">
           <div class="section-heading">
             <h3>Setup Timeline</h3>
-            <button class="button secondary" id="addTripGearButton" type="button">Add Rod</button>
+            <button class="button secondary" id="addTripGearButton" type="button">Add Setup</button>
           </div>
           <div id="tripGearRows" class="gear-used-rows"></div>
         </section>
@@ -696,7 +695,7 @@
           </label>
           <div class="row-section-title">Gear</div>
           <label class="trolling-catch-line-field">
-            <span>Rod number</span>
+            <span>Setup line</span>
             <select class="catch-setup-line"></select>
           </label>
           <label class="direct-catch-gear">
@@ -791,12 +790,16 @@
         <div class="collapsible-row-header">
           <button class="row-collapse-button" type="button" data-toggle-row aria-expanded="true">
             <span class="row-collapse-icon">v</span>
-            <span class="collapsible-row-summary">Rod Change</span>
+            <span class="collapsible-row-summary">Setup Change</span>
           </button>
           <button class="icon-button remove-trip-gear" type="button" aria-label="Remove gear">x</button>
         </div>
         <div class="collapsible-row-body">
           <div class="row-section-title">Timing</div>
+          <label class="gear-person-field">
+            <span>Person</span>
+            <select class="trip-gear-person"></select>
+          </label>
           <label class="gear-start-field">
             <span>Start time</span>
             <input class="trip-gear-start-time" type="time" />
@@ -818,8 +821,8 @@
             </select>
           </label>
           <label class="trolling-field gear-label-field">
-            <span>Rod number</span>
-            <input class="trip-gear-line-label" type="text" placeholder="Auto number, or name this rod" />
+            <span>Line label</span>
+            <input class="trip-gear-line-label" type="text" placeholder="Auto label, or name this line" />
           </label>
           <div class="row-section-title gear-title">Gear</div>
           <label class="gear-lure-field">
@@ -879,7 +882,7 @@
 
     <template id="personRowTemplate">
       <article class="person-row">
-        <input class="person-name" type="text" placeholder="Name" list="personOptions" />
+        <input class="person-name" type="text" placeholder="Name" />
         <button class="button danger remove-person" type="button">Remove</button>
       </article>
     </template>
