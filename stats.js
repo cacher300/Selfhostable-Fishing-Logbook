@@ -140,6 +140,7 @@ function renderAdvancedStats() {
   const skunkTrips = trips.filter((trip) => totalCaught(trip) === 0).length;
   const bestTrip = [...trips].sort((a, b) => totalCaught(b) - totalCaught(a))[0];
   const bestCatchRateTrip = [...trips].sort((a, b) => catchRate(b) - catchRate(a))[0];
+  const dateMetrics = fishingDateMetrics(trips);
 
   els.advancedMetricGrid.innerHTML = [
     ["Trips", trips.length],
@@ -156,6 +157,9 @@ function renderAdvancedStats() {
     ["Lure use time", minutesToHours(lureMinutes)],
     ["Flasher use time", isTrollingScope ? minutesToHours(flasherMinutes) : "Trolling only"],
     ["Skunk trips", skunkTrips],
+    ["Days since catch", dateMetrics.daysSinceLastCatch ?? "-"],
+    ["Longest fishing streak", dateMetrics.longestFishingStreak],
+    ["Longest no-catch run", dateMetrics.longestNoCatchRun ?? "-"],
     ["Best trip", bestTrip ? `${totalCaught(bestTrip)} fish` : "0"]
   ].map(([label, value]) => `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
 

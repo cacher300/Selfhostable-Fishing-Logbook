@@ -1,16 +1,42 @@
-function catchMapRecords() {
-  return state.trips.flatMap((trip) => (trip.catches || []).map((catchItem, catchIndex) => {
-    const photoWithCoordinates = (catchItem.photos || []).find((photo) => isUsableCoordinates(photo.coordinates));
-    const coordinates = isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : photoWithCoordinates?.coordinates;
-    if (!isUsableCoordinates(coordinates)) return null;
+function catchMapRecordForTrip(trip, catchItem, catchIndex) {
+  const mediaWithCoordinates = (catchItem.photos || []).find((photo) => isUsableCoordinates(photo.coordinates));
+  const coordinates = isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : mediaWithCoordinates?.coordinates;
+  if (!isUsableCoordinates(coordinates)) return null;
+  return {
+    id: catchItem.id || `${trip.id}-${catchIndex}`,
+    type: "catch",
+    filterValue: catchItem.species || "Unknown species",
+    trip,
+    catchItem,
+    media: mediaWithCoordinates,
+    coordinates
+  };
+}
+
+function tripMediaMapRecordsForTrip(trip) {
+  return (trip.notePhotos || []).map((media, index) => {
+    if (!isUsableCoordinates(media.coordinates)) return null;
+    const video = isVideoMedia(media);
     return {
-      id: catchItem.id || `${trip.id}-${catchIndex}`,
+      id: media.id || `${trip.id}-media-${index}`,
+      type: video ? "trip-video" : "trip-photo",
+      filterValue: video ? "Trip Videos" : "Trip Photos",
       trip,
-      catchItem,
-      photo: photoWithCoordinates,
-      coordinates
+      media,
+      coordinates: media.coordinates
     };
-  })).filter(Boolean);
+  }).filter(Boolean);
+}
+
+function mapRecordsForTrip(trip) {
+  return [
+    ...(trip.catches || []).map((catchItem, catchIndex) => catchMapRecordForTrip(trip, catchItem, catchIndex)).filter(Boolean),
+    ...tripMediaMapRecordsForTrip(trip)
+  ];
+}
+
+function catchMapRecords() {
+  return state.trips.flatMap(mapRecordsForTrip);
 }
 
 const speciesMarkerColors = [
@@ -35,10 +61,16 @@ function speciesColor(species = "Fish") {
   return speciesMarkerColors[hash % speciesMarkerColors.length];
 }
 
-function addSpeciesMarker(layerGroup, record) {
-  const color = speciesColor(record.catchItem.species);
+function mapRecordColor(record) {
+  if (record.type === "trip-photo") return "#2763a7";
+  if (record.type === "trip-video") return "#9a5b00";
+  return speciesColor(record.catchItem?.species);
+}
+
+function addMapMarker(layerGroup, record) {
+  const color = mapRecordColor(record);
   return L.circleMarker([record.coordinates.latitude, record.coordinates.longitude], {
-    radius: 8,
+    radius: record.type === "catch" ? 8 : 7,
     color,
     fillColor: color,
     fillOpacity: 0.86,
@@ -46,42 +78,54 @@ function addSpeciesMarker(layerGroup, record) {
   }).bindPopup(mapPopupHtml(record)).addTo(layerGroup);
 }
 
-function mapSpeciesOptions(records) {
-  return ["All species", ...new Set(records.map((record) => record.catchItem.species || "Unknown species"))];
+function mapRecordTitle(record) {
+  if (record.type === "trip-photo") return record.media.caption || "Trip photo";
+  if (record.type === "trip-video") return record.media.caption || "Trip video";
+  return record.catchItem?.species || "Fish";
+}
+
+function mapRecordFilterOptions(records) {
+  const species = records
+    .filter((record) => record.type === "catch")
+    .map((record) => record.catchItem.species || "Unknown species");
+  const mediaTypes = records
+    .filter((record) => record.type !== "catch")
+    .map((record) => record.filterValue);
+  return ["All map items", ...new Set([...species, ...mediaTypes])];
 }
 
 function renderMapSpeciesFilter(records) {
-  const options = mapSpeciesOptions(records);
-  if (!options.includes(activeMapSpecies)) activeMapSpecies = "All species";
+  const options = mapRecordFilterOptions(records);
+  if (!options.includes(activeMapSpecies)) activeMapSpecies = "All map items";
   els.mapSpeciesFilter.innerHTML = options.map((option) => (
     `<option value="${escapeHtml(option)}" ${option === activeMapSpecies ? "selected" : ""}>${escapeHtml(option)}</option>`
   )).join("");
 }
 
-function filteredMapRecords(records) {
-  if (activeMapSpecies === "All species") return records;
-  return records.filter((record) => (record.catchItem.species || "Unknown species") === activeMapSpecies);
+function filteredMapRecords(records, filterValue = activeMapSpecies) {
+  if (filterValue === "All map items") return records;
+  return records.filter((record) => record.filterValue === filterValue);
 }
 
 function renderMapLegend(records) {
-  const species = mapSpeciesOptions(records).slice(1);
-  if (!species.length) return "";
+  const options = mapRecordFilterOptions(records).slice(1);
+  if (!options.length) return "";
   return `
     <div class="map-legend">
-      ${species.map((name) => `
-        <span><i style="--pin-color:${speciesColor(name)}"></i>${escapeHtml(name)}</span>
+      ${options.map((name) => `
+        <span><i style="--pin-color:${name === "Trip Photos" ? "#2763a7" : name === "Trip Videos" ? "#9a5b00" : speciesColor(name)}"></i>${escapeHtml(name)}</span>
       `).join("")}
     </div>
   `;
 }
 
 function mapPopupHtml(record) {
-  const { catchItem, trip, photo, coordinates } = record;
-  const title = [catchItem.species || "Fish", trip.location].filter(Boolean).join(" at ");
+  const { trip, media, coordinates } = record;
+  const title = [mapRecordTitle(record), trip.location].filter(Boolean).join(" at ");
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`;
   return `
     <div class="map-popup">
-      ${photo?.image ? mediaMarkup(photo) : ""}
+      ${media?.image ? mediaMarkup(media) : ""}
       <strong>${escapeHtml(title)}</strong>
       <span>${escapeHtml(formatDate(trip.date))}</span>
       <span>${escapeHtml(formatCoordinates(coordinates))}</span>
@@ -92,18 +136,18 @@ function mapPopupHtml(record) {
 
 function renderMapList(records) {
   if (!records.length) {
-    els.mapCatchList.innerHTML = `<div class="empty-state"><p>No geotagged fish match this filter.</p></div>`;
+    els.mapCatchList.innerHTML = `<div class="empty-state"><p>No geotagged map items match this filter.</p></div>`;
     return;
   }
 
   els.mapCatchList.innerHTML = records.map((record) => {
-    const { catchItem, trip, photo, coordinates } = record;
+    const { trip, media, coordinates } = record;
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`;
     return `
       <article class="map-catch-card">
-        ${photo?.image ? mediaMarkup(photo) : ""}
+        ${media?.image ? mediaMarkup(media) : ""}
         <div>
-          <strong>${escapeHtml(catchItem.species || "Fish")}</strong>
+          <strong>${escapeHtml(mapRecordTitle(record))}</strong>
           <span>${escapeHtml([formatDate(trip.date), trip.location].filter(Boolean).join(" / "))}</span>
           <span>${escapeHtml(formatCoordinates(coordinates))}</span>
           <a href="${mapsUrl}" target="_blank" rel="noreferrer">Open in Maps</a>
@@ -117,7 +161,7 @@ function renderFishMap() {
   const allRecords = catchMapRecords();
   renderMapSpeciesFilter(allRecords);
   const records = filteredMapRecords(allRecords);
-  const totalText = allRecords.length === 1 ? "1 geotagged fish" : `${allRecords.length} geotagged fish`;
+  const totalText = allRecords.length === 1 ? "1 geotagged item" : `${allRecords.length} geotagged items`;
   const filteredText = records.length === allRecords.length ? totalText : `${records.length} shown of ${totalText}`;
   els.mapSummary.textContent = filteredText;
   renderMapList(records);
@@ -146,7 +190,7 @@ function renderFishMap() {
   records.forEach((record) => {
     const point = [record.coordinates.latitude, record.coordinates.longitude];
     bounds.push(point);
-    addSpeciesMarker(fishMapMarkers, record);
+    addMapMarker(fishMapMarkers, record);
   });
 
   if (bounds.length === 1) fishMap.setView(bounds[0], 13);
@@ -155,24 +199,25 @@ function renderFishMap() {
 }
 
 function catchMapRecordsForTrip(trip) {
-  return (trip.catches || []).map((catchItem, catchIndex) => {
-    const photoWithCoordinates = (catchItem.photos || []).find((photo) => isUsableCoordinates(photo.coordinates));
-    const coordinates = isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : photoWithCoordinates?.coordinates;
-    if (!isUsableCoordinates(coordinates)) return null;
-    return {
-      id: catchItem.id || `${trip.id}-${catchIndex}`,
-      trip,
-      catchItem,
-      photo: photoWithCoordinates,
-      coordinates
-    };
-  }).filter(Boolean);
+  return mapRecordsForTrip(trip);
+}
+
+function renderTripSummaryMapFilter(records) {
+  const filter = document.querySelector("#tripSummaryMapFilter");
+  if (!filter) return;
+  const options = mapRecordFilterOptions(records);
+  if (!options.includes(activeTripSummaryMapFilter)) activeTripSummaryMapFilter = "All map items";
+  filter.innerHTML = options.map((option) => (
+    `<option value="${escapeHtml(option)}" ${option === activeTripSummaryMapFilter ? "selected" : ""}>${escapeHtml(option)}</option>`
+  )).join("");
 }
 
 function renderTripSummaryMap(trip) {
   const mapNode = document.querySelector("#tripSummaryMap");
   if (!mapNode) return;
-  const records = catchMapRecordsForTrip(trip);
+  const allRecords = catchMapRecordsForTrip(trip);
+  renderTripSummaryMapFilter(allRecords);
+  const records = filteredMapRecords(allRecords, activeTripSummaryMapFilter);
 
   if (!window.L) {
     mapNode.innerHTML = `<div class="empty-state"><p>Map tiles are unavailable.</p></div>`;
@@ -204,7 +249,7 @@ function renderTripSummaryMap(trip) {
   records.forEach((record) => {
     const point = [record.coordinates.latitude, record.coordinates.longitude];
     bounds.push(point);
-    addSpeciesMarker(tripSummaryMapMarkers, record);
+    addMapMarker(tripSummaryMapMarkers, record);
   });
 
   if (bounds.length === 1) tripSummaryMap.setView(bounds[0], 13);
@@ -679,12 +724,18 @@ function openTripSummary(trip) {
       ${summaryMetric("Hours", trimNumber(tripHours(trip)))}
       ${summaryMetric("Caught", totalCaught(trip))}
       ${summaryMetric("Catch Rate", trimNumber(catchRate(trip)))}
-      ${summaryMetric("Geotagged Fish", mapRecords.length)}
+      ${summaryMetric("Geotagged Items", mapRecords.length)}
     </div>
     <section class="summary-section">
       <div class="summary-section-heading">
         <h3>Fish Map</h3>
-        <span>${escapeHtml(mapRecords.length ? `${mapRecords.length} plotted` : "No geotagged catches")}</span>
+        <div class="summary-map-tools">
+          <label>
+            <span>Map items</span>
+            <select id="tripSummaryMapFilter"></select>
+          </label>
+          <span>${escapeHtml(mapRecords.length ? `${mapRecords.length} plotted` : "No geotagged items")}</span>
+        </div>
       </div>
       <div id="tripSummaryMap" class="fish-map trip-summary-map"></div>
     </section>

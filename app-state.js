@@ -112,7 +112,8 @@ const activeStatsFilters = {
   month: "All months",
   rating: "All ratings"
 };
-let activeMapSpecies = "All species";
+let activeMapSpecies = "All map items";
+let activeTripSummaryMapFilter = "All map items";
 let activeGalleryCategory = "all";
 let fishMap = null;
 let fishMapMarkers = null;
@@ -139,9 +140,6 @@ const els = {
   statCatchRate: document.querySelector("#statCatchRate"),
   statPoundsPerHour: document.querySelector("#statPoundsPerHour"),
   statDaysSinceTrip: document.querySelector("#statDaysSinceTrip"),
-  statDaysSinceCatch: document.querySelector("#statDaysSinceCatch"),
-  statLongestFishingStreak: document.querySelector("#statLongestFishingStreak"),
-  statLongestNoCatchRun: document.querySelector("#statLongestNoCatchRun"),
   speciesBars: document.querySelector("#speciesBars"),
   lureBars: document.querySelector("#lureBars"),
   tripTable: document.querySelector("#tripTable"),

@@ -37,6 +37,24 @@ function tripHours(trip) {
   return calculated || number(trip.hours);
 }
 
+function tripStartMinutes(trip) {
+  const match = String(trip?.startTime || "").match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  return (Number(match[1]) * 60) + Number(match[2]);
+}
+
+function compareTripsByDateTime(a, b, direction = "desc") {
+  const dateCompare = String(a.date || "").localeCompare(String(b.date || ""));
+  if (dateCompare) return direction === "asc" ? dateCompare : -dateCompare;
+
+  const aStart = tripStartMinutes(a);
+  const bStart = tripStartMinutes(b);
+  if (aStart === null && bStart === null) return 0;
+  if (aStart === null) return 1;
+  if (bStart === null) return -1;
+  return direction === "asc" ? aStart - bStart : bStart - aStart;
+}
+
 function dateKeyToDayNumber(dateKey) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey || "")) return null;
   const [year, month, day] = dateKey.split("-").map(Number);
@@ -141,9 +159,6 @@ function renderStats() {
   els.statCatchRate.textContent = hours ? trimNumber(fish / hours) : "0";
   els.statPoundsPerHour.textContent = hours ? trimNumber(pounds / hours) : "0";
   els.statDaysSinceTrip.textContent = dateMetrics.daysSinceLastTrip ?? "-";
-  els.statDaysSinceCatch.textContent = dateMetrics.daysSinceLastCatch ?? "-";
-  els.statLongestFishingStreak.textContent = dateMetrics.longestFishingStreak;
-  els.statLongestNoCatchRun.textContent = dateMetrics.longestNoCatchRun ?? "-";
 
   const speciesCounts = countBy(allCatches, (item) => item.species, fishCount);
   const lureCounts = countBy(allCatches, (item) => lureName(item.lureId), fishCount);
@@ -317,15 +332,15 @@ function filteredTrips() {
   return trips.sort((a, b) => {
     switch (els.sortSelect.value) {
       case "date-asc":
-        return a.date.localeCompare(b.date);
+        return compareTripsByDateTime(a, b, "asc");
       case "catch-rate-desc":
-        return catchRate(b) - catchRate(a);
+        return catchRate(b) - catchRate(a) || compareTripsByDateTime(a, b, "desc");
       case "caught-desc":
-        return totalCaught(b) - totalCaught(a);
+        return totalCaught(b) - totalCaught(a) || compareTripsByDateTime(a, b, "desc");
       case "hours-desc":
-        return tripHours(b) - tripHours(a);
+        return tripHours(b) - tripHours(a) || compareTripsByDateTime(a, b, "desc");
       default:
-        return b.date.localeCompare(a.date);
+        return compareTripsByDateTime(a, b, "desc");
     }
   });
 }
@@ -350,7 +365,7 @@ function renderTrips() {
       <span>${trimNumber(tripHours(trip))}</span>
       <span>${totalCaught(trip)}</span>
       <span>${trimNumber(catchRate(trip))}</span>
-      <span>
+      <span class="trip-pill-stack">
         <span class="target-pill">${escapeHtml(trip.targetSpecies)}</span>
         <span class="intent-pill ${tripIntent(trip) === "experimental" ? "experimental" : ""}">${escapeHtml(intentLabel(tripIntent(trip)))}</span>
         <span class="rating-pill ${escapeHtml(tripRatingClass(tripRatingValue(trip)))}">${escapeHtml(tripRatingLabel(tripRatingValue(trip)))}</span>

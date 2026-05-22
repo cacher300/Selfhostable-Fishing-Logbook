@@ -73,6 +73,12 @@ els.mapSpeciesFilter.addEventListener("change", () => {
   activeMapSpecies = els.mapSpeciesFilter.value;
   renderFishMap();
 });
+els.tripSummaryBody.addEventListener("change", (event) => {
+  if (!event.target.matches("#tripSummaryMapFilter")) return;
+  activeTripSummaryMapFilter = event.target.value;
+  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+  if (trip) renderTripSummaryMap(trip);
+});
 els.galleryCategoryFilter.addEventListener("change", () => {
   activeGalleryCategory = els.galleryCategoryFilter.value;
   renderGallery();

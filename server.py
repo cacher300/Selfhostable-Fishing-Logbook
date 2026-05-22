@@ -174,6 +174,96 @@ def read_upload_metadata(category: str, filename: str) -> dict:
         return {}
 
 
+def delete_upload_file(category: str, filename: str, metadata: dict | None = None) -> None:
+    metadata = metadata or read_upload_metadata(category, filename)
+    media_path = upload_category_path(category) / filename
+    metadata_path = upload_metadata_path(category, filename)
+    preview_filename = metadata.get("previewFilename") or upload_preview_path(category, filename).name
+    preview_path = upload_category_path(category) / PREVIEW_DIRNAME / preview_filename
+    for path in (media_path, metadata_path, preview_path):
+        if path.exists():
+            path.unlink()
+
+
+def update_media_reference(value: object, replacement_payloads: dict[tuple[str, str], dict]) -> object:
+    if isinstance(value, list):
+        return [update_media_reference(item, replacement_payloads) for item in value]
+    if not isinstance(value, dict):
+        return value
+
+    media_key = None
+    path = str(value.get("path") or "")
+    filename = str(value.get("filename") or "")
+    if "/" in path:
+        category, stored_name = path.split("/", 1)
+        media_key = (category, stored_name)
+    if media_key is None:
+        for field in ("url", "image"):
+            media_path = str(value.get(field) or "")
+            if not media_path.startswith("/uploads/"):
+                continue
+            parts = media_path.removeprefix("/uploads/").split("/", 1)
+            if len(parts) == 2:
+                media_key = (parts[0], parts[1])
+                break
+    if media_key is None and filename:
+        for category in UPLOAD_CATEGORIES:
+            if (category, filename) in replacement_payloads:
+                media_key = (category, filename)
+                break
+
+    updated = {key: update_media_reference(item, replacement_payloads) for key, item in value.items()}
+    if media_key in replacement_payloads:
+        updated.update(replacement_payloads[media_key])
+        if "caption" in value:
+            updated["caption"] = value["caption"]
+        if "id" in value:
+            updated["id"] = value["id"]
+    return updated
+
+
+def dedupe_upload_category(category: str) -> dict[tuple[str, str], dict]:
+    directory = upload_category_path(category)
+    seen: dict[tuple[str, int], tuple[str, dict]] = {}
+    replacements: dict[tuple[str, str], dict] = {}
+
+    for file_path in sorted(directory.iterdir(), key=lambda path: path.stat().st_mtime):
+        if not file_path.is_file() or file_path.suffix == ".json" or file_path.parent.name == PREVIEW_DIRNAME:
+            continue
+        suffix = file_path.suffix.lower()
+        if suffix not in ALLOWED_MEDIA_EXTENSIONS:
+            continue
+
+        metadata = read_upload_metadata(category, file_path.name)
+        original_name = str(metadata.get("name") or file_path.name).strip().lower()
+        duplicate_key = (original_name, file_path.stat().st_size)
+        if duplicate_key not in seen:
+            seen[duplicate_key] = (file_path.name, metadata)
+            continue
+
+        kept_filename, kept_metadata = seen[duplicate_key]
+        replacements[(category, file_path.name)] = upload_payload(category, kept_filename, kept_metadata)
+        delete_upload_file(category, file_path.name, metadata)
+
+    return replacements
+
+
+def dedupe_duplicate_uploads() -> int:
+    if not UPLOADS_DIR.exists():
+        return 0
+
+    replacements: dict[tuple[str, str], dict] = {}
+    for category in sorted(UPLOAD_CATEGORIES):
+        replacements.update(dedupe_upload_category(category))
+
+    if replacements and DATA_FILE.exists():
+        logbook = read_logbook()
+        updated_logbook = update_media_reference(logbook, replacements)
+        write_logbook(updated_logbook)
+
+    return len(replacements)
+
+
 def create_upload_preview(category: str, filename: str) -> str:
     source = upload_category_path(category) / filename
     preview = upload_preview_path(category, filename)
@@ -251,6 +341,10 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
 
 
 def create_app() -> Flask:
+    removed_duplicates = dedupe_duplicate_uploads()
+    if removed_duplicates:
+        print(f"Removed {removed_duplicates} duplicate upload{'s' if removed_duplicates != 1 else ''}.")
+
     app = Flask(__name__, static_folder=None)
 
     @app.after_request

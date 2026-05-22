@@ -27,9 +27,6 @@
             <div><dt>Catch Rate</dt><dd id="statCatchRate">0</dd></div>
             <div><dt>Lbs / Hour</dt><dd id="statPoundsPerHour">0</dd></div>
             <div><dt>Days Since Trip</dt><dd id="statDaysSinceTrip">-</dd></div>
-            <div><dt>Days Since Catch</dt><dd id="statDaysSinceCatch">-</dd></div>
-            <div><dt>Longest Fishing Streak</dt><dd id="statLongestFishingStreak">0</dd></div>
-            <div><dt>Longest No-Catch Run</dt><dd id="statLongestNoCatchRun">-</dd></div>
           </dl>
         </section>
 
@@ -306,10 +303,10 @@
             </div>
             <div class="map-tools">
               <label>
-                <span>Species</span>
+                <span>Map items</span>
                 <select id="mapSpeciesFilter"></select>
               </label>
-              <span id="mapSummary" class="map-summary">No geotagged fish yet</span>
+              <span id="mapSummary" class="map-summary">No geotagged items yet</span>
             </div>
           </div>
           <div id="fishMap" class="fish-map"></div>
@@ -470,12 +467,14 @@
 
         <section class="note-attachments">
           <div class="section-heading">
-            <h3>Note Photos</h3>
-            <label class="button secondary file-button">
-              Add Photos
-              <input id="notePhotoInput" type="file" accept="image/*,video/*" multiple />
-            </label>
-            <button class="button secondary" type="button" data-use-photo-queue="trip-photos">Use Queue</button>
+            <h3>Trip Photos</h3>
+            <div class="section-actions">
+              <label class="button secondary file-button">
+                Add Photos
+                <input id="notePhotoInput" type="file" accept="image/*,video/*" multiple />
+              </label>
+              <button class="button secondary" type="button" data-use-photo-queue="trip-photos">Use Queue</button>
+            </div>
           </div>
           <div id="notePhotoGrid" class="note-photo-grid"></div>
         </section>

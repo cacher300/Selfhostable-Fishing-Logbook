@@ -87,6 +87,17 @@ function parseExifDateTime(value) {
   };
 }
 
+function parseMetadataDateTime(value) {
+  const match = String(value || "").match(/^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second = "00"] = match;
+  return {
+    captureDate: `${year}-${month}-${day}`,
+    captureTime: `${hour}:${minute}`,
+    capturedAt: `${year}-${month}-${day}T${hour}:${minute}:${second}`
+  };
+}
+
 function parseExifMetadata(arrayBuffer) {
   const view = new DataView(arrayBuffer);
   if (view.byteLength < 4 || view.getUint16(0) !== 0xffd8) return {};
@@ -136,6 +147,150 @@ function parseExifMetadata(arrayBuffer) {
   return {};
 }
 
+function videoText(view, offset, length) {
+  if (length <= 0 || offset < 0 || offset + length > view.byteLength) return "";
+  return new TextDecoder("utf-8").decode(new Uint8Array(view.buffer, view.byteOffset + offset, length)).replace(/\0/g, "").trim();
+}
+
+function videoBoxType(view, offset) {
+  if (offset < 0 || offset + 4 > view.byteLength) return "";
+  return String.fromCharCode(
+    view.getUint8(offset),
+    view.getUint8(offset + 1),
+    view.getUint8(offset + 2),
+    view.getUint8(offset + 3)
+  );
+}
+
+function videoBoxSize(view, offset) {
+  const size = view.getUint32(offset);
+  if (size === 1 && offset + 16 <= view.byteLength) {
+    const high = view.getUint32(offset + 8);
+    const low = view.getUint32(offset + 12);
+    return high * 4294967296 + low;
+  }
+  return size;
+}
+
+function videoBoxHeaderSize(view, offset) {
+  return view.getUint32(offset) === 1 ? 16 : 8;
+}
+
+function quickTimeDateTime(secondsSince1904) {
+  if (!secondsSince1904) return null;
+  const secondsBetweenEpochs = 2082844800;
+  const timestamp = (secondsSince1904 - secondsBetweenEpochs) * 1000;
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return null;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return null;
+  const pad = (value) => String(value).padStart(2, "0");
+  return {
+    captureDate: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    captureTime: `${pad(date.getHours())}:${pad(date.getMinutes())}`,
+    capturedAt: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  };
+}
+
+function parseIso6709Coordinates(value) {
+  const match = String(value || "").trim().match(/^([+-]\d+(?:\.\d+)?)([+-]\d+(?:\.\d+)?)(?:[+-]\d+(?:\.\d+)?)?\//);
+  if (!match) return null;
+  const coordinates = {
+    latitude: Number(match[1]),
+    longitude: Number(match[2])
+  };
+  return isUsableCoordinates(coordinates) ? coordinates : null;
+}
+
+function readVideoDataBoxes(view, start, end) {
+  const values = [];
+  let offset = start;
+  while (offset + 8 <= end) {
+    const size = videoBoxSize(view, offset);
+    const headerSize = videoBoxHeaderSize(view, offset);
+    if (size < headerSize || offset + size > end) break;
+    if (videoBoxType(view, offset + 4) === "data" && size > headerSize + 8) {
+      values.push(videoText(view, offset + headerSize + 8, size - headerSize - 8));
+    }
+    offset += size;
+  }
+  return values;
+}
+
+function parseVideoKeys(view, start, end) {
+  const keys = new Map();
+  if (start + 8 > end) return keys;
+  let offset = start + 8;
+  const count = view.getUint32(start + 4);
+  for (let index = 1; index <= count && offset + 8 <= end; index += 1) {
+    const size = view.getUint32(offset);
+    if (size < 8 || offset + size > end) break;
+    keys.set(index, videoText(view, offset + 8, size - 8));
+    offset += size;
+  }
+  return keys;
+}
+
+function parseVideoMetadata(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+  const metadata = {};
+  let metadataKeys = new Map();
+
+  function applyTextMetadata(key, value) {
+    if (!key || !value) return;
+    const normalizedKey = key.toLowerCase();
+    if (!metadata.coordinates && (key === "\u00a9xyz" || normalizedKey.includes("location.iso6709"))) {
+      const coordinates = parseIso6709Coordinates(value);
+      if (coordinates) metadata.coordinates = shouldIgnorePhotoCoordinates(coordinates) ? null : coordinates;
+    }
+    if (!metadata.captureTime && (key === "\u00a9day" || normalizedKey.includes("creationdate") || normalizedKey.includes("date"))) {
+      Object.assign(metadata, parseMetadataDateTime(value) || {});
+    }
+  }
+
+  function walkBoxes(start, end) {
+    let offset = start;
+    while (offset + 8 <= end) {
+      const size = videoBoxSize(view, offset);
+      const headerSize = videoBoxHeaderSize(view, offset);
+      if (size < headerSize || offset + size > end) break;
+      const type = videoBoxType(view, offset + 4);
+      const contentStart = offset + headerSize;
+      const contentEnd = offset + size;
+
+      if (type === "mvhd" && !metadata.captureTime && contentStart + 8 <= contentEnd) {
+        const version = view.getUint8(contentStart);
+        const creationTime = version === 1 && contentStart + 16 <= contentEnd
+          ? (view.getUint32(contentStart + 4) * 4294967296) + view.getUint32(contentStart + 8)
+          : view.getUint32(contentStart + 4);
+        Object.assign(metadata, quickTimeDateTime(creationTime) || {});
+      } else if (type === "keys") {
+        metadataKeys = parseVideoKeys(view, contentStart, contentEnd);
+      } else if (type === "ilst") {
+        let itemOffset = contentStart;
+        while (itemOffset + 8 <= contentEnd) {
+          const itemSize = videoBoxSize(view, itemOffset);
+          const itemHeaderSize = videoBoxHeaderSize(view, itemOffset);
+          if (itemSize < itemHeaderSize || itemOffset + itemSize > contentEnd) break;
+          const itemType = videoBoxType(view, itemOffset + 4);
+          const numericKey = view.getUint32(itemOffset + 4);
+          const key = metadataKeys.get(numericKey) || itemType;
+          readVideoDataBoxes(view, itemOffset + itemHeaderSize, itemOffset + itemSize).forEach((value) => applyTextMetadata(key, value));
+          itemOffset += itemSize;
+        }
+      } else if (["moov", "udta", "trak", "mdia", "minf", "stbl"].includes(type)) {
+        walkBoxes(contentStart, contentEnd);
+      } else if (type === "meta") {
+        walkBoxes(contentStart + 4, contentEnd);
+      }
+
+      offset += size;
+    }
+  }
+
+  walkBoxes(0, view.byteLength);
+  return metadata;
+}
+
 const ignoredPhotoLocation = { latitude: 43.16142, longitude: -79.33851 };
 const ignoredPhotoLocationRadiusMeters = 400;
 
@@ -157,7 +312,7 @@ function shouldIgnorePhotoCoordinates(coordinates) {
 }
 
 async function extractPhotoCoordinates(file) {
-  return (await extractPhotoMetadata(file)).coordinates || null;
+  return (await extractMediaMetadata(file)).coordinates || null;
 }
 
 async function extractPhotoMetadata(file) {
@@ -171,13 +326,31 @@ async function extractPhotoMetadata(file) {
   }
 }
 
+async function extractVideoMetadata(file) {
+  const isVideo = file.type?.startsWith("video/") || /\.(mov|mp4|m4v)$/i.test(file.name || "");
+  if (!isVideo) return {};
+  try {
+    return parseVideoMetadata(await file.arrayBuffer());
+  } catch (error) {
+    console.warn("Could not read video metadata.", error);
+    return {};
+  }
+}
+
+async function extractMediaMetadata(file) {
+  return {
+    ...await extractPhotoMetadata(file),
+    ...await extractVideoMetadata(file)
+  };
+}
+
 async function addNotePhotos(event) {
   const files = [...event.target.files];
   if (!files.length) return;
 
   try {
     const photos = await Promise.all(files.map(async (file) => {
-      const metadata = await extractPhotoMetadata(file);
+      const metadata = await extractMediaMetadata(file);
       return {
         id: createId(),
         name: file.name,
@@ -232,7 +405,7 @@ async function addCatchPhotos(event) {
 
   try {
     const photos = await Promise.all(files.map(async (file) => {
-      const metadata = await extractPhotoMetadata(file);
+      const metadata = await extractMediaMetadata(file);
       return {
         id: createId(),
         name: file.name,
@@ -361,7 +534,7 @@ async function addPhotosToQueue(event) {
   els.photoQueueStatus.textContent = "Uploading photos...";
   try {
     await Promise.all(files.map(async (file) => {
-      const metadata = await extractPhotoMetadata(file);
+      const metadata = await extractMediaMetadata(file);
       return uploadImageFile(file, "queue", metadata);
     }));
     event.target.value = "";
