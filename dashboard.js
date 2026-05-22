@@ -37,6 +37,63 @@ function tripHours(trip) {
   return calculated || number(trip.hours);
 }
 
+function dateKeyToDayNumber(dateKey) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey || "")) return null;
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+}
+
+function todayDayNumber() {
+  const today = new Date();
+  return Math.floor(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 86400000);
+}
+
+function uniqueSortedTripDays(trips) {
+  return [...new Set(trips.map((trip) => trip.date).filter((date) => dateKeyToDayNumber(date) !== null))]
+    .map((date) => dateKeyToDayNumber(date))
+    .sort((a, b) => a - b);
+}
+
+function longestConsecutiveRun(dayNumbers) {
+  let longest = 0;
+  let current = 0;
+  let previous = null;
+
+  dayNumbers.forEach((dayNumber) => {
+    current = previous !== null && dayNumber === previous + 1 ? current + 1 : 1;
+    longest = Math.max(longest, current);
+    previous = dayNumber;
+  });
+
+  return longest;
+}
+
+function fishingDateMetrics(trips) {
+  const tripDays = uniqueSortedTripDays(trips);
+  const catchDays = uniqueSortedTripDays(trips.filter((trip) => totalCaught(trip) > 0));
+  const today = todayDayNumber();
+  const lastTripDay = tripDays.at(-1);
+  const lastCatchDay = catchDays.at(-1);
+
+  let longestNoCatchRun = null;
+  if (tripDays.length && !catchDays.length) {
+    longestNoCatchRun = Math.max(0, today - tripDays[0]);
+  } else if (catchDays.length) {
+    longestNoCatchRun = Math.max(0, catchDays[0] - tripDays[0]);
+    catchDays.forEach((dayNumber, index) => {
+      const nextCatchDay = catchDays[index + 1] ?? today;
+      longestNoCatchRun = Math.max(longestNoCatchRun, nextCatchDay - dayNumber);
+    });
+  }
+
+  return {
+    daysSinceLastTrip: lastTripDay === undefined ? null : Math.max(0, today - lastTripDay),
+    daysSinceLastCatch: lastCatchDay === undefined ? null : Math.max(0, today - lastCatchDay),
+    longestFishingStreak: longestConsecutiveRun(tripDays),
+    longestNoCatchRun
+  };
+}
+
 function countBy(items, getKey, getCount = () => 1) {
   return items.reduce((map, item) => {
     const key = getKey(item);
@@ -75,6 +132,7 @@ function renderStats() {
   const hours = state.trips.reduce((sum, trip) => sum + tripHours(trip), 0);
   const pounds = state.trips.reduce((sum, trip) => sum + totalWeight(trip), 0);
   const waterbodies = new Set(state.trips.map((trip) => trip.location).filter(Boolean));
+  const dateMetrics = fishingDateMetrics(state.trips);
 
   els.statTrips.textContent = state.trips.length;
   els.statFish.textContent = fish;
@@ -82,6 +140,10 @@ function renderStats() {
   els.statWaterbodies.textContent = waterbodies.size;
   els.statCatchRate.textContent = hours ? trimNumber(fish / hours) : "0";
   els.statPoundsPerHour.textContent = hours ? trimNumber(pounds / hours) : "0";
+  els.statDaysSinceTrip.textContent = dateMetrics.daysSinceLastTrip ?? "-";
+  els.statDaysSinceCatch.textContent = dateMetrics.daysSinceLastCatch ?? "-";
+  els.statLongestFishingStreak.textContent = dateMetrics.longestFishingStreak;
+  els.statLongestNoCatchRun.textContent = dateMetrics.longestNoCatchRun ?? "-";
 
   const speciesCounts = countBy(allCatches, (item) => item.species, fishCount);
   const lureCounts = countBy(allCatches, (item) => lureName(item.lureId), fishCount);
