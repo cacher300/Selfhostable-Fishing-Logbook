@@ -270,6 +270,7 @@ async function deleteFlasher() {
 function renderGearLibrary() {
   renderGearGrid(els.lureLibraryGrid, state.lures, "lure");
   renderGearGrid(els.flasherLibraryGrid, state.flashers, "flasher");
+  renderLocationManager();
 }
 
 function renderGearGrid(container, items, type) {

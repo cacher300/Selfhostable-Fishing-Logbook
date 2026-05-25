@@ -99,7 +99,12 @@ const activePatternFilters = {
   method: "All methods",
   month: "All months",
   waterClarity: "All clarity",
-  weather: "All weather"
+  weather: "All weather",
+  wind: "All wind",
+  pressure: "All pressure",
+  cloud: "All cloud",
+  airTemp: "All air temp",
+  front: "All fronts"
 };
 const activeStatsFilters = {
   species: "All species",
@@ -119,6 +124,14 @@ let fishMap = null;
 let fishMapMarkers = null;
 let tripSummaryMap = null;
 let tripSummaryMapMarkers = null;
+let locationPickerMap = null;
+let locationPickerMarker = null;
+let activeLocationPickerMode = "location";
+let activeLocationPickerLocationId = "";
+let activeLocationPickerLaunchId = "";
+let activeTripWeatherData = null;
+let activeTripWeatherKey = "";
+let weatherPreviewTimer = null;
 let activePhotoQueueTarget = null;
 let pendingLureImage = null;
 let pendingFlasherImage = null;
@@ -154,6 +167,11 @@ const els = {
   patternMonthFilter: document.querySelector("#patternMonthFilter"),
   patternWaterClarityFilter: document.querySelector("#patternWaterClarityFilter"),
   patternWeatherFilter: document.querySelector("#patternWeatherFilter"),
+  patternWindFilter: document.querySelector("#patternWindFilter"),
+  patternPressureFilter: document.querySelector("#patternPressureFilter"),
+  patternCloudFilter: document.querySelector("#patternCloudFilter"),
+  patternAirTempFilter: document.querySelector("#patternAirTempFilter"),
+  patternFrontFilter: document.querySelector("#patternFrontFilter"),
   patternsMetricGrid: document.querySelector("#patternsMetricGrid"),
   patternsGrid: document.querySelector("#patternsGrid"),
   mapPanel: document.querySelector("#mapPanel"),
@@ -193,6 +211,17 @@ const els = {
   methodStatsTable: document.querySelector("#methodStatsTable"),
   waterClarityStatsTable: document.querySelector("#waterClarityStatsTable"),
   weatherStatsTable: document.querySelector("#weatherStatsTable"),
+  windDirectionStatsTable: document.querySelector("#windDirectionStatsTable"),
+  windSpeedStatsTable: document.querySelector("#windSpeedStatsTable"),
+  pressureStatsTable: document.querySelector("#pressureStatsTable"),
+  cloudCoverStatsTable: document.querySelector("#cloudCoverStatsTable"),
+  airTempStatsTable: document.querySelector("#airTempStatsTable"),
+  sunshineStatsTable: document.querySelector("#sunshineStatsTable"),
+  weatherTrendStatsTable: document.querySelector("#weatherTrendStatsTable"),
+  frontTagStatsTable: document.querySelector("#frontTagStatsTable"),
+  biteWindowStatsTable: document.querySelector("#biteWindowStatsTable"),
+  moonPhaseStatsTable: document.querySelector("#moonPhaseStatsTable"),
+  moonWindowStatsTable: document.querySelector("#moonWindowStatsTable"),
   intentStatsTable: document.querySelector("#intentStatsTable"),
   ratingStatsTable: document.querySelector("#ratingStatsTable"),
   personStatsTable: document.querySelector("#personStatsTable"),
@@ -227,8 +256,25 @@ const els = {
   tripForm: document.querySelector("#tripForm"),
   tripFormMessage: document.querySelector("#tripFormMessage"),
   tripDialogTitle: document.querySelector("#tripDialogTitle"),
+  tripId: document.querySelector("#tripId"),
   tripRating: document.querySelector("#tripRating"),
   tripRatingLabel: document.querySelector("#tripRatingLabel"),
+  tripLocation: document.querySelector("#tripLocation"),
+  addLocationButton: document.querySelector("#addLocationButton"),
+  tripLaunch: document.querySelector("#tripLaunch"),
+  addLaunchButton: document.querySelector("#addLaunchButton"),
+  locationManagerList: document.querySelector("#locationManagerList"),
+  weatherFetchStatus: document.querySelector("#weatherFetchStatus"),
+  refreshWeatherButton: document.querySelector("#refreshWeatherButton"),
+  locationDialog: document.querySelector("#locationDialog"),
+  locationForm: document.querySelector("#locationForm"),
+  locationDialogTitle: document.querySelector("#locationDialogTitle"),
+  locationPickerMap: document.querySelector("#locationPickerMap"),
+  locationParentRow: document.querySelector("#locationParentRow"),
+  locationParentName: document.querySelector("#locationParentName"),
+  locationName: document.querySelector("#locationName"),
+  locationLatitude: document.querySelector("#locationLatitude"),
+  locationLongitude: document.querySelector("#locationLongitude"),
   deleteTripButton: document.querySelector("#deleteTripButton"),
   deleteLureButton: document.querySelector("#deleteLureButton"),
   deleteFlasherButton: document.querySelector("#deleteFlasherButton"),
@@ -267,11 +313,127 @@ async function loadState() {
 
   try {
     const saved = localStorage.getItem(storageKey);
-    if (!saved) return structuredClone(defaults);
+    if (!saved) return normalizeState(structuredClone(defaults));
     return normalizeState({ ...structuredClone(defaults), ...JSON.parse(saved) });
   } catch {
-    return structuredClone(defaults);
+    return normalizeState(structuredClone(defaults));
   }
+}
+
+function normalizeCoordinates(coordinates) {
+  if (!coordinates || typeof coordinates !== "object") return null;
+  const normalized = {
+    latitude: Number(coordinates.latitude),
+    longitude: Number(coordinates.longitude)
+  };
+  return isUsableCoordinates(normalized) ? normalized : null;
+}
+
+function slugId(prefix, value) {
+  const slug = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug ? `${prefix}-${slug}` : createId();
+}
+
+function normalizeLaunchRecord(launch, locationId) {
+  if (!launch) return null;
+  if (typeof launch === "string") {
+    const name = launch.trim();
+    return name ? { id: slugId(`${locationId}-launch`, name), name, coordinates: null } : null;
+  }
+  if (typeof launch !== "object") return null;
+  const name = String(launch.name || launch.launch || "").trim();
+  if (!name) return null;
+  return {
+    id: String(launch.id || slugId(`${locationId}-launch`, name)),
+    name,
+    coordinates: normalizeCoordinates(launch.coordinates)
+  };
+}
+
+function normalizeLocationRecord(location) {
+  if (!location) return null;
+  if (typeof location === "string") {
+    const name = location.trim();
+    return name ? { id: slugId("loc", name), name, coordinates: null, launches: [] } : null;
+  }
+  if (typeof location !== "object") return null;
+  const name = String(location.name || location.location || "").trim();
+  if (!name) return null;
+  const id = String(location.id || slugId("loc", name));
+  return {
+    id,
+    name,
+    coordinates: normalizeCoordinates(location.coordinates),
+    launches: (Array.isArray(location.launches) ? location.launches : [])
+      .map((launch) => normalizeLaunchRecord(launch, id))
+      .filter(Boolean)
+  };
+}
+
+function mergeLocations(locations, tripNames = []) {
+  const byName = new Map();
+  locations.map(normalizeLocationRecord).filter(Boolean).forEach((location) => {
+    const key = location.name.toLowerCase();
+    const existing = byName.get(key);
+    if (!existing) {
+      byName.set(key, location);
+      return;
+    }
+    existing.coordinates = existing.coordinates || location.coordinates;
+    location.launches.forEach((launch) => {
+      if (!existing.launches.some((item) => item.name.toLowerCase() === launch.name.toLowerCase())) {
+        existing.launches.push(launch);
+      }
+    });
+  });
+  tripNames.forEach((name) => {
+    const trimmed = String(name || "").trim();
+    if (!trimmed || byName.has(trimmed.toLowerCase())) return;
+    const location = normalizeLocationRecord(trimmed);
+    if (location) byName.set(trimmed.toLowerCase(), location);
+  });
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function locationNames() {
+  return state.locations.map((location) => location.name).filter(Boolean);
+}
+
+function findLocationByIdOrName(id, name) {
+  return state.locations.find((location) => location.id === id)
+    || state.locations.find((location) => location.name.toLowerCase() === String(name || "").trim().toLowerCase())
+    || null;
+}
+
+function findLaunchByIdOrName(location, id, name) {
+  if (!location) return null;
+  return (location.launches || []).find((launch) => launch.id === id)
+    || (location.launches || []).find((launch) => launch.name.toLowerCase() === String(name || "").trim().toLowerCase())
+    || null;
+}
+
+function tripLocationRecord(trip) {
+  return findLocationByIdOrName(trip?.locationId, trip?.location);
+}
+
+function tripLaunchRecord(trip) {
+  return findLaunchByIdOrName(tripLocationRecord(trip), trip?.launchId, trip?.launch);
+}
+
+function tripWeatherCoordinates(trip) {
+  const launch = tripLaunchRecord(trip);
+  if (isUsableCoordinates(launch?.coordinates)) {
+    return { type: "launch", name: launch.name, coordinates: launch.coordinates };
+  }
+  const location = tripLocationRecord(trip);
+  if (isUsableCoordinates(location?.coordinates)) {
+    return { type: "location", name: location.name, coordinates: location.coordinates };
+  }
+  return null;
 }
 
 function normalizeState(nextState) {
@@ -295,10 +457,22 @@ function normalizeState(nextState) {
     normalized.people,
     normalized.trips.flatMap((trip) => trip.people || [])
   );
-  normalized.locations = mergeTextList(
-    normalized.locations,
-    normalized.trips.map((trip) => trip.location)
-  );
+  normalized.locations = mergeLocations(normalized.locations, normalized.trips.map((trip) => trip.location));
+  normalized.trips = normalized.trips.map((trip) => {
+    const location = normalized.locations.find((item) => item.id === trip.locationId)
+      || normalized.locations.find((item) => item.name.toLowerCase() === String(trip.location || "").trim().toLowerCase());
+    const launch = location
+      ? (location.launches || []).find((item) => item.id === trip.launchId)
+        || (location.launches || []).find((item) => item.name.toLowerCase() === String(trip.launch || "").trim().toLowerCase())
+      : null;
+    return {
+      ...trip,
+      location: location?.name || trip.location || "",
+      locationId: location?.id || trip.locationId || "",
+      launch: launch?.name || trip.launch || "",
+      launchId: launch?.id || trip.launchId || ""
+    };
+  });
 
   return normalized;
 }

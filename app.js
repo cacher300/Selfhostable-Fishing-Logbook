@@ -1,11 +1,15 @@
 els.newTripButton.addEventListener("click", () => openTripDialog());
 els.tripForm.addEventListener("submit", saveTrip);
+els.locationForm.addEventListener("submit", saveLocationPin);
 els.tripRating.addEventListener("input", updateTripRatingLabel);
 els.deleteTripButton.addEventListener("click", deleteActiveTrip);
 els.addCatchButton.addEventListener("click", () => addCatchRow());
 els.addLostFishButton.addEventListener("click", () => addLostFishRow());
 els.addTripGearButton.addEventListener("click", () => addTripGearRow());
 els.addPersonButton.addEventListener("click", () => addPersonRow());
+els.addLocationButton.addEventListener("click", () => openLocationDialog("location"));
+els.addLaunchButton.addEventListener("click", () => openLocationDialog("launch", els.tripLocation.value));
+els.refreshWeatherButton.addEventListener("click", () => refreshTripWeatherPreview(true));
 els.notePhotoInput.addEventListener("change", addNotePhotos);
 els.photoQueueButton.addEventListener("click", () => {
   els.photoQueueButton.closest("details")?.removeAttribute("open");
@@ -89,7 +93,12 @@ els.galleryCategoryFilter.addEventListener("change", () => {
   ["method", els.patternMethodFilter],
   ["month", els.patternMonthFilter],
   ["waterClarity", els.patternWaterClarityFilter],
-  ["weather", els.patternWeatherFilter]
+  ["weather", els.patternWeatherFilter],
+  ["wind", els.patternWindFilter],
+  ["pressure", els.patternPressureFilter],
+  ["cloud", els.patternCloudFilter],
+  ["airTemp", els.patternAirTempFilter],
+  ["front", els.patternFrontFilter]
 ].forEach(([key, control]) => {
   control.addEventListener("change", () => {
     activePatternFilters[key] = control.value;
@@ -201,6 +210,16 @@ document.addEventListener("click", (event) => {
     );
   }
 
+  const editManagedLocation = event.target.closest("[data-edit-managed-location]");
+  if (editManagedLocation) {
+    openLocationDialog("location", editManagedLocation.dataset.editManagedLocation);
+  }
+
+  const editManagedLaunch = event.target.closest("[data-edit-managed-launch]");
+  if (editManagedLaunch) {
+    openLocationDialog("launch", editManagedLaunch.dataset.locationId, editManagedLaunch.dataset.editManagedLaunch);
+  }
+
   const newLureButton = event.target.closest(".add-lure-inline");
   if (newLureButton) {
     const row = newLureButton.closest(".catch-row, .gear-used-row");
@@ -253,6 +272,11 @@ document.addEventListener("change", (event) => {
   }
   if (event.target.matches("#startTime, #endTime")) {
     syncTripTimesToBlankRows();
+    scheduleTripWeatherPreview(true);
+  }
+  if (event.target.matches("#tripDate, #tripLocation, #tripLaunch")) {
+    if (event.target.matches("#tripLocation")) populateLaunchSelect();
+    updateLocationControls();
   }
   if (event.target.closest("#tripForm")) clearTripFormMessage();
   if (event.target.matches(".catch-lure, .trip-gear-lure")) {
@@ -274,6 +298,14 @@ document.addEventListener("change", (event) => {
 document.addEventListener("input", (event) => {
   if (event.target.matches("#startTime, #endTime")) {
     syncTripTimesToBlankRows();
+    scheduleTripWeatherPreview(true);
+  }
+  if (event.target.matches("#tripDate, #tripLocation, #tripLaunch")) {
+    updateLocationControls();
+  }
+  if (event.target.matches("#locationLatitude, #locationLongitude")) {
+    const coordinates = locationFormCoordinates();
+    if (coordinates) setLocationFormCoordinates(coordinates);
   }
   if (event.target.closest("#tripForm")) clearTripFormMessage();
   if (event.target.matches(".trip-gear-line-label, .trip-gear-start-time, .trip-gear-end-time")) {

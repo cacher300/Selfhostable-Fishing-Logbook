@@ -239,6 +239,50 @@
               <div class="analytics-table" id="weatherStatsTable"></div>
             </article>
             <article class="analytics-card">
+              <h3>Wind Direction</h3>
+              <div class="analytics-table" id="windDirectionStatsTable"></div>
+            </article>
+            <article class="analytics-card">
+              <h3>Wind Speed</h3>
+              <div class="analytics-table" id="windSpeedStatsTable"></div>
+            </article>
+            <article class="analytics-card">
+              <h3>Pressure</h3>
+              <div class="analytics-table" id="pressureStatsTable"></div>
+            </article>
+            <article class="analytics-card">
+              <h3>Cloud Cover</h3>
+              <div class="analytics-table" id="cloudCoverStatsTable"></div>
+            </article>
+            <article class="analytics-card">
+              <h3>Air Temperature</h3>
+              <div class="analytics-table" id="airTempStatsTable"></div>
+            </article>
+            <article class="analytics-card">
+              <h3>Sunshine</h3>
+              <div class="analytics-table" id="sunshineStatsTable"></div>
+            </article>
+            <article class="analytics-card">
+              <h3>Weather Trend</h3>
+              <div class="analytics-table" id="weatherTrendStatsTable"></div>
+            </article>
+            <article class="analytics-card">
+              <h3>Front Tag</h3>
+              <div class="analytics-table" id="frontTagStatsTable"></div>
+            </article>
+            <article class="analytics-card wide-card">
+              <h3>Best Bite Windows</h3>
+              <div class="analytics-table" id="biteWindowStatsTable"></div>
+            </article>
+            <article class="analytics-card">
+              <h3>Moon Phase</h3>
+              <div class="analytics-table" id="moonPhaseStatsTable"></div>
+            </article>
+            <article class="analytics-card">
+              <h3>Moon Window</h3>
+              <div class="analytics-table" id="moonWindowStatsTable"></div>
+            </article>
+            <article class="analytics-card">
               <h3>Trip Intent Breakdown</h3>
               <div class="analytics-table" id="intentStatsTable"></div>
             </article>
@@ -290,6 +334,26 @@
               <span>Weather</span>
               <select id="patternWeatherFilter"></select>
             </label>
+            <label>
+              <span>Wind</span>
+              <select id="patternWindFilter"></select>
+            </label>
+            <label>
+              <span>Pressure</span>
+              <select id="patternPressureFilter"></select>
+            </label>
+            <label>
+              <span>Cloud cover</span>
+              <select id="patternCloudFilter"></select>
+            </label>
+            <label>
+              <span>Air temp</span>
+              <select id="patternAirTempFilter"></select>
+            </label>
+            <label>
+              <span>Front tag</span>
+              <select id="patternFrontFilter"></select>
+            </label>
           </div>
           <div class="metric-grid patterns-metrics" id="patternsMetricGrid"></div>
           <div class="patterns-grid" id="patternsGrid"></div>
@@ -331,6 +395,14 @@
             <button class="button primary" id="newLibraryFlasherButton" type="button">New Flasher</button>
           </div>
           <div class="gear-grid" id="flasherLibraryGrid"></div>
+
+          <div class="gear-header">
+            <div>
+              <p class="eyebrow">Map pins</p>
+              <h3>Edit Waterbodies</h3>
+            </div>
+          </div>
+          <div class="location-manager-list" id="locationManagerList"></div>
         </section>
 
         <section class="gallery-page hidden" id="galleryPanel" aria-label="Uploaded photo gallery">
@@ -401,12 +473,21 @@
             <span>Date</span>
             <input id="tripDate" type="date" required />
           </label>
-          <label>
+          <div class="location-field">
             <span>Location / waterbody</span>
-            <input id="tripLocation" type="text" required placeholder="Lake Ontario" list="locationOptions" />
-            <datalist id="locationOptions"></datalist>
+            <div class="inline-control-row">
+              <select id="tripLocation" required></select>
+              <button class="icon-button" id="addLocationButton" type="button" aria-label="Add location">+</button>
+            </div>
             <datalist id="personOptions"></datalist>
-          </label>
+          </div>
+          <div class="location-field">
+            <span>Launch</span>
+            <div class="inline-control-row">
+              <select id="tripLaunch"></select>
+              <button class="icon-button" id="addLaunchButton" type="button" aria-label="Add launch">+</button>
+            </div>
+          </div>
           <label>
             <span>Start time</span>
             <input id="startTime" type="time" />
@@ -459,13 +540,16 @@
             <select id="weather"></select>
           </label>
           <label>
-            <span>Wind</span>
-            <input id="wind" type="text" placeholder="W 12 mph" />
-          </label>
-          <label>
             <span>Depth / structure</span>
             <input id="structure" type="text" placeholder="40-60 ft, drop-off" />
           </label>
+          <div class="weather-fetch-panel">
+            <div>
+              <span>Weather data</span>
+              <strong id="weatherFetchStatus">Choose a mapped location and date</strong>
+            </div>
+            <button class="button secondary" id="refreshWeatherButton" type="button">Refresh</button>
+          </div>
         </div>
 
         <label class="wide-label">
@@ -891,8 +975,45 @@
       </article>
     </template>
 
+    <dialog class="dialog location-dialog" id="locationDialog">
+      <form id="locationForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Map pin</p>
+            <h2 id="locationDialogTitle">Add Location</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close">x</button>
+        </div>
+        <div class="form-grid">
+          <label id="locationParentRow" class="hidden">
+            <span>Waterbody</span>
+            <input id="locationParentName" type="text" readonly />
+          </label>
+          <label>
+            <span>Name</span>
+            <input id="locationName" type="text" required placeholder="Lake Ontario" />
+          </label>
+          <label>
+            <span>Latitude</span>
+            <input id="locationLatitude" type="text" inputmode="decimal" required placeholder="43.25000" />
+          </label>
+          <label>
+            <span>Longitude</span>
+            <input id="locationLongitude" type="text" inputmode="decimal" required placeholder="-79.80000" />
+          </label>
+        </div>
+        <div id="locationPickerMap" class="fish-map location-picker-map"></div>
+        <div class="dialog-actions">
+          <button class="button primary" value="default" type="submit">Save Pin</button>
+          <button class="button secondary" value="cancel" type="button" data-close-dialog>Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="app-state.js"></script>
+    <script src="locations.js"></script>
+    <script src="location-weather.js"></script>
     <script src="dashboard.js"></script>
     <script src="photos.js"></script>
     <script src="trip-editor.js"></script>

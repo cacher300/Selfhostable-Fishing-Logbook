@@ -5,6 +5,9 @@ import os
 import uuid
 from copy import deepcopy
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -23,6 +26,22 @@ ALLOWED_VIDEO_EXTENSIONS = {".mov", ".mp4", ".m4v", ".webm", ".avi", ".mpeg", ".
 ALLOWED_MEDIA_EXTENSIONS = ALLOWED_IMAGE_EXTENSIONS | ALLOWED_VIDEO_EXTENSIONS
 PREVIEW_DIRNAME = "_previews"
 PREVIEW_MAX_SIZE = (1200, 1200)
+OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+SUNRISE_SUNSET_URL = "https://api.sunrisesunset.io/json"
+WEATHER_QUERY_KEYS = {
+    "latitude",
+    "longitude",
+    "start_date",
+    "end_date",
+    "timezone",
+    "cell_selection",
+    "temperature_unit",
+    "wind_speed_unit",
+    "precipitation_unit",
+    "hourly",
+    "daily",
+}
+ASTRONOMY_QUERY_KEYS = {"lat", "lng", "date", "timezone", "time_format"}
 
 
 DEFAULT_LOGBOOK = {
@@ -110,16 +129,104 @@ def normalize_logbook(payload: dict | None = None) -> dict:
                 known_people[person["id"]] = {"id": person["id"], "name": person["name"]}
     normalized["people"] = list(known_people.values())
 
-    known_locations = {
-        str(location).strip().lower(): str(location).strip()
-        for location in normalized["locations"]
-        if str(location).strip()
-    }
+    def usable_coordinates(value: object) -> dict | None:
+        if not isinstance(value, dict):
+            return None
+        try:
+            latitude = float(value.get("latitude"))
+            longitude = float(value.get("longitude"))
+        except (TypeError, ValueError):
+            return None
+        if latitude < -90 or latitude > 90 or longitude < -180 or longitude > 180:
+            return None
+        if latitude == 0 and longitude == 0:
+            return None
+        return {"latitude": latitude, "longitude": longitude}
+
+    def slug_id(prefix: str, value: str) -> str:
+        slug = "".join(char.lower() if char.isalnum() else "-" for char in value).strip("-")
+        while "--" in slug:
+            slug = slug.replace("--", "-")
+        return f"{prefix}-{slug}" if slug else str(uuid.uuid4())
+
+    def normalize_launch(launch: object, location_id: str) -> dict | None:
+        if isinstance(launch, str):
+            name = launch.strip()
+            return {"id": slug_id(f"{location_id}-launch", name), "name": name, "coordinates": None} if name else None
+        if not isinstance(launch, dict):
+            return None
+        name = str(launch.get("name") or launch.get("launch") or "").strip()
+        if not name:
+            return None
+        return {
+            "id": str(launch.get("id") or slug_id(f"{location_id}-launch", name)),
+            "name": name,
+            "coordinates": usable_coordinates(launch.get("coordinates")),
+        }
+
+    def normalize_location(location: object) -> dict | None:
+        if isinstance(location, str):
+            name = location.strip()
+            return {"id": slug_id("loc", name), "name": name, "coordinates": None, "launches": []} if name else None
+        if not isinstance(location, dict):
+            return None
+        name = str(location.get("name") or location.get("location") or "").strip()
+        if not name:
+            return None
+        location_id = str(location.get("id") or slug_id("loc", name))
+        launches = [
+            item for item in (
+                normalize_launch(launch, location_id)
+                for launch in location.get("launches", [])
+            )
+            if item
+        ] if isinstance(location.get("launches"), list) else []
+        return {
+            "id": location_id,
+            "name": name,
+            "coordinates": usable_coordinates(location.get("coordinates")),
+            "launches": launches,
+        }
+
+    known_locations: dict[str, dict] = {}
+    for location in normalized["locations"]:
+        location_record = normalize_location(location)
+        if not location_record:
+            continue
+        key = location_record["name"].lower()
+        existing = known_locations.get(key)
+        if not existing:
+            known_locations[key] = location_record
+            continue
+        existing["coordinates"] = existing.get("coordinates") or location_record.get("coordinates")
+        for launch in location_record.get("launches", []):
+            if not any(item["name"].lower() == launch["name"].lower() for item in existing.get("launches", [])):
+                existing.setdefault("launches", []).append(launch)
     for trip in normalized["trips"]:
         if isinstance(trip, dict) and str(trip.get("location", "")).strip():
             location = str(trip["location"]).strip()
-            known_locations.setdefault(location.lower(), location)
-    normalized["locations"] = list(known_locations.values())
+            known_locations.setdefault(location.lower(), normalize_location(location))
+    normalized["locations"] = sorted(known_locations.values(), key=lambda item: item["name"].lower())
+
+    for trip in normalized["trips"]:
+        if not isinstance(trip, dict):
+            continue
+        location_name = str(trip.get("location", "")).strip()
+        location_id = str(trip.get("locationId", "")).strip()
+        location_record = next((item for item in normalized["locations"] if item["id"] == location_id), None)
+        if location_record is None and location_name:
+            location_record = next((item for item in normalized["locations"] if item["name"].lower() == location_name.lower()), None)
+        launch_name = str(trip.get("launch", "")).strip()
+        launch_id = str(trip.get("launchId", "")).strip()
+        launch_record = None
+        if location_record:
+            launch_record = next((item for item in location_record.get("launches", []) if item["id"] == launch_id), None)
+            if launch_record is None and launch_name:
+                launch_record = next((item for item in location_record.get("launches", []) if item["name"].lower() == launch_name.lower()), None)
+        trip["location"] = location_record["name"] if location_record else location_name
+        trip["locationId"] = location_record["id"] if location_record else location_id
+        trip["launch"] = launch_record["name"] if launch_record else launch_name
+        trip["launchId"] = launch_record["id"] if launch_record else launch_id
 
     return normalized
 
@@ -311,6 +418,63 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
     return True, None
 
 
+def weather_archive_payload(args: dict) -> tuple[dict, int]:
+    params = {key: str(args.get(key, "")).strip() for key in WEATHER_QUERY_KEYS if str(args.get(key, "")).strip()}
+    try:
+        latitude = float(params.get("latitude", ""))
+        longitude = float(params.get("longitude", ""))
+    except ValueError:
+        return {"error": "Weather coordinates are invalid."}, 400
+    if latitude < -90 or latitude > 90 or longitude < -180 or longitude > 180:
+        return {"error": "Weather coordinates are invalid."}, 400
+    if not params.get("start_date") or not params.get("end_date"):
+        return {"error": "Weather date is required."}, 400
+
+    params.setdefault("timezone", "auto")
+    params.setdefault("cell_selection", "nearest")
+    try:
+        url = f"{OPEN_METEO_ARCHIVE_URL}?{urlencode(params)}"
+        request_headers = {"User-Agent": "FishingLogbook/1.0 (+https://sunrisesunset.io/api/)"}
+        with urlopen(Request(url, headers=request_headers), timeout=20) as response:
+            return json.loads(response.read().decode("utf-8")), 200
+    except HTTPError as error:
+        try:
+            payload = json.loads(error.read().decode("utf-8"))
+            message = payload.get("reason") or payload.get("error")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            message = None
+        return {"error": message or "Weather data is unavailable for this trip."}, error.code
+    except (URLError, TimeoutError, OSError):
+        return {"error": "Weather service unavailable. Try again later."}, 503
+
+
+def astronomy_payload(args: dict) -> tuple[dict, int]:
+    params = {key: str(args.get(key, "")).strip() for key in ASTRONOMY_QUERY_KEYS if str(args.get(key, "")).strip()}
+    try:
+        latitude = float(params.get("lat", ""))
+        longitude = float(params.get("lng", ""))
+    except ValueError:
+        return {"error": "Astronomy coordinates are invalid."}, 400
+    if latitude < -90 or latitude > 90 or longitude < -180 or longitude > 180:
+        return {"error": "Astronomy coordinates are invalid."}, 400
+    if not params.get("date"):
+        return {"error": "Astronomy date is required."}, 400
+
+    params.setdefault("time_format", "24")
+    try:
+        url = f"{SUNRISE_SUNSET_URL}?{urlencode(params)}"
+        request_headers = {"User-Agent": "FishingLogbook/1.0 (+https://sunrisesunset.io/api/)"}
+        with urlopen(Request(url, headers=request_headers), timeout=20) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        if payload.get("status") and payload.get("status") != "OK":
+            return {"error": payload.get("status") or "Astronomy data is unavailable."}, 502
+        return payload, 200
+    except HTTPError as error:
+        return {"error": "Astronomy data is unavailable for this trip."}, error.code
+    except (URLError, TimeoutError, OSError):
+        return {"error": "Astronomy service unavailable. Try again later."}, 503
+
+
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)
 
@@ -332,6 +496,16 @@ def create_app() -> Flask:
 
         write_logbook(normalize_logbook(payload))
         return jsonify({"ok": True})
+
+    @app.get("/api/weather/archive")
+    def weather_archive() -> tuple[Response, int]:
+        payload, status = weather_archive_payload(request.args)
+        return jsonify(payload), status
+
+    @app.get("/api/astronomy")
+    def astronomy() -> tuple[Response, int]:
+        payload, status = astronomy_payload(request.args)
+        return jsonify(payload), status
 
     @app.post("/api/uploads/<category>")
     def upload_photo(category: str) -> tuple[Response, int] | Response:

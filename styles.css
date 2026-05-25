@@ -406,6 +406,102 @@ label {
   font-weight: 700;
 }
 
+label > small,
+.location-field small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.location-field,
+.weather-fetch-panel {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.inline-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.inline-control-row .icon-button {
+  width: auto;
+  min-width: 42px;
+  padding: 0 10px;
+}
+
+.location-manager-list {
+  display: grid;
+  gap: 12px;
+}
+
+.location-manager-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.location-manager-heading,
+.location-manager-launches div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.location-manager-heading > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.location-manager-card span,
+.location-manager-launches span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.location-manager-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.location-manager-launches {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.weather-fetch-panel {
+  grid-column: span 2;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  padding: 10px 12px;
+  border: 1px solid #cbd3df;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.weather-fetch-panel div {
+  display: grid;
+  gap: 4px;
+}
+
+.weather-fetch-panel strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
 input,
 select,
 textarea {
@@ -607,6 +703,10 @@ textarea[aria-invalid="true"] {
 
 .small-dialog {
   width: min(520px, calc(100vw - 32px));
+}
+
+.location-dialog {
+  width: min(900px, calc(100vw - 32px));
 }
 
 .dialog::backdrop {
@@ -1459,6 +1559,12 @@ textarea[aria-invalid="true"] {
   border-radius: 8px;
   background: #e7eef3;
   box-shadow: var(--shadow);
+}
+
+.location-picker-map {
+  min-height: 420px;
+  margin-top: 14px;
+  box-shadow: none;
 }
 
 .map-popup {

@@ -252,7 +252,7 @@ function renderStatsMethodFilter() {
     `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.person ? "selected" : ""}>${escapeHtml(item)}</option>`
   )).join("");
 
-  const locations = ["All locations", ...new Set([...state.locations, ...state.trips.map((trip) => trip.location)].filter(Boolean))];
+  const locations = ["All locations", ...new Set([...locationNames(), ...state.trips.map((trip) => trip.location)].filter(Boolean))];
   if (!locations.includes(activeStatsFilters.location)) activeStatsFilters.location = "All locations";
   els.statsLocationFilter.innerHTML = locations.map((item) => (
     `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.location ? "selected" : ""}>${escapeHtml(item)}</option>`
@@ -379,7 +379,7 @@ function renderTrips() {
 }
 
 function renderSelectOptions() {
-  populateDatalist(document.querySelector("#locationOptions"), state.locations);
+  populateLocationSelect();
   populateDatalist(els.personOptions, state.people.map((person) => person.name).filter(Boolean));
   populateOptionSelect(document.querySelector("#targetSpecies"), state.species, "Select target species");
   populateOptionSelect(document.querySelector("#method"), state.methods, "Select method");

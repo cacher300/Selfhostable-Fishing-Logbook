@@ -45,7 +45,10 @@ function openTripDialog(trip = null) {
   setValue("tripId", trip?.id || "");
   setValue("tripTitle", trip?.title || "");
   setValue("tripDate", trip?.date || today);
-  setValue("tripLocation", trip?.location || "");
+  const location = findLocationByIdOrName(trip?.locationId, trip?.location);
+  populateLocationSelect(location?.id || "");
+  const launch = findLaunchByIdOrName(location, trip?.launchId, trip?.launch);
+  populateLaunchSelect(launch?.id || "");
   setValue("startTime", trip?.startTime || "");
   setValue("endTime", trip?.endTime || "");
   setValue("targetSpecies", trip?.targetSpecies || "");
@@ -55,9 +58,11 @@ function openTripDialog(trip = null) {
   setValue("waterTemp", trip?.waterTemp || "");
   setValue("waterClarity", trip?.waterClarity || "");
   setValue("weather", trip?.weather || "");
-  setValue("wind", trip?.wind || "");
   setValue("structure", trip?.structure || "");
   setValue("tripNotes", trip?.notes || "");
+  activeTripWeatherData = trip?.weatherData || null;
+  activeTripWeatherKey = "";
+  setWeatherStatus(activeTripWeatherData?.daily ? "Weather loaded" : "Choose a mapped location and date");
   renderNotePhotos();
 
   (trip?.people || []).forEach(addPersonRow);
@@ -68,6 +73,7 @@ function openTripDialog(trip = null) {
   populateSetupLineSelects();
   updateTrollingVisibility();
   els.tripDialog.showModal();
+  scheduleTripWeatherPreview(true);
 }
 
 function setValue(id, value) {
@@ -238,6 +244,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.dataset.rowId = createId();
   node.dataset.catchId = catchItem.id || "";
   node.catchPhotos = lost ? [] : structuredClone(catchItem.photos || []);
+  node.catchWeatherData = catchItem.weatherData || null;
   node.querySelector(".remove-catch").setAttribute("aria-label", lost ? "Remove lost fish" : "Remove catch");
   node.querySelector(".catch-released-field").classList.toggle("hidden", lost);
   node.querySelector(".catch-species-field").classList.toggle("hidden", lost);
@@ -503,6 +510,7 @@ function collectTripFromForm() {
         coordinates: lost ? null : fishCoordinatesFromRow(row),
         photos: lost ? [] : collectCatchPhotos(row)
       };
+      if (!lost && row.catchWeatherData) base.weatherData = row.catchWeatherData;
       return trolling
         ? { ...base, setupLineId: row.querySelector(".catch-setup-line").value }
         : { ...base, lureId: row.querySelector(".catch-lure").value, flasherId: "", presentation: "" };
@@ -512,11 +520,18 @@ function collectTripFromForm() {
   const catches = collectFishRows(els.catchRows);
   const lostFish = collectFishRows(els.lostFishRows, true);
 
+  const location = state.locations.find((item) => item.id === getValue("tripLocation"));
+  const launch = findLaunchByIdOrName(location, getValue("tripLaunch"), "");
+  const weatherData = activeTripWeatherData || null;
+
   return {
     id: getValue("tripId") || createId(),
     title: getValue("tripTitle"),
     date: getValue("tripDate"),
-    location: getValue("tripLocation"),
+    location: location?.name || "",
+    locationId: location?.id || "",
+    launch: launch?.name || "",
+    launchId: launch?.id || "",
     startTime: getValue("startTime"),
     endTime: getValue("endTime"),
     hours: calculateHours(getValue("startTime"), getValue("endTime")),
@@ -527,7 +542,8 @@ function collectTripFromForm() {
     waterTemp: getValue("waterTemp"),
     waterClarity: getValue("waterClarity"),
     weather: getValue("weather"),
-    wind: getValue("wind"),
+    wind: weatherWindText(weatherData),
+    weatherData,
     structure: getValue("structure"),
     notes: getValue("tripNotes"),
     notePhotos: collectNotePhotos(),
@@ -547,9 +563,9 @@ async function saveTrip(event) {
   if (!validateTripForm()) return;
 
   try {
-    const trip = collectTripFromForm();
+    let trip = collectTripFromForm();
     state.people = mergePeople(state.people, trip.people);
-    state.locations = mergeTextList(state.locations, trip.location);
+    state.locations = mergeLocations(state.locations, [trip.location]);
     const usedPersonIds = new Set([
       ...trip.catches.map((catchItem) => catchItem.personId).filter(Boolean),
       ...trip.lostFish.map((fish) => fish.personId).filter(Boolean)
@@ -558,6 +574,9 @@ async function saveTrip(event) {
     upsertListValue("species", trip.targetSpecies);
     trip.catches.forEach((catchItem) => upsertListValue("species", catchItem.species));
     trip.lostFish.forEach((fish) => upsertListValue("species", fish.possibleSpecies));
+    trip = await enrichTripWithWeather(trip);
+    trip.wind = weatherWindText(trip.weatherData);
+    activeTripWeatherData = trip.weatherData || null;
 
     const index = state.trips.findIndex((item) => item.id === trip.id);
     if (index >= 0) state.trips[index] = trip;

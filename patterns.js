@@ -36,7 +36,7 @@ function renderPatternFilters() {
   activePatternFilters.species = selectedPatternSpecies(speciesOptions);
   renderPatternFilter(els.patternSpeciesFilter, speciesOptions, activePatternFilters.species);
 
-  const locationOptions = patternOptions("All locations", [...state.locations, ...state.trips.map((trip) => trip.location)]);
+  const locationOptions = patternOptions("All locations", [...locationNames(), ...state.trips.map((trip) => trip.location)]);
   if (!locationOptions.includes(activePatternFilters.location)) activePatternFilters.location = "All locations";
   renderPatternFilter(els.patternLocationFilter, locationOptions, activePatternFilters.location);
 
@@ -55,6 +55,27 @@ function renderPatternFilters() {
   const weatherChoices = ["All weather", ...weatherOptions];
   if (!weatherChoices.includes(activePatternFilters.weather)) activePatternFilters.weather = "All weather";
   renderPatternFilter(els.patternWeatherFilter, weatherChoices, activePatternFilters.weather);
+
+  const records = state.trips.flatMap((trip) => (trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip })));
+  const windOptions = patternOptions("All wind", records.map((record) => windDirectionLabel(weatherNumber(record, "windDirectionDegrees"))));
+  if (!windOptions.includes(activePatternFilters.wind)) activePatternFilters.wind = "All wind";
+  renderPatternFilter(els.patternWindFilter, windOptions, activePatternFilters.wind);
+
+  const pressureOptions = patternOptions("All pressure", records.map((record) => pressureBucket(weatherNumber(record, "pressureHpa"))));
+  if (!pressureOptions.includes(activePatternFilters.pressure)) activePatternFilters.pressure = "All pressure";
+  renderPatternFilter(els.patternPressureFilter, pressureOptions, activePatternFilters.pressure);
+
+  const cloudOptions = patternOptions("All cloud", records.map((record) => cloudCoverBucket(weatherNumber(record, "cloudCoverPercent"))));
+  if (!cloudOptions.includes(activePatternFilters.cloud)) activePatternFilters.cloud = "All cloud";
+  renderPatternFilter(els.patternCloudFilter, cloudOptions, activePatternFilters.cloud);
+
+  const tempOptions = patternOptions("All air temp", records.map((record) => airTempBucket(weatherNumber(record, "temperatureF"))));
+  if (!tempOptions.includes(activePatternFilters.airTemp)) activePatternFilters.airTemp = "All air temp";
+  renderPatternFilter(els.patternAirTempFilter, tempOptions, activePatternFilters.airTemp);
+
+  const frontOptions = patternOptions("All fronts", state.trips.map((trip) => trip.weatherData?.frontTag));
+  if (!frontOptions.includes(activePatternFilters.front)) activePatternFilters.front = "All fronts";
+  renderPatternFilter(els.patternFrontFilter, frontOptions, activePatternFilters.front);
 }
 
 function patternTripMatches(trip) {
@@ -64,6 +85,7 @@ function patternTripMatches(trip) {
     && (activePatternFilters.month === "All months" || patternMonthName(trip) === activePatternFilters.month)
     && (activePatternFilters.waterClarity === "All clarity" || trip.waterClarity === activePatternFilters.waterClarity)
     && (activePatternFilters.weather === "All weather" || trip.weather === activePatternFilters.weather)
+    && (activePatternFilters.front === "All fronts" || trip.weatherData?.frontTag === activePatternFilters.front)
   );
 }
 
@@ -71,11 +93,20 @@ function patternSpeciesMatches(record) {
   return activePatternFilters.species === "All species" || record.species === activePatternFilters.species;
 }
 
+function patternWeatherFiltersMatch(record) {
+  return (
+    (activePatternFilters.wind === "All wind" || windDirectionLabel(weatherNumber(record, "windDirectionDegrees")) === activePatternFilters.wind)
+    && (activePatternFilters.pressure === "All pressure" || pressureBucket(weatherNumber(record, "pressureHpa")) === activePatternFilters.pressure)
+    && (activePatternFilters.cloud === "All cloud" || cloudCoverBucket(weatherNumber(record, "cloudCoverPercent")) === activePatternFilters.cloud)
+    && (activePatternFilters.airTemp === "All air temp" || airTempBucket(weatherNumber(record, "temperatureF")) === activePatternFilters.airTemp)
+  );
+}
+
 function patternCatchRecords() {
   return state.trips
     .filter(patternTripMatches)
     .flatMap((trip) => (trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip })))
-    .filter((record) => record.species && patternSpeciesMatches(record));
+    .filter((record) => record.species && patternSpeciesMatches(record) && patternWeatherFiltersMatch(record));
 }
 
 function patternLostRecords() {
@@ -99,6 +130,16 @@ function patternTimeBucket(value) {
   return timeBucket(value);
 }
 
+function patternWeatherPart(record) {
+  return [
+    windDirectionLabel(weatherNumber(record, "windDirectionDegrees")),
+    windSpeedBucket(weatherNumber(record, "windSpeedMph")),
+    pressureBucket(weatherNumber(record, "pressureHpa")),
+    cloudCoverBucket(weatherNumber(record, "cloudCoverPercent")),
+    airTempBucket(weatherNumber(record, "temperatureF"))
+  ].filter(Boolean).join(" / ");
+}
+
 function patternKey(record) {
   return [
     record.species || "Unknown",
@@ -111,6 +152,9 @@ function patternKey(record) {
     patternTimeBucket(record.time),
     record.trip.waterClarity || "",
     record.trip.weather || "",
+    patternWeatherPart(record),
+    weatherText(record, "frontTag"),
+    moonWindowForTime(record.time, record.trip?.weatherData?.sunMoon),
     patternMonthName(record.trip)
   ].join("::");
 }
@@ -128,6 +172,9 @@ function ensurePattern(map, record) {
     time: patternTimeBucket(record.time),
     clarity: record.trip.waterClarity || "",
     weather: record.trip.weather || "",
+    apiWeather: patternWeatherPart(record),
+    frontTag: weatherText(record, "frontTag"),
+    moonWindow: moonWindowForTime(record.time, record.trip?.weatherData?.sunMoon),
     month: patternMonthName(record.trip),
     fish: 0,
     lost: 0,
@@ -190,6 +237,9 @@ function patternDetailList(pattern) {
     pattern.time && pattern.time !== "No time" ? pattern.time : "",
     pattern.clarity,
     pattern.weather,
+    pattern.apiWeather,
+    pattern.frontTag,
+    pattern.moonWindow,
     pattern.month
   ].filter(Boolean);
 }
@@ -246,11 +296,17 @@ function renderPatternMetrics(catches, lostRecords, patterns) {
   const fish = catches.reduce((sum, record) => sum + fishCount(record), 0);
   const tripIds = new Set(catches.map((record) => record.trip.id));
   const topPattern = patterns[0];
+  const topWind = summarizeWeatherBuckets(catches, (record) => windDirectionLabel(weatherNumber(record, "windDirectionDegrees")))[0]?.[0] || "-";
+  const topPressure = summarizeWeatherBuckets(catches, (record) => pressureBucket(weatherNumber(record, "pressureHpa")))[0]?.[0] || "-";
+  const coverage = summarizeWeatherCoverage([...tripIds].map((id) => state.trips.find((trip) => trip.id === id)).filter(Boolean), catches);
   els.patternsMetricGrid.innerHTML = [
     ["Matching Fish", fish],
     ["Matching Trips", tripIds.size],
     ["Lost Fish", lostRecords.length],
-    ["Top Pattern", topPattern ? `${trimNumber(topPattern.fishPerTrip)} fish/trip` : "0"]
+    ["Top Pattern", topPattern ? `${trimNumber(topPattern.fishPerTrip)} fish/trip` : "0"],
+    ["Best Wind", topWind],
+    ["Best Pressure", topPressure],
+    ["Weather Coverage", coverage.catchPercent]
   ].map(([label, value]) => `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
 }
 

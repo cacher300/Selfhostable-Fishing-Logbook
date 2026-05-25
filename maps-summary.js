@@ -306,7 +306,10 @@ function renderTripSummaryCatches(trip) {
       record.setupLine ? setupLineDisplayLabel(trip, record.setupLine) : "",
       lureName(record.lureId),
       flasherName(record.flasherId),
-      record.coordinates ? formatCoordinates(record.coordinates) : ""
+      record.coordinates ? formatCoordinates(record.coordinates) : "",
+      catchWeatherSummary(catchItem.weatherData),
+      catchWeatherComparison(catchItem.weatherData, trip.weatherData),
+      moonWindowForTime(catchItem.time, trip.weatherData?.sunMoon)
     ].filter(Boolean).join(" / ");
     return `
       <article class="summary-catch-card">
@@ -652,7 +655,10 @@ function tripTimelineItems(trip) {
       record.setupLine ? setupLineDisplayLabel(trip, record.setupLine) : "",
       lureName(record.lureId),
       flasherName(record.flasherId),
-      record.speed
+      record.speed,
+      catchWeatherSummary(catchItem.weatherData),
+      catchWeatherComparison(catchItem.weatherData, trip.weatherData),
+      moonWindowForTime(catchItem.time, trip.weatherData?.sunMoon)
     ].filter(Boolean).join(" / ");
     items.push({
       type: "Catch",
@@ -759,9 +765,9 @@ function openTripSummary(trip) {
       <p>${escapeHtml(trip.notes || "No notes logged.")}</p>
       <div class="summary-detail-grid">
         <span><strong>Weather</strong>${escapeHtml(trip.weather || "Not logged")}</span>
-        <span><strong>Wind</strong>${escapeHtml(trip.wind || "Not logged")}</span>
         <span><strong>Water Temp</strong>${escapeHtml(trip.waterTemp || "Not logged")}</span>
         <span><strong>Structure</strong>${escapeHtml(trip.structure || "Not logged")}</span>
+        ${renderWeatherDetails(trip.weatherData)}
       </div>
     </section>
     <section class="summary-section">

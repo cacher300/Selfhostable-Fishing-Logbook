@@ -107,6 +107,123 @@ function filterGearRecordsByStats(records) {
   });
 }
 
+function weatherNumber(record, key, source = "tripWindow") {
+  const sources = source === "tripWindow"
+    ? [record.weatherData?.hourly, record.weatherData?.tripWindow, record.trip?.weatherData?.tripWindow]
+    : [record.weatherData?.[source], record.trip?.weatherData?.[source]];
+  for (const bucket of sources) {
+    const value = Number(bucket?.[key]);
+    if (Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function weatherText(record, key) {
+  return record.weatherData?.[key] || record.trip?.weatherData?.[key] || "";
+}
+
+function weatherBucket(value, buckets) {
+  if (value === null || value === undefined) return "";
+  const bucket = buckets.find((item) => value < item.max);
+  return bucket?.label || buckets.at(-1)?.label || "";
+}
+
+function windSpeedBucket(value) {
+  return weatherBucket(value, [
+    { max: 5, label: "Calm <5 mph" },
+    { max: 10, label: "Light 5-10 mph" },
+    { max: 15, label: "Moderate 10-15 mph" },
+    { max: 25, label: "Windy 15-25 mph" },
+    { max: Infinity, label: "Heavy 25+ mph" }
+  ]);
+}
+
+function pressureBucket(value) {
+  return weatherBucket(value, [
+    { max: 1000, label: "Low <1000 hPa" },
+    { max: 1015, label: "Stable 1000-1015 hPa" },
+    { max: 1025, label: "High 1015-1025 hPa" },
+    { max: Infinity, label: "Very High 1025+ hPa" }
+  ]);
+}
+
+function cloudCoverBucket(value) {
+  return weatherBucket(value, [
+    { max: 25, label: "Clear <25%" },
+    { max: 60, label: "Broken 25-60%" },
+    { max: 90, label: "Cloudy 60-90%" },
+    { max: Infinity, label: "Overcast 90%+" }
+  ]);
+}
+
+function airTempBucket(value) {
+  return weatherBucket(value, [
+    { max: 40, label: "Cold <40 F" },
+    { max: 55, label: "Cool 40-55 F" },
+    { max: 70, label: "Mild 55-70 F" },
+    { max: 85, label: "Warm 70-85 F" },
+    { max: Infinity, label: "Hot 85+ F" }
+  ]);
+}
+
+function sunshineBucket(value) {
+  if (value === null || value === undefined) return "";
+  return weatherBucket(value / 3600, [
+    { max: 2, label: "Low sun <2 hr" },
+    { max: 6, label: "Mixed sun 2-6 hr" },
+    { max: Infinity, label: "Bright 6+ hr" }
+  ]);
+}
+
+function summarizeWeatherBuckets(records, keyFn) {
+  const map = new Map();
+  records.forEach((record) => {
+    const key = keyFn(record);
+    if (!key) return;
+    const current = map.get(key) || { name: key, fish: 0, trips: new Set() };
+    current.fish += fishCount(record);
+    current.trips.add(record.trip.id);
+    map.set(key, current);
+  });
+  return [...map.values()]
+    .sort((a, b) => b.fish - a.fish || b.trips.size - a.trips.size)
+    .map((item) => [item.name, item.fish, item.trips.size, trimNumber(item.fish / item.trips.size)]);
+}
+
+function summarizeWeatherCoverage(trips, records) {
+  const weatherTrips = trips.filter((trip) => trip.weatherData?.daily || trip.weatherData?.tripWindow).length;
+  const weatherCatches = records.filter((record) => record.weatherData?.hourly).reduce((sum, record) => sum + fishCount(record), 0);
+  const fish = records.reduce((sum, record) => sum + fishCount(record), 0);
+  return {
+    trips: `${weatherTrips}/${trips.length}`,
+    catches: `${weatherCatches}/${fish}`,
+    tripPercent: formatPercent(weatherTrips, trips.length),
+    catchPercent: formatPercent(weatherCatches, fish)
+  };
+}
+
+function summarizeBiteWindows(records) {
+  const map = new Map();
+  records.forEach((record) => {
+    const window = [
+      timeBucket(record.time),
+      windDirectionLabel(weatherNumber(record, "windDirectionDegrees")),
+      pressureBucket(weatherNumber(record, "pressureHpa")),
+      cloudCoverBucket(weatherNumber(record, "cloudCoverPercent")),
+      moonWindowForTime(record.time, record.trip?.weatherData?.sunMoon)
+    ].filter(Boolean).join(" / ");
+    if (!window) return;
+    const current = map.get(window) || { name: window, fish: 0, trips: new Set() };
+    current.fish += fishCount(record);
+    current.trips.add(record.trip.id);
+    map.set(window, current);
+  });
+  return [...map.values()]
+    .sort((a, b) => b.fish - a.fish || b.trips.size - a.trips.size)
+    .slice(0, 12)
+    .map((item) => [item.name, item.fish, item.trips.size, trimNumber(item.fish / item.trips.size)]);
+}
+
 function summarizeBy(records, keyFn, minutesFn = () => 0) {
   const map = new Map();
   records.forEach((record) => {
@@ -154,6 +271,7 @@ function renderAdvancedStats() {
   const bestTrip = [...trips].sort((a, b) => scopedTripFish(b) - scopedTripFish(a))[0];
   const bestCatchRateTrip = [...trips].sort((a, b) => scopedCatchRate(b) - scopedCatchRate(a))[0];
   const dateMetrics = fishingDateMetrics(trips, (trip) => scopedTripFish(trip) > 0);
+  const weatherCoverage = summarizeWeatherCoverage(trips, records);
 
   els.advancedMetricGrid.innerHTML = [
     ["Trips", trips.length],
@@ -173,7 +291,9 @@ function renderAdvancedStats() {
     ["Days since catch", dateMetrics.daysSinceLastCatch ?? "-"],
     ["Longest fishing streak", dateMetrics.longestFishingStreak],
     ["Longest no-catch run", dateMetrics.longestNoCatchRun ?? "-"],
-    ["Best trip", bestTrip ? `${scopedTripFish(bestTrip)} fish` : "0"]
+    ["Best trip", bestTrip ? `${scopedTripFish(bestTrip)} fish` : "0"],
+    ["Weather trips", `${weatherCoverage.trips} (${weatherCoverage.tripPercent})`],
+    ["Catch weather", `${weatherCoverage.catches} (${weatherCoverage.catchPercent})`]
   ].map(([label, value]) => `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
 
   renderStatsTable(els.outcomeStatsTable, ["Outcome", "Fish", "Rate"], outcomeRows(fish, releasedFish, keptFish, lostFish));
@@ -299,6 +419,17 @@ function renderAdvancedStats() {
   renderStatsTable(els.methodStatsTable, ["Method", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.method));
   renderStatsTable(els.waterClarityStatsTable, ["Water Clarity", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.waterClarity));
   renderStatsTable(els.weatherStatsTable, ["Weather", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.weather));
+  renderStatsTable(els.windDirectionStatsTable, ["Wind", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => windDirectionLabel(weatherNumber(record, "windDirectionDegrees"))));
+  renderStatsTable(els.windSpeedStatsTable, ["Wind Speed", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => windSpeedBucket(weatherNumber(record, "windSpeedMph"))));
+  renderStatsTable(els.pressureStatsTable, ["Pressure", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => pressureBucket(weatherNumber(record, "pressureHpa"))));
+  renderStatsTable(els.cloudCoverStatsTable, ["Cloud Cover", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => cloudCoverBucket(weatherNumber(record, "cloudCoverPercent"))));
+  renderStatsTable(els.airTempStatsTable, ["Air Temp", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => airTempBucket(weatherNumber(record, "temperatureF"))));
+  renderStatsTable(els.sunshineStatsTable, ["Sunshine", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => sunshineBucket(weatherNumber(record, "sunshineDurationSeconds", "daily"))));
+  renderStatsTable(els.weatherTrendStatsTable, ["Trend", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => weatherTrendText(record.trip?.weatherData)));
+  renderStatsTable(els.frontTagStatsTable, ["Front Tag", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => weatherText(record, "frontTag")));
+  renderStatsTable(els.biteWindowStatsTable, ["Window", "Fish", "Trips", "Fish / Trip"], summarizeBiteWindows(records));
+  renderStatsTable(els.moonPhaseStatsTable, ["Moon", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => record.trip?.weatherData?.sunMoon?.phase || ""));
+  renderStatsTable(els.moonWindowStatsTable, ["Moon Window", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => moonWindowForTime(record.time, record.trip?.weatherData?.sunMoon)));
 
   renderStatsTable(els.intentStatsTable, ["Intent", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => intentLabel(tripIntent(trip))));
   renderStatsTable(els.ratingStatsTable, ["Rating", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => tripRatingLabel(tripRatingValue(trip))));
