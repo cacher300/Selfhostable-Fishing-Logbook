@@ -12,6 +12,9 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+# Local agent instructions.
+AGENTS.md
+
 # Future local database/backups.
 backups/
 *.db
