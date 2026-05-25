@@ -193,6 +193,14 @@ document.addEventListener("click", (event) => {
     deleteQueuedPhoto(deleteQueuedPhotoButton.dataset.deleteQueuedPhoto);
   }
 
+  const deleteOrphanMediaButton = event.target.closest("[data-delete-orphan-media]");
+  if (deleteOrphanMediaButton) {
+    deleteOrphanMedia(
+      deleteOrphanMediaButton.dataset.deleteOrphanCategory,
+      deleteOrphanMediaButton.dataset.deleteOrphanMedia
+    );
+  }
+
   const newLureButton = event.target.closest(".add-lure-inline");
   if (newLureButton) {
     const row = newLureButton.closest(".catch-row, .gear-used-row");

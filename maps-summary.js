@@ -74,8 +74,20 @@ function addMapMarker(layerGroup, record) {
     color,
     fillColor: color,
     fillOpacity: 0.86,
-    weight: 2
+    weight: 2,
+    pane: record.type === "catch" ? "fishMarkers" : "tripMediaMarkers"
   }).bindPopup(mapPopupHtml(record)).addTo(layerGroup);
+}
+
+function ensureMapMarkerPanes(map) {
+  if (!map.getPane("tripMediaMarkers")) {
+    map.createPane("tripMediaMarkers");
+    map.getPane("tripMediaMarkers").style.zIndex = 610;
+  }
+  if (!map.getPane("fishMarkers")) {
+    map.createPane("fishMarkers");
+    map.getPane("fishMarkers").style.zIndex = 620;
+  }
 }
 
 function mapRecordTitle(record) {
@@ -161,9 +173,7 @@ function renderFishMap() {
   const allRecords = catchMapRecords();
   renderMapSpeciesFilter(allRecords);
   const records = filteredMapRecords(allRecords);
-  const totalText = allRecords.length === 1 ? "1 geotagged item" : `${allRecords.length} geotagged items`;
-  const filteredText = records.length === allRecords.length ? totalText : `${records.length} shown of ${totalText}`;
-  els.mapSummary.textContent = filteredText;
+  els.mapSummary.textContent = records.length === 1 ? "1 geotagged item" : `${records.length} geotagged items`;
   renderMapList(records);
   els.mapCatchList.insertAdjacentHTML("afterbegin", renderMapLegend(allRecords));
 
@@ -177,8 +187,10 @@ function renderFishMap() {
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors"
     }).addTo(fishMap);
+    ensureMapMarkerPanes(fishMap);
     fishMapMarkers = L.layerGroup().addTo(fishMap);
   }
+  ensureMapMarkerPanes(fishMap);
 
   fishMapMarkers.clearLayers();
   if (!records.length) {
@@ -229,6 +241,7 @@ function renderTripSummaryMap(trip) {
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors"
     }).addTo(tripSummaryMap);
+    ensureMapMarkerPanes(tripSummaryMap);
     tripSummaryMapMarkers = L.layerGroup().addTo(tripSummaryMap);
   } else if (tripSummaryMap.getContainer() !== mapNode) {
     tripSummaryMap.remove();
@@ -236,8 +249,10 @@ function renderTripSummaryMap(trip) {
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors"
     }).addTo(tripSummaryMap);
+    ensureMapMarkerPanes(tripSummaryMap);
     tripSummaryMapMarkers = L.layerGroup().addTo(tripSummaryMap);
   }
+  ensureMapMarkerPanes(tripSummaryMap);
 
   tripSummaryMapMarkers.clearLayers();
   if (!records.length) {
@@ -731,7 +746,7 @@ function openTripSummary(trip) {
         <h3>Fish Map</h3>
         <div class="summary-map-tools">
           <label>
-            <span>Map items</span>
+            <span>Species</span>
             <select id="tripSummaryMapFilter"></select>
           </label>
           <span>${escapeHtml(mapRecords.length ? `${mapRecords.length} plotted` : "No geotagged items")}</span>

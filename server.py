@@ -222,6 +222,40 @@ def update_media_reference(value: object, replacement_payloads: dict[tuple[str, 
     return updated
 
 
+def media_key_from_reference(value: object) -> tuple[str, str] | None:
+    if not isinstance(value, dict):
+        return None
+
+    path = str(value.get("path") or "")
+    if "/" in path:
+        category, stored_name = path.split("/", 1)
+        return category, stored_name
+
+    for field in ("url", "image"):
+        media_path = str(value.get(field) or "")
+        if not media_path.startswith("/uploads/"):
+            continue
+        parts = media_path.removeprefix("/uploads/").split("/")
+        if len(parts) >= 2:
+            return parts[0], parts[1]
+
+    return None
+
+
+def referenced_uploads(value: object) -> set[tuple[str, str]]:
+    references: set[tuple[str, str]] = set()
+    if isinstance(value, list):
+        for item in value:
+            references.update(referenced_uploads(item))
+    elif isinstance(value, dict):
+        media_key = media_key_from_reference(value)
+        if media_key:
+            references.add(media_key)
+        for item in value.values():
+            references.update(referenced_uploads(item))
+    return references
+
+
 def dedupe_upload_category(category: str) -> dict[tuple[str, str], dict]:
     directory = upload_category_path(category)
     seen: dict[tuple[str, int], tuple[str, dict]] = {}
@@ -326,6 +360,17 @@ def upload_gallery_items(category: str) -> list[dict]:
     return items
 
 
+def orphaned_upload_items() -> list[dict]:
+    references = referenced_uploads(read_logbook())
+    items = []
+    for category in sorted(UPLOAD_CATEGORIES - {"queue"}):
+        for item in upload_gallery_items(category):
+            if (category, item["filename"]) not in references:
+                items.append(item)
+    items.sort(key=lambda item: item["modified"], reverse=True)
+    return items
+
+
 def validate_logbook(payload: object) -> tuple[bool, str | None]:
     if not isinstance(payload, dict):
         return False, "Logbook must be a JSON object"
@@ -425,6 +470,24 @@ def create_app() -> Flask:
             items.extend(upload_gallery_items(item_category))
         items.sort(key=lambda item: item["modified"], reverse=True)
         return jsonify({"media": items})
+
+    @app.get("/api/orphaned-media")
+    def list_orphaned_media() -> Response:
+        return jsonify({"media": orphaned_upload_items()})
+
+    @app.delete("/api/uploads/<category>/<filename>")
+    def delete_upload(category: str, filename: str) -> tuple[Response, int] | Response:
+        if category not in UPLOAD_CATEGORIES or category == "queue":
+            return jsonify({"error": "Invalid upload category"}), 400
+        safe_name = secure_filename(filename)
+        media_path = upload_category_path(category) / safe_name
+        if not safe_name or not media_path.exists() or not media_path.is_file():
+            return jsonify({"error": "Upload not found"}), 404
+        if (category, safe_name) in referenced_uploads(read_logbook()):
+            return jsonify({"error": "This upload is still attached to the logbook"}), 409
+
+        delete_upload_file(category, safe_name)
+        return jsonify({"ok": True})
 
     @app.post("/api/photo-queue/claim")
     def claim_photo_queue_item() -> tuple[Response, int] | Response:

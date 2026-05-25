@@ -251,6 +251,8 @@ const els = {
   galleryCategoryFilter: document.querySelector("#galleryCategoryFilter"),
   galleryStatus: document.querySelector("#galleryStatus"),
   galleryGrid: document.querySelector("#galleryGrid"),
+  orphanMediaStatus: document.querySelector("#orphanMediaStatus"),
+  orphanMediaGrid: document.querySelector("#orphanMediaGrid"),
   lureLibraryGrid: document.querySelector("#lureLibraryGrid"),
   flasherLibraryGrid: document.querySelector("#flasherLibraryGrid")
 };

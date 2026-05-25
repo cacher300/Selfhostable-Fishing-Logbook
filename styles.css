@@ -343,10 +343,15 @@ button {
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 40px;
   border: 1px solid transparent;
   border-radius: 6px;
   padding: 0 14px;
+  text-align: center;
+  text-decoration: none;
   font-weight: 800;
 }
 
@@ -1539,6 +1544,20 @@ textarea[aria-invalid="true"] {
   font-size: 12px;
 }
 
+.map-popup a,
+.map-catch-card a {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.map-popup a:hover,
+.map-catch-card a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
 .trip-summary-shell {
   overflow: auto;
   max-height: calc(100vh - 32px);
@@ -2062,6 +2081,10 @@ textarea[aria-invalid="true"] {
 .gallery-header h3 {
   margin: 0;
   font-size: 22px;
+}
+
+.orphan-media-header {
+  margin-top: 22px;
 }
 
 .gallery-tools label {
