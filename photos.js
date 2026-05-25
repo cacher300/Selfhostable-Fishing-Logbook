@@ -291,6 +291,27 @@ function parseVideoMetadata(arrayBuffer) {
   return metadata;
 }
 
+const maxFullVideoMetadataBytes = 64 * 1024 * 1024;
+const videoMetadataSliceBytes = 16 * 1024 * 1024;
+
+function findContainedVideoBox(arrayBuffer, type) {
+  const view = new DataView(arrayBuffer);
+  for (let offset = 4; offset + 4 <= view.byteLength; offset += 1) {
+    if (videoBoxType(view, offset) !== type) continue;
+    const boxStart = offset - 4;
+    const boxSize = videoBoxSize(view, boxStart);
+    const headerSize = videoBoxHeaderSize(view, boxStart);
+    if (boxSize >= headerSize && boxStart + boxSize <= view.byteLength) {
+      return arrayBuffer.slice(boxStart, boxStart + boxSize);
+    }
+  }
+  return null;
+}
+
+function hasUsefulMediaMetadata(metadata) {
+  return Boolean(metadata?.coordinates || metadata?.captureTime);
+}
+
 const ignoredPhotoLocation = { latitude: 43.16142, longitude: -79.33851 };
 const ignoredPhotoLocationRadiusMeters = 400;
 
@@ -330,7 +351,18 @@ async function extractVideoMetadata(file) {
   const isVideo = file.type?.startsWith("video/") || /\.(mov|mp4|m4v)$/i.test(file.name || "");
   if (!isVideo) return {};
   try {
-    return parseVideoMetadata(await file.arrayBuffer());
+    if (file.size <= maxFullVideoMetadataBytes) {
+      return parseVideoMetadata(await file.arrayBuffer());
+    }
+
+    const firstSlice = await file.slice(0, videoMetadataSliceBytes).arrayBuffer();
+    const firstMetadata = parseVideoMetadata(firstSlice);
+    if (hasUsefulMediaMetadata(firstMetadata)) return firstMetadata;
+
+    const tailStart = Math.max(0, file.size - videoMetadataSliceBytes);
+    const tailSlice = await file.slice(tailStart).arrayBuffer();
+    const moovBox = findContainedVideoBox(tailSlice, "moov");
+    return moovBox ? parseVideoMetadata(moovBox) : firstMetadata;
   } catch (error) {
     console.warn("Could not read video metadata.", error);
     return {};

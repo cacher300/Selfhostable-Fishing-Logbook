@@ -86,9 +86,9 @@ function longestConsecutiveRun(dayNumbers) {
   return longest;
 }
 
-function fishingDateMetrics(trips) {
+function fishingDateMetrics(trips, hasCatch = (trip) => totalCaught(trip) > 0) {
   const tripDays = uniqueSortedTripDays(trips);
-  const catchDays = uniqueSortedTripDays(trips.filter((trip) => totalCaught(trip) > 0));
+  const catchDays = uniqueSortedTripDays(trips.filter(hasCatch));
   const today = todayDayNumber();
   const lastTripDay = tripDays.at(-1);
   const lastCatchDay = catchDays.at(-1);

@@ -87,6 +87,19 @@ function filterRecordsByStats(records) {
   return records.filter(recordMatchesStatsFilters);
 }
 
+function filteredCatchRecordsForTrip(trip) {
+  return filterRecordsByStats(catchRecords([trip]));
+}
+
+function scopedTripFish(trip) {
+  return filteredCatchRecordsForTrip(trip).reduce((sum, catchItem) => sum + fishCount(catchItem), 0);
+}
+
+function scopedCatchRate(trip) {
+  const hours = tripHours(trip);
+  return hours > 0 ? scopedTripFish(trip) / hours : 0;
+}
+
 function filterGearRecordsByStats(records) {
   return records.filter((record) => {
     if (activeStatsFilters.species !== "All species" && record.source !== "catch") return false;
@@ -137,10 +150,10 @@ function renderAdvancedStats() {
   const pounds = records.reduce((sum, record) => sum + catchWeight(record), 0);
   const lureMinutes = gearRecords.reduce((sum, record) => sum + number(record.lureMinutes), 0);
   const flasherMinutes = gearRecords.reduce((sum, record) => sum + number(record.flasherMinutes), 0);
-  const skunkTrips = trips.filter((trip) => totalCaught(trip) === 0).length;
-  const bestTrip = [...trips].sort((a, b) => totalCaught(b) - totalCaught(a))[0];
-  const bestCatchRateTrip = [...trips].sort((a, b) => catchRate(b) - catchRate(a))[0];
-  const dateMetrics = fishingDateMetrics(trips);
+  const skunkTrips = trips.filter((trip) => scopedTripFish(trip) === 0).length;
+  const bestTrip = [...trips].sort((a, b) => scopedTripFish(b) - scopedTripFish(a))[0];
+  const bestCatchRateTrip = [...trips].sort((a, b) => scopedCatchRate(b) - scopedCatchRate(a))[0];
+  const dateMetrics = fishingDateMetrics(trips, (trip) => scopedTripFish(trip) > 0);
 
   els.advancedMetricGrid.innerHTML = [
     ["Trips", trips.length],
@@ -160,7 +173,7 @@ function renderAdvancedStats() {
     ["Days since catch", dateMetrics.daysSinceLastCatch ?? "-"],
     ["Longest fishing streak", dateMetrics.longestFishingStreak],
     ["Longest no-catch run", dateMetrics.longestNoCatchRun ?? "-"],
-    ["Best trip", bestTrip ? `${totalCaught(bestTrip)} fish` : "0"]
+    ["Best trip", bestTrip ? `${scopedTripFish(bestTrip)} fish` : "0"]
   ].map(([label, value]) => `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
 
   renderStatsTable(els.outcomeStatsTable, ["Outcome", "Fish", "Rate"], outcomeRows(fish, releasedFish, keptFish, lostFish));
@@ -278,8 +291,8 @@ function renderAdvancedStats() {
     ...trip,
     catches: filterRecordsByStats((trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip }))),
     lostFish: filterRecordsByStats((trip.lostFish || []).map((fish) => resolveTripLineRecord({ ...fish, trip }))),
-    fish: filterRecordsByStats((trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip }))).reduce((sum, catchItem) => sum + fishCount(catchItem), 0),
-    rate: catchRate(trip)
+    fish: scopedTripFish(trip),
+    rate: scopedCatchRate(trip)
   }));
   renderStatsTable(els.locationStatsTable, ["Location", "Trips", "Fish", "Hours", "Fish / hr"], summarizeTrips(locationRows, (trip) => trip.location));
 
@@ -298,7 +311,7 @@ function renderAdvancedStats() {
   }));
 
   if (bestCatchRateTrip) {
-    els.advancedMetricGrid.insertAdjacentHTML("beforeend", `<article class="metric-card"><span>Best catch rate</span><strong>${trimNumber(catchRate(bestCatchRateTrip))}/hr</strong></article>`);
+    els.advancedMetricGrid.insertAdjacentHTML("beforeend", `<article class="metric-card"><span>Best catch rate</span><strong>${trimNumber(scopedCatchRate(bestCatchRateTrip))}/hr</strong></article>`);
   }
 }
 

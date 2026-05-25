@@ -137,7 +137,7 @@ document.addEventListener("click", (event) => {
   if (removePerson) {
     const personId = removePerson.closest(".person-row").dataset.personId;
     removePerson.closest(".person-row").remove();
-    document.querySelectorAll(".catch-person, .trip-gear-person").forEach((select) => {
+    document.querySelectorAll(".catch-person").forEach((select) => {
       if (select.value === personId) select.value = "";
     });
     populatePersonSelects();
