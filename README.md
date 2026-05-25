@@ -20,8 +20,9 @@ It runs locally in your browser with a small Flask backend and stores your priva
 ### Trip Log
 
 - Add, edit, delete, search, filter, and sort trips.
-- Track date, waterbody, start/end time, target species, method, intent, rating, weather, wind, water temperature, clarity, structure, and notes.
+- Track date, waterbody, optional launch, start/end time, target species, method, intent, rating, weather, wind, water temperature, clarity, structure, and notes.
 - Save repeat locations and people so future trips are faster to enter.
+- Save mapped waterbodies with user-defined coordinates, plus optional launch pins for large lakes.
 - Mark trips as `Serious` or `Experimental`.
 - Rate trips as `Bad`, `Good`, or `Outstanding`.
 - Supported methods include Trolling, Casting, Jigging, Fly Fishing, Bait Fishing, Ice Fishing, and Shore Fishing.
@@ -69,13 +70,25 @@ Trip summaries include a trolling spread diagram so you can see the spread as a 
 - Ignore one configured home/launch-adjacent GPS location to avoid polluting catch maps.
 - Browse all uploaded media in the Gallery view.
 
+### Historical Weather, Sun, And Moon
+
+- Fetch historical weather automatically for trips with a saved waterbody or launch pin.
+- Use launch coordinates when a launch is selected; otherwise use the waterbody coordinates.
+- Use catch GPS coordinates for catch-time weather when available, then fall back to the launch or waterbody pin.
+- Pull historical weather from Open-Meteo, including air temperature, precipitation, wind speed, wind direction, gusts, pressure, humidity, cloud cover, weather code, sunshine duration, and daylight duration.
+- Store trip-window weather from the actual start/end time when available, including overnight trips.
+- Store nearest-hour weather for each catch with a logged catch time.
+- Pull sunrise, sunset, moonrise, moonset, moon phase, and moon illumination from SunriseSunset.io.
+- Keep the hand-entered `Weather` condition as a simple fishing note while API weather is stored separately.
+- Show API weather, trends, front tags, moon windows, and catch-weather comparisons in trip summaries and pattern analysis.
+
 ### Stats, Patterns, And Maps
 
 - Dashboard totals for trips, fish caught, hours fished, waterbodies, catch rate, and pounds/hour.
-- Advanced stats for outcomes, catch/release ratio, percent lost, lure performance, flasher performance, lure/flasher combos, species, locations, methods, people, months, ratings, weather, water clarity, and trip intent.
+- Advanced stats for outcomes, catch/release ratio, percent lost, lure performance, flasher performance, lure/flasher combos, species, locations, methods, people, months, ratings, weather, water clarity, trip intent, wind, pressure, cloud cover, air temperature, sunshine, weather trends, front tags, moon phase, and moon windows.
 - Trolling analytics for direction, setup type, FOW range, exact FOW, trolling speed, and depth down.
-- Pattern Finder ranks repeatable patterns by species, gear, setup, FOW, depth, speed, time, clarity, weather, and month.
-- Map view plots GPS-tagged catches with species filters and links out to Google Maps.
+- Pattern Finder ranks repeatable patterns by species, gear, setup, FOW, depth, speed, time, clarity, weather, wind, pressure, cloud cover, air temperature, front tag, moon window, and month.
+- Map view plots GPS-tagged catches, trip photos, and videos with toggled filters and links out to Google Maps.
 
 ## Run Locally
 
@@ -194,6 +207,8 @@ If you expose it beyond your own machine or trusted home network, put it behind 
 - `index.html` contains the app shell, views, dialogs, and row templates.
 - `styles.css` contains the layout and visual design.
 - `app-state.js` defines defaults, shared state, normalization, load/save behavior, media helpers, and DOM references.
+- `locations.js` handles saved waterbodies, launch pins, location dropdowns, and the Leaflet pin picker.
+- `location-weather.js` handles Open-Meteo and SunriseSunset.io fetching, weather enrichment, weather display helpers, wind labels, and moon windows.
 - `app.js` wires events, routing between views, dialogs, imports/exports, and initialization.
 - `trip-editor.js` handles trip forms, catches, lost fish, people, setup timeline rows, validation, and save/delete behavior.
 - `trolling-spread.js` resolves setup-line relationships and trolling-specific labels.
@@ -213,5 +228,5 @@ If you expose it beyond your own machine or trusted home network, put it behind 
 - SQLite storage with migrations and automatic dated backups.
 - CSV export for spreadsheet analysis.
 - More charting for seasonal, water-temperature, and gear-performance trends.
-- Map pins for launches, productive trolling passes, and waypoint notes.
+- Map pins for productive trolling passes and waypoint notes.
 - Catch-photo editing and captions per catch photo.
