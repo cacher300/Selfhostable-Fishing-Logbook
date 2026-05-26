@@ -1,4 +1,5 @@
 const weatherRequestCache = new Map();
+const marineRequestCache = new Map();
 const astronomyRequestCache = new Map();
 
 function tripDraftForWeather() {
@@ -13,7 +14,21 @@ function tripDraftForWeather() {
     locationId: location?.id || "",
     launch: launch?.name || "",
     launchId: launch?.id || "",
+    waveHeight: getValue("waveHeight"),
+    waveChop: chopLabelForWaveHeight(getValue("waveHeight")),
     catches: []
+  };
+}
+
+function applyManualWaveData(weatherData, trip) {
+  if (!weatherData) return weatherData;
+  return {
+    ...weatherData,
+    manual: {
+      ...(weatherData.manual || {}),
+      waveHeight: trip?.waveHeight || weatherData.manual?.waveHeight || "",
+      waveChop: chopLabelForWaveHeight(trip?.waveHeight || weatherData.manual?.waveHeight || weatherData.marine?.waveHeightM)
+    }
   };
 }
 
@@ -53,6 +68,7 @@ async function fetchWeatherBundle(coordinates, startDate, endDate) {
     precipitation_unit: "inch",
     hourly: [
       "temperature_2m",
+      "apparent_temperature",
       "relative_humidity_2m",
       "dew_point_2m",
       "precipitation",
@@ -60,7 +76,9 @@ async function fetchWeatherBundle(coordinates, startDate, endDate) {
       "snowfall",
       "weather_code",
       "surface_pressure",
+      "pressure_msl",
       "cloud_cover",
+      "visibility",
       "wind_speed_10m",
       "wind_direction_10m",
       "wind_gusts_10m"
@@ -81,7 +99,9 @@ async function fetchWeatherBundle(coordinates, startDate, endDate) {
       "wind_direction_10m_dominant"
     ].join(",")
   });
-  const request = fetch(`/api/weather/archive?${params}`)
+  const today = new Date().toISOString().slice(0, 10);
+  const endpoint = startDate >= today ? "/api/weather/forecast" : "/api/weather/archive";
+  const request = fetch(`${endpoint}?${params}`)
     .then((response) => {
       return response.json().then((data) => {
         if (!response.ok) throw new Error(data.error || "Weather API unavailable");
@@ -97,6 +117,31 @@ async function fetchWeatherBundle(coordinates, startDate, endDate) {
       throw new Error(error.message === "Failed to fetch" ? "Weather service unavailable" : error.message);
     });
   weatherRequestCache.set(key, request);
+  return request;
+}
+
+async function fetchMarineBundle(coordinates, startDate, endDate) {
+  const key = weatherCacheKey(coordinates, startDate, endDate);
+  if (marineRequestCache.has(key)) return marineRequestCache.get(key);
+  const params = new URLSearchParams({
+    latitude: String(coordinates.latitude),
+    longitude: String(coordinates.longitude),
+    start_date: startDate,
+    end_date: endDate,
+    timezone: "auto",
+    cell_selection: "nearest",
+    hourly: "wave_height"
+  });
+  const request = fetch(`/api/weather/marine?${params}`)
+    .then((response) => response.json().then((data) => {
+      if (!response.ok) throw new Error(data.error || "Marine API unavailable");
+      return data;
+    }))
+    .catch((error) => {
+      marineRequestCache.delete(key);
+      throw new Error(error.message === "Failed to fetch" ? "Marine service unavailable" : error.message);
+    });
+  marineRequestCache.set(key, request);
   return request;
 }
 
@@ -133,14 +178,17 @@ function hourlyRecords(bundle) {
   return (hourly.time || []).map((time, index) => ({
     time,
     temperatureC: hourly.temperature_2m?.[index] ?? null,
+    apparentTemperatureC: hourly.apparent_temperature?.[index] ?? null,
     humidityPercent: hourly.relative_humidity_2m?.[index] ?? null,
     dewPointC: hourly.dew_point_2m?.[index] ?? null,
     precipitationIn: hourly.precipitation?.[index] ?? null,
     rainIn: hourly.rain?.[index] ?? null,
     snowfallIn: hourly.snowfall?.[index] ?? null,
     weatherCode: hourly.weather_code?.[index] ?? null,
-    pressureHpa: hourly.surface_pressure?.[index] ?? null,
+    pressureHpa: hourly.pressure_msl?.[index] ?? hourly.surface_pressure?.[index] ?? null,
+    pressureMslHpa: hourly.pressure_msl?.[index] ?? null,
     cloudCoverPercent: hourly.cloud_cover?.[index] ?? null,
+    visibilityMeters: hourly.visibility?.[index] ?? null,
     windSpeedMph: hourly.wind_speed_10m?.[index] ?? null,
     windDirectionDegrees: hourly.wind_direction_10m?.[index] ?? null,
     windGustMph: hourly.wind_gusts_10m?.[index] ?? null
@@ -177,26 +225,34 @@ function tripWindowHours(trip, records) {
   });
 }
 
+function numericRecordValues(records, key) {
+  return records
+    .map((record) => record?.[key])
+    .filter((value) => value !== null && value !== undefined && value !== "")
+    .map(Number)
+    .filter(Number.isFinite);
+}
+
 function averageNumber(records, key) {
-  const values = records.map((record) => Number(record[key])).filter(Number.isFinite);
+  const values = numericRecordValues(records, key);
   if (!values.length) return null;
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
 }
 
 function sumNumber(records, key) {
-  const values = records.map((record) => Number(record[key])).filter(Number.isFinite);
+  const values = numericRecordValues(records, key);
   if (!values.length) return null;
   return Math.round(values.reduce((sum, value) => sum + value, 0) * 100) / 100;
 }
 
 function minNumber(records, key) {
-  const values = records.map((record) => Number(record[key])).filter(Number.isFinite);
+  const values = numericRecordValues(records, key);
   if (!values.length) return null;
   return Math.round(Math.min(...values) * 10) / 10;
 }
 
 function maxNumber(records, key) {
-  const values = records.map((record) => Number(record[key])).filter(Number.isFinite);
+  const values = numericRecordValues(records, key);
   if (!values.length) return null;
   return Math.round(Math.max(...values) * 10) / 10;
 }
@@ -204,11 +260,14 @@ function maxNumber(records, key) {
 function tripWindowSummary(records) {
   return {
     temperatureC: averageNumber(records, "temperatureC"),
+    apparentTemperatureC: averageNumber(records, "apparentTemperatureC"),
     temperatureMaxC: maxNumber(records, "temperatureC"),
     temperatureMinC: minNumber(records, "temperatureC"),
     humidityPercent: averageNumber(records, "humidityPercent"),
     pressureHpa: averageNumber(records, "pressureHpa"),
+    pressureMslHpa: averageNumber(records, "pressureMslHpa"),
     cloudCoverPercent: averageNumber(records, "cloudCoverPercent"),
+    visibilityMeters: averageNumber(records, "visibilityMeters"),
     precipitationIn: sumNumber(records, "precipitationIn"),
     windSpeedMph: averageNumber(records, "windSpeedMph"),
     windGustMph: averageNumber(records, "windGustMph"),
@@ -216,14 +275,70 @@ function tripWindowSummary(records) {
   };
 }
 
+function recordTimeMs(record) {
+  const value = new Date(record?.time || "").getTime();
+  return Number.isFinite(value) ? value : null;
+}
+
+function barometricTrendRate(records) {
+  const pressureRecords = records
+    .filter((record) => Number.isFinite(Number(record.pressureMslHpa ?? record.pressureHpa)) && recordTimeMs(record) !== null)
+    .sort((a, b) => recordTimeMs(a) - recordTimeMs(b));
+  const current = pressureRecords.at(-1);
+  if (!current) return null;
+  const currentTime = recordTimeMs(current);
+  const targetTime = currentTime - (3 * 60 * 60 * 1000);
+  const prior = pressureRecords.reduce((best, record) => {
+    const delta = Math.abs(recordTimeMs(record) - targetTime);
+    if (!best || delta < best.delta) return { record, delta };
+    return best;
+  }, null)?.record;
+  if (!prior || prior === current) return null;
+  return Math.round((Number(current.pressureMslHpa ?? current.pressureHpa) - Number(prior.pressureMslHpa ?? prior.pressureHpa)) * 10) / 10;
+}
+
+function barometricTrendLabel(delta) {
+  const value = Number(delta);
+  if (!Number.isFinite(value)) return "";
+  if (value <= -3) return "falling fast";
+  if (value < -0.8) return "falling";
+  if (value >= 3) return "rising fast";
+  if (value > 0.8) return "rising";
+  return "steady";
+}
+
+function visibilityLabel(meters) {
+  const value = Number(meters);
+  if (!Number.isFinite(value)) return "";
+  if (value >= 10000) return "clear visibility";
+  if (value >= 5000) return "good visibility";
+  if (value >= 1000) return "reduced visibility";
+  return "poor visibility";
+}
+
+function marineRecords(bundle) {
+  const hourly = bundle?.hourly || {};
+  return (hourly.time || []).map((time, index) => ({
+    time,
+    waveHeightM: hourly.wave_height?.[index] ?? null
+  }));
+}
+
+function marineWindowSummary(records) {
+  return {
+    waveHeightM: averageNumber(records, "waveHeightM"),
+    waveHeightMaxM: maxNumber(records, "waveHeightM")
+  };
+}
+
 function numericDelta(records, key) {
-  const values = records.map((record) => Number(record[key])).filter(Number.isFinite);
+  const values = numericRecordValues(records, key);
   if (values.length < 2) return null;
   return Math.round((values.at(-1) - values[0]) * 10) / 10;
 }
 
 function windDirectionShift(records) {
-  const values = records.map((record) => Number(record.windDirectionDegrees)).filter(Number.isFinite);
+  const values = numericRecordValues(records, "windDirectionDegrees");
   if (values.length < 2) return null;
   const delta = Math.abs((((values.at(-1) - values[0]) % 360) + 540) % 360 - 180);
   return Math.round(delta);
@@ -332,6 +447,23 @@ async function buildWeatherDataForTrip(trip, source, includeCatches = true) {
   }
   const hourly = hourlyRecords(bundle);
   const windowRecords = tripWindowHours(trip, hourly);
+  let marine = null;
+  try {
+    const marineBundle = await fetchMarineBundle(source.coordinates, trip.date, endDate || trip.date);
+    const marineHourly = marineRecords(marineBundle);
+    marine = {
+      source,
+      timezone: marineBundle.timezone || "",
+      units: marineBundle.hourly_units || {},
+      hourly: tripWindowHours(trip, marineHourly),
+      ...marineWindowSummary(tripWindowHours(trip, marineHourly))
+    };
+  } catch (error) {
+    marine = {
+      status: "unavailable",
+      message: error.message || "Marine data unavailable"
+    };
+  }
   const weatherData = {
     source,
     fetchedAt: new Date().toISOString(),
@@ -339,8 +471,17 @@ async function buildWeatherDataForTrip(trip, source, includeCatches = true) {
     units: weatherUnits(bundle),
     daily: dailyRecord(bundle),
     hourly: windowRecords,
-    tripWindow: tripWindowSummary(windowRecords),
+    tripWindow: {
+      ...tripWindowSummary(windowRecords),
+      pressureTrendRateHpa3h: barometricTrendRate(hourly),
+      pressureTrendRateLabel: barometricTrendLabel(barometricTrendRate(hourly))
+    },
     trend: tripWeatherTrend(windowRecords),
+    marine,
+    manual: {
+      waveHeight: trip.waveHeight || "",
+      waveChop: chopLabelForWaveHeight(trip.waveHeight)
+    },
     sunMoon: astronomy
   };
   weatherData.frontTag = frontTagFromTrend(weatherData.trend);
@@ -436,11 +577,16 @@ function sunshineDurationText(seconds) {
   return `${Math.round(hours * 10) / 10} hr`;
 }
 
+function celsiusText(value) {
+  return `${value} \u00b0C`;
+}
+
 function catchWeatherSummary(weatherData) {
   const hourly = weatherData?.hourly;
   if (!hourly) return "";
   return [
-    hourly.temperatureC === null || hourly.temperatureC === undefined ? "" : `${Math.round(hourly.temperatureC)} C`,
+    hourly.temperatureC === null || hourly.temperatureC === undefined ? "" : celsiusText(Math.round(hourly.temperatureC)),
+    hourly.apparentTemperatureC === null || hourly.apparentTemperatureC === undefined ? "" : `feels ${celsiusText(Math.round(hourly.apparentTemperatureC))}`,
     hourlyWindText(hourly),
     hourly.cloudCoverPercent === null || hourly.cloudCoverPercent === undefined ? "" : `${Math.round(hourly.cloudCoverPercent)}% cloud`
   ].filter(Boolean).join(" / ");
@@ -458,7 +604,7 @@ function catchWeatherComparison(catchWeather, tripWeather) {
   if (!hourly || !tripWindow) return "";
   return [
     signedWeatherDelta(Number(hourly.windSpeedMph) - Number(tripWindow.windSpeedMph), " mph wind"),
-    signedWeatherDelta(Number(hourly.temperatureC) - Number(tripWindow.temperatureC), " C"),
+    signedWeatherDelta(Number(hourly.temperatureC) - Number(tripWindow.temperatureC), " \u00b0C"),
     signedWeatherDelta(Number(hourly.cloudCoverPercent) - Number(tripWindow.cloudCoverPercent), "% cloud")
   ].filter(Boolean).join(" / ");
 }
@@ -497,10 +643,26 @@ function setWeatherStatus(message) {
   if (els.weatherFetchStatus) els.weatherFetchStatus.textContent = message;
 }
 
+function syncMarineWaveHeightToForm(weatherData) {
+  const waveHeight = weatherData?.marine?.waveHeightM;
+  if (!els.waveHeight || els.waveHeight.value.trim() || waveHeight === null || waveHeight === undefined) return;
+  els.waveHeight.value = `${trimNumber(waveHeight)} m`;
+  if (weatherData.manual) weatherData.manual.waveHeight = els.waveHeight.value;
+  if (weatherData.manual) weatherData.manual.waveChop = chopLabelForWaveHeight(els.waveHeight.value);
+}
+
 async function refreshTripWeatherPreview(force = false) {
   const trip = tripDraftForWeather();
   const source = tripWeatherCoordinates(trip);
-  const key = JSON.stringify({ date: trip.date, startTime: trip.startTime, endTime: trip.endTime, locationId: trip.locationId, launchId: trip.launchId });
+  const key = JSON.stringify({
+    date: trip.date,
+    startTime: trip.startTime,
+    endTime: trip.endTime,
+    locationId: trip.locationId,
+    launchId: trip.launchId,
+    waveHeight: trip.waveHeight,
+    chopRanges: state.settings?.chopRanges
+  });
   if (!force && key === activeTripWeatherKey) return;
   activeTripWeatherKey = key;
   if (!trip.date || !source) {
@@ -511,7 +673,8 @@ async function refreshTripWeatherPreview(force = false) {
   setWeatherStatus("Fetching weather...");
   try {
     const result = await buildWeatherDataForTrip(trip, source, false);
-    activeTripWeatherData = result.tripWeather;
+    activeTripWeatherData = applyManualWaveData(result.tripWeather, trip);
+    syncMarineWaveHeightToForm(activeTripWeatherData);
     setWeatherStatus(`Weather ready from ${source.name}`);
   } catch (error) {
     activeTripWeatherData = null;
@@ -534,7 +697,7 @@ function weatherValueWithTrend(value, ...trendParts) {
   return [value || "Not logged", ...trends].join(" / ");
 }
 
-function renderWeatherDetails(weatherData) {
+function renderWeatherDetails(weatherData, trip = {}) {
   if (!weatherData || weatherData.status === "missing-coordinates") {
     return `<span><strong>API Weather</strong>Add a mapped location pin to fetch weather.</span>`;
   }
@@ -544,15 +707,32 @@ function renderWeatherDetails(weatherData) {
   const window = weatherData.tripWindow || {};
   const daily = weatherData.daily || {};
   const trend = weatherData.trend || {};
+  const marine = weatherData.marine || {};
+  const manual = {
+    ...(weatherData.manual || {}),
+    waveHeight: trip.waveHeight || weatherData.manual?.waveHeight || "",
+    waveChop: chopLabelForWaveHeight(trip.waveHeight || weatherData.manual?.waveHeight || marine.waveHeightM)
+  };
+  const waveHeightText = manual.waveHeight || (marine.waveHeightM === null || marine.waveHeightM === undefined ? "No marine data" : `${trimNumber(marine.waveHeightM)} m`);
+  const chopText = manual.waveChop || "";
+  const visibilityKm = Number(window.visibilityMeters) / 1000;
+  const visibilityText = Number.isFinite(visibilityKm) ? `${trimNumber(visibilityKm)} km / ${visibilityLabel(window.visibilityMeters)}` : "Not logged";
+  const barometricTrend = window.pressureTrendRateHpa3h === null || window.pressureTrendRateHpa3h === undefined
+    ? "Not logged"
+    : `${window.pressureTrendRateHpa3h > 0 ? "+" : ""}${trimNumber(window.pressureTrendRateHpa3h)} hPa / 3 hr / ${window.pressureTrendRateLabel || barometricTrendLabel(window.pressureTrendRateHpa3h)}`;
   const windTrend = [
     trend.windTrend,
     trend.windDirectionShiftDegrees ? `${trend.windDirectionShiftDegrees} deg wind shift` : ""
   ].filter(Boolean).join(" / ");
   return `
     <span><strong>Front Tag</strong>${escapeHtml(weatherData.frontTag || "Not logged")}</span>
-    <span><strong>Air Temp</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.temperatureC, " C"), trend.temperatureTrend))}</span>
+    <span><strong>Air Temp</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.temperatureC, " \u00b0C"), trend.temperatureTrend))}</span>
+    <span><strong>Feels Like</strong>${escapeHtml(weatherValue(window.apparentTemperatureC, " \u00b0C"))}</span>
     <span><strong>Wind</strong>${escapeHtml(weatherValueWithTrend(weatherWindText(weatherData) || weatherValue(daily.windSpeedMaxMph, " mph"), windTrend))}</span>
     <span><strong>Pressure</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.pressureHpa, " hPa"), trend.pressureTrend))}</span>
+    <span><strong>Barometric Trend</strong>${escapeHtml(barometricTrend)}</span>
+    <span><strong>Visibility</strong>${escapeHtml(visibilityText)}</span>
+    <span><strong>Wave Height / Chop</strong>${escapeHtml([waveHeightText, chopText].filter(Boolean).join(" / ") || "Not logged")}</span>
     <span><strong>Humidity</strong>${escapeHtml(weatherValue(window.humidityPercent, "%"))}</span>
     <span><strong>Cloud Cover</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.cloudCoverPercent, "%"), trend.cloudTrend))}</span>
     <span><strong>Sunshine</strong>${escapeHtml(sunshineDurationText(daily.sunshineDurationSeconds))}</span>
@@ -560,6 +740,6 @@ function renderWeatherDetails(weatherData) {
     <span><strong>Moon</strong>${escapeHtml(weatherData.sunMoon ? `${weatherData.sunMoon.phase} (${weatherData.sunMoon.illuminationPercent}%)` : "Not logged")}</span>
     <span><strong>Moonrise / Moonset</strong>${escapeHtml(weatherData.sunMoon ? [timeText(weatherData.sunMoon.moonrise), timeText(weatherData.sunMoon.moonset)].filter(Boolean).join(" / ") || "Not logged" : "Not logged")}</span>
     <span><strong>Precipitation</strong>${escapeHtml(weatherValue(window.precipitationIn ?? daily.precipitationIn, " in"))}</span>
-    <span><strong>Trip High / Low</strong>${escapeHtml(`${weatherValue(window.temperatureMaxC, " C")} / ${weatherValue(window.temperatureMinC, " C")}`)}</span>
+    <span><strong>Trip High / Low</strong>${escapeHtml(`${weatherValue(window.temperatureMaxC, " \u00b0C")} / ${weatherValue(window.temperatureMinC, " \u00b0C")}`)}</span>
   `;
 }

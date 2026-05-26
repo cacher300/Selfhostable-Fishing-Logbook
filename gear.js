@@ -1,93 +1,33 @@
-async function saveLure(event) {
-  event.preventDefault();
-  try {
-    const editingId = getValue("editingLureId");
-    const existing = state.lures.find((item) => item.id === editingId);
-    const imageFile = document.querySelector("#lureImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "lures") : pendingLureImage;
-    const lure = {
-      id: editingId || createId(),
-      name: getValue("lureName"),
-      type: getValue("lureType"),
-      brand: getValue("lureBrand"),
-      color: getValue("lureColor"),
-    notes: getValue("lureNotes"),
-    image: uploadedImage?.image || existing?.image || "",
-    previewImage: uploadedImage?.previewImage || existing?.previewImage || uploadedImage?.image || existing?.image || "",
-    imagePath: uploadedImage?.path || existing?.imagePath || "",
-    imageFilename: uploadedImage?.filename || existing?.imageFilename || "",
-    previewPath: uploadedImage?.previewPath || existing?.previewPath || "",
-    previewFilename: uploadedImage?.previewFilename || existing?.previewFilename || ""
-    };
-
-    const lureIndex = state.lures.findIndex((item) => item.id === lure.id);
-    if (lureIndex >= 0) state.lures[lureIndex] = lure;
-    else state.lures.push(lure);
-    upsertListValue("lureTypes", lure.type);
-    await saveState();
-
-    [...document.querySelectorAll(".catch-lure, .trip-gear-lure")].forEach((select) => populateLureSelect(select, select.value));
-    const rowId = getValue("pendingCatchRow");
-    const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
-    if (row) row.querySelector(".catch-lure, .trip-gear-lure").value = lure.id;
-    if (row) renderLurePreview(row);
-    if (row) updateRowSummary(row);
-
-    els.lureDialog.close();
-    els.lureForm.reset();
-    pendingLureImage = null;
-    renderQueuedGearImage("lure");
-    renderAll();
-  } catch (error) {
-    console.error("Could not save lure.", error);
-    alert(error.message || "The lure could not be saved.");
-  }
+function imageFields(uploadedImage, existing = {}) {
+  return {
+    image: uploadedImage?.image || existing.image || "",
+    previewImage: uploadedImage?.previewImage || existing.previewImage || uploadedImage?.image || existing.image || "",
+    imagePath: uploadedImage?.path || existing.imagePath || "",
+    imageFilename: uploadedImage?.filename || existing.imageFilename || "",
+    previewPath: uploadedImage?.previewPath || existing.previewPath || "",
+    previewFilename: uploadedImage?.previewFilename || existing.previewFilename || ""
+  };
 }
 
-async function saveFlasher(event) {
-  event.preventDefault();
-  try {
-    const editingId = getValue("editingFlasherId");
-    const existing = state.flashers.find((item) => item.id === editingId);
-    const imageFile = document.querySelector("#flasherImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "flashers") : pendingFlasherImage;
-    const flasher = {
-      id: editingId || createId(),
-      name: getValue("flasherName"),
-      type: getValue("flasherType"),
-      brand: getValue("flasherBrand"),
-      color: getValue("flasherColor"),
-    notes: getValue("flasherNotes"),
-    image: uploadedImage?.image || existing?.image || "",
-    previewImage: uploadedImage?.previewImage || existing?.previewImage || uploadedImage?.image || existing?.image || "",
-    imagePath: uploadedImage?.path || existing?.imagePath || "",
-    imageFilename: uploadedImage?.filename || existing?.imageFilename || "",
-    previewPath: uploadedImage?.previewPath || existing?.previewPath || "",
-    previewFilename: uploadedImage?.previewFilename || existing?.previewFilename || ""
-    };
+function gearDisplayName(item, fallback = "Gear") {
+  return item?.shortName || item?.name || [item?.brand, item?.name].filter(Boolean).join(" ") || fallback;
+}
 
-    const flasherIndex = state.flashers.findIndex((item) => item.id === flasher.id);
-    if (flasherIndex >= 0) state.flashers[flasherIndex] = flasher;
-    else state.flashers.push(flasher);
-    upsertListValue("flasherTypes", flasher.type);
-    await saveState();
+function rodName(id) {
+  if (!id) return "";
+  return gearDisplayName(state.rods.find((rod) => rod.id === id), "");
+}
 
-    [...document.querySelectorAll(".catch-flasher, .trip-gear-flasher")].forEach((select) => populateFlasherSelect(select, select.value));
-    const rowId = getValue("pendingFlasherCatchRow");
-    const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
-    if (row) row.querySelector(".catch-flasher, .trip-gear-flasher").value = flasher.id;
-    if (row) renderFlasherPreview(row);
-    if (row) updateRowSummary(row);
+function reelName(id) {
+  if (!id) return "";
+  return gearDisplayName(state.reels.find((reel) => reel.id === id), "");
+}
 
-    els.flasherDialog.close();
-    els.flasherForm.reset();
-    pendingFlasherImage = null;
-    renderQueuedGearImage("flasher");
-    renderAll();
-  } catch (error) {
-    console.error("Could not save flasher.", error);
-    alert(error.message || "The flasher could not be saved.");
-  }
+function comboName(id) {
+  if (!id) return "";
+  const combo = state.rodReelCombos.find((item) => item.id === id);
+  if (!combo) return "";
+  return combo.shortName || [rodName(combo.rodId), reelName(combo.reelId)].filter(Boolean).join(" + ");
 }
 
 function lureName(id) {
@@ -105,27 +45,91 @@ function formatCoordinates(coordinates) {
   return `${Number(coordinates.latitude).toFixed(5)}, ${Number(coordinates.longitude).toFixed(5)}`;
 }
 
+function activeLineEntry(reel) {
+  return (reel?.lineHistory || [])
+    .filter((line) => !line.discardedDate)
+    .sort((a, b) => String(b.spooledDate || "").localeCompare(String(a.spooledDate || "")))[0] || null;
+}
+
+function lineSummary(line) {
+  if (!line) return "";
+  return [
+    [line.type, line.weight ? `${line.weight} lb` : ""].filter(Boolean).join(" "),
+    [line.brand, line.name].filter(Boolean).join(" "),
+    line.color
+  ].filter(Boolean).join(" / ");
+}
+
+function gearCatchCounts(predicate) {
+  let landed = 0;
+  let lost = 0;
+  state.trips.forEach((trip) => {
+    (trip.catches || []).forEach((catchItem) => {
+      const line = setupLineForRecord({ ...catchItem, trip });
+      if (line && predicate(line)) landed += fishCount(catchItem);
+    });
+    (trip.lostFish || []).forEach((fish) => {
+      const line = setupLineForRecord({ ...fish, trip });
+      if (line && predicate(line)) lost += 1;
+    });
+  });
+  return { landed, lost };
+}
+
+function baitStats(type, id) {
+  const key = type === "flasher" ? "flasherId" : "lureId";
+  let landed = 0;
+  let lost = 0;
+  const trips = new Set();
+  let lastUsed = "";
+  state.trips.forEach((trip) => {
+    const records = [
+      ...(trip.catches || []).map((record) => ({ record, lost: false })),
+      ...(trip.lostFish || []).map((record) => ({ record, lost: true })),
+      ...(trip.gearUsed || []).map((record) => ({ record, setup: true }))
+    ];
+    records.forEach(({ record, lost: isLost, setup }) => {
+      const resolved = setup ? record : resolveTripLineRecord({ ...record, trip });
+      if (resolved[key] !== id) return;
+      trips.add(trip.id);
+      if (trip.date && (!lastUsed || trip.date > lastUsed)) lastUsed = trip.date;
+      if (setup) return;
+      if (isLost) lost += 1;
+      else landed += fishCount(record);
+    });
+  });
+  return { landed, lost, trips: trips.size, lastUsed };
+}
+
 function renderQueuedGearImage(type) {
-  const photo = type === "lure" ? pendingLureImage : pendingFlasherImage;
-  const container = document.querySelector(type === "lure" ? "#lureQueuedImage" : "#flasherQueuedImage");
+  const pending = {
+    lure: pendingLureImage,
+    flasher: pendingFlasherImage,
+    reel: pendingReelImage,
+    rod: pendingRodImage
+  }[type];
+  const container = document.querySelector({
+    lure: "#lureQueuedImage",
+    flasher: "#flasherQueuedImage",
+    reel: "#reelQueuedImage",
+    rod: "#rodQueuedImage"
+  }[type]);
   if (!container) return;
-  container.classList.toggle("hidden", !photo);
-  container.innerHTML = photo ? `
-    ${mediaMarkup(photo)}
-    <span>${escapeHtml(photo.name || "Queued photo selected")}</span>
+  container.classList.toggle("hidden", !pending);
+  container.innerHTML = pending ? `
+    ${mediaMarkup(pending)}
+    <span>${escapeHtml(pending.name || "Queued photo selected")}</span>
   ` : "";
 }
 
 function renderLurePreview(row) {
   const preview = row.querySelector(".lure-preview");
-  const lureId = row.querySelector(".catch-lure, .trip-gear-lure").value;
+  const lureId = row.querySelector(".catch-lure, .trip-gear-lure")?.value;
   const lure = state.lures.find((item) => item.id === lureId);
-
-  if (!lure) {
-    preview.innerHTML = "";
+  if (!preview || !lure) {
+    if (preview) preview.innerHTML = "";
     return;
   }
-
   const image = lure.image ? mediaMarkup(lure) : "";
   const details = [lure.type, lure.brand, lure.color].filter(Boolean).join(" / ");
   preview.innerHTML = `
@@ -141,14 +145,12 @@ function renderLurePreview(row) {
 
 function renderFlasherPreview(row) {
   const preview = row.querySelector(".flasher-preview");
-  const flasherId = row.querySelector(".catch-flasher, .trip-gear-flasher").value;
+  const flasherId = row.querySelector(".catch-flasher, .trip-gear-flasher")?.value;
   const flasher = state.flashers.find((item) => item.id === flasherId);
-
-  if (!flasher) {
-    preview.innerHTML = "";
+  if (!preview || !flasher) {
+    if (preview) preview.innerHTML = "";
     return;
   }
-
   const image = flasher.image ? mediaMarkup(flasher) : "";
   const details = [flasher.type, flasher.brand, flasher.color].filter(Boolean).join(" / ");
   preview.innerHTML = `
@@ -162,7 +164,7 @@ function renderFlasherPreview(row) {
   `;
 }
 
-function prepareInlineGearDialog(type, pendingRowId) {
+function prepareInlineGearDialog(type, pendingRowId = "") {
   returnToTripDialog[type] = Boolean(pendingRowId) && els.tripDialog.open;
   if (returnToTripDialog[type]) els.tripDialog.close();
 }
@@ -173,6 +175,156 @@ function restoreTripDialogAfterInlineGear(type) {
   setTimeout(() => {
     if (!els.tripDialog.open) els.tripDialog.showModal();
   }, 0);
+}
+
+function populateGearSelect(select, items, selectedId, placeholder, labelFn) {
+  if (!select) return;
+  select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` + items.map((item) => (
+    `<option value="${item.id}" ${item.id === selectedId ? "selected" : ""}>${escapeHtml(labelFn(item))}</option>`
+  )).join("");
+}
+
+function populateRodSelect(select, selectedId = "") {
+  populateGearSelect(select, state.rods, selectedId, "No rod selected", (rod) => gearDisplayName(rod, "Rod"));
+}
+
+function populateReelSelect(select, selectedId = "") {
+  populateGearSelect(select, state.reels, selectedId, "No reel selected", (reel) => gearDisplayName(reel, "Reel"));
+}
+
+function populateComboSelect(select, selectedId = "") {
+  populateGearSelect(select, state.rodReelCombos, selectedId, "No combo selected", (combo) => comboName(combo.id) || "Combo");
+}
+
+function populateLureSelect(select, selectedId = "") {
+  select.innerHTML = `<option value="">No lure selected</option>` + state.lures.map((lure) => {
+    const label = [lure.name, lure.color].filter(Boolean).join(" - ");
+    return `<option value="${lure.id}" ${lure.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
+  }).join("");
+}
+
+function populateFlasherSelect(select, selectedId = "") {
+  select.innerHTML = `<option value="">No flasher</option>` + state.flashers.map((flasher) => {
+    const label = [flasher.name, flasher.color].filter(Boolean).join(" - ");
+    return `<option value="${flasher.id}" ${flasher.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
+  }).join("");
+}
+
+function syncComboToRow(row) {
+  const combo = state.rodReelCombos.find((item) => item.id === row.querySelector(".trip-gear-combo")?.value);
+  if (!combo) return;
+  const rodSelect = row.querySelector(".trip-gear-rod");
+  const reelSelect = row.querySelector(".trip-gear-reel");
+  if (rodSelect && combo.rodId) rodSelect.value = combo.rodId;
+  if (reelSelect && combo.reelId) reelSelect.value = combo.reelId;
+}
+
+function renderLineRows(lines = []) {
+  const container = document.querySelector("#reelLineRows");
+  if (!container) return;
+  container.innerHTML = lines.map((line) => lineRowMarkup(line)).join("");
+}
+
+function lineRowMarkup(line = {}) {
+  const id = line.id || createId();
+  return `
+    <article class="line-editor-row" data-line-id="${escapeHtml(id)}">
+      <label><span>Spooled date</span><input class="line-spooled-date" type="date" value="${escapeHtml(line.spooledDate || "")}" /></label>
+      <label><span>Discarded date</span><input class="line-discarded-date" type="date" value="${escapeHtml(line.discardedDate || "")}" /></label>
+      <label><span>Type</span><select class="line-type">${lineTypeOptions.map((type) => `<option value="${escapeHtml(type)}" ${type === line.type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
+      <label><span>Brand</span><input class="line-brand" type="text" value="${escapeHtml(line.brand || "")}" placeholder="Berkley" /></label>
+      <label><span>Name</span><input class="line-name" type="text" value="${escapeHtml(line.name || "")}" placeholder="X5" /></label>
+      <label><span>Weight</span><input class="line-weight" type="text" value="${escapeHtml(line.weight || "")}" placeholder="30" /></label>
+      <label><span>Diameter in</span><input class="line-diameter-in" type="text" value="${escapeHtml(line.diameterIn || "")}" placeholder="0.008" /></label>
+      <label><span>Diameter mm</span><input class="line-diameter-mm" type="text" value="${escapeHtml(line.diameterMm || "")}" placeholder="0.20" /></label>
+      <label><span>Color</span><input class="line-color" type="text" value="${escapeHtml(line.color || "")}" placeholder="Lo-Vis" /></label>
+      <label class="checkbox-label"><input class="line-mono-backing" type="checkbox" ${line.monoBacking ? "checked" : ""} /><span>Mono backing</span></label>
+      <label class="line-notes-field"><span>Notes</span><input class="line-notes" type="text" value="${escapeHtml(line.notes || "")}" placeholder="Spooling notes" /></label>
+      <button class="button danger remove-line-entry" type="button">Remove</button>
+    </article>
+  `;
+}
+
+function collectLineRows() {
+  return [...document.querySelectorAll("#reelLineRows .line-editor-row")]
+    .map((row) => ({
+      id: row.dataset.lineId || createId(),
+      spooledDate: row.querySelector(".line-spooled-date").value,
+      discardedDate: row.querySelector(".line-discarded-date").value,
+      type: row.querySelector(".line-type").value,
+      brand: row.querySelector(".line-brand").value.trim(),
+      name: row.querySelector(".line-name").value.trim(),
+      weight: row.querySelector(".line-weight").value.trim(),
+      diameterIn: row.querySelector(".line-diameter-in").value.trim(),
+      diameterMm: row.querySelector(".line-diameter-mm").value.trim(),
+      color: row.querySelector(".line-color").value.trim(),
+      monoBacking: row.querySelector(".line-mono-backing").checked,
+      notes: row.querySelector(".line-notes").value.trim()
+    }))
+    .filter((line) => line.spooledDate || line.discardedDate || line.type || line.brand || line.name || line.weight || line.notes);
+}
+
+function openReelDialog(reel = null) {
+  els.reelForm.reset();
+  pendingReelImage = null;
+  renderQueuedGearImage("reel");
+  populateOptionSelect(document.querySelector("#reelStyle"), reelStyleOptions, "Select style");
+  const editing = Boolean(reel);
+  document.querySelector("#reelDialog h2").textContent = editing ? "Edit Reel" : "Add Reel";
+  setValue("editingReelId", reel?.id || "");
+  setValue("reelShortName", reel?.shortName || "");
+  setValue("reelStyle", reel?.style || "");
+  setValue("reelBrand", reel?.brand || "");
+  setValue("reelName", reel?.name || "");
+  setValue("reelSize", reel?.size || "");
+  setValue("reelWeight", reel?.weight || "");
+  setValue("reelGearRatio", reel?.gearRatio || "");
+  setValue("reelRetrieveRate", reel?.retrieveRate || "");
+  setValue("reelMaxDrag", reel?.maxDrag || "");
+  setValue("reelMonoCapacity", reel?.monoCapacity || "");
+  setValue("reelBraidCapacity", reel?.braidCapacity || "");
+  setValue("reelPurchaseAmount", reel?.purchaseAmount || "");
+  setValue("reelDateBought", reel?.dateBought || "");
+  setValue("reelNotes", reel?.notes || "");
+  renderLineRows(reel?.lineHistory || []);
+  els.deleteReelButton.classList.toggle("hidden", !editing);
+  els.reelDialog.showModal();
+}
+
+function openRodDialog(rod = null) {
+  els.rodForm.reset();
+  pendingRodImage = null;
+  renderQueuedGearImage("rod");
+  populateOptionSelect(document.querySelector("#rodType"), rodTypeOptions, "Select type");
+  const editing = Boolean(rod);
+  document.querySelector("#rodDialog h2").textContent = editing ? "Edit Rod" : "Add Rod";
+  setValue("editingRodId", rod?.id || "");
+  setValue("rodShortName", rod?.shortName || "");
+  setValue("rodType", rod?.type || "");
+  setValue("rodBrand", rod?.brand || "");
+  setValue("rodName", rod?.name || "");
+  setValue("rodLength", rod?.length || "");
+  setValue("rodPower", rod?.power || "");
+  setValue("rodAction", rod?.action || "");
+  setValue("rodLureRating", rod?.lureRating || "");
+  setValue("rodPurchaseAmount", rod?.purchaseAmount || "");
+  setValue("rodDateBought", rod?.dateBought || "");
+  setValue("rodNotes", rod?.notes || "");
+  els.deleteRodButton.classList.toggle("hidden", !editing);
+  els.rodDialog.showModal();
+}
+
+function openComboDialog(combo = null) {
+  els.comboForm.reset();
+  const editing = Boolean(combo);
+  document.querySelector("#comboDialog h2").textContent = editing ? "Edit Combo" : "Add Combo";
+  setValue("editingComboId", combo?.id || "");
+  setValue("comboShortName", combo?.shortName || "");
+  populateRodSelect(document.querySelector("#comboRod"), combo?.rodId || "");
+  populateReelSelect(document.querySelector("#comboReel"), combo?.reelId || "");
+  setValue("comboNotes", combo?.notes || "");
+  els.deleteComboButton.classList.toggle("hidden", !editing);
+  els.comboDialog.showModal();
 }
 
 function openLureDialog(lure = null, pendingRowId = "") {
@@ -213,72 +365,398 @@ function openFlasherDialog(flasher = null, pendingRowId = "") {
   els.flasherDialog.showModal();
 }
 
+async function saveReel(event) {
+  event.preventDefault();
+  try {
+    const editingId = getValue("editingReelId");
+    const existing = state.reels.find((item) => item.id === editingId);
+    const imageFile = document.querySelector("#reelImage").files[0];
+    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "reels") : pendingReelImage;
+    const reel = {
+      id: editingId || createId(),
+      shortName: getValue("reelShortName"),
+      style: getValue("reelStyle"),
+      brand: getValue("reelBrand"),
+      name: getValue("reelName"),
+      size: getValue("reelSize"),
+      weight: getValue("reelWeight"),
+      gearRatio: getValue("reelGearRatio"),
+      retrieveRate: getValue("reelRetrieveRate"),
+      maxDrag: getValue("reelMaxDrag"),
+      monoCapacity: getValue("reelMonoCapacity"),
+      braidCapacity: getValue("reelBraidCapacity"),
+      purchaseAmount: getValue("reelPurchaseAmount"),
+      dateBought: getValue("reelDateBought"),
+      notes: getValue("reelNotes"),
+      lineHistory: collectLineRows(),
+      ...imageFields(uploadedImage, existing)
+    };
+    const index = state.reels.findIndex((item) => item.id === reel.id);
+    if (index >= 0) state.reels[index] = reel;
+    else state.reels.push(reel);
+    await saveState();
+    els.reelDialog.close();
+    els.reelForm.reset();
+    pendingReelImage = null;
+    renderAll();
+  } catch (error) {
+    console.error("Could not save reel.", error);
+    alert(error.message || "The reel could not be saved.");
+  }
+}
+
+async function saveRod(event) {
+  event.preventDefault();
+  try {
+    const editingId = getValue("editingRodId");
+    const existing = state.rods.find((item) => item.id === editingId);
+    const imageFile = document.querySelector("#rodImage").files[0];
+    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "rods") : pendingRodImage;
+    const rod = {
+      id: editingId || createId(),
+      shortName: getValue("rodShortName"),
+      type: getValue("rodType"),
+      brand: getValue("rodBrand"),
+      name: getValue("rodName"),
+      length: getValue("rodLength"),
+      power: getValue("rodPower"),
+      action: getValue("rodAction"),
+      lureRating: getValue("rodLureRating"),
+      purchaseAmount: getValue("rodPurchaseAmount"),
+      dateBought: getValue("rodDateBought"),
+      notes: getValue("rodNotes"),
+      ...imageFields(uploadedImage, existing)
+    };
+    const index = state.rods.findIndex((item) => item.id === rod.id);
+    if (index >= 0) state.rods[index] = rod;
+    else state.rods.push(rod);
+    await saveState();
+    els.rodDialog.close();
+    els.rodForm.reset();
+    pendingRodImage = null;
+    renderAll();
+  } catch (error) {
+    console.error("Could not save rod.", error);
+    alert(error.message || "The rod could not be saved.");
+  }
+}
+
+async function saveCombo(event) {
+  event.preventDefault();
+  try {
+    const combo = {
+      id: getValue("editingComboId") || createId(),
+      shortName: getValue("comboShortName"),
+      rodId: getValue("comboRod"),
+      reelId: getValue("comboReel"),
+      notes: getValue("comboNotes")
+    };
+    const index = state.rodReelCombos.findIndex((item) => item.id === combo.id);
+    if (index >= 0) state.rodReelCombos[index] = combo;
+    else state.rodReelCombos.push(combo);
+    await saveState();
+    els.comboDialog.close();
+    renderAll();
+  } catch (error) {
+    console.error("Could not save combo.", error);
+    alert(error.message || "The combo could not be saved.");
+  }
+}
+
+async function saveLure(event) {
+  event.preventDefault();
+  try {
+    const editingId = getValue("editingLureId");
+    const existing = state.lures.find((item) => item.id === editingId);
+    const imageFile = document.querySelector("#lureImage").files[0];
+    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "lures") : pendingLureImage;
+    const lure = {
+      id: editingId || createId(),
+      name: getValue("lureName"),
+      type: getValue("lureType"),
+      brand: getValue("lureBrand"),
+      color: getValue("lureColor"),
+      notes: getValue("lureNotes"),
+      ...imageFields(uploadedImage, existing)
+    };
+    const lureIndex = state.lures.findIndex((item) => item.id === lure.id);
+    if (lureIndex >= 0) state.lures[lureIndex] = lure;
+    else state.lures.push(lure);
+    upsertListValue("lureTypes", lure.type);
+    await saveState();
+    [...document.querySelectorAll(".catch-lure, .trip-gear-lure")].forEach((select) => populateLureSelect(select, select.value));
+    const rowId = getValue("pendingCatchRow");
+    const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
+    if (row) row.querySelector(".catch-lure, .trip-gear-lure").value = lure.id;
+    if (row) renderLurePreview(row);
+    if (row) updateRowSummary(row);
+    els.lureDialog.close();
+    els.lureForm.reset();
+    pendingLureImage = null;
+    renderQueuedGearImage("lure");
+    renderAll();
+  } catch (error) {
+    console.error("Could not save lure.", error);
+    alert(error.message || "The lure could not be saved.");
+  }
+}
+
+async function saveFlasher(event) {
+  event.preventDefault();
+  try {
+    const editingId = getValue("editingFlasherId");
+    const existing = state.flashers.find((item) => item.id === editingId);
+    const imageFile = document.querySelector("#flasherImage").files[0];
+    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "flashers") : pendingFlasherImage;
+    const flasher = {
+      id: editingId || createId(),
+      name: getValue("flasherName"),
+      type: getValue("flasherType"),
+      brand: getValue("flasherBrand"),
+      color: getValue("flasherColor"),
+      notes: getValue("flasherNotes"),
+      ...imageFields(uploadedImage, existing)
+    };
+    const flasherIndex = state.flashers.findIndex((item) => item.id === flasher.id);
+    if (flasherIndex >= 0) state.flashers[flasherIndex] = flasher;
+    else state.flashers.push(flasher);
+    upsertListValue("flasherTypes", flasher.type);
+    await saveState();
+    [...document.querySelectorAll(".catch-flasher, .trip-gear-flasher")].forEach((select) => populateFlasherSelect(select, select.value));
+    const rowId = getValue("pendingFlasherCatchRow");
+    const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
+    if (row) row.querySelector(".catch-flasher, .trip-gear-flasher").value = flasher.id;
+    if (row) renderFlasherPreview(row);
+    if (row) updateRowSummary(row);
+    els.flasherDialog.close();
+    els.flasherForm.reset();
+    pendingFlasherImage = null;
+    renderQueuedGearImage("flasher");
+    renderAll();
+  } catch (error) {
+    console.error("Could not save flasher.", error);
+    alert(error.message || "The flasher could not be saved.");
+  }
+}
+
+async function deleteReel() {
+  const reelId = getValue("editingReelId");
+  const reel = state.reels.find((item) => item.id === reelId);
+  if (!reel || !confirm(`Delete ${gearDisplayName(reel, "this reel")}? This clears it from combos and trips.`)) return;
+  state.reels = state.reels.filter((item) => item.id !== reelId);
+  state.rodReelCombos.forEach((combo) => {
+    if (combo.reelId === reelId) combo.reelId = "";
+  });
+  state.trips.forEach((trip) => (trip.gearUsed || []).forEach((gearItem) => {
+    if (gearItem.reelId === reelId) gearItem.reelId = "";
+  }));
+  await saveState();
+  els.reelDialog.close();
+  renderAll();
+}
+
+async function deleteRod() {
+  const rodId = getValue("editingRodId");
+  const rod = state.rods.find((item) => item.id === rodId);
+  if (!rod || !confirm(`Delete ${gearDisplayName(rod, "this rod")}? This clears it from combos and trips.`)) return;
+  state.rods = state.rods.filter((item) => item.id !== rodId);
+  state.rodReelCombos.forEach((combo) => {
+    if (combo.rodId === rodId) combo.rodId = "";
+  });
+  state.trips.forEach((trip) => (trip.gearUsed || []).forEach((gearItem) => {
+    if (gearItem.rodId === rodId) gearItem.rodId = "";
+  }));
+  await saveState();
+  els.rodDialog.close();
+  renderAll();
+}
+
+async function deleteCombo() {
+  const comboId = getValue("editingComboId");
+  const combo = state.rodReelCombos.find((item) => item.id === comboId);
+  if (!combo || !confirm(`Delete ${comboName(comboId) || "this combo"}? Trips keep their selected rod and reel.`)) return;
+  state.rodReelCombos = state.rodReelCombos.filter((item) => item.id !== comboId);
+  state.trips.forEach((trip) => (trip.gearUsed || []).forEach((gearItem) => {
+    if (gearItem.comboId === comboId) gearItem.comboId = "";
+  }));
+  await saveState();
+  els.comboDialog.close();
+  renderAll();
+}
+
 async function deleteLure() {
   const lureId = getValue("editingLureId");
   const lure = state.lures.find((item) => item.id === lureId);
   if (!lure || !confirm(`Delete ${lure.name}? This removes it from saved lures and clears it from catches.`)) return;
-
   state.lures = state.lures.filter((item) => item.id !== lureId);
   state.trips.forEach((trip) => {
-    (trip.gearUsed || []).forEach((gearItem) => {
-      if (gearItem.lureId === lureId) gearItem.lureId = "";
-    });
-    (trip.catches || []).forEach((catchItem) => {
-      if (catchItem.lureId === lureId) catchItem.lureId = "";
-    });
-    (trip.lostFish || []).forEach((fish) => {
-      if (fish.lureId === lureId) fish.lureId = "";
-    });
+    (trip.gearUsed || []).forEach((gearItem) => { if (gearItem.lureId === lureId) gearItem.lureId = ""; });
+    (trip.catches || []).forEach((catchItem) => { if (catchItem.lureId === lureId) catchItem.lureId = ""; });
+    (trip.lostFish || []).forEach((fish) => { if (fish.lureId === lureId) fish.lureId = ""; });
   });
-  try {
-    await saveState();
-    els.lureDialog.close();
-    renderAll();
-  } catch (error) {
-    console.error("Could not delete lure.", error);
-    alert(error.message || "The lure could not be deleted.");
-  }
+  await saveState();
+  els.lureDialog.close();
+  renderAll();
 }
 
 async function deleteFlasher() {
   const flasherId = getValue("editingFlasherId");
   const flasher = state.flashers.find((item) => item.id === flasherId);
   if (!flasher || !confirm(`Delete ${flasher.name}? This removes it from saved flashers and clears it from catches.`)) return;
-
   state.flashers = state.flashers.filter((item) => item.id !== flasherId);
   state.trips.forEach((trip) => {
-    (trip.gearUsed || []).forEach((gearItem) => {
-      if (gearItem.flasherId === flasherId) gearItem.flasherId = "";
-    });
-    (trip.catches || []).forEach((catchItem) => {
-      if (catchItem.flasherId === flasherId) catchItem.flasherId = "";
-    });
-    (trip.lostFish || []).forEach((fish) => {
-      if (fish.flasherId === flasherId) fish.flasherId = "";
-    });
+    (trip.gearUsed || []).forEach((gearItem) => { if (gearItem.flasherId === flasherId) gearItem.flasherId = ""; });
+    (trip.catches || []).forEach((catchItem) => { if (catchItem.flasherId === flasherId) catchItem.flasherId = ""; });
+    (trip.lostFish || []).forEach((fish) => { if (fish.flasherId === flasherId) fish.flasherId = ""; });
   });
-  try {
-    await saveState();
-    els.flasherDialog.close();
-    renderAll();
-  } catch (error) {
-    console.error("Could not delete flasher.", error);
-    alert(error.message || "The flasher could not be deleted.");
-  }
+  await saveState();
+  els.flasherDialog.close();
+  renderAll();
 }
 
-function renderGearLibrary() {
-  renderGearGrid(els.lureLibraryGrid, state.lures, "lure");
-  renderGearGrid(els.flasherLibraryGrid, state.flashers, "flasher");
-  renderLocationManager();
+function renderInventoryTable(container, headers, rows, emptyText) {
+  if (!container) return;
+  if (!rows.length) {
+    container.innerHTML = `<div class="empty-state"><p>${escapeHtml(emptyText)}</p></div>`;
+    return;
+  }
+  container.innerHTML = `
+    <table>
+      <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody>
+    </table>
+  `;
+}
+
+function inventoryThumb(item) {
+  return item?.image ? mediaMarkup(item, "inventory-thumb") : `<span class="inventory-thumb-placeholder">No image</span>`;
+}
+
+function renderReelInventory() {
+  const rows = state.reels.map((reel) => {
+    const counts = gearCatchCounts((line) => line.reelId === reel.id);
+    return [
+      inventoryThumb(reel),
+      escapeHtml(gearDisplayName(reel, "Reel")),
+      escapeHtml(lineSummary(activeLineEntry(reel)) || "-"),
+      escapeHtml(reel.style || "-"),
+      escapeHtml(reel.brand || "-"),
+      escapeHtml(reel.name || "-"),
+      escapeHtml(reel.size || "-"),
+      escapeHtml(reel.weight || "-"),
+      escapeHtml(reel.gearRatio || "-"),
+      escapeHtml(reel.retrieveRate || "-"),
+      escapeHtml(reel.maxDrag || "-"),
+      escapeHtml(reel.monoCapacity || "-"),
+      escapeHtml(reel.braidCapacity || "-"),
+      escapeHtml(reel.purchaseAmount || "-"),
+      escapeHtml(reel.dateBought || "-"),
+      `${counts.landed}${counts.lost ? ` / ${counts.lost} lost` : ""}`,
+      `<button class="button secondary" type="button" data-edit-reel="${escapeHtml(reel.id)}">Edit</button>`
+    ];
+  });
+  renderInventoryTable(els.reelInventoryTable, ["Photo", "Short Name", "Spooled Line", "Style", "Brand", "Name", "Size", "Weight", "Gear", "Retrieve", "Max Drag", "Mono Cap", "Braid Cap", "Purchase", "Bought", "Fish", ""], rows, "No saved reels yet.");
+}
+
+function renderRodInventory() {
+  const rows = state.rods.map((rod) => {
+    const counts = gearCatchCounts((line) => line.rodId === rod.id);
+    return [
+      inventoryThumb(rod),
+      escapeHtml(gearDisplayName(rod, "Rod")),
+      escapeHtml(rod.type || "-"),
+      escapeHtml(rod.brand || "-"),
+      escapeHtml(rod.name || "-"),
+      escapeHtml(rod.length || "-"),
+      escapeHtml(rod.power || "-"),
+      escapeHtml(rod.action || "-"),
+      escapeHtml(rod.lureRating || "-"),
+      escapeHtml(rod.purchaseAmount || "-"),
+      escapeHtml(rod.dateBought || "-"),
+      `${counts.landed}${counts.lost ? ` / ${counts.lost} lost` : ""}`,
+      `<button class="button secondary" type="button" data-edit-rod="${escapeHtml(rod.id)}">Edit</button>`
+    ];
+  });
+  renderInventoryTable(els.rodInventoryTable, ["Photo", "Short Name", "Type", "Brand", "Name", "Length", "Power", "Action", "Lure Rating", "Purchase", "Bought", "Fish", ""], rows, "No saved rods yet.");
+}
+
+function renderComboInventory() {
+  const rows = state.rodReelCombos.map((combo) => {
+    const counts = gearCatchCounts((line) => line.comboId === combo.id || (line.rodId === combo.rodId && line.reelId === combo.reelId));
+    return [
+      escapeHtml(comboName(combo.id) || "Combo"),
+      escapeHtml(rodName(combo.rodId) || "-"),
+      escapeHtml(reelName(combo.reelId) || "-"),
+      escapeHtml(combo.notes || ""),
+      `${counts.landed}${counts.lost ? ` / ${counts.lost} lost` : ""}`,
+      `<button class="button secondary" type="button" data-edit-combo="${escapeHtml(combo.id)}">Edit</button>`
+    ];
+  });
+  renderInventoryTable(els.comboInventoryTable, ["Combo", "Rod", "Reel", "Notes", "Fish", ""], rows, "No saved combos yet.");
+}
+
+function renderLineTracker() {
+  const rows = state.reels.flatMap((reel) => (reel.lineHistory || []).map((line) => [
+    escapeHtml(gearDisplayName(reel, "Reel")),
+    escapeHtml(line.spooledDate || "-"),
+    escapeHtml(line.discardedDate || "Active"),
+    escapeHtml(line.type || "-"),
+    escapeHtml(line.brand || "-"),
+    escapeHtml(line.name || "-"),
+    escapeHtml(line.weight || "-"),
+    escapeHtml(line.diameterIn || "-"),
+    escapeHtml(line.diameterMm || "-"),
+    escapeHtml(line.color || "-"),
+    line.monoBacking ? "Yes" : "No",
+    escapeHtml(line.notes || "")
+  ]));
+  renderInventoryTable(els.lineTrackerTable, ["Reel", "Spooled", "Discarded", "Type", "Brand", "Name", "Lb", "Dia In", "Dia Mm", "Color", "Backing", "Notes"], rows, "No line history yet. Edit a reel to add spooling records.");
+}
+
+function renderBaitInventory() {
+  const rows = state.lures.map((lure) => {
+    const stats = baitStats("lure", lure.id);
+    return [
+      inventoryThumb(lure),
+      escapeHtml(lure.name || "-"),
+      escapeHtml(lure.type || "-"),
+      escapeHtml(lure.brand || "-"),
+      escapeHtml(lure.color || "-"),
+      stats.landed,
+      stats.lost,
+      stats.trips,
+      escapeHtml(stats.lastUsed || "-"),
+      `<button class="button secondary" type="button" data-edit-lure="${escapeHtml(lure.id)}">Edit</button>`
+    ];
+  });
+  renderInventoryTable(els.baitInventoryTable, ["Photo", "Lure", "Type", "Brand", "Color", "Fish", "Lost", "Trips", "Last Used", ""], rows, "No saved lures yet.");
+}
+
+function renderFlasherInventory() {
+  const rows = state.flashers.map((flasher) => {
+    const stats = baitStats("flasher", flasher.id);
+    return [
+      inventoryThumb(flasher),
+      escapeHtml(flasher.name || "-"),
+      escapeHtml(flasher.type || "-"),
+      escapeHtml(flasher.brand || "-"),
+      escapeHtml(flasher.color || "-"),
+      stats.landed,
+      stats.lost,
+      stats.trips,
+      escapeHtml(stats.lastUsed || "-"),
+      `<button class="button secondary" type="button" data-edit-flasher="${escapeHtml(flasher.id)}">Edit</button>`
+    ];
+  });
+  renderInventoryTable(els.flasherInventoryTable, ["Photo", "Flasher", "Type", "Brand", "Color", "Fish", "Lost", "Trips", "Last Used", ""], rows, "No saved flashers yet.");
 }
 
 function renderGearGrid(container, items, type) {
+  if (!container) return;
   if (!items.length) {
-    container.innerHTML = `<div class="empty-state"><p>No saved ${type === "lure" ? "lures" : "flashers"} yet.</p></div>`;
+    container.innerHTML = "";
     return;
   }
-
   container.innerHTML = items.map((item) => {
     const image = item.image ? mediaMarkup(item) : `<div class="gear-image-placeholder">No Image</div>`;
     const details = [item.type, item.brand, item.color].filter(Boolean).join(" / ");
@@ -292,11 +770,33 @@ function renderGearGrid(container, items, type) {
           <p>${escapeHtml(details || "No details")}</p>
           <p>${escapeHtml(item.notes || "")}</p>
           <div class="gear-card-actions">
-            <button class="button secondary" type="button" ${editAttr}="${item.id}">Edit</button>
-            <button class="button danger" type="button" ${deleteAttr}="${item.id}">Delete</button>
+            <button class="button secondary" type="button" ${editAttr}="${escapeHtml(item.id)}">Edit</button>
+            <button class="button danger" type="button" ${deleteAttr}="${escapeHtml(item.id)}">Delete</button>
           </div>
         </div>
       </article>
     `;
   }).join("");
+}
+
+function setGearTab(tab) {
+  activeGearTab = tab;
+  document.querySelectorAll("[data-gear-tab]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.gearTab === tab);
+  });
+  document.querySelectorAll("[data-gear-panel]").forEach((panel) => {
+    panel.classList.toggle("hidden", panel.dataset.gearPanel !== tab);
+  });
+}
+
+function renderGearLibrary() {
+  renderReelInventory();
+  renderRodInventory();
+  renderComboInventory();
+  renderLineTracker();
+  renderBaitInventory();
+  renderFlasherInventory();
+  renderGearGrid(els.lureLibraryGrid, state.lures, "lure");
+  renderGearGrid(els.flasherLibraryGrid, state.flashers, "flasher");
+  setGearTab(activeGearTab);
 }

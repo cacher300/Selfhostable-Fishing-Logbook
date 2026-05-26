@@ -21,6 +21,17 @@ const weatherOptions = [
   "Mixed"
 ];
 
+const reelStyleOptions = ["Baitcaster", "Spinning", "Centerpin", "Fly"];
+const rodTypeOptions = ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"];
+const lineTypeOptions = ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wire", "Copper", "Other"];
+const defaultChopRanges = [
+  { id: "calm", label: "calm", maxFeet: 0.5 },
+  { id: "light", label: "light chop", maxFeet: 1 },
+  { id: "moderate", label: "moderate chop", maxFeet: 1.5 },
+  { id: "very-choppy", label: "very choppy", maxFeet: 2 },
+  { id: "rough", label: "rough", maxFeet: null }
+];
+
 function createId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
 
@@ -66,6 +77,12 @@ const defaults = {
     }
   ],
   flashers: [],
+  reels: [],
+  rods: [],
+  rodReelCombos: [],
+  settings: {
+    chopRanges: structuredClone(defaultChopRanges)
+  },
   people: [],
   locations: [],
   trips: [
@@ -135,12 +152,19 @@ let weatherPreviewTimer = null;
 let activePhotoQueueTarget = null;
 let pendingLureImage = null;
 let pendingFlasherImage = null;
+let pendingReelImage = null;
+let pendingRodImage = null;
+let activeGearTab = "reels";
 const returnToTripDialog = {
   lure: false,
   flasher: false,
+  reel: false,
+  rod: false,
   queue: false,
   lureImage: false,
-  flasherImage: false
+  flasherImage: false,
+  reelImage: false,
+  rodImage: false
 };
 
 const els = {
@@ -237,8 +261,12 @@ const els = {
   mapViewButton: document.querySelector("#mapViewButton"),
   gearViewButton: document.querySelector("#gearViewButton"),
   galleryViewButton: document.querySelector("#galleryViewButton"),
+  settingsViewButton: document.querySelector("#settingsViewButton"),
   newLibraryLureButton: document.querySelector("#newLibraryLureButton"),
   newLibraryFlasherButton: document.querySelector("#newLibraryFlasherButton"),
+  newLibraryReelButton: document.querySelector("#newLibraryReelButton"),
+  newLibraryRodButton: document.querySelector("#newLibraryRodButton"),
+  newLibraryComboButton: document.querySelector("#newLibraryComboButton"),
   photoQueueButton: document.querySelector("#photoQueueButton"),
   photoQueueDialog: document.querySelector("#photoQueueDialog"),
   photoQueueInput: document.querySelector("#photoQueueInput"),
@@ -264,6 +292,11 @@ const els = {
   addLaunchButton: document.querySelector("#addLaunchButton"),
   locationManagerList: document.querySelector("#locationManagerList"),
   weatherFetchStatus: document.querySelector("#weatherFetchStatus"),
+  waveHeight: document.querySelector("#waveHeight"),
+  settingsPanel: document.querySelector("#settingsPanel"),
+  chopRangeRows: document.querySelector("#chopRangeRows"),
+  saveChopRangesButton: document.querySelector("#saveChopRangesButton"),
+  settingsAddLocationButton: document.querySelector("#settingsAddLocationButton"),
   locationDialog: document.querySelector("#locationDialog"),
   locationForm: document.querySelector("#locationForm"),
   locationDialogTitle: document.querySelector("#locationDialogTitle"),
@@ -276,6 +309,9 @@ const els = {
   deleteTripButton: document.querySelector("#deleteTripButton"),
   deleteLureButton: document.querySelector("#deleteLureButton"),
   deleteFlasherButton: document.querySelector("#deleteFlasherButton"),
+  deleteReelButton: document.querySelector("#deleteReelButton"),
+  deleteRodButton: document.querySelector("#deleteRodButton"),
+  deleteComboButton: document.querySelector("#deleteComboButton"),
   addCatchButton: document.querySelector("#addCatchButton"),
   addLostFishButton: document.querySelector("#addLostFishButton"),
   addTripGearButton: document.querySelector("#addTripGearButton"),
@@ -290,6 +326,12 @@ const els = {
   lureForm: document.querySelector("#lureForm"),
   flasherDialog: document.querySelector("#flasherDialog"),
   flasherForm: document.querySelector("#flasherForm"),
+  reelDialog: document.querySelector("#reelDialog"),
+  reelForm: document.querySelector("#reelForm"),
+  rodDialog: document.querySelector("#rodDialog"),
+  rodForm: document.querySelector("#rodForm"),
+  comboDialog: document.querySelector("#comboDialog"),
+  comboForm: document.querySelector("#comboForm"),
   gearPanel: document.querySelector("#gearPanel"),
   galleryPanel: document.querySelector("#galleryPanel"),
   galleryCategoryFilter: document.querySelector("#galleryCategoryFilter"),
@@ -297,6 +339,14 @@ const els = {
   galleryGrid: document.querySelector("#galleryGrid"),
   orphanMediaStatus: document.querySelector("#orphanMediaStatus"),
   orphanMediaGrid: document.querySelector("#orphanMediaGrid"),
+  gearTabs: document.querySelector("#gearTabs"),
+  gearTabPanels: document.querySelector("#gearTabPanels"),
+  reelInventoryTable: document.querySelector("#reelInventoryTable"),
+  rodInventoryTable: document.querySelector("#rodInventoryTable"),
+  comboInventoryTable: document.querySelector("#comboInventoryTable"),
+  lineTrackerTable: document.querySelector("#lineTrackerTable"),
+  baitInventoryTable: document.querySelector("#baitInventoryTable"),
+  flasherInventoryTable: document.querySelector("#flasherInventoryTable"),
   lureLibraryGrid: document.querySelector("#lureLibraryGrid"),
   flasherLibraryGrid: document.querySelector("#flasherLibraryGrid")
 };
@@ -438,11 +488,18 @@ function normalizeState(nextState) {
   const normalized = { ...structuredClone(defaults), ...(nextState || {}) };
   normalized.methods = [...defaults.methods];
   delete normalized.tripTypes;
+  normalized.settings = normalizeSettings(normalized.settings);
 
-  ["species", "lureTypes", "flasherTypes", "lures", "flashers", "people", "locations", "trips"].forEach((key) => {
+  ["species", "lureTypes", "flasherTypes", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips"].forEach((key) => {
     if (!Array.isArray(normalized[key])) normalized[key] = structuredClone(defaults[key]);
   });
 
+  normalized.reels = normalized.reels.map((reel) => ({
+    lineHistory: [],
+    ...reel
+  }));
+  normalized.rods = normalized.rods.map((rod) => ({ ...rod }));
+  normalized.rodReelCombos = normalized.rodReelCombos.map((combo) => ({ ...combo }));
   normalized.trips = normalized.trips.map((trip) => ({
     catches: [],
     lostFish: [],
@@ -465,6 +522,12 @@ function normalizeState(nextState) {
       : null;
     return {
       ...trip,
+      gearUsed: (trip.gearUsed || []).map((gearItem) => ({
+        comboId: "",
+        rodId: "",
+        reelId: "",
+        ...gearItem
+      })),
       location: location?.name || trip.location || "",
       locationId: location?.id || trip.locationId || "",
       launch: launch?.name || trip.launch || "",
@@ -472,6 +535,38 @@ function normalizeState(nextState) {
     };
   });
 
+  return normalized;
+}
+
+function normalizeSettings(settings = {}) {
+  const normalized = {
+    ...structuredClone(defaults.settings),
+    ...(settings && typeof settings === "object" ? settings : {})
+  };
+  normalized.chopRanges = normalizeChopRanges(normalized.chopRanges);
+  return normalized;
+}
+
+function normalizeChopRanges(ranges = []) {
+  const source = Array.isArray(ranges) && ranges.length ? ranges : defaultChopRanges;
+  const normalized = source
+    .map((range, index) => {
+      const fallback = defaultChopRanges[index] || defaultChopRanges.at(-1);
+      const label = String(range?.label || fallback.label || "").trim();
+      const maxFeet = range?.maxFeet === null || range?.maxFeet === ""
+        ? null
+        : Number(range?.maxFeet);
+      return {
+        id: String(range?.id || fallback.id || `chop-${index + 1}`),
+        label: label || fallback.label,
+        maxFeet: Number.isFinite(maxFeet) ? Math.max(0, Math.round(maxFeet * 100) / 100) : null
+      };
+    })
+    .filter((range) => range.label);
+  if (!normalized.length) return structuredClone(defaultChopRanges);
+  if (!normalized.some((range) => range.maxFeet === null)) {
+    normalized.push({ id: "rough", label: "rough", maxFeet: null });
+  }
   return normalized;
 }
 

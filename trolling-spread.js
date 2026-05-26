@@ -26,8 +26,9 @@ function setupLineAutoLabel(gearItem, index = 0) {
     setupLineSideLabel(gearItem.side),
     presentationLabel(gearItem.presentation) || `Rod ${index + 1}`
   ].filter(Boolean);
+  const rodReel = comboName(gearItem.comboId) || [rodName(gearItem.rodId), reelName(gearItem.reelId)].filter(Boolean).join(" + ");
   const gear = gearComboName(gearItem.lureId, gearItem.flasherId);
-  return [pieces.join(" "), gear].filter(Boolean).join(": ") || `Rod ${index + 1}`;
+  return [pieces.join(" "), rodReel || gear].filter(Boolean).join(": ") || `Rod ${index + 1}`;
 }
 
 function setupLineDisplayLabel(trip, gearItem) {
@@ -40,6 +41,9 @@ function resolveTripLineRecord(record) {
   if (!line) return record;
   return {
     ...record,
+    comboId: line.comboId || record.comboId || "",
+    rodId: line.rodId || record.rodId || "",
+    reelId: line.reelId || record.reelId || "",
     lureId: line.lureId || record.lureId || "",
     flasherId: line.flasherId || record.flasherId || "",
     presentation: line.presentation || record.presentation || "",

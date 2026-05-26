@@ -4,6 +4,8 @@ const galleryCategoryLabels = {
   "trip-photos": "Trip photos",
   lures: "Lures",
   flashers: "Flashers",
+  reels: "Reels",
+  rods: "Rods",
   queue: "Photo queue"
 };
 

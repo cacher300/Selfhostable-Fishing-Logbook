@@ -158,11 +158,11 @@ function cloudCoverBucket(value) {
 
 function airTempBucket(value) {
   return weatherBucket(value, [
-    { max: 5, label: "Cold <5 C" },
-    { max: 13, label: "Cool 5-13 C" },
-    { max: 21, label: "Mild 13-21 C" },
-    { max: 29, label: "Warm 21-29 C" },
-    { max: Infinity, label: "Hot 29+ C" }
+    { max: 5, label: "Cold <5 \u00b0C" },
+    { max: 13, label: "Cool 5-13 \u00b0C" },
+    { max: 21, label: "Mild 13-21 \u00b0C" },
+    { max: 29, label: "Warm 21-29 \u00b0C" },
+    { max: Infinity, label: "Hot 29+ \u00b0C" }
   ]);
 }
 

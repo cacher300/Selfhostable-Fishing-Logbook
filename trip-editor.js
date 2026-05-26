@@ -58,6 +58,7 @@ function openTripDialog(trip = null) {
   setValue("waterTemp", trip?.waterTemp || "");
   setValue("waterClarity", trip?.waterClarity || "");
   setValue("weather", trip?.weather || "");
+  setValue("waveHeight", trip?.waveHeight || "");
   setValue("structure", trip?.structure || "");
   setValue("tripNotes", trip?.notes || "");
   activeTripWeatherData = trip?.weatherData || null;
@@ -308,6 +309,9 @@ function addTripGearRow(gearItem = {}) {
   node.querySelector(".trip-gear-change-note").value = gearItem.changeNote || gearItem.notes || "";
   node.querySelector(".trip-gear-side").value = gearItem.side || defaultSetupLineSide(gearItem, els.tripGearRows.querySelectorAll(".gear-used-row").length);
   node.querySelector(".trip-gear-line-label").value = gearItem.lineLabel || "";
+  populateComboSelect(node.querySelector(".trip-gear-combo"), gearItem.comboId || "");
+  populateRodSelect(node.querySelector(".trip-gear-rod"), gearItem.rodId || "");
+  populateReelSelect(node.querySelector(".trip-gear-reel"), gearItem.reelId || "");
   node.querySelector(".catch-presentation").value = gearItem.presentation || "";
   node.querySelector(".catch-speed").value = gearItem.speed || "";
   node.querySelector(".catch-ball-depth").value = gearItem.ballDepth || "";
@@ -348,6 +352,9 @@ function setupLineLabelFromRow(row, index) {
   return setupLineAutoLabel({
     side: row.querySelector(".trip-gear-side")?.value || "",
     presentation: row.querySelector(".catch-presentation")?.value || "",
+    comboId: row.querySelector(".trip-gear-combo")?.value || "",
+    rodId: row.querySelector(".trip-gear-rod")?.value || "",
+    reelId: row.querySelector(".trip-gear-reel")?.value || "",
     lureId: row.querySelector(".trip-gear-lure")?.value || "",
     flasherId: row.querySelector(".trip-gear-flasher")?.value || ""
   }, index);
@@ -435,6 +442,9 @@ function updateRowSummary(row) {
     row.querySelector(".trip-gear-end-time").value
   ].filter(Boolean).join("-");
   const gear = [
+    selectedText(row.querySelector(".trip-gear-combo")).replace("No combo selected", ""),
+    selectedText(row.querySelector(".trip-gear-rod")).replace("No rod selected", ""),
+    selectedText(row.querySelector(".trip-gear-reel")).replace("No reel selected", ""),
     selectedText(row.querySelector(".trip-gear-lure")).replace("No lure selected", ""),
     selectedText(row.querySelector(".trip-gear-flasher")).replace("No flasher", "")
   ].filter(Boolean).join(" + ");
@@ -468,6 +478,9 @@ function collectTripFromForm() {
       changeNote: row.querySelector(".trip-gear-change-note").value.trim(),
       side: trolling ? row.querySelector(".trip-gear-side").value : "",
       lineLabel: trolling ? row.querySelector(".trip-gear-line-label").value.trim() : "",
+      comboId: row.querySelector(".trip-gear-combo").value,
+      rodId: row.querySelector(".trip-gear-rod").value,
+      reelId: row.querySelector(".trip-gear-reel").value,
       lureId: row.querySelector(".trip-gear-lure").value,
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",
@@ -481,7 +494,7 @@ function collectTripFromForm() {
       lureMinutes: setupMinutesFromRow(row),
       flasherMinutes: trolling && row.querySelector(".trip-gear-flasher").value ? setupMinutesFromRow(row) : 0
     }))
-    .filter((item) => item.startTime || item.endTime || item.changeNote || item.lineLabel || item.lureId || item.flasherId || item.lureMinutes || item.flasherMinutes || item.presentation);
+    .filter((item) => item.startTime || item.endTime || item.changeNote || item.lineLabel || item.comboId || item.rodId || item.reelId || item.lureId || item.flasherId || item.lureMinutes || item.flasherMinutes || item.presentation);
 
   const collectFishRows = (container, lost = false) => [...container.querySelectorAll(".catch-row")]
     .map((row) => {
@@ -523,6 +536,7 @@ function collectTripFromForm() {
   const location = state.locations.find((item) => item.id === getValue("tripLocation"));
   const launch = findLaunchByIdOrName(location, getValue("tripLaunch"), "");
   const weatherData = activeTripWeatherData || null;
+  const waveHeight = getValue("waveHeight");
 
   return {
     id: getValue("tripId") || createId(),
@@ -542,6 +556,8 @@ function collectTripFromForm() {
     waterTemp: getValue("waterTemp"),
     waterClarity: getValue("waterClarity"),
     weather: getValue("weather"),
+    waveHeight,
+    waveChop: chopLabelForWaveHeight(waveHeight),
     wind: weatherWindText(weatherData),
     weatherData,
     structure: getValue("structure"),
@@ -575,6 +591,11 @@ async function saveTrip(event) {
     trip.catches.forEach((catchItem) => upsertListValue("species", catchItem.species));
     trip.lostFish.forEach((fish) => upsertListValue("species", fish.possibleSpecies));
     trip = await enrichTripWithWeather(trip);
+    if (!trip.waveHeight && trip.weatherData?.marine?.waveHeightM !== null && trip.weatherData?.marine?.waveHeightM !== undefined) {
+      trip.waveHeight = `${trimNumber(trip.weatherData.marine.waveHeightM)} m`;
+    }
+    trip.waveChop = chopLabelForWaveHeight(trip.waveHeight);
+    trip.weatherData = applyManualWaveData(trip.weatherData, trip);
     trip.wind = weatherWindText(trip.weatherData);
     activeTripWeatherData = trip.weatherData || null;
 

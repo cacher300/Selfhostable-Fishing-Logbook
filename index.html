@@ -58,6 +58,7 @@
               <button class="button secondary" id="mapViewButton" type="button">Map</button>
               <button class="button secondary" id="gearViewButton" type="button">Gear</button>
               <button class="button secondary" id="galleryViewButton" type="button">Gallery</button>
+              <button class="button secondary" id="settingsViewButton" type="button">Settings</button>
             </nav>
             <div class="utility-actions">
             <details class="data-menu">
@@ -373,32 +374,86 @@
           <div id="mapCatchList" class="map-catch-list"></div>
         </section>
 
-        <section class="gear-page hidden" id="gearPanel" aria-label="Saved lure and flasher library">
-          <div class="gear-header">
+        <section class="gear-page hidden" id="gearPanel" aria-label="Gear inventory">
+          <div class="gear-header gear-page-header">
             <div>
-              <p class="eyebrow">Gear library</p>
-              <h3>Lures</h3>
+              <p class="eyebrow">Inventory</p>
+              <h3>Gear Management</h3>
             </div>
-            <button class="button primary" id="newLibraryLureButton" type="button">New Lure</button>
-          </div>
-          <div class="gear-grid" id="lureLibraryGrid"></div>
-
-          <div class="gear-header">
-            <div>
-              <p class="eyebrow">Gear library</p>
-              <h3>Flashers</h3>
-            </div>
-            <button class="button primary" id="newLibraryFlasherButton" type="button">New Flasher</button>
-          </div>
-          <div class="gear-grid" id="flasherLibraryGrid"></div>
-
-          <div class="gear-header">
-            <div>
-              <p class="eyebrow">Map pins</p>
-              <h3>Edit Waterbodies</h3>
+            <div class="gear-actions">
+              <button class="button primary" id="newLibraryReelButton" type="button">New Reel</button>
+              <button class="button primary" id="newLibraryRodButton" type="button">New Rod</button>
+              <button class="button secondary" id="newLibraryComboButton" type="button">New Combo</button>
             </div>
           </div>
-          <div class="location-manager-list" id="locationManagerList"></div>
+          <div class="gear-tabs" id="gearTabs" role="tablist" aria-label="Gear inventory sections">
+            <button class="gear-tab is-active" type="button" data-gear-tab="reels">Reels</button>
+            <button class="gear-tab" type="button" data-gear-tab="rods">Rods</button>
+            <button class="gear-tab" type="button" data-gear-tab="combos">Combos</button>
+            <button class="gear-tab" type="button" data-gear-tab="line">Line Tracker</button>
+            <button class="gear-tab" type="button" data-gear-tab="baits">Baits</button>
+            <button class="gear-tab" type="button" data-gear-tab="flashers">Flashers</button>
+          </div>
+          <div id="gearTabPanels" class="gear-tab-panels">
+            <section class="gear-tab-panel" data-gear-panel="reels">
+              <div class="gear-header">
+                <div>
+                  <p class="eyebrow">Reel inventory</p>
+                  <h3>Reels</h3>
+                </div>
+              </div>
+              <div class="inventory-table" id="reelInventoryTable"></div>
+            </section>
+            <section class="gear-tab-panel hidden" data-gear-panel="rods">
+              <div class="gear-header">
+                <div>
+                  <p class="eyebrow">Rod inventory</p>
+                  <h3>Rods</h3>
+                </div>
+              </div>
+              <div class="inventory-table" id="rodInventoryTable"></div>
+            </section>
+            <section class="gear-tab-panel hidden" data-gear-panel="combos">
+              <div class="gear-header">
+                <div>
+                  <p class="eyebrow">Rod and reel pairs</p>
+                  <h3>Combos</h3>
+                </div>
+              </div>
+              <div class="inventory-table" id="comboInventoryTable"></div>
+            </section>
+            <section class="gear-tab-panel hidden" data-gear-panel="line">
+              <div class="gear-header">
+                <div>
+                  <p class="eyebrow">Reel spooling history</p>
+                  <h3>Line Tracker</h3>
+                </div>
+              </div>
+              <div class="inventory-table" id="lineTrackerTable"></div>
+            </section>
+            <section class="gear-tab-panel hidden" data-gear-panel="baits">
+              <div class="gear-header">
+                <div>
+                  <p class="eyebrow">Bait inventory</p>
+                  <h3>Lures</h3>
+                </div>
+                <button class="button primary" id="newLibraryLureButton" type="button">New Lure</button>
+              </div>
+              <div class="inventory-table" id="baitInventoryTable"></div>
+              <div class="gear-grid compact-gear-grid" id="lureLibraryGrid"></div>
+            </section>
+            <section class="gear-tab-panel hidden" data-gear-panel="flashers">
+              <div class="gear-header">
+                <div>
+                  <p class="eyebrow">Attractor inventory</p>
+                  <h3>Flashers</h3>
+                </div>
+                <button class="button primary" id="newLibraryFlasherButton" type="button">New Flasher</button>
+              </div>
+              <div class="inventory-table" id="flasherInventoryTable"></div>
+              <div class="gear-grid compact-gear-grid" id="flasherLibraryGrid"></div>
+            </section>
+          </div>
         </section>
 
         <section class="gallery-page hidden" id="galleryPanel" aria-label="Uploaded photo gallery">
@@ -424,6 +479,37 @@
             <span id="orphanMediaStatus" class="map-summary">No orphaned media loaded</span>
           </div>
           <div id="orphanMediaGrid" class="gallery-grid"></div>
+        </section>
+
+        <section class="settings-page hidden" id="settingsPanel" aria-label="Settings">
+          <div class="settings-header">
+            <div>
+              <p class="eyebrow">Preferences</p>
+              <h3>Settings</h3>
+            </div>
+          </div>
+          <div class="settings-grid">
+            <article class="settings-card">
+              <div class="settings-card-header">
+                <div>
+                  <p class="eyebrow">Wave height</p>
+                  <h3>Chop Ranges</h3>
+                </div>
+                <button class="button primary" id="saveChopRangesButton" type="button">Save Ranges</button>
+              </div>
+              <div class="settings-table" id="chopRangeRows"></div>
+            </article>
+            <article class="settings-card">
+              <div class="settings-card-header">
+              <div>
+                <p class="eyebrow">Map pins</p>
+                <h3>Waterbodies</h3>
+              </div>
+              <button class="button primary" id="settingsAddLocationButton" type="button">Add Waterbody</button>
+            </div>
+              <div class="location-manager-list" id="locationManagerList"></div>
+            </article>
+          </div>
         </section>
       </main>
     </div>
@@ -536,6 +622,10 @@
             <select id="weather"></select>
           </label>
           <label>
+            <span>Wave height</span>
+            <input id="waveHeight" type="text" placeholder="Auto, 0.4 m, or 2 ft" />
+          </label>
+          <label>
             <span>Depth / structure</span>
             <input id="structure" type="text" placeholder="40-60 ft, drop-off" />
           </label>
@@ -629,6 +719,106 @@
           <button class="button secondary" type="button" data-close-dialog>Close</button>
         </div>
       </div>
+    </dialog>
+
+    <dialog id="reelDialog" class="dialog">
+      <form id="reelForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Reusable reel</p>
+            <h2>Add Reel</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close">x</button>
+        </div>
+        <input type="hidden" id="editingReelId" />
+        <div class="form-grid">
+          <label><span>Reel short name</span><input id="reelShortName" type="text" required placeholder="BC - Abu Pro Max LP" /></label>
+          <label><span>Style</span><select id="reelStyle"></select></label>
+          <label><span>Brand</span><input id="reelBrand" type="text" placeholder="Abu Garcia" /></label>
+          <label><span>Name / model</span><input id="reelName" type="text" placeholder="Pro Max" /></label>
+          <label><span>Size</span><input id="reelSize" type="text" placeholder="LP, 3000, 400" /></label>
+          <label><span>Weight</span><input id="reelWeight" type="text" placeholder="7.3 oz" /></label>
+          <label><span>Gear ratio</span><input id="reelGearRatio" type="text" placeholder="7.1:1" /></label>
+          <label><span>Retrieve rate</span><input id="reelRetrieveRate" type="text" placeholder="29 in" /></label>
+          <label><span>Max drag</span><input id="reelMaxDrag" type="text" placeholder="18 lb" /></label>
+          <label><span>Mono capacity</span><input id="reelMonoCapacity" type="text" placeholder="145/12" /></label>
+          <label><span>Braid capacity</span><input id="reelBraidCapacity" type="text" placeholder="140/30" /></label>
+          <label><span>Purchase amount</span><input id="reelPurchaseAmount" type="text" placeholder="89.99" /></label>
+          <label><span>Date bought</span><input id="reelDateBought" type="date" /></label>
+          <label><span>Reel image</span><input id="reelImage" type="file" accept="image/*,video/*" /></label>
+          <button class="button secondary align-end" type="button" data-use-photo-queue="reels">Use Queue</button>
+          <div id="reelQueuedImage" class="queued-gear-image hidden"></div>
+          <div class="row-section-title">Line Tracker</div>
+          <div id="reelLineRows" class="line-editor-rows"></div>
+          <button class="button secondary" id="addReelLineButton" type="button">Add Line Entry</button>
+          <label class="full-span"><span>Notes</span><textarea id="reelNotes" rows="3" placeholder="Maintenance, handle side, best use"></textarea></label>
+        </div>
+        <div class="dialog-actions">
+          <button class="button danger hidden" id="deleteReelButton" type="button">Delete</button>
+          <div>
+            <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+            <button class="button primary" type="submit">Save Reel</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="rodDialog" class="dialog small-dialog">
+      <form id="rodForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Reusable rod</p>
+            <h2>Add Rod</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close">x</button>
+        </div>
+        <input type="hidden" id="editingRodId" />
+        <div class="form-grid one-column">
+          <label><span>Rod short name</span><input id="rodShortName" type="text" required placeholder="DR - 8'6 Medium" /></label>
+          <label><span>Type</span><select id="rodType"></select></label>
+          <label><span>Brand</span><input id="rodBrand" type="text" placeholder="Okuma" /></label>
+          <label><span>Name / model</span><input id="rodName" type="text" placeholder="Classic Pro GLT" /></label>
+          <label><span>Length</span><input id="rodLength" type="text" placeholder="8 ft 6 in" /></label>
+          <label><span>Power</span><input id="rodPower" type="text" placeholder="Medium" /></label>
+          <label><span>Action</span><input id="rodAction" type="text" placeholder="Moderate" /></label>
+          <label><span>Lure rating</span><input id="rodLureRating" type="text" placeholder="1/2 - 2 oz" /></label>
+          <label><span>Purchase amount</span><input id="rodPurchaseAmount" type="text" placeholder="69.99" /></label>
+          <label><span>Date bought</span><input id="rodDateBought" type="date" /></label>
+          <label><span>Rod image</span><input id="rodImage" type="file" accept="image/*,video/*" /></label>
+          <button class="button secondary" type="button" data-use-photo-queue="rods">Use Queue</button>
+          <div id="rodQueuedImage" class="queued-gear-image hidden"></div>
+          <label><span>Notes</span><textarea id="rodNotes" rows="3" placeholder="Use case, preferred reel, repairs"></textarea></label>
+        </div>
+        <div class="dialog-actions end-only">
+          <button class="button danger hidden" id="deleteRodButton" type="button">Delete</button>
+          <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+          <button class="button primary" type="submit">Save Rod</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="comboDialog" class="dialog small-dialog">
+      <form id="comboForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Rod and reel pair</p>
+            <h2>Add Combo</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close">x</button>
+        </div>
+        <input type="hidden" id="editingComboId" />
+        <div class="form-grid one-column">
+          <label><span>Combo short name</span><input id="comboShortName" type="text" placeholder="Port dipsey combo" /></label>
+          <label><span>Rod</span><select id="comboRod"></select></label>
+          <label><span>Reel</span><select id="comboReel"></select></label>
+          <label><span>Notes</span><textarea id="comboNotes" rows="3" placeholder="Default line or trolling role"></textarea></label>
+        </div>
+        <div class="dialog-actions end-only">
+          <button class="button danger hidden" id="deleteComboButton" type="button">Delete</button>
+          <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+          <button class="button primary" type="submit">Save Combo</button>
+        </div>
+      </form>
     </dialog>
 
     <dialog id="lureDialog" class="dialog small-dialog">
@@ -908,6 +1098,18 @@
             <input class="trip-gear-line-label" type="text" placeholder="Auto number, or name this rod" />
           </label>
           <div class="row-section-title gear-title">Gear</div>
+          <label class="gear-combo-field">
+            <span>Rod/reel combo</span>
+            <select class="trip-gear-combo"></select>
+          </label>
+          <label class="gear-rod-field">
+            <span>Rod</span>
+            <select class="trip-gear-rod"></select>
+          </label>
+          <label class="gear-reel-field">
+            <span>Reel</span>
+            <select class="trip-gear-reel"></select>
+          </label>
           <label class="gear-lure-field">
             <span>Lure</span>
             <select class="trip-gear-lure"></select>
@@ -1009,6 +1211,7 @@
     <script src="app-state.js"></script>
     <script src="locations.js"></script>
     <script src="location-weather.js"></script>
+    <script src="settings.js"></script>
     <script src="dashboard.js"></script>
     <script src="photos.js"></script>
     <script src="trip-editor.js"></script>

@@ -17,8 +17,13 @@ els.photoQueueButton.addEventListener("click", () => {
 els.photoQueueInput.addEventListener("change", addPhotosToQueue);
 els.lureForm.addEventListener("submit", saveLure);
 els.flasherForm.addEventListener("submit", saveFlasher);
+els.reelForm.addEventListener("submit", saveReel);
+els.rodForm.addEventListener("submit", saveRod);
+els.comboForm.addEventListener("submit", saveCombo);
 els.lureDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("lure"));
 els.flasherDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("flasher"));
+els.reelDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("reel"));
+els.rodDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("rod"));
 els.photoQueueDialog.addEventListener("close", restoreDialogAfterPhotoQueue);
 els.summaryEditTripButton.addEventListener("click", () => {
   const trip = state.trips.find((item) => item.id === activeSummaryTripId);
@@ -42,14 +47,23 @@ els.summaryDeleteTripButton.addEventListener("click", async () => {
 });
 els.deleteLureButton.addEventListener("click", deleteLure);
 els.deleteFlasherButton.addEventListener("click", deleteFlasher);
+els.deleteReelButton.addEventListener("click", deleteReel);
+els.deleteRodButton.addEventListener("click", deleteRod);
+els.deleteComboButton.addEventListener("click", deleteCombo);
 els.tripsViewButton.addEventListener("click", () => setView("trips"));
 els.statsViewButton.addEventListener("click", () => setView("stats"));
 els.patternsViewButton.addEventListener("click", () => setView("patterns"));
 els.mapViewButton.addEventListener("click", () => setView("map"));
 els.gearViewButton.addEventListener("click", () => setView("gear"));
 els.galleryViewButton.addEventListener("click", () => setView("gallery"));
+els.settingsViewButton.addEventListener("click", () => setView("settings"));
 els.newLibraryLureButton.addEventListener("click", () => openLureDialog());
 els.newLibraryFlasherButton.addEventListener("click", () => openFlasherDialog());
+els.newLibraryReelButton.addEventListener("click", () => openReelDialog());
+els.newLibraryRodButton.addEventListener("click", () => openRodDialog());
+els.newLibraryComboButton.addEventListener("click", () => openComboDialog());
+els.saveChopRangesButton.addEventListener("click", saveChopRanges);
+els.settingsAddLocationButton.addEventListener("click", () => openLocationDialog("location"));
 els.exportButton.addEventListener("click", exportJson);
 els.importInput.addEventListener("change", importJson);
 els.statsMethodFilter.addEventListener("change", () => {
@@ -182,6 +196,16 @@ document.addEventListener("click", (event) => {
     openPhotoQueue({ type: "flasher", category: "flashers" });
   }
 
+  const reelQueueButton = event.target.closest("[data-use-photo-queue='reels']");
+  if (reelQueueButton) {
+    openPhotoQueue({ type: "reel", category: "reels" });
+  }
+
+  const rodQueueButton = event.target.closest("[data-use-photo-queue='rods']");
+  if (rodQueueButton) {
+    openPhotoQueue({ type: "rod", category: "rods" });
+  }
+
   const catchQueueButton = event.target.closest(".use-catch-photo-queue");
   if (catchQueueButton && !catchQueueButton.closest(".lost-fish-row")) {
     openPhotoQueue({
@@ -243,6 +267,39 @@ document.addEventListener("click", (event) => {
     openFlasherDialog(null, row.dataset.rowId);
   }
 
+  const gearTabButton = event.target.closest("[data-gear-tab]");
+  if (gearTabButton) {
+    setGearTab(gearTabButton.dataset.gearTab);
+  }
+
+  const addLineButton = event.target.closest("#addReelLineButton");
+  if (addLineButton) {
+    document.querySelector("#reelLineRows").insertAdjacentHTML("beforeend", lineRowMarkup());
+  }
+
+  const removeLineButton = event.target.closest(".remove-line-entry");
+  if (removeLineButton) {
+    removeLineButton.closest(".line-editor-row").remove();
+  }
+
+  const editReelButton = event.target.closest("[data-edit-reel]");
+  if (editReelButton) {
+    const reel = state.reels.find((item) => item.id === editReelButton.dataset.editReel);
+    if (reel) openReelDialog(reel);
+  }
+
+  const editRodButton = event.target.closest("[data-edit-rod]");
+  if (editRodButton) {
+    const rod = state.rods.find((item) => item.id === editRodButton.dataset.editRod);
+    if (rod) openRodDialog(rod);
+  }
+
+  const editComboButton = event.target.closest("[data-edit-combo]");
+  if (editComboButton) {
+    const combo = state.rodReelCombos.find((item) => item.id === editComboButton.dataset.editCombo);
+    if (combo) openComboDialog(combo);
+  }
+
   const editLureButton = event.target.closest("[data-edit-lure]");
   if (editLureButton) {
     const lure = state.lures.find((item) => item.id === editLureButton.dataset.editLure);
@@ -281,13 +338,22 @@ document.addEventListener("change", (event) => {
     pendingFlasherImage = null;
     renderQueuedGearImage("flasher");
   }
+  if (event.target.matches("#reelImage")) {
+    pendingReelImage = null;
+    renderQueuedGearImage("reel");
+  }
+  if (event.target.matches("#rodImage")) {
+    pendingRodImage = null;
+    renderQueuedGearImage("rod");
+  }
   if (event.target.matches("#startTime, #endTime")) {
     syncTripTimesToBlankRows();
     scheduleTripWeatherPreview(true);
   }
-  if (event.target.matches("#tripDate, #tripLocation, #tripLaunch")) {
+  if (event.target.matches("#tripDate, #tripLocation, #tripLaunch, #waveHeight")) {
     if (event.target.matches("#tripLocation")) populateLaunchSelect();
     updateLocationControls();
+    if (event.target.matches("#waveHeight")) scheduleTripWeatherPreview(true);
   }
   if (event.target.closest("#tripForm")) clearTripFormMessage();
   if (event.target.matches(".catch-lure, .trip-gear-lure")) {
@@ -296,10 +362,14 @@ document.addEventListener("change", (event) => {
   if (event.target.matches(".catch-flasher, .trip-gear-flasher")) {
     renderFlasherPreview(event.target.closest(".catch-row, .gear-used-row"));
   }
+  if (event.target.matches(".trip-gear-combo")) {
+    syncComboToRow(event.target.closest(".gear-used-row"));
+    populateSetupLineSelects();
+  }
   if (event.target.matches(".catch-presentation")) {
     updatePresentationFields(event.target.closest(".catch-row, .gear-used-row"));
   }
-  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label")) {
+  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label")) {
     populateSetupLineSelects();
   }
   const row = event.target.closest(".catch-row, .gear-used-row");
@@ -311,8 +381,9 @@ document.addEventListener("input", (event) => {
     syncTripTimesToBlankRows();
     scheduleTripWeatherPreview(true);
   }
-  if (event.target.matches("#tripDate, #tripLocation, #tripLaunch")) {
+  if (event.target.matches("#tripDate, #tripLocation, #tripLaunch, #waveHeight")) {
     updateLocationControls();
+    if (event.target.matches("#waveHeight")) scheduleTripWeatherPreview(true);
   }
   if (event.target.matches("#locationLatitude, #locationLongitude")) {
     const coordinates = locationFormCoordinates();
@@ -339,6 +410,7 @@ function setView(view) {
   const showingMap = view === "map";
   const showingGear = view === "gear";
   const showingGallery = view === "gallery";
+  const showingSettings = view === "settings";
   const viewButtons = {
     trips: els.tripsViewButton,
     stats: els.statsViewButton,
@@ -346,6 +418,7 @@ function setView(view) {
     map: els.mapViewButton,
     gear: els.gearViewButton,
     gallery: els.galleryViewButton,
+    settings: els.settingsViewButton,
   };
   const viewTitles = {
     trips: "Trips",
@@ -354,14 +427,16 @@ function setView(view) {
     map: "Map",
     gear: "Gear",
     gallery: "Gallery",
+    settings: "Settings",
   };
-  els.tripControls.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear || showingGallery);
-  els.tripListPanel.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear || showingGallery);
+  els.tripControls.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear || showingGallery || showingSettings);
+  els.tripListPanel.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear || showingGallery || showingSettings);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
   els.patternsPanel.classList.toggle("hidden", !showingPatterns);
   els.mapPanel.classList.toggle("hidden", !showingMap);
   els.gearPanel.classList.toggle("hidden", !showingGear);
   els.galleryPanel.classList.toggle("hidden", !showingGallery);
+  els.settingsPanel.classList.toggle("hidden", !showingSettings);
   Object.entries(viewButtons).forEach(([buttonView, button]) => {
     button.classList.toggle("is-active", buttonView === view);
     button.setAttribute("aria-current", buttonView === view ? "page" : "false");
@@ -371,6 +446,7 @@ function setView(view) {
   if (showingPatterns) renderPatterns();
   if (showingMap) renderFishMap();
   if (showingGallery) renderGallery();
+  if (showingSettings) renderSettings();
   renderGearLibrary();
 }
 

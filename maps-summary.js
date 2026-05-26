@@ -341,7 +341,8 @@ function renderTripSummaryGear(trip) {
     <div class="summary-list">
       ${gearUsed.map((gearItem, index) => {
         const timeRange = [gearItem.startTime, gearItem.endTime].filter(Boolean).join("-");
-        const gear = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
+        const rodReel = comboName(gearItem.comboId) || [rodName(gearItem.rodId), reelName(gearItem.reelId)].filter(Boolean).join(" + ");
+        const gear = [rodReel, lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
         const details = [timeRange, setupLineSideLabel(gearItem.side), presentationLabel(gearItem.presentation), gearItem.speed].filter(Boolean).join(" / ");
         return `
           <article>
@@ -633,7 +634,8 @@ function timelineTimeLabel(item) {
 function tripTimelineItems(trip) {
   const items = [];
   (trip.gearUsed || []).forEach((gearItem, index) => {
-    const gear = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
+    const rodReel = comboName(gearItem.comboId) || [rodName(gearItem.rodId), reelName(gearItem.reelId)].filter(Boolean).join(" + ");
+    const gear = [rodReel, lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
     const details = [
       gear,
       presentationLabel(gearItem.presentation),
@@ -762,7 +764,7 @@ function openTripSummary(trip) {
         <span><strong>Weather</strong>${escapeHtml(trip.weather || "Not logged")}</span>
         <span><strong>Water Temp</strong>${escapeHtml(trip.waterTemp || "Not logged")}</span>
         <span><strong>Structure</strong>${escapeHtml(trip.structure || "Not logged")}</span>
-        ${renderWeatherDetails(trip.weatherData)}
+        ${renderWeatherDetails(trip.weatherData, trip)}
       </div>
     </section>
     <section class="summary-section">

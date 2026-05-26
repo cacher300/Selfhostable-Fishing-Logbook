@@ -532,9 +532,13 @@ async function openPhotoQueue(target = null) {
   returnToTripDialog.queue = Boolean(target) && els.tripDialog.open;
   returnToTripDialog.lureImage = target?.type === "lure" && els.lureDialog.open;
   returnToTripDialog.flasherImage = target?.type === "flasher" && els.flasherDialog.open;
+  returnToTripDialog.reelImage = target?.type === "reel" && els.reelDialog.open;
+  returnToTripDialog.rodImage = target?.type === "rod" && els.rodDialog.open;
   if (returnToTripDialog.queue) els.tripDialog.close();
   if (returnToTripDialog.lureImage) els.lureDialog.close();
   if (returnToTripDialog.flasherImage) els.flasherDialog.close();
+  if (returnToTripDialog.reelImage) els.reelDialog.close();
+  if (returnToTripDialog.rodImage) els.rodDialog.close();
   els.photoQueueDialog.showModal();
   await renderPhotoQueue();
 }
@@ -556,6 +560,18 @@ function restoreDialogAfterPhotoQueue() {
     returnToTripDialog.flasherImage = false;
     setTimeout(() => {
       if (!els.flasherDialog.open) els.flasherDialog.showModal();
+    }, 0);
+  }
+  if (returnToTripDialog.reelImage) {
+    returnToTripDialog.reelImage = false;
+    setTimeout(() => {
+      if (!els.reelDialog.open) els.reelDialog.showModal();
+    }, 0);
+  }
+  if (returnToTripDialog.rodImage) {
+    returnToTripDialog.rodImage = false;
+    setTimeout(() => {
+      if (!els.rodDialog.open) els.rodDialog.showModal();
     }, 0);
   }
 }
@@ -620,9 +636,19 @@ async function claimQueuedPhoto(filename) {
       document.querySelector("#flasherImage").value = "";
       renderQueuedGearImage("flasher");
     }
+    if (activePhotoQueueTarget.type === "reel") {
+      pendingReelImage = photoItem;
+      document.querySelector("#reelImage").value = "";
+      renderQueuedGearImage("reel");
+    }
+    if (activePhotoQueueTarget.type === "rod") {
+      pendingRodImage = photoItem;
+      document.querySelector("#rodImage").value = "";
+      renderQueuedGearImage("rod");
+    }
 
     await renderPhotoQueue();
-    if (["lure", "flasher"].includes(activePhotoQueueTarget.type)) {
+    if (["lure", "flasher", "reel", "rod"].includes(activePhotoQueueTarget.type)) {
       els.photoQueueDialog.close();
     }
   } catch (error) {

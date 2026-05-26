@@ -20,13 +20,15 @@ DATA_FILE = DATA_DIR / "logbook.json"
 UPLOADS_DIR = DATA_DIR / "uploads"
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8080"))
-UPLOAD_CATEGORIES = {"catch-photos", "trip-photos", "lures", "flashers", "queue"}
+UPLOAD_CATEGORIES = {"catch-photos", "trip-photos", "lures", "flashers", "reels", "rods", "queue"}
 ALLOWED_IMAGE_EXTENSIONS = {".avif", ".gif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".webp"}
 ALLOWED_VIDEO_EXTENSIONS = {".mov", ".mp4", ".m4v", ".webm", ".avi", ".mpeg", ".mpg", ".3gp"}
 ALLOWED_MEDIA_EXTENSIONS = ALLOWED_IMAGE_EXTENSIONS | ALLOWED_VIDEO_EXTENSIONS
 PREVIEW_DIRNAME = "_previews"
 PREVIEW_MAX_SIZE = (1200, 1200)
 OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 SUNRISE_SUNSET_URL = "https://api.sunrisesunset.io/json"
 WEATHER_QUERY_KEYS = {
     "latitude",
@@ -41,9 +43,19 @@ WEATHER_QUERY_KEYS = {
     "hourly",
     "daily",
 }
+MARINE_QUERY_KEYS = {
+    "latitude",
+    "longitude",
+    "start_date",
+    "end_date",
+    "timezone",
+    "cell_selection",
+    "hourly",
+}
 ASTRONOMY_QUERY_KEYS = {"lat", "lng", "date", "timezone", "time_format"}
 WEATHER_HOURLY_FIELDS = [
     "temperature_2m",
+    "apparent_temperature",
     "relative_humidity_2m",
     "dew_point_2m",
     "precipitation",
@@ -51,11 +63,14 @@ WEATHER_HOURLY_FIELDS = [
     "snowfall",
     "weather_code",
     "surface_pressure",
+    "pressure_msl",
     "cloud_cover",
+    "visibility",
     "wind_speed_10m",
     "wind_direction_10m",
     "wind_gusts_10m",
 ]
+MARINE_HOURLY_FIELDS = ["wave_height"]
 WEATHER_DAILY_FIELDS = [
     "weather_code",
     "temperature_2m_max",
@@ -121,6 +136,18 @@ DEFAULT_LOGBOOK = {
     ],
     "lures": [],
     "flashers": [],
+    "reels": [],
+    "rods": [],
+    "rodReelCombos": [],
+    "settings": {
+        "chopRanges": [
+            {"id": "calm", "label": "calm", "maxFeet": 0.5},
+            {"id": "light", "label": "light chop", "maxFeet": 1},
+            {"id": "moderate", "label": "moderate chop", "maxFeet": 1.5},
+            {"id": "very-choppy", "label": "very choppy", "maxFeet": 2},
+            {"id": "rough", "label": "rough", "maxFeet": None},
+        ],
+    },
     "people": [],
     "locations": [],
     "trips": [],
@@ -134,8 +161,35 @@ def normalize_logbook(payload: dict | None = None) -> dict:
 
     normalized["methods"] = deepcopy(DEFAULT_LOGBOOK["methods"])
     normalized.pop("tripTypes", None)
+    if not isinstance(normalized.get("settings"), dict):
+        normalized["settings"] = deepcopy(DEFAULT_LOGBOOK["settings"])
+    else:
+        default_ranges = deepcopy(DEFAULT_LOGBOOK["settings"]["chopRanges"])
+        ranges = normalized["settings"].get("chopRanges")
+        if not isinstance(ranges, list) or not ranges:
+            ranges = default_ranges
+        cleaned_ranges = []
+        for index, item in enumerate(ranges):
+            if not isinstance(item, dict):
+                continue
+            fallback = default_ranges[index] if index < len(default_ranges) else default_ranges[-1]
+            label = str(item.get("label") or fallback["label"]).strip()
+            if not label:
+                continue
+            try:
+                max_feet = None if item.get("maxFeet") in (None, "") else round(max(0, float(item.get("maxFeet"))), 2)
+            except (TypeError, ValueError):
+                max_feet = None
+            cleaned_ranges.append({
+                "id": str(item.get("id") or fallback["id"]),
+                "label": label,
+                "maxFeet": max_feet,
+            })
+        if not any(item.get("maxFeet") is None for item in cleaned_ranges):
+            cleaned_ranges.append(default_ranges[-1])
+        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "chopRanges": cleaned_ranges or default_ranges}
 
-    list_keys = ("species", "lureTypes", "flasherTypes", "lures", "flashers", "people", "locations", "trips")
+    list_keys = ("species", "lureTypes", "flasherTypes", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
     for key in list_keys:
         if not isinstance(normalized.get(key), list):
             normalized[key] = deepcopy(DEFAULT_LOGBOOK[key])
@@ -441,6 +495,10 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
     if any(not isinstance(payload.get(key), list) for key in required_lists):
         return False, "Logbook must include trips, lures, and flashers lists"
 
+    optional_lists = ("reels", "rods", "rodReelCombos")
+    if any(key in payload and not isinstance(payload.get(key), list) for key in optional_lists):
+        return False, "Logbook gear inventory fields must be lists"
+
     if not isinstance(payload.get("people", []), list):
         return False, "Logbook people must be a list"
 
@@ -475,6 +533,61 @@ def weather_archive_payload(args: dict) -> tuple[dict, int]:
         return {"error": message or "Weather data is unavailable for this trip."}, error.code
     except (URLError, TimeoutError, OSError):
         return {"error": "Weather service unavailable. Try again later."}, 503
+
+
+def weather_forecast_payload(args: dict) -> tuple[dict, int]:
+    params = {key: str(args.get(key, "")).strip() for key in WEATHER_QUERY_KEYS if str(args.get(key, "")).strip()}
+    try:
+        latitude = float(params.get("latitude", ""))
+        longitude = float(params.get("longitude", ""))
+    except ValueError:
+        return {"error": "Weather coordinates are invalid."}, 400
+    if latitude < -90 or latitude > 90 or longitude < -180 or longitude > 180:
+        return {"error": "Weather coordinates are invalid."}, 400
+    params.setdefault("timezone", "auto")
+    params.setdefault("cell_selection", "nearest")
+    try:
+        url = f"{OPEN_METEO_FORECAST_URL}?{urlencode(params)}"
+        request_headers = {"User-Agent": "FishingLogbook/1.0 (+https://open-meteo.com/)"}
+        with urlopen(Request(url, headers=request_headers), timeout=20) as response:
+            return json.loads(response.read().decode("utf-8")), 200
+    except HTTPError as error:
+        try:
+            payload = json.loads(error.read().decode("utf-8"))
+            message = payload.get("reason") or payload.get("error")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            message = None
+        return {"error": message or "Forecast weather data is unavailable for this trip."}, error.code
+    except (URLError, TimeoutError, OSError):
+        return {"error": "Weather service unavailable. Try again later."}, 503
+
+
+def marine_weather_payload(args: dict) -> tuple[dict, int]:
+    params = {key: str(args.get(key, "")).strip() for key in MARINE_QUERY_KEYS if str(args.get(key, "")).strip()}
+    try:
+        latitude = float(params.get("latitude", ""))
+        longitude = float(params.get("longitude", ""))
+    except ValueError:
+        return {"error": "Marine coordinates are invalid."}, 400
+    if latitude < -90 or latitude > 90 or longitude < -180 or longitude > 180:
+        return {"error": "Marine coordinates are invalid."}, 400
+    params.setdefault("timezone", "auto")
+    params.setdefault("cell_selection", "nearest")
+    params.setdefault("hourly", ",".join(MARINE_HOURLY_FIELDS))
+    try:
+        url = f"{OPEN_METEO_MARINE_URL}?{urlencode(params)}"
+        request_headers = {"User-Agent": "FishingLogbook/1.0 (+https://open-meteo.com/)"}
+        with urlopen(Request(url, headers=request_headers), timeout=20) as response:
+            return json.loads(response.read().decode("utf-8")), 200
+    except HTTPError as error:
+        try:
+            payload = json.loads(error.read().decode("utf-8"))
+            message = payload.get("reason") or payload.get("error")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            message = None
+        return {"error": message or "Marine weather data is unavailable for this trip."}, error.code
+    except (URLError, TimeoutError, OSError):
+        return {"error": "Marine weather service unavailable. Try again later."}, 503
 
 
 def astronomy_payload(args: dict) -> tuple[dict, int]:
@@ -572,6 +685,26 @@ def admin_weather_bundle(coordinates: dict, start_date: str, end_date: str, cach
     return payload
 
 
+def admin_marine_bundle(coordinates: dict, start_date: str, end_date: str, cache: dict) -> dict | None:
+    key = (*rounded_coordinate_key(coordinates), start_date, end_date)
+    if key in cache:
+        return cache[key]
+    payload, status = marine_weather_payload({
+        "latitude": str(coordinates["latitude"]),
+        "longitude": str(coordinates["longitude"]),
+        "start_date": start_date,
+        "end_date": end_date,
+        "timezone": "auto",
+        "cell_selection": "nearest",
+        "hourly": ",".join(MARINE_HOURLY_FIELDS),
+    })
+    if status != 200:
+        cache[key] = None
+        return None
+    cache[key] = payload
+    return payload
+
+
 def admin_astronomy_bundle(coordinates: dict, trip_date: str, timezone: str, cache: dict) -> dict | None:
     key = (*rounded_coordinate_key(coordinates), trip_date, timezone or "auto")
     if key in cache:
@@ -613,17 +746,32 @@ def hourly_records(bundle: dict) -> list[dict]:
         {
             "time": time_value,
             "temperatureC": list_value(hourly, "temperature_2m", index),
+            "apparentTemperatureC": list_value(hourly, "apparent_temperature", index),
             "humidityPercent": list_value(hourly, "relative_humidity_2m", index),
             "dewPointC": list_value(hourly, "dew_point_2m", index),
             "precipitationIn": list_value(hourly, "precipitation", index),
             "rainIn": list_value(hourly, "rain", index),
             "snowfallIn": list_value(hourly, "snowfall", index),
             "weatherCode": list_value(hourly, "weather_code", index),
-            "pressureHpa": list_value(hourly, "surface_pressure", index),
+            "pressureHpa": list_value(hourly, "pressure_msl", index) if list_value(hourly, "pressure_msl", index) is not None else list_value(hourly, "surface_pressure", index),
+            "pressureMslHpa": list_value(hourly, "pressure_msl", index),
             "cloudCoverPercent": list_value(hourly, "cloud_cover", index),
+            "visibilityMeters": list_value(hourly, "visibility", index),
             "windSpeedMph": list_value(hourly, "wind_speed_10m", index),
             "windDirectionDegrees": list_value(hourly, "wind_direction_10m", index),
             "windGustMph": list_value(hourly, "wind_gusts_10m", index),
+        }
+        for index, time_value in enumerate(times)
+    ]
+
+
+def marine_records(bundle: dict | None) -> list[dict]:
+    hourly = (bundle or {}).get("hourly") or {}
+    times = hourly.get("time") or []
+    return [
+        {
+            "time": time_value,
+            "waveHeightM": list_value(hourly, "wave_height", index),
         }
         for index, time_value in enumerate(times)
     ]
@@ -698,16 +846,69 @@ def trip_window_hours(trip: dict, records: list[dict]) -> list[dict]:
 def trip_window_summary(records: list[dict]) -> dict:
     return {
         "temperatureC": average_number(records, "temperatureC"),
+        "apparentTemperatureC": average_number(records, "apparentTemperatureC"),
         "temperatureMaxC": max_number(records, "temperatureC"),
         "temperatureMinC": min_number(records, "temperatureC"),
         "humidityPercent": average_number(records, "humidityPercent"),
         "pressureHpa": average_number(records, "pressureHpa"),
+        "pressureMslHpa": average_number(records, "pressureMslHpa"),
         "cloudCoverPercent": average_number(records, "cloudCoverPercent"),
+        "visibilityMeters": average_number(records, "visibilityMeters"),
         "precipitationIn": sum_number(records, "precipitationIn"),
         "windSpeedMph": average_number(records, "windSpeedMph"),
         "windGustMph": average_number(records, "windGustMph"),
         "windDirectionDegrees": average_number(records, "windDirectionDegrees"),
     }
+
+
+def marine_window_summary(records: list[dict]) -> dict:
+    return {
+        "waveHeightM": average_number(records, "waveHeightM"),
+        "waveHeightMaxM": max_number(records, "waveHeightM"),
+    }
+
+
+def record_time_minutes(record: dict) -> int | None:
+    value = time_text_minutes(str(record.get("time") or ""))
+    return value or None
+
+
+def barometric_trend_rate(records: list[dict]) -> float | None:
+    pressure_records = []
+    for record in records:
+        pressure = record.get("pressureMslHpa")
+        if pressure is None:
+            pressure = record.get("pressureHpa")
+        minutes = record_time_minutes(record)
+        if minutes is None:
+            continue
+        try:
+            pressure_records.append((minutes, float(pressure)))
+        except (TypeError, ValueError):
+            continue
+    if len(pressure_records) < 2:
+        return None
+    pressure_records.sort(key=lambda item: item[0])
+    current_minutes, current_pressure = pressure_records[-1]
+    target_minutes = current_minutes - 180
+    prior_minutes, prior_pressure = min(pressure_records, key=lambda item: abs(item[0] - target_minutes))
+    if prior_minutes == current_minutes:
+        return None
+    return rounded(current_pressure - prior_pressure)
+
+
+def barometric_trend_rate_label(delta: float | None) -> str:
+    if delta is None:
+        return ""
+    if delta <= -3:
+        return "falling fast"
+    if delta < -0.8:
+        return "falling"
+    if delta >= 3:
+        return "rising fast"
+    if delta > 0.8:
+        return "rising"
+    return "steady"
 
 
 def numeric_delta(records: list[dict], key: str) -> float | None:
@@ -834,7 +1035,7 @@ def weather_wind_text(weather_data: dict) -> str:
     return f"{direction_text + ' ' if direction_text else ''}{round(float(wind))} mph{gust_text}"
 
 
-def enrich_trip_weather_backend(logbook: dict, trip: dict, weather_cache: dict, astronomy_cache: dict) -> tuple[dict, str]:
+def enrich_trip_weather_backend(logbook: dict, trip: dict, weather_cache: dict, astronomy_cache: dict, marine_cache: dict) -> tuple[dict, str]:
     source = weather_source_for_trip(logbook, trip)
     if not trip.get("date") or not source:
         trip["weatherData"] = {
@@ -848,6 +1049,21 @@ def enrich_trip_weather_backend(logbook: dict, trip: dict, weather_cache: dict, 
     hourly = hourly_records(bundle)
     window_records = trip_window_hours(trip, hourly)
     trend = trip_weather_trend(window_records)
+    pressure_rate = barometric_trend_rate(hourly)
+    trip_window = {
+        **trip_window_summary(window_records),
+        "pressureTrendRateHpa3h": pressure_rate,
+        "pressureTrendRateLabel": barometric_trend_rate_label(pressure_rate),
+    }
+    marine_bundle = admin_marine_bundle(source["coordinates"], trip["date"], end_date, marine_cache)
+    marine_hourly = trip_window_hours(trip, marine_records(marine_bundle))
+    marine = {
+        "source": source,
+        "timezone": (marine_bundle or {}).get("timezone") or "",
+        "units": (marine_bundle or {}).get("hourly_units") or {},
+        "hourly": marine_hourly,
+        **marine_window_summary(marine_hourly),
+    } if marine_bundle else {"status": "unavailable", "message": "Marine data unavailable"}
     weather_data = {
         "source": source,
         "fetchedAt": now_iso(),
@@ -855,8 +1071,13 @@ def enrich_trip_weather_backend(logbook: dict, trip: dict, weather_cache: dict, 
         "units": weather_units(bundle),
         "daily": daily_record(bundle),
         "hourly": window_records,
-        "tripWindow": trip_window_summary(window_records),
+        "tripWindow": trip_window,
         "trend": trend,
+        "marine": marine,
+        "manual": {
+            "waveHeight": trip.get("waveHeight") or "",
+            "waveChop": trip.get("waveChop") or "",
+        },
         "sunMoon": admin_astronomy_bundle(source["coordinates"], trip["date"], bundle.get("timezone") or "", astronomy_cache),
     }
     weather_data["frontTag"] = front_tag_from_trend(trend)
@@ -892,6 +1113,9 @@ def enrich_trip_weather_backend(logbook: dict, trip: dict, weather_cache: dict, 
         updated_catches.append(catch)
 
     trip["weatherData"] = weather_data
+    if not trip.get("waveHeight") and marine.get("waveHeightM") is not None:
+        trip["waveHeight"] = f"{marine['waveHeightM']} m"
+        weather_data["manual"]["waveHeight"] = trip["waveHeight"]
     trip["wind"] = weather_wind_text(weather_data)
     trip["catches"] = updated_catches
     return trip, "refreshed"
@@ -906,6 +1130,7 @@ def refresh_all_trip_weather() -> dict:
     logbook = read_logbook()
     weather_cache: dict = {}
     astronomy_cache: dict = {}
+    marine_cache: dict = {}
     results = []
     refreshed = 0
     skipped = 0
@@ -917,7 +1142,7 @@ def refresh_all_trip_weather() -> dict:
             continue
         label = trip.get("title") or trip.get("location") or trip.get("date") or trip.get("id") or "Trip"
         try:
-            updated_trip, status = enrich_trip_weather_backend(logbook, deepcopy(trip), weather_cache, astronomy_cache)
+            updated_trip, status = enrich_trip_weather_backend(logbook, deepcopy(trip), weather_cache, astronomy_cache, marine_cache)
             updated_trips.append(updated_trip)
             if status == "refreshed":
                 refreshed += 1
@@ -1019,6 +1244,16 @@ def create_app() -> Flask:
     @app.get("/api/weather/archive")
     def weather_archive() -> tuple[Response, int]:
         payload, status = weather_archive_payload(request.args)
+        return jsonify(payload), status
+
+    @app.get("/api/weather/forecast")
+    def weather_forecast() -> tuple[Response, int]:
+        payload, status = weather_forecast_payload(request.args)
+        return jsonify(payload), status
+
+    @app.get("/api/weather/marine")
+    def marine_weather() -> tuple[Response, int]:
+        payload, status = marine_weather_payload(request.args)
         return jsonify(payload), status
 
     @app.get("/api/astronomy")
