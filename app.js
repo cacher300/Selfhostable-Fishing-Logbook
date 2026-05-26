@@ -9,7 +9,6 @@ els.addTripGearButton.addEventListener("click", () => addTripGearRow());
 els.addPersonButton.addEventListener("click", () => addPersonRow());
 els.addLocationButton.addEventListener("click", () => openLocationDialog("location"));
 els.addLaunchButton.addEventListener("click", () => openLocationDialog("launch", els.tripLocation.value));
-els.refreshWeatherButton.addEventListener("click", () => refreshTripWeatherPreview(true));
 els.notePhotoInput.addEventListener("change", addNotePhotos);
 els.photoQueueButton.addEventListener("click", () => {
   els.photoQueueButton.closest("details")?.removeAttribute("open");
@@ -215,9 +214,21 @@ document.addEventListener("click", (event) => {
     openLocationDialog("location", editManagedLocation.dataset.editManagedLocation);
   }
 
+  const deleteManagedLocationButton = event.target.closest("[data-delete-managed-location]");
+  if (deleteManagedLocationButton) {
+    deleteManagedLocation(deleteManagedLocationButton.dataset.deleteManagedLocation)
+      .catch((error) => alert(error.message || "The waterbody could not be deleted."));
+  }
+
   const editManagedLaunch = event.target.closest("[data-edit-managed-launch]");
   if (editManagedLaunch) {
     openLocationDialog("launch", editManagedLaunch.dataset.locationId, editManagedLaunch.dataset.editManagedLaunch);
+  }
+
+  const deleteManagedLaunchButton = event.target.closest("[data-delete-managed-launch]");
+  if (deleteManagedLaunchButton) {
+    deleteManagedLaunch(deleteManagedLaunchButton.dataset.locationId, deleteManagedLaunchButton.dataset.deleteManagedLaunch)
+      .catch((error) => alert(error.message || "The launch could not be deleted."));
   }
 
   const newLureButton = event.target.closest(".add-lure-inline");

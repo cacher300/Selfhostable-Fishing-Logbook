@@ -158,11 +158,11 @@ function cloudCoverBucket(value) {
 
 function airTempBucket(value) {
   return weatherBucket(value, [
-    { max: 40, label: "Cold <40 F" },
-    { max: 55, label: "Cool 40-55 F" },
-    { max: 70, label: "Mild 55-70 F" },
-    { max: 85, label: "Warm 70-85 F" },
-    { max: Infinity, label: "Hot 85+ F" }
+    { max: 5, label: "Cold <5 C" },
+    { max: 13, label: "Cool 5-13 C" },
+    { max: 21, label: "Mild 13-21 C" },
+    { max: 29, label: "Warm 21-29 C" },
+    { max: Infinity, label: "Hot 29+ C" }
   ]);
 }
 
@@ -271,7 +271,6 @@ function renderAdvancedStats() {
   const bestTrip = [...trips].sort((a, b) => scopedTripFish(b) - scopedTripFish(a))[0];
   const bestCatchRateTrip = [...trips].sort((a, b) => scopedCatchRate(b) - scopedCatchRate(a))[0];
   const dateMetrics = fishingDateMetrics(trips, (trip) => scopedTripFish(trip) > 0);
-  const weatherCoverage = summarizeWeatherCoverage(trips, records);
 
   els.advancedMetricGrid.innerHTML = [
     ["Trips", trips.length],
@@ -291,9 +290,7 @@ function renderAdvancedStats() {
     ["Days since catch", dateMetrics.daysSinceLastCatch ?? "-"],
     ["Longest fishing streak", dateMetrics.longestFishingStreak],
     ["Longest no-catch run", dateMetrics.longestNoCatchRun ?? "-"],
-    ["Best trip", bestTrip ? `${scopedTripFish(bestTrip)} fish` : "0"],
-    ["Weather trips", `${weatherCoverage.trips} (${weatherCoverage.tripPercent})`],
-    ["Catch weather", `${weatherCoverage.catches} (${weatherCoverage.catchPercent})`]
+    ["Best trip", bestTrip ? `${scopedTripFish(bestTrip)} fish` : "0"]
   ].map(([label, value]) => `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
 
   renderStatsTable(els.outcomeStatsTable, ["Outcome", "Fish", "Rate"], outcomeRows(fish, releasedFish, keptFish, lostFish));
@@ -356,7 +353,6 @@ function renderAdvancedStats() {
   renderStatsTable(els.bestPatternStatsTable, ["Pattern", "Fish", "Trips", "Fish / hr"], summarizeBestPatterns(records, trips));
   renderStatsTable(els.timeOfDayStatsTable, ["Time", "Landed", "Lost", "Share"], summarizeTimeOfDay(records, lostRecords, fishInteractions));
   renderStatsTable(els.releaseStatsTable, ["Species", "Landed", "Released", "Kept", "Release %"], summarizeReleasePatterns(records));
-  renderStatsTable(els.photoCoverageStatsTable, ["Coverage", "Count", "Share"], summarizePhotoCoverage(records));
 
   if (isTrollingScope) {
     const trollingCatches = records.filter(isTrollingRecord);
@@ -423,7 +419,7 @@ function renderAdvancedStats() {
   renderStatsTable(els.windSpeedStatsTable, ["Wind Speed", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => windSpeedBucket(weatherNumber(record, "windSpeedMph"))));
   renderStatsTable(els.pressureStatsTable, ["Pressure", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => pressureBucket(weatherNumber(record, "pressureHpa"))));
   renderStatsTable(els.cloudCoverStatsTable, ["Cloud Cover", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => cloudCoverBucket(weatherNumber(record, "cloudCoverPercent"))));
-  renderStatsTable(els.airTempStatsTable, ["Air Temp", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => airTempBucket(weatherNumber(record, "temperatureF"))));
+  renderStatsTable(els.airTempStatsTable, ["Air Temp", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => airTempBucket(weatherNumber(record, "temperatureC"))));
   renderStatsTable(els.sunshineStatsTable, ["Sunshine", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => sunshineBucket(weatherNumber(record, "sunshineDurationSeconds", "daily"))));
   renderStatsTable(els.weatherTrendStatsTable, ["Trend", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => weatherTrendText(record.trip?.weatherData)));
   renderStatsTable(els.frontTagStatsTable, ["Front Tag", "Fish", "Trips", "Fish / Trip"], summarizeWeatherBuckets(records, (record) => weatherText(record, "frontTag")));
@@ -537,19 +533,6 @@ function summarizeReleasePatterns(records) {
   return [...map.values()]
     .sort((a, b) => b.landed - a.landed)
     .map((item) => [item.name, item.landed, item.released, Math.max(0, item.landed - item.released), formatPercent(item.released, item.landed)]);
-}
-
-function summarizePhotoCoverage(records) {
-  const total = records.reduce((sum, record) => sum + fishCount(record), 0);
-  const withPhotos = records.filter((record) => (record.photos || []).length).reduce((sum, record) => sum + fishCount(record), 0);
-  const withGps = records.filter((record) => record.coordinates).reduce((sum, record) => sum + fishCount(record), 0);
-  const manualGps = records.filter((record) => record.manualCoordinates || record.coordinates?.manual).reduce((sum, record) => sum + fishCount(record), 0);
-  return [
-    ["Fish logged", total, "100%"],
-    ["With photos", withPhotos, formatPercent(withPhotos, total)],
-    ["With GPS", withGps, formatPercent(withGps, total)],
-    ["Manual GPS overrides", manualGps, formatPercent(manualGps, total)]
-  ];
 }
 
 function summarizeFieldWithLost(catches, lostRecords, keyFn) {

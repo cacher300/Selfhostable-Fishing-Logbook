@@ -69,7 +69,7 @@ function renderPatternFilters() {
   if (!cloudOptions.includes(activePatternFilters.cloud)) activePatternFilters.cloud = "All cloud";
   renderPatternFilter(els.patternCloudFilter, cloudOptions, activePatternFilters.cloud);
 
-  const tempOptions = patternOptions("All air temp", records.map((record) => airTempBucket(weatherNumber(record, "temperatureF"))));
+  const tempOptions = patternOptions("All air temp", records.map((record) => airTempBucket(weatherNumber(record, "temperatureC"))));
   if (!tempOptions.includes(activePatternFilters.airTemp)) activePatternFilters.airTemp = "All air temp";
   renderPatternFilter(els.patternAirTempFilter, tempOptions, activePatternFilters.airTemp);
 
@@ -98,7 +98,7 @@ function patternWeatherFiltersMatch(record) {
     (activePatternFilters.wind === "All wind" || windDirectionLabel(weatherNumber(record, "windDirectionDegrees")) === activePatternFilters.wind)
     && (activePatternFilters.pressure === "All pressure" || pressureBucket(weatherNumber(record, "pressureHpa")) === activePatternFilters.pressure)
     && (activePatternFilters.cloud === "All cloud" || cloudCoverBucket(weatherNumber(record, "cloudCoverPercent")) === activePatternFilters.cloud)
-    && (activePatternFilters.airTemp === "All air temp" || airTempBucket(weatherNumber(record, "temperatureF")) === activePatternFilters.airTemp)
+    && (activePatternFilters.airTemp === "All air temp" || airTempBucket(weatherNumber(record, "temperatureC")) === activePatternFilters.airTemp)
   );
 }
 
@@ -136,7 +136,7 @@ function patternWeatherPart(record) {
     windSpeedBucket(weatherNumber(record, "windSpeedMph")),
     pressureBucket(weatherNumber(record, "pressureHpa")),
     cloudCoverBucket(weatherNumber(record, "cloudCoverPercent")),
-    airTempBucket(weatherNumber(record, "temperatureF"))
+    airTempBucket(weatherNumber(record, "temperatureC"))
   ].filter(Boolean).join(" / ");
 }
 

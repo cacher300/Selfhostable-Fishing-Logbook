@@ -291,26 +291,36 @@ function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
   `;
 }
 
+function compactCatchDetails(trip, catchItem, options = {}) {
+  const record = resolveTripLineRecord({ ...catchItem, trip });
+  const gear = record.setupLine
+    ? setupLineDisplayLabel(trip, record.setupLine)
+    : [lureName(record.lureId), flasherName(record.flasherId)].filter(Boolean).join(" + ");
+  const fishingDetails = [
+    options.showOutcome ? (record.released ? "Released" : "Kept") : (record.released ? "Released" : ""),
+    record.length,
+    record.weight,
+    record.time,
+    record.fowCaught,
+    record.depthDown ? `${record.depthDown} down` : "",
+    record.waterDepth ? `${record.waterDepth} water` : "",
+    record.speed,
+    gear
+  ].filter(Boolean).join(" / ");
+  const weatherDetails = [
+    catchWeatherSummary(catchItem.weatherData),
+    catchWeatherComparison(catchItem.weatherData, trip.weatherData),
+    moonWindowForTime(catchItem.time, trip.weatherData?.sunMoon)
+  ].filter(Boolean).join(" / ");
+  const location = record.coordinates ? formatCoordinates(record.coordinates) : "";
+  return [fishingDetails, weatherDetails, location].filter(Boolean).join(" | ");
+}
+
 function renderTripSummaryCatches(trip) {
   const catches = trip.catches || [];
   if (!catches.length) return `<div class="empty-state compact-empty"><p>No catches logged.</p></div>`;
   return catches.map((catchItem, index) => {
-    const record = resolveTripLineRecord({ ...catchItem, trip });
-    const details = [
-      record.released ? "Released" : "",
-      record.length,
-      record.weight,
-      record.time,
-      record.depthDown ? `${record.depthDown} down` : "",
-      record.waterDepth ? `${record.waterDepth} water` : "",
-      record.setupLine ? setupLineDisplayLabel(trip, record.setupLine) : "",
-      lureName(record.lureId),
-      flasherName(record.flasherId),
-      record.coordinates ? formatCoordinates(record.coordinates) : "",
-      catchWeatherSummary(catchItem.weatherData),
-      catchWeatherComparison(catchItem.weatherData, trip.weatherData),
-      moonWindowForTime(catchItem.time, trip.weatherData?.sunMoon)
-    ].filter(Boolean).join(" / ");
+    const details = compactCatchDetails(trip, catchItem);
     return `
       <article class="summary-catch-card">
         <div>
@@ -644,22 +654,7 @@ function tripTimelineItems(trip) {
   });
 
   (trip.catches || []).forEach((catchItem, index) => {
-    const record = resolveTripLineRecord({ ...catchItem, trip });
-    const details = [
-      record.released ? "Released" : "Kept",
-      record.length,
-      record.weight,
-      record.fowCaught,
-      record.depthDown ? `${record.depthDown} down` : "",
-      record.waterDepth ? `${record.waterDepth} water` : "",
-      record.setupLine ? setupLineDisplayLabel(trip, record.setupLine) : "",
-      lureName(record.lureId),
-      flasherName(record.flasherId),
-      record.speed,
-      catchWeatherSummary(catchItem.weatherData),
-      catchWeatherComparison(catchItem.weatherData, trip.weatherData),
-      moonWindowForTime(catchItem.time, trip.weatherData?.sunMoon)
-    ].filter(Boolean).join(" / ");
+    const details = compactCatchDetails(trip, catchItem, { showOutcome: true });
     items.push({
       type: "Catch",
       title: catchItem.species || `Catch ${index + 1}`,

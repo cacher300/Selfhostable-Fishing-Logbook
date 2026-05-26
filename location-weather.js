@@ -48,7 +48,7 @@ async function fetchWeatherBundle(coordinates, startDate, endDate) {
     end_date: endDate,
     timezone: "auto",
     cell_selection: "nearest",
-    temperature_unit: "fahrenheit",
+    temperature_unit: "celsius",
     wind_speed_unit: "mph",
     precipitation_unit: "inch",
     hourly: [
@@ -132,9 +132,9 @@ function hourlyRecords(bundle) {
   const hourly = bundle.hourly || {};
   return (hourly.time || []).map((time, index) => ({
     time,
-    temperatureF: hourly.temperature_2m?.[index] ?? null,
+    temperatureC: hourly.temperature_2m?.[index] ?? null,
     humidityPercent: hourly.relative_humidity_2m?.[index] ?? null,
-    dewPointF: hourly.dew_point_2m?.[index] ?? null,
+    dewPointC: hourly.dew_point_2m?.[index] ?? null,
     precipitationIn: hourly.precipitation?.[index] ?? null,
     rainIn: hourly.rain?.[index] ?? null,
     snowfallIn: hourly.snowfall?.[index] ?? null,
@@ -152,8 +152,8 @@ function dailyRecord(bundle) {
   return {
     date: daily.time?.[0] || "",
     weatherCode: daily.weather_code?.[0] ?? null,
-    temperatureMaxF: daily.temperature_2m_max?.[0] ?? null,
-    temperatureMinF: daily.temperature_2m_min?.[0] ?? null,
+    temperatureMaxC: daily.temperature_2m_max?.[0] ?? null,
+    temperatureMinC: daily.temperature_2m_min?.[0] ?? null,
     precipitationIn: daily.precipitation_sum?.[0] ?? null,
     rainIn: daily.rain_sum?.[0] ?? null,
     snowfallIn: daily.snowfall_sum?.[0] ?? null,
@@ -189,9 +189,23 @@ function sumNumber(records, key) {
   return Math.round(values.reduce((sum, value) => sum + value, 0) * 100) / 100;
 }
 
+function minNumber(records, key) {
+  const values = records.map((record) => Number(record[key])).filter(Number.isFinite);
+  if (!values.length) return null;
+  return Math.round(Math.min(...values) * 10) / 10;
+}
+
+function maxNumber(records, key) {
+  const values = records.map((record) => Number(record[key])).filter(Number.isFinite);
+  if (!values.length) return null;
+  return Math.round(Math.max(...values) * 10) / 10;
+}
+
 function tripWindowSummary(records) {
   return {
-    temperatureF: averageNumber(records, "temperatureF"),
+    temperatureC: averageNumber(records, "temperatureC"),
+    temperatureMaxC: maxNumber(records, "temperatureC"),
+    temperatureMinC: minNumber(records, "temperatureC"),
     humidityPercent: averageNumber(records, "humidityPercent"),
     pressureHpa: averageNumber(records, "pressureHpa"),
     cloudCoverPercent: averageNumber(records, "cloudCoverPercent"),
@@ -223,13 +237,13 @@ function trendLabel(delta, unit, threshold = 1) {
 
 function tripWeatherTrend(records) {
   const pressureDelta = numericDelta(records, "pressureHpa");
-  const temperatureDelta = numericDelta(records, "temperatureF");
+  const temperatureDelta = numericDelta(records, "temperatureC");
   const windSpeedDelta = numericDelta(records, "windSpeedMph");
   const cloudCoverDelta = numericDelta(records, "cloudCoverPercent");
   const windDirectionDelta = windDirectionShift(records);
   return {
     pressureDeltaHpa: pressureDelta,
-    temperatureDeltaF: temperatureDelta,
+    temperatureDeltaC: temperatureDelta,
     windSpeedDeltaMph: windSpeedDelta,
     cloudCoverDeltaPercent: cloudCoverDelta,
     windDirectionShiftDegrees: windDirectionDelta,
@@ -426,9 +440,8 @@ function catchWeatherSummary(weatherData) {
   const hourly = weatherData?.hourly;
   if (!hourly) return "";
   return [
-    hourly.temperatureF === null || hourly.temperatureF === undefined ? "" : `${Math.round(hourly.temperatureF)} F`,
+    hourly.temperatureC === null || hourly.temperatureC === undefined ? "" : `${Math.round(hourly.temperatureC)} C`,
     hourlyWindText(hourly),
-    hourly.pressureHpa === null || hourly.pressureHpa === undefined ? "" : `${Math.round(hourly.pressureHpa)} hPa`,
     hourly.cloudCoverPercent === null || hourly.cloudCoverPercent === undefined ? "" : `${Math.round(hourly.cloudCoverPercent)}% cloud`
   ].filter(Boolean).join(" / ");
 }
@@ -445,8 +458,7 @@ function catchWeatherComparison(catchWeather, tripWeather) {
   if (!hourly || !tripWindow) return "";
   return [
     signedWeatherDelta(Number(hourly.windSpeedMph) - Number(tripWindow.windSpeedMph), " mph wind"),
-    signedWeatherDelta(Number(hourly.temperatureF) - Number(tripWindow.temperatureF), " F"),
-    signedWeatherDelta(Number(hourly.pressureHpa) - Number(tripWindow.pressureHpa), " hPa"),
+    signedWeatherDelta(Number(hourly.temperatureC) - Number(tripWindow.temperatureC), " C"),
     signedWeatherDelta(Number(hourly.cloudCoverPercent) - Number(tripWindow.cloudCoverPercent), "% cloud")
   ].filter(Boolean).join(" / ");
 }
@@ -517,6 +529,11 @@ function weatherValue(value, suffix = "") {
   return value === null || value === undefined || value === "" ? "Not logged" : `${value}${suffix}`;
 }
 
+function weatherValueWithTrend(value, ...trendParts) {
+  const trends = trendParts.filter(Boolean);
+  return [value || "Not logged", ...trends].join(" / ");
+}
+
 function renderWeatherDetails(weatherData) {
   if (!weatherData || weatherData.status === "missing-coordinates") {
     return `<span><strong>API Weather</strong>Add a mapped location pin to fetch weather.</span>`;
@@ -526,21 +543,23 @@ function renderWeatherDetails(weatherData) {
   }
   const window = weatherData.tripWindow || {};
   const daily = weatherData.daily || {};
-  const source = weatherData.source ? `${weatherData.source.name} (${weatherData.source.type})` : "Not logged";
+  const trend = weatherData.trend || {};
+  const windTrend = [
+    trend.windTrend,
+    trend.windDirectionShiftDegrees ? `${trend.windDirectionShiftDegrees} deg wind shift` : ""
+  ].filter(Boolean).join(" / ");
   return `
-    <span><strong>Weather Source</strong>${escapeHtml(source)}</span>
     <span><strong>Front Tag</strong>${escapeHtml(weatherData.frontTag || "Not logged")}</span>
-    <span><strong>Trend</strong>${escapeHtml(weatherTrendText(weatherData) || "Not logged")}</span>
-    <span><strong>Air Temp</strong>${escapeHtml(weatherValue(window.temperatureF, " F"))}</span>
-    <span><strong>Wind</strong>${escapeHtml(weatherWindText(weatherData) || weatherValue(daily.windSpeedMaxMph, " mph"))}</span>
-    <span><strong>Pressure</strong>${escapeHtml(weatherValue(window.pressureHpa, " hPa"))}</span>
+    <span><strong>Air Temp</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.temperatureC, " C"), trend.temperatureTrend))}</span>
+    <span><strong>Wind</strong>${escapeHtml(weatherValueWithTrend(weatherWindText(weatherData) || weatherValue(daily.windSpeedMaxMph, " mph"), windTrend))}</span>
+    <span><strong>Pressure</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.pressureHpa, " hPa"), trend.pressureTrend))}</span>
     <span><strong>Humidity</strong>${escapeHtml(weatherValue(window.humidityPercent, "%"))}</span>
-    <span><strong>Cloud Cover</strong>${escapeHtml(weatherValue(window.cloudCoverPercent, "%"))}</span>
+    <span><strong>Cloud Cover</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.cloudCoverPercent, "%"), trend.cloudTrend))}</span>
     <span><strong>Sunshine</strong>${escapeHtml(sunshineDurationText(daily.sunshineDurationSeconds))}</span>
     <span><strong>Sunrise / Sunset</strong>${escapeHtml([timeText(weatherData.sunMoon?.sunrise) || daily.sunrise?.slice(11, 16), timeText(weatherData.sunMoon?.sunset) || daily.sunset?.slice(11, 16)].filter(Boolean).join(" / ") || "Not logged")}</span>
     <span><strong>Moon</strong>${escapeHtml(weatherData.sunMoon ? `${weatherData.sunMoon.phase} (${weatherData.sunMoon.illuminationPercent}%)` : "Not logged")}</span>
     <span><strong>Moonrise / Moonset</strong>${escapeHtml(weatherData.sunMoon ? [timeText(weatherData.sunMoon.moonrise), timeText(weatherData.sunMoon.moonset)].filter(Boolean).join(" / ") || "Not logged" : "Not logged")}</span>
     <span><strong>Precipitation</strong>${escapeHtml(weatherValue(window.precipitationIn ?? daily.precipitationIn, " in"))}</span>
-    <span><strong>Daily High / Low</strong>${escapeHtml(`${weatherValue(daily.temperatureMaxF, " F")} / ${weatherValue(daily.temperatureMinF, " F")}`)}</span>
+    <span><strong>Trip High / Low</strong>${escapeHtml(`${weatherValue(window.temperatureMaxC, " C")} / ${weatherValue(window.temperatureMinC, " C")}`)}</span>
   `;
 }

@@ -46,6 +46,7 @@ function renderLocationManager() {
         </div>
         <div class="location-manager-card-actions">
           <button class="button secondary" type="button" data-edit-managed-location="${escapeHtml(location.id)}">Edit</button>
+          <button class="button danger" type="button" data-delete-managed-location="${escapeHtml(location.id)}">Delete</button>
         </div>
       </div>
       ${(location.launches || []).length ? `
@@ -53,7 +54,10 @@ function renderLocationManager() {
           ${(location.launches || []).map((launch) => `
             <div>
               <span>${escapeHtml(launch.name)}${coordinateText(launch.coordinates) ? ` / ${escapeHtml(coordinateText(launch.coordinates))}` : ""}</span>
-              <button class="button secondary" type="button" data-location-id="${escapeHtml(location.id)}" data-edit-managed-launch="${escapeHtml(launch.id)}">Edit</button>
+              <div class="location-manager-card-actions">
+                <button class="button secondary" type="button" data-location-id="${escapeHtml(location.id)}" data-edit-managed-launch="${escapeHtml(launch.id)}">Edit</button>
+                <button class="button danger" type="button" data-location-id="${escapeHtml(location.id)}" data-delete-managed-launch="${escapeHtml(launch.id)}">Delete</button>
+              </div>
             </div>
           `).join("")}
         </div>
@@ -180,4 +184,49 @@ async function saveLocationPin(event) {
     console.error("Could not save location pin.", error);
   }
   scheduleTripWeatherPreview(true);
+}
+
+function tripUsesLocation(trip, location) {
+  return trip.locationId === location.id
+    || String(trip.location || "").trim().toLowerCase() === location.name.toLowerCase();
+}
+
+function tripUsesLaunch(trip, location, launch) {
+  if (!tripUsesLocation(trip, location)) return false;
+  return trip.launchId === launch.id
+    || String(trip.launch || "").trim().toLowerCase() === launch.name.toLowerCase();
+}
+
+async function deleteManagedLocation(locationId) {
+  const location = state.locations.find((item) => item.id === locationId);
+  if (!location) return;
+  const usedTrips = state.trips.filter((trip) => tripUsesLocation(trip, location));
+  if (usedTrips.length) {
+    alert(`This waterbody is used by ${usedTrips.length} saved trip${usedTrips.length === 1 ? "" : "s"}. Edit those trips before deleting it.`);
+    return;
+  }
+  if (!confirm(`Delete ${location.name}?`)) return;
+  state.locations = state.locations.filter((item) => item.id !== location.id);
+  populateLocationSelect();
+  renderLocationManager();
+  await saveState();
+  renderFilters();
+}
+
+async function deleteManagedLaunch(locationId, launchId) {
+  const location = state.locations.find((item) => item.id === locationId);
+  const launch = findLaunchByIdOrName(location, launchId, "");
+  if (!location || !launch) return;
+  const usedTrips = state.trips.filter((trip) => tripUsesLaunch(trip, location, launch));
+  if (usedTrips.length) {
+    alert(`This launch is used by ${usedTrips.length} saved trip${usedTrips.length === 1 ? "" : "s"}. Edit those trips before deleting it.`);
+    return;
+  }
+  if (!confirm(`Delete ${launch.name}?`)) return;
+  location.launches = (location.launches || []).filter((item) => item.id !== launch.id);
+  populateLocationSelect(location.id);
+  populateLaunchSelect();
+  renderLocationManager();
+  await saveState();
+  renderFilters();
 }

@@ -304,6 +304,7 @@ function filteredTrips() {
     const haystack = [
       trip.title,
       trip.location,
+      trip.launch,
       trip.targetSpecies,
       trip.method,
       trip.intent,
@@ -349,7 +350,7 @@ function renderTrips() {
   const trips = filteredTrips();
   els.tripTable.innerHTML = `
     <div class="table-row header">
-      <span>Location</span><span>Title</span><span>Date</span><span>Hours</span><span>Caught</span><span>Catch Rate</span><span>Target</span><span></span>
+      <span>Location</span><span>Launch</span><span>Title</span><span>Date</span><span>Hours</span><span>Caught</span><span>Catch Rate</span><span>Target</span><span></span>
     </div>
   `;
 
@@ -360,6 +361,7 @@ function renderTrips() {
       <button class="location-link" type="button" data-view-trip="${trip.id}">
         ${escapeHtml(trip.location)}
       </button>
+      <span>${escapeHtml(trip.launch || "")}</span>
       <span>${escapeHtml(trip.title || "")}</span>
       <span>${formatDate(trip.date)}</span>
       <span>${trimNumber(tripHours(trip))}</span>

@@ -580,7 +580,7 @@ textarea[aria-invalid="true"] {
 
 .table-row {
   display: grid;
-  grid-template-columns: 1.15fr 1fr 135px 80px 80px 105px minmax(150px, 0.85fr) 42px;
+  grid-template-columns: 1.05fr 0.9fr 1fr 135px 72px 78px 100px minmax(150px, 0.85fr) 42px;
   align-items: center;
   gap: 14px;
   min-height: 64px;
@@ -605,7 +605,7 @@ textarea[aria-invalid="true"] {
   background: none;
   color: var(--text);
   text-align: left;
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .muted {
@@ -2362,12 +2362,13 @@ textarea[aria-invalid="true"] {
   }
 
   .table-row {
-    grid-template-columns: 1fr 1fr 110px 70px 42px;
+    grid-template-columns: 1fr 0.9fr 1fr 70px 42px;
   }
 
   .table-row > :nth-child(4),
-  .table-row > :nth-child(6),
-  .table-row > :nth-child(7) {
+  .table-row > :nth-child(5),
+  .table-row > :nth-child(7),
+  .table-row > :nth-child(8) {
     display: none;
   }
 
@@ -2547,8 +2548,10 @@ textarea[aria-invalid="true"] {
 
   .table-row > :nth-child(3),
   .table-row > :nth-child(4),
+  .table-row > :nth-child(5),
   .table-row > :nth-child(6),
-  .table-row > :nth-child(7) {
+  .table-row > :nth-child(7),
+  .table-row > :nth-child(8) {
     display: none;
   }
 
