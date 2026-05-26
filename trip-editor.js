@@ -59,6 +59,9 @@ function openTripDialog(trip = null) {
   setValue("waterClarity", trip?.waterClarity || "");
   setValue("weather", trip?.weather || "");
   setValue("waveHeight", trip?.waveHeight || "");
+  setValue("waveChopDisplay", trip?.waveChop || "");
+  updateMarineWaveHeightPlaceholder(trip?.weatherData || activeTripWeatherData);
+  updateAutoWaveChopDisplay(trip?.weatherData || activeTripWeatherData);
   setValue("structure", trip?.structure || "");
   setValue("tripNotes", trip?.notes || "");
   activeTripWeatherData = trip?.weatherData || null;
@@ -537,6 +540,7 @@ function collectTripFromForm() {
   const launch = findLaunchByIdOrName(location, getValue("tripLaunch"), "");
   const weatherData = activeTripWeatherData || null;
   const waveHeight = getValue("waveHeight");
+  const waveChop = chopLabelForWaveHeight(waveHeight);
 
   return {
     id: getValue("tripId") || createId(),
@@ -557,7 +561,7 @@ function collectTripFromForm() {
     waterClarity: getValue("waterClarity"),
     weather: getValue("weather"),
     waveHeight,
-    waveChop: chopLabelForWaveHeight(waveHeight),
+    waveChop,
     wind: weatherWindText(weatherData),
     weatherData,
     structure: getValue("structure"),
@@ -591,11 +595,7 @@ async function saveTrip(event) {
     trip.catches.forEach((catchItem) => upsertListValue("species", catchItem.species));
     trip.lostFish.forEach((fish) => upsertListValue("species", fish.possibleSpecies));
     trip = await enrichTripWithWeather(trip);
-    if (!trip.waveHeight && trip.weatherData?.marine?.waveHeightM !== null && trip.weatherData?.marine?.waveHeightM !== undefined) {
-      trip.waveHeight = `${trimNumber(trip.weatherData.marine.waveHeightM)} m`;
-    }
-    trip.waveChop = chopLabelForWaveHeight(trip.waveHeight);
-    trip.weatherData = applyManualWaveData(trip.weatherData, trip);
+    trip = resolveTripWaveSnapshot(trip);
     trip.wind = weatherWindText(trip.weatherData);
     activeTripWeatherData = trip.weatherData || null;
 

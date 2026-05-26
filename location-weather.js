@@ -15,21 +15,85 @@ function tripDraftForWeather() {
     launch: launch?.name || "",
     launchId: launch?.id || "",
     waveHeight: getValue("waveHeight"),
-    waveChop: chopLabelForWaveHeight(getValue("waveHeight")),
     catches: []
   };
 }
 
-function applyManualWaveData(weatherData, trip) {
-  if (!weatherData) return weatherData;
-  return {
-    ...weatherData,
-    manual: {
-      ...(weatherData.manual || {}),
-      waveHeight: trip?.waveHeight || weatherData.manual?.waveHeight || "",
-      waveChop: chopLabelForWaveHeight(trip?.waveHeight || weatherData.manual?.waveHeight || weatherData.marine?.waveHeightM)
-    }
-  };
+function marineSnapshot(weatherData) {
+  const marine = weatherData?.marine;
+  if (!marine || marine.status === "unavailable") return null;
+  if (marine.marineDataAvailable === false) return null;
+  if (marine.marineDataAvailable === true) return marine;
+  if (marine.waveHeightM !== null && marine.waveHeightM !== undefined && Number.isFinite(Number(marine.waveHeightM))) {
+    return { ...marine, marineDataAvailable: true };
+  }
+  return null;
+}
+
+function formatMarineWaveHeightM(waveHeightM) {
+  if (waveHeightM === null || waveHeightM === undefined) return "";
+  const feet = Number(waveHeightM) * 3.28084;
+  if (!Number.isFinite(feet)) return "";
+  return `${trimNumber(feet)} ft`;
+}
+
+function marineWaveHeightPlaceholderText(weatherData) {
+  const marine = marineSnapshot(weatherData);
+  if (marine?.marineDataAvailable && marine.waveHeightM !== null && marine.waveHeightM !== undefined) {
+    return formatMarineWaveHeightM(marine.waveHeightM);
+  }
+  return "Wave height not available for this location";
+}
+
+function updateMarineWaveHeightPlaceholder(weatherData) {
+  if (!els.waveHeight) return;
+  els.waveHeight.placeholder = marineWaveHeightPlaceholderText(weatherData);
+}
+
+function updateAutoWaveChopDisplay(weatherData = activeTripWeatherData) {
+  if (!els.waveChopDisplay) return;
+  const typedHeight = String(els.waveHeight?.value || "").trim();
+  const marine = marineSnapshot(weatherData);
+  const sourceHeight = typedHeight
+    || (marine?.marineDataAvailable && marine.waveHeightM !== null && marine.waveHeightM !== undefined ? formatMarineWaveHeightM(marine.waveHeightM) : "");
+  const chop = chopLabelForWaveHeight(sourceHeight);
+  els.waveChopDisplay.value = chop || "";
+  els.waveChopDisplay.placeholder = sourceHeight ? "Auto from wave height" : "Auto unavailable (no wave height)";
+}
+
+function tripWaveHeightDisplay(trip, weatherData) {
+  const saved = String(trip?.waveHeight || "").trim();
+  if (saved) return saved;
+  const marine = marineSnapshot(weatherData);
+  if (marine?.marineDataAvailable && marine.waveHeightM !== null && marine.waveHeightM !== undefined) {
+    return formatMarineWaveHeightM(marine.waveHeightM);
+  }
+  return "No marine data";
+}
+
+function tripWaveChopDisplay(trip, weatherData) {
+  const waveHeight = tripWaveHeightDisplay(trip, weatherData);
+  return chopLabelForWaveHeight(waveHeight);
+}
+
+function formatWaveHeightChopLine(trip, weatherData) {
+  const heightText = tripWaveHeightDisplay(trip, weatherData);
+  const chopText = tripWaveChopDisplay(trip, weatherData);
+  return [heightText, chopText].filter(Boolean).join(" / ") || "Not logged";
+}
+
+function resolveTripWaveSnapshot(trip) {
+  const marine = marineSnapshot(trip.weatherData);
+  const userWave = String(trip.waveHeight || "").trim();
+  if (userWave) {
+    trip.waveHeight = userWave;
+  } else if (marine?.marineDataAvailable && marine.waveHeightM !== null && marine.waveHeightM !== undefined) {
+    trip.waveHeight = formatMarineWaveHeightM(marine.waveHeightM);
+  } else {
+    trip.waveHeight = "";
+  }
+  trip.waveChop = chopLabelForWaveHeight(trip.waveHeight) || "";
+  return trip;
 }
 
 function weatherCacheKey(coordinates, startDate, endDate) {
@@ -130,11 +194,12 @@ async function fetchMarineBundle(coordinates, startDate, endDate) {
     end_date: endDate,
     timezone: "auto",
     cell_selection: "nearest",
-    hourly: "wave_height"
+    hourly: "wave_height,wave_direction,wave_period"
   });
   const request = fetch(`/api/weather/marine?${params}`)
     .then((response) => response.json().then((data) => {
       if (!response.ok) throw new Error(data.error || "Marine API unavailable");
+      if (data.error) throw new Error(data.reason || data.error || "Marine API unavailable");
       return data;
     }))
     .catch((error) => {
@@ -320,14 +385,50 @@ function marineRecords(bundle) {
   const hourly = bundle?.hourly || {};
   return (hourly.time || []).map((time, index) => ({
     time,
-    waveHeightM: hourly.wave_height?.[index] ?? null
+    waveHeightM: hourly.wave_height?.[index] ?? null,
+    waveDirectionDegrees: hourly.wave_direction?.[index] ?? null,
+    wavePeriodSeconds: hourly.wave_period?.[index] ?? null
   }));
 }
 
-function marineWindowSummary(records) {
+function marineDataAvailable(records) {
+  return numericRecordValues(records, "waveHeightM").length > 0;
+}
+
+function nearestMarineRecord(records, trip) {
+  const validRecords = records.filter((record) => Number.isFinite(Number(record.waveHeightM)));
+  if (!validRecords.length) return null;
+  const tripDate = trip.date || validRecords[0].time?.slice(0, 10) || "";
+  const startTime = trip.startTime || "12:00";
+  const target = new Date(`${tripDate}T${startTime}`).getTime();
+  if (!Number.isFinite(target)) return validRecords[0];
+  return validRecords.reduce((best, record) => {
+    const delta = Math.abs(new Date(record.time).getTime() - target);
+    if (!Number.isFinite(delta)) return best;
+    if (!best || delta < best.delta) return { record, delta };
+    return best;
+  }, null)?.record || validRecords[0];
+}
+
+function marineWindowSummary(records, trip = {}) {
+  if (!marineDataAvailable(records)) {
+    return {
+      marineDataAvailable: false,
+      waveHeightM: null,
+      waveHeightMaxM: null,
+      waveDirectionDegrees: null,
+      wavePeriodSeconds: null,
+      waveTime: ""
+    };
+  }
+  const nearest = nearestMarineRecord(records, trip);
   return {
-    waveHeightM: averageNumber(records, "waveHeightM"),
-    waveHeightMaxM: maxNumber(records, "waveHeightM")
+    marineDataAvailable: true,
+    waveHeightM: nearest?.waveHeightM ?? null,
+    waveHeightMaxM: maxNumber(records, "waveHeightM"),
+    waveDirectionDegrees: nearest?.waveDirectionDegrees ?? null,
+    wavePeriodSeconds: nearest?.wavePeriodSeconds ?? null,
+    waveTime: nearest?.time || ""
   };
 }
 
@@ -451,17 +552,24 @@ async function buildWeatherDataForTrip(trip, source, includeCatches = true) {
   try {
     const marineBundle = await fetchMarineBundle(source.coordinates, trip.date, endDate || trip.date);
     const marineHourly = marineRecords(marineBundle);
+    const marineWindow = tripWindowHours(trip, marineHourly);
     marine = {
       source,
       timezone: marineBundle.timezone || "",
       units: marineBundle.hourly_units || {},
-      hourly: tripWindowHours(trip, marineHourly),
-      ...marineWindowSummary(tripWindowHours(trip, marineHourly))
+      hourly: marineWindow,
+      ...marineWindowSummary(marineHourly, trip)
     };
   } catch (error) {
     marine = {
       status: "unavailable",
-      message: error.message || "Marine data unavailable"
+      message: error.message || "Marine data unavailable",
+      marineDataAvailable: false,
+      waveHeightM: null,
+      waveHeightMaxM: null,
+      waveDirectionDegrees: null,
+      wavePeriodSeconds: null,
+      waveTime: ""
     };
   }
   const weatherData = {
@@ -478,10 +586,6 @@ async function buildWeatherDataForTrip(trip, source, includeCatches = true) {
     },
     trend: tripWeatherTrend(windowRecords),
     marine,
-    manual: {
-      waveHeight: trip.waveHeight || "",
-      waveChop: chopLabelForWaveHeight(trip.waveHeight)
-    },
     sunMoon: astronomy
   };
   weatherData.frontTag = frontTagFromTrend(weatherData.trend);
@@ -644,11 +748,8 @@ function setWeatherStatus(message) {
 }
 
 function syncMarineWaveHeightToForm(weatherData) {
-  const waveHeight = weatherData?.marine?.waveHeightM;
-  if (!els.waveHeight || els.waveHeight.value.trim() || waveHeight === null || waveHeight === undefined) return;
-  els.waveHeight.value = `${trimNumber(waveHeight)} m`;
-  if (weatherData.manual) weatherData.manual.waveHeight = els.waveHeight.value;
-  if (weatherData.manual) weatherData.manual.waveChop = chopLabelForWaveHeight(els.waveHeight.value);
+  updateMarineWaveHeightPlaceholder(weatherData);
+  updateAutoWaveChopDisplay(weatherData);
 }
 
 async function refreshTripWeatherPreview(force = false) {
@@ -673,7 +774,7 @@ async function refreshTripWeatherPreview(force = false) {
   setWeatherStatus("Fetching weather...");
   try {
     const result = await buildWeatherDataForTrip(trip, source, false);
-    activeTripWeatherData = applyManualWaveData(result.tripWeather, trip);
+    activeTripWeatherData = result.tripWeather;
     syncMarineWaveHeightToForm(activeTripWeatherData);
     setWeatherStatus(`Weather ready from ${source.name}`);
   } catch (error) {
@@ -707,14 +808,7 @@ function renderWeatherDetails(weatherData, trip = {}) {
   const window = weatherData.tripWindow || {};
   const daily = weatherData.daily || {};
   const trend = weatherData.trend || {};
-  const marine = weatherData.marine || {};
-  const manual = {
-    ...(weatherData.manual || {}),
-    waveHeight: trip.waveHeight || weatherData.manual?.waveHeight || "",
-    waveChop: chopLabelForWaveHeight(trip.waveHeight || weatherData.manual?.waveHeight || marine.waveHeightM)
-  };
-  const waveHeightText = manual.waveHeight || (marine.waveHeightM === null || marine.waveHeightM === undefined ? "No marine data" : `${trimNumber(marine.waveHeightM)} m`);
-  const chopText = manual.waveChop || "";
+  const waveHeightChopText = formatWaveHeightChopLine(trip, weatherData);
   const visibilityKm = Number(window.visibilityMeters) / 1000;
   const visibilityText = Number.isFinite(visibilityKm) ? `${trimNumber(visibilityKm)} km / ${visibilityLabel(window.visibilityMeters)}` : "Not logged";
   const barometricTrend = window.pressureTrendRateHpa3h === null || window.pressureTrendRateHpa3h === undefined
@@ -732,7 +826,7 @@ function renderWeatherDetails(weatherData, trip = {}) {
     <span><strong>Pressure</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.pressureHpa, " hPa"), trend.pressureTrend))}</span>
     <span><strong>Barometric Trend</strong>${escapeHtml(barometricTrend)}</span>
     <span><strong>Visibility</strong>${escapeHtml(visibilityText)}</span>
-    <span><strong>Wave Height / Chop</strong>${escapeHtml([waveHeightText, chopText].filter(Boolean).join(" / ") || "Not logged")}</span>
+    <span><strong>Wave Height / Chop</strong>${escapeHtml(waveHeightChopText)}</span>
     <span><strong>Humidity</strong>${escapeHtml(weatherValue(window.humidityPercent, "%"))}</span>
     <span><strong>Cloud Cover</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.cloudCoverPercent, "%"), trend.cloudTrend))}</span>
     <span><strong>Sunshine</strong>${escapeHtml(sunshineDurationText(daily.sunshineDurationSeconds))}</span>

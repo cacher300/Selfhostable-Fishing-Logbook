@@ -25,11 +25,11 @@ const reelStyleOptions = ["Baitcaster", "Spinning", "Centerpin", "Fly"];
 const rodTypeOptions = ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"];
 const lineTypeOptions = ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wire", "Copper", "Other"];
 const defaultChopRanges = [
-  { id: "calm", label: "calm", maxFeet: 0.5 },
-  { id: "light", label: "light chop", maxFeet: 1 },
-  { id: "moderate", label: "moderate chop", maxFeet: 1.5 },
-  { id: "very-choppy", label: "very choppy", maxFeet: 2 },
-  { id: "rough", label: "rough", maxFeet: null }
+  { id: "calm", label: "Calm", maxFeet: 0.5 },
+  { id: "light", label: "Light Chop", maxFeet: 1 },
+  { id: "moderate", label: "Moderate Chop", maxFeet: 1.5 },
+  { id: "very-choppy", label: "Very Choppy", maxFeet: 2 },
+  { id: "rough", label: "Rough", maxFeet: null }
 ];
 
 function createId() {
@@ -293,6 +293,7 @@ const els = {
   locationManagerList: document.querySelector("#locationManagerList"),
   weatherFetchStatus: document.querySelector("#weatherFetchStatus"),
   waveHeight: document.querySelector("#waveHeight"),
+  waveChopDisplay: document.querySelector("#waveChopDisplay"),
   settingsPanel: document.querySelector("#settingsPanel"),
   chopRangeRows: document.querySelector("#chopRangeRows"),
   saveChopRangesButton: document.querySelector("#saveChopRangesButton"),

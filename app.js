@@ -350,10 +350,13 @@ document.addEventListener("change", (event) => {
     syncTripTimesToBlankRows();
     scheduleTripWeatherPreview(true);
   }
-  if (event.target.matches("#tripDate, #tripLocation, #tripLaunch, #waveHeight")) {
+  if (event.target.matches("#tripDate, #tripLocation, #tripLaunch")) {
     if (event.target.matches("#tripLocation")) populateLaunchSelect();
     updateLocationControls();
-    if (event.target.matches("#waveHeight")) scheduleTripWeatherPreview(true);
+  }
+  if (event.target.matches("#waveHeight")) {
+    updateAutoWaveChopDisplay();
+    scheduleTripWeatherPreview(true);
   }
   if (event.target.closest("#tripForm")) clearTripFormMessage();
   if (event.target.matches(".catch-lure, .trip-gear-lure")) {
@@ -381,9 +384,11 @@ document.addEventListener("input", (event) => {
     syncTripTimesToBlankRows();
     scheduleTripWeatherPreview(true);
   }
-  if (event.target.matches("#tripDate, #tripLocation, #tripLaunch, #waveHeight")) {
+  if (event.target.matches("#tripDate, #tripLocation, #tripLaunch")) {
     updateLocationControls();
-    if (event.target.matches("#waveHeight")) scheduleTripWeatherPreview(true);
+  }
+  if (event.target.matches("#waveHeight")) {
+    updateAutoWaveChopDisplay();
   }
   if (event.target.matches("#locationLatitude, #locationLongitude")) {
     const coordinates = locationFormCoordinates();

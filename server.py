@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import uuid
 from copy import deepcopy
@@ -70,7 +71,7 @@ WEATHER_HOURLY_FIELDS = [
     "wind_direction_10m",
     "wind_gusts_10m",
 ]
-MARINE_HOURLY_FIELDS = ["wave_height"]
+MARINE_HOURLY_FIELDS = ["wave_height", "wave_direction", "wave_period"]
 WEATHER_DAILY_FIELDS = [
     "weather_code",
     "temperature_2m_max",
@@ -141,11 +142,11 @@ DEFAULT_LOGBOOK = {
     "rodReelCombos": [],
     "settings": {
         "chopRanges": [
-            {"id": "calm", "label": "calm", "maxFeet": 0.5},
-            {"id": "light", "label": "light chop", "maxFeet": 1},
-            {"id": "moderate", "label": "moderate chop", "maxFeet": 1.5},
-            {"id": "very-choppy", "label": "very choppy", "maxFeet": 2},
-            {"id": "rough", "label": "rough", "maxFeet": None},
+            {"id": "calm", "label": "Calm", "maxFeet": 0.5},
+            {"id": "light", "label": "Light Chop", "maxFeet": 1},
+            {"id": "moderate", "label": "Moderate Chop", "maxFeet": 1.5},
+            {"id": "very-choppy", "label": "Very Choppy", "maxFeet": 2},
+            {"id": "rough", "label": "Rough", "maxFeet": None},
         ],
     },
     "people": [],
@@ -574,11 +575,37 @@ def marine_weather_payload(args: dict) -> tuple[dict, int]:
     params.setdefault("timezone", "auto")
     params.setdefault("cell_selection", "nearest")
     params.setdefault("hourly", ",".join(MARINE_HOURLY_FIELDS))
-    try:
-        url = f"{OPEN_METEO_MARINE_URL}?{urlencode(params)}"
+
+    def has_numeric_wave_height(payload: dict) -> bool:
+        hourly = payload.get("hourly") if isinstance(payload, dict) else None
+        series = hourly.get("wave_height") if isinstance(hourly, dict) else None
+        if not isinstance(series, list):
+            return False
+        for value in series:
+            try:
+                if math.isfinite(float(value)):
+                    return True
+            except (TypeError, ValueError):
+                continue
+        return False
+
+    def fetch_marine(fetch_params: dict) -> tuple[dict, int]:
+        url = f"{OPEN_METEO_MARINE_URL}?{urlencode(fetch_params)}"
         request_headers = {"User-Agent": "FishingLogbook/1.0 (+https://open-meteo.com/)"}
         with urlopen(Request(url, headers=request_headers), timeout=20) as response:
             return json.loads(response.read().decode("utf-8")), 200
+
+    try:
+        payload, status = fetch_marine(params)
+        if status == 200 and has_numeric_wave_height(payload):
+            return payload, status
+        if "cell_selection" in params:
+            retry_params = dict(params)
+            retry_params.pop("cell_selection", None)
+            retry_payload, retry_status = fetch_marine(retry_params)
+            if retry_status == 200:
+                return retry_payload, retry_status
+        return payload, status
     except HTTPError as error:
         try:
             payload = json.loads(error.read().decode("utf-8"))
@@ -772,9 +799,40 @@ def marine_records(bundle: dict | None) -> list[dict]:
         {
             "time": time_value,
             "waveHeightM": list_value(hourly, "wave_height", index),
+            "waveDirectionDegrees": list_value(hourly, "wave_direction", index),
+            "wavePeriodSeconds": list_value(hourly, "wave_period", index),
         }
         for index, time_value in enumerate(times)
     ]
+
+
+def marine_data_available(records: list[dict]) -> bool:
+    return bool(numeric_values(records, "waveHeightM"))
+
+
+def nearest_marine_record(records: list[dict], trip: dict) -> dict | None:
+    valid_records = [record for record in records if isinstance(record.get("waveHeightM"), (int, float))]
+    if not valid_records:
+        return None
+    trip_date = str(trip.get("date") or valid_records[0].get("time", "")[:10])
+    start_time = str(trip.get("startTime") or "12:00")
+    try:
+        from datetime import datetime
+        target = datetime.fromisoformat(f"{trip_date}T{start_time}").timestamp()
+    except ValueError:
+        return valid_records[0]
+    best = None
+    best_delta = None
+    for record in valid_records:
+        try:
+            from datetime import datetime
+            delta = abs(datetime.fromisoformat(str(record.get("time") or "")).timestamp() - target)
+        except ValueError:
+            continue
+        if best_delta is None or delta < best_delta:
+            best = record
+            best_delta = delta
+    return best or valid_records[0]
 
 
 def daily_record(bundle: dict) -> dict:
@@ -810,6 +868,16 @@ def numeric_values(records: list[dict], key: str) -> list[float]:
 
 def rounded(value: float, digits: int = 1) -> float:
     return round(value, digits)
+
+
+def meters_to_feet(value: object) -> float | None:
+    try:
+        meters = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(meters):
+        return None
+    return round(meters * 3.28084, 1)
 
 
 def average_number(records: list[dict], key: str) -> float | None:
@@ -861,10 +929,24 @@ def trip_window_summary(records: list[dict]) -> dict:
     }
 
 
-def marine_window_summary(records: list[dict]) -> dict:
+def marine_window_summary(records: list[dict], trip: dict | None = None) -> dict:
+    if not marine_data_available(records):
+        return {
+            "marineDataAvailable": False,
+            "waveHeightM": None,
+            "waveHeightMaxM": None,
+            "waveDirectionDegrees": None,
+            "wavePeriodSeconds": None,
+            "waveTime": "",
+        }
+    nearest = nearest_marine_record(records, trip or {})
     return {
-        "waveHeightM": average_number(records, "waveHeightM"),
+        "marineDataAvailable": True,
+        "waveHeightM": nearest.get("waveHeightM") if nearest else None,
         "waveHeightMaxM": max_number(records, "waveHeightM"),
+        "waveDirectionDegrees": nearest.get("waveDirectionDegrees") if nearest else None,
+        "wavePeriodSeconds": nearest.get("wavePeriodSeconds") if nearest else None,
+        "waveTime": str(nearest.get("time") or "") if nearest else "",
     }
 
 
@@ -1056,14 +1138,24 @@ def enrich_trip_weather_backend(logbook: dict, trip: dict, weather_cache: dict, 
         "pressureTrendRateLabel": barometric_trend_rate_label(pressure_rate),
     }
     marine_bundle = admin_marine_bundle(source["coordinates"], trip["date"], end_date, marine_cache)
-    marine_hourly = trip_window_hours(trip, marine_records(marine_bundle))
+    marine_all = marine_records(marine_bundle)
+    marine_hourly = trip_window_hours(trip, marine_all)
     marine = {
         "source": source,
         "timezone": (marine_bundle or {}).get("timezone") or "",
         "units": (marine_bundle or {}).get("hourly_units") or {},
         "hourly": marine_hourly,
-        **marine_window_summary(marine_hourly),
-    } if marine_bundle else {"status": "unavailable", "message": "Marine data unavailable"}
+        **marine_window_summary(marine_all, trip),
+    } if marine_bundle else {
+        "status": "unavailable",
+        "message": "Marine data unavailable",
+        "marineDataAvailable": False,
+        "waveHeightM": None,
+        "waveHeightMaxM": None,
+        "waveDirectionDegrees": None,
+        "wavePeriodSeconds": None,
+        "waveTime": "",
+    }
     weather_data = {
         "source": source,
         "fetchedAt": now_iso(),
@@ -1074,10 +1166,6 @@ def enrich_trip_weather_backend(logbook: dict, trip: dict, weather_cache: dict, 
         "tripWindow": trip_window,
         "trend": trend,
         "marine": marine,
-        "manual": {
-            "waveHeight": trip.get("waveHeight") or "",
-            "waveChop": trip.get("waveChop") or "",
-        },
         "sunMoon": admin_astronomy_bundle(source["coordinates"], trip["date"], bundle.get("timezone") or "", astronomy_cache),
     }
     weather_data["frontTag"] = front_tag_from_trend(trend)
@@ -1113,9 +1201,12 @@ def enrich_trip_weather_backend(logbook: dict, trip: dict, weather_cache: dict, 
         updated_catches.append(catch)
 
     trip["weatherData"] = weather_data
-    if not trip.get("waveHeight") and marine.get("waveHeightM") is not None:
-        trip["waveHeight"] = f"{marine['waveHeightM']} m"
-        weather_data["manual"]["waveHeight"] = trip["waveHeight"]
+    if not str(trip.get("waveHeight") or "").strip():
+        if marine.get("marineDataAvailable") and marine.get("waveHeightM") is not None:
+            wave_height_feet = meters_to_feet(marine["waveHeightM"])
+            trip["waveHeight"] = f"{wave_height_feet} ft" if wave_height_feet is not None else ""
+        else:
+            trip["waveHeight"] = ""
     trip["wind"] = weather_wind_text(weather_data)
     trip["catches"] = updated_catches
     return trip, "refreshed"
@@ -1171,54 +1262,6 @@ def refresh_all_trip_weather() -> dict:
     }
 
 
-ADMIN_WEATHER_HTML = """<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Weather Admin</title>
-  <style>
-    body { margin: 0; font-family: Arial, sans-serif; background: #f4f6f5; color: #1f2a24; }
-    main { max-width: 820px; margin: 48px auto; padding: 24px; }
-    section { background: #fff; border: 1px solid #d8dfd9; border-radius: 8px; padding: 22px; box-shadow: 0 8px 24px rgba(20, 33, 25, 0.08); }
-    h1 { margin: 0 0 10px; font-size: 26px; }
-    p { color: #5d6b63; line-height: 1.5; }
-    button { border: 0; border-radius: 6px; background: #1f6f43; color: #fff; padding: 12px 16px; font-weight: 800; cursor: pointer; }
-    button:disabled { opacity: 0.55; cursor: wait; }
-    pre { min-height: 160px; margin-top: 18px; padding: 14px; overflow: auto; background: #101815; color: #d9f6e4; border-radius: 6px; white-space: pre-wrap; }
-  </style>
-</head>
-<body>
-  <main>
-    <section>
-      <h1>Weather Admin</h1>
-      <p>This hidden maintenance page refreshes API weather for every saved trip and writes the updated data to <code>data/logbook.json</code>.</p>
-      <button id="refreshWeather" type="button">Refresh All Trip Weather</button>
-      <pre id="output">Idle.</pre>
-    </section>
-  </main>
-  <script>
-    const button = document.querySelector("#refreshWeather");
-    const output = document.querySelector("#output");
-    button.addEventListener("click", async () => {
-      if (!confirm("Refresh weather for every trip? This can take a little while.")) return;
-      button.disabled = true;
-      output.textContent = "Refreshing...";
-      try {
-        const response = await fetch("/admin/api/weather/refresh-all", { method: "POST" });
-        const payload = await response.json();
-        output.textContent = JSON.stringify(payload, null, 2);
-      } catch (error) {
-        output.textContent = error.message || "Refresh failed.";
-      } finally {
-        button.disabled = false;
-      }
-    });
-  </script>
-</body>
-</html>"""
-
-
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)
 
@@ -1260,14 +1303,6 @@ def create_app() -> Flask:
     def astronomy() -> tuple[Response, int]:
         payload, status = astronomy_payload(request.args)
         return jsonify(payload), status
-
-    @app.get("/admin/weather")
-    def weather_admin() -> Response:
-        return Response(ADMIN_WEATHER_HTML, mimetype="text/html")
-
-    @app.post("/admin/api/weather/refresh-all")
-    def refresh_all_weather_admin() -> tuple[Response, int] | Response:
-        return jsonify(refresh_all_trip_weather())
 
     @app.post("/api/uploads/<category>")
     def upload_photo(category: str) -> tuple[Response, int] | Response:
