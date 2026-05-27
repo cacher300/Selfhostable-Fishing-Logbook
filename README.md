@@ -85,6 +85,7 @@ Trip summaries include a trolling spread diagram so you can see the spread as a 
 - Pull sunrise, sunset, moonrise, moonset, moon phase, and moon illumination from SunriseSunset.io.
 - Keep the hand-entered `Weather` condition as a simple fishing note while API weather is stored separately.
 - Show API weather, trends, front tags, moon windows, and catch-weather comparisons in trip summaries and pattern analysis.
+- Choose display/input units in Settings for depth, distance, trolling speed, wind, pressure, air temperature, water temperature, precipitation, wave height, fish length, and fish weight. Weather API values are stored in known source units and converted for display.
 
 ### Stats, Patterns, And Maps
 

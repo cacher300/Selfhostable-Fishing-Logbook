@@ -129,21 +129,25 @@ function weatherBucket(value, buckets) {
 }
 
 function windSpeedBucket(value) {
+  const unit = unitSymbol("windSpeed");
+  const labelValue = (mph) => trimNumber(Math.round(convertUnitValue(mph, "mph", unitPreference("windSpeed")) * 10) / 10);
   return weatherBucket(value, [
-    { max: 5, label: "Calm <5 mph" },
-    { max: 10, label: "Light 5-10 mph" },
-    { max: 15, label: "Moderate 10-15 mph" },
-    { max: 25, label: "Windy 15-25 mph" },
-    { max: Infinity, label: "Heavy 25+ mph" }
+    { max: 5, label: `Calm <${labelValue(5)} ${unit}` },
+    { max: 10, label: `Light ${labelValue(5)}-${labelValue(10)} ${unit}` },
+    { max: 15, label: `Moderate ${labelValue(10)}-${labelValue(15)} ${unit}` },
+    { max: 25, label: `Windy ${labelValue(15)}-${labelValue(25)} ${unit}` },
+    { max: Infinity, label: `Heavy ${labelValue(25)}+ ${unit}` }
   ]);
 }
 
 function pressureBucket(value) {
+  const unit = unitSymbol("pressure");
+  const labelValue = (hpa) => trimNumber(Math.round(convertUnitValue(hpa, "hPa", unitPreference("pressure")) * 10) / 10);
   return weatherBucket(value, [
-    { max: 1000, label: "Low <1000 hPa" },
-    { max: 1015, label: "Stable 1000-1015 hPa" },
-    { max: 1025, label: "High 1015-1025 hPa" },
-    { max: Infinity, label: "Very High 1025+ hPa" }
+    { max: 1000, label: `Low <${labelValue(1000)} ${unit}` },
+    { max: 1015, label: `Stable ${labelValue(1000)}-${labelValue(1015)} ${unit}` },
+    { max: 1025, label: `High ${labelValue(1015)}-${labelValue(1025)} ${unit}` },
+    { max: Infinity, label: `Very High ${labelValue(1025)}+ ${unit}` }
   ]);
 }
 
@@ -157,12 +161,14 @@ function cloudCoverBucket(value) {
 }
 
 function airTempBucket(value) {
+  const unit = unitSymbol("airTemperature");
+  const labelValue = (c) => trimNumber(Math.round(convertUnitValue(c, "C", unitPreference("airTemperature"))));
   return weatherBucket(value, [
-    { max: 5, label: "Cold <5 \u00b0C" },
-    { max: 13, label: "Cool 5-13 \u00b0C" },
-    { max: 21, label: "Mild 13-21 \u00b0C" },
-    { max: 29, label: "Warm 21-29 \u00b0C" },
-    { max: Infinity, label: "Hot 29+ \u00b0C" }
+    { max: 5, label: `Cold <${labelValue(5)} ${unit}` },
+    { max: 13, label: `Cool ${labelValue(5)}-${labelValue(13)} ${unit}` },
+    { max: 21, label: `Mild ${labelValue(13)}-${labelValue(21)} ${unit}` },
+    { max: 29, label: `Warm ${labelValue(21)}-${labelValue(29)} ${unit}` },
+    { max: Infinity, label: `Hot ${labelValue(29)}+ ${unit}` }
   ]);
 }
 
@@ -713,10 +719,22 @@ function renderAdvancedStats() {
   const skunkTrips = trips.filter((trip) => scopedTripFish(trip) === 0).length;
   const bestTrip = [...trips].sort((a, b) => scopedTripFish(b) - scopedTripFish(a))[0];
   const bestCatchRateTrip = [...trips].sort((a, b) => scopedCatchRate(b) - scopedCatchRate(a))[0];
+  const tripsWithHours = trips
+    .map((trip) => ({ trip, hours: tripHours(trip) }))
+    .filter((item) => item.hours > 0);
+  const averageTripLength = tripsWithHours.length
+    ? tripsWithHours.reduce((sum, item) => sum + item.hours, 0) / tripsWithHours.length
+    : 0;
+  const longestTrip = [...tripsWithHours].sort((a, b) => b.hours - a.hours || compareTripsByDateTime(a.trip, b.trip, "desc"))[0];
+  const shortestTrip = [...tripsWithHours].sort((a, b) => a.hours - b.hours || compareTripsByDateTime(a.trip, b.trip, "desc"))[0];
 
   els.advancedMetricGrid.innerHTML = [
     ["Trips", trips.length],
     ["Total hours", trimNumber(hours)],
+    ["Avg trip length", tripsWithHours.length ? `${trimNumber(averageTripLength)} hr` : "0 hr"],
+    ["Longest trip", longestTrip ? `${trimNumber(longestTrip.hours)} hr` : "0 hr"],
+    ["Shortest trip", shortestTrip ? `${trimNumber(shortestTrip.hours)} hr` : "0 hr"],
+    ["Trips with time", `${tripsWithHours.length}/${trips.length}`],
     ["Landed fish", fish],
     ["Fish / hour", hours ? trimNumber(fish / hours) : "0"],
     ["Fish / trip", trips.length ? trimNumber(fish / trips.length) : "0"],
@@ -1068,13 +1086,13 @@ function fowRange(value) {
   const fow = parseFirstNumber(value);
   if (!fow) return "";
   const start = Math.floor(fow / 10) * 10;
-  return `${start}-${start + 10} FOW`;
+  return `${start}-${start + 10} FOW (${unitSymbol("depth")})`;
 }
 
 function speedBucket(value) {
   const speed = parseFirstNumber(value);
   if (!speed) return "";
-  return `${trimNumber(Math.round(speed * 10) / 10)} mph`;
+  return `${trimNumber(Math.round(speed * 10) / 10)} ${unitSymbol("speed")}`;
 }
 
 function summarizeTrollingPerformance(catches, lostRecords, gearRecords, keyFn, minutesFn) {

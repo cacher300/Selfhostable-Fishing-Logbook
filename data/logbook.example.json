@@ -48,6 +48,22 @@
   ],
   "lures": [],
   "flashers": [],
+  "settings": {
+    "timeFormat": "24",
+    "units": {
+      "depth": "m",
+      "distance": "km",
+      "speed": "kph",
+      "windSpeed": "kph",
+      "pressure": "hPa",
+      "airTemperature": "C",
+      "waterTemperature": "F",
+      "precipitation": "mm",
+      "waveHeight": "m",
+      "fishLength": "in",
+      "fishWeight": "lb"
+    }
+  },
   "people": [],
   "locations": [],
   "trips": []

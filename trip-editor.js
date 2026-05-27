@@ -76,6 +76,7 @@ function openTripDialog(trip = null) {
   if (!trip?.catches?.length) addCatchRow();
   populateSetupLineSelects();
   updateTrollingVisibility();
+  syncUnitLabels(els.tripForm);
   els.tripDialog.showModal();
   scheduleTripWeatherPreview(true);
 }
@@ -294,6 +295,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   updatePresentationFields(node);
 
   container.append(node);
+  syncUnitLabels(node);
   populateSetupLineSelects();
   updateTrollingVisibility();
   updateAllRowSummaries();
@@ -322,6 +324,7 @@ function addTripGearRow(gearItem = {}) {
   updatePresentationFields(node);
 
   els.tripGearRows.append(node);
+  syncUnitLabels(node);
   populateSetupLineSelects();
   updateTrollingVisibility();
   updateAllRowSummaries();

@@ -20,12 +20,102 @@ function chopLabelForWaveHeight(value) {
 
 function renderSettings() {
   renderPreferenceSettings();
+  renderUnitSettings();
+  syncUnitLabels();
   renderChopRangeSettings();
   renderLocationManager();
 }
 
 function renderPreferenceSettings() {
   if (els.timeFormatSelect) els.timeFormatSelect.value = timeFormatPreference();
+}
+
+function renderUnitSettings() {
+  if (!els.unitSettingsFields) return;
+  const units = normalizeUnits(state.settings?.units);
+  const rows = [
+    ["depth", "Depth fields"],
+    ["distance", "Map distances"],
+    ["speed", "Trolling speed"],
+    ["windSpeed", "Wind speed"],
+    ["pressure", "Pressure"],
+    ["airTemperature", "Air temperature"],
+    ["waterTemperature", "Water temperature"],
+    ["precipitation", "Precipitation"],
+    ["waveHeight", "Wave height"],
+    ["fishLength", "Fish length"],
+    ["fishWeight", "Fish weight"]
+  ];
+  els.unitSettingsFields.innerHTML = rows.map(([key, label]) => `
+    <label class="settings-control">
+      <span>${escapeHtml(label)}</span>
+      <select data-unit-setting="${escapeHtml(key)}">
+        ${(unitOptions[key] || []).map((option) => `
+          <option value="${escapeHtml(option.value)}"${units[key] === option.value ? " selected" : ""}>${escapeHtml(option.label)}</option>
+        `).join("")}
+      </select>
+    </label>
+  `).join("");
+}
+
+async function saveUnitSettings() {
+  const units = normalizeUnits(state.settings?.units);
+  document.querySelectorAll("[data-unit-setting]").forEach((select) => {
+    units[select.dataset.unitSetting] = select.value;
+  });
+  state.settings = {
+    ...(state.settings || {}),
+    units: normalizeUnits(units)
+  };
+  try {
+    await saveState();
+    weatherRequestCache.clear();
+    marineRequestCache.clear();
+    renderAll();
+    syncUnitLabels();
+    const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
+    if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
+  } catch (error) {
+    console.error("Could not save units.", error);
+    alert(error.message || "The unit settings could not be saved.");
+  }
+}
+
+function unitLabelText(baseText, key) {
+  return `${baseText} (${unitSymbol(key)})`;
+}
+
+function syncUnitLabels(root = document) {
+  root.querySelectorAll("[data-unit-label]").forEach((label) => {
+    label.textContent = unitLabelText(label.dataset.unitLabelText || label.textContent, label.dataset.unitLabel);
+  });
+  if (els.waterTemp) els.waterTemp.placeholder = unitPreference("waterTemperature") === "C" ? "8 C" : "47 F";
+  if (els.structure) els.structure.placeholder = `40-60 ${unitSymbol("depth")}, drop-off`;
+  if (els.waveHeight) updateMarineWaveHeightPlaceholder(activeTripWeatherData);
+  root.querySelectorAll(".catch-length").forEach((input) => {
+    input.placeholder = unitPreference("fishLength") === "cm" ? "71 cm" : "28 in";
+  });
+  root.querySelectorAll(".catch-weight").forEach((input) => {
+    input.placeholder = unitPreference("fishWeight") === "kg" ? "4 kg" : "9 lb";
+  });
+  root.querySelectorAll(".catch-water-depth").forEach((input) => {
+    input.placeholder = `24 ${unitSymbol("depth")}`;
+  });
+  root.querySelectorAll(".catch-depth-down").forEach((input) => {
+    input.placeholder = `14 ${unitSymbol("depth")}`;
+  });
+  root.querySelectorAll(".catch-fow").forEach((input) => {
+    input.placeholder = `24 FOW (${unitSymbol("depth")})`;
+  });
+  root.querySelectorAll(".catch-speed").forEach((input) => {
+    input.placeholder = unitPreference("speed") === "mph" ? "2.4 mph" : unitPreference("speed") === "kn" ? "2.1 kn" : "3.9 kph";
+  });
+  root.querySelectorAll(".catch-ball-depth, .catch-estimated-lure-depth, .catch-estimated-depth").forEach((input) => {
+    input.placeholder = `17 ${unitSymbol("depth")}`;
+  });
+  root.querySelectorAll(".catch-line-behind-board, .catch-line-out").forEach((input) => {
+    input.placeholder = `45 ${unitSymbol("depth")}`;
+  });
 }
 
 async function saveTimeFormatPreference() {
@@ -36,6 +126,7 @@ async function saveTimeFormatPreference() {
   try {
     await saveState();
     renderAll();
+    syncUnitLabels();
     const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
     if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
   } catch (error) {

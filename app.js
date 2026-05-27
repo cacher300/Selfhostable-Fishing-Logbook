@@ -64,6 +64,7 @@ els.newLibraryRodButton.addEventListener("click", () => openRodDialog());
 els.newLibraryComboButton.addEventListener("click", () => openComboDialog());
 els.saveChopRangesButton.addEventListener("click", saveChopRanges);
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
+els.saveUnitSettingsButton?.addEventListener("click", saveUnitSettings);
 els.settingsAddLocationButton.addEventListener("click", () => openLocationDialog("location"));
 els.exportButton.addEventListener("click", exportJson);
 els.importInput.addEventListener("change", importJson);
@@ -136,10 +137,14 @@ els.galleryCategoryFilter.addEventListener("change", () => {
   });
 });
 
-[els.searchInput, els.targetFilter, els.methodFilter, els.yearFilter, els.sortSelect].forEach((control) => {
+[els.searchInput, els.targetFilter, els.methodFilter, els.yearFilter].forEach((control) => {
   control.addEventListener("input", () => {
     renderTrips();
   });
+});
+els.sortSelect.addEventListener("input", () => {
+  activeTripSort = tripSortFromSelect(els.sortSelect.value);
+  renderTrips();
 });
 
 document.addEventListener("click", (event) => {
@@ -175,6 +180,16 @@ document.addEventListener("click", (event) => {
       direction: current?.index === index && current.direction === "desc" ? "asc" : "desc"
     };
     renderAdvancedStats();
+  }
+
+  const tripSortButton = event.target.closest("[data-trip-sort]");
+  if (tripSortButton) {
+    const key = tripSortButton.dataset.tripSort;
+    activeTripSort = {
+      key,
+      direction: activeTripSort?.key === key && activeTripSort.direction === "desc" ? "asc" : "desc"
+    };
+    renderTrips();
   }
 
   const viewButton = event.target.closest("[data-view-trip]");

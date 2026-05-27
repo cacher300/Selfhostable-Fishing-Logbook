@@ -87,6 +87,32 @@ WEATHER_DAILY_FIELDS = [
     "wind_gusts_10m_max",
     "wind_direction_10m_dominant",
 ]
+DEFAULT_UNITS = {
+    "depth": "m",
+    "distance": "km",
+    "speed": "kph",
+    "windSpeed": "kph",
+    "pressure": "hPa",
+    "airTemperature": "C",
+    "waterTemperature": "F",
+    "precipitation": "mm",
+    "waveHeight": "m",
+    "fishLength": "in",
+    "fishWeight": "lb",
+}
+UNIT_OPTIONS = {
+    "depth": {"m", "ft"},
+    "distance": {"km", "mi"},
+    "speed": {"kph", "mph", "kn"},
+    "windSpeed": {"kph", "mph", "kn"},
+    "pressure": {"hPa", "kPa", "inHg", "mmHg"},
+    "airTemperature": {"C", "F"},
+    "waterTemperature": {"C", "F"},
+    "precipitation": {"mm", "in"},
+    "waveHeight": {"m", "ft"},
+    "fishLength": {"in", "cm"},
+    "fishWeight": {"lb", "kg"},
+}
 
 
 DEFAULT_LOGBOOK = {
@@ -142,6 +168,7 @@ DEFAULT_LOGBOOK = {
     "rodReelCombos": [],
     "settings": {
         "timeFormat": "24",
+        "units": deepcopy(DEFAULT_UNITS),
         "chopRanges": [
             {"id": "calm", "label": "Calm", "maxFeet": 0.5},
             {"id": "light", "label": "Light Chop", "maxFeet": 1},
@@ -171,6 +198,13 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         time_format = str(normalized["settings"].get("timeFormat") or "24")
         if time_format not in ("12", "24"):
             time_format = "24"
+        raw_units = normalized["settings"].get("units")
+        cleaned_units = deepcopy(DEFAULT_UNITS)
+        if isinstance(raw_units, dict):
+            for key, default_value in DEFAULT_UNITS.items():
+                value = raw_units.get(key)
+                if value in UNIT_OPTIONS.get(key, set()):
+                    cleaned_units[key] = value
         if not isinstance(ranges, list) or not ranges:
             ranges = default_ranges
         cleaned_ranges = []
@@ -192,7 +226,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             })
         if not any(item.get("maxFeet") is None for item in cleaned_ranges):
             cleaned_ranges.append(default_ranges[-1])
-        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "timeFormat": time_format, "chopRanges": cleaned_ranges or default_ranges}
+        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "timeFormat": time_format, "units": cleaned_units, "chopRanges": cleaned_ranges or default_ranges}
 
     list_keys = ("species", "lureTypes", "flasherTypes", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
     for key in list_keys:
@@ -874,6 +908,44 @@ def rounded(value: float, digits: int = 1) -> float:
     return round(value, digits)
 
 
+def unit_symbol(units: dict | None, key: str) -> str:
+    value = (units or {}).get(key) or DEFAULT_UNITS.get(key, "")
+    if value in ("C", "F"):
+        return f"°{value}"
+    return value
+
+
+def convert_unit_value(value: object, from_unit: str, to_unit: str) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(number):
+        return None
+    if from_unit == to_unit:
+        return number
+    conversions = {
+        ("C", "F"): lambda item: (item * 9 / 5) + 32,
+        ("F", "C"): lambda item: (item - 32) * 5 / 9,
+        ("mph", "kph"): lambda item: item * 1.609344,
+        ("mph", "kn"): lambda item: item * 0.868976,
+        ("m", "ft"): lambda item: item * 3.28084,
+        ("ft", "m"): lambda item: item / 3.28084,
+    }
+    fn = conversions.get((from_unit, to_unit))
+    return fn(number) if fn else number
+
+
+def format_unit_value(value: object, units: dict | None, key: str, from_unit: str, digits: int = 0) -> str:
+    to_unit = (units or {}).get(key) or DEFAULT_UNITS.get(key, from_unit)
+    converted = convert_unit_value(value, from_unit, to_unit)
+    if converted is None:
+        return ""
+    rounded_value = round(converted, digits)
+    text = str(int(rounded_value)) if float(rounded_value).is_integer() else str(rounded_value)
+    return f"{text} {unit_symbol(units, key)}"
+
+
 def meters_to_feet(value: object) -> float | None:
     try:
         meters = float(value)
@@ -1104,7 +1176,7 @@ def wind_direction_label(degrees: object) -> str:
     return directions[round((value % 360) / 45) % len(directions)]
 
 
-def weather_wind_text(weather_data: dict) -> str:
+def weather_wind_text(weather_data: dict, units: dict | None = None) -> str:
     trip_window = weather_data.get("tripWindow") or {}
     daily = weather_data.get("daily") or {}
     wind = trip_window.get("windSpeedMph")
@@ -1117,11 +1189,12 @@ def weather_wind_text(weather_data: dict) -> str:
     if wind is None:
         return ""
     direction_text = wind_direction_label(direction)
-    gust_text = f", gust {round(float(gust))} mph" if isinstance(gust, (int, float)) else ""
-    return f"{direction_text + ' ' if direction_text else ''}{round(float(wind))} mph{gust_text}"
+    gust_text = f", gust {format_unit_value(gust, units, 'windSpeed', 'mph')}" if isinstance(gust, (int, float)) else ""
+    return f"{direction_text + ' ' if direction_text else ''}{format_unit_value(wind, units, 'windSpeed', 'mph')}{gust_text}"
 
 
 def enrich_trip_weather_backend(logbook: dict, trip: dict, weather_cache: dict, astronomy_cache: dict, marine_cache: dict) -> tuple[dict, str]:
+    units = normalize_logbook(logbook).get("settings", {}).get("units", {})
     source = weather_source_for_trip(logbook, trip)
     if not trip.get("date") or not source:
         trip["weatherData"] = {
@@ -1207,11 +1280,10 @@ def enrich_trip_weather_backend(logbook: dict, trip: dict, weather_cache: dict, 
     trip["weatherData"] = weather_data
     if not str(trip.get("waveHeight") or "").strip():
         if marine.get("marineDataAvailable") and marine.get("waveHeightM") is not None:
-            wave_height_feet = meters_to_feet(marine["waveHeightM"])
-            trip["waveHeight"] = f"{wave_height_feet} ft" if wave_height_feet is not None else ""
+            trip["waveHeight"] = format_unit_value(marine["waveHeightM"], units, "waveHeight", "m", 1)
         else:
             trip["waveHeight"] = ""
-    trip["wind"] = weather_wind_text(weather_data)
+    trip["wind"] = weather_wind_text(weather_data, units)
     trip["catches"] = updated_catches
     return trip, "refreshed"
 

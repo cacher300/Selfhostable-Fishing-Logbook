@@ -336,27 +336,98 @@ function filteredTrips() {
     return matchesQuery && matchesTarget && matchesMethod && matchesYear;
   });
 
-  return trips.sort((a, b) => {
-    switch (els.sortSelect.value) {
-      case "date-asc":
-        return compareTripsByDateTime(a, b, "asc");
-      case "catch-rate-desc":
-        return catchRate(b) - catchRate(a) || compareTripsByDateTime(a, b, "desc");
-      case "caught-desc":
-        return totalCaught(b) - totalCaught(a) || compareTripsByDateTime(a, b, "desc");
-      case "hours-desc":
-        return tripHours(b) - tripHours(a) || compareTripsByDateTime(a, b, "desc");
-      default:
-        return compareTripsByDateTime(a, b, "desc");
-    }
-  });
+  return trips.sort(compareTripsByActiveSort);
+}
+
+function textTripSortValue(trip, key) {
+  const values = {
+    location: trip.location,
+    launch: trip.launch,
+    title: trip.title,
+    method: trip.method,
+    target: trip.targetSpecies
+  };
+  return String(values[key] || "").toLowerCase();
+}
+
+function compareTripText(a, b, key, direction) {
+  const result = textTripSortValue(a, key).localeCompare(textTripSortValue(b, key));
+  return (direction === "desc" ? -result : result) || compareTripsByDateTime(a, b, "desc");
+}
+
+function compareTripNumber(a, b, getValue, direction) {
+  const result = Number(getValue(a)) - Number(getValue(b));
+  return (direction === "desc" ? -result : result) || compareTripsByDateTime(a, b, "desc");
+}
+
+function compareTripsByActiveSort(a, b) {
+  const sort = activeTripSort || { key: "date", direction: "desc" };
+  switch (sort.key) {
+    case "location":
+    case "launch":
+    case "title":
+    case "method":
+    case "target":
+      return compareTripText(a, b, sort.key, sort.direction);
+    case "date":
+      return compareTripsByDateTime(a, b, sort.direction);
+    case "hours":
+      return compareTripNumber(a, b, tripHours, sort.direction);
+    case "caught":
+      return compareTripNumber(a, b, totalCaught, sort.direction);
+    case "catchRate":
+      return compareTripNumber(a, b, catchRate, sort.direction);
+    default:
+      return compareTripsByDateTime(a, b, "desc");
+  }
+}
+
+function tripSortFromSelect(value) {
+  const sorts = {
+    "date-desc": { key: "date", direction: "desc" },
+    "date-asc": { key: "date", direction: "asc" },
+    "catch-rate-desc": { key: "catchRate", direction: "desc" },
+    "caught-desc": { key: "caught", direction: "desc" },
+    "hours-desc": { key: "hours", direction: "desc" }
+  };
+  return sorts[value] || sorts["date-desc"];
+}
+
+function tripSortSelectValue(sort = activeTripSort) {
+  const key = `${sort?.key || "date"}-${sort?.direction || "desc"}`;
+  const values = {
+    "date-desc": "date-desc",
+    "date-asc": "date-asc",
+    "catchRate-desc": "catch-rate-desc",
+    "caught-desc": "caught-desc",
+    "hours-desc": "hours-desc"
+  };
+  return values[key] || "custom";
+}
+
+function tripHeaderSortButton(key, label) {
+  const active = activeTripSort?.key === key;
+  const direction = activeTripSort?.direction === "asc" ? "asc" : "desc";
+  const ariaSort = active ? (direction === "asc" ? "ascending" : "descending") : "none";
+  return `<button class="table-sort-button${active ? " is-active" : ""}" type="button" data-trip-sort="${escapeHtml(key)}" aria-sort="${ariaSort}">${escapeHtml(label)}${active ? `<span>${direction === "desc" ? "↓" : "↑"}</span>` : ""}</button>`;
 }
 
 function renderTrips() {
   const trips = filteredTrips();
+  const sortValue = tripSortSelectValue();
+  els.sortSelect.value = sortValue;
   els.tripTable.innerHTML = `
     <div class="table-row header">
-      <span>Location</span><span>Launch</span><span>Title</span><span>Date</span><span>Hours</span><span>Caught</span><span>Catch Rate</span><span>Method</span><span>Target</span><span></span>
+      ${tripHeaderSortButton("location", "Location")}
+      ${tripHeaderSortButton("launch", "Launch")}
+      ${tripHeaderSortButton("title", "Title")}
+      ${tripHeaderSortButton("date", "Date")}
+      ${tripHeaderSortButton("hours", "Hours")}
+      ${tripHeaderSortButton("caught", "Caught")}
+      ${tripHeaderSortButton("catchRate", "Catch Rate")}
+      ${tripHeaderSortButton("method", "Method")}
+      ${tripHeaderSortButton("target", "Target")}
+      <span></span>
     </div>
   `;
 
@@ -422,5 +493,6 @@ function renderAll() {
   renderAdvancedStats();
   renderPatterns();
   renderGearLibrary();
+  syncUnitLabels();
   updateAllRowSummaries();
 }

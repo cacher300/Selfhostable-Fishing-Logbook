@@ -632,30 +632,84 @@ function timelineTimeValue(time) {
 }
 
 function timelineTimeLabel(item) {
-  if (item.startTime && item.endTime) return formatDisplayTimeRange(item.startTime, item.endTime);
+  if (item.startTime && item.endTime) {
+    const start = formatDisplayTime(item.startTime);
+    const end = formatDisplayTime(item.endTime);
+    if (timeFormatPreference() === "12") {
+      const startMatch = start.match(/^(.+)\s(AM|PM)$/);
+      const endMatch = end.match(/^(.+)\s(AM|PM)$/);
+      if (startMatch && endMatch && startMatch[2] === endMatch[2]) {
+        return `${startMatch[1]}-${endMatch[1]} ${endMatch[2]}`;
+      }
+    }
+    return [start, end].filter(Boolean).join("-");
+  }
   return formatDisplayTime(item.time || item.startTime || item.endTime) || "No time";
 }
 
-function tripTimelineItems(trip) {
-  const items = [];
+function isTripEndTime(trip, time) {
+  return Boolean(time && trip.endTime && String(time).slice(0, 5) === String(trip.endTime).slice(0, 5));
+}
+
+function setupTimelineDetail(trip, gearItem, index) {
+  const label = setupLineDisplayLabel(trip, gearItem) || `Rod ${index + 1}`;
+  const rodReel = comboName(gearItem.comboId) || [rodName(gearItem.rodId), reelName(gearItem.reelId)].filter(Boolean).join(" + ");
+  const gear = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
+  const details = [
+    gear,
+    rodReel && !label.includes(rodReel) ? rodReel : "",
+    presentationLabel(gearItem.presentation),
+    gearItem.deepestRigger ? "Deepest rigger" : ""
+  ].filter(Boolean).join(" / ");
+  return details ? `${label}: ${details}` : label;
+}
+
+function setupTimelineItems(trip) {
+  const events = new Map();
+  const ensure = (time) => {
+    const key = String(time || "").slice(0, 5);
+    if (!events.has(key)) events.set(key, { time: key, deployed: [], pulled: [], notes: [] });
+    return events.get(key);
+  };
+
   (trip.gearUsed || []).forEach((gearItem, index) => {
-    const rodReel = comboName(gearItem.comboId) || [rodName(gearItem.rodId), reelName(gearItem.reelId)].filter(Boolean).join(" + ");
-    const gear = [rodReel, lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
-    const details = [
-      gear,
-      presentationLabel(gearItem.presentation),
-      gearItem.deepestRigger ? "Deepest rigger" : ""
-    ].filter(Boolean).join(" / ");
-    items.push({
-      type: "Rod",
-      title: setupLineDisplayLabel(trip, gearItem) || gear || `Rod ${index + 1}`,
-      details,
-      note: gearItem.changeNote,
-      startTime: gearItem.startTime,
-      endTime: gearItem.endTime,
-      sortTime: timelineTimeValue(gearItem.startTime || gearItem.endTime)
-    });
+    if (gearItem.startTime) {
+      const event = ensure(gearItem.startTime);
+      event.deployed.push(setupTimelineDetail(trip, gearItem, index));
+      if (gearItem.changeNote) event.notes.push(gearItem.changeNote);
+    }
+    if (gearItem.endTime && !isTripEndTime(trip, gearItem.endTime)) {
+      ensure(gearItem.endTime).pulled.push(setupLineDisplayLabel(trip, gearItem) || `Rod ${index + 1}`);
+    }
   });
+
+  return [...events.values()].map((event) => {
+    const parts = [
+      event.pulled.length ? `Pulled: ${event.pulled.join(", ")}` : "",
+      event.deployed.length ? `Deployed: ${event.deployed.join("; ")}` : ""
+    ].filter(Boolean);
+    const title = event.pulled.length && event.deployed.length
+      ? "Setup change"
+      : event.deployed.length
+        ? `${event.deployed.length} ${event.deployed.length === 1 ? "rod" : "rods"} deployed`
+        : `${event.pulled.length} ${event.pulled.length === 1 ? "rod" : "rods"} pulled`;
+    return {
+      type: "Setup",
+      title,
+      details: parts.join(" / "),
+      note: [...new Set(event.notes)].join(" / "),
+      time: event.time,
+      sortTime: timelineTimeValue(event.time)
+    };
+  });
+}
+
+function timelineSortOrder(type) {
+  return { Setup: 0, Catch: 1, Lost: 2, Photo: 3 }[type] ?? 9;
+}
+
+function tripTimelineItems(trip) {
+  const items = [...setupTimelineItems(trip)];
 
   (trip.catches || []).forEach((catchItem, index) => {
     const details = compactCatchDetails(trip, catchItem, { showOutcome: true });
@@ -703,7 +757,7 @@ function tripTimelineItems(trip) {
     });
   });
 
-  return items.sort((a, b) => a.sortTime - b.sortTime || a.type.localeCompare(b.type));
+  return items.sort((a, b) => a.sortTime - b.sortTime || timelineSortOrder(a.type) - timelineSortOrder(b.type) || a.type.localeCompare(b.type));
 }
 
 function renderTripTimeline(trip) {
@@ -716,7 +770,7 @@ function renderTripTimeline(trip) {
           <div class="timeline-time">${escapeHtml(timelineTimeLabel(item))}</div>
           <div class="timeline-dot" aria-hidden="true"></div>
           <div class="timeline-content">
-            <span>${escapeHtml(item.type)}</span>
+            <span class="timeline-type">${escapeHtml(item.type)}</span>
             <strong>${escapeHtml(item.title)}</strong>
             ${item.details ? `<p>${escapeHtml(item.details)}</p>` : ""}
             ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}

@@ -32,9 +32,8 @@ function marineSnapshot(weatherData) {
 
 function formatMarineWaveHeightM(waveHeightM) {
   if (waveHeightM === null || waveHeightM === undefined) return "";
-  const feet = Number(waveHeightM) * 3.28084;
-  if (!Number.isFinite(feet)) return "";
-  return `${trimNumber(feet)} ft`;
+  const text = formatUnitValue(waveHeightM, "waveHeight", "m", { decimals: 1 });
+  return text === "Not logged" ? "" : text;
 }
 
 function marineWaveHeightPlaceholderText(weatherData) {
@@ -650,12 +649,12 @@ function weatherWindText(weatherData) {
     const daily = weatherData?.daily || {};
     if (daily.windSpeedMaxMph === null || daily.windSpeedMaxMph === undefined) return "";
     const dailyDirection = windDirectionLabel(daily.windDirectionDegrees);
-    const dailyGust = daily.windGustMaxMph === null || daily.windGustMaxMph === undefined ? "" : `, gust ${Math.round(daily.windGustMaxMph)} mph`;
-    return `${dailyDirection ? `${dailyDirection} ` : ""}${Math.round(daily.windSpeedMaxMph)} mph${dailyGust}`;
+    const dailyGust = daily.windGustMaxMph === null || daily.windGustMaxMph === undefined ? "" : `, gust ${formatUnitValue(daily.windGustMaxMph, "windSpeed", "mph")}`;
+    return `${dailyDirection ? `${dailyDirection} ` : ""}${formatUnitValue(daily.windSpeedMaxMph, "windSpeed", "mph")}${dailyGust}`;
   }
   const directionText = direction === null || direction === undefined ? "" : `${windDirectionLabel(direction)} `;
-  const gustText = gust === null || gust === undefined ? "" : `, gust ${Math.round(gust)} mph`;
-  return `${directionText}${Math.round(wind)} mph${gustText}`;
+  const gustText = gust === null || gust === undefined ? "" : `, gust ${formatUnitValue(gust, "windSpeed", "mph")}`;
+  return `${directionText}${formatUnitValue(wind, "windSpeed", "mph")}${gustText}`;
 }
 
 function windDirectionLabel(degrees) {
@@ -670,8 +669,8 @@ function hourlyWindText(hourly) {
   const wind = hourly?.windSpeedMph;
   if (wind === null || wind === undefined) return "";
   const direction = windDirectionLabel(hourly.windDirectionDegrees);
-  const gust = hourly.windGustMph === null || hourly.windGustMph === undefined ? "" : `, gust ${Math.round(hourly.windGustMph)} mph`;
-  return `${direction ? `${direction} ` : ""}${Math.round(wind)} mph${gust}`;
+  const gust = hourly.windGustMph === null || hourly.windGustMph === undefined ? "" : `, gust ${formatUnitValue(hourly.windGustMph, "windSpeed", "mph")}`;
+  return `${direction ? `${direction} ` : ""}${formatUnitValue(wind, "windSpeed", "mph")}${gust}`;
 }
 
 function sunshineDurationText(seconds) {
@@ -682,7 +681,7 @@ function sunshineDurationText(seconds) {
 }
 
 function celsiusText(value) {
-  return `${value} \u00b0C`;
+  return formatUnitValue(value, "airTemperature", "C");
 }
 
 function catchWeatherSummary(weatherData) {
@@ -707,8 +706,8 @@ function catchWeatherComparison(catchWeather, tripWeather) {
   const tripWindow = tripWeather?.tripWindow;
   if (!hourly || !tripWindow) return "";
   return [
-    signedWeatherDelta(Number(hourly.windSpeedMph) - Number(tripWindow.windSpeedMph), " mph wind"),
-    signedWeatherDelta(Number(hourly.temperatureC) - Number(tripWindow.temperatureC), " \u00b0C"),
+    signedWeatherDelta(convertUnitValue(Number(hourly.windSpeedMph) - Number(tripWindow.windSpeedMph), "mph", unitPreference("windSpeed")), ` ${unitSymbol("windSpeed")} wind`),
+    signedWeatherDelta(convertUnitValue(Number(hourly.temperatureC) - Number(tripWindow.temperatureC), "C", unitPreference("airTemperature")), ` ${unitSymbol("airTemperature")}`),
     signedWeatherDelta(Number(hourly.cloudCoverPercent) - Number(tripWindow.cloudCoverPercent), "% cloud")
   ].filter(Boolean).join(" / ");
 }
@@ -809,21 +808,20 @@ function renderWeatherDetails(weatherData, trip = {}) {
   const daily = weatherData.daily || {};
   const trend = weatherData.trend || {};
   const waveHeightChopText = formatWaveHeightChopLine(trip, weatherData);
-  const visibilityKm = Number(window.visibilityMeters) / 1000;
-  const visibilityText = Number.isFinite(visibilityKm) ? `${trimNumber(visibilityKm)} km / ${visibilityLabel(window.visibilityMeters)}` : "Not logged";
+  const visibilityText = Number.isFinite(Number(window.visibilityMeters)) ? `${formatUnitValue(window.visibilityMeters, "distance", "m", { decimals: 1 })} / ${visibilityLabel(window.visibilityMeters)}` : "Not logged";
   const barometricTrend = window.pressureTrendRateHpa3h === null || window.pressureTrendRateHpa3h === undefined
     ? "Not logged"
-    : `${window.pressureTrendRateHpa3h > 0 ? "+" : ""}${trimNumber(window.pressureTrendRateHpa3h)} hPa / 3 hr / ${window.pressureTrendRateLabel || barometricTrendLabel(window.pressureTrendRateHpa3h)}`;
+    : `${window.pressureTrendRateHpa3h > 0 ? "+" : ""}${formatUnitValue(Math.abs(window.pressureTrendRateHpa3h), "pressure", "hPa", { decimals: 1 })} / 3 hr / ${window.pressureTrendRateLabel || barometricTrendLabel(window.pressureTrendRateHpa3h)}`;
   const windTrend = [
     trend.windTrend,
     trend.windDirectionShiftDegrees ? `${trend.windDirectionShiftDegrees} deg wind shift` : ""
   ].filter(Boolean).join(" / ");
   return `
     <span><strong>Front Tag</strong>${escapeHtml(weatherData.frontTag || "Not logged")}</span>
-    <span><strong>Air Temp</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.temperatureC, " \u00b0C"), trend.temperatureTrend))}</span>
-    <span><strong>Feels Like</strong>${escapeHtml(weatherValue(window.apparentTemperatureC, " \u00b0C"))}</span>
-    <span><strong>Wind</strong>${escapeHtml(weatherValueWithTrend(weatherWindText(weatherData) || weatherValue(daily.windSpeedMaxMph, " mph"), windTrend))}</span>
-    <span><strong>Pressure</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.pressureHpa, " hPa"), trend.pressureTrend))}</span>
+    <span><strong>Air Temp</strong>${escapeHtml(weatherValueWithTrend(formatUnitValue(window.temperatureC, "airTemperature", "C"), trend.temperatureTrend))}</span>
+    <span><strong>Feels Like</strong>${escapeHtml(formatUnitValue(window.apparentTemperatureC, "airTemperature", "C"))}</span>
+    <span><strong>Wind</strong>${escapeHtml(weatherValueWithTrend(weatherWindText(weatherData) || formatUnitValue(daily.windSpeedMaxMph, "windSpeed", "mph"), windTrend))}</span>
+    <span><strong>Pressure</strong>${escapeHtml(weatherValueWithTrend(formatUnitValue(window.pressureHpa, "pressure", "hPa", { decimals: 1 }), trend.pressureTrend))}</span>
     <span><strong>Barometric Trend</strong>${escapeHtml(barometricTrend)}</span>
     <span><strong>Visibility</strong>${escapeHtml(visibilityText)}</span>
     <span><strong>Wave Height / Chop</strong>${escapeHtml(waveHeightChopText)}</span>
@@ -833,7 +831,7 @@ function renderWeatherDetails(weatherData, trip = {}) {
     <span><strong>Sunrise / Sunset</strong>${escapeHtml([timeText(weatherData.sunMoon?.sunrise) || daily.sunrise?.slice(11, 16), timeText(weatherData.sunMoon?.sunset) || daily.sunset?.slice(11, 16)].filter(Boolean).join(" / ") || "Not logged")}</span>
     <span><strong>Moon</strong>${escapeHtml(weatherData.sunMoon ? `${weatherData.sunMoon.phase} (${weatherData.sunMoon.illuminationPercent}%)` : "Not logged")}</span>
     <span><strong>Moonrise / Moonset</strong>${escapeHtml(weatherData.sunMoon ? [timeText(weatherData.sunMoon.moonrise), timeText(weatherData.sunMoon.moonset)].filter(Boolean).join(" / ") || "Not logged" : "Not logged")}</span>
-    <span><strong>Precipitation</strong>${escapeHtml(weatherValue(window.precipitationIn ?? daily.precipitationIn, " in"))}</span>
-    <span><strong>Trip High / Low</strong>${escapeHtml(`${weatherValue(window.temperatureMaxC, " \u00b0C")} / ${weatherValue(window.temperatureMinC, " \u00b0C")}`)}</span>
+    <span><strong>Precipitation</strong>${escapeHtml(formatUnitValue(window.precipitationIn ?? daily.precipitationIn, "precipitation", "in", { decimals: 1 }))}</span>
+    <span><strong>Trip High / Low</strong>${escapeHtml(`${formatUnitValue(window.temperatureMaxC, "airTemperature", "C")} / ${formatUnitValue(window.temperatureMinC, "airTemperature", "C")}`)}</span>
   `;
 }

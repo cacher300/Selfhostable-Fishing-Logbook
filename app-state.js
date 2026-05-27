@@ -31,6 +31,69 @@ const defaultChopRanges = [
   { id: "very-choppy", label: "Very Choppy", maxFeet: 2 },
   { id: "rough", label: "Rough", maxFeet: null }
 ];
+const defaultUnits = {
+  depth: "m",
+  distance: "km",
+  speed: "kph",
+  windSpeed: "kph",
+  pressure: "hPa",
+  airTemperature: "C",
+  waterTemperature: "F",
+  precipitation: "mm",
+  waveHeight: "m",
+  fishLength: "in",
+  fishWeight: "lb"
+};
+const unitOptions = {
+  depth: [
+    { value: "m", label: "Meters (m)" },
+    { value: "ft", label: "Feet (ft)" }
+  ],
+  distance: [
+    { value: "km", label: "Kilometers (km)" },
+    { value: "mi", label: "Miles (mi)" }
+  ],
+  speed: [
+    { value: "kph", label: "Kilometers/hour (kph)" },
+    { value: "mph", label: "Miles/hour (mph)" },
+    { value: "kn", label: "Knots (kn)" }
+  ],
+  windSpeed: [
+    { value: "kph", label: "Kilometers/hour (kph)" },
+    { value: "mph", label: "Miles/hour (mph)" },
+    { value: "kn", label: "Knots (kn)" }
+  ],
+  pressure: [
+    { value: "hPa", label: "Hectopascals (hPa)" },
+    { value: "kPa", label: "Kilopascals (kPa)" },
+    { value: "inHg", label: "Inches mercury (inHg)" },
+    { value: "mmHg", label: "Millimeters mercury (mmHg)" }
+  ],
+  airTemperature: [
+    { value: "C", label: "Celsius (C)" },
+    { value: "F", label: "Fahrenheit (F)" }
+  ],
+  waterTemperature: [
+    { value: "F", label: "Fahrenheit (F)" },
+    { value: "C", label: "Celsius (C)" }
+  ],
+  precipitation: [
+    { value: "mm", label: "Millimeters (mm)" },
+    { value: "in", label: "Inches (in)" }
+  ],
+  waveHeight: [
+    { value: "m", label: "Meters (m)" },
+    { value: "ft", label: "Feet (ft)" }
+  ],
+  fishLength: [
+    { value: "in", label: "Inches (in)" },
+    { value: "cm", label: "Centimeters (cm)" }
+  ],
+  fishWeight: [
+    { value: "lb", label: "Pounds (lb)" },
+    { value: "kg", label: "Kilograms (kg)" }
+  ]
+};
 
 function createId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -82,6 +145,7 @@ const defaults = {
   rodReelCombos: [],
   settings: {
     timeFormat: "24",
+    units: structuredClone(defaultUnits),
     chopRanges: structuredClone(defaultChopRanges)
   },
   people: [],
@@ -98,8 +162,8 @@ const defaults = {
       waterTemp: "47 F",
       waterClarity: "Clear",
       weather: "Overcast",
-      wind: "W 8 mph",
-      structure: "80-120 ft, bait pods",
+      wind: "W 13 kph",
+      structure: "24-37 m, bait pods",
       notes: "Best action near first light. Marked bait deep.",
       catches: []
     }
@@ -110,6 +174,7 @@ let state = structuredClone(defaults);
 let activeTripId = null;
 let activeSummaryTripId = null;
 let activeNotePhotos = [];
+let activeTripSort = { key: "date", direction: "desc" };
 let activeStatsMethod = "All methods";
 let activeStatsSort = "fishPerHour";
 let activeStatsMinTrips = 0;
@@ -314,6 +379,8 @@ const els = {
   waveChopDisplay: document.querySelector("#waveChopDisplay"),
   settingsPanel: document.querySelector("#settingsPanel"),
   timeFormatSelect: document.querySelector("#timeFormatSelect"),
+  unitSettingsFields: document.querySelector("#unitSettingsFields"),
+  saveUnitSettingsButton: document.querySelector("#saveUnitSettingsButton"),
   chopRangeRows: document.querySelector("#chopRangeRows"),
   saveChopRangesButton: document.querySelector("#saveChopRangesButton"),
   settingsAddLocationButton: document.querySelector("#settingsAddLocationButton"),
@@ -564,12 +631,68 @@ function normalizeSettings(settings = {}) {
     ...(settings && typeof settings === "object" ? settings : {})
   };
   normalized.timeFormat = normalized.timeFormat === "12" ? "12" : "24";
+  normalized.units = normalizeUnits(normalized.units);
   normalized.chopRanges = normalizeChopRanges(normalized.chopRanges);
   return normalized;
 }
 
 function timeFormatPreference() {
   return state.settings?.timeFormat === "12" ? "12" : "24";
+}
+
+function normalizeUnits(units = {}) {
+  const normalized = { ...defaultUnits };
+  Object.keys(defaultUnits).forEach((key) => {
+    const allowed = unitOptions[key]?.map((item) => item.value) || [];
+    const value = units && typeof units === "object" ? units[key] : "";
+    if (allowed.includes(value)) normalized[key] = value;
+  });
+  return normalized;
+}
+
+function unitPreference(key) {
+  return normalizeUnits(state.settings?.units)[key] || defaultUnits[key] || "";
+}
+
+function unitSymbol(key) {
+  const unit = unitPreference(key);
+  if (unit === "C" || unit === "F") return `\u00b0${unit}`;
+  return unit;
+}
+
+function convertUnitValue(value, fromUnit, toUnit) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  if (fromUnit === toUnit) return number;
+  if (fromUnit === "C" && toUnit === "F") return (number * 9 / 5) + 32;
+  if (fromUnit === "F" && toUnit === "C") return (number - 32) * 5 / 9;
+  if (fromUnit === "mph" && toUnit === "kph") return number * 1.609344;
+  if (fromUnit === "mph" && toUnit === "kn") return number * 0.868976;
+  if (fromUnit === "kph" && toUnit === "mph") return number / 1.609344;
+  if (fromUnit === "kph" && toUnit === "kn") return number * 0.539957;
+  if (fromUnit === "m" && toUnit === "ft") return number * 3.28084;
+  if (fromUnit === "ft" && toUnit === "m") return number / 3.28084;
+  if (fromUnit === "m" && toUnit === "km") return number / 1000;
+  if (fromUnit === "m" && toUnit === "mi") return number / 1609.344;
+  if (fromUnit === "km" && toUnit === "mi") return number * 0.621371;
+  if (fromUnit === "mi" && toUnit === "km") return number / 0.621371;
+  if (fromUnit === "hPa" && toUnit === "kPa") return number / 10;
+  if (fromUnit === "hPa" && toUnit === "inHg") return number * 0.0295299830714;
+  if (fromUnit === "hPa" && toUnit === "mmHg") return number * 0.750061683;
+  if (fromUnit === "kPa" && toUnit === "hPa") return number * 10;
+  if (fromUnit === "inHg" && toUnit === "hPa") return number / 0.0295299830714;
+  if (fromUnit === "mmHg" && toUnit === "hPa") return number / 0.750061683;
+  if (fromUnit === "in" && toUnit === "mm") return number * 25.4;
+  if (fromUnit === "mm" && toUnit === "in") return number / 25.4;
+  return number;
+}
+
+function formatUnitValue(value, key, fromUnit, options = {}) {
+  const toUnit = unitPreference(key);
+  const converted = convertUnitValue(value, fromUnit, toUnit);
+  if (converted === null) return "Not logged";
+  const decimals = options.decimals ?? (Math.abs(converted) < 10 && !Number.isInteger(converted) ? 1 : 0);
+  return `${trimNumber(Math.round(converted * (10 ** decimals)) / (10 ** decimals))} ${unitSymbol(key)}`;
 }
 
 function formatDisplayTime(value) {

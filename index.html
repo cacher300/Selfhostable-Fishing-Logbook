@@ -100,6 +100,7 @@
           <label>
             <span>Sort</span>
             <select id="sortSelect">
+              <option value="custom" hidden>Column sort</option>
               <option value="date-desc">Newest first</option>
               <option value="date-asc">Oldest first</option>
               <option value="catch-rate-desc">Best catch rate</option>
@@ -670,6 +671,17 @@
             <article class="settings-card">
               <div class="settings-card-header">
                 <div>
+                  <p class="eyebrow">Units</p>
+                  <h3>Measurements</h3>
+                </div>
+                <button class="button primary" id="saveUnitSettingsButton" type="button">Save Units</button>
+              </div>
+              <div class="unit-settings-grid" id="unitSettingsFields"></div>
+              <p class="settings-note">Open-Meteo values are stored as C, mph, hPa, inches, meters, and converted for display here. Your typed fishing fields use the selected label and placeholder units.</p>
+            </article>
+            <article class="settings-card">
+              <div class="settings-card-header">
+                <div>
                   <p class="eyebrow">Wave height</p>
                   <h3>Chop Ranges</h3>
                 </div>
@@ -810,7 +822,7 @@
           </div>
           <div class="form-grid">
             <label>
-              <span>Water temperature</span>
+              <span data-unit-label="waterTemperature" data-unit-label-text="Water temperature">Water temperature</span>
               <input id="waterTemp" type="text" placeholder="54 F" />
             </label>
             <label>
@@ -822,7 +834,7 @@
               <select id="weather"></select>
             </label>
             <label>
-              <span>Wave height</span>
+              <span data-unit-label="waveHeight" data-unit-label-text="Wave height">Wave height</span>
               <input id="waveHeight" type="text" placeholder="Wave height not available for this location" />
             </label>
             <label>
@@ -830,7 +842,7 @@
               <input id="waveChopDisplay" type="text" placeholder="Auto from wave height" readonly />
             </label>
             <label>
-              <span>Depth / structure</span>
+              <span data-unit-label="depth" data-unit-label-text="Depth / structure">Depth / structure</span>
               <input id="structure" type="text" placeholder="40-60 ft, drop-off" />
             </label>
             <div class="weather-fetch-panel">
@@ -1140,11 +1152,11 @@
             <select class="catch-possible-species"></select>
           </label>
           <label class="catch-length-field">
-            <span>Length</span>
+            <span data-unit-label="fishLength" data-unit-label-text="Length">Length</span>
             <input class="catch-length" type="text" placeholder="28 in" />
           </label>
           <label class="catch-weight-field">
-            <span>Weight</span>
+            <span data-unit-label="fishWeight" data-unit-label-text="Weight">Weight</span>
             <input class="catch-weight" type="text" placeholder="9 lb" />
           </label>
           <label>
@@ -1156,11 +1168,11 @@
             <span>Released after landing</span>
           </label>
           <label>
-            <span>Water depth</span>
+            <span data-unit-label="depth" data-unit-label-text="Water depth">Water depth</span>
             <input class="catch-water-depth" type="text" placeholder="80 ft" />
           </label>
           <label>
-            <span>Estimated depth down</span>
+            <span data-unit-label="depth" data-unit-label-text="Estimated depth down">Estimated depth down</span>
             <input class="catch-depth-down" type="text" placeholder="45 ft" />
           </label>
           <label class="manual-coordinate-field">
@@ -1208,23 +1220,23 @@
             </select>
           </label>
           <label class="trolling-field">
-            <span>FOW caught</span>
+            <span data-unit-label="depth" data-unit-label-text="FOW">FOW caught</span>
             <input class="catch-fow" type="text" placeholder="80 FOW" />
           </label>
           <label class="trolling-field">
-            <span>Speed</span>
+            <span data-unit-label="speed" data-unit-label-text="Speed">Speed</span>
             <input class="catch-speed" type="text" placeholder="2.4 mph" />
           </label>
           <label class="trolling-param param-ball-depth">
-            <span>Ball depth</span>
+            <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
             <input class="catch-ball-depth" type="text" placeholder="55 ft" />
           </label>
           <label class="trolling-param param-board-line">
-            <span>Line behind board</span>
+            <span data-unit-label="depth" data-unit-label-text="Line behind board">Line behind board</span>
             <input class="catch-line-behind-board" type="text" placeholder="150 ft" />
           </label>
           <label class="trolling-param param-lure-depth">
-            <span>Estimated lure depth</span>
+            <span data-unit-label="depth" data-unit-label-text="Estimated lure depth">Estimated lure depth</span>
             <input class="catch-estimated-lure-depth" type="text" placeholder="35 ft" />
           </label>
           <label class="trolling-param param-dipsey-setting">
@@ -1232,11 +1244,11 @@
             <input class="catch-dipsey-setting" type="text" placeholder="2.5" />
           </label>
           <label class="trolling-param param-line-out">
-            <span>Line out</span>
+            <span data-unit-label="depth" data-unit-label-text="Line out">Line out</span>
             <input class="catch-line-out" type="text" placeholder="180 ft" />
           </label>
           <label class="trolling-param param-estimated-depth">
-            <span>Estimated depth</span>
+            <span data-unit-label="depth" data-unit-label-text="Estimated depth">Estimated depth</span>
             <input class="catch-estimated-depth" type="text" placeholder="60 ft" />
           </label>
           <div class="row-section-title">Notes</div>
