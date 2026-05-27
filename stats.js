@@ -370,7 +370,7 @@ function summarizeEffortPerformance(records, keyFn, minutesFn, totalHours, total
   return makePerformanceItems([...map.values()], totalHours, totalFish);
 }
 
-function summarizeEffortWithCatches(effortRecords, catchRecords, keyFn, minutesFn, totalHours, totalFish) {
+function summarizeEffortWithCatches(effortRecords, catchRecords, keyFn, minutesFn, totalHours, totalFish, lostRecords = []) {
   const map = new Map();
   const effortByLine = new Map();
   const ensure = (key) => {
@@ -405,6 +405,22 @@ function summarizeEffortWithCatches(effortRecords, catchRecords, keyFn, minutesF
     current.trips.add(record.trip.id);
   });
 
+  lostRecords.forEach((record) => {
+    const key = keyFn(record);
+    if (!key) return;
+    const line = record.setupLineId ? effortByLine.get(record.setupLineId) : null;
+    if (line && !line.key && line.minutes > 0) {
+      const current = ensure(key);
+      current.minutes += line.minutes;
+      current.trips.add(record.trip.id);
+      current.uses += 1;
+      line.key = key;
+    }
+    const current = ensure(key);
+    current.lost += 1;
+    current.trips.add(record.trip.id);
+  });
+
   return makePerformanceItems([...map.values()], totalHours, totalFish);
 }
 
@@ -412,23 +428,13 @@ function setupLineMinutes(record) {
   return Math.max(number(record.lureMinutes), number(record.flasherMinutes), calculateMinutes(record.startTime, record.endTime));
 }
 
-function trollingMethodDetailLabel(record) {
-  if (record.presentation === "downrigger" || record.presentation === "cheater") {
-    return record.ballDepth ? `${record.ballDepth} ball` : "No ball depth";
-  }
-  if (record.presentation === "flatline-leadcore") {
-    return [
-      record.lineBehindBoard ? `${record.lineBehindBoard} back` : "",
-      record.estimatedLureDepth ? `${record.estimatedLureDepth} est depth` : ""
-    ].filter(Boolean).join(" / ") || "No board detail";
-  }
-  if (record.presentation === "dipsey-diver") {
-    return [
-      record.dipseySetting ? `Setting ${record.dipseySetting}` : "",
-      record.lineOut ? `${record.lineOut} out` : "",
-      record.estimatedDepth ? `${record.estimatedDepth} est depth` : ""
-    ].filter(Boolean).join(" / ") || "No dipsey detail";
-  }
+function deepestRiggerLabel(record) {
+  if (record.presentation !== "downrigger") return "";
+  return record.deepestRigger ? "Deepest rigger" : "Higher rigger";
+}
+
+function setupDetailDiagnosticLabel(record) {
+  if (record.presentation === "downrigger") return deepestRiggerLabel(record);
   return "";
 }
 
@@ -620,48 +626,71 @@ function pluralize(word, count) {
 function statsDiagnosticRows(groups, trips, trollingGear, trollingCatches) {
   const rows = [];
   groups.forEach((group) => {
+    if (group.diagnostic === false) return;
     (group.items || []).forEach((item) => {
       if (item.fish > 0 && !item.hasUsableTime) {
-        rows.push([group.label, item.name, "Fish with no usable category time", `${item.fish} fish / ${item.trips} trips`]);
+        rows.push([group.label, item.name, "Fish with no usable category time", `${item.fish} fish / ${item.trips} trips`, ""]);
       } else if (item.trips > 0 && item.hasTimeSample && !item.hasUsableTime) {
-        rows.push([group.label, item.name, "Trips logged but hours are 0", `${item.trips} trips`]);
+        rows.push([group.label, item.name, "Trips logged but hours are 0", `${item.trips} trips`, ""]);
       }
     });
   });
 
   trips.forEach((trip) => {
     const tripTime = tripHours(trip);
-    const lineMinutes = (trip.gearUsed || []).reduce((sum, record) => sum + setupLineMinutes(record), 0);
+    const tripAction = diagnosticTripAction(trip, "Edit setup", "tripSetupSection");
+    const setupRows = trip.gearUsed || [];
+    const lineMinutes = setupRows.reduce((sum, record) => sum + setupLineMinutes(record), 0);
     if (tripTime > 0 && (trip.gearUsed || []).length && lineMinutes === 0) {
-      rows.push(["Trip setup time", trip.title || formatDate(trip.date) || trip.id, "Trip has hours but setup rows have no time", `${trimNumber(tripTime)} trip hr`]);
+      rows.push(["Trip setup time", trip.title || formatDate(trip.date) || trip.id, "Trip has hours but setup rows have no time", `${trimNumber(tripTime)} trip hr`, tripAction]);
     }
-    const maxExpected = tripTime * 60 * Math.max(1, (trip.gearUsed || []).length);
-    if (tripTime > 0 && lineMinutes > maxExpected * 1.25) {
-      rows.push(["Trip setup time", trip.title || formatDate(trip.date) || trip.id, "Setup line-hours exceed trip time by more than expected", `${minutesToHours(lineMinutes)} setup / ${trimNumber(tripTime)} trip hr`]);
+    const longSetupRows = setupRows.filter((record) => setupLineMinutes(record) > tripTime * 60 * 1.25);
+    longSetupRows.forEach((record) => {
+      const label = setupLineDisplayLabel(trip, record) || presentationLabel(record.presentation) || "Setup row";
+      rows.push([
+        "Trip setup time",
+        trip.title || formatDate(trip.date) || trip.id,
+        "Setup row is longer than trip",
+        `${label}: ${minutesToHours(setupLineMinutes(record))} setup / ${trimNumber(tripTime)} trip hr`,
+        diagnosticTripAction(trip, "Edit setup", "tripSetupSection", record.id)
+      ]);
+    });
+    const maxExpected = tripTime * 60 * Math.max(1, setupRows.length);
+    if (tripTime > 0 && !longSetupRows.length && lineMinutes > maxExpected * 1.25) {
+      rows.push(["Trip setup time", trip.title || formatDate(trip.date) || trip.id, "Setup line-hours exceed trip time by more than expected", `${minutesToHours(lineMinutes)} setup / ${trimNumber(tripTime)} trip hr`, tripAction]);
     }
   });
 
   trollingCatches.forEach((record) => {
     const line = record.setupLineId ? trollingGear.find((item) => item.id === record.setupLineId) : null;
     if (!line) return;
+    const tripAction = diagnosticTripAction(record.trip, "Edit setup", "tripSetupSection");
     [
-      ["Direction", (item) => item.direction],
       ["Trolling method", (item) => presentationLabel(item.presentation)],
-      ["Speed", (item) => speedBucket(item.speed)],
-      ["Depth detail", trollingMethodDetailLabel]
+      ["Deepest rigger", setupDetailDiagnosticLabel]
     ].forEach(([label, keyFn]) => {
       const catchKey = keyFn(record);
       const lineKey = keyFn(line);
       if (catchKey && lineKey && catchKey !== lineKey) {
-        rows.push([label, catchKey, "Catch value disagrees with setup row", `Setup row says ${lineKey}`]);
+        rows.push([label, catchKey, "Catch value disagrees with setup row", `Setup row says ${lineKey}`, tripAction]);
       }
       if (catchKey && !lineKey && setupLineMinutes(line) > 0) {
-        rows.push([label, catchKey, "Catch has category but setup row is missing it", `${minutesToHours(setupLineMinutes(line))} available on setup row`]);
+        rows.push([label, catchKey, "Catch has category but setup row is missing it", `${minutesToHours(setupLineMinutes(line))} available on setup row`, tripAction]);
       }
     });
   });
 
   return rows;
+}
+
+function diagnosticTripAction(trip, label = "Open", sectionId = "", setupId = "") {
+  if (!trip?.id) return "";
+  const sectionAttr = sectionId ? ` data-trip-section="${escapeHtml(sectionId)}"` : "";
+  const setupAttr = setupId ? ` data-setup-id="${escapeHtml(setupId)}"` : "";
+  return {
+    text: label,
+    html: `<button class="button secondary compact-action" type="button" data-edit-trip="${escapeHtml(trip.id)}"${sectionAttr}${setupAttr}>${escapeHtml(label)}</button>`
+  };
 }
 
 function renderAdvancedStats() {
@@ -741,17 +770,15 @@ function renderAdvancedStats() {
   let flasherItems = [];
   let comboItems = [];
   let directionItems = [];
+  let lineSideItems = [];
   let setupItems = [];
-  let speedItems = [];
   let fowRangeItems = [];
   let fowItems = [];
   let depthItems = [];
   let downriggerItems = [];
-  let cheaterItems = [];
-  let planerBoardItems = [];
-  let dipseyItems = [];
   let trollingGear = [];
   let trollingCatches = [];
+  let trollingLost = [];
   document.querySelectorAll("[data-trolling-card], [data-trolling-group]").forEach((item) => {
     item.classList.toggle("hidden", !isTrollingScope);
   });
@@ -778,15 +805,22 @@ function renderAdvancedStats() {
     renderStatsTable(els.comboStatsTable, headersForPerformance("Combo", comboItems), performanceRows(comboItems, "Combo"));
 
     trollingCatches = records.filter(isTrollingRecord);
-    directionItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => record.direction, setupLineMinutes, trollingLineHours, fish);
-    setupItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => presentationLabel(record.presentation), setupLineMinutes, trollingLineHours, fish);
-    speedItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => speedBucket(record.speed), setupLineMinutes, trollingLineHours, fish);
-    const methodDetailItems = (presentation) => {
-      const effort = trollingGear.filter((record) => record.presentation === presentation);
-      const catches = trollingCatches.filter((record) => record.presentation === presentation);
-      const methodHours = effort.reduce((sum, record) => sum + setupLineMinutes(record), 0) / 60;
-      return summarizeEffortWithCatches(effort, catches, trollingMethodDetailLabel, setupLineMinutes, methodHours, fish);
-    };
+    trollingLost = lostRecords.filter(isTrollingRecord);
+    directionItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => record.direction, setupLineMinutes, trollingLineHours, fish, trollingLost);
+    lineSideItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => setupLineSideLabel(record.side), setupLineMinutes, trollingLineHours, fish, trollingLost);
+    setupItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => presentationLabel(record.presentation), setupLineMinutes, trollingLineHours, fish, trollingLost);
+    const downriggerGear = trollingGear.filter((record) => record.presentation === "downrigger");
+    const downriggerCatches = trollingCatches.filter((record) => record.presentation === "downrigger");
+    const downriggerHours = downriggerGear.reduce((sum, record) => sum + setupLineMinutes(record), 0) / 60;
+    downriggerItems = summarizeEffortWithCatches(
+      downriggerGear,
+      downriggerCatches,
+      deepestRiggerLabel,
+      setupLineMinutes,
+      downriggerHours,
+      fish,
+      trollingLost.filter((record) => record.presentation === "downrigger")
+    );
     fowRangeItems = makePerformanceItems(summarizeBy(trollingCatches, (record) => fowRange(record.fowCaught)).map((item) => ({
       name: item.name,
       fish: item.fish,
@@ -808,31 +842,21 @@ function renderAdvancedStats() {
       hasTimeSample: false,
       trips: item.trips
     })), hours, fish);
-    renderTrollingHighlights(directionItems, setupItems, fowRangeItems, speedItems, comboItems);
+    renderTrollingHighlights(directionItems, lineSideItems, setupItems, fowRangeItems, comboItems);
     renderStatsTable(els.directionStatsTable, headersForPerformance("Direction", directionItems), performanceRows(directionItems, "Direction"));
+    renderStatsTable(els.lineSideStatsTable, headersForPerformance("Line Side", lineSideItems), performanceRows(lineSideItems, "Line Side"));
     renderStatsTable(els.trollingSetupStatsTable, headersForPerformance("Method", setupItems), performanceRows(setupItems, "Method"));
-    downriggerItems = methodDetailItems("downrigger");
-    cheaterItems = methodDetailItems("cheater");
-    planerBoardItems = methodDetailItems("flatline-leadcore");
-    dipseyItems = methodDetailItems("dipsey-diver");
-    renderStatsTable(els.downriggerStatsTable, headersForPerformance("Downrigger Detail", downriggerItems), performanceRows(downriggerItems, "Detail"));
-    renderStatsTable(els.cheaterStatsTable, headersForPerformance("Cheater Detail", cheaterItems), performanceRows(cheaterItems, "Detail"));
-    renderStatsTable(els.planerBoardStatsTable, headersForPerformance("Board Detail", planerBoardItems), performanceRows(planerBoardItems, "Detail"));
-    renderStatsTable(els.dipseyStatsTable, headersForPerformance("Dipsey Detail", dipseyItems), performanceRows(dipseyItems, "Detail"));
-    renderStatsTable(els.speedStatsTable, headersForPerformance("Speed", speedItems), performanceRows(speedItems, "Speed"));
+    renderStatsTable(els.downriggerStatsTable, headersForPerformance("Deepest Rigger", downriggerItems), performanceRows(downriggerItems, "Rigger"));
     renderStatsTable(els.fowRangeStatsTable, ["FOW Range", "Fish", "Trips", "Fish Share"], fishShareRows(fowRangeItems));
   } else {
     renderStatsMessage(els.flasherStatsTable, "Flashers are only tracked for trolling trips.");
     renderStatsMessage(els.comboStatsTable, "Lure + flasher combos are only tracked for trolling trips.");
     renderStatsMessage(els.trollingHighlightsTable, "Trolling-only stats appear when viewing All methods or Trolling.");
     renderStatsMessage(els.directionStatsTable, "Trolling direction is only tracked for trolling trips.");
+    renderStatsMessage(els.lineSideStatsTable, "Line side is only tracked for trolling trips.");
     renderStatsMessage(els.trollingSetupStatsTable, "Trolling method is only tracked for trolling trips.");
-    renderStatsMessage(els.downriggerStatsTable, "Downrigger details are only tracked for trolling trips.");
-    renderStatsMessage(els.cheaterStatsTable, "Cheater details are only tracked for trolling trips.");
-    renderStatsMessage(els.planerBoardStatsTable, "Planer board / leadcore details are only tracked for trolling trips.");
-    renderStatsMessage(els.dipseyStatsTable, "Dipsey details are only tracked for trolling trips.");
+    renderStatsMessage(els.downriggerStatsTable, "Deepest rigger is only tracked for trolling trips.");
     renderStatsMessage(els.fowRangeStatsTable, "FOW ranges are only tracked for trolling trips.");
-    renderStatsMessage(els.speedStatsTable, "Trolling speed is only tracked for trolling trips.");
   }
 
   renderStatsTable(els.outcomeStatsTable, ["Outcome", "Fish", "Rate"], outcomeRows(fish, releasedFish, keptFish, lostFish));
@@ -888,73 +912,19 @@ function renderAdvancedStats() {
   renderStatsTable(els.moonPhaseStatsTable, ["Moon", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => record.trip?.weatherData?.sunMoon?.phase || ""));
   renderStatsTable(els.moonWindowStatsTable, ["Moon Window", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => moonWindowForTime(record.time, record.trip?.weatherData?.sunMoon)));
 
-  renderEfficiencyLeaders([
-    {
-      label: "Quickest-producing lure so far",
-      winner: bestObservedLeader(lureItems),
-      fallback: "No lure has a timed catch yet",
-      emptyDetail: "Log lure time and catches together before this can point to a pattern."
-    },
-    {
-      label: "Lure with enough data to trust",
-      winner: bestReliableLeader(lureItems),
-      fallback: "Not enough lure history yet",
-      emptyDetail: "A lure needs at least 3 trips and 5 hours before this card will call it reliable."
-    },
-    {
-      label: "High-use lure worth reconsidering",
-      winner: underperformingHighUseLeader(lureItems),
-      fallback: "No high-use lure is underperforming yet",
-      emptyDetail: "Nothing is getting a lot of time with clearly weak return right now.",
-      kind: "underperforming"
-    },
-    {
-      label: "Method producing best so far",
-      winner: bestObservedLeader(methodItems),
-      fallback: "No clear method pattern yet",
-      emptyDetail: "Log a few more trips before leaning hard on one method."
-    },
-    {
-      label: "Most productive trolling setup",
-      winner: bestObservedLeader(setupItems),
-      fallback: "No clear trolling setup yet",
-      emptyDetail: "Once setup time and catches line up, this will show which presentation is getting hit."
-    },
-    {
-      label: "Best observed trolling speed so far",
-      winner: bestObservedLeader(speedItems),
-      fallback: "No clear speed pattern yet",
-      emptyDetail: "Log speed with setup time and catches to see which speed starts producing."
-    },
-    {
-      label: "Depth range where fish are showing up",
-      winner: fishShareLeader(fowRangeItems),
-      fallback: "No FOW pattern yet",
-      emptyDetail: "Add FOW caught on fish to see where bites are happening."
-    },
-    {
-      label: "Lure depth getting hit",
-      winner: fishShareLeader(depthItems),
-      fallback: "No lure-depth pattern yet",
-      emptyDetail: "Add depth down or estimated lure depth on catches to see what is getting hit."
-    }
-  ]);
-  renderStatsTable(els.statsDiagnosticsTable, ["Area", "Row", "Issue", "Details"], statsDiagnosticRows([
+  renderStatsTable(els.statsDiagnosticsTable, ["Area", "Row", "Issue", "Details", "Action"], statsDiagnosticRows([
     { label: "Lure", items: lureItems },
     { label: "Lure type", items: lureTypeItems },
     { label: "Lure color", items: lureColorItems },
     { label: "Flasher", items: flasherItems },
     { label: "Combo", items: comboItems },
     { label: "Direction", items: directionItems },
+    { label: "Line side", items: lineSideItems },
     { label: "Trolling method", items: setupItems },
-    { label: "Speed", items: speedItems },
-    { label: "Downrigger detail", items: downriggerItems },
-    { label: "Cheater detail", items: cheaterItems },
-    { label: "Board detail", items: planerBoardItems },
-    { label: "Dipsey detail", items: dipseyItems },
-    { label: "FOW range", items: fowRangeItems },
-    { label: "Exact FOW", items: fowItems },
-    { label: "Depth down", items: depthItems }
+    { label: "Deepest rigger", items: downriggerItems },
+    { label: "FOW range", items: fowRangeItems, diagnostic: false },
+    { label: "Exact FOW", items: fowItems, diagnostic: false },
+    { label: "Depth down", items: depthItems, diagnostic: false }
   ], trips, trollingGear, trollingCatches));
 }
 
@@ -1197,17 +1167,15 @@ function fishPerHour(item) {
   return item.minutes ? item.landed / (item.minutes / 60) : 0;
 }
 
-function renderTrollingHighlights(directionRows, setupRows, fowRangeRows, speedRows, comboRows = []) {
+function renderTrollingHighlights(directionRows, lineSideRows, setupRows, fowRangeRows, comboRows = []) {
   const byFish = (rows) => [...rows].sort((a, b) => b.fish - a.fish || b.fishPerTrip - a.fishPerTrip)[0];
   const byRate = (rows) => [...rows].filter((row) => row.hours > 0).sort((a, b) => b.fishPerHour - a.fishPerHour || b.fish - a.fish)[0];
-  const byTime = (rows) => [...rows].filter((row) => row.hours > 0).sort((a, b) => b.hours - a.hours || b.fish - a.fish)[0];
   const highlightRows = [
     highlightRow("Best direction", byRate(directionRows) || byFish(directionRows), "Best fish/hour by trolling direction"),
+    highlightRow("Best line side", byRate(lineSideRows) || byFish(lineSideRows), "Best fish/hour by setup side"),
     highlightRow("Most productive FOW range", byFish(fowRangeRows), "Most fish caught in 10-foot FOW ranges"),
     highlightRow("Best setup rate", byRate(setupRows), "Highest fish per hour used"),
-    highlightRow("Best combo rate", byRate(comboRows), "Highest lure + flasher return per hour"),
-    highlightRow("Best speed rate", byRate(speedRows), "Highest fish per hour at speed"),
-    highlightRow("Most logged speed", byTime(speedRows), "Most setup time logged at speed")
+    highlightRow("Best combo rate", byRate(comboRows), "Highest lure + flasher return per hour")
   ].filter(Boolean);
 
   renderStatsTable(els.trollingHighlightsTable, ["Stat", "Winner", "Details"], highlightRows);
@@ -1351,6 +1319,7 @@ function sortedStatsRows(container, headers, rows) {
 }
 
 function statsSortValue(value) {
+  if (value && typeof value === "object") return statsSortValue(value.text ?? value.value ?? "");
   const numeric = statsNumericValue(value);
   if (numeric !== null) return numeric;
   return String(value || "").toLowerCase();
@@ -1386,6 +1355,7 @@ function statsHeaderTitle(header) {
 }
 
 function statsCellMarkup(cell, header) {
+  if (cell && typeof cell === "object" && cell.html) return cell.html;
   const text = String(cell ?? "");
   if (header === "Confidence") return `<span class="stats-badge stats-confidence-${text.toLowerCase()}">${escapeHtml(text)}</span>`;
   if (header === "Label") return `<span class="stats-badge">${escapeHtml(text)}</span>`;
@@ -1439,6 +1409,7 @@ function statsHeaderTitle(header) {
 }
 
 function statsCellMarkup(cell, header) {
+  if (cell && typeof cell === "object" && cell.html) return cell.html;
   const text = String(cell ?? "");
   const title = statsHeaderTitle(header);
   if (header === "Confidence") return `<span class="stats-badge stats-confidence-${text.toLowerCase()}" title="${escapeHtml(title)}">${escapeHtml(text)}</span>`;
@@ -1523,13 +1494,10 @@ function statsChartConfig(id, headers) {
     flasherStatsTable: { type: "grouped", valueIndexes: [usageShareIndex, catchShareIndex], seriesLabels: ["Time %", "Fish %"], limit: 8 },
     comboStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     directionStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
+    lineSideStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     trollingSetupStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     downriggerStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
-    cheaterStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
-    planerBoardStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
-    dipseyStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     fowRangeStatsTable: { type: "donut", valueIndex: byHeader("Fish") },
-    speedStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     fowStatsTable: { type: "bar", valueIndex: fishIndex, limit: 10 },
     depthDownStatsTable: { type: "bar", valueIndex: fishIndex, limit: 10 },
     locationStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },

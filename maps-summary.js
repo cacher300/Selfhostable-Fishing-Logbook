@@ -343,7 +343,12 @@ function renderTripSummaryGear(trip) {
         const timeRange = formatDisplayTimeRange(gearItem.startTime, gearItem.endTime);
         const rodReel = comboName(gearItem.comboId) || [rodName(gearItem.rodId), reelName(gearItem.reelId)].filter(Boolean).join(" + ");
         const gear = [rodReel, lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
-        const details = [timeRange, setupLineSideLabel(gearItem.side), presentationLabel(gearItem.presentation), gearItem.speed].filter(Boolean).join(" / ");
+        const details = [
+          timeRange,
+          setupLineSideLabel(gearItem.side),
+          presentationLabel(gearItem.presentation),
+          gearItem.deepestRigger ? "Deepest rigger" : ""
+        ].filter(Boolean).join(" / ");
         return `
           <article>
             <strong>${escapeHtml(setupLineDisplayLabel(trip, gearItem) || `Rod ${index + 1}`)}${gear && gearItem.lineLabel ? `: ${escapeHtml(gear)}` : ""}</strong>
@@ -639,10 +644,7 @@ function tripTimelineItems(trip) {
     const details = [
       gear,
       presentationLabel(gearItem.presentation),
-      gearItem.speed ? `${gearItem.speed}` : "",
-      gearItem.ballDepth ? `${gearItem.ballDepth} ball` : "",
-      gearItem.estimatedLureDepth ? `${gearItem.estimatedLureDepth} lure` : "",
-      gearItem.estimatedDepth ? `${gearItem.estimatedDepth} estimated` : ""
+      gearItem.deepestRigger ? "Deepest rigger" : ""
     ].filter(Boolean).join(" / ");
     items.push({
       type: "Rod",

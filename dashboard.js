@@ -218,6 +218,10 @@ function renderFilters() {
   const selectedTarget = els.targetFilter.value || "All targets";
   els.targetFilter.innerHTML = targets.map((target) => `<option ${target === selectedTarget ? "selected" : ""}>${escapeHtml(target)}</option>`).join("");
 
+  const methods = ["All methods", ...new Set([...state.methods, ...state.trips.map((trip) => trip.method)].filter(Boolean))];
+  const selectedMethod = methods.includes(els.methodFilter.value) ? els.methodFilter.value : "All methods";
+  els.methodFilter.innerHTML = methods.map((method) => `<option ${method === selectedMethod ? "selected" : ""}>${escapeHtml(method)}</option>`).join("");
+
   const years = ["All years", ...new Set(state.trips.map((trip) => new Date(`${trip.date}T12:00:00`).getFullYear()).filter(Boolean))].sort((a, b) => {
     if (a === "All years") return -1;
     if (b === "All years") return 1;
@@ -298,6 +302,7 @@ function renderStatsMethodFilter() {
 function filteredTrips() {
   const query = els.searchInput.value.trim().toLowerCase();
   const target = els.targetFilter.value;
+  const method = els.methodFilter.value;
   const year = els.yearFilter.value;
 
   const trips = state.trips.filter((trip) => {
@@ -326,8 +331,9 @@ function filteredTrips() {
 
     const matchesQuery = !query || haystack.includes(query);
     const matchesTarget = target === "All targets" || trip.targetSpecies === target;
+    const matchesMethod = method === "All methods" || trip.method === method;
     const matchesYear = year === "All years" || String(new Date(`${trip.date}T12:00:00`).getFullYear()) === year;
-    return matchesQuery && matchesTarget && matchesYear;
+    return matchesQuery && matchesTarget && matchesMethod && matchesYear;
   });
 
   return trips.sort((a, b) => {
@@ -350,7 +356,7 @@ function renderTrips() {
   const trips = filteredTrips();
   els.tripTable.innerHTML = `
     <div class="table-row header">
-      <span>Location</span><span>Launch</span><span>Title</span><span>Date</span><span>Hours</span><span>Caught</span><span>Catch Rate</span><span>Target</span><span></span>
+      <span>Location</span><span>Launch</span><span>Title</span><span>Date</span><span>Hours</span><span>Caught</span><span>Catch Rate</span><span>Method</span><span>Target</span><span></span>
     </div>
   `;
 
@@ -367,6 +373,7 @@ function renderTrips() {
       <span>${trimNumber(tripHours(trip))}</span>
       <span>${totalCaught(trip)}</span>
       <span>${trimNumber(catchRate(trip))}</span>
+      <span class="method-pill">${escapeHtml(trip.method || "Unknown")}</span>
       <span class="trip-pill-stack">
         <span class="target-pill">${escapeHtml(trip.targetSpecies)}</span>
         <span class="intent-pill ${tripIntent(trip) === "experimental" ? "experimental" : ""}">${escapeHtml(intentLabel(tripIntent(trip)))}</span>

@@ -90,6 +90,10 @@
             <select id="targetFilter"></select>
           </label>
           <label>
+            <span>Method</span>
+            <select id="methodFilter"></select>
+          </label>
+          <label>
             <span>Year</span>
             <select id="yearFilter"></select>
           </label>
@@ -179,12 +183,6 @@
             </label>
           </div>
           <div class="metric-grid" id="advancedMetricGrid"></div>
-          <section class="efficiency-leaders" aria-label="Efficiency leaders">
-            <div class="section-heading">
-              <h3>Key Performance Signals</h3>
-            </div>
-            <div class="leader-grid" id="efficiencyLeadersGrid"></div>
-          </section>
           <div class="analytics-groups">
             <details class="stats-group" open>
               <summary>
@@ -263,7 +261,7 @@
             <details class="stats-group" data-trolling-group open>
               <summary>
                 <span>Depth And FOW</span>
-                <small>Speed, direction, trolling method, FOW, and depth by production rate</small>
+                <small>Direction, trolling method, downrigger position, FOW, and depth by production rate</small>
               </summary>
               <div class="analytics-grid">
                 <article class="analytics-card show-chart" data-default-view="chart">
@@ -271,32 +269,20 @@
                   <div class="analytics-table" id="directionStatsTable"></div>
                 </article>
                 <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Line Side Performance</h3>
+                  <div class="analytics-table" id="lineSideStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
                   <h3>Trolling Method Performance</h3>
                   <div class="analytics-table" id="trollingSetupStatsTable"></div>
                 </article>
                 <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Downrigger Depth Performance</h3>
+                  <h3>Deepest Rigger Performance</h3>
                   <div class="analytics-table" id="downriggerStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Cheater Depth Performance</h3>
-                  <div class="analytics-table" id="cheaterStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Planer Board / Leadcore Performance</h3>
-                  <div class="analytics-table" id="planerBoardStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Dipsey Diver Performance</h3>
-                  <div class="analytics-table" id="dipseyStatsTable"></div>
                 </article>
                 <article class="analytics-card show-chart" data-default-view="chart">
                   <h3>FOW Fish Distribution</h3>
                   <div class="analytics-table" id="fowRangeStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Trolling Speed Performance</h3>
-                  <div class="analytics-table" id="speedStatsTable"></div>
                 </article>
                 <article class="analytics-card show-chart" data-default-view="chart">
                   <h3>Exact FOW Caught</h3>
@@ -524,6 +510,12 @@
             </label>
           </div>
           <div class="metric-grid patterns-metrics" id="patternsMetricGrid"></div>
+          <section class="efficiency-leaders pattern-signals" aria-label="Pattern signals">
+            <div class="section-heading">
+              <h3>Key Performance Signals</h3>
+            </div>
+            <div class="leader-grid" id="efficiencyLeadersGrid"></div>
+          </section>
           <div class="patterns-grid" id="patternsGrid"></div>
         </section>
 
@@ -1181,7 +1173,7 @@
           </label>
           <div class="row-section-title">Gear</div>
           <label class="trolling-catch-line-field">
-            <span>Rod number</span>
+            <span>Rod</span>
             <select class="catch-setup-line"></select>
           </label>
           <label class="direct-catch-gear">
@@ -1190,12 +1182,6 @@
           </label>
           <button class="button secondary add-lure-inline direct-catch-gear" type="button">New Lure</button>
           <div class="lure-preview direct-catch-gear"></div>
-          <label class="trolling-field direct-catch-gear">
-            <span>Flasher</span>
-            <select class="catch-flasher"></select>
-          </label>
-          <button class="button secondary add-flasher-inline trolling-field direct-catch-gear" type="button">New Flasher</button>
-          <div class="flasher-preview trolling-field direct-catch-gear"></div>
           <div class="row-section-title trolling-field">Trolling Details</div>
           <label class="trolling-field direct-catch-gear">
             <span>Trolling method</span>
@@ -1303,7 +1289,7 @@
             </select>
           </label>
           <label class="trolling-field gear-label-field">
-            <span>Rod number</span>
+            <span>Rod</span>
             <input class="trip-gear-line-label" type="text" placeholder="Auto number, or name this rod" />
           </label>
           <div class="row-section-title gear-title">Gear</div>
@@ -1342,33 +1328,9 @@
               <option value="dipsey-diver">Dipsey Diver</option>
             </select>
           </label>
-          <label class="trolling-field">
-            <span>Speed</span>
-            <input class="catch-speed" type="text" placeholder="2.4 mph" />
-          </label>
-          <label class="trolling-param param-ball-depth">
-            <span>Ball depth</span>
-            <input class="catch-ball-depth" type="text" placeholder="55 ft" />
-          </label>
-          <label class="trolling-param param-board-line">
-            <span>Line behind board</span>
-            <input class="catch-line-behind-board" type="text" placeholder="150 ft" />
-          </label>
-          <label class="trolling-param param-lure-depth">
-            <span>Estimated lure depth</span>
-            <input class="catch-estimated-lure-depth" type="text" placeholder="35 ft" />
-          </label>
-          <label class="trolling-param param-dipsey-setting">
-            <span>Dipsey plate setting</span>
-            <input class="catch-dipsey-setting" type="text" placeholder="2.5" />
-          </label>
-          <label class="trolling-param param-line-out">
-            <span>Line out</span>
-            <input class="catch-line-out" type="text" placeholder="180 ft" />
-          </label>
-          <label class="trolling-param param-estimated-depth">
-            <span>Estimated depth</span>
-            <input class="catch-estimated-depth" type="text" placeholder="60 ft" />
+          <label class="checkbox-label trolling-param param-deepest-rigger">
+            <input class="trip-gear-deepest-rigger" type="checkbox" />
+            <span>Deepest rigger</span>
           </label>
         </div>
       </article>

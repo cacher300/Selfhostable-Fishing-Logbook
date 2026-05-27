@@ -2,14 +2,14 @@
 
 A self-hosted fishing logbook built for anglers who want to learn from their trolling trips, not just record that they went fishing.
 
-This app is for tracking the details that actually matter after a day on the water: which line fired, what lure and flasher were on it, how deep it was running, how fast you were moving, what FOW you were over, what direction you were trolling, who was fishing, what fish were landed, what fish were lost, and what pattern is worth trying next time.
+This app is for tracking the details that actually matter after a day on the water: which line fired, what lure and flasher were on it, how deep the fish were, how fast you were moving, what FOW you were over, what direction you were trolling, who was fishing, what fish were landed, what fish were lost, and what pattern is worth trying next time.
 
 It runs locally in your browser with a small Flask backend and stores your private logbook in `data/logbook.json`. Photos and videos stay on your machine under `data/uploads/`.
 
 ## What It Helps With
 
 - Rebuild productive trolling patterns from past trips.
-- Compare lures, flashers, lure/flasher combos, depths, speed ranges, FOW ranges, trolling direction, and setup types.
+- Compare lures, flashers, lure/flasher combos, catch depths, speed ranges, FOW ranges, trolling direction, setup types, and deepest-rigger results.
 - Separate landed fish from lost fish so missed bites still teach you something without inflating catch totals.
 - Track full trolling spreads, not just individual catches.
 - Keep trip notes, fishfinder shots, rig photos, catch photos, launch photos, and GPS-tagged catch locations together.
@@ -29,11 +29,15 @@ It runs locally in your browser with a small Flask backend and stores your priva
 
 ### Trolling-Specific Logging
 
-For trolling trips, the app exposes extra fields for:
+For trolling trips, setup timeline rows expose extra fields for:
 
 - Setup line: port, center, starboard, or a custom line label.
 - Presentation: downrigger, cheater, planer board / leadcore, or dipsey diver.
 - Lure and optional flasher.
+- Deepest-rigger checkbox for downrigger rows.
+
+Trolling catches and lost fish carry the fish-specific details:
+
 - Speed.
 - Trolling direction.
 - FOW caught.
@@ -86,7 +90,7 @@ Trip summaries include a trolling spread diagram so you can see the spread as a 
 
 - Dashboard totals for trips, fish caught, hours fished, waterbodies, catch rate, and pounds/hour.
 - Advanced stats for outcomes, catch/release ratio, percent lost, lure performance, flasher performance, lure/flasher combos, species, locations, methods, people, months, ratings, weather, water clarity, trip intent, wind, pressure, cloud cover, air temperature, sunshine, weather trends, front tags, moon phase, and moon windows.
-- Trolling analytics for direction, setup type, FOW range, exact FOW, trolling speed, and depth down.
+- Trolling analytics for direction, line side, setup type, deepest-rigger results, FOW range, exact FOW, and depth down.
 - Pattern Finder ranks repeatable patterns by species, gear, setup, FOW, depth, speed, time, clarity, weather, wind, pressure, cloud cover, air temperature, front tag, moon window, and month.
 - Map view plots GPS-tagged catches, trip photos, and videos with toggled filters and links out to Google Maps.
 
@@ -221,6 +225,8 @@ If you expose it beyond your own machine or trusted home network, put it behind 
 - `dashboard.js` renders the trip list, filters, sidebar stats, and high-level dashboard.
 - `data-transfer.js` handles JSON import/export.
 - `data/logbook.example.json` is a safe starter data shape.
+
+The previous Expo wrapper/mirror has been removed; the maintained app is the root Flask + plain HTML/CSS/JavaScript implementation.
 
 ## Good Future Upgrades
 

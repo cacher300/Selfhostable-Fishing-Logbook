@@ -310,6 +310,162 @@ function renderPatternMetrics(catches, lostRecords, patterns) {
   ].map(([label, value]) => `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
 }
 
+function patternScopedTrips() {
+  return state.trips.filter(patternTripMatches);
+}
+
+function patternGearRecords(trips, catches) {
+  const catchIds = new Set(catches.map((record) => record.id));
+  return trips.flatMap((trip) => {
+    const tripGear = (trip.gearUsed || []).map((gearItem) => ({ ...gearItem, trip, source: "trip", quantity: 0 }));
+    const catchGear = (trip.catches || [])
+      .map((catchItem) => resolveTripLineRecord({ ...catchItem, trip }))
+      .filter((catchItem) => catchIds.has(catchItem.id) && (catchItem.lureId || catchItem.flasherId))
+      .map((catchItem) => ({ ...catchItem, source: "catch" }));
+    return [...tripGear, ...catchGear];
+  });
+}
+
+function patternTripRows(trips, catches) {
+  const fishByTrip = new Map();
+  catches.forEach((record) => {
+    fishByTrip.set(record.trip.id, (fishByTrip.get(record.trip.id) || 0) + fishCount(record));
+  });
+  return trips.map((trip) => ({
+    ...trip,
+    catches: catches.filter((record) => record.trip.id === trip.id),
+    lostFish: [],
+    fish: fishByTrip.get(trip.id) || 0
+  }));
+}
+
+function renderPatternSignals(catches, lostRecords) {
+  if (!els.efficiencyLeadersGrid) return;
+  if (!catches.length) {
+    renderEfficiencyLeaders([]);
+    return;
+  }
+
+  const trips = patternScopedTrips();
+  const fish = catches.reduce((sum, record) => sum + fishCount(record), 0);
+  const hours = trips.reduce((sum, trip) => sum + tripHours(trip), 0);
+  const gearRecords = patternGearRecords(trips, catches);
+  const lureMinutes = gearRecords.reduce((sum, record) => sum + (record.lureId ? number(record.lureMinutes) : 0), 0);
+  const flasherMinutes = gearRecords.reduce((sum, record) => sum + (record.flasherId ? number(record.flasherMinutes) : 0), 0);
+  const lureItems = summarizeEffortPerformance(
+    gearRecords.filter((record) => record.lureId),
+    (record) => lureName(record.lureId),
+    (record) => record.lureMinutes,
+    lureMinutes / 60,
+    fish
+  );
+  const flasherItems = summarizeEffortPerformance(
+    gearRecords.filter((record) => record.flasherId),
+    (record) => flasherName(record.flasherId),
+    (record) => record.flasherMinutes,
+    flasherMinutes / 60,
+    fish
+  );
+  const methodItems = summarizeTripPerformance(patternTripRows(trips, catches), (trip) => trip.method, hours, fish);
+
+  const trollingGear = gearRecords.filter((record) => record.trip.method === "Trolling" && record.source === "trip");
+  const trollingCatches = catches.filter(isTrollingRecord);
+  const trollingLost = lostRecords.filter(isTrollingRecord);
+  const trollingLineHours = trollingGear.reduce((sum, record) => sum + setupLineMinutes(record), 0) / 60;
+  const setupItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => presentationLabel(record.presentation), setupLineMinutes, trollingLineHours, fish, trollingLost);
+  const lineSideItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => setupLineSideLabel(record.side), setupLineMinutes, trollingLineHours, fish, trollingLost);
+  const downriggerGear = trollingGear.filter((record) => record.presentation === "downrigger");
+  const downriggerCatches = trollingCatches.filter((record) => record.presentation === "downrigger");
+  const downriggerHours = downriggerGear.reduce((sum, record) => sum + setupLineMinutes(record), 0) / 60;
+  const downriggerItems = summarizeEffortWithCatches(
+    downriggerGear,
+    downriggerCatches,
+    deepestRiggerLabel,
+    setupLineMinutes,
+    downriggerHours,
+    fish,
+    trollingLost.filter((record) => record.presentation === "downrigger")
+  );
+  const fowRangeItems = makePerformanceItems(summarizeBy(trollingCatches, (record) => fowRange(record.fowCaught)).map((item) => ({
+    name: item.name,
+    fish: item.fish,
+    hours: 0,
+    hasTimeSample: false,
+    trips: item.trips
+  })), hours, fish);
+  const depthItems = makePerformanceItems(summarizeBy(trollingCatches, (record) => record.depthDown || record.estimatedDepth).map((item) => ({
+    name: item.name,
+    fish: item.fish,
+    hours: 0,
+    hasTimeSample: false,
+    trips: item.trips
+  })), hours, fish);
+
+  renderEfficiencyLeaders([
+    {
+      label: "Quickest-producing lure in this pattern set",
+      winner: bestObservedLeader(lureItems),
+      fallback: "No lure has a timed catch yet",
+      emptyDetail: "Log lure time and catches together before this can point to a pattern."
+    },
+    {
+      label: "Lure with enough data to trust",
+      winner: bestReliableLeader(lureItems),
+      fallback: "Not enough lure history yet",
+      emptyDetail: "A lure needs at least 3 trips and 5 hours before this card will call it reliable."
+    },
+    {
+      label: "High-use lure worth reconsidering",
+      winner: underperformingHighUseLeader(lureItems),
+      fallback: "No high-use lure is underperforming yet",
+      emptyDetail: "Nothing is getting a lot of time with clearly weak return right now.",
+      kind: "underperforming"
+    },
+    {
+      label: "Best flasher signal",
+      winner: bestObservedLeader(flasherItems),
+      fallback: "No clear flasher pattern yet",
+      emptyDetail: "Use flashers on setup rows and link catches to rods to compare flasher return."
+    },
+    {
+      label: "Method producing best so far",
+      winner: bestObservedLeader(methodItems),
+      fallback: "No clear method pattern yet",
+      emptyDetail: "Log a few more trips before leaning hard on one method."
+    },
+    {
+      label: "Most productive trolling setup",
+      winner: bestObservedLeader(setupItems),
+      fallback: "No clear trolling setup yet",
+      emptyDetail: "Once setup time and catches line up, this will show which presentation is getting hit."
+    },
+    {
+      label: "Best line side",
+      winner: bestObservedLeader(lineSideItems),
+      fallback: "No clear side pattern yet",
+      emptyDetail: "Use setup sides and rod-linked catches to compare port, center, and starboard."
+    },
+    {
+      label: "Best observed downrigger position",
+      winner: bestObservedLeader(downriggerItems),
+      fallback: "No clear downrigger pattern yet",
+      emptyDetail: "Mark the deepest rigger on downrigger setup rows to compare where bites are coming from."
+    },
+    {
+      label: "Depth range where fish are showing up",
+      winner: fishShareLeader(fowRangeItems),
+      fallback: "No FOW pattern yet",
+      emptyDetail: "Add FOW caught on fish to see where bites are happening."
+    },
+    {
+      label: "Lure depth getting hit",
+      winner: fishShareLeader(depthItems),
+      fallback: "No lure-depth pattern yet",
+      emptyDetail: "Add depth down or estimated lure depth on catches to see what is getting hit."
+    }
+  ]);
+}
+
 function renderPatterns() {
   renderPatternFilters();
 
@@ -317,6 +473,7 @@ function renderPatterns() {
   if (!allCatchCount) {
     els.patternsSummary.textContent = "No catches logged";
     els.patternsMetricGrid.innerHTML = "";
+    renderEfficiencyLeaders([]);
     els.patternsGrid.innerHTML = `<div class="empty-state"><p>Log catches to discover patterns.</p></div>`;
     return;
   }
@@ -327,5 +484,6 @@ function renderPatterns() {
   const patternText = patterns.length === 1 ? "1 pattern found" : `${patterns.length} patterns found`;
   els.patternsSummary.textContent = patternText;
   renderPatternMetrics(catches, lostRecords, patterns);
+  renderPatternSignals(catches, lostRecords);
   renderPatternCards(patterns);
 }

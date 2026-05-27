@@ -384,6 +384,12 @@ button {
   color: var(--red);
 }
 
+.compact-action {
+  min-height: 30px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 .file-button {
   display: inline-flex;
   align-items: center;
@@ -588,7 +594,7 @@ textarea[aria-invalid="true"] {
 
 .table-row {
   display: grid;
-  grid-template-columns: 1.05fr 0.9fr 1fr 135px 72px 78px 100px minmax(150px, 0.85fr) 42px;
+  grid-template-columns: 1.05fr 0.85fr 1fr 128px 66px 74px 96px 112px minmax(150px, 0.85fr) 42px;
   align-items: center;
   gap: 14px;
   min-height: 64px;
@@ -627,6 +633,22 @@ textarea[aria-invalid="true"] {
   border: 1px solid #cadfd5;
   color: var(--green-dark);
   background: #ecf7f1;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.method-pill {
+  display: inline-block;
+  width: max-content;
+  max-width: 100%;
+  border: 1px solid #c8d5e4;
+  color: #25476a;
+  background: #edf4fb;
   padding: 4px 8px;
   border-radius: 999px;
   font-size: 12px;
@@ -707,6 +729,22 @@ textarea[aria-invalid="true"] {
   border-radius: 8px;
   padding: 0;
   box-shadow: 0 24px 80px rgba(7, 21, 46, 0.28);
+}
+
+#tripDialog {
+  width: min(1280px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+}
+
+#tripDialog form {
+  max-height: calc(100vh - 24px);
+  padding: 26px;
+}
+
+#tripDialog .dialog-header {
+  top: -26px;
+  margin: -26px -26px 18px;
+  padding: 26px 26px 16px;
 }
 
 .small-dialog {
@@ -1204,6 +1242,11 @@ textarea[aria-invalid="true"] {
   background: #fbfcfd;
 }
 
+.diagnostic-highlight {
+  outline: 3px solid rgba(17, 135, 83, 0.45);
+  outline-offset: 3px;
+}
+
 .collapsible-row-header {
   display: flex;
   align-items: center;
@@ -1385,6 +1428,10 @@ textarea[aria-invalid="true"] {
 
 .trolling-param.visible {
   display: grid;
+}
+
+.checkbox-label.trolling-param.visible {
+  display: flex;
 }
 
 .lure-preview-card,
@@ -3167,7 +3214,8 @@ textarea[aria-invalid="true"] {
   .table-row > :nth-child(4),
   .table-row > :nth-child(5),
   .table-row > :nth-child(7),
-  .table-row > :nth-child(8) {
+  .table-row > :nth-child(8),
+  .table-row > :nth-child(9) {
     display: none;
   }
 
@@ -3395,11 +3443,26 @@ textarea[aria-invalid="true"] {
     padding: 16px;
   }
 
+  #tripDialog,
+  #tripDialog form {
+    max-height: 100dvh;
+  }
+
+  #tripDialog form {
+    padding: 16px;
+  }
+
   .dialog-header {
     top: -16px;
     margin: -16px -16px 14px;
     padding: 16px 16px 12px;
     border-bottom-color: var(--line);
+  }
+
+  #tripDialog .dialog-header {
+    top: -16px;
+    margin: -16px -16px 14px;
+    padding: 16px 16px 12px;
   }
 
   .trip-section-nav {
@@ -3451,7 +3514,8 @@ textarea[aria-invalid="true"] {
   .table-row > :nth-child(5),
   .table-row > :nth-child(6),
   .table-row > :nth-child(7),
-  .table-row > :nth-child(8) {
+  .table-row > :nth-child(8),
+  .table-row > :nth-child(9) {
     display: none;
   }
 

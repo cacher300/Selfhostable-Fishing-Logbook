@@ -136,7 +136,7 @@ els.galleryCategoryFilter.addEventListener("change", () => {
   });
 });
 
-[els.searchInput, els.targetFilter, els.yearFilter, els.sortSelect].forEach((control) => {
+[els.searchInput, els.targetFilter, els.methodFilter, els.yearFilter, els.sortSelect].forEach((control) => {
   control.addEventListener("input", () => {
     renderTrips();
   });
@@ -259,6 +259,27 @@ document.addEventListener("click", (event) => {
   const selectQueuedPhoto = event.target.closest("[data-select-queued-photo]");
   if (selectQueuedPhoto) {
     claimQueuedPhoto(selectQueuedPhoto.dataset.selectQueuedPhoto);
+  }
+
+  const editTripButton = event.target.closest("[data-edit-trip]");
+  if (editTripButton) {
+    const trip = state.trips.find((item) => item.id === editTripButton.dataset.editTrip);
+    if (trip) {
+      openTripDialog(trip);
+      const sectionId = editTripButton.dataset.tripSection;
+      if (sectionId) {
+        requestAnimationFrame(() => {
+          const target = editTripButton.dataset.setupId
+            ? document.querySelector(`.gear-used-row[data-gear-id="${CSS.escape(editTripButton.dataset.setupId)}"]`)
+            : document.querySelector(`#${sectionId}`);
+          target?.scrollIntoView({ block: "start" });
+          if (target?.classList.contains("gear-used-row")) {
+            target.classList.add("diagnostic-highlight");
+            setTimeout(() => target.classList.remove("diagnostic-highlight"), 2600);
+          }
+        });
+      }
+    }
   }
 
   const deleteQueuedPhotoButton = event.target.closest("[data-delete-queued-photo]");

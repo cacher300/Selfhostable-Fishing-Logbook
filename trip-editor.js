@@ -289,9 +289,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-notes").value = catchItem.notes || "";
   node.querySelector(".catch-setup-line").dataset.selectedSetupLine = catchItem.setupLineId || "";
   populateLureSelect(node.querySelector(".catch-lure"), catchItem.lureId || "");
-  populateFlasherSelect(node.querySelector(".catch-flasher"), catchItem.flasherId || "");
   renderLurePreview(node);
-  renderFlasherPreview(node);
   renderCatchPhotos(node);
   updatePresentationFields(node);
 
@@ -316,13 +314,7 @@ function addTripGearRow(gearItem = {}) {
   populateRodSelect(node.querySelector(".trip-gear-rod"), gearItem.rodId || "");
   populateReelSelect(node.querySelector(".trip-gear-reel"), gearItem.reelId || "");
   node.querySelector(".catch-presentation").value = gearItem.presentation || "";
-  node.querySelector(".catch-speed").value = gearItem.speed || "";
-  node.querySelector(".catch-ball-depth").value = gearItem.ballDepth || "";
-  node.querySelector(".catch-line-behind-board").value = gearItem.lineBehindBoard || "";
-  node.querySelector(".catch-estimated-lure-depth").value = gearItem.estimatedLureDepth || "";
-  node.querySelector(".catch-dipsey-setting").value = gearItem.dipseySetting || "";
-  node.querySelector(".catch-line-out").value = gearItem.lineOut || "";
-  node.querySelector(".catch-estimated-depth").value = gearItem.estimatedDepth || "";
+  node.querySelector(".trip-gear-deepest-rigger").checked = Boolean(gearItem.deepestRigger);
   populateLureSelect(node.querySelector(".trip-gear-lure"), gearItem.lureId || "");
   populateFlasherSelect(node.querySelector(".trip-gear-flasher"), gearItem.flasherId || "");
   renderLurePreview(node);
@@ -381,7 +373,7 @@ function populateSetupLineSelect(select, selectedId = "") {
   const options = setupLineOptionsFromForm();
   const selected = selectedId || select.dataset.selectedSetupLine || "";
   select.dataset.selectedSetupLine = "";
-  select.innerHTML = `<option value="">Select rod number</option>` + options.map((item) => (
+  select.innerHTML = `<option value="">Select rod</option>` + options.map((item) => (
     `<option value="${item.id}" ${item.id === selected ? "selected" : ""}>${escapeHtml(item.label)}</option>`
   )).join("");
 }
@@ -433,7 +425,7 @@ function updateRowSummary(row) {
       formatDisplayTime(row.querySelector(".catch-time").value),
       summaryOption(row.querySelector(".catch-direction"), ["Select direction"]),
       trolling
-        ? summaryOption(row.querySelector(".catch-setup-line"), ["Select rod number"])
+        ? summaryOption(row.querySelector(".catch-setup-line"), ["Select rod"])
         : summaryOption(row.querySelector(".catch-lure"), ["No lure selected"])
     ].filter(Boolean);
     summary.textContent = pieces.join(" / ");
@@ -453,7 +445,8 @@ function updateRowSummary(row) {
   ].filter(Boolean).join(" + ");
   const lineMeta = [
     setupLineSideLabel(row.querySelector(".trip-gear-side")?.value),
-    summaryOption(row.querySelector(".catch-presentation"), ["Select method"])
+    summaryOption(row.querySelector(".catch-presentation"), ["Select method"]),
+    row.querySelector(".trip-gear-deepest-rigger")?.checked ? "Deepest rigger" : ""
   ].filter(Boolean).join(" ");
   const pieces = [
     `Rod ${rowNumber(row, ".gear-used-row")}`,
@@ -487,13 +480,9 @@ function collectTripFromForm() {
       lureId: row.querySelector(".trip-gear-lure").value,
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",
-      speed: trolling ? row.querySelector(".catch-speed").value.trim() : "",
-      ballDepth: trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
-      lineBehindBoard: trolling ? row.querySelector(".catch-line-behind-board").value.trim() : "",
-      estimatedLureDepth: trolling ? row.querySelector(".catch-estimated-lure-depth").value.trim() : "",
-      dipseySetting: trolling ? row.querySelector(".catch-dipsey-setting").value.trim() : "",
-      lineOut: trolling ? row.querySelector(".catch-line-out").value.trim() : "",
-      estimatedDepth: trolling ? row.querySelector(".catch-estimated-depth").value.trim() : "",
+      deepestRigger: trolling && row.querySelector(".catch-presentation").value === "downrigger"
+        ? row.querySelector(".trip-gear-deepest-rigger").checked
+        : false,
       lureMinutes: row.querySelector(".trip-gear-lure").value ? setupMinutesFromRow(row) : 0,
       flasherMinutes: trolling && row.querySelector(".trip-gear-flasher").value ? setupMinutesFromRow(row) : 0
     }))
@@ -510,13 +499,7 @@ function collectTripFromForm() {
       || item.lureMinutes
       || item.flasherMinutes
       || item.presentation
-      || item.speed
-      || item.ballDepth
-      || item.lineBehindBoard
-      || item.estimatedLureDepth
-      || item.dipseySetting
-      || item.lineOut
-      || item.estimatedDepth
+      || item.deepestRigger
     ));
 
   const collectFishRows = (container, lost = false) => [...container.querySelectorAll(".catch-row")]
@@ -553,7 +536,7 @@ function collectTripFromForm() {
             ...base,
             setupLineId: row.querySelector(".catch-setup-line").value,
             lureId: row.querySelector(".catch-lure").value,
-            flasherId: row.querySelector(".catch-flasher").value
+            flasherId: ""
           }
         : { ...base, lureId: row.querySelector(".catch-lure").value, flasherId: "", presentation: "" };
     })

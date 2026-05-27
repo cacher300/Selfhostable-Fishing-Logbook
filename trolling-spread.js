@@ -44,6 +44,8 @@ function resolveTripLineRecord(record) {
     comboId: line.comboId || record.comboId || "",
     rodId: line.rodId || record.rodId || "",
     reelId: line.reelId || record.reelId || "",
+    side: line.side || record.side || "",
+    lineLabel: line.lineLabel || record.lineLabel || "",
     lureId: line.lureId || record.lureId || "",
     flasherId: line.flasherId || record.flasherId || "",
     presentation: line.presentation || record.presentation || "",
@@ -54,6 +56,7 @@ function resolveTripLineRecord(record) {
     dipseySetting: record.dipseySetting || line.dipseySetting || "",
     lineOut: record.lineOut || line.lineOut || "",
     estimatedDepth: record.estimatedDepth || line.estimatedDepth || "",
+    deepestRigger: line.deepestRigger || record.deepestRigger || false,
     setupLine: line
   };
 }

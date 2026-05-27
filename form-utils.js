@@ -28,6 +28,13 @@ function updatePresentationFields(row) {
   row.querySelectorAll(".trolling-param").forEach((field) => field.classList.remove("visible"));
   if (!isTrollingTrip()) return;
 
+  if (row.classList.contains("gear-used-row")) {
+    if (presentation === "downrigger") {
+      row.querySelector(".param-deepest-rigger")?.classList.add("visible");
+    }
+    return;
+  }
+
   if (presentation === "downrigger" || presentation === "cheater") {
     row.querySelector(".param-ball-depth")?.classList.add("visible");
   }
