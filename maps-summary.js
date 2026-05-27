@@ -340,7 +340,7 @@ function renderTripSummaryGear(trip) {
   return `
     <div class="summary-list">
       ${gearUsed.map((gearItem, index) => {
-        const timeRange = [gearItem.startTime, gearItem.endTime].filter(Boolean).join("-");
+        const timeRange = formatDisplayTimeRange(gearItem.startTime, gearItem.endTime);
         const rodReel = comboName(gearItem.comboId) || [rodName(gearItem.rodId), reelName(gearItem.reelId)].filter(Boolean).join(" + ");
         const gear = [rodReel, lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
         const details = [timeRange, setupLineSideLabel(gearItem.side), presentationLabel(gearItem.presentation), gearItem.speed].filter(Boolean).join(" / ");
@@ -627,8 +627,8 @@ function timelineTimeValue(time) {
 }
 
 function timelineTimeLabel(item) {
-  if (item.startTime && item.endTime) return `${item.startTime}-${item.endTime}`;
-  return item.time || item.startTime || item.endTime || "No time";
+  if (item.startTime && item.endTime) return formatDisplayTimeRange(item.startTime, item.endTime);
+  return formatDisplayTime(item.time || item.startTime || item.endTime) || "No time";
 }
 
 function tripTimelineItems(trip) {

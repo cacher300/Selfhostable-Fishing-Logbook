@@ -19,8 +19,29 @@ function chopLabelForWaveHeight(value) {
 }
 
 function renderSettings() {
+  renderPreferenceSettings();
   renderChopRangeSettings();
   renderLocationManager();
+}
+
+function renderPreferenceSettings() {
+  if (els.timeFormatSelect) els.timeFormatSelect.value = timeFormatPreference();
+}
+
+async function saveTimeFormatPreference() {
+  state.settings = {
+    ...(state.settings || {}),
+    timeFormat: els.timeFormatSelect?.value === "12" ? "12" : "24"
+  };
+  try {
+    await saveState();
+    renderAll();
+    const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
+    if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
+  } catch (error) {
+    console.error("Could not save time format.", error);
+    alert(error.message || "The time format could not be saved.");
+  }
 }
 
 function renderChopRangeSettings() {

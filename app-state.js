@@ -81,6 +81,7 @@ const defaults = {
   rods: [],
   rodReelCombos: [],
   settings: {
+    timeFormat: "24",
     chopRanges: structuredClone(defaultChopRanges)
   },
   people: [],
@@ -110,6 +111,11 @@ let activeTripId = null;
 let activeSummaryTripId = null;
 let activeNotePhotos = [];
 let activeStatsMethod = "All methods";
+let activeStatsSort = "fishPerHour";
+let activeStatsMinTrips = 0;
+let activeStatsMinHours = 0;
+let activeStatsIncludeLost = false;
+const activeStatsTableSort = {};
 const activePatternFilters = {
   species: "",
   location: "All locations",
@@ -204,6 +210,10 @@ const els = {
   mapCatchList: document.querySelector("#mapCatchList"),
   mapSpeciesFilter: document.querySelector("#mapSpeciesFilter"),
   statsMethodFilter: document.querySelector("#statsMethodFilter"),
+  statsSortFilter: document.querySelector("#statsSortFilter"),
+  statsMinTripsInput: document.querySelector("#statsMinTripsInput"),
+  statsMinHoursInput: document.querySelector("#statsMinHoursInput"),
+  statsIncludeLostToggle: document.querySelector("#statsIncludeLostToggle"),
   statsSpeciesFilter: document.querySelector("#statsSpeciesFilter"),
   statsPersonFilter: document.querySelector("#statsPersonFilter"),
   statsLocationFilter: document.querySelector("#statsLocationFilter"),
@@ -214,8 +224,13 @@ const els = {
   statsMonthFilter: document.querySelector("#statsMonthFilter"),
   statsRatingFilter: document.querySelector("#statsRatingFilter"),
   advancedMetricGrid: document.querySelector("#advancedMetricGrid"),
+  efficiencyLeadersGrid: document.querySelector("#efficiencyLeadersGrid"),
   outcomeStatsTable: document.querySelector("#outcomeStatsTable"),
   lureStatsTable: document.querySelector("#lureStatsTable"),
+  lureShareStatsTable: document.querySelector("#lureShareStatsTable"),
+  lureSpreadStatsTable: document.querySelector("#lureSpreadStatsTable"),
+  lureTypeStatsTable: document.querySelector("#lureTypeStatsTable"),
+  lureColorStatsTable: document.querySelector("#lureColorStatsTable"),
   flasherStatsTable: document.querySelector("#flasherStatsTable"),
   comboStatsTable: document.querySelector("#comboStatsTable"),
   speciesStatsTable: document.querySelector("#speciesStatsTable"),
@@ -226,6 +241,10 @@ const els = {
   trollingHighlightsTable: document.querySelector("#trollingHighlightsTable"),
   directionStatsTable: document.querySelector("#directionStatsTable"),
   trollingSetupStatsTable: document.querySelector("#trollingSetupStatsTable"),
+  downriggerStatsTable: document.querySelector("#downriggerStatsTable"),
+  cheaterStatsTable: document.querySelector("#cheaterStatsTable"),
+  planerBoardStatsTable: document.querySelector("#planerBoardStatsTable"),
+  dipseyStatsTable: document.querySelector("#dipseyStatsTable"),
   fowRangeStatsTable: document.querySelector("#fowRangeStatsTable"),
   speedStatsTable: document.querySelector("#speedStatsTable"),
   fowStatsTable: document.querySelector("#fowStatsTable"),
@@ -249,6 +268,7 @@ const els = {
   ratingStatsTable: document.querySelector("#ratingStatsTable"),
   personStatsTable: document.querySelector("#personStatsTable"),
   monthStatsTable: document.querySelector("#monthStatsTable"),
+  statsDiagnosticsTable: document.querySelector("#statsDiagnosticsTable"),
   emptyState: document.querySelector("#emptyState"),
   searchInput: document.querySelector("#searchInput"),
   targetFilter: document.querySelector("#targetFilter"),
@@ -295,6 +315,7 @@ const els = {
   waveHeight: document.querySelector("#waveHeight"),
   waveChopDisplay: document.querySelector("#waveChopDisplay"),
   settingsPanel: document.querySelector("#settingsPanel"),
+  timeFormatSelect: document.querySelector("#timeFormatSelect"),
   chopRangeRows: document.querySelector("#chopRangeRows"),
   saveChopRangesButton: document.querySelector("#saveChopRangesButton"),
   settingsAddLocationButton: document.querySelector("#settingsAddLocationButton"),
@@ -544,8 +565,32 @@ function normalizeSettings(settings = {}) {
     ...structuredClone(defaults.settings),
     ...(settings && typeof settings === "object" ? settings : {})
   };
+  normalized.timeFormat = normalized.timeFormat === "12" ? "12" : "24";
   normalized.chopRanges = normalizeChopRanges(normalized.chopRanges);
   return normalized;
+}
+
+function timeFormatPreference() {
+  return state.settings?.timeFormat === "12" ? "12" : "24";
+}
+
+function formatDisplayTime(value) {
+  const match = String(value || "").match(/(\d{1,2}):(\d{2})/);
+  if (!match) return "";
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "";
+  if (timeFormatPreference() === "24") return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+function formatDisplayTimeRange(startTime, endTime) {
+  const start = formatDisplayTime(startTime);
+  const end = formatDisplayTime(endTime);
+  return [start, end].filter(Boolean).join("-");
 }
 
 function normalizeChopRanges(ranges = []) {

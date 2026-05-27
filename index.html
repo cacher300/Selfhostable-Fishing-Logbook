@@ -15,34 +15,37 @@
           <div class="brand-spotlight" id="brandSpotlight" aria-label="Recent fishing photos"></div>
         </div>
 
-        <section class="side-section">
-          <div class="section-heading">
-            <h2>Logbook Stats</h2>
-          </div>
-          <dl class="stats-list">
-            <div><dt>Trips</dt><dd id="statTrips">0</dd></div>
-            <div><dt>Fish Caught</dt><dd id="statFish">0</dd></div>
-            <div><dt>Hours Fished</dt><dd id="statHours">0</dd></div>
-            <div><dt>Waterbodies</dt><dd id="statWaterbodies">0</dd></div>
-            <div><dt>Catch Rate</dt><dd id="statCatchRate">0</dd></div>
-            <div><dt>Lbs / Hour</dt><dd id="statPoundsPerHour">0</dd></div>
-            <div><dt>Days Since Trip</dt><dd id="statDaysSinceTrip">-</dd></div>
-          </dl>
-        </section>
+        <details class="mobile-summary-panel" open>
+          <summary>Logbook Stats</summary>
+          <section class="side-section">
+            <div class="section-heading">
+              <h2>Logbook Stats</h2>
+            </div>
+            <dl class="stats-list">
+              <div><dt>Trips</dt><dd id="statTrips">0</dd></div>
+              <div><dt>Fish Caught</dt><dd id="statFish">0</dd></div>
+              <div><dt>Hours Fished</dt><dd id="statHours">0</dd></div>
+              <div><dt>Waterbodies</dt><dd id="statWaterbodies">0</dd></div>
+              <div><dt>Catch Rate</dt><dd id="statCatchRate">0</dd></div>
+              <div><dt>Lbs / Hour</dt><dd id="statPoundsPerHour">0</dd></div>
+              <div><dt>Days Since Trip</dt><dd id="statDaysSinceTrip">-</dd></div>
+            </dl>
+          </section>
 
-        <section class="side-section">
-          <div class="section-heading">
-            <h2>Most Caught</h2>
-          </div>
-          <div id="speciesBars" class="bar-list"></div>
-        </section>
+          <section class="side-section">
+            <div class="section-heading">
+              <h2>Most Caught</h2>
+            </div>
+            <div id="speciesBars" class="bar-list"></div>
+          </section>
 
-        <section class="side-section">
-          <div class="section-heading">
-            <h2>Top Lures</h2>
-          </div>
-          <div id="lureBars" class="bar-list"></div>
-        </section>
+          <section class="side-section">
+            <div class="section-heading">
+              <h2>Top Lures</h2>
+            </div>
+            <div id="lureBars" class="bar-list"></div>
+          </section>
+        </details>
       </aside>
 
       <main class="main-panel">
@@ -117,6 +120,28 @@
               <select id="statsMethodFilter"></select>
             </label>
             <label>
+              <span>Sort performance</span>
+              <select id="statsSortFilter">
+                <option value="fishPerHour">Fish / hour</option>
+                <option value="fish">Fish caught</option>
+                <option value="hours">Hours used</option>
+                <option value="fishPerTrip">Fish / trip</option>
+                <option value="efficiencyIndex">Efficiency index</option>
+              </select>
+            </label>
+            <label>
+              <span>Min trips</span>
+              <input id="statsMinTripsInput" type="number" min="0" step="1" value="0" />
+            </label>
+            <label>
+              <span>Min hours</span>
+              <input id="statsMinHoursInput" type="number" min="0" step="0.25" value="0" />
+            </label>
+            <label class="inline-toggle">
+              <input id="statsIncludeLostToggle" type="checkbox" />
+              <span>Include lost fish</span>
+            </label>
+            <label>
               <span>Species</span>
               <select id="statsSpeciesFilter"></select>
             </label>
@@ -154,148 +179,294 @@
             </label>
           </div>
           <div class="metric-grid" id="advancedMetricGrid"></div>
-          <div class="analytics-grid">
-            <article class="analytics-card wide-card">
-              <h3>Outcome Breakdown</h3>
-              <div class="analytics-table" id="outcomeStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Lure Performance</h3>
-              <div class="analytics-table" id="lureStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Flasher Performance</h3>
-              <div class="analytics-table" id="flasherStatsTable"></div>
-            </article>
-            <article class="analytics-card wide-card">
-              <h3>Lure + Flasher Combos</h3>
-              <div class="analytics-table" id="comboStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Species Breakdown</h3>
-              <div class="analytics-table" id="speciesStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Lost Fish</h3>
-              <div class="analytics-table" id="lostFishStatsTable"></div>
-            </article>
-            <article class="analytics-card wide-card">
-              <h3>Best Pattern Combos</h3>
-              <div class="analytics-table" id="bestPatternStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Time of Day</h3>
-              <div class="analytics-table" id="timeOfDayStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Release Patterns</h3>
-              <div class="analytics-table" id="releaseStatsTable"></div>
-            </article>
-            <article class="analytics-card wide-card">
-              <h3>Trolling Highlights</h3>
-              <div class="analytics-table" id="trollingHighlightsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Trolling Direction Performance</h3>
-              <div class="analytics-table" id="directionStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Trolling Setup Performance</h3>
-              <div class="analytics-table" id="trollingSetupStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>FOW Range Performance</h3>
-              <div class="analytics-table" id="fowRangeStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Trolling Speed Performance</h3>
-              <div class="analytics-table" id="speedStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Exact FOW Caught</h3>
-              <div class="analytics-table" id="fowStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Depth Down</h3>
-              <div class="analytics-table" id="depthDownStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Location Breakdown</h3>
-              <div class="analytics-table" id="locationStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Method Breakdown</h3>
-              <div class="analytics-table" id="methodStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Water Clarity Breakdown</h3>
-              <div class="analytics-table" id="waterClarityStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Weather Breakdown</h3>
-              <div class="analytics-table" id="weatherStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Wind Direction</h3>
-              <div class="analytics-table" id="windDirectionStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Wind Speed</h3>
-              <div class="analytics-table" id="windSpeedStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Pressure</h3>
-              <div class="analytics-table" id="pressureStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Cloud Cover</h3>
-              <div class="analytics-table" id="cloudCoverStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Air Temperature</h3>
-              <div class="analytics-table" id="airTempStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Sunshine</h3>
-              <div class="analytics-table" id="sunshineStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Weather Trend</h3>
-              <div class="analytics-table" id="weatherTrendStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Front Tag</h3>
-              <div class="analytics-table" id="frontTagStatsTable"></div>
-            </article>
-            <article class="analytics-card wide-card">
-              <h3>Best Bite Windows</h3>
-              <div class="analytics-table" id="biteWindowStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Moon Phase</h3>
-              <div class="analytics-table" id="moonPhaseStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Moon Window</h3>
-              <div class="analytics-table" id="moonWindowStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Trip Intent Breakdown</h3>
-              <div class="analytics-table" id="intentStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Trip Rating Breakdown</h3>
-              <div class="analytics-table" id="ratingStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Person Breakdown</h3>
-              <div class="analytics-table" id="personStatsTable"></div>
-            </article>
-            <article class="analytics-card">
-              <h3>Month Patterns</h3>
-              <div class="analytics-table" id="monthStatsTable"></div>
-            </article>
+          <section class="efficiency-leaders" aria-label="Efficiency leaders">
+            <div class="section-heading">
+              <h3>Key Performance Signals</h3>
+            </div>
+            <div class="leader-grid" id="efficiencyLeadersGrid"></div>
+          </section>
+          <div class="analytics-groups">
+            <details class="stats-group" open>
+              <summary>
+                <span>Overview</span>
+                <small>Outcome summary, species mix, release rate, and time-of-day context</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card wide-card">
+                  <h3>Outcome Breakdown</h3>
+                  <div class="analytics-table" id="outcomeStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Species Breakdown</h3>
+                  <div class="analytics-table" id="speciesStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Lost Fish</h3>
+                  <div class="analytics-table" id="lostFishStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Time Of Day</h3>
+                  <div class="analytics-table" id="timeOfDayStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Release Patterns</h3>
+                  <div class="analytics-table" id="releaseStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card">
+                  <h3>Best Pattern Combos</h3>
+                  <div class="analytics-table" id="bestPatternStatsTable"></div>
+                </article>
+              </div>
+            </details>
+
+            <details class="stats-group" open>
+              <summary>
+                <span>Lure And Gear Performance</span>
+                <small>Time-adjusted lure return, plus trolling flashers and combinations when trolling is selected</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Performance</h3>
+                  <div class="analytics-table" id="lureStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Usage Vs Fish Share</h3>
+                  <div class="analytics-table" id="lureShareStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card">
+                  <h3>Lure Spread Context</h3>
+                  <div class="analytics-table" id="lureSpreadStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Type Performance</h3>
+                  <div class="analytics-table" id="lureTypeStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Color Performance</h3>
+                  <div class="analytics-table" id="lureColorStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
+                  <h3>Flasher Performance</h3>
+                  <div class="analytics-table" id="flasherStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card show-chart" data-default-view="chart" data-trolling-card>
+                  <h3>Lure + Flasher Combos</h3>
+                  <div class="analytics-table" id="comboStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card" data-trolling-card>
+                  <h3>Trolling Highlights</h3>
+                  <div class="analytics-table" id="trollingHighlightsTable"></div>
+                </article>
+              </div>
+            </details>
+
+            <details class="stats-group" data-trolling-group open>
+              <summary>
+                <span>Depth And FOW</span>
+                <small>Speed, direction, trolling method, FOW, and depth by production rate</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Trolling Direction Performance</h3>
+                  <div class="analytics-table" id="directionStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Trolling Method Performance</h3>
+                  <div class="analytics-table" id="trollingSetupStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Downrigger Depth Performance</h3>
+                  <div class="analytics-table" id="downriggerStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Cheater Depth Performance</h3>
+                  <div class="analytics-table" id="cheaterStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Planer Board / Leadcore Performance</h3>
+                  <div class="analytics-table" id="planerBoardStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Dipsey Diver Performance</h3>
+                  <div class="analytics-table" id="dipseyStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>FOW Fish Distribution</h3>
+                  <div class="analytics-table" id="fowRangeStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Trolling Speed Performance</h3>
+                  <div class="analytics-table" id="speedStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Exact FOW Caught</h3>
+                  <div class="analytics-table" id="fowStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Depth Down</h3>
+                  <div class="analytics-table" id="depthDownStatsTable"></div>
+                </article>
+              </div>
+            </details>
+
+            <details class="stats-group" open>
+              <summary>
+                <span>Technique Performance</span>
+                <small>Method, location, people, and month by efficiency</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Location Breakdown</h3>
+                  <div class="analytics-table" id="locationStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Method Breakdown</h3>
+                  <div class="analytics-table" id="methodStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Person Breakdown</h3>
+                  <div class="analytics-table" id="personStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Month Patterns</h3>
+                  <div class="analytics-table" id="monthStatsTable"></div>
+                </article>
+              </div>
+            </details>
+
+            <details class="stats-group" open>
+              <summary>
+                <span>Conditions</span>
+                <small>Water clarity, weather tag, wind, pressure, cloud cover, fronts, and moon windows</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Water Clarity Breakdown</h3>
+                  <div class="analytics-table" id="waterClarityStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Weather Breakdown</h3>
+                  <div class="analytics-table" id="weatherStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Wind Direction</h3>
+                  <div class="analytics-table" id="windDirectionStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Wind Speed</h3>
+                  <div class="analytics-table" id="windSpeedStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Pressure</h3>
+                  <div class="analytics-table" id="pressureStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Cloud Cover</h3>
+                  <div class="analytics-table" id="cloudCoverStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Air Temperature</h3>
+                  <div class="analytics-table" id="airTempStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Sunshine</h3>
+                  <div class="analytics-table" id="sunshineStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Weather Trend</h3>
+                  <div class="analytics-table" id="weatherTrendStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Front Tag</h3>
+                  <div class="analytics-table" id="frontTagStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card">
+                  <h3>Best Bite Windows</h3>
+                  <div class="analytics-table" id="biteWindowStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Moon Phase</h3>
+                  <div class="analytics-table" id="moonPhaseStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Moon Window</h3>
+                  <div class="analytics-table" id="moonWindowStatsTable"></div>
+                </article>
+              </div>
+            </details>
+
+            <details class="stats-group">
+              <summary>
+                <span>Advanced Tables</span>
+                <small>Detailed outcome, pattern, intent, rating, and diagnostic checks</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card">
+                  <h3>Trip Intent Breakdown</h3>
+                  <div class="analytics-table" id="intentStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Trip Rating Breakdown</h3>
+                  <div class="analytics-table" id="ratingStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card">
+                  <h3>Stats Diagnostics</h3>
+                  <div class="analytics-table" id="statsDiagnosticsTable"></div>
+                </article>
+              </div>
+            </details>
           </div>
+          <section class="stats-help" aria-label="Stats legend">
+            <div class="section-heading">
+              <h3>Stats Legend</h3>
+            </div>
+            <div class="stats-help-grid">
+              <article>
+                <h4>Performance Columns</h4>
+                <dl>
+                  <div><dt>Fish</dt><dd>Landed fish counted in the current stats scope.</dd></div>
+                  <div><dt>Hours</dt><dd>Logged fishing time, lure time, flasher time, or setup time when that data exists.</dd></div>
+                  <div><dt>Missing time data</dt><dd>Fish or trips exist, but no usable category hours were logged. Fish/hr, Time %, Efficiency, and Over are intentionally hidden.</dd></div>
+                  <div><dt>Fish / hr</dt><dd>Fish divided by hours. This is the main efficiency metric when time is available.</dd></div>
+                  <div><dt>Fish / trip</dt><dd>Fish divided by trips where that item or category appeared.</dd></div>
+                  <div><dt>Time %</dt><dd>Percent of selected fishing time spent using that item or category.</dd></div>
+                  <div><dt>Fish %</dt><dd>Percent of selected landed fish produced by that item or category.</dd></div>
+                  <div><dt>Quiet while others hit</dt><dd>Trips where the lure was used, caught nothing, and another lure caught fish.</dd></div>
+                  <div><dt>Only producer trips</dt><dd>Trips where that lure caught fish and no other lure caught fish.</dd></div>
+                </dl>
+              </article>
+              <article>
+                <h4>Efficiency Signals</h4>
+                <dl>
+                  <div><dt>Efficiency</dt><dd>Fish % divided by Time %. Above 1 means it produced more fish than its share of time.</dd></div>
+                  <div><dt>Over</dt><dd>Fish % minus Time %. Positive means overperforming; negative means underperforming.</dd></div>
+                  <div><dt>Skunk</dt><dd>Percent of trips in that category with zero landed fish.</dd></div>
+                  <div><dt>Lost</dt><dd>Lost fish count shown only when you turn on Include lost fish or a row has meaningful lost-fish data.</dd></div>
+                </dl>
+              </article>
+              <article>
+                <h4>Confidence</h4>
+                <dl>
+                  <div><dt>Low</dt><dd>Fewer than 3 trips, or fewer than 5 hours.</dd></div>
+                  <div><dt>Medium</dt><dd>3 to 5 trips and 5 to 15 hours.</dd></div>
+                  <div><dt>High</dt><dd>6+ trips and 15+ hours.</dd></div>
+                  <div><dt>Min sample</dt><dd>The Min trips and Min hours controls hide rows below your chosen sample size.</dd></div>
+                </dl>
+              </article>
+              <article>
+                <h4>Labels</h4>
+                <dl>
+                  <div><dt>High efficiency</dt><dd>Strong return for the time spent.</dd></div>
+                  <div><dt>Overused / low return</dt><dd>Gets a lot of time but produces a smaller share of fish.</dd></div>
+                  <div><dt>Needs more data</dt><dd>Promising or weak result, but the sample is still small.</dd></div>
+                  <div><dt>Consistent producer</dt><dd>Good fish count with a rate near or above average.</dd></div>
+                  <div><dt>Watch list</dt><dd>Enough to track, but not clearly high efficiency, low return, or consistent yet.</dd></div>
+                  <div><dt>Best observed rate</dt><dd>The highest fish/hour seen so far, even if confidence is still low.</dd></div>
+                  <div><dt>Best reliable performer</dt><dd>The best fish/hour among rows with Medium or High confidence.</dd></div>
+                </dl>
+              </article>
+            </div>
+          </section>
         </section>
 
         <section class="patterns-page hidden" id="patternsPanel" aria-label="Fish pattern recommendations">
@@ -492,6 +663,21 @@
             <article class="settings-card">
               <div class="settings-card-header">
                 <div>
+                  <p class="eyebrow">Display</p>
+                  <h3>Time Format</h3>
+                </div>
+              </div>
+              <label class="settings-control">
+                <span>Clock display</span>
+                <select id="timeFormatSelect">
+                  <option value="24">24-hour</option>
+                  <option value="12">12-hour</option>
+                </select>
+              </label>
+            </article>
+            <article class="settings-card">
+              <div class="settings-card-header">
+                <div>
                   <p class="eyebrow">Wave height</p>
                   <h3>Chop Ranges</h3>
                 </div>
@@ -546,109 +732,159 @@
 
         <input type="hidden" id="tripId" />
         <div class="form-message hidden" id="tripFormMessage" role="alert"></div>
-        <div class="form-grid">
-          <label>
-            <span>Trip title</span>
-            <input id="tripTitle" type="text" placeholder="Evening troll" />
-          </label>
-          <label>
-            <span>Date</span>
-            <input id="tripDate" type="date" required />
-          </label>
-          <div class="location-field">
-            <span>Location / waterbody</span>
-            <div class="inline-control-row">
-              <select id="tripLocation" required></select>
-              <button class="icon-button" id="addLocationButton" type="button" aria-label="Add location">+</button>
-            </div>
-            <datalist id="personOptions"></datalist>
-          </div>
-          <div class="location-field">
-            <span>Launch</span>
-            <div class="inline-control-row">
-              <select id="tripLaunch"></select>
-              <button class="icon-button" id="addLaunchButton" type="button" aria-label="Add launch">+</button>
-            </div>
-          </div>
-          <label>
-            <span>Start time</span>
-            <input id="startTime" type="time" />
-          </label>
-          <label>
-            <span>End time</span>
-            <input id="endTime" type="time" />
-          </label>
-          <label>
-            <span>Target species</span>
-            <select id="targetSpecies" required></select>
-          </label>
-          <label>
-            <span>Method</span>
-            <select id="method"></select>
-          </label>
-          <fieldset class="intent-control">
-            <legend>Trip intent</legend>
-            <label>
-              <input type="radio" name="tripIntent" value="serious" checked />
-              <span>Serious</span>
-            </label>
-            <label>
-              <input type="radio" name="tripIntent" value="experimental" />
-              <span>Experimental</span>
-            </label>
-          </fieldset>
-          <div class="trip-rating-control">
-            <div class="rating-heading">
-              <span>Trip rating</span>
-              <strong id="tripRatingLabel">Bad</strong>
-            </div>
-            <input id="tripRating" type="range" min="1" max="3" step="1" value="1" />
-            <div class="rating-scale" aria-hidden="true">
-              <span>Bad</span>
-              <span>Good</span>
-              <span>Outstanding</span>
-            </div>
-          </div>
-          <label>
-            <span>Water temperature</span>
-            <input id="waterTemp" type="text" placeholder="54 F" />
-          </label>
-          <label>
-            <span>Water clarity</span>
-            <select id="waterClarity"></select>
-          </label>
-          <label>
-            <span>Weather</span>
-            <select id="weather"></select>
-          </label>
-          <label>
-            <span>Wave height</span>
-            <input id="waveHeight" type="text" placeholder="Wave height not available for this location" />
-          </label>
-          <label>
-            <span>Wave chop</span>
-            <input id="waveChopDisplay" type="text" placeholder="Auto from wave height" readonly />
-          </label>
-          <label>
-            <span>Depth / structure</span>
-            <input id="structure" type="text" placeholder="40-60 ft, drop-off" />
-          </label>
-          <div class="weather-fetch-panel">
-            <div>
-              <span>Weather data</span>
-              <strong id="weatherFetchStatus">Choose a mapped location and date</strong>
-            </div>
-          </div>
-        </div>
+        <nav class="trip-section-nav" aria-label="Trip form sections">
+          <a href="#tripBasicsSection">Basics</a>
+          <a href="#tripConditionsSection">Conditions</a>
+          <a href="#tripPeopleSection">People</a>
+          <a href="#tripSetupSection">Setup</a>
+          <a href="#tripCatchesSection">Catches</a>
+          <a href="#tripLostFishSection">Lost</a>
+          <a href="#tripNotesSection">Photos</a>
+        </nav>
 
-        <label class="wide-label">
-          <span>Trip notes</span>
-          <textarea id="tripNotes" rows="4" placeholder="Pattern, timing, launch notes, what you would change next time"></textarea>
-        </label>
-
-        <section class="note-attachments">
+        <section class="trip-form-section" id="tripBasicsSection">
           <div class="section-heading">
-            <h3>Trip Photos</h3>
+            <h3>Trip Basics</h3>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span>Trip title</span>
+              <input id="tripTitle" type="text" placeholder="Evening troll" />
+            </label>
+            <label>
+              <span>Date</span>
+              <input id="tripDate" type="date" required />
+            </label>
+            <div class="location-field">
+              <span>Location / waterbody</span>
+              <div class="inline-control-row">
+                <select id="tripLocation" required></select>
+                <button class="icon-button" id="addLocationButton" type="button" aria-label="Add location">+</button>
+              </div>
+              <datalist id="personOptions"></datalist>
+            </div>
+            <div class="location-field">
+              <span>Launch</span>
+              <div class="inline-control-row">
+                <select id="tripLaunch"></select>
+                <button class="icon-button" id="addLaunchButton" type="button" aria-label="Add launch">+</button>
+              </div>
+            </div>
+            <label>
+              <span>Start time</span>
+              <input id="startTime" type="time" />
+            </label>
+            <label>
+              <span>End time</span>
+              <input id="endTime" type="time" />
+            </label>
+            <label>
+              <span>Target species</span>
+              <select id="targetSpecies" required></select>
+            </label>
+            <label>
+              <span>Method</span>
+              <select id="method"></select>
+            </label>
+            <fieldset class="intent-control">
+              <legend>Trip intent</legend>
+              <label>
+                <input type="radio" name="tripIntent" value="serious" checked />
+                <span>Serious</span>
+              </label>
+              <label>
+                <input type="radio" name="tripIntent" value="experimental" />
+                <span>Experimental</span>
+              </label>
+            </fieldset>
+            <div class="trip-rating-control">
+              <div class="rating-heading">
+                <span>Trip rating</span>
+                <strong id="tripRatingLabel">Bad</strong>
+              </div>
+              <input id="tripRating" type="range" min="1" max="3" step="1" value="1" />
+              <div class="rating-scale" aria-hidden="true">
+                <span>Bad</span>
+                <span>Good</span>
+                <span>Outstanding</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="trip-form-section" id="tripConditionsSection">
+          <div class="section-heading">
+            <h3>Conditions</h3>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span>Water temperature</span>
+              <input id="waterTemp" type="text" placeholder="54 F" />
+            </label>
+            <label>
+              <span>Water clarity</span>
+              <select id="waterClarity"></select>
+            </label>
+            <label>
+              <span>Weather</span>
+              <select id="weather"></select>
+            </label>
+            <label>
+              <span>Wave height</span>
+              <input id="waveHeight" type="text" placeholder="Wave height not available for this location" />
+            </label>
+            <label>
+              <span>Wave chop</span>
+              <input id="waveChopDisplay" type="text" placeholder="Auto from wave height" readonly />
+            </label>
+            <label>
+              <span>Depth / structure</span>
+              <input id="structure" type="text" placeholder="40-60 ft, drop-off" />
+            </label>
+            <div class="weather-fetch-panel">
+              <div>
+                <span>Weather data</span>
+                <strong id="weatherFetchStatus">Choose a mapped location and date</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="trip-form-section people-editor" id="tripPeopleSection">
+          <div class="section-heading">
+            <h3>People</h3>
+            <button class="button secondary" id="addPersonButton" type="button">Add Person</button>
+          </div>
+          <div id="personRows" class="person-rows"></div>
+        </section>
+
+        <section class="trip-form-section gear-used-editor" id="tripSetupSection">
+          <div class="section-heading">
+            <h3>Setup Timeline</h3>
+            <button class="button secondary" id="addTripGearButton" type="button">Add Rod</button>
+          </div>
+          <div id="tripGearRows" class="gear-used-rows"></div>
+        </section>
+
+        <section class="trip-form-section catch-editor" id="tripCatchesSection">
+          <div class="section-heading">
+            <h3>Catches</h3>
+            <button class="button secondary" id="addCatchButton" type="button">Add Catch</button>
+          </div>
+          <div id="catchRows" class="catch-rows"></div>
+        </section>
+
+        <section class="trip-form-section catch-editor" id="tripLostFishSection">
+          <div class="section-heading">
+            <h3>Lost Fish</h3>
+            <button class="button secondary" id="addLostFishButton" type="button">Add Lost Fish</button>
+          </div>
+          <div id="lostFishRows" class="catch-rows"></div>
+        </section>
+
+        <section class="trip-form-section note-attachments" id="tripNotesSection">
+          <div class="section-heading">
+            <h3>Photos And Notes</h3>
             <div class="section-actions">
               <label class="button secondary file-button">
                 Add Photos
@@ -657,39 +893,11 @@
               <button class="button secondary" type="button" data-use-photo-queue="trip-photos">Use Queue</button>
             </div>
           </div>
+          <label class="wide-label">
+            <span>Trip notes</span>
+            <textarea id="tripNotes" rows="4" placeholder="Pattern, timing, launch notes, what you would change next time"></textarea>
+          </label>
           <div id="notePhotoGrid" class="note-photo-grid"></div>
-        </section>
-
-        <section class="people-editor">
-          <div class="section-heading">
-            <h3>People</h3>
-            <button class="button secondary" id="addPersonButton" type="button">Add Person</button>
-          </div>
-          <div id="personRows" class="person-rows"></div>
-        </section>
-
-        <section class="gear-used-editor">
-          <div class="section-heading">
-            <h3>Setup Timeline</h3>
-            <button class="button secondary" id="addTripGearButton" type="button">Add Rod</button>
-          </div>
-          <div id="tripGearRows" class="gear-used-rows"></div>
-        </section>
-
-        <section class="catch-editor">
-          <div class="section-heading">
-            <h3>Catches</h3>
-            <button class="button secondary" id="addCatchButton" type="button">Add Catch</button>
-          </div>
-          <div id="catchRows" class="catch-rows"></div>
-        </section>
-
-        <section class="catch-editor">
-          <div class="section-heading">
-            <h3>Lost Fish</h3>
-            <button class="button secondary" id="addLostFishButton" type="button">Add Lost Fish</button>
-          </div>
-          <div id="lostFishRows" class="catch-rows"></div>
         </section>
 
         <div class="dialog-actions">
@@ -729,7 +937,6 @@
       <form id="reelForm" method="dialog">
         <div class="dialog-header">
           <div>
-            <p class="eyebrow">Reusable reel</p>
             <h2>Add Reel</h2>
           </div>
           <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close">x</button>
@@ -771,7 +978,6 @@
       <form id="rodForm" method="dialog">
         <div class="dialog-header">
           <div>
-            <p class="eyebrow">Reusable rod</p>
             <h2>Add Rod</h2>
           </div>
           <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close">x</button>
@@ -829,7 +1035,6 @@
       <form id="lureForm" method="dialog">
         <div class="dialog-header">
           <div>
-            <p class="eyebrow">Reusable lure</p>
             <h2>Add Lure</h2>
           </div>
           <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close">x</button>
@@ -993,9 +1198,9 @@
           <div class="flasher-preview trolling-field direct-catch-gear"></div>
           <div class="row-section-title trolling-field">Trolling Details</div>
           <label class="trolling-field direct-catch-gear">
-            <span>Trolling setup</span>
+            <span>Trolling method</span>
             <select class="catch-presentation">
-              <option value="">Select setup</option>
+              <option value="">Select method</option>
               <option value="downrigger">Downrigger</option>
               <option value="cheater">Cheater</option>
               <option value="flatline-leadcore">Planer Board / Leadcore</option>
@@ -1128,9 +1333,9 @@
           <div class="flasher-preview trolling-field"></div>
           <div class="row-section-title trolling-field gear-trolling-title">Trolling Details</div>
           <label class="trolling-field">
-            <span>Trolling setup</span>
+            <span>Trolling method</span>
             <select class="catch-presentation">
-              <option value="">Select setup</option>
+              <option value="">Select method</option>
               <option value="downrigger">Downrigger</option>
               <option value="cheater">Cheater</option>
               <option value="flatline-leadcore">Planer Board / Leadcore</option>

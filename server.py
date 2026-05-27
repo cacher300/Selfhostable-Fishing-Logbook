@@ -141,6 +141,7 @@ DEFAULT_LOGBOOK = {
     "rods": [],
     "rodReelCombos": [],
     "settings": {
+        "timeFormat": "24",
         "chopRanges": [
             {"id": "calm", "label": "Calm", "maxFeet": 0.5},
             {"id": "light", "label": "Light Chop", "maxFeet": 1},
@@ -167,6 +168,9 @@ def normalize_logbook(payload: dict | None = None) -> dict:
     else:
         default_ranges = deepcopy(DEFAULT_LOGBOOK["settings"]["chopRanges"])
         ranges = normalized["settings"].get("chopRanges")
+        time_format = str(normalized["settings"].get("timeFormat") or "24")
+        if time_format not in ("12", "24"):
+            time_format = "24"
         if not isinstance(ranges, list) or not ranges:
             ranges = default_ranges
         cleaned_ranges = []
@@ -188,7 +192,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             })
         if not any(item.get("maxFeet") is None for item in cleaned_ranges):
             cleaned_ranges.append(default_ranges[-1])
-        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "chopRanges": cleaned_ranges or default_ranges}
+        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "timeFormat": time_format, "chopRanges": cleaned_ranges or default_ranges}
 
     list_keys = ("species", "lureTypes", "flasherTypes", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
     for key in list_keys:

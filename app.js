@@ -63,11 +63,28 @@ els.newLibraryReelButton.addEventListener("click", () => openReelDialog());
 els.newLibraryRodButton.addEventListener("click", () => openRodDialog());
 els.newLibraryComboButton.addEventListener("click", () => openComboDialog());
 els.saveChopRangesButton.addEventListener("click", saveChopRanges);
+els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
 els.settingsAddLocationButton.addEventListener("click", () => openLocationDialog("location"));
 els.exportButton.addEventListener("click", exportJson);
 els.importInput.addEventListener("change", importJson);
 els.statsMethodFilter.addEventListener("change", () => {
   activeStatsMethod = els.statsMethodFilter.value;
+  renderAdvancedStats();
+});
+els.statsSortFilter?.addEventListener("change", () => {
+  activeStatsSort = els.statsSortFilter.value;
+  renderAdvancedStats();
+});
+els.statsMinTripsInput?.addEventListener("input", () => {
+  activeStatsMinTrips = Math.max(0, Math.floor(Number(els.statsMinTripsInput.value) || 0));
+  renderAdvancedStats();
+});
+els.statsMinHoursInput?.addEventListener("input", () => {
+  activeStatsMinHours = Math.max(0, Number(els.statsMinHoursInput.value) || 0);
+  renderAdvancedStats();
+});
+els.statsIncludeLostToggle?.addEventListener("change", () => {
+  activeStatsIncludeLost = Boolean(els.statsIncludeLostToggle.checked);
   renderAdvancedStats();
 });
 [
@@ -134,6 +151,30 @@ document.addEventListener("click", (event) => {
     const row = toggleRow.closest(".catch-row, .gear-used-row");
     const collapsed = row.classList.toggle("collapsed");
     toggleRow.setAttribute("aria-expanded", String(!collapsed));
+  }
+
+  const statsViewButton = event.target.closest("[data-stats-view]");
+  if (statsViewButton) {
+    const card = statsViewButton.closest(".analytics-card");
+    const toggle = statsViewButton.closest(".stats-view-toggle");
+    const showChart = statsViewButton.dataset.statsView === "chart";
+    card?.classList.toggle("show-chart", showChart);
+    toggle?.querySelectorAll("button").forEach((button) => {
+      button.classList.toggle("is-active", button === statsViewButton);
+    });
+  }
+
+  const statsSortButton = event.target.closest("[data-stats-sort]");
+  if (statsSortButton) {
+    const table = statsSortButton.closest(".analytics-table");
+    if (!table?.id) return;
+    const index = Number(statsSortButton.dataset.statsSort);
+    const current = activeStatsTableSort[table.id];
+    activeStatsTableSort[table.id] = {
+      index,
+      direction: current?.index === index && current.direction === "desc" ? "asc" : "desc"
+    };
+    renderAdvancedStats();
   }
 
   const viewButton = event.target.closest("[data-view-trip]");
@@ -455,10 +496,22 @@ function setView(view) {
   renderGearLibrary();
 }
 
+function syncMobileSummaryPanel() {
+  const summaryPanel = document.querySelector(".mobile-summary-panel");
+  if (!summaryPanel) return;
+  if (window.matchMedia("(max-width: 760px)").matches) {
+    summaryPanel.removeAttribute("open");
+  } else {
+    summaryPanel.setAttribute("open", "");
+  }
+}
+
 async function init() {
+  syncMobileSummaryPanel();
   state = await loadState();
   renderAll();
   setView("trips");
 }
 
+window.addEventListener("resize", syncMobileSummaryPanel);
 init();
