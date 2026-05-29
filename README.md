@@ -205,6 +205,10 @@ If you expose it beyond your own machine or trusted home network, put it behind 
 - `static/css/`: app styling.
 - `data/`: private logbook JSON and local uploads.
 
+## Contributing
+
+PRs are welcome. Feature requests are welcome too, especially ideas that make the logbook more useful for real fishing workflows across trolling and other fishing methods.
+
 ## Privacy Notes
 
 Selfhostable Fishing Logbook is built around local ownership of your data:
