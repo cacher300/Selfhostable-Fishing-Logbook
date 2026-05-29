@@ -1209,13 +1209,7 @@ function highlightRow(label, row, details) {
 }
 
 function presentationLabel(value) {
-  const labels = {
-    downrigger: "Downrigger",
-    cheater: "Cheater",
-    "flatline-leadcore": "Planer Board / Leadcore",
-    "dipsey-diver": "Dipsey Diver"
-  };
-  return labels[value] || value || "";
+  return choiceLabel("trollingPresentations", value) || "";
 }
 
 function summarizeCombos(records) {

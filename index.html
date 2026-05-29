@@ -28,7 +28,7 @@
               <div><dt>Waterbodies</dt><dd id="statWaterbodies">0</dd></div>
               <div><dt>Catch Rate</dt><dd id="statCatchRate">0</dd></div>
               <div><dt>Lbs / Hour</dt><dd id="statPoundsPerHour">0</dd></div>
-              <div><dt>Days Since Trip</dt><dd id="statDaysSinceTrip">-</dd></div>
+              <div><dt>Last Trip</dt><dd id="statDaysSinceTrip">-</dd></div>
             </dl>
           </section>
 
@@ -678,6 +678,17 @@
               </div>
               <div class="unit-settings-grid" id="unitSettingsFields"></div>
               <p class="settings-note">Open-Meteo values are stored as C, mph, hPa, inches, meters, and converted for display here. Your typed fishing fields use the selected label and placeholder units.</p>
+            </article>
+            <article class="settings-card">
+              <div class="settings-card-header">
+                <div>
+                  <p class="eyebrow">Dropdowns</p>
+                  <h3>Predefined Fields</h3>
+                </div>
+                <button class="button primary" id="savePredefinedFieldsButton" type="button">Save Fields</button>
+              </div>
+              <div class="predefined-field-settings" id="predefinedFieldSettings"></div>
+              <p class="settings-note">Deleting a member removes it from future dropdown choices. Existing trips keep their saved text.</p>
             </article>
             <article class="settings-card">
               <div class="settings-card-header">

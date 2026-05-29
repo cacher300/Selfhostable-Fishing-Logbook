@@ -65,6 +65,7 @@ els.newLibraryComboButton.addEventListener("click", () => openComboDialog());
 els.saveChopRangesButton.addEventListener("click", saveChopRanges);
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
 els.saveUnitSettingsButton?.addEventListener("click", saveUnitSettings);
+document.querySelector("#savePredefinedFieldsButton")?.addEventListener("click", savePredefinedFieldSettings);
 els.settingsAddLocationButton.addEventListener("click", () => openLocationDialog("location"));
 els.exportButton.addEventListener("click", exportJson);
 els.importInput.addEventListener("change", importJson);
@@ -219,6 +220,24 @@ document.addEventListener("click", (event) => {
       if (select.value === personId) select.value = "";
     });
     populatePersonSelects();
+  }
+
+  const addPredefinedOption = event.target.closest(".add-predefined-option");
+  if (addPredefinedOption) {
+    const list = addPredefinedOption.closest(".predefined-field-group")?.querySelector(".predefined-option-list");
+    const index = list?.querySelectorAll(".predefined-option-row").length || 0;
+    list?.insertAdjacentHTML("beforeend", `
+      <div class="predefined-option-row" data-option-index="${index}">
+        <input class="predefined-option-label" type="text" value="" aria-label="New predefined option" />
+        <button class="button danger remove-predefined-option" type="button">Delete</button>
+      </div>
+    `);
+    list?.querySelector(".predefined-option-row:last-child .predefined-option-label")?.focus();
+  }
+
+  const removePredefinedOption = event.target.closest(".remove-predefined-option");
+  if (removePredefinedOption) {
+    removePredefinedOption.closest(".predefined-option-row")?.remove();
   }
 
   const removeNotePhoto = event.target.closest(".remove-note-photo");

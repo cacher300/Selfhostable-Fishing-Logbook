@@ -274,13 +274,13 @@ function renderStatsMethodFilter() {
     `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.flasher ? "selected" : ""}>${escapeHtml(item)}</option>`
   )).join("");
 
-  const clarity = ["All clarity", ...waterClarityOptions];
+  const clarity = ["All clarity", ...optionLabels("waterClarities")];
   if (!clarity.includes(activeStatsFilters.waterClarity)) activeStatsFilters.waterClarity = "All clarity";
   els.statsWaterClarityFilter.innerHTML = clarity.map((item) => (
     `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.waterClarity ? "selected" : ""}>${escapeHtml(item)}</option>`
   )).join("");
 
-  const weather = ["All weather", ...weatherOptions];
+  const weather = ["All weather", ...optionLabels("weatherTypes")];
   if (!weather.includes(activeStatsFilters.weather)) activeStatsFilters.weather = "All weather";
   els.statsWeatherFilter.innerHTML = weather.map((item) => (
     `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.weather ? "selected" : ""}>${escapeHtml(item)}</option>`
@@ -463,12 +463,15 @@ function renderSelectOptions() {
   populateDatalist(els.personOptions, state.people.map((person) => person.name).filter(Boolean));
   populateOptionSelect(document.querySelector("#targetSpecies"), state.species, "Select target species");
   populateOptionSelect(document.querySelector("#method"), state.methods, "Select method");
-  populateOptionSelect(document.querySelector("#waterClarity"), waterClarityOptions, "Select water clarity");
-  populateOptionSelect(document.querySelector("#weather"), weatherOptions, "Select weather");
+  populateOptionSelect(document.querySelector("#waterClarity"), optionLabels("waterClarities"), "Select water clarity");
+  populateOptionSelect(document.querySelector("#weather"), optionLabels("weatherTypes"), "Select weather");
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
   document.querySelectorAll(".catch-species").forEach((select) => populateOptionSelect(select, state.species, "Select species"));
   document.querySelectorAll(".catch-possible-species").forEach((select) => populateOptionSelect(select, state.species, "Select possible species"));
+  document.querySelectorAll(".catch-presentation").forEach((select) => populateChoiceSelect(select, optionChoices("trollingPresentations"), "Select method"));
+  document.querySelectorAll(".catch-direction").forEach((select) => populateOptionSelect(select, optionLabels("trollingDirections"), "Select direction"));
+  document.querySelectorAll(".trip-gear-side").forEach((select) => populateChoiceSelect(select, optionChoices("setupLineSides"), "Select side"));
 }
 
 function populateDatalist(datalist, options) {
@@ -477,9 +480,22 @@ function populateDatalist(datalist, options) {
 }
 
 function populateOptionSelect(select, options, placeholder) {
+  if (!select) return;
   const current = select.value;
-  select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` + options.map((item) => (
+  const normalizedOptions = options.includes(current) || !current ? options : [...options, current];
+  select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` + normalizedOptions.map((item) => (
     `<option value="${escapeHtml(item)}" ${item === current ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
+}
+
+function populateChoiceSelect(select, options, placeholder, selectedValue = "") {
+  if (!select) return;
+  const current = selectedValue || select.value;
+  const normalizedOptions = options.some((item) => item.value === current) || !current
+    ? options
+    : [...options, { value: current, label: current }];
+  select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` + normalizedOptions.map((item) => (
+    `<option value="${escapeHtml(item.value)}" ${item.value === current ? "selected" : ""}>${escapeHtml(item.label)}</option>`
   )).join("");
 }
 

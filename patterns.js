@@ -48,11 +48,11 @@ function renderPatternFilters() {
   if (!monthOptions.includes(activePatternFilters.month)) activePatternFilters.month = "All months";
   renderPatternFilter(els.patternMonthFilter, monthOptions, activePatternFilters.month);
 
-  const clarityOptions = ["All clarity", ...waterClarityOptions];
+  const clarityOptions = ["All clarity", ...optionLabels("waterClarities")];
   if (!clarityOptions.includes(activePatternFilters.waterClarity)) activePatternFilters.waterClarity = "All clarity";
   renderPatternFilter(els.patternWaterClarityFilter, clarityOptions, activePatternFilters.waterClarity);
 
-  const weatherChoices = ["All weather", ...weatherOptions];
+  const weatherChoices = ["All weather", ...optionLabels("weatherTypes")];
   if (!weatherChoices.includes(activePatternFilters.weather)) activePatternFilters.weather = "All weather";
   renderPatternFilter(els.patternWeatherFilter, weatherChoices, activePatternFilters.weather);
 

@@ -1,6 +1,6 @@
 const storageKey = "fishing-logbook-v1";
 
-const waterClarityOptions = [
+const defaultWaterClarityOptions = [
   "Crystal Clear",
   "Clear",
   "Slightly Stained",
@@ -9,7 +9,7 @@ const waterClarityOptions = [
   "Algae Bloom"
 ];
 
-const weatherOptions = [
+const defaultWeatherOptions = [
   "Sunny",
   "Partly Cloudy",
   "Overcast",
@@ -21,9 +21,21 @@ const weatherOptions = [
   "Mixed"
 ];
 
-const reelStyleOptions = ["Baitcaster", "Spinning", "Centerpin", "Fly"];
-const rodTypeOptions = ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"];
-const lineTypeOptions = ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wire", "Copper", "Other"];
+const defaultReelStyleOptions = ["Baitcaster", "Spinning", "Centerpin", "Fly"];
+const defaultRodTypeOptions = ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"];
+const defaultLineTypeOptions = ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wire", "Copper", "Other"];
+const defaultTrollingPresentationOptions = [
+  { value: "downrigger", label: "Downrigger" },
+  { value: "cheater", label: "Cheater" },
+  { value: "flatline-leadcore", label: "Planer Board / Leadcore" },
+  { value: "dipsey-diver", label: "Dipsey Diver" }
+];
+const defaultTrollingDirectionOptions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+const defaultSetupLineSideOptions = [
+  { value: "port", label: "Port" },
+  { value: "center", label: "Center" },
+  { value: "starboard", label: "Starboard" }
+];
 const defaultChopRanges = [
   { id: "calm", label: "Calm", maxFeet: 0.5 },
   { id: "light", label: "Light Chop", maxFeet: 1 },
@@ -128,6 +140,14 @@ const defaults = {
   methods: ["Trolling", "Casting", "Jigging", "Fly Fishing", "Bait Fishing", "Ice Fishing", "Shore Fishing"],
   lureTypes: ["Spoon", "Crankbait", "Spinner", "Jig", "Soft Plastic", "Fly", "Plug", "Swimbait", "Flasher/Fly", "Jerkbait", "Topwater", "Other"],
   flasherTypes: ["Paddle", "Dodger", "Spin Doctor", "Meat Rig", "Attractor", "Other"],
+  waterClarities: structuredClone(defaultWaterClarityOptions),
+  weatherTypes: structuredClone(defaultWeatherOptions),
+  reelStyles: structuredClone(defaultReelStyleOptions),
+  rodTypes: structuredClone(defaultRodTypeOptions),
+  lineTypes: structuredClone(defaultLineTypeOptions),
+  trollingPresentations: structuredClone(defaultTrollingPresentationOptions),
+  trollingDirections: structuredClone(defaultTrollingDirectionOptions),
+  setupLineSides: structuredClone(defaultSetupLineSideOptions),
   lures: [
     {
       id: createId(),
@@ -381,6 +401,7 @@ const els = {
   timeFormatSelect: document.querySelector("#timeFormatSelect"),
   unitSettingsFields: document.querySelector("#unitSettingsFields"),
   saveUnitSettingsButton: document.querySelector("#saveUnitSettingsButton"),
+  predefinedFieldSettings: document.querySelector("#predefinedFieldSettings"),
   chopRangeRows: document.querySelector("#chopRangeRows"),
   saveChopRangesButton: document.querySelector("#saveChopRangesButton"),
   settingsAddLocationButton: document.querySelector("#settingsAddLocationButton"),
@@ -573,12 +594,17 @@ function tripWeatherCoordinates(trip) {
 
 function normalizeState(nextState) {
   const normalized = { ...structuredClone(defaults), ...(nextState || {}) };
-  normalized.methods = [...defaults.methods];
   delete normalized.tripTypes;
   normalized.settings = normalizeSettings(normalized.settings);
 
-  ["species", "lureTypes", "flasherTypes", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips"].forEach((key) => {
+  ["species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips"].forEach((key) => {
     if (!Array.isArray(normalized[key])) normalized[key] = structuredClone(defaults[key]);
+  });
+  ["species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingDirections"].forEach((key) => {
+    normalized[key] = normalizeTextOptions(normalized[key], defaults[key]);
+  });
+  ["trollingPresentations", "setupLineSides"].forEach((key) => {
+    normalized[key] = normalizeChoiceOptions(normalized[key], defaults[key]);
   });
 
   normalized.reels = normalized.reels.map((reel) => ({
@@ -623,6 +649,62 @@ function normalizeState(nextState) {
   });
 
   return normalized;
+}
+
+function normalizeTextOptions(options = [], fallback = []) {
+  const source = Array.isArray(options) ? options : fallback;
+  const seen = new Set();
+  return source
+    .map((item) => typeof item === "object" ? item?.label || item?.value : item)
+    .map((item) => String(item || "").trim())
+    .filter((item) => {
+      const key = item.toLowerCase();
+      if (!item || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function slugOptionValue(label) {
+  return String(label || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function normalizeChoiceOptions(options = [], fallback = []) {
+  const source = Array.isArray(options) ? options : fallback;
+  const seen = new Set();
+  return source
+    .map((item) => {
+      if (item && typeof item === "object") {
+        const label = String(item.label || item.value || "").trim();
+        const value = String(item.value || slugOptionValue(label)).trim();
+        return { value, label: label || value };
+      }
+      const label = String(item || "").trim();
+      return { value: slugOptionValue(label) || label, label };
+    })
+    .filter((item) => {
+      const key = item.value.toLowerCase();
+      if (!item.value || !item.label || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function optionChoices(key) {
+  return normalizeChoiceOptions(state[key], defaults[key]);
+}
+
+function optionLabels(key) {
+  return normalizeTextOptions(state[key], defaults[key]);
+}
+
+function choiceLabel(key, value) {
+  const text = String(value || "");
+  return optionChoices(key).find((item) => item.value === text)?.label || text;
 }
 
 function normalizeSettings(settings = {}) {

@@ -231,7 +231,7 @@ function lineRowMarkup(line = {}) {
     <article class="line-editor-row" data-line-id="${escapeHtml(id)}">
       <label><span>Spooled date</span><input class="line-spooled-date" type="date" value="${escapeHtml(line.spooledDate || "")}" /></label>
       <label><span>Discarded date</span><input class="line-discarded-date" type="date" value="${escapeHtml(line.discardedDate || "")}" /></label>
-      <label><span>Type</span><select class="line-type">${lineTypeOptions.map((type) => `<option value="${escapeHtml(type)}" ${type === line.type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
+      <label><span>Type</span><select class="line-type">${optionLabels("lineTypes").map((type) => `<option value="${escapeHtml(type)}" ${type === line.type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
       <label><span>Brand</span><input class="line-brand" type="text" value="${escapeHtml(line.brand || "")}" placeholder="Berkley" /></label>
       <label><span>Name</span><input class="line-name" type="text" value="${escapeHtml(line.name || "")}" placeholder="X5" /></label>
       <label><span>Weight</span><input class="line-weight" type="text" value="${escapeHtml(line.weight || "")}" placeholder="30" /></label>
@@ -268,7 +268,7 @@ function openReelDialog(reel = null) {
   els.reelForm.reset();
   pendingReelImage = null;
   renderQueuedGearImage("reel");
-  populateOptionSelect(document.querySelector("#reelStyle"), reelStyleOptions, "Select style");
+  populateOptionSelect(document.querySelector("#reelStyle"), optionLabels("reelStyles"), "Select style");
   const editing = Boolean(reel);
   document.querySelector("#reelDialog h2").textContent = editing ? "Edit Reel" : "Add Reel";
   setValue("editingReelId", reel?.id || "");
@@ -295,7 +295,7 @@ function openRodDialog(rod = null) {
   els.rodForm.reset();
   pendingRodImage = null;
   renderQueuedGearImage("rod");
-  populateOptionSelect(document.querySelector("#rodType"), rodTypeOptions, "Select type");
+  populateOptionSelect(document.querySelector("#rodType"), optionLabels("rodTypes"), "Select type");
   const editing = Boolean(rod);
   document.querySelector("#rodDialog h2").textContent = editing ? "Edit Rod" : "Add Rod";
   setValue("editingRodId", rod?.id || "");
@@ -394,6 +394,8 @@ async function saveReel(event) {
     const index = state.reels.findIndex((item) => item.id === reel.id);
     if (index >= 0) state.reels[index] = reel;
     else state.reels.push(reel);
+    upsertListValue("reelStyles", reel.style);
+    reel.lineHistory.forEach((line) => upsertListValue("lineTypes", line.type));
     await saveState();
     els.reelDialog.close();
     els.reelForm.reset();
@@ -430,6 +432,7 @@ async function saveRod(event) {
     const index = state.rods.findIndex((item) => item.id === rod.id);
     if (index >= 0) state.rods[index] = rod;
     else state.rods.push(rod);
+    upsertListValue("rodTypes", rod.type);
     await saveState();
     els.rodDialog.close();
     els.rodForm.reset();

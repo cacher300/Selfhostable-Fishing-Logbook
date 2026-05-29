@@ -3093,6 +3093,46 @@ textarea[aria-invalid="true"] {
   margin-top: 0;
 }
 
+.predefined-field-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.predefined-field-group {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.predefined-field-header,
+.predefined-option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.predefined-field-header h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.predefined-option-list {
+  display: grid;
+  gap: 8px;
+}
+
+.predefined-option-row input {
+  min-width: 0;
+  flex: 1;
+}
+
 .settings-note {
   margin: 12px 0 0;
   color: var(--muted);

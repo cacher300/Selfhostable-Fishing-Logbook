@@ -21,6 +21,7 @@ function chopLabelForWaveHeight(value) {
 function renderSettings() {
   renderPreferenceSettings();
   renderUnitSettings();
+  renderPredefinedFieldSettings();
   syncUnitLabels();
   renderChopRangeSettings();
   renderLocationManager();
@@ -132,6 +133,88 @@ async function saveTimeFormatPreference() {
   } catch (error) {
     console.error("Could not save time format.", error);
     alert(error.message || "The time format could not be saved.");
+  }
+}
+
+const predefinedFieldGroups = [
+  { key: "species", label: "Species" },
+  { key: "methods", label: "Methods" },
+  { key: "waterClarities", label: "Water clarity" },
+  { key: "weatherTypes", label: "Weather tags" },
+  { key: "lureTypes", label: "Lure types" },
+  { key: "flasherTypes", label: "Flasher types" },
+  { key: "reelStyles", label: "Reel styles" },
+  { key: "rodTypes", label: "Rod types" },
+  { key: "lineTypes", label: "Line types" },
+  { key: "trollingPresentations", label: "Trolling methods", choice: true },
+  { key: "trollingDirections", label: "Trolling directions" },
+  { key: "setupLineSides", label: "Setup line sides", choice: true }
+];
+
+function predefinedFieldItems(group) {
+  return group.choice ? optionChoices(group.key) : optionLabels(group.key);
+}
+
+function predefinedFieldValue(item) {
+  return typeof item === "object" ? item.label : item;
+}
+
+function renderPredefinedFieldSettings() {
+  if (!els.predefinedFieldSettings) return;
+  els.predefinedFieldSettings.innerHTML = predefinedFieldGroups.map((group) => {
+    const items = predefinedFieldItems(group);
+    return `
+      <section class="predefined-field-group" data-predefined-key="${escapeHtml(group.key)}">
+        <div class="predefined-field-header">
+          <h4>${escapeHtml(group.label)}</h4>
+          <button class="button secondary add-predefined-option" type="button">Add</button>
+        </div>
+        <div class="predefined-option-list">
+          ${items.map((item, index) => `
+            <div class="predefined-option-row" data-option-index="${index}">
+              <input class="predefined-option-label" type="text" value="${escapeHtml(predefinedFieldValue(item))}" aria-label="${escapeHtml(group.label)} option" />
+              <button class="button danger remove-predefined-option" type="button">Delete</button>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+    `;
+  }).join("");
+}
+
+function collectPredefinedFieldSettings() {
+  const next = {};
+  els.predefinedFieldSettings?.querySelectorAll(".predefined-field-group").forEach((section) => {
+    const group = predefinedFieldGroups.find((item) => item.key === section.dataset.predefinedKey);
+    if (!group) return;
+    const current = predefinedFieldItems(group);
+    const rows = [...section.querySelectorAll(".predefined-option-row")];
+    if (group.choice) {
+      next[group.key] = normalizeChoiceOptions(rows.map((row) => {
+        const index = Number(row.dataset.optionIndex);
+        const existing = current[index];
+        const label = row.querySelector(".predefined-option-label")?.value.trim() || "";
+        return {
+          value: existing?.value || slugOptionValue(label),
+          label
+        };
+      }), defaults[group.key]);
+    } else {
+      next[group.key] = normalizeTextOptions(rows.map((row) => row.querySelector(".predefined-option-label")?.value), defaults[group.key]);
+    }
+  });
+  return next;
+}
+
+async function savePredefinedFieldSettings() {
+  Object.assign(state, collectPredefinedFieldSettings());
+  try {
+    await saveState();
+    renderAll();
+    renderSettings();
+  } catch (error) {
+    console.error("Could not save predefined fields.", error);
+    alert(error.message || "The predefined fields could not be saved.");
   }
 }
 

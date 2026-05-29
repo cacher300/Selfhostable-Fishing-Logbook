@@ -264,6 +264,8 @@ function addFishRow(catchItem = {}, { container, lost }) {
   populatePersonSelect(node.querySelector(".catch-person"), catchItem.personId || "");
   populateOptionSelect(node.querySelector(".catch-species"), state.species, "Select species");
   populateOptionSelect(node.querySelector(".catch-possible-species"), state.species, "Select possible species");
+  populateChoiceSelect(node.querySelector(".catch-presentation"), optionChoices("trollingPresentations"), "Select method", catchItem.presentation || "");
+  populateOptionSelect(node.querySelector(".catch-direction"), optionLabels("trollingDirections"), "Select direction");
   node.querySelector(".catch-species").value = lost ? "" : (catchItem.species || "");
   node.querySelector(".catch-possible-species").value = catchItem.possibleSpecies || catchItem.species || "";
   node.querySelector(".catch-released").checked = Boolean(catchItem.released);
@@ -310,7 +312,10 @@ function addTripGearRow(gearItem = {}) {
   node.querySelector(".trip-gear-start-time").value = defaultSetupStartTime(gearItem);
   node.querySelector(".trip-gear-end-time").value = defaultSetupEndTime(gearItem);
   node.querySelector(".trip-gear-change-note").value = gearItem.changeNote || gearItem.notes || "";
-  node.querySelector(".trip-gear-side").value = gearItem.side || defaultSetupLineSide(gearItem, els.tripGearRows.querySelectorAll(".gear-used-row").length);
+  const side = gearItem.side || defaultSetupLineSide(gearItem, els.tripGearRows.querySelectorAll(".gear-used-row").length);
+  populateChoiceSelect(node.querySelector(".trip-gear-side"), optionChoices("setupLineSides"), "Select side", side);
+  populateChoiceSelect(node.querySelector(".catch-presentation"), optionChoices("trollingPresentations"), "Select method", gearItem.presentation || "");
+  node.querySelector(".trip-gear-side").value = side;
   node.querySelector(".trip-gear-line-label").value = gearItem.lineLabel || "";
   populateComboSelect(node.querySelector(".trip-gear-combo"), gearItem.comboId || "");
   populateRodSelect(node.querySelector(".trip-gear-rod"), gearItem.rodId || "");
@@ -627,6 +632,9 @@ async function saveTrip(event) {
     ]);
     trip.people = trip.people.filter((person) => usedPersonIds.has(person.id));
     upsertListValue("species", trip.targetSpecies);
+    upsertListValue("methods", trip.method);
+    upsertListValue("waterClarities", trip.waterClarity);
+    upsertListValue("weatherTypes", trip.weather);
     trip.catches.forEach((catchItem) => upsertListValue("species", catchItem.species));
     trip.lostFish.forEach((fish) => upsertListValue("species", fish.possibleSpecies));
     trip = await enrichTripWithWeather(trip);

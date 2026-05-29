@@ -25,14 +25,14 @@ It runs locally in your browser with a small Flask backend and stores your priva
 - Save mapped waterbodies with user-defined coordinates, plus optional launch pins for large lakes.
 - Mark trips as `Serious` or `Experimental`.
 - Rate trips as `Bad`, `Good`, or `Outstanding`.
-- Supported methods include Trolling, Casting, Jigging, Fly Fishing, Bait Fishing, Ice Fishing, and Shore Fishing.
+- Predefined dropdown members such as species, methods, weather tags, water clarity, gear types, trolling directions, and setup labels can be managed from Settings.
 
 ### Trolling-Specific Logging
 
 For trolling trips, setup timeline rows expose extra fields for:
 
-- Setup line: port, center, starboard, or a custom line label.
-- Presentation: downrigger, cheater, planer board / leadcore, or dipsey diver.
+- Setup line side and custom line label.
+- Presentation such as downrigger, cheater, planer board / leadcore, or dipsey diver.
 - Lure and optional flasher.
 - Deepest-rigger checkbox for downrigger rows.
 
@@ -208,7 +208,11 @@ If you expose it beyond your own machine or trusted home network, put it behind 
 
 ## Project Layout
 
-- `server.py` serves the app, reads/writes the JSON logbook, handles uploads, creates image previews, manages the photo queue, and exposes gallery/export endpoints.
+- `server.py` serves the app, defines API routes, and delegates storage, media, and weather work to backend helper modules.
+- `backend_config.py` stores shared paths, defaults, upload categories, unit options, and weather API constants.
+- `logbook_store.py` reads/writes the JSON logbook and normalizes/validates imported or saved data.
+- `media_service.py` handles upload paths, metadata, previews, gallery items, and orphaned media checks.
+- `weather_service.py` handles Open-Meteo/SunriseSunset requests plus trip/catch weather enrichment and summaries.
 - `index.html` contains the app shell, views, dialogs, and row templates.
 - `styles.css` contains the layout and visual design.
 - `app-state.js` defines defaults, shared state, normalization, load/save behavior, media helpers, and DOM references.

@@ -1,15 +1,9 @@
-const setupLineSideLabels = {
-  port: "Port",
-  center: "Center",
-  starboard: "Starboard"
-};
-
 function isTrollingTripRecord(trip) {
   return String(trip?.method || "").toLowerCase() === "trolling";
 }
 
 function setupLineSideLabel(value) {
-  return setupLineSideLabels[value] || "";
+  return choiceLabel("setupLineSides", value) || "";
 }
 
 function setupLineForRecord(record) {
