@@ -255,7 +255,7 @@ def main() -> None:
     if not DATA_FILE.exists():
         write_logbook(DEFAULT_LOGBOOK)
 
-    print(f"Fishing Logbook running at http://{HOST}:{PORT}")
+    print(f"Selfhostable Fishing Logbook running at http://{HOST}:{PORT}")
     print(f"Data file: {DATA_FILE}")
     app.run(host=HOST, port=PORT, threaded=True)
 

@@ -1,7 +1,7 @@
 services:
-  fishing-logbook:
+  selfhostable-fishing-logbook:
     build: .
-    container_name: detailed-fishing-logbook
+    container_name: selfhostable-fishing-logbook
     ports:
       - "80:8080"
     volumes:
