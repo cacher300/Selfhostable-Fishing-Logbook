@@ -197,6 +197,14 @@ This app currently has no login system. It is designed as a private, one-person 
 
 If you expose it beyond your own machine or trusted home network, put it behind your normal password-protected reverse proxy first. Docker runs with `HOST=0.0.0.0` so it can receive traffic through the published container port.
 
+## Project Layout
+
+- `server.py`: Flask routes and static serving.
+- `backend/`: logbook storage, media handling, defaults, and weather helpers.
+- `static/js/`: plain browser JavaScript.
+- `static/css/`: app styling.
+- `data/`: private logbook JSON and local uploads.
+
 ## Privacy Notes
 
 Selfhostable Fishing Logbook is built around local ownership of your data:

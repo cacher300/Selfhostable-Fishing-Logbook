@@ -5,7 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 DATA_FILE = DATA_DIR / "logbook.json"
 UPLOADS_DIR = DATA_DIR / "uploads"

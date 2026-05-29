@@ -7,7 +7,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from backend_config import (
+from .backend_config import (
     ASTRONOMY_QUERY_KEYS,
     DEFAULT_UNITS,
     MARINE_HOURLY_FIELDS,
@@ -20,7 +20,7 @@ from backend_config import (
     WEATHER_HOURLY_FIELDS,
     WEATHER_QUERY_KEYS,
 )
-from logbook_store import normalize_logbook, read_logbook, write_logbook
+from .logbook_store import normalize_logbook, read_logbook, write_logbook
 
 
 def weather_archive_payload(args: dict) -> tuple[dict, int]:

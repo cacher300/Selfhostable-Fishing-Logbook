@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import abort
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from backend_config import (
+from .backend_config import (
     ALLOWED_IMAGE_EXTENSIONS,
     ALLOWED_VIDEO_EXTENSIONS,
     PREVIEW_DIRNAME,
@@ -14,7 +14,7 @@ from backend_config import (
     UPLOAD_CATEGORIES,
     UPLOADS_DIR,
 )
-from logbook_store import read_logbook
+from .logbook_store import read_logbook
 
 
 def upload_category_path(category: str) -> Path:

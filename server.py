@@ -7,7 +7,7 @@ from pathlib import Path
 from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
 from werkzeug.utils import secure_filename
 
-from backend_config import (
+from backend.backend_config import (
     ALLOWED_MEDIA_EXTENSIONS,
     DATA_DIR,
     DATA_FILE,
@@ -18,8 +18,8 @@ from backend_config import (
     ROOT,
     UPLOAD_CATEGORIES,
 )
-from logbook_store import normalize_logbook, read_logbook, validate_logbook, write_logbook
-from media_service import (
+from backend.logbook_store import normalize_logbook, read_logbook, validate_logbook, write_logbook
+from backend.media_service import (
     create_upload_preview,
     delete_upload_file,
     orphaned_upload_items,
@@ -33,7 +33,7 @@ from media_service import (
     upload_preview_path,
     write_upload_metadata,
 )
-from weather_service import (
+from backend.weather_service import (
     astronomy_payload,
     marine_weather_payload,
     weather_archive_payload,

@@ -4,7 +4,7 @@ import json
 import uuid
 from copy import deepcopy
 
-from backend_config import DATA_DIR, DATA_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
+from .backend_config import DATA_DIR, DATA_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
 
 
 def normalize_logbook(payload: dict | None = None) -> dict:
