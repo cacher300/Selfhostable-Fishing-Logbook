@@ -55,27 +55,16 @@
           </div>
           <div class="topbar-actions">
             <nav class="view-nav" aria-label="Primary views">
-              <button class="button secondary" id="tripsViewButton" type="button">Trips</button>
-              <button class="button secondary" id="statsViewButton" type="button">Stats</button>
-              <button class="button secondary" id="patternsViewButton" type="button">Patterns</button>
-              <button class="button secondary" id="mapViewButton" type="button">Map</button>
-              <button class="button secondary" id="gearViewButton" type="button">Gear</button>
-              <button class="button secondary" id="galleryViewButton" type="button">Gallery</button>
-              <button class="button secondary" id="settingsViewButton" type="button">Settings</button>
+              <a class="button secondary" id="tripsViewButton" href="/trips">Trips</a>
+              <a class="button secondary" id="statsViewButton" href="/stats">Stats</a>
+              <a class="button secondary" id="patternsViewButton" href="/patterns">Patterns</a>
+              <a class="button secondary" id="mapViewButton" href="/map">Map</a>
+              <a class="button secondary" id="gearViewButton" href="/gear">Gear</a>
+              <a class="button secondary" id="galleryViewButton" href="/gallery">Gallery</a>
+              <a class="button secondary" id="settingsViewButton" href="/settings">Settings</a>
             </nav>
             <div class="utility-actions">
-            <details class="data-menu">
-              <summary class="button secondary">Data</summary>
-              <div class="data-menu-panel">
-                <button class="button secondary" id="photoQueueButton" type="button">Photo Queue</button>
-                <button class="button secondary" id="exportButton" type="button">Export JSON</button>
-                <label class="button secondary file-button">
-                  Import JSON
-                  <input id="importInput" type="file" accept="application/json" />
-                </label>
-              </div>
-            </details>
-            <button class="button primary" id="newTripButton" type="button">New Trip</button>
+              <button class="button primary" id="newTripButton" type="button">New Trip</button>
             </div>
           </div>
         </header>
@@ -653,6 +642,23 @@
             </div>
           </div>
           <div class="settings-grid">
+            <article class="settings-card">
+              <div class="settings-card-header">
+                <div>
+                  <p class="eyebrow">Data</p>
+                  <h3>Import & Export</h3>
+                </div>
+              </div>
+              <div class="settings-action-row">
+                <button class="button secondary" id="photoQueueButton" type="button">Photo Queue</button>
+                <button class="button secondary" id="exportButton" type="button">Export JSON</button>
+                <label class="button secondary file-button">
+                  Import JSON
+                  <input id="importInput" type="file" accept="application/json" />
+                </label>
+              </div>
+              <p class="settings-note">Export a backup, import normalized logbook JSON, or assign uploaded phone media from the queue.</p>
+            </article>
             <article class="settings-card">
               <div class="settings-card-header">
                 <div>

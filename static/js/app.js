@@ -1,3 +1,25 @@
+const routeViews = {
+  "/": "trips",
+  "/trips": "trips",
+  "/stats": "stats",
+  "/patterns": "patterns",
+  "/map": "map",
+  "/gear": "gear",
+  "/gallery": "gallery",
+  "/settings": "settings"
+};
+
+function viewFromCurrentRoute() {
+  const pathname = window.location.pathname.replace(/\/$/, "") || "/";
+  return routeViews[pathname.toLowerCase()] || "trips";
+}
+
+function handleViewNav(event, view) {
+  if (window.location.protocol !== "file:") return;
+  event.preventDefault();
+  setView(view);
+}
+
 els.newTripButton.addEventListener("click", () => openTripDialog());
 els.tripForm.addEventListener("submit", saveTrip);
 els.locationForm.addEventListener("submit", saveLocationPin);
@@ -11,7 +33,6 @@ els.addLocationButton.addEventListener("click", () => openLocationDialog("locati
 els.addLaunchButton.addEventListener("click", () => openLocationDialog("launch", els.tripLocation.value));
 els.notePhotoInput.addEventListener("change", addNotePhotos);
 els.photoQueueButton.addEventListener("click", () => {
-  els.photoQueueButton.closest("details")?.removeAttribute("open");
   openPhotoQueue();
 });
 els.photoQueueInput.addEventListener("change", addPhotosToQueue);
@@ -50,13 +71,13 @@ els.deleteFlasherButton.addEventListener("click", deleteFlasher);
 els.deleteReelButton.addEventListener("click", deleteReel);
 els.deleteRodButton.addEventListener("click", deleteRod);
 els.deleteComboButton.addEventListener("click", deleteCombo);
-els.tripsViewButton.addEventListener("click", () => setView("trips"));
-els.statsViewButton.addEventListener("click", () => setView("stats"));
-els.patternsViewButton.addEventListener("click", () => setView("patterns"));
-els.mapViewButton.addEventListener("click", () => setView("map"));
-els.gearViewButton.addEventListener("click", () => setView("gear"));
-els.galleryViewButton.addEventListener("click", () => setView("gallery"));
-els.settingsViewButton.addEventListener("click", () => setView("settings"));
+els.tripsViewButton.addEventListener("click", (event) => handleViewNav(event, "trips"));
+els.statsViewButton.addEventListener("click", (event) => handleViewNav(event, "stats"));
+els.patternsViewButton.addEventListener("click", (event) => handleViewNav(event, "patterns"));
+els.mapViewButton.addEventListener("click", (event) => handleViewNav(event, "map"));
+els.gearViewButton.addEventListener("click", (event) => handleViewNav(event, "gear"));
+els.galleryViewButton.addEventListener("click", (event) => handleViewNav(event, "gallery"));
+els.settingsViewButton.addEventListener("click", (event) => handleViewNav(event, "settings"));
 els.newLibraryLureButton.addEventListener("click", () => openLureDialog());
 els.newLibraryFlasherButton.addEventListener("click", () => openFlasherDialog());
 els.newLibraryReelButton.addEventListener("click", () => openReelDialog());
@@ -224,7 +245,8 @@ document.addEventListener("click", (event) => {
 
   const addPredefinedOption = event.target.closest(".add-predefined-option");
   if (addPredefinedOption) {
-    const list = addPredefinedOption.closest(".predefined-field-group")?.querySelector(".predefined-option-list");
+    const group = addPredefinedOption.closest(".predefined-field-group");
+    const list = group?.querySelector(".predefined-option-list");
     const index = list?.querySelectorAll(".predefined-option-row").length || 0;
     list?.insertAdjacentHTML("beforeend", `
       <div class="predefined-option-row" data-option-index="${index}">
@@ -232,12 +254,15 @@ document.addEventListener("click", (event) => {
         <button class="button danger remove-predefined-option" type="button">Delete</button>
       </div>
     `);
+    updatePredefinedFieldCount(group);
     list?.querySelector(".predefined-option-row:last-child .predefined-option-label")?.focus();
   }
 
   const removePredefinedOption = event.target.closest(".remove-predefined-option");
   if (removePredefinedOption) {
+    const group = removePredefinedOption.closest(".predefined-field-group");
     removePredefinedOption.closest(".predefined-option-row")?.remove();
+    updatePredefinedFieldCount(group);
   }
 
   const removeNotePhoto = event.target.closest(".remove-note-photo");
@@ -565,7 +590,7 @@ async function init() {
   syncMobileSummaryPanel();
   state = await loadState();
   renderAll();
-  setView("trips");
+  setView(viewFromCurrentRoute());
 }
 
 window.addEventListener("resize", syncMobileSummaryPanel);

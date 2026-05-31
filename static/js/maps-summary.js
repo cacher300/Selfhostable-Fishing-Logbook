@@ -90,6 +90,49 @@ function ensureMapMarkerPanes(map) {
   }
 }
 
+function seamlessMapOptions() {
+  return {
+    zoomSnap: 1,
+    zoomDelta: 1
+  };
+}
+
+function snapMapTilePane(map) {
+  const tilePane = map?.getPane?.("tilePane");
+  if (!tilePane) return;
+  tilePane.style.marginLeft = "0px";
+  tilePane.style.marginTop = "0px";
+  const tile = tilePane.querySelector(".leaflet-tile-loaded, .leaflet-tile");
+  const rect = (tile || tilePane).getBoundingClientRect();
+  const pixelRatio = window.devicePixelRatio || 1;
+  const snappedLeft = Math.round(rect.left * pixelRatio) / pixelRatio;
+  const snappedTop = Math.round(rect.top * pixelRatio) / pixelRatio;
+  tilePane.style.marginLeft = `${snappedLeft - rect.left}px`;
+  tilePane.style.marginTop = `${snappedTop - rect.top}px`;
+}
+
+function bindMapTilePaneSnapping(map) {
+  if (!map || map._logbookTilePaneSnapping) return;
+  map._logbookTilePaneSnapping = true;
+  map.on("moveend zoomend resize", () => requestAnimationFrame(() => snapMapTilePane(map)));
+}
+
+function addSeamlessTileLayer(map) {
+  const tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(map);
+  tileLayer.on("load tileload", () => requestAnimationFrame(() => snapMapTilePane(map)));
+  bindMapTilePaneSnapping(map);
+  return tileLayer;
+}
+
+function settleMapLayout(map) {
+  setTimeout(() => {
+    map.invalidateSize();
+    snapMapTilePane(map);
+  }, 0);
+}
+
 function mapRecordTitle(record) {
   if (record.type === "trip-photo") return record.media.caption || "Trip photo";
   if (record.type === "trip-video") return record.media.caption || "Trip video";
@@ -183,10 +226,8 @@ function renderFishMap() {
   }
 
   if (!fishMap) {
-    fishMap = L.map(els.fishMap);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors"
-    }).addTo(fishMap);
+    fishMap = L.map(els.fishMap, seamlessMapOptions());
+    addSeamlessTileLayer(fishMap);
     ensureMapMarkerPanes(fishMap);
     fishMapMarkers = L.layerGroup().addTo(fishMap);
   }
@@ -195,6 +236,7 @@ function renderFishMap() {
   fishMapMarkers.clearLayers();
   if (!records.length) {
     fishMap.setView([43.8, -79.5], 6);
+    settleMapLayout(fishMap);
     return;
   }
 
@@ -207,7 +249,7 @@ function renderFishMap() {
 
   if (bounds.length === 1) fishMap.setView(bounds[0], 13);
   else fishMap.fitBounds(bounds, { padding: [28, 28] });
-  setTimeout(() => fishMap.invalidateSize(), 0);
+  settleMapLayout(fishMap);
 }
 
 function catchMapRecordsForTrip(trip) {
@@ -237,18 +279,14 @@ function renderTripSummaryMap(trip) {
   }
 
   if (!tripSummaryMap) {
-    tripSummaryMap = L.map(mapNode);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors"
-    }).addTo(tripSummaryMap);
+    tripSummaryMap = L.map(mapNode, seamlessMapOptions());
+    addSeamlessTileLayer(tripSummaryMap);
     ensureMapMarkerPanes(tripSummaryMap);
     tripSummaryMapMarkers = L.layerGroup().addTo(tripSummaryMap);
   } else if (tripSummaryMap.getContainer() !== mapNode) {
     tripSummaryMap.remove();
-    tripSummaryMap = L.map(mapNode);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors"
-    }).addTo(tripSummaryMap);
+    tripSummaryMap = L.map(mapNode, seamlessMapOptions());
+    addSeamlessTileLayer(tripSummaryMap);
     ensureMapMarkerPanes(tripSummaryMap);
     tripSummaryMapMarkers = L.layerGroup().addTo(tripSummaryMap);
   }
@@ -257,6 +295,7 @@ function renderTripSummaryMap(trip) {
   tripSummaryMapMarkers.clearLayers();
   if (!records.length) {
     tripSummaryMap.setView([43.8, -79.5], 6);
+    settleMapLayout(tripSummaryMap);
     return;
   }
 
@@ -269,7 +308,7 @@ function renderTripSummaryMap(trip) {
 
   if (bounds.length === 1) tripSummaryMap.setView(bounds[0], 13);
   else tripSummaryMap.fitBounds(bounds, { padding: [24, 24] });
-  setTimeout(() => tripSummaryMap.invalidateSize(), 0);
+  settleMapLayout(tripSummaryMap);
 }
 
 function summaryMetric(label, value) {

@@ -140,7 +140,7 @@ const predefinedFieldGroups = [
   { key: "species", label: "Species" },
   { key: "methods", label: "Methods" },
   { key: "waterClarities", label: "Water clarity" },
-  { key: "weatherTypes", label: "Weather tags" },
+  { key: "weatherTypes", label: "Weather" },
   { key: "lureTypes", label: "Lure types" },
   { key: "flasherTypes", label: "Flasher types" },
   { key: "reelStyles", label: "Reel styles" },
@@ -164,22 +164,34 @@ function renderPredefinedFieldSettings() {
   els.predefinedFieldSettings.innerHTML = predefinedFieldGroups.map((group) => {
     const items = predefinedFieldItems(group);
     return `
-      <section class="predefined-field-group" data-predefined-key="${escapeHtml(group.key)}">
-        <div class="predefined-field-header">
-          <h4>${escapeHtml(group.label)}</h4>
+      <details class="predefined-field-group" data-predefined-key="${escapeHtml(group.key)}">
+        <summary class="predefined-field-summary">
+          <span>${escapeHtml(group.label)}</span>
+          <span class="predefined-field-count">${items.length} ${items.length === 1 ? "item" : "items"}</span>
+        </summary>
+        <div class="predefined-field-body">
+          <div class="predefined-field-header">
           <button class="button secondary add-predefined-option" type="button">Add</button>
-        </div>
-        <div class="predefined-option-list">
-          ${items.map((item, index) => `
-            <div class="predefined-option-row" data-option-index="${index}">
-              <input class="predefined-option-label" type="text" value="${escapeHtml(predefinedFieldValue(item))}" aria-label="${escapeHtml(group.label)} option" />
-              <button class="button danger remove-predefined-option" type="button">Delete</button>
+          </div>
+          <div class="predefined-option-list">
+            ${items.map((item, index) => `
+              <div class="predefined-option-row" data-option-index="${index}">
+                <input class="predefined-option-label" type="text" value="${escapeHtml(predefinedFieldValue(item))}" aria-label="${escapeHtml(group.label)} option" />
+                <button class="button danger remove-predefined-option" type="button">Delete</button>
+              </div>
+            `).join("")}
             </div>
-          `).join("")}
         </div>
-      </section>
+      </details>
     `;
   }).join("");
+}
+
+function updatePredefinedFieldCount(group) {
+  if (!group) return;
+  const count = group.querySelectorAll(".predefined-option-row").length;
+  const label = group.querySelector(".predefined-field-count");
+  if (label) label.textContent = `${count} ${count === 1 ? "item" : "items"}`;
 }
 
 function collectPredefinedFieldSettings() {

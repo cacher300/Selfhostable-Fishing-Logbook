@@ -94,10 +94,8 @@ function setLocationFormCoordinates(coordinates) {
 function ensureLocationPickerMap(coordinates) {
   if (!window.L || !els.locationPickerMap) return;
   if (!locationPickerMap) {
-    locationPickerMap = L.map(els.locationPickerMap);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors"
-    }).addTo(locationPickerMap);
+    locationPickerMap = L.map(els.locationPickerMap, seamlessMapOptions());
+    addSeamlessTileLayer(locationPickerMap);
     locationPickerMap.on("click", (event) => {
       setLocationFormCoordinates({ latitude: event.latlng.lat, longitude: event.latlng.lng });
     });

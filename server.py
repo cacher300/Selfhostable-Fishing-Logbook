@@ -4,7 +4,7 @@ import json
 import uuid
 from pathlib import Path
 
-from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
+from flask import Flask, Response, abort, jsonify, redirect, request, send_file, send_from_directory
 from werkzeug.utils import secure_filename
 
 from backend.backend_config import (
@@ -235,6 +235,16 @@ def create_app() -> Flask:
 
     @app.get("/")
     def index() -> Response:
+        return redirect("/trips")
+
+    @app.get("/trips")
+    @app.get("/stats")
+    @app.get("/patterns")
+    @app.get("/map")
+    @app.get("/gear")
+    @app.get("/gallery")
+    @app.get("/settings")
+    def app_page() -> Response:
         return send_file(ROOT / "index.html")
 
     @app.get("/<path:filename>")
