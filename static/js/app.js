@@ -14,12 +14,6 @@ function viewFromCurrentRoute() {
   return routeViews[pathname.toLowerCase()] || "trips";
 }
 
-function handleViewNav(event, view) {
-  if (window.location.protocol !== "file:") return;
-  event.preventDefault();
-  setView(view);
-}
-
 els.newTripButton.addEventListener("click", () => openTripDialog());
 els.tripForm.addEventListener("submit", saveTrip);
 els.locationForm.addEventListener("submit", saveLocationPin);
@@ -71,13 +65,13 @@ els.deleteFlasherButton.addEventListener("click", deleteFlasher);
 els.deleteReelButton.addEventListener("click", deleteReel);
 els.deleteRodButton.addEventListener("click", deleteRod);
 els.deleteComboButton.addEventListener("click", deleteCombo);
-els.tripsViewButton.addEventListener("click", (event) => handleViewNav(event, "trips"));
-els.statsViewButton.addEventListener("click", (event) => handleViewNav(event, "stats"));
-els.patternsViewButton.addEventListener("click", (event) => handleViewNav(event, "patterns"));
-els.mapViewButton.addEventListener("click", (event) => handleViewNav(event, "map"));
-els.gearViewButton.addEventListener("click", (event) => handleViewNav(event, "gear"));
-els.galleryViewButton.addEventListener("click", (event) => handleViewNav(event, "gallery"));
-els.settingsViewButton.addEventListener("click", (event) => handleViewNav(event, "settings"));
+els.tripsViewButton.addEventListener("click", () => setView("trips"));
+els.statsViewButton.addEventListener("click", () => setView("stats"));
+els.patternsViewButton.addEventListener("click", () => setView("patterns"));
+els.mapViewButton.addEventListener("click", () => setView("map"));
+els.gearViewButton.addEventListener("click", () => setView("gear"));
+els.galleryViewButton.addEventListener("click", () => setView("gallery"));
+els.settingsViewButton.addEventListener("click", () => setView("settings"));
 els.newLibraryLureButton.addEventListener("click", () => openLureDialog());
 els.newLibraryFlasherButton.addEventListener("click", () => openFlasherDialog());
 els.newLibraryReelButton.addEventListener("click", () => openReelDialog());
