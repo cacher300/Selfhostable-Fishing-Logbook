@@ -734,7 +734,6 @@ function renderAdvancedStats() {
     ["Avg trip length", tripsWithHours.length ? `${trimNumber(averageTripLength)} hr` : "0 hr"],
     ["Longest trip", longestTrip ? `${trimNumber(longestTrip.hours)} hr` : "0 hr"],
     ["Shortest trip", shortestTrip ? `${trimNumber(shortestTrip.hours)} hr` : "0 hr"],
-    ["Trips with time", `${tripsWithHours.length}/${trips.length}`],
     ["Landed fish", fish],
     ["Fish / hour", hours ? trimNumber(fish / hours) : "0"],
     ["Fish / trip", trips.length ? trimNumber(fish / trips.length) : "0"],
