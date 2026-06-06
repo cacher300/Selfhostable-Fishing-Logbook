@@ -237,6 +237,24 @@ async function fetchAstronomyBundle(coordinates, date, timezone = "") {
   return request;
 }
 
+function openMeteoUnit(bundle, key, fallback = "") {
+  const units = {
+    ...(bundle?.hourly_units || {}),
+    ...(bundle?.daily_units || {})
+  };
+  const value = String(units[key] || "").trim();
+  if (!value || value.toLowerCase() === "undefined") return fallback;
+  if (value === "\u00b0C") return "C";
+  if (value === "\u00b0F") return "F";
+  return value;
+}
+
+function openMeteoValue(bundle, values, key, index, targetUnit, fallbackUnit) {
+  const sourceValue = values?.[key]?.[index] ?? null;
+  const sourceUnit = openMeteoUnit(bundle, key, fallbackUnit);
+  return convertUnitValue(sourceValue, sourceUnit, targetUnit);
+}
+
 function hourlyRecords(bundle) {
   const hourly = bundle.hourly || {};
   return (hourly.time || []).map((time, index) => ({
@@ -252,7 +270,7 @@ function hourlyRecords(bundle) {
     pressureHpa: hourly.pressure_msl?.[index] ?? hourly.surface_pressure?.[index] ?? null,
     pressureMslHpa: hourly.pressure_msl?.[index] ?? null,
     cloudCoverPercent: hourly.cloud_cover?.[index] ?? null,
-    visibilityMeters: hourly.visibility?.[index] ?? null,
+    visibilityMeters: openMeteoValue(bundle, hourly, "visibility", index, "m", "m"),
     windSpeedMph: hourly.wind_speed_10m?.[index] ?? null,
     windDirectionDegrees: hourly.wind_direction_10m?.[index] ?? null,
     windGustMph: hourly.wind_gusts_10m?.[index] ?? null

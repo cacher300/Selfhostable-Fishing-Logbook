@@ -167,6 +167,22 @@ document.addEventListener("click", (event) => {
   const closeButton = event.target.closest("[data-close-dialog]");
   if (closeButton) closeButton.closest("dialog").close();
 
+  const timelineFilterButton = event.target.closest("[data-timeline-filter]");
+  if (timelineFilterButton) {
+    activeTripTimelineFilter = timelineFilterButton.dataset.timelineFilter || "all";
+    closeSummaryCatchDetail();
+    refreshTripTimelinePanel();
+  }
+
+  const catchDetailButton = event.target.closest("[data-summary-catch-index]");
+  if (catchDetailButton) {
+    openSummaryCatchDetail(Number(catchDetailButton.dataset.summaryCatchIndex));
+  }
+
+  if (event.target.closest("[data-close-catch-detail]") || event.target.classList.contains("catch-detail-popout")) {
+    closeSummaryCatchDetail();
+  }
+
   const toggleRow = event.target.closest("[data-toggle-row]");
   if (toggleRow) {
     const row = toggleRow.closest(".catch-row, .gear-used-row");
@@ -515,6 +531,13 @@ document.addEventListener("input", (event) => {
   }
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);
+});
+
+document.addEventListener("keydown", (event) => {
+  const catchDetailCard = event.target.closest?.(".timeline-catch-card[data-summary-catch-index]");
+  if (!catchDetailCard || !["Enter", " "].includes(event.key)) return;
+  event.preventDefault();
+  openSummaryCatchDetail(Number(catchDetailCard.dataset.summaryCatchIndex));
 });
 
 document.querySelector("#method").addEventListener("input", updateTrollingVisibility);

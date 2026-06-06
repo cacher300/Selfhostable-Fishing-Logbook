@@ -193,6 +193,7 @@ const defaults = {
 let state = structuredClone(defaults);
 let activeTripId = null;
 let activeSummaryTripId = null;
+let activeTripTimelineFilter = "all";
 let activeNotePhotos = [];
 let activeTripSort = { key: "date", direction: "desc" };
 let activeStatsMethod = "All methods";
@@ -385,6 +386,7 @@ const els = {
   tripDialog: document.querySelector("#tripDialog"),
   tripForm: document.querySelector("#tripForm"),
   tripFormMessage: document.querySelector("#tripFormMessage"),
+  saveTripButton: document.querySelector("#saveTripButton"),
   tripDialogTitle: document.querySelector("#tripDialogTitle"),
   tripId: document.querySelector("#tripId"),
   tripRating: document.querySelector("#tripRating"),

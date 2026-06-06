@@ -14,6 +14,13 @@ function showTripFormMessage(message, fields = []) {
   fields[0]?.focus({ preventScroll: true });
 }
 
+function setTripSaveLoading(saving) {
+  if (!els.saveTripButton) return;
+  els.saveTripButton.disabled = saving;
+  els.saveTripButton.classList.toggle("is-loading", saving);
+  els.saveTripButton.setAttribute("aria-busy", String(saving));
+}
+
 function validateTripForm() {
   clearTripFormMessage();
   const requiredFields = [
@@ -34,6 +41,7 @@ function openTripDialog(trip = null) {
   els.tripDialogTitle.textContent = trip ? "Edit Trip" : "New Trip";
   els.deleteTripButton.classList.toggle("hidden", !trip);
   els.tripForm.reset();
+  setTripSaveLoading(false);
   clearTripFormMessage();
   els.catchRows.innerHTML = "";
   els.lostFishRows.innerHTML = "";
@@ -621,6 +629,7 @@ function upsertListValue(listName, value) {
 async function saveTrip(event) {
   event.preventDefault();
   if (!validateTripForm()) return;
+  setTripSaveLoading(true);
 
   try {
     let trip = collectTripFromForm();
@@ -651,6 +660,7 @@ async function saveTrip(event) {
     renderAll();
   } catch (error) {
     console.error("Could not save trip.", error);
+    setTripSaveLoading(false);
     showTripFormMessage(error.message || "The trip could not be saved. Check that required fields are filled and try again.");
   }
 }

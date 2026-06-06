@@ -283,6 +283,26 @@ def list_value(values: dict, key: str, index: int) -> object:
     return None
 
 
+def open_meteo_unit(bundle: dict, key: str, fallback: str = "") -> str:
+    units = {}
+    units.update(bundle.get("hourly_units") or {})
+    units.update(bundle.get("daily_units") or {})
+    value = str(units.get(key) or "").strip()
+    if not value or value.lower() == "undefined":
+        return fallback
+    if value == "°C":
+        return "C"
+    if value == "°F":
+        return "F"
+    return value
+
+
+def open_meteo_value(bundle: dict, values: dict, key: str, index: int, target_unit: str, fallback_unit: str) -> float | None:
+    value = list_value(values, key, index)
+    source_unit = open_meteo_unit(bundle, key, fallback_unit)
+    return convert_unit_value(value, source_unit, target_unit)
+
+
 def hourly_records(bundle: dict) -> list[dict]:
     hourly = bundle.get("hourly") or {}
     times = hourly.get("time") or []
@@ -300,7 +320,7 @@ def hourly_records(bundle: dict) -> list[dict]:
             "pressureHpa": list_value(hourly, "pressure_msl", index) if list_value(hourly, "pressure_msl", index) is not None else list_value(hourly, "surface_pressure", index),
             "pressureMslHpa": list_value(hourly, "pressure_msl", index),
             "cloudCoverPercent": list_value(hourly, "cloud_cover", index),
-            "visibilityMeters": list_value(hourly, "visibility", index),
+            "visibilityMeters": open_meteo_value(bundle, hourly, "visibility", index, "m", "m"),
             "windSpeedMph": list_value(hourly, "wind_speed_10m", index),
             "windDirectionDegrees": list_value(hourly, "wind_direction_10m", index),
             "windGustMph": list_value(hourly, "wind_gusts_10m", index),
