@@ -9,10 +9,18 @@ function isTrollingTrip() {
   return getValue("method").toLowerCase() === "trolling";
 }
 
+function isCastingTrip() {
+  return getValue("method").toLowerCase() === "casting";
+}
+
 function updateTrollingVisibility() {
   const trolling = isTrollingTrip();
+  const casting = isCastingTrip();
   document.querySelectorAll("#tripDialog .trolling-field").forEach((element) => {
     element.classList.toggle("hidden", !trolling);
+  });
+  document.querySelectorAll("#tripDialog .casting-field").forEach((element) => {
+    element.classList.toggle("hidden", !casting);
   });
   document.querySelectorAll("#tripDialog .trolling-catch-line-field").forEach((element) => {
     element.classList.toggle("hidden", !trolling);

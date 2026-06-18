@@ -239,7 +239,6 @@ def create_app() -> Flask:
 
     @app.get("/trips")
     @app.get("/stats")
-    @app.get("/patterns")
     @app.get("/map")
     @app.get("/gear")
     @app.get("/gallery")

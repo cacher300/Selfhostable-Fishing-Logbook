@@ -402,7 +402,6 @@ function renderTripWeatherOverview(trip) {
   const daily = weatherData.daily || {};
   const trend = weatherData.trend || {};
   const noApiWeather = !trip.weatherData || weatherData.status === "missing-coordinates" || weatherData.status === "error";
-  const visibilityText = Number.isFinite(Number(window.visibilityMeters)) ? `${formatUnitValue(window.visibilityMeters, "distance", "m", { decimals: 1 })} / ${visibilityLabel(window.visibilityMeters)}` : "";
   const barometricTrend = window.pressureTrendRateHpa3h === null || window.pressureTrendRateHpa3h === undefined
     ? ""
     : `${window.pressureTrendRateHpa3h > 0 ? "+" : ""}${formatUnitValue(Math.abs(window.pressureTrendRateHpa3h), "pressure", "hPa", { decimals: 1 })} / 3 hr / ${window.pressureTrendRateLabel || barometricTrendLabel(window.pressureTrendRateHpa3h)}`;
@@ -444,7 +443,6 @@ function renderTripWeatherOverview(trip) {
           ${summaryValueItem("Moon", moonText, { muted: true })}
           ${summaryValueItem("Humidity", weatherValue(window.humidityPercent, "%"), { muted: true })}
           ${summaryValueItem("Cloud Cover", weatherValueWithTrend(weatherValue(window.cloudCoverPercent, "%"), trend.cloudTrend), { muted: true })}
-          ${summaryValueItem("Visibility", visibilityText, { muted: true })}
           ${summaryValueItem("Sunrise / Sunset", sunriseSunset, { muted: true })}
           ${summaryValueItem("Precipitation", formatUnitValue(window.precipitationIn ?? daily.precipitationIn, "precipitation", "in", { decimals: 1 }), { muted: true })}
           ${summaryValueItem("Barometric Trend", barometricTrend, { muted: true })}
@@ -482,10 +480,11 @@ function compactCatchDetails(trip, catchItem, options = {}) {
 
 function renderCatchReportDetails(trip, catchItem) {
   const record = resolveTripLineRecord({ ...catchItem, trip });
-  const gear = record.setupLine
-    ? setupLineDisplayLabel(trip, record.setupLine)
-    : [lureName(record.lureId), flasherName(record.flasherId)].filter(Boolean).join(" + ");
   const presentation = record.presentation || "";
+  const trollingTrip = isTrollingTripRecord(trip);
+  const castingTrip = String(trip?.method || "").toLowerCase() === "casting";
+  const lure = displayTitleText(lureName(record.lureId));
+  const flasher = displayTitleText(flasherName(record.flasherId));
   const trollingSpecificDepth = [];
   if (presentation === "flatline-leadcore") {
     trollingSpecificDepth.push(
@@ -510,19 +509,14 @@ function renderCatchReportDetails(trip, catchItem) {
     record.depthDown ? `${record.depthDown} down` : "",
     ...trollingSpecificDepth
   ].filter(Boolean).join(" / ");
-  const weather = [
-    catchWeatherSummary(catchItem.weatherData),
-    catchWeatherComparison(catchItem.weatherData, trip.weatherData)
-  ].filter(Boolean).join(" / ");
   return `
     <div class="catch-report-chips">
-      ${summaryChip("Species", displayTitleText(record.species || catchItem.species || "Unknown"), { kind: "primary", showEmpty: true })}
-      ${summaryChip("", record.released ? "Released" : "Kept", { kind: "outcome", showEmpty: true })}
-      ${summaryChip("Depth", depth)}
-      ${summaryChip("Lure", displayTitleText(gear))}
-      ${summaryChip("Speed", record.speed)}
-      ${summaryChip("Water Temp", trip.waterTemp)}
-      ${summaryChip("Weather", weather || trip.weather)}
+      ${summaryChip("Lure", lure)}
+      ${trollingTrip ? summaryChip("Flasher", flasher) : ""}
+      ${trollingTrip ? summaryChip("Trolling Method", presentationLabel(presentation)) : ""}
+      ${summaryChip("Depth Caught", depth)}
+      ${trollingTrip ? summaryChip("Speed", record.speed) : ""}
+      ${castingTrip ? summaryChip("Retrieve", record.retrieve) : ""}
     </div>
   `;
 }
@@ -546,6 +540,7 @@ function catchDetailRows(trip, catchItem) {
     ["Dipsey Setting", record.dipseySetting],
     ["Line Out", record.lineOut],
     ["Speed", record.speed],
+    ["Retrieve", record.retrieve],
     ["Direction", record.direction],
     ["Lure / Setup", displayTitleText(gear)],
     ["Weather", catchWeatherSummary(catchItem.weatherData) || trip.weather],

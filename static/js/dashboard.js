@@ -507,7 +507,6 @@ function renderAll() {
   renderStats();
   renderTrips();
   renderAdvancedStats();
-  renderPatterns();
   renderGearLibrary();
   syncUnitLabels();
   updateAllRowSummaries();

@@ -291,6 +291,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-direction").value = catchItem.direction || "";
   node.querySelector(".catch-fow").value = catchItem.fowCaught || "";
   node.querySelector(".catch-speed").value = catchItem.speed || "";
+  node.querySelector(".catch-retrieve").value = catchItem.retrieve || "";
   node.querySelector(".catch-ball-depth").value = catchItem.ballDepth || "";
   node.querySelector(".catch-line-behind-board").value = catchItem.lineBehindBoard || "";
   node.querySelector(".catch-estimated-lure-depth").value = catchItem.estimatedLureDepth || "";
@@ -428,6 +429,7 @@ function updateRowSummary(row) {
     const fowCaught = row.querySelector(".catch-fow").value.trim();
     const released = row.querySelector(".catch-released")?.checked && !row.classList.contains("lost-fish-row");
     const trolling = isTrollingTrip();
+    const casting = isCastingTrip();
     const pieces = [
       fishRowLabel(row),
       row.classList.contains("lost-fish-row")
@@ -442,7 +444,8 @@ function updateRowSummary(row) {
       summaryOption(row.querySelector(".catch-direction"), ["Select direction"]),
       trolling
         ? summaryOption(row.querySelector(".catch-setup-line"), ["Select rod"])
-        : summaryOption(row.querySelector(".catch-lure"), ["No lure selected"])
+        : summaryOption(row.querySelector(".catch-lure"), ["No lure selected"]),
+      casting ? row.querySelector(".catch-retrieve")?.value.trim() : ""
     ].filter(Boolean);
     summary.textContent = pieces.join(" / ");
     return;
@@ -520,6 +523,7 @@ function collectTripFromForm() {
 
   const collectFishRows = (container, lost = false) => [...container.querySelectorAll(".catch-row")]
     .map((row) => {
+      const casting = isCastingTrip();
       const base = {
         id: row.dataset.catchId || createId(),
         personId: row.querySelector(".catch-person").value,
@@ -535,6 +539,7 @@ function collectTripFromForm() {
         direction: trolling ? row.querySelector(".catch-direction").value : "",
         fowCaught: trolling ? row.querySelector(".catch-fow").value.trim() : "",
         speed: trolling ? row.querySelector(".catch-speed").value.trim() : "",
+        retrieve: casting ? row.querySelector(".catch-retrieve").value.trim() : "",
         ballDepth: trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
         lineBehindBoard: trolling ? row.querySelector(".catch-line-behind-board").value.trim() : "",
         estimatedLureDepth: trolling ? row.querySelector(".catch-estimated-lure-depth").value.trim() : "",
@@ -570,6 +575,7 @@ function collectTripFromForm() {
       || item.direction
       || item.fowCaught
       || item.speed
+      || item.retrieve
       || item.ballDepth
       || item.lineBehindBoard
       || item.estimatedLureDepth

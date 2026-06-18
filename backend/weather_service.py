@@ -289,7 +289,7 @@ def open_meteo_unit(bundle: dict, key: str, fallback: str = "") -> str:
     units.update(bundle.get("daily_units") or {})
     value = str(units.get(key) or "").strip()
     if not value or value.lower() == "undefined":
-        return fallback
+        return "" if value.lower() == "undefined" else fallback
     if value == "°C":
         return "C"
     if value == "°F":
@@ -300,6 +300,8 @@ def open_meteo_unit(bundle: dict, key: str, fallback: str = "") -> str:
 def open_meteo_value(bundle: dict, values: dict, key: str, index: int, target_unit: str, fallback_unit: str) -> float | None:
     value = list_value(values, key, index)
     source_unit = open_meteo_unit(bundle, key, fallback_unit)
+    if not source_unit:
+        return None
     return convert_unit_value(value, source_unit, target_unit)
 
 
@@ -320,7 +322,6 @@ def hourly_records(bundle: dict) -> list[dict]:
             "pressureHpa": list_value(hourly, "pressure_msl", index) if list_value(hourly, "pressure_msl", index) is not None else list_value(hourly, "surface_pressure", index),
             "pressureMslHpa": list_value(hourly, "pressure_msl", index),
             "cloudCoverPercent": list_value(hourly, "cloud_cover", index),
-            "visibilityMeters": open_meteo_value(bundle, hourly, "visibility", index, "m", "m"),
             "windSpeedMph": list_value(hourly, "wind_speed_10m", index),
             "windDirectionDegrees": list_value(hourly, "wind_direction_10m", index),
             "windGustMph": list_value(hourly, "wind_gusts_10m", index),
@@ -430,6 +431,10 @@ def convert_unit_value(value: object, from_unit: str, to_unit: str) -> float | N
         ("mph", "kn"): lambda item: item * 0.868976,
         ("m", "ft"): lambda item: item * 3.28084,
         ("ft", "m"): lambda item: item / 3.28084,
+        ("m", "km"): lambda item: item / 1000,
+        ("m", "mi"): lambda item: item / 1609.344,
+        ("km", "mi"): lambda item: item * 0.621371,
+        ("mi", "km"): lambda item: item / 0.621371,
     }
     fn = conversions.get((from_unit, to_unit))
     return fn(number) if fn else number
@@ -496,7 +501,6 @@ def trip_window_summary(records: list[dict]) -> dict:
         "pressureHpa": average_number(records, "pressureHpa"),
         "pressureMslHpa": average_number(records, "pressureMslHpa"),
         "cloudCoverPercent": average_number(records, "cloudCoverPercent"),
-        "visibilityMeters": average_number(records, "visibilityMeters"),
         "precipitationIn": sum_number(records, "precipitationIn"),
         "windSpeedMph": average_number(records, "windSpeedMph"),
         "windGustMph": average_number(records, "windGustMph"),

@@ -56,7 +56,6 @@ WEATHER_HOURLY_FIELDS = [
     "surface_pressure",
     "pressure_msl",
     "cloud_cover",
-    "visibility",
     "wind_speed_10m",
     "wind_direction_10m",
     "wind_gusts_10m",
@@ -205,5 +204,4 @@ DEFAULT_LOGBOOK = {
     "locations": [],
     "trips": [],
 }
-
 

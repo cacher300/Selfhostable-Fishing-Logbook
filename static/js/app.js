@@ -2,7 +2,6 @@ const routeViews = {
   "/": "trips",
   "/trips": "trips",
   "/stats": "stats",
-  "/patterns": "patterns",
   "/map": "map",
   "/gear": "gear",
   "/gallery": "gallery",
@@ -67,7 +66,6 @@ els.deleteRodButton.addEventListener("click", deleteRod);
 els.deleteComboButton.addEventListener("click", deleteCombo);
 els.tripsViewButton.addEventListener("click", () => setView("trips"));
 els.statsViewButton.addEventListener("click", () => setView("stats"));
-els.patternsViewButton.addEventListener("click", () => setView("patterns"));
 els.mapViewButton.addEventListener("click", () => setView("map"));
 els.gearViewButton.addEventListener("click", () => setView("gear"));
 els.galleryViewButton.addEventListener("click", () => setView("gallery"));
@@ -134,25 +132,6 @@ els.galleryCategoryFilter.addEventListener("change", () => {
   activeGalleryCategory = els.galleryCategoryFilter.value;
   renderGallery();
 });
-[
-  ["species", els.patternSpeciesFilter],
-  ["location", els.patternLocationFilter],
-  ["method", els.patternMethodFilter],
-  ["month", els.patternMonthFilter],
-  ["waterClarity", els.patternWaterClarityFilter],
-  ["weather", els.patternWeatherFilter],
-  ["wind", els.patternWindFilter],
-  ["pressure", els.patternPressureFilter],
-  ["cloud", els.patternCloudFilter],
-  ["airTemp", els.patternAirTempFilter],
-  ["front", els.patternFrontFilter]
-].forEach(([key, control]) => {
-  control.addEventListener("change", () => {
-    activePatternFilters[key] = control.value;
-    renderPatterns();
-  });
-});
-
 [els.searchInput, els.targetFilter, els.methodFilter, els.yearFilter].forEach((control) => {
   control.addEventListener("input", () => {
     renderTrips();
@@ -549,7 +528,6 @@ els.personRows.addEventListener("input", () => {
 
 function setView(view) {
   const showingStats = view === "stats";
-  const showingPatterns = view === "patterns";
   const showingMap = view === "map";
   const showingGear = view === "gear";
   const showingGallery = view === "gallery";
@@ -557,7 +535,6 @@ function setView(view) {
   const viewButtons = {
     trips: els.tripsViewButton,
     stats: els.statsViewButton,
-    patterns: els.patternsViewButton,
     map: els.mapViewButton,
     gear: els.gearViewButton,
     gallery: els.galleryViewButton,
@@ -566,16 +543,14 @@ function setView(view) {
   const viewTitles = {
     trips: "Trips",
     stats: "Advanced Stats",
-    patterns: "Patterns",
     map: "Map",
     gear: "Gear",
     gallery: "Gallery",
     settings: "Settings",
   };
-  els.tripControls.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear || showingGallery || showingSettings);
-  els.tripListPanel.classList.toggle("hidden", showingStats || showingPatterns || showingMap || showingGear || showingGallery || showingSettings);
+  els.tripControls.classList.toggle("hidden", showingStats || showingMap || showingGear || showingGallery || showingSettings);
+  els.tripListPanel.classList.toggle("hidden", showingStats || showingMap || showingGear || showingGallery || showingSettings);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
-  els.patternsPanel.classList.toggle("hidden", !showingPatterns);
   els.mapPanel.classList.toggle("hidden", !showingMap);
   els.gearPanel.classList.toggle("hidden", !showingGear);
   els.galleryPanel.classList.toggle("hidden", !showingGallery);
@@ -586,7 +561,6 @@ function setView(view) {
   });
   document.querySelector(".topbar h2").textContent = viewTitles[view] || "Trips";
   renderAdvancedStats();
-  if (showingPatterns) renderPatterns();
   if (showingMap) renderFishMap();
   if (showingGallery) renderGallery();
   if (showingSettings) renderSettings();

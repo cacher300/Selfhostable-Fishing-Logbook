@@ -57,7 +57,6 @@
             <nav class="view-nav" aria-label="Primary views">
               <button class="button secondary" id="tripsViewButton" type="button">Trips</button>
               <button class="button secondary" id="statsViewButton" type="button">Stats</button>
-              <button class="button secondary" id="patternsViewButton" type="button">Patterns</button>
               <button class="button secondary" id="mapViewButton" type="button">Map</button>
               <button class="button secondary" id="gearViewButton" type="button">Gear</button>
               <button class="button secondary" id="galleryViewButton" type="button">Gallery</button>
@@ -173,6 +172,15 @@
             </label>
           </div>
           <div class="metric-grid" id="advancedMetricGrid"></div>
+          <section class="efficiency-leaders" aria-label="Key performance signals">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Pattern clues</p>
+                <h3>Key Performance Signals</h3>
+              </div>
+            </div>
+            <div class="leader-grid" id="efficiencyLeadersGrid"></div>
+          </section>
           <div class="analytics-groups">
             <details class="stats-group" open>
               <summary>
@@ -443,70 +451,6 @@
               </article>
             </div>
           </section>
-        </section>
-
-        <section class="patterns-page hidden" id="patternsPanel" aria-label="Fish pattern recommendations">
-          <div class="patterns-header">
-            <div>
-              <p class="eyebrow">Recommendations</p>
-              <h3>Fish Pattern Finder</h3>
-            </div>
-            <span id="patternsSummary" class="map-summary">No patterns loaded</span>
-          </div>
-          <div class="patterns-toolbar">
-            <label>
-              <span>Species</span>
-              <select id="patternSpeciesFilter"></select>
-            </label>
-            <label>
-              <span>Location</span>
-              <select id="patternLocationFilter"></select>
-            </label>
-            <label>
-              <span>Method</span>
-              <select id="patternMethodFilter"></select>
-            </label>
-            <label>
-              <span>Month</span>
-              <select id="patternMonthFilter"></select>
-            </label>
-            <label>
-              <span>Water clarity</span>
-              <select id="patternWaterClarityFilter"></select>
-            </label>
-            <label>
-              <span>Weather</span>
-              <select id="patternWeatherFilter"></select>
-            </label>
-            <label>
-              <span>Wind</span>
-              <select id="patternWindFilter"></select>
-            </label>
-            <label>
-              <span>Pressure</span>
-              <select id="patternPressureFilter"></select>
-            </label>
-            <label>
-              <span>Cloud cover</span>
-              <select id="patternCloudFilter"></select>
-            </label>
-            <label>
-              <span>Air temp</span>
-              <select id="patternAirTempFilter"></select>
-            </label>
-            <label>
-              <span>Front tag</span>
-              <select id="patternFrontFilter"></select>
-            </label>
-          </div>
-          <div class="metric-grid patterns-metrics" id="patternsMetricGrid"></div>
-          <section class="efficiency-leaders pattern-signals" aria-label="Pattern signals">
-            <div class="section-heading">
-              <h3>Key Performance Signals</h3>
-            </div>
-            <div class="leader-grid" id="efficiencyLeadersGrid"></div>
-          </section>
-          <div class="patterns-grid" id="patternsGrid"></div>
         </section>
 
         <section class="map-page hidden" id="mapPanel" aria-label="Fish catch map">
@@ -1211,6 +1155,10 @@
           </label>
           <button class="button secondary add-lure-inline direct-catch-gear" type="button">New Lure</button>
           <div class="lure-preview direct-catch-gear"></div>
+          <label class="casting-field">
+            <span>Retrieve</span>
+            <input class="catch-retrieve" type="text" placeholder="Slow roll, pause-twitch, burn-stop" />
+          </label>
           <div class="row-section-title trolling-field">Trolling Details</div>
           <label class="trolling-field direct-catch-gear">
             <span>Trolling method</span>
@@ -1421,7 +1369,6 @@
     <script src="static/js/stats.js"></script>
     <script src="static/js/form-utils.js"></script>
     <script src="static/js/data-transfer.js"></script>
-    <script src="static/js/patterns.js"></script>
     <script src="static/js/gallery.js"></script>
     <script src="static/js/app.js"></script>
   </body>

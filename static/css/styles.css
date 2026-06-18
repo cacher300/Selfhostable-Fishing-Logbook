@@ -2668,8 +2668,10 @@ textarea[aria-invalid="true"] {
 }
 
 .summary-chip.outcome {
+  display: inline-flex;
   align-items: center;
-  justify-items: center;
+  justify-content: center;
+  min-height: 36px;
   text-align: center;
 }
 

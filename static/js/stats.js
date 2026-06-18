@@ -608,6 +608,79 @@ function fishShareLeader(items) {
     .sort((a, b) => b.fish - a.fish || b.catchShare - a.catchShare || b.trips - a.trips)[0];
 }
 
+function renderStatsKeySignals({ lureItems, flasherItems, methodItems, setupItems, lineSideItems, downriggerItems, fowRangeItems, depthItems, isTrollingScope }) {
+  const signals = [
+    {
+      label: "Quickest-producing lure",
+      winner: bestObservedLeader(lureItems),
+      fallback: "No lure has a timed catch yet",
+      emptyDetail: "Log lure time and catches together before ranking lure return."
+    },
+    {
+      label: "Lure with enough data to trust",
+      winner: bestReliableLeader(lureItems),
+      fallback: "Not enough lure history yet",
+      emptyDetail: "A lure needs at least 3 trips and 5 hours before it is treated as reliable."
+    },
+    {
+      label: "High-use lure worth reconsidering",
+      winner: underperformingHighUseLeader(lureItems),
+      fallback: "No high-use lure is underperforming",
+      emptyDetail: "Nothing currently has high use with clearly weak return.",
+      kind: "underperforming"
+    },
+    {
+      label: "Best-producing method",
+      winner: bestObservedLeader(methodItems),
+      fallback: "No clear method leader yet",
+      emptyDetail: "Log a few more timed trips before leaning on one method."
+    }
+  ];
+
+  if (isTrollingScope) {
+    signals.push(
+      {
+        label: "Best flasher signal",
+        winner: bestObservedLeader(flasherItems),
+        fallback: "No clear flasher leader yet",
+        emptyDetail: "Link catches to timed flasher setups to compare return."
+      },
+      {
+        label: "Most productive trolling setup",
+        winner: bestObservedLeader(setupItems),
+        fallback: "No clear trolling setup yet",
+        emptyDetail: "Setup time and linked catches are needed to rank presentations."
+      },
+      {
+        label: "Best line side",
+        winner: bestObservedLeader(lineSideItems),
+        fallback: "No clear side leader yet",
+        emptyDetail: "Use setup sides and setup-linked catches to compare the spread."
+      },
+      {
+        label: "Best downrigger position",
+        winner: bestObservedLeader(downriggerItems),
+        fallback: "No clear rigger position yet",
+        emptyDetail: "Mark the deepest rigger on setup rows to compare positions."
+      },
+      {
+        label: "FOW range where fish show up",
+        winner: fishShareLeader(fowRangeItems),
+        fallback: "No FOW signal yet",
+        emptyDetail: "Add FOW caught to build this signal."
+      },
+      {
+        label: "Lure depth getting hit",
+        winner: fishShareLeader(depthItems),
+        fallback: "No lure-depth signal yet",
+        emptyDetail: "Add depth down or estimated lure depth to catches."
+      }
+    );
+  }
+
+  renderEfficiencyLeaders(signals);
+}
+
 function leaderDetail(item, kind = "rate") {
   if (item.hasUsableTime) {
     const confidence = item.confidence === "Low"
@@ -902,6 +975,17 @@ function renderAdvancedStats() {
   const intentItems = summarizeTripPerformance(locationRows, (trip) => intentLabel(tripIntent(trip)), hours, fish);
   const ratingItems = summarizeTripPerformance(locationRows, (trip) => tripRatingLabel(tripRatingValue(trip)), hours, fish);
   const monthItems = summarizeTripPerformance(locationRows, (trip) => trip.date ? tripMonthName(trip) : "", hours, fish);
+  renderStatsKeySignals({
+    lureItems,
+    flasherItems,
+    methodItems,
+    setupItems,
+    lineSideItems,
+    downriggerItems,
+    fowRangeItems,
+    depthItems,
+    isTrollingScope
+  });
   renderStatsTable(els.locationStatsTable, ["Location", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(locationItems));
   renderStatsTable(els.methodStatsTable, ["Method", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(methodItems));
   renderStatsTable(els.waterClarityStatsTable, ["Water Clarity", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(clarityItems));

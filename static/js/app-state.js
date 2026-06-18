@@ -202,19 +202,6 @@ let activeStatsMinTrips = 0;
 let activeStatsMinHours = 0;
 let activeStatsIncludeLost = false;
 const activeStatsTableSort = {};
-const activePatternFilters = {
-  species: "",
-  location: "All locations",
-  method: "All methods",
-  month: "All months",
-  waterClarity: "All clarity",
-  weather: "All weather",
-  wind: "All wind",
-  pressure: "All pressure",
-  cloud: "All cloud",
-  airTemp: "All air temp",
-  front: "All fronts"
-};
 const activeStatsFilters = {
   species: "All species",
   person: "All people",
@@ -275,21 +262,6 @@ const els = {
   tripControls: document.querySelector("#tripControls"),
   tripListPanel: document.querySelector("#tripListPanel"),
   advancedStatsPanel: document.querySelector("#advancedStatsPanel"),
-  patternsPanel: document.querySelector("#patternsPanel"),
-  patternsSummary: document.querySelector("#patternsSummary"),
-  patternSpeciesFilter: document.querySelector("#patternSpeciesFilter"),
-  patternLocationFilter: document.querySelector("#patternLocationFilter"),
-  patternMethodFilter: document.querySelector("#patternMethodFilter"),
-  patternMonthFilter: document.querySelector("#patternMonthFilter"),
-  patternWaterClarityFilter: document.querySelector("#patternWaterClarityFilter"),
-  patternWeatherFilter: document.querySelector("#patternWeatherFilter"),
-  patternWindFilter: document.querySelector("#patternWindFilter"),
-  patternPressureFilter: document.querySelector("#patternPressureFilter"),
-  patternCloudFilter: document.querySelector("#patternCloudFilter"),
-  patternAirTempFilter: document.querySelector("#patternAirTempFilter"),
-  patternFrontFilter: document.querySelector("#patternFrontFilter"),
-  patternsMetricGrid: document.querySelector("#patternsMetricGrid"),
-  patternsGrid: document.querySelector("#patternsGrid"),
   mapPanel: document.querySelector("#mapPanel"),
   fishMap: document.querySelector("#fishMap"),
   mapSummary: document.querySelector("#mapSummary"),
@@ -361,7 +333,6 @@ const els = {
   newTripButton: document.querySelector("#newTripButton"),
   tripsViewButton: document.querySelector("#tripsViewButton"),
   statsViewButton: document.querySelector("#statsViewButton"),
-  patternsViewButton: document.querySelector("#patternsViewButton"),
   mapViewButton: document.querySelector("#mapViewButton"),
   gearViewButton: document.querySelector("#gearViewButton"),
   galleryViewButton: document.querySelector("#galleryViewButton"),
