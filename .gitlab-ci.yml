@@ -1,0 +1,64 @@
+stages:
+  - validate
+  - smoke_test
+  - docker_check
+
+default:
+  tags:
+    - docker
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PYTHONUNBUFFERED: "1"
+  HOST: "127.0.0.1"
+  PORT: "8080"
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - .cache/pip/
+
+validate_python_app:
+  stage: validate
+  image: python:3.12-slim
+  script:
+    - python --version
+    - pip install -r requirements.txt
+    - python -m compileall .
+    - test -f server.py
+    - test -f requirements.txt
+    - test -f index.html
+    - test -f docker-compose.yml || test -f compose.yml || echo "No compose file found"
+
+smoke_test_flask_server:
+  stage: smoke_test
+  image: python:3.12-slim
+  needs:
+    - validate_python_app
+  script:
+    - pip install -r requirements.txt
+    - mkdir -p data/uploads backups
+    - python server.py &
+    - SERVER_PID=$!
+    - sleep 5
+    - python - <<'PY'
+      import urllib.request
+
+      url = "http://127.0.0.1:8080"
+      with urllib.request.urlopen(url, timeout=10) as response:
+          print("Status:", response.status)
+          if response.status >= 400:
+              raise SystemExit("Server returned error status")
+      PY
+    - kill "$SERVER_PID"
+
+docker_compose_config_check:
+  stage: docker_check
+  image: docker:27
+  script:
+    - docker compose version
+    - docker compose config
+  rules:
+    - exists:
+        - docker-compose.yml
+        - compose.yml
