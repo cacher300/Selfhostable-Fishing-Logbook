@@ -17,6 +17,7 @@ AGENTS.md
 
 # Future local database/backups.
 backups/
+scripts/backup-logbook.sh
 *.db
 *.sqlite
 *.sqlite3
