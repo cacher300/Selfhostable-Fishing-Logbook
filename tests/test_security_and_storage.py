@@ -15,7 +15,7 @@ os.environ.setdefault("SECRET_KEY", "module-import-test-secret")
 import server
 from backend import logbook_store
 from backend.request_security import FixedWindowRateLimiter
-from flask import Response
+from flask import Flask, Response
 from server import create_app
 
 
@@ -24,17 +24,21 @@ def basic_auth(username: str = "angler", password: str = "test-password") -> dic
     return {"Authorization": f"Basic {encoded}"}
 
 
+def create_test_app(**overrides: object) -> Flask:
+    config = {
+        "TESTING": True,
+        "LOGBOOK_USERNAME": "angler",
+        "LOGBOOK_PASSWORD": "test-password",
+        "SECRET_KEY": "test-secret",
+        "RATE_LIMIT_PER_MINUTE": 1_000,
+    }
+    config.update(overrides)
+    return create_app(config)
+
+
 class SecurityTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.app = create_app(
-            {
-                "TESTING": True,
-                "LOGBOOK_USERNAME": "angler",
-                "LOGBOOK_PASSWORD": "test-password",
-                "SECRET_KEY": "test-secret",
-                "RATE_LIMIT_PER_MINUTE": 1_000,
-            }
-        )
+        self.app = create_test_app()
         self.client = self.app.test_client()
 
     def test_private_project_files_cannot_be_downloaded(self) -> None:
@@ -66,18 +70,10 @@ class SecurityTests(unittest.TestCase):
 
     def test_create_app_requires_secret_key(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "SECRET_KEY must be set"):
-            create_app({"SECRET_KEY": ""})
+            create_test_app(SECRET_KEY="")
 
     def test_secure_session_cookie_can_be_enabled(self) -> None:
-        app = create_app(
-            {
-                "TESTING": True,
-                "LOGBOOK_USERNAME": "angler",
-                "LOGBOOK_PASSWORD": "test-password",
-                "SECRET_KEY": "test-secret",
-                "SESSION_COOKIE_SECURE": True,
-            }
-        )
+        app = create_test_app(SESSION_COOKIE_SECURE=True)
         client = app.test_client()
         response = client.get("/api/csrf-token", headers=basic_auth())
         self.assertIn("Secure", response.headers["Set-Cookie"])
@@ -146,14 +142,7 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual({"error": "Internal storage error"}, response.get_json())
 
     def test_unrelated_runtime_errors_are_not_masked(self) -> None:
-        app = create_app(
-            {
-                "TESTING": True,
-                "LOGBOOK_USERNAME": "angler",
-                "LOGBOOK_PASSWORD": "test-password",
-                "SECRET_KEY": "test-secret",
-            }
-        )
+        app = create_test_app()
 
         @app.get("/test-runtime-error")
         def runtime_error() -> Response:
@@ -166,15 +155,7 @@ class SecurityTests(unittest.TestCase):
             )
 
     def test_upload_size_limit_is_enforced(self) -> None:
-        app = create_app(
-            {
-                "TESTING": True,
-                "LOGBOOK_USERNAME": "angler",
-                "LOGBOOK_PASSWORD": "test-password",
-                "SECRET_KEY": "test-secret",
-                "MAX_CONTENT_LENGTH": 100,
-            }
-        )
+        app = create_test_app(MAX_CONTENT_LENGTH=100)
         client = app.test_client()
         token = client.get("/api/csrf-token", headers=basic_auth()).get_json()["csrfToken"]
         response = client.post(
@@ -185,15 +166,7 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual(413, response.status_code)
 
     def test_rate_limit_is_enforced(self) -> None:
-        app = create_app(
-            {
-                "TESTING": True,
-                "LOGBOOK_USERNAME": "angler",
-                "LOGBOOK_PASSWORD": "test-password",
-                "SECRET_KEY": "test-secret",
-                "RATE_LIMIT_PER_MINUTE": 2,
-            }
-        )
+        app = create_test_app(RATE_LIMIT_PER_MINUTE=2)
         client = app.test_client()
         self.assertEqual(302, client.get("/", headers=basic_auth()).status_code)
         self.assertEqual(302, client.get("/", headers=basic_auth()).status_code)

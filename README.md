@@ -86,6 +86,7 @@ Failed weather, marine, or astronomy requests do not prevent a trip from being s
 
 - Authentication is single-user HTTP Basic authentication, not a multi-user account system.
 - HTTP Basic Auth credentials are base64-encoded, not encrypted; use it only over TLS and terminate TLS at a trusted reverse proxy for deployments reachable beyond localhost.
+- When TLS terminates at a trusted reverse proxy, set `SESSION_COOKIE_SECURE=true` so browsers send the CSRF session cookie only over HTTPS.
 - Rate limiting is per process and direct client IP; use a trusted reverse proxy for broader internet exposure.
 - JSON updates remain whole-document and last-write-wins, though each file replacement is atomic.
 - “Baits” currently means the lure library; natural/live bait has no dedicated data model.
