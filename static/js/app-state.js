@@ -309,7 +309,6 @@ const els = {
   statsMonthFilter: document.querySelector("#statsMonthFilter"),
   statsRatingFilter: document.querySelector("#statsRatingFilter"),
   advancedMetricGrid: document.querySelector("#advancedMetricGrid"),
-  efficiencyLeadersGrid: document.querySelector("#efficiencyLeadersGrid"),
   outcomeStatsTable: document.querySelector("#outcomeStatsTable"),
   lureStatsTable: document.querySelector("#lureStatsTable"),
   lureShareStatsTable: document.querySelector("#lureShareStatsTable"),
