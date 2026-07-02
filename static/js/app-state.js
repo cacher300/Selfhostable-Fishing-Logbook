@@ -1,7 +1,7 @@
 const storageKey = "fishing-logbook-v1";
 let csrfTokenPromise;
 
-async function protectedFetch(url, options = {}) {
+async function protectedFetch(url, options = {}, retry = true) {
   const method = String(options.method || "GET").toUpperCase();
   if (["GET", "HEAD", "OPTIONS"].includes(method)) return fetch(url, options);
 
@@ -19,7 +19,12 @@ async function protectedFetch(url, options = {}) {
 
   const headers = new Headers(options.headers || {});
   headers.set("X-CSRF-Token", await csrfTokenPromise);
-  return fetch(url, { ...options, headers });
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 403 && retry) {
+    csrfTokenPromise = null;
+    return protectedFetch(url, options, false);
+  }
+  return response;
 }
 
 const defaultWaterClarityOptions = [

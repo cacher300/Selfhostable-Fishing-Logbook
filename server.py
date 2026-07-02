@@ -25,7 +25,13 @@ from backend.backend_config import (
     SECRET_KEY,
     UPLOAD_CATEGORIES,
 )
-from backend.logbook_store import normalize_logbook, read_logbook, validate_logbook, write_logbook
+from backend.logbook_store import (
+    LogbookStorageError,
+    normalize_logbook,
+    read_logbook,
+    validate_logbook,
+    write_logbook,
+)
 from backend.request_security import configure_request_security, csrf_token
 from backend.media_service import (
     create_upload_preview,
@@ -66,7 +72,8 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.after_request
     def add_no_store_header(response: Response) -> Response:
-        response.headers["Cache-Control"] = "no-store"
+        if request.endpoint != "static_files":
+            response.headers["Cache-Control"] = "no-store"
         return response
 
     @app.errorhandler(RequestEntityTooLarge)
@@ -74,10 +81,10 @@ def create_app(config: dict | None = None) -> Flask:
         limit_mb = app.config["MAX_CONTENT_LENGTH"] / (1024 * 1024)
         return jsonify({"error": f"Request exceeds the {limit_mb:g} MB limit"}), 413
 
-    @app.errorhandler(RuntimeError)
-    def storage_error(error: RuntimeError) -> tuple[Response, int]:
+    @app.errorhandler(LogbookStorageError)
+    def storage_error(error: LogbookStorageError) -> tuple[Response, int]:
         app.logger.error("Logbook storage error: %s", error)
-        return jsonify({"error": str(error)}), 500
+        return jsonify({"error": "Internal storage error"}), 500
 
     @app.get("/api/logbook")
     def get_logbook() -> Response:

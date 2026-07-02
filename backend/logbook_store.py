@@ -14,6 +14,10 @@ SCHEMA_VERSION = 1
 _STORE_LOCK = RLock()
 
 
+class LogbookStorageError(RuntimeError):
+    pass
+
+
 def normalize_logbook(payload: dict | None = None) -> dict:
     normalized = deepcopy(DEFAULT_LOGBOOK)
     if isinstance(payload, dict):
@@ -231,40 +235,44 @@ def read_logbook() -> dict:
             with DATA_FILE.open("r", encoding="utf-8") as file:
                 loaded = json.load(file)
         except (json.JSONDecodeError, OSError) as error:
-            raise RuntimeError(f"Stored logbook is unreadable: {error}") from error
+            raise LogbookStorageError(f"Stored logbook is unreadable: {error}") from error
 
         is_valid, error = validate_logbook(loaded)
         if not is_valid:
-            raise RuntimeError(f"Stored logbook is invalid: {error}")
+            raise LogbookStorageError(f"Stored logbook is invalid: {error}")
         return normalize_logbook(loaded)
 
 def write_logbook(payload: dict) -> None:
-    normalized = normalize_logbook(payload)
-    is_valid, error = validate_logbook(normalized)
+    is_valid, error = validate_logbook(payload)
     if not is_valid:
         raise ValueError(error)
 
-    with _STORE_LOCK:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        temporary_path = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                "w",
-                encoding="utf-8",
-                dir=DATA_DIR,
-                prefix=".logbook-",
-                suffix=".tmp",
-                delete=False,
-            ) as file:
-                temporary_path = file.name
-                json.dump(normalized, file, indent=2, allow_nan=False)
-                file.write("\n")
-                file.flush()
-                os.fsync(file.fileno())
-            os.replace(temporary_path, DATA_FILE)
-        finally:
-            if temporary_path and os.path.exists(temporary_path):
-                os.unlink(temporary_path)
+    normalized = normalize_logbook(payload)
+
+    temporary_path = None
+    try:
+        with _STORE_LOCK:
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            try:
+                with tempfile.NamedTemporaryFile(
+                    "w",
+                    encoding="utf-8",
+                    dir=DATA_DIR,
+                    prefix=".logbook-",
+                    suffix=".tmp",
+                    delete=False,
+                ) as file:
+                    temporary_path = file.name
+                    json.dump(normalized, file, indent=2, allow_nan=False)
+                    file.write("\n")
+                    file.flush()
+                    os.fsync(file.fileno())
+                os.replace(temporary_path, DATA_FILE)
+            finally:
+                if temporary_path and os.path.exists(temporary_path):
+                    os.unlink(temporary_path)
+    except OSError as error:
+        raise LogbookStorageError(f"Could not write stored logbook: {error}") from error
 
 
 def _error(path: str, message: str) -> tuple[bool, str]:
@@ -336,10 +344,8 @@ def _validate_nested_records(records: object, path: str) -> tuple[bool, str | No
             return _error(f"{path}[{index}]", "must be an object")
     return True, None
 
-def validate_logbook(payload: object) -> tuple[bool, str | None]:
-    if not isinstance(payload, dict):
-        return _error("$", "logbook must be a JSON object")
 
+def _validate_schema(payload: dict) -> tuple[bool, str | None]:
     valid, error = _validate_json_value(payload, "$")
     if not valid:
         return valid, error
@@ -351,17 +357,22 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
         return _error("schemaVersion", "must not be negative")
     if version > SCHEMA_VERSION:
         return _error("schemaVersion", f"version {version} is newer than supported version {SCHEMA_VERSION}")
+    return True, None
 
-    required_lists = ("trips", "lures", "flashers")
-    for key in required_lists:
+
+def _validate_required_lists(payload: dict) -> tuple[bool, str | None]:
+    for key in ("trips", "lures", "flashers"):
         if key not in payload:
             return _error(key, "is required")
+    return True, None
 
-    option_lists = (
+
+def _validate_option_lists(payload: dict) -> tuple[bool, str | None]:
+    keys = (
         "species", "methods", "lureTypes", "flasherTypes", "waterClarities",
         "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingDirections",
     )
-    for key in option_lists:
+    for key in keys:
         if key not in payload:
             continue
         values = payload[key]
@@ -370,9 +381,11 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
         for index, value in enumerate(values):
             if not isinstance(value, str):
                 return _error(f"{key}[{index}]", "must be a string")
+    return True, None
 
-    choice_lists = ("trollingPresentations", "setupLineSides")
-    for key in choice_lists:
+
+def _validate_choice_lists(payload: dict) -> tuple[bool, str | None]:
+    for key in ("trollingPresentations", "setupLineSides"):
         if key not in payload:
             continue
         valid, error = _validate_nested_records(payload[key], key)
@@ -382,31 +395,49 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
             for field in ("value", "label"):
                 if not isinstance(item.get(field), str) or not item[field].strip():
                     return _error(f"{key}[{index}].{field}", "must be a non-empty string")
+    return True, None
 
-    object_lists = ("lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
-    for key in object_lists:
+
+def _validate_object_lists(payload: dict) -> tuple[bool, str | None]:
+    keys = ("lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
+    for key in keys:
         valid, error = _validate_object_list(payload, key)
         if not valid:
             return valid, error
+    return True, None
 
+
+def _validate_units(settings: dict) -> tuple[bool, str | None]:
+    units = settings.get("units")
+    if units is not None and not isinstance(units, dict):
+        return _error("settings.units", "must be an object")
+    if not isinstance(units, dict):
+        return True, None
+    for key, value in units.items():
+        if key in UNIT_OPTIONS and (
+            not isinstance(value, str) or value not in UNIT_OPTIONS[key]
+        ):
+            return _error(f"settings.units.{key}", "has an unsupported unit")
+    return True, None
+
+
+def _validate_settings(payload: dict) -> tuple[bool, str | None]:
     settings = payload.get("settings")
     if settings is not None and not isinstance(settings, dict):
         return _error("settings", "must be an object")
-    if isinstance(settings, dict):
-        if "timeFormat" in settings and settings["timeFormat"] not in ("12", "24"):
-            return _error("settings.timeFormat", 'must be "12" or "24"')
-        units = settings.get("units")
-        if units is not None and not isinstance(units, dict):
-            return _error("settings.units", "must be an object")
-        if isinstance(units, dict):
-            for key, value in units.items():
-                if key in UNIT_OPTIONS and value not in UNIT_OPTIONS[key]:
-                    return _error(f"settings.units.{key}", "has an unsupported unit")
-        if "chopRanges" in settings:
-            valid, error = _validate_nested_records(settings["chopRanges"], "settings.chopRanges")
-            if not valid:
-                return valid, error
+    if not isinstance(settings, dict):
+        return True, None
+    if "timeFormat" in settings and settings["timeFormat"] not in ("12", "24"):
+        return _error("settings.timeFormat", 'must be "12" or "24"')
+    valid, error = _validate_units(settings)
+    if not valid:
+        return valid, error
+    if "chopRanges" in settings:
+        return _validate_nested_records(settings["chopRanges"], "settings.chopRanges")
+    return True, None
 
+
+def _validate_locations(payload: dict) -> tuple[bool, str | None]:
     for index, location in enumerate(payload.get("locations", [])):
         path = f"locations[{index}]"
         if not isinstance(location.get("name"), str) or not location["name"].strip():
@@ -417,16 +448,25 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
         valid, error = _validate_nested_records(location.get("launches", []), f"{path}.launches")
         if not valid:
             return valid, error
+    return True, None
 
+
+def _validate_people(payload: dict) -> tuple[bool, str | None]:
     for index, person in enumerate(payload.get("people", [])):
         if not isinstance(person.get("name"), str) or not person["name"].strip():
             return _error(f"people[{index}].name", "must be a non-empty string")
+    return True, None
 
+
+def _validate_reels(payload: dict) -> tuple[bool, str | None]:
     for index, reel in enumerate(payload.get("reels", [])):
         valid, error = _validate_nested_records(reel.get("lineHistory", []), f"reels[{index}].lineHistory")
         if not valid:
             return valid, error
+    return True, None
 
+
+def _validate_trips(payload: dict) -> tuple[bool, str | None]:
     for index, trip in enumerate(payload.get("trips", [])):
         path = f"trips[{index}]"
         for field in ("people", "gearUsed", "catches", "lostFish", "notePhotos"):
@@ -441,6 +481,28 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
                 )
                 if not valid:
                     return valid, error
-
     return True, None
 
+
+def validate_logbook(payload: object) -> tuple[bool, str | None]:
+    if not isinstance(payload, dict):
+        return _error("$", "logbook must be a JSON object")
+
+    validators = (
+        _validate_schema,
+        _validate_required_lists,
+        _validate_option_lists,
+        _validate_choice_lists,
+        _validate_object_lists,
+        _validate_settings,
+        _validate_locations,
+        _validate_people,
+        _validate_reels,
+        _validate_trips,
+    )
+    for validator in validators:
+        valid, error = validator(payload)
+        if not valid:
+            return valid, error
+
+    return True, None

@@ -23,6 +23,14 @@ class FixedWindowRateLimiter:
         now = time.monotonic()
         cutoff = now - self.window_seconds
         with self._lock:
+            expired_keys = [
+                request_key
+                for request_key, timestamps in self._requests.items()
+                if timestamps and timestamps[-1] <= cutoff
+            ]
+            for request_key in expired_keys:
+                del self._requests[request_key]
+
             requests = self._requests[key]
             while requests and requests[0] <= cutoff:
                 requests.popleft()

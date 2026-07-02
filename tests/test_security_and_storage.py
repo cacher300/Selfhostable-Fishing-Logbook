@@ -9,7 +9,10 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
+import server
 from backend import logbook_store
+from backend.request_security import FixedWindowRateLimiter
+from flask import Response
 from server import create_app
 
 
@@ -54,6 +57,12 @@ class SecurityTests(unittest.TestCase):
 
     def test_logbook_api_requires_authentication(self) -> None:
         self.assertEqual(401, self.client.get("/api/logbook").status_code)
+
+    def test_static_assets_are_not_marked_no_store(self) -> None:
+        response = self.client.get("/static/js/app.js")
+        self.assertEqual(200, response.status_code)
+        self.assertNotIn("no-store", response.headers.get("Cache-Control", ""))
+        response.close()
 
     def test_mutation_requires_csrf_token(self) -> None:
         response = self.client.put(
@@ -102,6 +111,36 @@ class SecurityTests(unittest.TestCase):
             response.get_json()["error"],
         )
 
+    def test_storage_errors_do_not_leak_internal_details(self) -> None:
+        with patch.object(
+            server,
+            "read_logbook",
+            side_effect=logbook_store.LogbookStorageError("private file path"),
+        ):
+            response = self.client.get("/api/logbook", headers=basic_auth())
+        self.assertEqual(500, response.status_code)
+        self.assertEqual({"error": "Internal storage error"}, response.get_json())
+
+    def test_unrelated_runtime_errors_are_not_masked(self) -> None:
+        app = create_app(
+            {
+                "TESTING": True,
+                "LOGBOOK_USERNAME": "angler",
+                "LOGBOOK_PASSWORD": "test-password",
+                "SECRET_KEY": "test-secret",
+            }
+        )
+
+        @app.get("/test-runtime-error")
+        def runtime_error() -> Response:
+            raise RuntimeError("programming error")
+
+        with self.assertRaisesRegex(RuntimeError, "programming error"):
+            app.test_client().get(
+                "/test-runtime-error",
+                headers=basic_auth(),
+            )
+
     def test_upload_size_limit_is_enforced(self) -> None:
         app = create_app(
             {
@@ -148,6 +187,38 @@ class LogbookStoreTests(unittest.TestCase):
             "schemaVersion: version 2 is newer than supported version 1", error
         )
 
+    def test_write_rejects_future_schema_version(self) -> None:
+        payload = {"schemaVersion": 2, "trips": [], "lures": [], "flashers": []}
+        with self.assertRaisesRegex(
+            ValueError,
+            "schemaVersion: version 2 is newer than supported version 1",
+        ):
+            logbook_store.write_logbook(payload)
+
+    def test_rejects_non_string_unit_with_clear_error(self) -> None:
+        valid, error = logbook_store.validate_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {"units": {"depth": []}},
+            }
+        )
+        self.assertFalse(valid)
+        self.assertEqual("settings.units.depth: has an unsupported unit", error)
+
+    def test_write_wraps_expected_storage_errors(self) -> None:
+        payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(logbook_store, "DATA_DIR", Path(directory)),
+            patch.object(logbook_store, "DATA_FILE", Path(directory) / "logbook.json"),
+            patch.object(logbook_store.os, "replace", side_effect=OSError("disk error")),
+            self.assertRaisesRegex(logbook_store.LogbookStorageError, "disk error"),
+        ):
+            logbook_store.write_logbook(payload)
+
     def test_rejects_invalid_nested_data_with_path(self) -> None:
         valid, error = logbook_store.validate_logbook(
             {
@@ -193,6 +264,16 @@ class LogbookStoreTests(unittest.TestCase):
             self.assertTrue(valid, error)
             self.assertEqual(1, len(stored["trips"]))
             self.assertEqual([], list(directory_path.glob(".logbook-*.tmp")))
+
+
+class RateLimiterTests(unittest.TestCase):
+    def test_expired_client_buckets_are_removed(self) -> None:
+        limiter = FixedWindowRateLimiter(limit=2, window_seconds=60)
+        with patch("backend.request_security.time.monotonic", return_value=0):
+            self.assertTrue(limiter.allow("old-client"))
+        with patch("backend.request_security.time.monotonic", return_value=61):
+            self.assertTrue(limiter.allow("new-client"))
+        self.assertNotIn("old-client", limiter._requests)
 
 
 if __name__ == "__main__":
