@@ -341,133 +341,17 @@ function displayPhotoTitle(photo) {
   return displaySentenceText(photo.caption || photo.name || "Trip photo");
 }
 
-const summaryMediaGalleries = new Map();
-let summaryMediaGalleryCounter = 0;
-let activeSummaryMediaGalleryId = "";
-let activeSummaryMediaIndex = 0;
-
-function resetSummaryMediaGalleries() {
-  summaryMediaGalleries.clear();
-  summaryMediaGalleryCounter = 0;
-  activeSummaryMediaGalleryId = "";
-  activeSummaryMediaIndex = 0;
-}
-
-function registerSummaryMediaGallery(photos = []) {
-  const id = `summary-gallery-${summaryMediaGalleryCounter += 1}`;
-  summaryMediaGalleries.set(id, photos);
-  return id;
-}
-
-function summaryMediaGallery(galleryId) {
-  return summaryMediaGalleries.get(galleryId) || [];
-}
-
-function summaryMediaHost() {
-  return document.querySelector("#summaryMediaLightboxHost");
-}
-
-function renderSummaryMediaLightbox() {
-  const photos = summaryMediaGallery(activeSummaryMediaGalleryId);
-  const photo = photos[activeSummaryMediaIndex];
-  if (!photo) return "";
-  return `
-    <div class="summary-media-popout" id="summaryMediaPopout" role="dialog" aria-modal="true" aria-label="Attached media slideshow">
-      <div class="summary-media-panel">
-        <button class="icon-button summary-media-close" type="button" data-close-summary-media aria-label="Close attached media">x</button>
-        <div class="summary-media-stage">
-          ${mediaMarkup(photo, "summary-media-asset")}
-        </div>
-        <div class="summary-media-toolbar">
-          <div class="summary-media-meta">
-            <strong>${escapeHtml(`${activeSummaryMediaIndex + 1} / ${photos.length}`)}</strong>
-            <span>${escapeHtml(displayPhotoTitle(photo))}</span>
-          </div>
-          ${photos.length > 1 ? `
-            <div class="summary-media-actions">
-              <button class="button secondary" type="button" data-summary-media-nav="-1">Previous</button>
-              <button class="button secondary" type="button" data-summary-media-nav="1">Next</button>
-            </div>
-          ` : ""}
-        </div>
-        ${photos.length > 1 ? `
-          <div class="summary-media-thumbs">
-            ${photos.map((item, index) => `
-              <button
-                class="summary-media-thumb ${index === activeSummaryMediaIndex ? "is-active" : ""}"
-                type="button"
-                data-open-summary-gallery="${escapeHtml(activeSummaryMediaGalleryId)}"
-                data-summary-gallery-index="${index}"
-                aria-label="Open attached media ${index + 1}">
-                <span class="summary-media-thumb-frame">
-                  ${mediaMarkup(item, "summary-media-thumb-asset")}
-                </span>
-              </button>
-            `).join("")}
-          </div>
-        ` : ""}
-      </div>
-    </div>
-  `;
-}
-
-function syncSummaryMediaLightbox() {
-  const host = summaryMediaHost();
-  if (!host) return;
-  host.innerHTML = renderSummaryMediaLightbox();
-}
-
-function openSummaryMediaLightbox(galleryId, index = 0) {
-  const photos = summaryMediaGallery(galleryId);
-  if (!photos.length) return;
-  activeSummaryMediaGalleryId = galleryId;
-  activeSummaryMediaIndex = Math.max(0, Math.min(index, photos.length - 1));
-  syncSummaryMediaLightbox();
-}
-
-function closeSummaryMediaLightbox() {
-  activeSummaryMediaGalleryId = "";
-  activeSummaryMediaIndex = 0;
-  const host = summaryMediaHost();
-  if (host) host.innerHTML = "";
-}
-
-function stepSummaryMediaLightbox(delta) {
-  const photos = summaryMediaGallery(activeSummaryMediaGalleryId);
-  if (!photos.length) return;
-  activeSummaryMediaIndex = (activeSummaryMediaIndex + delta + photos.length) % photos.length;
-  syncSummaryMediaLightbox();
-}
-
 function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
   if (!photos.length) return `<div class="empty-state compact-empty"><p>${escapeHtml(emptyText)}</p></div>`;
-  const galleryId = registerSummaryMediaGallery(photos);
-  const visiblePhotos = photos.length > 3 ? photos.slice(0, 3) : photos;
   const className = ["summary-photo-grid", options.compact ? "compact-photo-grid" : "", options.hero ? "hero-photo-grid" : ""].filter(Boolean).join(" ");
   return `
     <div class="${className}">
-      ${visiblePhotos.map((photo, index) => {
-        const extraCount = photos.length > 3 && index === 2 ? photos.length - 3 : 0;
-        const overlayLabel = extraCount ? `+${extraCount} more` : "View";
-        return `
+      ${photos.map((photo) => `
         <figure class="summary-photo-card">
-          <button
-            class="summary-photo-trigger ${extraCount ? "has-extra-media" : ""}"
-            type="button"
-            data-open-summary-gallery="${escapeHtml(galleryId)}"
-            data-summary-gallery-index="${index}"
-            aria-label="${escapeHtml(`Open attached media ${index + 1} of ${photos.length}`)}">
-            <span class="summary-photo-media">
-              ${mediaMarkup(photo, "summary-photo-asset")}
-              <span class="summary-photo-overlay">
-                <span>${escapeHtml(overlayLabel)}</span>
-              </span>
-            </span>
-          </button>
+          ${mediaMarkup(photo, "summary-photo-asset")}
           ${!options.hideCaptions && (photo.caption || photo.name) ? `<figcaption>${escapeHtml(displayPhotoTitle(photo))}</figcaption>` : ""}
         </figure>
-      `;
-      }).join("")}
+      `).join("")}
     </div>
   `;
 }
@@ -518,7 +402,7 @@ function setupTimelineRecord(trip, gearItem, index) {
   };
 }
 
-function renderTripWeatherOverview(trip) {
+function tripWeatherSummaryData(trip) {
   const weatherData = trip.weatherData || {};
   const window = weatherData.tripWindow || {};
   const daily = weatherData.daily || {};
@@ -536,42 +420,83 @@ function renderTripWeatherOverview(trip) {
     .trim();
   const moonText = weatherData.sunMoon ? `${weatherData.sunMoon.phase} (${weatherData.sunMoon.illuminationPercent}%)` : "";
   const sunriseSunset = [timeText(weatherData.sunMoon?.sunrise) || daily.sunrise?.slice(11, 16), timeText(weatherData.sunMoon?.sunset) || daily.sunset?.slice(11, 16)].filter(Boolean).join(" / ");
+  return {
+    weatherData,
+    window,
+    daily,
+    trend,
+    noApiWeather,
+    barometricTrend,
+    primaryWindText,
+    moonText,
+    sunriseSunset
+  };
+}
 
+function renderTripKeyConditions(trip) {
+  const {
+    weatherData,
+    window,
+    noApiWeather,
+    primaryWindText
+  } = tripWeatherSummaryData(trip);
   if (noApiWeather && !trip.weather && !trip.waterTemp && !trip.wind && !trip.structure) {
     return `
-      <div class="summary-weather-empty">
+      <section class="summary-weather-empty">
         ${summaryValueItem("API Weather", weatherData.message || "Add a mapped location pin to fetch weather.")}
-      </div>
+      </section>
     `;
   }
-
   return `
-    <div class="summary-weather-panel">
-      <section class="weather-group weather-key-group" aria-label="Key conditions">
-        <h4>Key Conditions</h4>
-        <div class="weather-key-grid">
-          ${summaryValueItem("Weather", trip.weather || catchWeatherSummary(weatherData) || "")}
-          ${summaryValueItem("Water Temp", trip.waterTemp || "")}
-          ${summaryValueItem("Air Temp", formatUnitValue(window.temperatureC, "airTemperature", "C"))}
-          ${summaryValueItem("Wind", primaryWindText)}
-          ${summaryValueItem("FOW Range", trip.structure || "")}
+    <section class="summary-section summary-key-conditions" aria-label="Key conditions">
+      <h3>Key Conditions</h3>
+      <div class="metric-grid summary-condition-metrics">
+        ${summaryMetric("Weather", trip.weather || catchWeatherSummary(weatherData) || "Not logged")}
+        ${summaryMetric("Water Temp", trip.waterTemp || "Not logged")}
+        ${summaryMetric("Air Temp", formatUnitValue(window.temperatureC, "airTemperature", "C"))}
+        ${summaryMetric("Wind", primaryWindText || "Not logged")}
+        ${summaryMetric("FOW Range", trip.structure || "Not logged")}
+      </div>
+    </section>
+  `;
+}
+
+function renderTripWeatherDetailsSection(trip) {
+  const {
+    weatherData,
+    window,
+    daily,
+    trend,
+    noApiWeather,
+    barometricTrend,
+    moonText,
+    sunriseSunset
+  } = tripWeatherSummaryData(trip);
+  if (noApiWeather) {
+    return weatherData.message ? `
+      <section class="summary-section summary-weather-details-section">
+        <h3>Weather Details</h3>
+        <div class="summary-weather-empty">
+          ${summaryValueItem("API Weather", weatherData.message)}
         </div>
       </section>
-      <details class="weather-group weather-secondary-group" open>
-        <summary>Weather Details</summary>
-        <div class="weather-secondary-grid">
-          ${summaryValueItem("Pressure", weatherValueWithTrend(formatUnitValue(window.pressureHpa, "pressure", "hPa", { decimals: 1 }), trend.pressureTrend), { muted: true })}
-          ${summaryValueItem("Front Tag", weatherData.frontTag || "", { muted: true })}
-          ${summaryValueItem("Moon", moonText, { muted: true })}
-          ${summaryValueItem("Humidity", weatherValue(window.humidityPercent, "%"), { muted: true })}
-          ${summaryValueItem("Cloud Cover", weatherValueWithTrend(weatherValue(window.cloudCoverPercent, "%"), trend.cloudTrend), { muted: true })}
-          ${summaryValueItem("Sunrise / Sunset", sunriseSunset, { muted: true })}
-          ${summaryValueItem("Precipitation", formatUnitValue(window.precipitationIn ?? daily.precipitationIn, "precipitation", "in", { decimals: 1 }), { muted: true })}
-          ${summaryValueItem("Barometric Trend", barometricTrend, { muted: true })}
-          ${summaryValueItem("Wave / Chop", formatWaveHeightChopLine(trip, weatherData), { muted: true })}
-        </div>
-      </details>
-    </div>
+    ` : "";
+  }
+  return `
+    <section class="summary-section summary-weather-details-section">
+      <h3>Weather Details</h3>
+      <div class="weather-secondary-grid">
+        ${summaryValueItem("Pressure", weatherValueWithTrend(formatUnitValue(window.pressureHpa, "pressure", "hPa", { decimals: 1 }), trend.pressureTrend), { muted: true })}
+        ${summaryValueItem("Front Tag", weatherData.frontTag || "", { muted: true })}
+        ${summaryValueItem("Moon", moonText, { muted: true })}
+        ${summaryValueItem("Humidity", weatherValue(window.humidityPercent, "%"), { muted: true })}
+        ${summaryValueItem("Cloud Cover", weatherValueWithTrend(weatherValue(window.cloudCoverPercent, "%"), trend.cloudTrend), { muted: true })}
+        ${summaryValueItem("Sunrise / Sunset", sunriseSunset, { muted: true })}
+        ${summaryValueItem("Precipitation", formatUnitValue(window.precipitationIn ?? daily.precipitationIn, "precipitation", "in", { decimals: 1 }), { muted: true })}
+        ${summaryValueItem("Barometric Trend", barometricTrend, { muted: true })}
+        ${summaryValueItem("Wave / Chop", formatWaveHeightChopLine(trip, weatherData), { muted: true })}
+      </div>
+    </section>
   `;
 }
 
@@ -1237,7 +1162,6 @@ function closeSummaryCatchDetail() {
 }
 
 function openTripSummary(trip) {
-  resetSummaryMediaGalleries();
   activeSummaryTripId = trip.id;
   activeTripTimelineFilter = "all";
   els.tripSummaryTitle.textContent = displayTitleText(trip.title || trip.location || "Trip Summary");
@@ -1256,16 +1180,11 @@ function openTripSummary(trip) {
       ${summaryMetric("Fish/hr", trimNumber(catchRate(trip)))}
       ${summaryMetric("Lost Fish", (trip.lostFish || []).length)}
     </div>
-    <div class="summary-top-grid">
-      <section class="summary-section summary-notes-card">
-        <h3>Trip Notes</h3>
-        <p>${escapeHtml(displaySentenceText(trip.notes) || "No notes logged.")}</p>
-      </section>
-      <section class="summary-section summary-weather-card">
-        <h3>Weather</h3>
-        ${renderTripWeatherOverview(trip)}
-      </section>
-    </div>
+    ${renderTripKeyConditions(trip)}
+    <section class="summary-section summary-notes-card">
+      <h3>Trip Notes</h3>
+      <p>${escapeHtml(displaySentenceText(trip.notes) || "No notes logged.")}</p>
+    </section>
     <section class="summary-section summary-map-section">
       <div class="summary-section-heading">
         <h3>Fish Map</h3>
@@ -1302,7 +1221,7 @@ function openTripSummary(trip) {
       </summary>
       ${summaryPhotoGrid(trip.notePhotos || [], "No trip photos")}
     </details>
-    <div id="summaryMediaLightboxHost"></div>
+    ${renderTripWeatherDetailsSection(trip)}
     <div id="catchDetailHost"></div>
   `;
   els.tripSummaryDialog.showModal();
