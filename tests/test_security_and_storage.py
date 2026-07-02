@@ -219,6 +219,17 @@ class LogbookStoreTests(unittest.TestCase):
         ):
             logbook_store.write_logbook(payload)
 
+    def test_write_fsyncs_directory_after_replace(self) -> None:
+        payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(logbook_store, "DATA_DIR", Path(directory)),
+            patch.object(logbook_store, "DATA_FILE", Path(directory) / "logbook.json"),
+            patch.object(logbook_store, "_fsync_directory") as fsync_directory,
+        ):
+            logbook_store.write_logbook(payload)
+        fsync_directory.assert_called_once_with(Path(directory))
+
     def test_rejects_invalid_nested_data_with_path(self) -> None:
         valid, error = logbook_store.validate_logbook(
             {

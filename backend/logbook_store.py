@@ -242,6 +242,17 @@ def read_logbook() -> dict:
             raise LogbookStorageError(f"Stored logbook is invalid: {error}")
         return normalize_logbook(loaded)
 
+
+def _fsync_directory(path: str | os.PathLike[str]) -> None:
+    if os.name == "nt":
+        return
+    directory_fd = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
 def write_logbook(payload: dict) -> None:
     is_valid, error = validate_logbook(payload)
     if not is_valid:
@@ -268,6 +279,7 @@ def write_logbook(payload: dict) -> None:
                     file.flush()
                     os.fsync(file.fileno())
                 os.replace(temporary_path, DATA_FILE)
+                _fsync_directory(DATA_DIR)
             finally:
                 if temporary_path and os.path.exists(temporary_path):
                     os.unlink(temporary_path)
