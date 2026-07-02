@@ -293,6 +293,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-speed").value = catchItem.speed || "";
   node.querySelector(".catch-retrieve").value = catchItem.retrieve || "";
   node.querySelector(".catch-ball-depth").value = catchItem.ballDepth || "";
+  node.querySelector(".catch-flatline-weight-oz").value = catchItem.flatlineWeightOz || "";
   node.querySelector(".catch-line-behind-board").value = catchItem.lineBehindBoard || "";
   node.querySelector(".catch-estimated-lure-depth").value = catchItem.estimatedLureDepth || "";
   node.querySelector(".catch-dipsey-setting").value = catchItem.dipseySetting || "";
@@ -541,6 +542,7 @@ function collectTripFromForm() {
         speed: trolling ? row.querySelector(".catch-speed").value.trim() : "",
         retrieve: casting ? row.querySelector(".catch-retrieve").value.trim() : "",
         ballDepth: trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
+        flatlineWeightOz: trolling ? row.querySelector(".catch-flatline-weight-oz").value.trim() : "",
         lineBehindBoard: trolling ? row.querySelector(".catch-line-behind-board").value.trim() : "",
         estimatedLureDepth: trolling ? row.querySelector(".catch-estimated-lure-depth").value.trim() : "",
         dipseySetting: trolling ? row.querySelector(".catch-dipsey-setting").value.trim() : "",
@@ -577,6 +579,7 @@ function collectTripFromForm() {
       || item.speed
       || item.retrieve
       || item.ballDepth
+      || item.flatlineWeightOz
       || item.lineBehindBoard
       || item.estimatedLureDepth
       || item.dipseySetting

@@ -33,7 +33,12 @@ function updateTrollingVisibility() {
 
 function updatePresentationFields(row) {
   const presentation = row.querySelector(".catch-presentation")?.value || "";
+  const estimatedDepthLabel = row.querySelector(".estimated-depth-label");
   row.querySelectorAll(".trolling-param").forEach((field) => field.classList.remove("visible"));
+  if (estimatedDepthLabel) {
+    estimatedDepthLabel.dataset.unitLabelText = presentation === "flatline" ? "Estimated depth down" : "Estimated depth";
+    estimatedDepthLabel.textContent = presentation === "flatline" ? "Estimated depth down" : "Estimated depth";
+  }
   if (!isTrollingTrip()) return;
 
   if (row.classList.contains("gear-used-row")) {
@@ -45,6 +50,10 @@ function updatePresentationFields(row) {
 
   if (presentation === "downrigger" || presentation === "cheater") {
     row.querySelector(".param-ball-depth")?.classList.add("visible");
+  }
+  if (presentation === "flatline") {
+    row.querySelector(".param-flatline-weight")?.classList.add("visible");
+    row.querySelector(".param-estimated-depth")?.classList.add("visible");
   }
   if (presentation === "flatline-leadcore") {
     row.querySelector(".param-board-line")?.classList.add("visible");

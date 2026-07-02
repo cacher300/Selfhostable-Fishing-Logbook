@@ -54,6 +54,7 @@ const defaultLineTypeOptions = ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wi
 const defaultTrollingPresentationOptions = [
   { value: "downrigger", label: "Downrigger" },
   { value: "cheater", label: "Cheater" },
+  { value: "flatline", label: "Flatline" },
   { value: "flatline-leadcore", label: "Planer Board / Leadcore" },
   { value: "dipsey-diver", label: "Dipsey Diver" }
 ];
@@ -674,7 +675,10 @@ function slugOptionValue(label) {
 }
 
 function normalizeChoiceOptions(options = [], fallback = []) {
-  const source = Array.isArray(options) ? options : fallback;
+  const source = [
+    ...(Array.isArray(options) ? options : []),
+    ...(Array.isArray(fallback) ? fallback : [])
+  ];
   const seen = new Set();
   return source
     .map((item) => {
@@ -783,7 +787,7 @@ function formatDisplayTime(value) {
   const hour = Number(match[1]);
   const minute = Number(match[2]);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "";
-  if (timeFormatPreference() === "24") return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  if (timeFormatPreference() === "24") return `${hour}:${String(minute).padStart(2, "0")}`;
 
   const suffix = hour >= 12 ? "PM" : "AM";
   const displayHour = hour % 12 || 12;
@@ -844,14 +848,46 @@ function isVideoMedia(item) {
   return item?.mediaType === "video" || item?.mimeType?.startsWith?.("video/");
 }
 
+function originalMediaUrl(item) {
+  return item?.url || item?.image || previewImage(item);
+}
+
+function mediaDownloadName(item) {
+  const base = String(item?.name || item?.filename || item?.caption || "original-photo")
+    .trim()
+    .replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-")
+    .replace(/\s+/g, " ");
+  const normalized = base || "original-photo";
+  const url = String(originalMediaUrl(item) || "");
+  const extensionMatch = url.match(/\.([a-zA-Z0-9]{2,5})(?:[?#]|$)/);
+  const extension = extensionMatch ? `.${extensionMatch[1].toLowerCase()}` : ".jpg";
+  return /\.[a-zA-Z0-9]{2,5}$/.test(normalized) ? normalized : `${normalized}${extension}`;
+}
+
 function mediaMarkup(item, className = "") {
   const source = previewImage(item);
   if (!source) return "";
   if (isVideoMedia(item)) {
-    const videoSource = item.url || item.image || source;
+    const videoSource = originalMediaUrl(item) || source;
     return `<video class="${escapeHtml(className)}" src="${escapeHtml(videoSource)}" controls preload="metadata"></video>`;
   }
-  return `<img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">`;
+  const originalSource = originalMediaUrl(item) || source;
+  return `
+    <span class="media-download-frame">
+      <img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">
+      <a
+        class="media-download-link"
+        href="${escapeHtml(originalSource)}"
+        download="${escapeHtml(mediaDownloadName(item))}"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Download original image"
+        title="Download original"
+      >
+        Download original
+      </a>
+    </span>
+  `;
 }
 
 function isUsableCoordinates(coordinates) {

@@ -158,6 +158,20 @@ document.addEventListener("click", (event) => {
     openSummaryCatchDetail(Number(catchDetailButton.dataset.summaryCatchIndex));
   }
 
+  const catchGalleryThumb = event.target.closest("[data-catch-gallery-thumb]");
+  if (catchGalleryThumb) {
+    const gallery = catchGalleryThumb.closest("[data-catch-media-gallery]");
+    if (gallery) refreshCatchMediaGallery(gallery, Number(catchGalleryThumb.dataset.photoIndex));
+  }
+
+  const catchGalleryOpen = event.target.closest("[data-catch-gallery-open]");
+  if (catchGalleryOpen) {
+    const gallery = catchGalleryOpen.closest("[data-catch-media-gallery]");
+    if (gallery?.dataset.galleryContext === "summary") {
+      openSummaryCatchDetail(Number(gallery.dataset.catchIndex), Number(catchGalleryOpen.dataset.openPhotoIndex || gallery.dataset.selectedIndex || 0));
+    }
+  }
+
   if (event.target.closest("[data-close-catch-detail]") || event.target.classList.contains("catch-detail-popout")) {
     closeSummaryCatchDetail();
   }
@@ -513,6 +527,10 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && document.querySelector("#catchDetailPopout")) {
+    closeSummaryCatchDetail();
+    return;
+  }
   const catchDetailCard = event.target.closest?.(".timeline-catch-card[data-summary-catch-index]");
   if (!catchDetailCard || !["Enter", " "].includes(event.key)) return;
   event.preventDefault();

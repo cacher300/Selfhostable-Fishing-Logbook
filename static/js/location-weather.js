@@ -701,7 +701,7 @@ function catchWeatherSummary(weatherData) {
     hourly.apparentTemperatureC === null || hourly.apparentTemperatureC === undefined ? "" : `feels ${celsiusText(Math.round(hourly.apparentTemperatureC))}`,
     hourlyWindText(hourly),
     hourly.cloudCoverPercent === null || hourly.cloudCoverPercent === undefined ? "" : `${Math.round(hourly.cloudCoverPercent)}% cloud`
-  ].filter(Boolean).join(" / ");
+  ].filter(Boolean).join(" · ");
 }
 
 function signedWeatherDelta(value, suffix) {
@@ -728,7 +728,6 @@ function weatherTrendText(weatherData) {
     trend.pressureTrend,
     trend.temperatureTrend,
     trend.windTrend,
-    trend.cloudTrend,
     trend.windDirectionShiftDegrees ? `${trend.windDirectionShiftDegrees} deg wind shift` : ""
   ].filter(Boolean).join(" / ");
 }
@@ -833,7 +832,7 @@ function renderWeatherDetails(weatherData, trip = {}) {
     <span><strong>Barometric Trend</strong>${escapeHtml(barometricTrend)}</span>
     <span><strong>Wave Height / Chop</strong>${escapeHtml(waveHeightChopText)}</span>
     <span><strong>Humidity</strong>${escapeHtml(weatherValue(window.humidityPercent, "%"))}</span>
-    <span><strong>Cloud Cover</strong>${escapeHtml(weatherValueWithTrend(weatherValue(window.cloudCoverPercent, "%"), trend.cloudTrend))}</span>
+    <span><strong>Cloud Cover</strong>${escapeHtml(weatherValue(window.cloudCoverPercent, "%"))}</span>
     <span><strong>Sunshine</strong>${escapeHtml(sunshineDurationText(daily.sunshineDurationSeconds))}</span>
     <span><strong>Sunrise / Sunset</strong>${escapeHtml([timeText(weatherData.sunMoon?.sunrise) || daily.sunrise?.slice(11, 16), timeText(weatherData.sunMoon?.sunset) || daily.sunset?.slice(11, 16)].filter(Boolean).join(" / ") || "Not logged")}</span>
     <span><strong>Moon</strong>${escapeHtml(weatherData.sunMoon ? `${weatherData.sunMoon.phase} (${weatherData.sunMoon.illuminationPercent}%)` : "Not logged")}</span>

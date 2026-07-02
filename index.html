@@ -1166,6 +1166,7 @@
               <option value="">Select method</option>
               <option value="downrigger">Downrigger</option>
               <option value="cheater">Cheater</option>
+              <option value="flatline">Flatline</option>
               <option value="flatline-leadcore">Planer Board / Leadcore</option>
               <option value="dipsey-diver">Dipsey Diver</option>
             </select>
@@ -1196,6 +1197,10 @@
             <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
             <input class="catch-ball-depth" type="text" placeholder="55 ft" />
           </label>
+          <label class="trolling-param param-flatline-weight">
+            <span>Weight (oz)</span>
+            <input class="catch-flatline-weight-oz" type="text" placeholder="2 oz" />
+          </label>
           <label class="trolling-param param-board-line">
             <span data-unit-label="depth" data-unit-label-text="Line behind board">Line behind board</span>
             <input class="catch-line-behind-board" type="text" placeholder="150 ft" />
@@ -1213,7 +1218,7 @@
             <input class="catch-line-out" type="text" placeholder="180 ft" />
           </label>
           <label class="trolling-param param-estimated-depth">
-            <span data-unit-label="depth" data-unit-label-text="Estimated depth">Estimated depth</span>
+            <span class="estimated-depth-label" data-unit-label="depth" data-unit-label-text="Estimated depth">Estimated depth</span>
             <input class="catch-estimated-depth" type="text" placeholder="60 ft" />
           </label>
           <div class="row-section-title">Notes</div>
@@ -1301,6 +1306,7 @@
               <option value="">Select method</option>
               <option value="downrigger">Downrigger</option>
               <option value="cheater">Cheater</option>
+              <option value="flatline">Flatline</option>
               <option value="flatline-leadcore">Planer Board / Leadcore</option>
               <option value="dipsey-diver">Dipsey Diver</option>
             </select>

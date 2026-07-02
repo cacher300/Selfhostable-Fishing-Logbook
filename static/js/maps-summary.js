@@ -1,4 +1,4 @@
-function catchMapRecordForTrip(trip, catchItem, catchIndex) {
+﻿function catchMapRecordForTrip(trip, catchItem, catchIndex) {
   const mediaWithCoordinates = (catchItem.photos || []).find((photo) => isUsableCoordinates(photo.coordinates));
   const coordinates = isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : mediaWithCoordinates?.coordinates;
   if (!isUsableCoordinates(coordinates)) return null;
@@ -356,6 +356,125 @@ function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
   `;
 }
 
+function catchMediaAltText(speciesOrTitle = "", index = 0, options = {}) {
+  const label = displayTitleText(speciesOrTitle || "Catch");
+  if (options.thumbnail) return `${label} catch photo ${index + 1}`;
+  return `${label} catch photo`;
+}
+
+function catchMediaPreview(photo, speciesOrTitle, index, options = {}) {
+  const source = previewImage(photo);
+  if (!source) return "";
+  const alt = options.decorative ? "" : catchMediaAltText(speciesOrTitle, index, { thumbnail: options.thumbnail });
+  if (isVideoMedia(photo) && options.thumbnail) {
+    const videoSource = originalMediaUrl(photo) || source;
+    return `<video class="${escapeHtml(options.className || "")}" src="${escapeHtml(videoSource)}" muted playsinline preload="metadata" aria-hidden="true"></video>`;
+  }
+  if (isVideoMedia(photo) && !options.thumbnail) {
+    const videoSource = originalMediaUrl(photo) || source;
+    return `<video class="${escapeHtml(options.className || "")}" src="${escapeHtml(videoSource)}" controls preload="metadata" playsinline aria-label="${escapeHtml(catchMediaAltText(speciesOrTitle, index))}"></video>`;
+  }
+  const imageMarkup = `<img class="${escapeHtml(options.className || "")}" src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" ${options.loading ? `loading="${escapeHtml(options.loading)}"` : ""}>`;
+  if (!options.enableDownload) return imageMarkup;
+  const originalSource = originalMediaUrl(photo) || source;
+  return `
+    <span class="media-download-frame">
+      ${imageMarkup}
+      <a
+        class="media-download-link"
+        href="${escapeHtml(originalSource)}"
+        download="${escapeHtml(mediaDownloadName(photo))}"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Download original image"
+        title="Download original"
+      >
+        Download original
+      </a>
+    </span>
+  `;
+}
+
+function catchMediaBadge(photo) {
+  return isVideoMedia(photo) ? `<span class="catch-media-badge">Video</span>` : "";
+}
+
+function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {}) {
+  if (!photos.length) return `<div class="empty-state compact-empty"><p>No catch photos.</p></div>`;
+  const photoCount = photos.length;
+  const selectedIndex = Math.max(0, Math.min(Number(options.selectedIndex) || 0, photoCount - 1));
+  const selectedPhoto = photos[selectedIndex] || photos[0];
+  const selectedBadge = catchMediaBadge(selectedPhoto);
+  const thumbnailPhotos = photos.slice(1);
+  const showAllThumbnails = Boolean(options.showAllThumbnails);
+  const visibleThumbnailPhotos = showAllThumbnails ? thumbnailPhotos : thumbnailPhotos.slice(0, 4);
+  const hiddenThumbnailCount = showAllThumbnails ? 0 : Math.max(0, thumbnailPhotos.length - visibleThumbnailPhotos.length);
+  const galleryClasses = [
+    "catch-media-gallery",
+    visibleThumbnailPhotos.length ? "has-thumbnails" : "is-single",
+    showAllThumbnails ? "is-scrollable" : ""
+  ].filter(Boolean).join(" ");
+  const openButton = options.context === "summary"
+    ? `
+      <button
+        class="featured-image-button"
+        type="button"
+        data-catch-gallery-open
+        data-open-photo-index="${escapeHtml(String(selectedIndex))}"
+        aria-label="${escapeHtml(`Open ${catchMediaAltText(speciesOrTitle, selectedIndex)} in gallery`)}"
+      ></button>
+    `
+    : "";
+  return `
+    <section
+      class="${galleryClasses}"
+      data-catch-media-gallery
+      data-gallery-context="${escapeHtml(options.context || "summary")}"
+      data-catch-index="${escapeHtml(String(options.catchIndex ?? ""))}"
+      data-selected-index="${escapeHtml(String(selectedIndex))}"
+      data-photo-count="${escapeHtml(String(photoCount))}"
+      data-show-all-thumbnails="${showAllThumbnails ? "true" : "false"}"
+      style="--catch-gallery-thumb-count:${Math.max(1, visibleThumbnailPhotos.length)};"
+    >
+      <div class="featured-image-shell">
+        <span class="featured-image-wrap">
+          ${catchMediaPreview(selectedPhoto, speciesOrTitle, selectedIndex, {
+            className: "featured-image",
+            loading: "eager",
+            enableDownload: options.context === "detail"
+          })}
+          ${selectedBadge}
+        </span>
+        ${openButton}
+      </div>
+      ${visibleThumbnailPhotos.length ? `
+        <div class="thumbnail-column" aria-label="Catch media thumbnails">
+          ${visibleThumbnailPhotos.map((photo, thumbIndex) => {
+            const actualIndex = thumbIndex + 1;
+            const isActive = actualIndex === selectedIndex;
+            const isMoreButton = hiddenThumbnailCount > 0 && thumbIndex === visibleThumbnailPhotos.length - 1;
+            return `
+              <button
+                class="thumbnail-button ${isActive ? "is-active" : ""}"
+                type="button"
+                ${isMoreButton ? "data-catch-gallery-open" : "data-catch-gallery-thumb"}
+                data-photo-index="${escapeHtml(String(actualIndex))}"
+                ${isMoreButton ? `data-open-photo-index="${escapeHtml(String(actualIndex))}"` : ""}
+                aria-label="${escapeHtml(isMoreButton ? `Open ${hiddenThumbnailCount} more catch photos` : `Show ${catchMediaAltText(speciesOrTitle, actualIndex, { thumbnail: true })}`)}"
+                aria-pressed="${isActive ? "true" : "false"}"
+              >
+                ${catchMediaPreview(photo, speciesOrTitle, actualIndex, { className: "thumbnail-image", loading: "lazy", thumbnail: true, decorative: true })}
+                ${catchMediaBadge(photo)}
+                ${isMoreButton ? `<span class="more-overlay">+${hiddenThumbnailCount}</span>` : ""}
+              </button>
+            `;
+          }).join("")}
+        </div>
+      ` : ""}
+    </section>
+  `;
+}
+
 function summaryValueItem(label, value, options = {}) {
   return `
     <span class="${options.muted ? "summary-value muted-value" : "summary-value"}">
@@ -389,7 +508,7 @@ function setupTimelineRecord(trip, gearItem, index) {
     setupLineSideLabel(gearItem.side),
     gearItem.lineLabel,
     gearItem.deepestRigger ? "Deepest rigger" : ""
-  ].filter(Boolean).join(" / ");
+  ].filter(Boolean).join(" Â· ");
   return {
     rod: displayTitleText(rod),
     rodReel: displayTitleText(rodReel),
@@ -400,6 +519,14 @@ function setupTimelineRecord(trip, gearItem, index) {
     endTime: gearItem.endTime ? formatDisplayTime(gearItem.endTime) : "",
     changeNote: displaySentenceText(gearItem.changeNote || "")
   };
+}
+
+function compactSetupDisplayLabel(record = {}) {
+  const lineLabel = displayTitleText(record.lineLabel || "");
+  const side = displayTitleText(setupLineSideLabel(record.side));
+  const presentation = displayTitleText(presentationLabel(record.presentation));
+  if (lineLabel) return lineLabel;
+  return [side, presentation].filter(Boolean).join(" ");
 }
 
 function tripWeatherSummaryData(trip) {
@@ -488,7 +615,7 @@ function renderTripWeatherDetailsSection(trip) {
         ${summaryValueItem("Front Tag", weatherData.frontTag || "", { muted: true })}
         ${summaryValueItem("Moon", moonText, { muted: true })}
         ${summaryValueItem("Humidity", weatherValue(window.humidityPercent, "%"), { muted: true })}
-        ${summaryValueItem("Cloud Cover", weatherValueWithTrend(weatherValue(window.cloudCoverPercent, "%"), trend.cloudTrend), { muted: true })}
+        ${summaryValueItem("Cloud Cover", weatherValue(window.cloudCoverPercent, "%"), { muted: true })}
         ${summaryValueItem("Sunrise / Sunset", sunriseSunset, { muted: true })}
         ${summaryValueItem("Precipitation", formatUnitValue(window.precipitationIn ?? daily.precipitationIn, "precipitation", "in", { decimals: 1 }), { muted: true })}
         ${summaryValueItem("Barometric Trend", barometricTrend, { muted: true })}
@@ -524,46 +651,47 @@ function compactCatchDetails(trip, catchItem, options = {}) {
   return [fishingDetails, weatherDetails, location].filter(Boolean).join(" | ");
 }
 
+function catchMetaRow(label, value) {
+  if (!value) return "";
+  return `
+    <div class="catch-meta-row">
+      <dt>${escapeHtml(label)}</dt>
+      <dd>${escapeHtml(value)}</dd>
+    </div>
+  `;
+}
+
 function renderCatchReportDetails(trip, catchItem) {
   const record = resolveTripLineRecord({ ...catchItem, trip });
   const presentation = record.presentation || "";
   const trollingTrip = isTrollingTripRecord(trip);
   const castingTrip = String(trip?.method || "").toLowerCase() === "casting";
-  const lure = displayTitleText(lureName(record.lureId));
-  const flasher = displayTitleText(flasherName(record.flasherId));
-  const trollingSpecificDepth = [];
-  if (presentation === "flatline-leadcore") {
-    trollingSpecificDepth.push(
-      record.lineBehindBoard ? `${record.lineBehindBoard} behind board` : "",
-      record.estimatedLureDepth ? `${record.estimatedLureDepth} lure depth` : "",
-      record.estimatedDepth ? `${record.estimatedDepth} est.` : ""
-    );
+  const depthDetails = [];
+  if (record.fowCaught) depthDetails.push(`${record.fowCaught} FOW`);
+  if (record.depthDown) depthDetails.push(`${record.depthDown} down`);
+  if (presentation === "flatline") {
+    if (record.flatlineWeightOz) depthDetails.push(`${record.flatlineWeightOz} oz`);
+    if (record.estimatedDepth) depthDetails.push(`${record.estimatedDepth} down`);
+  } else if (presentation === "flatline-leadcore") {
+    if (record.lineBehindBoard) depthDetails.push(`${record.lineBehindBoard} behind board`);
+    if (record.estimatedLureDepth) depthDetails.push(`${record.estimatedLureDepth} lure depth`);
   } else if (presentation === "dipsey-diver") {
-    trollingSpecificDepth.push(
-      record.dipseySetting ? `${record.dipseySetting} dipsey` : "",
-      record.lineOut ? `${record.lineOut} out` : "",
-      record.estimatedDepth ? `${record.estimatedDepth} est.` : ""
-    );
-  } else if (!["downrigger", "cheater"].includes(presentation)) {
-    trollingSpecificDepth.push(
-      record.ballDepth ? `${record.ballDepth} ball` : "",
-      record.estimatedDepth ? `${record.estimatedDepth} est.` : ""
-    );
+    if (record.dipseySetting) depthDetails.push(`${record.dipseySetting} setting`);
+    if (record.lineOut) depthDetails.push(`${record.lineOut} out`);
+  } else if (record.ballDepth) {
+    depthDetails.push(`${record.ballDepth} ball`);
   }
-  const depth = [
-    record.fowCaught ? `${record.fowCaught} FOW` : "",
-    record.depthDown ? `${record.depthDown} down` : "",
-    ...trollingSpecificDepth
-  ].filter(Boolean).join(" / ");
+  if (record.estimatedDepth && presentation !== "flatline") depthDetails.push(`${record.estimatedDepth} est.`);
+  const setupLabel = record.setupLine ? setupLineDisplayLabel(trip, record.setupLine) : "";
   return `
-    <div class="catch-report-chips">
-      ${summaryChip("Lure", lure)}
-      ${trollingTrip ? summaryChip("Flasher", flasher) : ""}
-      ${trollingTrip ? summaryChip("Trolling Method", presentationLabel(presentation)) : ""}
-      ${summaryChip("Depth Caught", depth)}
-      ${trollingTrip ? summaryChip("Speed", displaySpeedValue(record.speed)) : ""}
-      ${castingTrip ? summaryChip("Retrieve", record.retrieve) : ""}
-    </div>
+    <dl class="catch-meta-list">
+      ${catchMetaRow("Lure", displayTitleText(lureName(record.lureId)))}
+      ${trollingTrip ? catchMetaRow("Flasher", displayTitleText(flasherName(record.flasherId))) : ""}
+      ${catchMetaRow("Method", trollingTrip ? presentationLabel(presentation) : displayTitleText(trip.method || ""))}
+      ${catchMetaRow("Depth", depthDetails.join(" / "))}
+      ${trollingTrip ? catchMetaRow("Speed", displaySpeedValue(record.speed)) : ""}
+      ${castingTrip ? catchMetaRow("Retrieve", record.retrieve) : ""}
+    </dl>
   `;
 }
 
@@ -572,27 +700,35 @@ function catchDetailRows(trip, catchItem) {
   const gear = record.setupLine
     ? setupLineDisplayLabel(trip, record.setupLine)
     : [lureName(record.lureId), flasherName(record.flasherId)].filter(Boolean).join(" + ");
+  const formatWeightDetail = (value) => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return "";
+    return /[a-zA-Z]/.test(trimmed) ? trimmed : `${trimmed} ${unitSymbol("fishWeight")}`;
+  };
+  const formatDepthDetail = (value) => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return "";
+    return /[a-zA-Z]/.test(trimmed) ? trimmed : `${trimmed} ${unitSymbol("depth")}`;
+  };
   const rows = [
     ["Species", displayTitleText(record.species || catchItem.species)],
     ["Status", record.released ? "Released" : "Kept"],
     ["Time", catchItem.time ? formatDisplayTime(catchItem.time) : ""],
     ["Length", record.length],
-    ["Weight", record.weight],
-    ["FOW", record.fowCaught || record.waterDepth],
-    ["Depth Down", record.depthDown],
-    ["Ball Depth", record.ballDepth],
-    ["Estimated Depth", record.estimatedDepth || record.estimatedLureDepth],
-    ["Line Behind Board", record.lineBehindBoard],
+    ["Weight", formatWeightDetail(record.weight)],
+    ["FOW", formatDepthDetail(record.fowCaught || record.waterDepth)],
+    ["Depth Down", formatDepthDetail(record.depthDown)],
+    ["Ball Depth", formatDepthDetail(record.ballDepth)],
+    ["Flatline Weight", record.flatlineWeightOz ? `${record.flatlineWeightOz} oz` : ""],
+    ["Estimated Depth", formatDepthDetail(record.estimatedDepth || record.estimatedLureDepth)],
+    ["Line Behind Board", formatDepthDetail(record.lineBehindBoard)],
     ["Dipsey Setting", record.dipseySetting],
-    ["Line Out", record.lineOut],
+    ["Line Out", formatDepthDetail(record.lineOut)],
     ["Speed", displaySpeedValue(record.speed)],
     ["Retrieve", record.retrieve],
     ["Direction", record.direction],
     ["Lure / Setup", displayTitleText(gear)],
     ["Weather", catchWeatherSummary(catchItem.weatherData) || trip.weather],
-    ["Weather vs Trip", catchWeatherComparison(catchItem.weatherData, trip.weatherData)],
-    ["Moon Window", moonWindowForTime(catchItem.time, trip.weatherData?.sunMoon)],
-    ["GPS", record.coordinates ? formatCoordinates(record.coordinates) : ""],
     ["Notes", displaySentenceText(catchItem.notes)]
   ].filter(([, value]) => value !== null && value !== undefined && value !== "");
   return rows.map(([label, value]) => `
@@ -603,17 +739,22 @@ function catchDetailRows(trip, catchItem) {
   `).join("");
 }
 
-function renderCatchDetailPopout(trip, catchItem, index) {
+function renderCatchDetailPopout(trip, catchItem, index, selectedIndex = 0) {
   return `
-    <div class="catch-detail-popout" id="catchDetailPopout" role="dialog" aria-modal="false" aria-label="Catch details">
+    <div class="catch-detail-popout" id="catchDetailPopout" role="dialog" aria-modal="true" aria-label="Catch details">
       <div class="catch-detail-panel">
         <button class="icon-button catch-detail-close" type="button" data-close-catch-detail aria-label="Close catch details">x</button>
         <div class="catch-detail-heading">
-          <span class="timeline-type">Catch</span>
+          <p class="event-kicker">Catch</p>
           <h4>${escapeHtml(displayTitleText(catchItem.species || `Catch ${index + 1}`))}</h4>
           <p>${escapeHtml([catchItem.released ? "Released" : "Kept", catchItem.time ? formatDisplayTime(catchItem.time) : ""].filter(Boolean).join(" / "))}</p>
         </div>
-        ${summaryPhotoGrid(catchItem.photos || [], "No catch photos", { hero: true, hideCaptions: true })}
+        ${renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${index + 1}`, {
+          catchIndex: index,
+          selectedIndex,
+          context: "detail",
+          showAllThumbnails: true
+        })}
         <dl class="catch-detail-grid">
           ${catchDetailRows(trip, catchItem)}
         </dl>
@@ -628,18 +769,28 @@ function renderTripSummaryCatches(trip) {
   return catches.map((catchItem, index) => {
     const status = catchItem.released ? "Released" : "Kept";
     return `
-      <article class="summary-catch-card">
-        <div class="catch-report-body">
+      <article
+        class="summary-catch-card"
+        data-summary-catch-index="${index}"
+        role="button"
+        tabindex="0"
+        aria-label="${escapeHtml(`Open details for ${displayTitleText(catchItem.species || `Catch ${index + 1}`)}`)}"
+      >
+        <div class="catch-info">
           <div class="catch-report-heading">
             <div>
-              <strong>${escapeHtml(displayTitleText(catchItem.species || `Catch ${index + 1}`))}</strong>
-              <span>${escapeHtml([status, catchItem.time ? formatDisplayTime(catchItem.time) : ""].filter(Boolean).join(" / "))}</span>
+              <strong class="catch-title">${escapeHtml(displayTitleText(catchItem.species || `Catch ${index + 1}`))}</strong>
+              <span class="catch-subtitle">${escapeHtml(status)}${catchItem.time ? " &middot; " : ""}${catchItem.time ? escapeHtml(formatDisplayTime(catchItem.time)) : ""}</span>
             </div>
           </div>
           ${renderCatchReportDetails(trip, catchItem)}
           ${catchItem.notes ? `<p>${escapeHtml(displaySentenceText(catchItem.notes))}</p>` : ""}
         </div>
-        ${summaryPhotoGrid(catchItem.photos || [], "No catch photos", { hero: true, hideCaptions: true })}
+        ${renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${index + 1}`, {
+          catchIndex: index,
+          selectedIndex: 0,
+          context: "summary"
+        })}
       </article>
     `;
   }).join("");
@@ -787,7 +938,7 @@ function buildSpreadLayouts(trip, lines) {
 
   const layouts = [];
   const spreaders = [];
-  const labelX = 790;
+  const labelX = 732;
   const lineEndX = labelX - 24;
   const downriggerBySide = {};
 
@@ -865,12 +1016,34 @@ function spreadLineTitle(gearItem) {
 }
 
 function spreadCountText(counts) {
-  return `${counts.fish} fish${counts.lost ? ` / ${counts.lost} lost` : ""}`;
+  return `${counts.fish} fish${counts.lost ? ` Â· ${counts.lost} lost` : ""}`;
 }
 
 function truncateSpreadText(value, maxLength = 34) {
   const text = String(value || "");
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
+}
+
+function wrapSpreadText(value, maxLength = 28, maxLines = 3) {
+  const text = String(value || "").trim();
+  if (!text) return [];
+  const words = text.split(/\s+/);
+  const lines = [];
+  let current = "";
+  words.forEach((word) => {
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length <= maxLength) {
+      current = candidate;
+      return;
+    }
+    if (current) lines.push(current);
+    current = word;
+  });
+  if (current) lines.push(current);
+  if (lines.length <= maxLines) return lines;
+  const visible = lines.slice(0, maxLines);
+  visible[maxLines - 1] = truncateSpreadText(visible[maxLines - 1], maxLength);
+  return visible;
 }
 
 function renderTrollingSpread(trip) {
@@ -885,23 +1058,28 @@ function renderTrollingSpread(trip) {
   )).join("");
   const renderedLines = layouts.map((layout) => {
     const gear = gearComboName(layout.gearItem.lureId, layout.gearItem.flasherId) || "No gear logged";
-    const label = truncateSpreadText(spreadLineTitle(layout.gearItem), 32);
-    const detail = truncateSpreadText(`${gear} / ${spreadCountText(layout.counts)}`, 42);
+    const labelLines = wrapSpreadText(spreadLineTitle(layout.gearItem), 24, 3);
+    const detailLines = wrapSpreadText(`${gear} · ${spreadCountText(layout.counts)}`, 34, 3);
     return `
       <g class="spread-line spread-${escapeHtml(layout.side)} spread-${escapeHtml(layout.kind)}">
         <path d="${layout.path}" />
         <circle cx="${layout.marker.x}" cy="${layout.marker.y}" r="5" />
-        <text x="${layout.labelX}" y="${layout.labelY - 8}" text-anchor="start" class="spread-line-label">${escapeHtml(label)}</text>
-        <text x="${layout.labelX}" y="${layout.labelY + 12}" text-anchor="start" class="spread-line-detail">${escapeHtml(detail)}</text>
+        <text x="${layout.labelX}" y="${layout.labelY - 16}" text-anchor="start" class="spread-line-label">
+          ${labelLines.map((line, index) => `<tspan x="${layout.labelX}" dy="${index === 0 ? 0 : 16}">${escapeHtml(line)}</tspan>`).join("")}
+        </text>
+        <text x="${layout.labelX}" y="${layout.labelY + 28}" text-anchor="start" class="spread-line-detail">
+          ${detailLines.map((line, index) => `<tspan x="${layout.labelX}" dy="${index === 0 ? 0 : 14}">${escapeHtml(line)}</tspan>`).join("")}
+        </text>
       </g>
     `;
   }).join("");
+
   const detailList = layouts.map((layout) => {
     const gear = gearComboName(layout.gearItem.lureId, layout.gearItem.flasherId) || "No gear logged";
     return `
       <article class="spread-detail-card">
         <strong>${escapeHtml(setupLineDisplayLabel(trip, layout.gearItem))}</strong>
-        <span>${escapeHtml([gear, spreadCountText(layout.counts)].filter(Boolean).join(" / "))}</span>
+        <span>${escapeHtml([gear, spreadCountText(layout.counts)].filter(Boolean).join(" · "))}</span>
       </article>
     `;
   }).join("");
@@ -916,7 +1094,7 @@ function renderTrollingSpread(trip) {
             <stop offset="1" stop-color="#dbe7ef" />
           </linearGradient>
         </defs>
-        <path class="spread-water" d="M40 330 C154 310 238 340 356 316 C492 288 814 318 1160 292 L1160 502 L40 502 Z" />
+        <rect class="spread-water" x="0" y="0" width="1200" height="520" rx="28" />
         <g class="spread-boat">
           <path class="spread-hull" d="M92 240 C134 184 204 152 292 150 L440 150 C475 150 498 174 498 209 L498 271 C498 306 475 330 440 330 L292 330 C204 328 134 296 92 240 Z" />
           <path class="spread-rub-rail" d="M128 240 C168 198 224 176 294 176 L430 176 C448 176 462 190 462 209 L462 271 C462 290 448 304 430 304 L294 304 C224 304 168 282 128 240 Z" />
@@ -938,27 +1116,72 @@ function renderTrollingSpread(trip) {
     </div>
   `;
 }
-
 function timelineTimeValue(time) {
   if (!time) return 9999;
   const [hours = "0", minutes = "0"] = String(time).split(":");
   return Number(hours) * 60 + Number(minutes);
 }
 
+function formatTimelineDisplayTime(value) {
+  const match = String(value || "").match(/(\d{1,2}):(\d{2})/);
+  if (!match) return "";
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "";
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
 function timelineTimeLabel(item) {
   if (item.startTime && item.endTime) {
-    const start = formatDisplayTime(item.startTime);
-    const end = formatDisplayTime(item.endTime);
-    if (timeFormatPreference() === "12") {
-      const startMatch = start.match(/^(.+)\s(AM|PM)$/);
-      const endMatch = end.match(/^(.+)\s(AM|PM)$/);
-      if (startMatch && endMatch && startMatch[2] === endMatch[2]) {
-        return `${startMatch[1]}-${endMatch[1]} ${endMatch[2]}`;
-      }
+    const start = formatTimelineDisplayTime(item.startTime);
+    const end = formatTimelineDisplayTime(item.endTime);
+    const startMatch = start.match(/^(.+)\s(AM|PM)$/);
+    const endMatch = end.match(/^(.+)\s(AM|PM)$/);
+    if (startMatch && endMatch && startMatch[2] === endMatch[2]) {
+      return `${startMatch[1]}-${endMatch[1]} ${endMatch[2]}`;
     }
     return [start, end].filter(Boolean).join("-");
   }
-  return formatDisplayTime(item.time || item.startTime || item.endTime) || "No time";
+  return formatTimelineDisplayTime(item.time || item.startTime || item.endTime) || "No time";
+}
+
+function uniqueTimelineValues(values = []) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function timelineMetaChips(chips = []) {
+  const values = uniqueTimelineValues(chips);
+  if (!values.length) return "";
+  return `
+    <div class="meta-chips">
+      ${values.map((value) => `<span class="meta-chip">${escapeHtml(value)}</span>`).join("")}
+    </div>
+  `;
+}
+
+function timelineEventPhoto(photos = [], options = {}) {
+  if (!photos.length) return "";
+  const photo = photos[0];
+  const extraCount = Math.max(0, photos.length - 1);
+  return `
+    <figure class="timeline-photo-frame">
+      ${mediaMarkup(photo, "event-photo")}
+      ${extraCount && !options.hideCount ? `<figcaption>${escapeHtml(`+${extraCount} more photo${extraCount === 1 ? "" : "s"}`)}</figcaption>` : ""}
+    </figure>
+  `;
+}
+
+function timelineEventHeader(item) {
+  const timeLabel = item.time ? formatTimelineDisplayTime(item.time) : timelineTimeLabel(item);
+  return `
+    <div class="event-header">
+      <p class="event-kicker">${escapeHtml([item.type.toUpperCase(), timeLabel].filter(Boolean).join(" Â· "))}</p>
+      <h4 class="event-title">${escapeHtml(item.title || item.type)}</h4>
+      ${item.summary ? `<p class="event-summary">${escapeHtml(item.summary)}</p>` : ""}
+    </div>
+  `;
 }
 
 function isTripEndTime(trip, time) {
@@ -993,6 +1216,7 @@ function setupTimelineItems(trip) {
     return {
       type: "Setup",
       title,
+      summary: "",
       setupRows: [
         ...event.pulled.map((row) => ({ ...row, action: "Pulled" })),
         ...event.deployed.map((row) => ({ ...row, action: "Deployed" }))
@@ -1012,13 +1236,30 @@ function tripTimelineItems(trip) {
   const items = [...setupTimelineItems(trip)];
 
   (trip.catches || []).forEach((catchItem, index) => {
-    const details = compactCatchDetails(trip, catchItem, { showOutcome: true });
+    const record = resolveTripLineRecord({ ...catchItem, trip });
+    const setupLabel = compactSetupDisplayLabel(record);
+    const waterDepth = record.waterDepth || record.fowCaught;
+    const lure = displayTitleText([lureName(record.lureId), flasherName(record.flasherId)].filter(Boolean).join(" + "));
+    const speed = displaySpeedValue(record.speed);
+    const summary = [
+      catchItem.released ? "Released" : "Kept",
+      setupLabel,
+      record.depthDown ? `${record.depthDown} down` : "",
+      waterDepth ? `${waterDepth} water` : ""
+    ].filter(Boolean).join(" Â· ");
+    const chips = [
+      lure,
+      speed ? `Speed ${speed}` : "",
+      waterDepth ? `${waterDepth} water` : "",
+      record.depthDown ? `${record.depthDown} down` : "",
+      setupLabel
+    ];
     items.push({
       type: "Catch",
       title: displayTitleText(catchItem.species || `Catch ${index + 1}`),
-      details,
+      summary,
+      chips,
       catchIndex: index,
-      status: catchItem.released ? "Released" : "Kept",
       note: displaySentenceText(catchItem.notes || ""),
       time: catchItem.time,
       photos: catchItem.photos || [],
@@ -1028,20 +1269,21 @@ function tripTimelineItems(trip) {
 
   (trip.lostFish || []).forEach((fish, index) => {
     const record = resolveTripLineRecord({ ...fish, trip });
-    const details = [
-      record.possibleSpecies || record.species,
-      record.fowCaught,
-      record.depthDown ? `${record.depthDown} down` : "",
-      record.waterDepth ? `${record.waterDepth} water` : "",
-      record.setupLine ? setupLineDisplayLabel(trip, record.setupLine) : "",
-      lureName(record.lureId),
-      flasherName(record.flasherId),
-      record.speed
-    ].filter(Boolean).join(" / ");
+    const setupLabel = compactSetupDisplayLabel(record);
+    const waterDepth = record.waterDepth || record.fowCaught;
+    const lure = displayTitleText([lureName(record.lureId), flasherName(record.flasherId)].filter(Boolean).join(" + "));
+    const speed = displaySpeedValue(record.speed);
     items.push({
       type: "Lost",
       title: displayTitleText(fish.possibleSpecies || fish.species || `Lost Fish ${index + 1}`),
-      details,
+      summary: "",
+      chips: [
+        setupLabel,
+        record.depthDown ? `${record.depthDown} down` : "",
+        waterDepth ? `${waterDepth} water` : "",
+        lure,
+        speed ? `Speed ${speed}` : ""
+      ],
       note: displaySentenceText(fish.notes || ""),
       time: fish.time,
       sortTime: timelineTimeValue(fish.time)
@@ -1052,7 +1294,8 @@ function tripTimelineItems(trip) {
     items.push({
       type: "Photo",
       title: displayPhotoTitle(photo),
-      details: "",
+      summary: "",
+      chips: [],
       time: photo.captureTime || "",
       photos: [photo],
       sortTime: photo.captureTime ? timelineTimeValue(photo.captureTime) : 10000
@@ -1063,7 +1306,7 @@ function tripTimelineItems(trip) {
 }
 
 function timelineFilterMatches(item, filter = activeTripTimelineFilter) {
-  if (filter === "catches") return item.type === "Catch";
+  if (filter === "catches") return item.type === "Catch" || item.type === "Lost";
   if (filter === "setup") return item.type === "Setup";
   if (filter === "photos") return item.type === "Photo";
   return true;
@@ -1090,20 +1333,35 @@ function renderTripTimelineFilters() {
 function timelineSetupRows(rows = []) {
   if (!rows.length) return "";
   return `
-    <div class="timeline-setup-grid">
+    <div class="setup-list">
       ${rows.map((row) => `
-        <article class="timeline-setup-row">
-          <span class="setup-action">${escapeHtml(row.action)}</span>
-          <dl>
-            <div><dt>Rod</dt><dd>${escapeHtml(row.rod || row.rodReel || "Not logged")}</dd></div>
-            <div><dt>Presentation Type</dt><dd>${escapeHtml(row.presentation || "Not logged")}</dd></div>
-            <div><dt>Lure</dt><dd>${escapeHtml(row.lure || "Not logged")}</dd></div>
-            <div><dt>Position</dt><dd>${escapeHtml(row.position || "Not logged")}</dd></div>
-            <div><dt>Start Time</dt><dd>${escapeHtml(row.startTime || "Not logged")}</dd></div>
-            <div><dt>End Time</dt><dd>${escapeHtml(row.endTime || "Not logged")}</dd></div>
-          </dl>
+        <article class="setup-row">
+          <div class="setup-row-topline">
+            <p class="setup-row-title">${escapeHtml(row.position || row.rod || row.rodReel || "Not logged")}</p>
+            <span class="setup-action">${escapeHtml(row.action)}</span>
+          </div>
+          <p class="setup-row-meta">${escapeHtml([row.presentation || "Setup", [row.startTime, row.endTime].filter(Boolean).join(" to ") || "Time not logged"].filter(Boolean).join(" Â· "))}</p>
+          <p class="setup-row-note">${escapeHtml(row.lure || "No lure logged")}</p>
         </article>
       `).join("")}
+    </div>
+  `;
+}
+
+function renderTimelineEventCard(item) {
+  const interactiveAttributes = item.type === "Catch"
+    ? `data-summary-catch-index="${item.catchIndex}" role="button" tabindex="0"`
+    : "";
+  const classes = ["event-card", item.type.toLowerCase(), item.type === "Catch" ? "timeline-catch-card" : ""].filter(Boolean).join(" ");
+  return `
+    <div class="${classes}" ${interactiveAttributes}>
+      ${timelineEventHeader(item)}
+      ${item.setupRows?.length ? timelineSetupRows(item.setupRows) : ""}
+      ${item.type === "Catch" ? timelineEventPhoto(item.photos, { hideCount: false }) : ""}
+      ${item.type === "Photo" ? timelineEventPhoto(item.photos, { hideCount: true }) : ""}
+      ${item.note ? `<p class="event-note">${escapeHtml(item.note)}</p>` : ""}
+      ${timelineMetaChips(item.chips)}
+      ${item.type === "Catch" ? `<button class="button secondary timeline-catch-open" type="button" data-summary-catch-index="${item.catchIndex}">View details</button>` : ""}
     </div>
   `;
 }
@@ -1117,20 +1375,7 @@ function renderTripTimeline(trip) {
         <article class="timeline-item timeline-${item.type.toLowerCase()}">
           <div class="timeline-time">${escapeHtml(timelineTimeLabel(item))}</div>
           <div class="timeline-dot" aria-hidden="true"></div>
-          <div class="timeline-content ${item.type === "Catch" ? "timeline-catch-card" : ""}" ${item.type === "Catch" ? `data-summary-catch-index="${item.catchIndex}" role="button" tabindex="0"` : ""}>
-            <span class="timeline-type">${escapeHtml(item.type)}</span>
-            <strong>${escapeHtml(item.title)}</strong>
-            ${item.setupRows?.length ? timelineSetupRows(item.setupRows) : ""}
-            ${item.type === "Catch" ? `
-              <p class="timeline-details">${escapeHtml([item.status, item.time ? formatDisplayTime(item.time) : ""].filter(Boolean).join(" / "))}</p>
-              ${item.photos?.length ? summaryPhotoGrid(item.photos, "No catch photos", { compact: true, hideCaptions: true }) : ""}
-              <button class="button secondary timeline-catch-open" type="button" data-summary-catch-index="${item.catchIndex}">View Catch Details</button>
-            ` : `
-              ${item.details ? `<p class="timeline-details">${escapeHtml(item.details)}</p>` : ""}
-              ${item.note ? `<p class="timeline-note">${escapeHtml(item.note)}</p>` : ""}
-              ${item.type === "Photo" && item.photos?.length ? summaryPhotoGrid(item.photos, "No photos", { compact: true, hideCaptions: true }) : ""}
-            `}
-          </div>
+          ${renderTimelineEventCard(item)}
         </article>
       `).join("")}
     </div>
@@ -1147,17 +1392,36 @@ function refreshTripTimelinePanel() {
   });
 }
 
-function openSummaryCatchDetail(catchIndex) {
+function refreshCatchMediaGallery(gallery, selectedIndex = 0) {
+  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+  const catchIndex = Number(gallery?.dataset?.catchIndex);
+  const catchItem = trip?.catches?.[catchIndex];
+  if (!trip || !catchItem || Number.isNaN(catchIndex)) return;
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${catchIndex + 1}`, {
+    catchIndex,
+    selectedIndex,
+    context: gallery.dataset.galleryContext || "summary",
+    showAllThumbnails: gallery.dataset.showAllThumbnails === "true"
+  }).trim();
+  const nextGallery = wrapper.firstElementChild;
+  if (nextGallery) gallery.replaceWith(nextGallery);
+}
+
+function openSummaryCatchDetail(catchIndex, selectedIndex = 0) {
   const trip = state.trips.find((item) => item.id === activeSummaryTripId);
   const catchItem = trip?.catches?.[catchIndex];
   const host = document.querySelector("#catchDetailHost");
   if (!trip || !catchItem || !host) return;
-  host.innerHTML = renderCatchDetailPopout(trip, catchItem, catchIndex);
+  host.innerHTML = renderCatchDetailPopout(trip, catchItem, catchIndex, selectedIndex);
+  document.querySelector("#tripSummaryDialog")?.classList.add("catch-detail-open");
+  host.querySelector(".catch-detail-close")?.focus();
 }
 
 function closeSummaryCatchDetail() {
   const host = document.querySelector("#catchDetailHost");
   if (host) host.innerHTML = "";
+  document.querySelector("#tripSummaryDialog")?.classList.remove("catch-detail-open");
 }
 
 function openTripSummary(trip) {
