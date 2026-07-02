@@ -338,22 +338,158 @@ function displaySentenceText(value = "") {
 }
 
 function displayPhotoTitle(photo) {
-  return displaySentenceText(photo.caption || photo.name || "Trip photo");
+  return displaySentenceText(photo.displayTitle || photo.caption || photo.name || "Trip photo");
 }
 
 function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
   if (!photos.length) return `<div class="empty-state compact-empty"><p>${escapeHtml(emptyText)}</p></div>`;
+  const visiblePhotos = Number.isInteger(options.limit) ? photos.slice(0, options.limit) : photos;
   const className = ["summary-photo-grid", options.compact ? "compact-photo-grid" : "", options.hero ? "hero-photo-grid" : ""].filter(Boolean).join(" ");
   return `
     <div class="${className}">
-      ${photos.map((photo) => `
+      ${visiblePhotos.map((photo) => `
         <figure class="summary-photo-card">
           ${mediaMarkup(photo, "summary-photo-asset")}
-          ${!options.hideCaptions && (photo.caption || photo.name) ? `<figcaption>${escapeHtml(displayPhotoTitle(photo))}</figcaption>` : ""}
+          ${!options.hideCaptions && displayPhotoTitle(photo) ? `<figcaption>${escapeHtml(displayPhotoTitle(photo))}</figcaption>` : ""}
         </figure>
       `).join("")}
     </div>
   `;
+}
+
+function mediaOriginalSource(item) {
+  return item?.url || item?.image || previewImage(item) || "";
+}
+
+function summaryGalleryMediaMarkup(item, className = "") {
+  const source = mediaOriginalSource(item);
+  if (!source) return "";
+  if (isVideoMedia(item)) {
+    return `<video class="${escapeHtml(className)}" src="${escapeHtml(source)}" controls preload="metadata"></video>`;
+  }
+  return `<img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">`;
+}
+
+function buildSummaryMediaItem(photo, options = {}) {
+  return {
+    ...photo,
+    displayTitle: options.displayTitle || photo.displayTitle || photo.caption || photo.name || "Trip photo",
+    displayMeta: options.displayMeta || photo.displayMeta || "",
+    displayCaption: options.displayCaption || photo.displayCaption || photo.caption || ""
+  };
+}
+
+function catchGalleryItems(trip, catchItem, catchIndex) {
+  const label = displayTitleText(catchItem?.species || `Catch ${catchIndex + 1}`);
+  const meta = [
+    "Catch photo",
+    catchItem?.time ? formatDisplayTime(catchItem.time) : "",
+    catchItem?.released ? "Released" : "Kept",
+    displayTitleText(trip.title || trip.location || "")
+  ].filter(Boolean).join(" / ");
+  return (catchItem?.photos || []).map((photo) => buildSummaryMediaItem(photo, {
+    displayTitle: label,
+    displayMeta: meta,
+    displayCaption: displaySentenceText(photo.caption || catchItem?.notes || "")
+  }));
+}
+
+function tripSummaryMediaItems(trip) {
+  const notePhotos = (trip.notePhotos || []).map((photo, index) => buildSummaryMediaItem(photo, {
+    displayTitle: photo.caption || photo.name || `Trip Photo ${index + 1}`,
+    displayMeta: [
+      "Trip photo",
+      photo.captureTime ? formatDisplayTime(photo.captureTime) : "",
+      displayTitleText(trip.title || trip.location || "")
+    ].filter(Boolean).join(" / "),
+    displayCaption: displaySentenceText(photo.caption || "")
+  }));
+  const catchPhotos = (trip.catches || []).flatMap((catchItem, catchIndex) => catchGalleryItems(trip, catchItem, catchIndex));
+  return [...notePhotos, ...catchPhotos];
+}
+
+function summaryMediaGalleryData(trip, scope, catchIndex = -1) {
+  if (scope === "catch") {
+    const catchItem = trip?.catches?.[catchIndex];
+    return {
+      title: `${displayTitleText(catchItem?.species || `Catch ${catchIndex + 1}`)} Photo Roll`,
+      items: catchItem ? catchGalleryItems(trip, catchItem, catchIndex) : []
+    };
+  }
+  return {
+    title: "Trip Photo Roll",
+    items: tripSummaryMediaItems(trip)
+  };
+}
+
+function summaryMediaGalleryButton(scope, count, options = {}) {
+  if (!count) return "";
+  const label = options.label || (count > 3 ? `See all ${count} photos` : "Open photo roll");
+  const catchIndexAttr = Number.isInteger(options.catchIndex) ? ` data-gallery-catch-index="${options.catchIndex}"` : "";
+  const startIndexAttr = Number.isInteger(options.startIndex) ? ` data-gallery-index="${options.startIndex}"` : "";
+  return `
+    <button class="button secondary summary-media-open" type="button" data-open-media-gallery="${escapeHtml(scope)}"${catchIndexAttr}${startIndexAttr}>
+      ${escapeHtml(label)}
+    </button>
+  `;
+}
+
+function renderSummaryMediaGallery(title, items = []) {
+  if (!items.length) return "";
+  return `
+    <div class="summary-media-gallery" role="dialog" aria-modal="false" aria-label="${escapeHtml(title)}">
+      <div class="summary-media-gallery-shell">
+        <div class="summary-media-gallery-header">
+          <div>
+            <p class="eyebrow">Photo roll</p>
+            <h4>${escapeHtml(title)}</h4>
+            <span>${escapeHtml(items.length === 1 ? "1 item" : `${items.length} items`)}</span>
+          </div>
+          <button class="icon-button" type="button" data-close-media-gallery aria-label="Close photo roll">x</button>
+        </div>
+        <div class="summary-media-gallery-list">
+          ${items.map((item, index) => {
+            const caption = displaySentenceText(item.displayCaption || "");
+            const titleText = displayTitleText(item.displayTitle || "");
+            const metaText = String(item.displayMeta || "").trim();
+            const originalSource = mediaOriginalSource(item);
+            return `
+              <article class="summary-media-gallery-card" data-gallery-card-index="${index}">
+                <div class="summary-media-gallery-media">
+                  ${summaryGalleryMediaMarkup(item, "summary-media-gallery-asset")}
+                </div>
+                <div class="summary-media-gallery-meta">
+                  <div>
+                    <strong>${escapeHtml(titleText || `Photo ${index + 1}`)}</strong>
+                    ${metaText ? `<span>${escapeHtml(metaText)}</span>` : ""}
+                    ${caption && caption !== titleText ? `<p>${escapeHtml(caption)}</p>` : ""}
+                  </div>
+                  ${originalSource ? `<a class="button secondary" href="${escapeHtml(originalSource)}" download target="_blank" rel="noreferrer">Download Original</a>` : ""}
+                </div>
+              </article>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function openSummaryMediaGallery(scope, options = {}) {
+  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+  const host = document.querySelector("#mediaGalleryHost");
+  if (!trip || !host) return;
+  const { title, items } = summaryMediaGalleryData(trip, scope, Number.isInteger(options.catchIndex) ? options.catchIndex : -1);
+  if (!items.length) return;
+  host.innerHTML = renderSummaryMediaGallery(title, items);
+  const startIndex = Math.max(0, Math.min(Number(options.index) || 0, items.length - 1));
+  const card = host.querySelector(`[data-gallery-card-index="${startIndex}"]`);
+  card?.scrollIntoView({ block: "start", inline: "nearest" });
+}
+
+function closeSummaryMediaGallery() {
+  const host = document.querySelector("#mediaGalleryHost");
+  if (host) host.innerHTML = "";
 }
 
 function summaryValueItem(label, value, options = {}) {
@@ -449,11 +585,9 @@ function renderTripKeyConditions(trip) {
   }
   return `
     <section class="summary-section summary-key-conditions" aria-label="Key conditions">
-      <h3>Key Conditions</h3>
       <div class="metric-grid summary-condition-metrics">
         ${summaryMetric("Weather", trip.weather || catchWeatherSummary(weatherData) || "Not logged")}
         ${summaryMetric("Water Temp", trip.waterTemp || "Not logged")}
-        ${summaryMetric("Air Temp", formatUnitValue(window.temperatureC, "airTemperature", "C"))}
         ${summaryMetric("Wind", primaryWindText || "Not logged")}
         ${summaryMetric("FOW Range", trip.structure || "Not logged")}
       </div>
@@ -495,6 +629,7 @@ function renderTripWeatherDetailsSection(trip) {
         ${summaryValueItem("Precipitation", formatUnitValue(window.precipitationIn ?? daily.precipitationIn, "precipitation", "in", { decimals: 1 }), { muted: true })}
         ${summaryValueItem("Barometric Trend", barometricTrend, { muted: true })}
         ${summaryValueItem("Wave / Chop", formatWaveHeightChopLine(trip, weatherData), { muted: true })}
+        ${summaryValueItem("Air Temp", formatUnitValue(window.temperatureC, "airTemperature", "C"), { muted: true })}
       </div>
     </section>
   `;
@@ -605,6 +740,7 @@ function catchDetailRows(trip, catchItem) {
 }
 
 function renderCatchDetailPopout(trip, catchItem, index) {
+  const catchPhotos = catchGalleryItems(trip, catchItem, index);
   return `
     <div class="catch-detail-popout" id="catchDetailPopout" role="dialog" aria-modal="false" aria-label="Catch details">
       <div class="catch-detail-panel">
@@ -614,7 +750,13 @@ function renderCatchDetailPopout(trip, catchItem, index) {
           <h4>${escapeHtml(displayTitleText(catchItem.species || `Catch ${index + 1}`))}</h4>
           <p>${escapeHtml([catchItem.released ? "Released" : "Kept", catchItem.time ? formatDisplayTime(catchItem.time) : ""].filter(Boolean).join(" / "))}</p>
         </div>
-        ${summaryPhotoGrid(catchItem.photos || [], "No catch photos", { hero: true, hideCaptions: true })}
+        <div class="summary-media-stack">
+          ${summaryPhotoGrid(catchPhotos, "No catch photos", { hero: true, hideCaptions: true, limit: 3 })}
+          ${summaryMediaGalleryButton("catch", catchPhotos.length, {
+            catchIndex: index,
+            label: catchPhotos.length > 3 ? `See all ${catchPhotos.length} photos` : "Open photo roll"
+          })}
+        </div>
         <dl class="catch-detail-grid">
           ${catchDetailRows(trip, catchItem)}
         </dl>
@@ -628,6 +770,7 @@ function renderTripSummaryCatches(trip) {
   if (!catches.length) return `<div class="empty-state compact-empty"><p>No catches logged.</p></div>`;
   return catches.map((catchItem, index) => {
     const status = catchItem.released ? "Released" : "Kept";
+    const catchPhotos = catchGalleryItems(trip, catchItem, index);
     return `
       <article class="summary-catch-card">
         <div class="catch-report-body">
@@ -640,7 +783,13 @@ function renderTripSummaryCatches(trip) {
           ${renderCatchReportDetails(trip, catchItem)}
           ${catchItem.notes ? `<p>${escapeHtml(displaySentenceText(catchItem.notes))}</p>` : ""}
         </div>
-        ${summaryPhotoGrid(catchItem.photos || [], "No catch photos", { hero: true, hideCaptions: true })}
+        <div class="summary-media-stack">
+          ${summaryPhotoGrid(catchPhotos, "No catch photos", { hero: true, hideCaptions: true, limit: 3 })}
+          ${summaryMediaGalleryButton("catch", catchPhotos.length, {
+            catchIndex: index,
+            label: catchPhotos.length > 3 ? `See all ${catchPhotos.length} photos` : "Open photo roll"
+          })}
+        </div>
       </article>
     `;
   }).join("");
@@ -1114,26 +1263,39 @@ function renderTripTimeline(trip) {
   if (!items.length) return `<div class="empty-state compact-empty"><p>No timeline events logged.</p></div>`;
   return `
     <div class="trip-timeline">
-      ${items.map((item) => `
-        <article class="timeline-item timeline-${item.type.toLowerCase()}">
-          <div class="timeline-time">${escapeHtml(timelineTimeLabel(item))}</div>
-          <div class="timeline-dot" aria-hidden="true"></div>
-          <div class="timeline-content ${item.type === "Catch" ? "timeline-catch-card" : ""}" ${item.type === "Catch" ? `data-summary-catch-index="${item.catchIndex}" role="button" tabindex="0"` : ""}>
-            <span class="timeline-type">${escapeHtml(item.type)}</span>
-            <strong>${escapeHtml(item.title)}</strong>
-            ${item.setupRows?.length ? timelineSetupRows(item.setupRows) : ""}
-            ${item.type === "Catch" ? `
-              <p class="timeline-details">${escapeHtml([item.status, item.time ? formatDisplayTime(item.time) : ""].filter(Boolean).join(" / "))}</p>
-              ${item.photos?.length ? summaryPhotoGrid(item.photos, "No catch photos", { compact: true, hideCaptions: true }) : ""}
-              <button class="button secondary timeline-catch-open" type="button" data-summary-catch-index="${item.catchIndex}">View Catch Details</button>
-            ` : `
-              ${item.details ? `<p class="timeline-details">${escapeHtml(item.details)}</p>` : ""}
-              ${item.note ? `<p class="timeline-note">${escapeHtml(item.note)}</p>` : ""}
-              ${item.type === "Photo" && item.photos?.length ? summaryPhotoGrid(item.photos, "No photos", { compact: true, hideCaptions: true }) : ""}
-            `}
-          </div>
-        </article>
-      `).join("")}
+      ${items.map((item) => {
+        const catchPhotos = item.type === "Catch"
+          ? catchGalleryItems(trip, trip.catches?.[item.catchIndex], item.catchIndex)
+          : [];
+        return `
+          <article class="timeline-item timeline-${item.type.toLowerCase()}">
+            <div class="timeline-time">${escapeHtml(timelineTimeLabel(item))}</div>
+            <div class="timeline-dot" aria-hidden="true"></div>
+            <div class="timeline-content ${item.type === "Catch" ? "timeline-catch-card" : ""}" ${item.type === "Catch" ? `data-summary-catch-index="${item.catchIndex}" role="button" tabindex="0"` : ""}>
+              <span class="timeline-type">${escapeHtml(item.type)}</span>
+              <strong>${escapeHtml(item.title)}</strong>
+              ${item.setupRows?.length ? timelineSetupRows(item.setupRows) : ""}
+              ${item.type === "Catch" ? `
+                <p class="timeline-details">${escapeHtml([item.status, item.time ? formatDisplayTime(item.time) : ""].filter(Boolean).join(" / "))}</p>
+                ${catchPhotos.length ? `
+                  <div class="summary-media-stack">
+                    ${summaryPhotoGrid(catchPhotos, "No catch photos", { compact: true, hideCaptions: true, limit: 1 })}
+                    ${summaryMediaGalleryButton("catch", catchPhotos.length, {
+                      catchIndex: item.catchIndex,
+                      label: catchPhotos.length > 1 ? `See all ${catchPhotos.length} photos` : "Open photo roll"
+                    })}
+                  </div>
+                ` : ""}
+                <button class="button secondary timeline-catch-open" type="button" data-summary-catch-index="${item.catchIndex}">View Catch Details</button>
+              ` : `
+                ${item.details ? `<p class="timeline-details">${escapeHtml(item.details)}</p>` : ""}
+                ${item.note ? `<p class="timeline-note">${escapeHtml(item.note)}</p>` : ""}
+                ${item.type === "Photo" && item.photos?.length ? summaryPhotoGrid(item.photos, "No photos", { compact: true, hideCaptions: true }) : ""}
+              `}
+            </div>
+          </article>
+        `;
+      }).join("")}
     </div>
   `;
 }
@@ -1166,6 +1328,7 @@ function openTripSummary(trip) {
   activeTripTimelineFilter = "all";
   els.tripSummaryTitle.textContent = displayTitleText(trip.title || trip.location || "Trip Summary");
   const mapRecords = catchMapRecordsForTrip(trip);
+  const tripMedia = tripSummaryMediaItems(trip);
   els.tripSummaryBody.innerHTML = `
     <section class="summary-hero">
       <div>
@@ -1217,12 +1380,16 @@ function openTripSummary(trip) {
     <details class="summary-section trip-photos-disclosure">
       <summary>
         <h3>Trip Photos</h3>
-        <span>${escapeHtml((trip.notePhotos || []).length ? `${(trip.notePhotos || []).length} saved` : "No trip photos")}</span>
+        <span>${escapeHtml(tripMedia.length ? `${tripMedia.length} saved` : "No trip photos")}</span>
       </summary>
-      ${summaryPhotoGrid(trip.notePhotos || [], "No trip photos")}
+      <div class="summary-media-stack">
+        ${summaryPhotoGrid(tripMedia, "No trip photos")}
+        ${summaryMediaGalleryButton("trip-all", tripMedia.length, { label: `Open photo roll${tripMedia.length ? ` (${tripMedia.length})` : ""}` })}
+      </div>
     </details>
     ${renderTripWeatherDetailsSection(trip)}
     <div id="catchDetailHost"></div>
+    <div id="mediaGalleryHost"></div>
   `;
   els.tripSummaryDialog.showModal();
   renderTripSummaryMap(trip);

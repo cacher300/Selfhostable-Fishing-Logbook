@@ -39,6 +39,10 @@ els.flasherDialog.addEventListener("close", () => restoreTripDialogAfterInlineGe
 els.reelDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("reel"));
 els.rodDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("rod"));
 els.photoQueueDialog.addEventListener("close", restoreDialogAfterPhotoQueue);
+els.tripSummaryDialog.addEventListener("close", () => {
+  closeSummaryCatchDetail();
+  closeSummaryMediaGallery();
+});
 els.summaryEditTripButton.addEventListener("click", () => {
   const trip = state.trips.find((item) => item.id === activeSummaryTripId);
   if (!trip) return;
@@ -145,6 +149,20 @@ els.sortSelect.addEventListener("input", () => {
 document.addEventListener("click", (event) => {
   const closeButton = event.target.closest("[data-close-dialog]");
   if (closeButton) closeButton.closest("dialog").close();
+
+  const mediaGalleryButton = event.target.closest("[data-open-media-gallery]");
+  if (mediaGalleryButton) {
+    openSummaryMediaGallery(mediaGalleryButton.dataset.openMediaGallery || "trip-all", {
+      catchIndex: mediaGalleryButton.dataset.galleryCatchIndex === undefined ? undefined : Number(mediaGalleryButton.dataset.galleryCatchIndex),
+      index: mediaGalleryButton.dataset.galleryIndex === undefined ? undefined : Number(mediaGalleryButton.dataset.galleryIndex)
+    });
+    return;
+  }
+
+  if (event.target.closest("[data-close-media-gallery]") || event.target.classList.contains("summary-media-gallery")) {
+    closeSummaryMediaGallery();
+    return;
+  }
 
   const timelineFilterButton = event.target.closest("[data-timeline-filter]");
   if (timelineFilterButton) {
