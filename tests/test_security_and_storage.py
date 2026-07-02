@@ -3,11 +3,14 @@ from __future__ import annotations
 import base64
 import io
 import json
+import os
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
+
+os.environ.setdefault("SECRET_KEY", "module-import-test-secret")
 
 import server
 from backend import logbook_store
@@ -57,6 +60,27 @@ class SecurityTests(unittest.TestCase):
 
     def test_logbook_api_requires_authentication(self) -> None:
         self.assertEqual(401, self.client.get("/api/logbook").status_code)
+
+    def test_csrf_token_endpoint_requires_authentication(self) -> None:
+        self.assertEqual(401, self.client.get("/api/csrf-token").status_code)
+
+    def test_create_app_requires_secret_key(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "SECRET_KEY must be set"):
+            create_app({"SECRET_KEY": ""})
+
+    def test_secure_session_cookie_can_be_enabled(self) -> None:
+        app = create_app(
+            {
+                "TESTING": True,
+                "LOGBOOK_USERNAME": "angler",
+                "LOGBOOK_PASSWORD": "test-password",
+                "SECRET_KEY": "test-secret",
+                "SESSION_COOKIE_SECURE": True,
+            }
+        )
+        client = app.test_client()
+        response = client.get("/api/csrf-token", headers=basic_auth())
+        self.assertIn("Secure", response.headers["Set-Cookie"])
 
     def test_static_assets_are_not_marked_no_store(self) -> None:
         response = self.client.get("/static/js/app.js")

@@ -23,6 +23,7 @@ from backend.backend_config import (
     ROOT,
     RATE_LIMIT_PER_MINUTE,
     SECRET_KEY,
+    SESSION_COOKIE_SECURE,
     UPLOAD_CATEGORIES,
 )
 from backend.logbook_store import (
@@ -65,9 +66,12 @@ def create_app(config: dict | None = None) -> Flask:
         SECRET_KEY=SECRET_KEY,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Strict",
+        SESSION_COOKIE_SECURE=SESSION_COOKIE_SECURE,
     )
     if config:
         app.config.update(config)
+    if not app.config["SECRET_KEY"]:
+        raise RuntimeError("SECRET_KEY must be set")
     configure_request_security(app)
 
     @app.after_request
@@ -304,8 +308,8 @@ app = create_app()
 
 
 def main() -> None:
-    if not LOGBOOK_USERNAME or not LOGBOOK_PASSWORD or not SECRET_KEY:
-        raise RuntimeError("LOGBOOK_USERNAME, LOGBOOK_PASSWORD, and SECRET_KEY must be set")
+    if not LOGBOOK_USERNAME or not LOGBOOK_PASSWORD:
+        raise RuntimeError("LOGBOOK_USERNAME and LOGBOOK_PASSWORD must be set")
     DATA_DIR.mkdir(exist_ok=True)
     if not DATA_FILE.exists():
         write_logbook(DEFAULT_LOGBOOK)
