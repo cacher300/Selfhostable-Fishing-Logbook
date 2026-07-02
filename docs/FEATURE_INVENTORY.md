@@ -106,7 +106,7 @@ Status vocabulary:
 | U03 | Predefined fields | Manage species, methods, lure/flasher/rod/reel/line types, conditions, presentations, directions, and line sides. | Implemented | Settings > Predefined Fields | Existing saved text remains valid | `settings.js`, `logbook_store.py` | Top-level option arrays | PUT `/api/logbook` | Settings/forms |
 | U04 | Chop-range preferences | Configure wave-height thresholds and labels. | Implemented | Settings > Chop Ranges | Internally normalized to feet | `settings.js`, `location-weather.js` | `settings.chopRanges` | PUT `/api/logbook` | Settings, Trip/Summary |
 | U05 | Direct-file local fallback | Opening `index.html` directly loads/saves localStorage when Flask is unavailable. Uploads/weather do not work in this mode. | Implemented / Partial | Open local HTML file | Browser localStorage | `app-state.js` | None | Same SPA UI |
-| U06 | Accounts | No registration, login, session, or password support. | Not implemented | None | — | — | — | — | — |
+| U06 | Accounts | No registration or login support. A CSRF session token exists only to protect browser-initiated writes. | Not implemented | None | — | — | — | — | — |
 | U07 | Profiles | No per-person application profiles; fishing people are attribution records only. | Not implemented | None | — | — | — | — | — |
 | U08 | Permissions/roles | No authorization checks or role model. | Not implemented | None | — | — | — | — | — |
 | U09 | Notifications | No in-app, email, push, SMS, or scheduled notifications. | Not implemented | None | — | — | — | — | — |

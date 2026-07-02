@@ -15,19 +15,15 @@ from backend.backend_config import (
     DATA_FILE,
     DEFAULT_LOGBOOK,
     HOST,
-    LOGBOOK_PASSWORD,
-    LOGBOOK_USERNAME,
     MAX_UPLOAD_BYTES,
     PORT,
     PREVIEW_DIRNAME,
     ROOT,
     RATE_LIMIT_PER_MINUTE,
     SECRET_KEY,
-    SESSION_COOKIE_SECURE,
     UPLOAD_CATEGORIES,
 )
 from backend.logbook_store import (
-    LogbookStorageError,
     normalize_logbook,
     read_logbook,
     validate_logbook,
@@ -59,14 +55,11 @@ from backend.weather_service import (
 def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__, static_folder=None)
     app.config.update(
-        LOGBOOK_USERNAME=LOGBOOK_USERNAME,
-        LOGBOOK_PASSWORD=LOGBOOK_PASSWORD,
         MAX_CONTENT_LENGTH=MAX_UPLOAD_BYTES,
         RATE_LIMIT_PER_MINUTE=RATE_LIMIT_PER_MINUTE,
         SECRET_KEY=SECRET_KEY,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Strict",
-        SESSION_COOKIE_SECURE=SESSION_COOKIE_SECURE,
     )
     if config:
         app.config.update(config)
@@ -84,11 +77,6 @@ def create_app(config: dict | None = None) -> Flask:
     def upload_too_large(_error: RequestEntityTooLarge) -> tuple[Response, int]:
         limit_mb = app.config["MAX_CONTENT_LENGTH"] / (1024 * 1024)
         return jsonify({"error": f"Request exceeds the {limit_mb:g} MB limit"}), 413
-
-    @app.errorhandler(LogbookStorageError)
-    def storage_error(error: LogbookStorageError) -> tuple[Response, int]:
-        app.logger.error("Logbook storage error: %s", error)
-        return jsonify({"error": "Internal storage error"}), 500
 
     @app.get("/api/logbook")
     def get_logbook() -> Response:
@@ -308,8 +296,6 @@ app = create_app()
 
 
 def main() -> None:
-    if not LOGBOOK_USERNAME or not LOGBOOK_PASSWORD:
-        raise RuntimeError("LOGBOOK_USERNAME and LOGBOOK_PASSWORD must be set")
     DATA_DIR.mkdir(exist_ok=True)
     if not DATA_FILE.exists():
         write_logbook(DEFAULT_LOGBOOK)

@@ -1,6 +1,6 @@
 # HTTP API
 
-Base URL defaults to `http://127.0.0.1:8080`. Application, API, and upload routes require the configured HTTP Basic credentials. Mutating requests also require the CSRF token returned by authenticated `GET /api/csrf-token` in the `X-CSRF-Token` header. Every Flask response includes `Cache-Control: no-store`.
+Base URL defaults to `http://127.0.0.1:8080`. Application, API, and upload routes are unauthenticated. Mutating requests require the CSRF token returned by `GET /api/csrf-token` in the `X-CSRF-Token` header. Every Flask response includes `Cache-Control: no-store`.
 
 ## Logbook
 

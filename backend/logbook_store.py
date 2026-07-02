@@ -14,10 +14,6 @@ SCHEMA_VERSION = 1
 _STORE_LOCK = RLock()
 
 
-class LogbookStorageError(RuntimeError):
-    pass
-
-
 def normalize_logbook(payload: dict | None = None) -> dict:
     normalized = deepcopy(DEFAULT_LOGBOOK)
     if isinstance(payload, dict):
@@ -231,15 +227,12 @@ def read_logbook() -> dict:
         if not DATA_FILE.exists():
             return normalize_logbook()
 
-        try:
-            with DATA_FILE.open("r", encoding="utf-8") as file:
-                loaded = json.load(file)
-        except (json.JSONDecodeError, OSError) as error:
-            raise LogbookStorageError(f"Stored logbook is unreadable: {error}") from error
+        with DATA_FILE.open("r", encoding="utf-8") as file:
+            loaded = json.load(file)
 
         is_valid, error = validate_logbook(loaded)
         if not is_valid:
-            raise LogbookStorageError(f"Stored logbook is invalid: {error}")
+            raise ValueError(f"Stored logbook is invalid: {error}")
         return normalize_logbook(loaded)
 
 
@@ -283,8 +276,8 @@ def write_logbook(payload: dict) -> None:
             finally:
                 if temporary_path and os.path.exists(temporary_path):
                     os.unlink(temporary_path)
-    except OSError as error:
-        raise LogbookStorageError(f"Could not write stored logbook: {error}") from error
+    except OSError:
+        raise
 
 
 def _error(path: str, message: str) -> tuple[bool, str]:

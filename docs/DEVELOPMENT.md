@@ -93,4 +93,4 @@ Launcher: `APP_URL`, `CONTAINER_NAME`, and `LEGACY_CONTAINER_NAME`.
 
 ## Adding an API Route
 
-Keep route handling in `server.py` and concern logic in `backend/`. Validate all externally supplied paths, categories, coordinates, dates, and payload types. Remember that every current route is unauthenticated; adding a mutating endpoint increases the trusted-network attack surface.
+Keep route handling in `server.py` and concern logic in `backend/`. Validate all externally supplied paths, categories, coordinates, dates, and payload types. Remember that every current route is unauthenticated; adding a mutating endpoint affects every device on the private network that can reach the app.

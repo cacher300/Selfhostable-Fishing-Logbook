@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hmac
 import secrets
 import time
 from collections import defaultdict, deque
@@ -52,27 +51,10 @@ def configure_request_security(app: Flask) -> None:
         if not limiter.allow(client):
             return jsonify({"error": "Too many requests. Try again shortly."}), 429
 
-        username = app.config["LOGBOOK_USERNAME"]
-        password = app.config["LOGBOOK_PASSWORD"]
-        if not username or not password:
-            return jsonify({"error": "Server authentication is not configured"}), 503
-
-        credentials = request.authorization
-        authenticated = (
-            credentials is not None
-            and hmac.compare_digest(credentials.username or "", username)
-            and hmac.compare_digest(credentials.password or "", password)
-        )
-        if not authenticated:
-            response = jsonify({"error": "Authentication required"})
-            response.status_code = 401
-            response.headers["WWW-Authenticate"] = 'Basic realm="Fishing Logbook"'
-            return response
-
         if request.method not in SAFE_METHODS:
             expected = session.get("csrf_token", "")
             supplied = request.headers.get("X-CSRF-Token", "")
-            if not expected or not supplied or not hmac.compare_digest(expected, supplied):
+            if not expected or not supplied or not secrets.compare_digest(expected, supplied):
                 return jsonify({"error": "Invalid or missing CSRF token"}), 403
         return None
 
