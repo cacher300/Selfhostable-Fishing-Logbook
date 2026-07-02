@@ -80,15 +80,15 @@ WEATHER_DAILY_FIELDS = [
     "wind_direction_10m_dominant",
 ]
 DEFAULT_UNITS = {
-    "depth": "m",
+    "depth": "ft",
     "distance": "km",
-    "speed": "kph",
+    "speed": "mph",
     "windSpeed": "kph",
     "pressure": "hPa",
     "airTemperature": "C",
     "waterTemperature": "F",
     "precipitation": "mm",
-    "waveHeight": "m",
+    "waveHeight": "ft",
     "fishLength": "in",
     "fishWeight": "lb",
 }

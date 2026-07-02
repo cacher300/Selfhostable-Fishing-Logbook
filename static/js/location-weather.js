@@ -826,7 +826,7 @@ function renderWeatherDetails(weatherData, trip = {}) {
   ].filter(Boolean).join(" / ");
   return `
     <span><strong>Front Tag</strong>${escapeHtml(weatherData.frontTag || "Not logged")}</span>
-    <span><strong>Air Temp</strong>${escapeHtml(weatherValueWithTrend(formatUnitValue(window.temperatureC, "airTemperature", "C"), trend.temperatureTrend))}</span>
+    <span><strong>Air Temp</strong>${escapeHtml(formatUnitValue(window.temperatureC, "airTemperature", "C"))}</span>
     <span><strong>Feels Like</strong>${escapeHtml(formatUnitValue(window.apparentTemperatureC, "airTemperature", "C"))}</span>
     <span><strong>Wind</strong>${escapeHtml(weatherValueWithTrend(weatherWindText(weatherData) || formatUnitValue(daily.windSpeedMaxMph, "windSpeed", "mph"), windTrend))}</span>
     <span><strong>Pressure</strong>${escapeHtml(weatherValueWithTrend(formatUnitValue(window.pressureHpa, "pressure", "hPa", { decimals: 1 }), trend.pressureTrend))}</span>

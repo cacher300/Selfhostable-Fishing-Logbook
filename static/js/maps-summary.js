@@ -341,17 +341,133 @@ function displayPhotoTitle(photo) {
   return displaySentenceText(photo.caption || photo.name || "Trip photo");
 }
 
+const summaryMediaGalleries = new Map();
+let summaryMediaGalleryCounter = 0;
+let activeSummaryMediaGalleryId = "";
+let activeSummaryMediaIndex = 0;
+
+function resetSummaryMediaGalleries() {
+  summaryMediaGalleries.clear();
+  summaryMediaGalleryCounter = 0;
+  activeSummaryMediaGalleryId = "";
+  activeSummaryMediaIndex = 0;
+}
+
+function registerSummaryMediaGallery(photos = []) {
+  const id = `summary-gallery-${summaryMediaGalleryCounter += 1}`;
+  summaryMediaGalleries.set(id, photos);
+  return id;
+}
+
+function summaryMediaGallery(galleryId) {
+  return summaryMediaGalleries.get(galleryId) || [];
+}
+
+function summaryMediaHost() {
+  return document.querySelector("#summaryMediaLightboxHost");
+}
+
+function renderSummaryMediaLightbox() {
+  const photos = summaryMediaGallery(activeSummaryMediaGalleryId);
+  const photo = photos[activeSummaryMediaIndex];
+  if (!photo) return "";
+  return `
+    <div class="summary-media-popout" id="summaryMediaPopout" role="dialog" aria-modal="true" aria-label="Attached media slideshow">
+      <div class="summary-media-panel">
+        <button class="icon-button summary-media-close" type="button" data-close-summary-media aria-label="Close attached media">x</button>
+        <div class="summary-media-stage">
+          ${mediaMarkup(photo, "summary-media-asset")}
+        </div>
+        <div class="summary-media-toolbar">
+          <div class="summary-media-meta">
+            <strong>${escapeHtml(`${activeSummaryMediaIndex + 1} / ${photos.length}`)}</strong>
+            <span>${escapeHtml(displayPhotoTitle(photo))}</span>
+          </div>
+          ${photos.length > 1 ? `
+            <div class="summary-media-actions">
+              <button class="button secondary" type="button" data-summary-media-nav="-1">Previous</button>
+              <button class="button secondary" type="button" data-summary-media-nav="1">Next</button>
+            </div>
+          ` : ""}
+        </div>
+        ${photos.length > 1 ? `
+          <div class="summary-media-thumbs">
+            ${photos.map((item, index) => `
+              <button
+                class="summary-media-thumb ${index === activeSummaryMediaIndex ? "is-active" : ""}"
+                type="button"
+                data-open-summary-gallery="${escapeHtml(activeSummaryMediaGalleryId)}"
+                data-summary-gallery-index="${index}"
+                aria-label="Open attached media ${index + 1}">
+                <span class="summary-media-thumb-frame">
+                  ${mediaMarkup(item, "summary-media-thumb-asset")}
+                </span>
+              </button>
+            `).join("")}
+          </div>
+        ` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function syncSummaryMediaLightbox() {
+  const host = summaryMediaHost();
+  if (!host) return;
+  host.innerHTML = renderSummaryMediaLightbox();
+}
+
+function openSummaryMediaLightbox(galleryId, index = 0) {
+  const photos = summaryMediaGallery(galleryId);
+  if (!photos.length) return;
+  activeSummaryMediaGalleryId = galleryId;
+  activeSummaryMediaIndex = Math.max(0, Math.min(index, photos.length - 1));
+  syncSummaryMediaLightbox();
+}
+
+function closeSummaryMediaLightbox() {
+  activeSummaryMediaGalleryId = "";
+  activeSummaryMediaIndex = 0;
+  const host = summaryMediaHost();
+  if (host) host.innerHTML = "";
+}
+
+function stepSummaryMediaLightbox(delta) {
+  const photos = summaryMediaGallery(activeSummaryMediaGalleryId);
+  if (!photos.length) return;
+  activeSummaryMediaIndex = (activeSummaryMediaIndex + delta + photos.length) % photos.length;
+  syncSummaryMediaLightbox();
+}
+
 function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
   if (!photos.length) return `<div class="empty-state compact-empty"><p>${escapeHtml(emptyText)}</p></div>`;
+  const galleryId = registerSummaryMediaGallery(photos);
+  const visiblePhotos = photos.length > 3 ? photos.slice(0, 3) : photos;
   const className = ["summary-photo-grid", options.compact ? "compact-photo-grid" : "", options.hero ? "hero-photo-grid" : ""].filter(Boolean).join(" ");
   return `
     <div class="${className}">
-      ${photos.map((photo, index) => `
+      ${visiblePhotos.map((photo, index) => {
+        const extraCount = photos.length > 3 && index === 2 ? photos.length - 3 : 0;
+        const overlayLabel = extraCount ? `+${extraCount} more` : "View";
+        return `
         <figure class="summary-photo-card">
-          ${mediaMarkup(photo)}
+          <button
+            class="summary-photo-trigger ${extraCount ? "has-extra-media" : ""}"
+            type="button"
+            data-open-summary-gallery="${escapeHtml(galleryId)}"
+            data-summary-gallery-index="${index}"
+            aria-label="${escapeHtml(`Open attached media ${index + 1} of ${photos.length}`)}">
+            <span class="summary-photo-media">
+              ${mediaMarkup(photo, "summary-photo-asset")}
+              <span class="summary-photo-overlay">
+                <span>${escapeHtml(overlayLabel)}</span>
+              </span>
+            </span>
+          </button>
           ${!options.hideCaptions && (photo.caption || photo.name) ? `<figcaption>${escapeHtml(displayPhotoTitle(photo))}</figcaption>` : ""}
         </figure>
-      `).join("")}
+      `;
+      }).join("")}
     </div>
   `;
 }
@@ -373,6 +489,12 @@ function summaryChip(label, value, options = {}) {
       ${escapeHtml(value || "Not logged")}
     </span>
   `;
+}
+
+function displaySpeedValue(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  return /[a-zA-Z]/.test(trimmed) ? trimmed : `${trimmed} ${unitSymbol("speed")}`;
 }
 
 function setupTimelineRecord(trip, gearItem, index) {
@@ -430,9 +552,9 @@ function renderTripWeatherOverview(trip) {
         <div class="weather-key-grid">
           ${summaryValueItem("Weather", trip.weather || catchWeatherSummary(weatherData) || "")}
           ${summaryValueItem("Water Temp", trip.waterTemp || "")}
-          ${summaryValueItem("Air Temp", weatherValueWithTrend(formatUnitValue(window.temperatureC, "airTemperature", "C"), trend.temperatureTrend))}
+          ${summaryValueItem("Air Temp", formatUnitValue(window.temperatureC, "airTemperature", "C"))}
           ${summaryValueItem("Wind", primaryWindText)}
-          ${summaryValueItem("Structure", trip.structure || "")}
+          ${summaryValueItem("FOW Range", trip.structure || "")}
         </div>
       </section>
       <details class="weather-group weather-secondary-group" open>
@@ -466,7 +588,7 @@ function compactCatchDetails(trip, catchItem, options = {}) {
     record.fowCaught,
     record.depthDown ? `${record.depthDown} down` : "",
     record.waterDepth ? `${record.waterDepth} water` : "",
-    record.speed,
+    displaySpeedValue(record.speed),
     gear
   ].filter(Boolean).join(" / ");
   const weatherDetails = [
@@ -515,7 +637,7 @@ function renderCatchReportDetails(trip, catchItem) {
       ${trollingTrip ? summaryChip("Flasher", flasher) : ""}
       ${trollingTrip ? summaryChip("Trolling Method", presentationLabel(presentation)) : ""}
       ${summaryChip("Depth Caught", depth)}
-      ${trollingTrip ? summaryChip("Speed", record.speed) : ""}
+      ${trollingTrip ? summaryChip("Speed", displaySpeedValue(record.speed)) : ""}
       ${castingTrip ? summaryChip("Retrieve", record.retrieve) : ""}
     </div>
   `;
@@ -539,7 +661,7 @@ function catchDetailRows(trip, catchItem) {
     ["Line Behind Board", record.lineBehindBoard],
     ["Dipsey Setting", record.dipseySetting],
     ["Line Out", record.lineOut],
-    ["Speed", record.speed],
+    ["Speed", displaySpeedValue(record.speed)],
     ["Retrieve", record.retrieve],
     ["Direction", record.direction],
     ["Lure / Setup", displayTitleText(gear)],
@@ -1018,6 +1140,7 @@ function tripTimelineItems(trip) {
 
 function timelineFilterMatches(item, filter = activeTripTimelineFilter) {
   if (filter === "catches") return item.type === "Catch";
+  if (filter === "setup") return item.type === "Setup";
   if (filter === "photos") return item.type === "Photo";
   return true;
 }
@@ -1025,6 +1148,7 @@ function timelineFilterMatches(item, filter = activeTripTimelineFilter) {
 function renderTripTimelineFilters() {
   const filters = [
     ["all", "All events"],
+    ["setup", "Setup"],
     ["catches", "Fish catch"],
     ["photos", "Trip photos"]
   ];
@@ -1080,7 +1204,7 @@ function renderTripTimeline(trip) {
             ` : `
               ${item.details ? `<p class="timeline-details">${escapeHtml(item.details)}</p>` : ""}
               ${item.note ? `<p class="timeline-note">${escapeHtml(item.note)}</p>` : ""}
-              ${item.type === "Photo" && item.photos?.length ? summaryPhotoGrid(item.photos, "No photos", { compact: true }) : ""}
+              ${item.type === "Photo" && item.photos?.length ? summaryPhotoGrid(item.photos, "No photos", { compact: true, hideCaptions: true }) : ""}
             `}
           </div>
         </article>
@@ -1113,6 +1237,7 @@ function closeSummaryCatchDetail() {
 }
 
 function openTripSummary(trip) {
+  resetSummaryMediaGalleries();
   activeSummaryTripId = trip.id;
   activeTripTimelineFilter = "all";
   els.tripSummaryTitle.textContent = displayTitleText(trip.title || trip.location || "Trip Summary");
@@ -1149,7 +1274,6 @@ function openTripSummary(trip) {
             <span>Species</span>
             <select id="tripSummaryMapFilter"></select>
           </label>
-          <span>${escapeHtml(mapRecords.length ? `${mapRecords.length} plotted` : "No geotagged items")}</span>
         </div>
       </div>
       <div id="tripSummaryMap" class="fish-map trip-summary-map"></div>
@@ -1166,7 +1290,7 @@ function openTripSummary(trip) {
     </section>
     <section class="summary-section">
       <div class="summary-section-heading timeline-heading">
-        <h3>Catch Log</h3>
+        <h3>Trip Timeline</h3>
         ${renderTripTimelineFilters()}
       </div>
       <div id="tripTimelinePanel">${renderTripTimeline(trip)}</div>
@@ -1178,6 +1302,7 @@ function openTripSummary(trip) {
       </summary>
       ${summaryPhotoGrid(trip.notePhotos || [], "No trip photos")}
     </details>
+    <div id="summaryMediaLightboxHost"></div>
     <div id="catchDetailHost"></div>
   `;
   els.tripSummaryDialog.showModal();

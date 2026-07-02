@@ -71,15 +71,15 @@ const defaultChopRanges = [
   { id: "rough", label: "Rough", maxFeet: null }
 ];
 const defaultUnits = {
-  depth: "m",
+  depth: "ft",
   distance: "km",
-  speed: "kph",
+  speed: "mph",
   windSpeed: "kph",
   pressure: "hPa",
   airTemperature: "C",
   waterTemperature: "F",
   precipitation: "mm",
-  waveHeight: "m",
+  waveHeight: "ft",
   fishLength: "in",
   fishWeight: "lb"
 };

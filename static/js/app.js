@@ -158,8 +158,25 @@ document.addEventListener("click", (event) => {
     openSummaryCatchDetail(Number(catchDetailButton.dataset.summaryCatchIndex));
   }
 
+  const summaryMediaButton = event.target.closest("[data-open-summary-gallery]");
+  if (summaryMediaButton) {
+    openSummaryMediaLightbox(
+      summaryMediaButton.dataset.openSummaryGallery,
+      Number(summaryMediaButton.dataset.summaryGalleryIndex || 0)
+    );
+  }
+
   if (event.target.closest("[data-close-catch-detail]") || event.target.classList.contains("catch-detail-popout")) {
     closeSummaryCatchDetail();
+  }
+
+  if (event.target.closest("[data-close-summary-media]") || event.target.classList.contains("summary-media-popout")) {
+    closeSummaryMediaLightbox();
+  }
+
+  const summaryMediaNavButton = event.target.closest("[data-summary-media-nav]");
+  if (summaryMediaNavButton) {
+    stepSummaryMediaLightbox(Number(summaryMediaNavButton.dataset.summaryMediaNav || 0));
   }
 
   const toggleRow = event.target.closest("[data-toggle-row]");
@@ -517,6 +534,20 @@ document.addEventListener("keydown", (event) => {
   if (!catchDetailCard || !["Enter", " "].includes(event.key)) return;
   event.preventDefault();
   openSummaryCatchDetail(Number(catchDetailCard.dataset.summaryCatchIndex));
+});
+
+document.addEventListener("keydown", (event) => {
+  const summaryMediaPopout = document.querySelector("#summaryMediaPopout");
+  if (!summaryMediaPopout) return;
+  if (event.key === "Escape") {
+    closeSummaryMediaLightbox();
+  } else if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    stepSummaryMediaLightbox(-1);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    stepSummaryMediaLightbox(1);
+  }
 });
 
 document.querySelector("#method").addEventListener("input", updateTrollingVisibility);

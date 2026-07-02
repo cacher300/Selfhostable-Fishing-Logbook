@@ -533,6 +533,28 @@ label > small,
   font-size: 13px;
 }
 
+.conditions-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.conditions-grid .weather-fetch-panel {
+  grid-column: span 1;
+  align-self: end;
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+.conditions-grid .weather-fetch-panel div {
+  gap: 2px;
+}
+
+.conditions-grid .weather-fetch-panel span,
+.conditions-grid .weather-fetch-panel strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 input,
 select,
 textarea {
@@ -2719,17 +2741,65 @@ textarea[aria-invalid="true"] {
   box-shadow: 0 8px 22px rgba(7, 21, 46, 0.06);
 }
 
+.summary-photo-trigger {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.summary-photo-media {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: #07152e;
+}
+
 .summary-photo-card img,
 .summary-photo-card video {
   display: block;
   width: 100%;
+  height: 100%;
   aspect-ratio: 4 / 3;
-  object-fit: cover;
+  object-fit: contain;
+  background: #07152e;
 }
 
 .compact-photo-grid .summary-photo-card img,
 .compact-photo-grid .summary-photo-card video {
   max-height: 520px;
+}
+
+.summary-photo-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.08);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transition: opacity 0.18s ease, background 0.18s ease;
+}
+
+.summary-photo-trigger:hover .summary-photo-overlay,
+.summary-photo-trigger:focus-visible .summary-photo-overlay {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.summary-photo-trigger.has-extra-media .summary-photo-overlay {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.summary-photo-trigger.has-extra-media:hover .summary-photo-overlay,
+.summary-photo-trigger.has-extra-media:focus-visible .summary-photo-overlay {
+  background: rgba(0, 0, 0, 0.74);
 }
 
 .summary-photo-card figcaption {
@@ -2740,6 +2810,123 @@ textarea[aria-invalid="true"] {
   font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.summary-media-popout {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.summary-media-panel {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  width: min(1120px, calc(100vw - 56px));
+  max-height: calc(100vh - 56px);
+  padding: 22px;
+  border-radius: 10px;
+  background: #09111d;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.45);
+}
+
+.summary-media-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(9, 17, 29, 0.72);
+  color: #fff;
+}
+
+.summary-media-stage {
+  display: grid;
+  place-items: center;
+  min-height: min(68vh, 760px);
+  overflow: hidden;
+  border-radius: 8px;
+  background: #000;
+}
+
+.summary-media-stage img,
+.summary-media-stage video {
+  display: block;
+  width: 100%;
+  max-height: min(68vh, 760px);
+  object-fit: contain;
+  background: #000;
+}
+
+.summary-media-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #fff;
+}
+
+.summary-media-meta {
+  display: grid;
+  gap: 3px;
+}
+
+.summary-media-meta strong {
+  font-size: 16px;
+}
+
+.summary-media-meta span {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.summary-media-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.summary-media-actions .button {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.summary-media-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 10px;
+}
+
+.summary-media-thumb {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.summary-media-thumb.is-active {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.summary-media-thumb-frame {
+  display: block;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #000;
+}
+
+.summary-media-thumb img,
+.summary-media-thumb video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
 }
 
 .setup-summary-card {
@@ -2802,7 +2989,7 @@ textarea[aria-invalid="true"] {
 
 .catch-detail-heading p {
   margin: 0;
-  color: var(--muted);
+  color: var(--text);
   font-size: 16px;
   font-weight: 800;
 }

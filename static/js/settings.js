@@ -91,7 +91,7 @@ function syncUnitLabels(root = document) {
     label.textContent = unitLabelText(label.dataset.unitLabelText || label.textContent, label.dataset.unitLabel);
   });
   if (els.waterTemp) els.waterTemp.placeholder = unitPreference("waterTemperature") === "C" ? "8 C" : "47 F";
-  if (els.structure) els.structure.placeholder = `40-60 ${unitSymbol("depth")}, drop-off`;
+  if (els.structure) els.structure.placeholder = `40-60 FOW (${unitSymbol("depth")})`;
   if (els.waveHeight) updateMarineWaveHeightPlaceholder(activeTripWeatherData);
   root.querySelectorAll(".catch-length").forEach((input) => {
     input.placeholder = unitPreference("fishLength") === "cm" ? "71 cm" : "28 in";
