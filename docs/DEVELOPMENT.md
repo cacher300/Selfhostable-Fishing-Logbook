@@ -18,7 +18,7 @@ docker compose up --build -d
 docker compose down
 ```
 
-`launch-container.sh` is more opinionated: it removes current/legacy named containers, attempts to install the backup cron job, rebuilds, and starts Compose. Review `NAS_BACKUP_TARGET` before using it.
+`launch-container.sh` removes current/legacy named containers, rebuilds, and starts Compose. It does not run or schedule backups.
 
 ## Repository Map
 
@@ -30,7 +30,7 @@ docker compose down
 - `index.html`: all screens, dialogs, and templates.
 - `static/js/`: global browser scripts by concern.
 - `static/css/styles.css`: all styling and responsive rules.
-- `scripts/`: backup and cron installation.
+- `scripts/backup-logbook.sh`: portable, opt-in backup and cron installation.
 
 ## Change Discipline
 
@@ -87,7 +87,9 @@ Weather, marine, astronomy, Leaflet CDN, and map tiles require network access. U
 
 Application: `HOST` (default `127.0.0.1`), `PORT` (default `8080`).
 
-Backup: `DATA_FILE`, `UPLOADS_DIR`, `LOCAL_BACKUP_DIR`, `NAS_BACKUP_TARGET`, `SSH_KEY_PATH`, `KEEP_MONTHLY_BACKUPS`. Launcher also supports `APP_URL`, `CONTAINER_NAME`, and `LEGACY_CONTAINER_NAME`.
+Backup script: `LOGBOOK_DIR`, `DATA_FILE`, `UPLOADS_DIR`, `LOCAL_BACKUP_DIR`, `NAS_BACKUP_TARGET`, `SSH_KEY_PATH`, `KEEP_MONTHLY_BACKUPS`, `BACKUP_LOG_FILE`, and `BACKUP_CRON_SCHEDULE`. The backup script is independent of the application lifecycle.
+
+Launcher: `APP_URL`, `CONTAINER_NAME`, and `LEGACY_CONTAINER_NAME`.
 
 ## Adding an API Route
 

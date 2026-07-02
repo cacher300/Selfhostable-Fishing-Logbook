@@ -4,13 +4,92 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 APP_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 
-DATA_FILE="${DATA_FILE:-$APP_DIR/data/logbook.json}"
-UPLOADS_DIR="${UPLOADS_DIR:-$APP_DIR/data/uploads}"
-LOCAL_BACKUP_DIR="${LOCAL_BACKUP_DIR:-$APP_DIR/backups}"
+LOGBOOK_DIR="${LOGBOOK_DIR:-$APP_DIR}"
+DATA_FILE="${DATA_FILE:-$LOGBOOK_DIR/data/logbook.json}"
+UPLOADS_DIR="${UPLOADS_DIR:-$LOGBOOK_DIR/data/uploads}"
+LOCAL_BACKUP_DIR="${LOCAL_BACKUP_DIR:-$LOGBOOK_DIR/backups}"
 NAS_BACKUP_TARGET="${NAS_BACKUP_TARGET:-}"
 SSH_KEY_PATH="${SSH_KEY_PATH:-}"
 KEEP_MONTHLY_BACKUPS="${KEEP_MONTHLY_BACKUPS:-3}"
 LOCK_DIR="$LOCAL_BACKUP_DIR/.backup.lock"
+
+show_usage() {
+  cat <<EOF
+Usage:
+  $0
+  $0 --install-cron
+
+Configuration is supplied through environment variables:
+  LOGBOOK_DIR             Logbook repository or deployment directory
+  DATA_FILE               JSON data file (default: LOGBOOK_DIR/data/logbook.json)
+  UPLOADS_DIR             Media directory (default: LOGBOOK_DIR/data/uploads)
+  LOCAL_BACKUP_DIR        Local staging directory (default: LOGBOOK_DIR/backups)
+  NAS_BACKUP_TARGET       Mounted directory or user@host:/remote/directory
+  SSH_KEY_PATH            Optional SSH private key
+  KEEP_MONTHLY_BACKUPS    Number of monthly JSON snapshots to retain (default: 3)
+  BACKUP_LOG_FILE         Cron output log (default: LOCAL_BACKUP_DIR/backup.log)
+  BACKUP_CRON_SCHEDULE    Cron schedule (default: 0 3 * * *)
+
+Nothing is scheduled unless --install-cron is explicitly used.
+EOF
+}
+
+shell_quote() {
+  printf "'%s'" "$(printf "%s" "$1" | sed "s/'/'\\\\''/g")"
+}
+
+install_cron() {
+  if ! command -v crontab >/dev/null 2>&1; then
+    echo "crontab is required to install the scheduled backup." >&2
+    exit 1
+  fi
+  if [ -z "$NAS_BACKUP_TARGET" ]; then
+    echo "Set NAS_BACKUP_TARGET before installing the scheduled backup." >&2
+    exit 1
+  fi
+
+  script_path=$(CDPATH= cd -- "$SCRIPT_DIR" && pwd)/$(basename "$0")
+  log_file="${BACKUP_LOG_FILE:-$LOCAL_BACKUP_DIR/backup.log}"
+  schedule="${BACKUP_CRON_SCHEDULE:-0 3 * * *}"
+  mkdir -p "$LOCAL_BACKUP_DIR"
+  chmod +x "$script_path"
+
+  cron_command="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  cron_command="$cron_command LOGBOOK_DIR=$(shell_quote "$LOGBOOK_DIR")"
+  cron_command="$cron_command NAS_BACKUP_TARGET=$(shell_quote "$NAS_BACKUP_TARGET")"
+  cron_command="$cron_command SSH_KEY_PATH=$(shell_quote "$SSH_KEY_PATH")"
+  cron_command="$cron_command KEEP_MONTHLY_BACKUPS=$(shell_quote "$KEEP_MONTHLY_BACKUPS")"
+  cron_command="$cron_command $(shell_quote "$script_path") >> $(shell_quote "$log_file") 2>&1"
+
+  tmp_cron=$(mktemp)
+  trap 'rm -f "$tmp_cron"' EXIT INT TERM
+  crontab -l 2>/dev/null | grep -Fv "$script_path" > "$tmp_cron" || true
+  printf "%s %s\n" "$schedule" "$cron_command" >> "$tmp_cron"
+  crontab "$tmp_cron"
+  rm -f "$tmp_cron"
+  trap - EXIT INT TERM
+
+  echo "Installed backup schedule: $schedule"
+  echo "Target: $NAS_BACKUP_TARGET"
+  echo "Log: $log_file"
+}
+
+case "${1:-}" in
+  --install-cron)
+    install_cron
+    exit 0
+    ;;
+  -h|--help)
+    show_usage
+    exit 0
+    ;;
+  "")
+    ;;
+  *)
+    show_usage >&2
+    exit 2
+    ;;
+esac
 
 month=$(date +"%Y-%m")
 backup_name="logbook-$month.json"
