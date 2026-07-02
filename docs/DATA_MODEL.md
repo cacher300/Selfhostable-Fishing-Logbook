@@ -2,7 +2,7 @@
 
 ## Storage Model
 
-There are no SQL tables, migrations, or schema version. `data/logbook.json` is one aggregate JSON document. The structures below are verified from defaults, form collection, normalization, reporting, and media/weather code. Unknown properties generally survive because normalization is additive rather than a strict serializer.
+There are no SQL tables. `data/logbook.json` is one aggregate, versioned JSON document. Schema version 1 is current; unversioned legacy documents migrate to version 1 during normalization. Unknown properties generally survive because normalization is additive rather than a strict serializer.
 
 ```mermaid
 erDiagram
@@ -127,6 +127,6 @@ Catch `weatherData` contains source/fetch/timezone/units and one nearest normali
 
 ## Normalization and Validation
 
-Backend validation checks only that the payload is an object; `trips`, `lures`, and `flashers` are arrays; optional gear collections are arrays when present; and `people` is an array. Deep types, required trip fields, unique IDs, references, coordinate shape outside location normalization, and media ownership are not validated server-side.
+Backend validation recursively checks JSON value types, schema compatibility, collection and nested-record shapes, duplicate top-level record IDs, settings, units, locations, coordinates, people, and trip child collections. Errors include the failing JSON path.
 
 Normalization supplies defaults, validates unit/time/chop preferences, cleans choice lists, merges people and locations, and reconnects trip location/launch names and IDs. There is no explicit schema-version migration history.

@@ -1,6 +1,6 @@
 # HTTP API
 
-Base URL defaults to `http://127.0.0.1:8080`. All endpoints are unauthenticated and every Flask response includes `Cache-Control: no-store`.
+Base URL defaults to `http://127.0.0.1:8080`. Application, API, and upload routes require the configured HTTP Basic credentials. Mutating requests also require the CSRF token returned by authenticated `GET /api/csrf-token` in the `X-CSRF-Token` header. Every Flask response includes `Cache-Control: no-store`.
 
 ## Logbook
 
@@ -11,6 +11,8 @@ Returns the complete normalized logbook JSON document. A missing or malformed da
 ### `PUT /api/logbook`
 
 Replaces the complete logbook document.
+
+Imports are recursively checked before normalization. Validation errors identify the failing JSON path. Legacy documents without `schemaVersion` are treated as version 0 and migrated to version 1; versions newer than the server supports are rejected.
 
 Required top-level JSON types:
 
@@ -51,7 +53,7 @@ Proxy errors return an upstream status where available or `503` for network/time
 
 Allowed categories: `catch-photos`, `trip-photos`, `lures`, `flashers`, `reels`, `rods`, `queue`.
 
-Allowed image extensions: AVIF, GIF, HEIC/HEIF, JPEG, PNG, WebP. Allowed video extensions: MOV, MP4/M4V, WebM, AVI, MPEG/MPG, and 3GP. Extension matching is case-normalized. There is no application upload-size limit.
+Allowed image extensions: AVIF, GIF, HEIC/HEIF, JPEG, PNG, WebP. Allowed video extensions: MOV, MP4/M4V, WebM, AVI, MPEG/MPG, and 3GP. Extension matching is case-normalized. Requests are limited to 25 MB by default; configure `MAX_UPLOAD_BYTES` to change the limit.
 
 ### `POST /api/uploads/<category>`
 
@@ -97,7 +99,7 @@ Files are served from their category paths. Category validation occurs through t
 
 - `/` redirects to `/trips`.
 - `/trips`, `/stats`, `/map`, `/gear`, `/gallery`, `/settings` return `index.html`.
-- `/<path:filename>` serves an existing file only when its resolved path remains beneath the repository root.
+- `/static/<path:filename>` serves only `.css` and `.js` files beneath `static/`.
 - `/favicon.ico` returns 204.
 
 ## Code-Only Service

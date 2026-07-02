@@ -14,12 +14,27 @@ async function importJson(event) {
   try {
     const text = await file.text();
     const nextState = JSON.parse(text);
-    if (!Array.isArray(nextState.trips) || !Array.isArray(nextState.lures) || !Array.isArray(nextState.flashers) || !Array.isArray(nextState.people || [])) {
-      alert("That file does not look like a Fishing Logbook export.");
-      return;
+
+    if (location.protocol === "file:") {
+      if (!Array.isArray(nextState.trips) || !Array.isArray(nextState.lures) || !Array.isArray(nextState.flashers)) {
+        throw new Error("That file does not look like a Fishing Logbook export.");
+      }
+      state = normalizeState(nextState);
+      localStorage.setItem(storageKey, JSON.stringify(state));
+    } else {
+      const response = await protectedFetch("/api/logbook", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(nextState)
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || "The logbook import is invalid.");
+      }
+      state = await loadState();
+      localStorage.setItem(storageKey, JSON.stringify(state));
     }
-    state = normalizeState(nextState);
-    await saveState();
+
     renderAll();
     event.target.value = "";
   } catch (error) {

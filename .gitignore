@@ -21,3 +21,4 @@ backups/
 *.sqlite
 *.sqlite3
 *.bak
+.venv/

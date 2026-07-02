@@ -2,7 +2,7 @@
 
 A private, self-hosted fishing journal built to answer one practical question: **what pattern should I run next time?** It supports general fishing records and adds a detailed trolling workflow for spread changes, landed fish, lost fish, depth, speed, direction, FOW, reusable gear, weather, maps, and performance analysis.
 
-The application is a single-user tool. It has no login, account, role, or permission system; do not expose it directly to an untrusted network.
+The application is a single-user tool protected with HTTP Basic authentication.
 
 ## What It Does
 
@@ -25,12 +25,15 @@ The complete audited feature list is in [docs/FEATURE_INVENTORY.md](docs/FEATURE
 - Uploads: `data/uploads/<category>/` with JSON metadata sidecars and image previews.
 - Direct-file fallback: opening `index.html` uses browser localStorage, but uploads and external-data proxies require Flask.
 
-There is no relational database or migration framework. Compatibility normalization runs whenever the JSON document is read or written.
+There is no relational database. The JSON document carries a `schemaVersion`, and compatibility normalization runs whenever it is read or written.
 
 ## Run Locally
 
 ```powershell
 py -m pip install -r requirements.txt
+$env:LOGBOOK_USERNAME = "angler"
+$env:LOGBOOK_PASSWORD = "use-a-long-random-password"
+$env:SECRET_KEY = (New-Guid).Guid
 py server.py
 ```
 
@@ -39,6 +42,9 @@ Open `http://127.0.0.1:8080`. Configure `HOST` and `PORT` with environment varia
 ## Run with Docker
 
 ```sh
+export LOGBOOK_USERNAME=angler
+export LOGBOOK_PASSWORD='use-a-long-random-password'
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
 ./launch-container.sh
 ```
 
@@ -78,10 +84,11 @@ Failed weather, marine, or astronomy requests do not prevent a trip from being s
 
 ## Important Limitations
 
-- No authentication, authorization, CSRF protection, or multi-user isolation.
-- No formal automated test suite.
-- JSON writes are whole-document and not transactional.
-- Upload size is not capped in application code.
+- Authentication is single-user HTTP Basic authentication, not a multi-user account system.
+- HTTP Basic Auth credentials are base64-encoded, not encrypted; use it only over TLS and terminate TLS at a trusted reverse proxy for deployments reachable beyond localhost.
+- When TLS terminates at a trusted reverse proxy, set `SESSION_COOKIE_SECURE=true` so browsers send the CSRF session cookie only over HTTPS.
+- Rate limiting is per process and direct client IP; use a trusted reverse proxy for broader internet exposure.
+- JSON updates remain whole-document and last-write-wins, though each file replacement is atomic.
 - “Baits” currently means the lure library; natural/live bait has no dedicated data model.
 - No dedicated personal-best, year-over-year comparison, notification, or Pattern Finder screen exists.
 
