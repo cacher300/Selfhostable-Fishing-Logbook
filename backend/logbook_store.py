@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 import json
+import math
+import os
+import tempfile
 import uuid
 from copy import deepcopy
+from threading import RLock
 
 from .backend_config import DATA_DIR, DATA_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
+
+SCHEMA_VERSION = 1
+_STORE_LOCK = RLock()
 
 
 def normalize_logbook(payload: dict | None = None) -> dict:
@@ -13,6 +20,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         normalized.update(payload)
 
     normalized.pop("tripTypes", None)
+    normalized["schemaVersion"] = SCHEMA_VERSION
     if not isinstance(normalized.get("settings"), dict):
         normalized["settings"] = deepcopy(DEFAULT_LOGBOOK["settings"])
     else:
@@ -215,41 +223,224 @@ def normalize_logbook(payload: dict | None = None) -> dict:
 
 
 def read_logbook() -> dict:
-    if not DATA_FILE.exists():
-        return normalize_logbook()
+    with _STORE_LOCK:
+        if not DATA_FILE.exists():
+            return normalize_logbook()
 
-    try:
-        with DATA_FILE.open("r", encoding="utf-8") as file:
-            loaded = json.load(file)
-    except json.JSONDecodeError:
-        return normalize_logbook()
+        try:
+            with DATA_FILE.open("r", encoding="utf-8") as file:
+                loaded = json.load(file)
+        except (json.JSONDecodeError, OSError) as error:
+            raise RuntimeError(f"Stored logbook is unreadable: {error}") from error
 
-    return normalize_logbook(loaded)
+        is_valid, error = validate_logbook(loaded)
+        if not is_valid:
+            raise RuntimeError(f"Stored logbook is invalid: {error}")
+        return normalize_logbook(loaded)
 
 def write_logbook(payload: dict) -> None:
-    DATA_DIR.mkdir(exist_ok=True)
-    with DATA_FILE.open("w", encoding="utf-8") as file:
-        json.dump(normalize_logbook(payload), file, indent=2)
+    normalized = normalize_logbook(payload)
+    is_valid, error = validate_logbook(normalized)
+    if not is_valid:
+        raise ValueError(error)
+
+    with _STORE_LOCK:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        temporary_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=DATA_DIR,
+                prefix=".logbook-",
+                suffix=".tmp",
+                delete=False,
+            ) as file:
+                temporary_path = file.name
+                json.dump(normalized, file, indent=2, allow_nan=False)
+                file.write("\n")
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(temporary_path, DATA_FILE)
+        finally:
+            if temporary_path and os.path.exists(temporary_path):
+                os.unlink(temporary_path)
 
 
+def _error(path: str, message: str) -> tuple[bool, str]:
+    return False, f"{path}: {message}"
 
 
+def _validate_json_value(value: object, path: str, depth: int = 0) -> tuple[bool, str | None]:
+    if depth > 30:
+        return _error(path, "nesting is too deep")
+    if value is None or isinstance(value, (str, bool)):
+        return True, None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return (True, None) if math.isfinite(value) else _error(path, "number must be finite")
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            valid, error = _validate_json_value(item, f"{path}[{index}]", depth + 1)
+            if not valid:
+                return valid, error
+        return True, None
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                return _error(path, "object keys must be strings")
+            valid, error = _validate_json_value(item, f"{path}.{key}", depth + 1)
+            if not valid:
+                return valid, error
+        return True, None
+    return _error(path, f"unsupported value type {type(value).__name__}")
+
+
+def _validate_object_list(payload: dict, key: str) -> tuple[bool, str | None]:
+    value = payload.get(key, [])
+    if not isinstance(value, list):
+        return _error(key, "must be a list")
+    seen_ids: set[str] = set()
+    for index, item in enumerate(value):
+        path = f"{key}[{index}]"
+        if not isinstance(item, dict):
+            return _error(path, "must be an object")
+        if "id" in item and not isinstance(item["id"], str):
+            return _error(f"{path}.id", "must be a string")
+        item_id = item.get("id")
+        if item_id:
+            if item_id in seen_ids:
+                return _error(f"{path}.id", f'duplicate id "{item_id}"')
+            seen_ids.add(item_id)
+    return True, None
+
+
+def _validate_coordinates(value: object, path: str) -> tuple[bool, str | None]:
+    if value is None:
+        return True, None
+    if not isinstance(value, dict):
+        return _error(path, "must be an object or null")
+    for key, minimum, maximum in (("latitude", -90, 90), ("longitude", -180, 180)):
+        number = value.get(key)
+        if not isinstance(number, (int, float)) or isinstance(number, bool) or not math.isfinite(number):
+            return _error(f"{path}.{key}", "must be a finite number")
+        if not minimum <= number <= maximum:
+            return _error(f"{path}.{key}", f"must be between {minimum} and {maximum}")
+    return True, None
+
+
+def _validate_nested_records(records: object, path: str) -> tuple[bool, str | None]:
+    if not isinstance(records, list):
+        return _error(path, "must be a list")
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            return _error(f"{path}[{index}]", "must be an object")
+    return True, None
 
 def validate_logbook(payload: object) -> tuple[bool, str | None]:
     if not isinstance(payload, dict):
-        return False, "Logbook must be a JSON object"
+        return _error("$", "logbook must be a JSON object")
+
+    valid, error = _validate_json_value(payload, "$")
+    if not valid:
+        return valid, error
+
+    version = payload.get("schemaVersion", 0)
+    if not isinstance(version, int) or isinstance(version, bool):
+        return _error("schemaVersion", "must be an integer")
+    if version < 0:
+        return _error("schemaVersion", "must not be negative")
+    if version > SCHEMA_VERSION:
+        return _error("schemaVersion", f"version {version} is newer than supported version {SCHEMA_VERSION}")
 
     required_lists = ("trips", "lures", "flashers")
-    if any(not isinstance(payload.get(key), list) for key in required_lists):
-        return False, "Logbook must include trips, lures, and flashers lists"
+    for key in required_lists:
+        if key not in payload:
+            return _error(key, "is required")
 
-    optional_lists = ("reels", "rods", "rodReelCombos")
-    if any(key in payload and not isinstance(payload.get(key), list) for key in optional_lists):
-        return False, "Logbook gear inventory fields must be lists"
+    option_lists = (
+        "species", "methods", "lureTypes", "flasherTypes", "waterClarities",
+        "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingDirections",
+    )
+    for key in option_lists:
+        if key not in payload:
+            continue
+        values = payload[key]
+        if not isinstance(values, list):
+            return _error(key, "must be a list")
+        for index, value in enumerate(values):
+            if not isinstance(value, str):
+                return _error(f"{key}[{index}]", "must be a string")
 
-    if not isinstance(payload.get("people", []), list):
-        return False, "Logbook people must be a list"
+    choice_lists = ("trollingPresentations", "setupLineSides")
+    for key in choice_lists:
+        if key not in payload:
+            continue
+        valid, error = _validate_nested_records(payload[key], key)
+        if not valid:
+            return valid, error
+        for index, item in enumerate(payload[key]):
+            for field in ("value", "label"):
+                if not isinstance(item.get(field), str) or not item[field].strip():
+                    return _error(f"{key}[{index}].{field}", "must be a non-empty string")
+
+    object_lists = ("lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
+    for key in object_lists:
+        valid, error = _validate_object_list(payload, key)
+        if not valid:
+            return valid, error
+
+    settings = payload.get("settings")
+    if settings is not None and not isinstance(settings, dict):
+        return _error("settings", "must be an object")
+    if isinstance(settings, dict):
+        if "timeFormat" in settings and settings["timeFormat"] not in ("12", "24"):
+            return _error("settings.timeFormat", 'must be "12" or "24"')
+        units = settings.get("units")
+        if units is not None and not isinstance(units, dict):
+            return _error("settings.units", "must be an object")
+        if isinstance(units, dict):
+            for key, value in units.items():
+                if key in UNIT_OPTIONS and value not in UNIT_OPTIONS[key]:
+                    return _error(f"settings.units.{key}", "has an unsupported unit")
+        if "chopRanges" in settings:
+            valid, error = _validate_nested_records(settings["chopRanges"], "settings.chopRanges")
+            if not valid:
+                return valid, error
+
+    for index, location in enumerate(payload.get("locations", [])):
+        path = f"locations[{index}]"
+        if not isinstance(location.get("name"), str) or not location["name"].strip():
+            return _error(f"{path}.name", "must be a non-empty string")
+        valid, error = _validate_coordinates(location.get("coordinates"), f"{path}.coordinates")
+        if not valid:
+            return valid, error
+        valid, error = _validate_nested_records(location.get("launches", []), f"{path}.launches")
+        if not valid:
+            return valid, error
+
+    for index, person in enumerate(payload.get("people", [])):
+        if not isinstance(person.get("name"), str) or not person["name"].strip():
+            return _error(f"people[{index}].name", "must be a non-empty string")
+
+    for index, reel in enumerate(payload.get("reels", [])):
+        valid, error = _validate_nested_records(reel.get("lineHistory", []), f"reels[{index}].lineHistory")
+        if not valid:
+            return valid, error
+
+    for index, trip in enumerate(payload.get("trips", [])):
+        path = f"trips[{index}]"
+        for field in ("people", "gearUsed", "catches", "lostFish", "notePhotos"):
+            valid, error = _validate_nested_records(trip.get(field, []), f"{path}.{field}")
+            if not valid:
+                return valid, error
+        for catch_index, catch in enumerate(trip.get("catches", [])):
+            for field in ("coordinates", "manualCoordinates"):
+                valid, error = _validate_coordinates(
+                    catch.get(field),
+                    f"{path}.catches[{catch_index}].{field}",
+                )
+                if not valid:
+                    return valid, error
 
     return True, None
-
 

@@ -11,7 +11,7 @@ async function uploadImageFile(file, category, metadata = {}) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("metadata", JSON.stringify(metadata));
-  const response = await fetch(`/api/uploads/${category}`, {
+  const response = await protectedFetch(`/api/uploads/${category}`, {
     method: "POST",
     body: formData
   });
@@ -596,7 +596,7 @@ async function addPhotosToQueue(event) {
 async function claimQueuedPhoto(filename) {
   if (!activePhotoQueueTarget) return;
   try {
-    const response = await fetch("/api/photo-queue/claim", {
+    const response = await protectedFetch("/api/photo-queue/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -659,7 +659,7 @@ async function claimQueuedPhoto(filename) {
 
 async function deleteQueuedPhoto(filename) {
   try {
-    const response = await fetch(`/api/photo-queue/${encodeURIComponent(filename)}`, { method: "DELETE" });
+    const response = await protectedFetch(`/api/photo-queue/${encodeURIComponent(filename)}`, { method: "DELETE" });
     if (!response.ok) throw new Error("Could not delete queued photo");
     await renderPhotoQueue();
   } catch (error) {

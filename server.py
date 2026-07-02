@@ -5,7 +5,9 @@ import uuid
 from pathlib import Path
 
 from flask import Flask, Response, abort, jsonify, redirect, request, send_file, send_from_directory
+from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
+from werkzeug.wrappers import Response as WerkzeugResponse
 
 from backend.backend_config import (
     ALLOWED_MEDIA_EXTENSIONS,
@@ -13,12 +15,18 @@ from backend.backend_config import (
     DATA_FILE,
     DEFAULT_LOGBOOK,
     HOST,
+    LOGBOOK_PASSWORD,
+    LOGBOOK_USERNAME,
+    MAX_UPLOAD_BYTES,
     PORT,
     PREVIEW_DIRNAME,
     ROOT,
+    RATE_LIMIT_PER_MINUTE,
+    SECRET_KEY,
     UPLOAD_CATEGORIES,
 )
 from backend.logbook_store import normalize_logbook, read_logbook, validate_logbook, write_logbook
+from backend.request_security import configure_request_security, csrf_token
 from backend.media_service import (
     create_upload_preview,
     delete_upload_file,
@@ -41,17 +49,43 @@ from backend.weather_service import (
 )
 
 
-def create_app() -> Flask:
+def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__, static_folder=None)
+    app.config.update(
+        LOGBOOK_USERNAME=LOGBOOK_USERNAME,
+        LOGBOOK_PASSWORD=LOGBOOK_PASSWORD,
+        MAX_CONTENT_LENGTH=MAX_UPLOAD_BYTES,
+        RATE_LIMIT_PER_MINUTE=RATE_LIMIT_PER_MINUTE,
+        SECRET_KEY=SECRET_KEY,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Strict",
+    )
+    if config:
+        app.config.update(config)
+    configure_request_security(app)
 
     @app.after_request
     def add_no_store_header(response: Response) -> Response:
         response.headers["Cache-Control"] = "no-store"
         return response
 
+    @app.errorhandler(RequestEntityTooLarge)
+    def upload_too_large(_error: RequestEntityTooLarge) -> tuple[Response, int]:
+        limit_mb = app.config["MAX_CONTENT_LENGTH"] / (1024 * 1024)
+        return jsonify({"error": f"Request exceeds the {limit_mb:g} MB limit"}), 413
+
+    @app.errorhandler(RuntimeError)
+    def storage_error(error: RuntimeError) -> tuple[Response, int]:
+        app.logger.error("Logbook storage error: %s", error)
+        return jsonify({"error": str(error)}), 500
+
     @app.get("/api/logbook")
     def get_logbook() -> Response:
         return jsonify(read_logbook())
+
+    @app.get("/api/csrf-token")
+    def get_csrf_token() -> Response:
+        return jsonify({"csrfToken": csrf_token()})
 
     @app.put("/api/logbook")
     def update_logbook() -> tuple[Response, int] | Response:
@@ -132,7 +166,7 @@ def create_app() -> Flask:
         return jsonify({"photos": items})
 
     @app.get("/api/gallery")
-    def list_gallery() -> Response:
+    def list_gallery() -> Response | tuple[Response, int]:
         category = request.args.get("category", "all")
         categories = sorted(UPLOAD_CATEGORIES) if category == "all" else [category]
         if any(item not in UPLOAD_CATEGORIES for item in categories):
@@ -234,7 +268,7 @@ def create_app() -> Flask:
         return "", 204
 
     @app.get("/")
-    def index() -> Response:
+    def index() -> WerkzeugResponse:
         return redirect("/trips")
 
     @app.get("/trips")
@@ -246,12 +280,15 @@ def create_app() -> Flask:
     def app_page() -> Response:
         return send_file(ROOT / "index.html")
 
-    @app.get("/<path:filename>")
+    @app.get("/static/<path:filename>")
     def static_files(filename: str) -> Response:
-        requested = (ROOT / filename).resolve()
-        if ROOT not in requested.parents or not requested.is_file():
+        if filename.startswith(".") or "/." in filename:
             abort(404)
-        return send_from_directory(ROOT, filename)
+        static_root = (ROOT / "static").resolve()
+        requested = (static_root / filename).resolve()
+        if static_root not in requested.parents or requested.suffix not in {".css", ".js"}:
+            abort(404)
+        return send_from_directory(static_root, filename)
 
     return app
 
@@ -260,6 +297,8 @@ app = create_app()
 
 
 def main() -> None:
+    if not LOGBOOK_USERNAME or not LOGBOOK_PASSWORD or not SECRET_KEY:
+        raise RuntimeError("LOGBOOK_USERNAME, LOGBOOK_PASSWORD, and SECRET_KEY must be set")
     DATA_DIR.mkdir(exist_ok=True)
     if not DATA_FILE.exists():
         write_logbook(DEFAULT_LOGBOOK)

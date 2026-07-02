@@ -89,7 +89,7 @@ async function deleteOrphanMedia(category, filename) {
   if (!category || !filename) return;
   if (!confirm("Delete this orphaned upload from the drive?")) return;
   try {
-    const response = await fetch(`/api/uploads/${encodeURIComponent(category)}/${encodeURIComponent(filename)}`, { method: "DELETE" });
+    const response = await protectedFetch(`/api/uploads/${encodeURIComponent(category)}/${encodeURIComponent(filename)}`, { method: "DELETE" });
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       throw new Error(payload.error || "Could not delete orphaned media");

@@ -11,6 +11,11 @@ DATA_FILE = DATA_DIR / "logbook.json"
 UPLOADS_DIR = DATA_DIR / "uploads"
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8080"))
+LOGBOOK_USERNAME = os.environ.get("LOGBOOK_USERNAME", "")
+LOGBOOK_PASSWORD = os.environ.get("LOGBOOK_PASSWORD", "")
+SECRET_KEY = os.environ.get("SECRET_KEY", "")
+MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))
+RATE_LIMIT_PER_MINUTE = int(os.environ.get("RATE_LIMIT_PER_MINUTE", "120"))
 UPLOAD_CATEGORIES = {"catch-photos", "trip-photos", "lures", "flashers", "reels", "rods", "queue"}
 ALLOWED_IMAGE_EXTENSIONS = {".avif", ".gif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".webp"}
 ALLOWED_VIDEO_EXTENSIONS = {".mov", ".mp4", ".m4v", ".webm", ".avi", ".mpeg", ".mpg", ".3gp"}
@@ -105,6 +110,7 @@ UNIT_OPTIONS = {
 
 
 DEFAULT_LOGBOOK = {
+    "schemaVersion": 1,
     "species": [
         "Lake Trout",
         "Largemouth Bass",
@@ -204,4 +210,3 @@ DEFAULT_LOGBOOK = {
     "locations": [],
     "trips": [],
 }
-
