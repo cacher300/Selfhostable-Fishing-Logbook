@@ -12,6 +12,9 @@ variables:
   PYTHONUNBUFFERED: "1"
   HOST: "127.0.0.1"
   PORT: "8080"
+  LOGBOOK_USERNAME: "ci-test-user"
+  LOGBOOK_PASSWORD: "ci-test-password"
+  SECRET_KEY: "ci-only-session-signing-key"
 
 cache:
   key: "$CI_COMMIT_REF_SLUG"
@@ -25,6 +28,7 @@ validate_python_app:
     - python --version
     - pip install -r requirements.txt
     - python -m compileall .
+    - python -m unittest discover -s tests -v
     - test -f server.py
     - test -f requirements.txt
     - test -f index.html
@@ -41,7 +45,7 @@ smoke_test_flask_server:
     - python server.py &
     - SERVER_PID=$!
     - sleep 5
-    - python -c "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8080', timeout=10); print('Status:', r.status); exit(0 if r.status < 400 else 1)"
+    - python -c "import base64, urllib.request; token=base64.b64encode(b'ci-test-user:ci-test-password').decode(); request=urllib.request.Request('http://127.0.0.1:8080', headers={'Authorization': f'Basic {token}'}); r=urllib.request.urlopen(request, timeout=10); print('Status:', r.status); exit(0 if r.status < 400 else 1)"
     - kill "$SERVER_PID"
 
 docker_compose_config_check:
