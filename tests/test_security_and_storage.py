@@ -59,10 +59,6 @@ class SecurityTests(unittest.TestCase):
     def test_csrf_token_endpoint_is_available_without_authentication(self) -> None:
         self.assertEqual(200, self.client.get("/api/csrf-token").status_code)
 
-    def test_create_app_requires_secret_key(self) -> None:
-        with self.assertRaisesRegex(RuntimeError, "SECRET_KEY must be set"):
-            create_test_app(SECRET_KEY="")
-
     def test_static_assets_are_not_marked_no_store(self) -> None:
         response = self.client.get("/static/js/app.js")
         self.assertEqual(200, response.status_code)

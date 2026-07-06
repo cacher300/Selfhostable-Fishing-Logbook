@@ -63,8 +63,6 @@ def create_app(config: dict | None = None) -> Flask:
     )
     if config:
         app.config.update(config)
-    if not app.config["SECRET_KEY"]:
-        raise RuntimeError("SECRET_KEY must be set")
     configure_request_security(app)
 
     @app.after_request

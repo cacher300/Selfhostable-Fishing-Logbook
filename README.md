@@ -29,7 +29,6 @@ There is no relational database. The JSON document carries a `schemaVersion`, an
 
 ```powershell
 py -m pip install -r requirements.txt
-$env:SECRET_KEY = (New-Guid).Guid
 py server.py
 ```
 
@@ -38,11 +37,12 @@ Open `http://127.0.0.1:8080`. Configure `HOST` and `PORT` with environment varia
 ## Run with Docker
 
 ```sh
-export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
 ./launch-container.sh
 ```
 
 Open `http://127.0.0.1`. Docker Compose publishes host port 80 to container port 8080 and mounts `./data:/app/data`.
+The app generates a secure runtime secret automatically. Set `SECRET_KEY` only if you want
+sessions to remain valid across application restarts.
 
 ## Data and Export
 

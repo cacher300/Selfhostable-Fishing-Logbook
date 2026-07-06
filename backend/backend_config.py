@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from copy import deepcopy
 from pathlib import Path
 
@@ -11,7 +12,7 @@ DATA_FILE = DATA_DIR / "logbook.json"
 UPLOADS_DIR = DATA_DIR / "uploads"
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8080"))
-SECRET_KEY = os.environ.get("SECRET_KEY", "")
+SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))
 RATE_LIMIT_PER_MINUTE = int(os.environ.get("RATE_LIMIT_PER_MINUTE", "120"))
 UPLOAD_CATEGORIES = {"catch-photos", "trip-photos", "lures", "flashers", "reels", "rods", "queue"}
