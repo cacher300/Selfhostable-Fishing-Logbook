@@ -208,7 +208,7 @@ function currentPeople() {
 function populatePersonSelect(select, selectedId = "") {
   syncPersonRowIds();
   const people = mergePeople(collectPeople());
-  select.innerHTML = `<option value="">No person</option>` + people.map((person) => (
+  select.innerHTML = people.map((person) => (
     `<option value="${person.id}" ${person.id === selectedId ? "selected" : ""}>${escapeHtml(person.name)}</option>`
   )).join("");
 }
@@ -432,7 +432,7 @@ function syncCatchMethodToSetupLine(row) {
   const setupRow = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
     .find((gearRow) => gearRow.dataset.gearId === setupLineId);
   presentationSelect.value = selectedValue.endsWith("::cheater")
-    ? "cheater"
+    ? "Cheater"
     : (setupRow?.querySelector(".catch-presentation")?.value || "");
   updatePresentationFields(row);
   updateCheaterDepth(row);

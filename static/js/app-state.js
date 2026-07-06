@@ -57,6 +57,7 @@ const defaultTrollingPresentationOptions = [
   { value: "High Diver", label: "High Diver" },
   { value: "Low Diver", label: "Low Diver" },
   { value: "Downrigger", label: "Downrigger" },
+  { value: "Cheater", label: "Cheater" },
   { value: "Chute Rod", label: "Chute Rod" }
 ];
 const defaultTrollingDirectionOptions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -69,7 +70,7 @@ const defaultSetupLineSideOptions = [
 function migrateTrollingPresentationValue(value) {
   const legacyValues = {
     downrigger: "Downrigger",
-    cheater: "Downrigger",
+    cheater: "Cheater",
     flatline: "Chute Rod",
     "flatline-leadcore": "Outside Board",
     "dipsey-diver": "High Diver"

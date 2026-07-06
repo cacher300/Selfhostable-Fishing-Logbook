@@ -34,9 +34,6 @@ function updateTrollingVisibility() {
 
 function updatePresentationFields(row) {
   const presentation = row.querySelector(".catch-presentation")?.value || "";
-  const selectedSetupLine = row.querySelector(".catch-setup-line")?.value
-    || row.querySelector(".catch-setup-line")?.dataset.selectedSetupLine
-    || "";
   const estimatedDepthLabel = row.querySelector(".estimated-depth-label");
   row.querySelectorAll(".trolling-param").forEach((field) => field.classList.remove("visible"));
   if (estimatedDepthLabel) {
@@ -55,9 +52,9 @@ function updatePresentationFields(row) {
     return;
   }
 
-  if (["downrigger", "cheater", "Downrigger"].includes(presentation)) {
+  if (["downrigger", "cheater", "Downrigger", "Cheater"].includes(presentation)) {
     row.querySelector(".param-ball-depth")?.classList.add("visible");
-    if (selectedSetupLine.endsWith("::cheater")) {
+    if (["cheater", "Cheater"].includes(presentation)) {
       row.querySelector(".param-cheater-depth")?.classList.add("visible");
     }
   }
