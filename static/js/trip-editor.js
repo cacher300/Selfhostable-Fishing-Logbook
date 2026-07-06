@@ -117,7 +117,7 @@ function tripRatingValue(trip) {
   const value = Number(trip.tripRating);
   if (!Number.isFinite(value)) return 1;
   if (value <= 1) return 1;
-  return Math.min(3, Math.max(1, Math.round(value)));
+  return Math.min(4, Math.max(1, Math.round(value)));
 }
 
 function setTripRating(value) {
@@ -131,7 +131,7 @@ function updateTripRatingLabel() {
 
 function tripRatingLabel(value) {
   const rating = tripRatingValue({ tripRating: value });
-  return ["Bad", "Good", "Outstanding"][rating - 1];
+  return ["Bad", "Mediocre", "Good", "Outstanding"][rating - 1];
 }
 
 function tripRatingClass(value) {
@@ -335,9 +335,10 @@ function addTripGearRow(gearItem = {}) {
   populateChoiceSelect(node.querySelector(".catch-presentation"), optionChoices("trollingPresentations"), "Select method", gearItem.presentation || "");
   node.querySelector(".trip-gear-side").value = side;
   node.querySelector(".trip-gear-line-label").value = gearItem.lineLabel || "";
-  populateComboSelect(node.querySelector(".trip-gear-combo"), gearItem.comboId || "");
-  populateRodSelect(node.querySelector(".trip-gear-rod"), gearItem.rodId || "");
-  populateReelSelect(node.querySelector(".trip-gear-reel"), gearItem.reelId || "");
+  const matchingCombo = (gearItem.rodId || gearItem.reelId) && state.rodReelCombos.find((combo) => (
+    combo.rodId === gearItem.rodId && combo.reelId === gearItem.reelId
+  ));
+  populateComboSelect(node.querySelector(".trip-gear-combo"), gearItem.comboId || matchingCombo?.id || "");
   node.querySelector(".catch-presentation").value = gearItem.presentation || "";
   node.querySelector(".trip-gear-deepest-rigger").checked = Boolean(gearItem.deepestRigger);
   node.querySelector(".trip-gear-cheater").checked = Boolean(gearItem.hasCheater);
@@ -377,8 +378,6 @@ function setupLineLabelFromRow(row, index) {
     side: row.querySelector(".trip-gear-side")?.value || "",
     presentation: row.querySelector(".catch-presentation")?.value || "",
     comboId: row.querySelector(".trip-gear-combo")?.value || "",
-    rodId: row.querySelector(".trip-gear-rod")?.value || "",
-    reelId: row.querySelector(".trip-gear-reel")?.value || "",
     lureId: row.querySelector(".trip-gear-lure")?.value || "",
     flasherId: row.querySelector(".trip-gear-flasher")?.value || ""
   }, index);
@@ -478,7 +477,7 @@ function updateRowSummary(row) {
 
   const pieces = [
     `Rod ${rowNumber(row, ".gear-used-row")}`,
-    setupLineSideLabel(row.querySelector(".trip-gear-side")?.value),
+    isTrollingTrip() ? setupLineSideLabel(row.querySelector(".trip-gear-side")?.value) : "",
     summaryOption(row.querySelector(".catch-presentation"), ["Select method"])
   ].filter(Boolean);
   summary.textContent = pieces.join(" / ");
@@ -486,6 +485,11 @@ function updateRowSummary(row) {
 
 function updateAllRowSummaries() {
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updateRowSummary);
+}
+
+function selectedComboForRow(row) {
+  const comboId = row.querySelector(".trip-gear-combo")?.value || "";
+  return state.rodReelCombos.find((combo) => combo.id === comboId);
 }
 
 function collectTripFromForm() {
@@ -501,8 +505,8 @@ function collectTripFromForm() {
       side: trolling ? row.querySelector(".trip-gear-side").value : "",
       lineLabel: trolling ? row.querySelector(".trip-gear-line-label").value.trim() : "",
       comboId: row.querySelector(".trip-gear-combo").value,
-      rodId: row.querySelector(".trip-gear-rod").value,
-      reelId: row.querySelector(".trip-gear-reel").value,
+      rodId: selectedComboForRow(row)?.rodId || "",
+      reelId: selectedComboForRow(row)?.reelId || "",
       lureId: row.querySelector(".trip-gear-lure").value,
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",

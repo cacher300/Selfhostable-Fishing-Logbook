@@ -142,6 +142,7 @@ DEFAULT_LOGBOOK = {
         "Crankbait",
         "Spinner",
         "Jig",
+        "Dropshot",
         "Soft Plastic",
         "Plug",
         "Swimbait",

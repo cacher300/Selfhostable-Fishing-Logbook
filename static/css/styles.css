@@ -1083,12 +1083,15 @@ textarea[aria-invalid="true"] {
 
 .trip-rating-control input[type="range"] {
   width: 100%;
+  margin-inline: 0;
   accent-color: var(--green);
+  outline: none;
+  box-shadow: none;
 }
 
 .rating-scale {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr 2fr 2fr 1fr;
   align-items: center;
   color: var(--muted);
   font-size: 10px;
@@ -1096,11 +1099,12 @@ textarea[aria-invalid="true"] {
   text-transform: uppercase;
 }
 
-.rating-scale span:nth-child(2) {
+.rating-scale span:nth-child(2),
+.rating-scale span:nth-child(3) {
   text-align: center;
 }
 
-.rating-scale span:nth-child(3) {
+.rating-scale span:nth-child(4) {
   text-align: right;
 }
 
@@ -1133,6 +1137,12 @@ textarea[aria-invalid="true"] {
   border-color: #cbd3df;
   color: var(--muted);
   background: #fff;
+}
+
+.rating-pill.mediocre {
+  border-color: #e5cf9d;
+  color: #765713;
+  background: #fff9e8;
 }
 
 .rating-pill.outstanding {

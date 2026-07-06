@@ -292,7 +292,7 @@ function renderStatsMethodFilter() {
     `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.month ? "selected" : ""}>${escapeHtml(item)}</option>`
   )).join("");
 
-  const ratings = ["All ratings", "Bad", "Good", "Outstanding"];
+  const ratings = ["All ratings", "Bad", "Mediocre", "Good", "Outstanding"];
   if (!ratings.includes(activeStatsFilters.rating)) activeStatsFilters.rating = "All ratings";
   els.statsRatingFilter.innerHTML = ratings.map((item) => (
     `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.rating ? "selected" : ""}>${escapeHtml(item)}</option>`
