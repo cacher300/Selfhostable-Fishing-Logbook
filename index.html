@@ -1196,7 +1196,7 @@
             <span>Longitude override</span>
             <input class="catch-longitude" type="text" inputmode="decimal" placeholder="-79.33851" />
           </label>
-          <div class="row-section-title">Gear</div>
+          <div class="row-section-title">Rod</div>
           <label class="trolling-catch-line-field">
             <span>Rod</span>
             <select class="catch-setup-line"></select>
@@ -1248,6 +1248,10 @@
           <label class="trolling-param param-ball-depth">
             <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
             <input class="catch-ball-depth" type="text" placeholder="55 ft" />
+          </label>
+          <label class="trolling-param param-cheater-depth">
+            <span data-unit-label="depth" data-unit-label-text="Cheater depth">Cheater depth</span>
+            <input class="catch-cheater-depth" type="text" readonly aria-readonly="true" />
           </label>
           <label class="trolling-param param-flatline-weight">
             <span>Weight (oz)</span>
@@ -1328,6 +1332,17 @@
             <span>Rod</span>
             <input class="trip-gear-line-label" type="text" placeholder="Auto number, or name this rod" />
           </label>
+          <div class="row-section-title trolling-field gear-trolling-title">Trolling Method</div>
+          <label class="trolling-field">
+            <select class="catch-presentation" aria-label="Trolling method">
+              <option value="">Select method</option>
+              <option value="downrigger">Downrigger</option>
+              <option value="cheater">Cheater</option>
+              <option value="flatline">Flatline</option>
+              <option value="flatline-leadcore">Planer Board / Leadcore</option>
+              <option value="dipsey-diver">Dipsey Diver</option>
+            </select>
+          </label>
           <div class="row-section-title gear-title">Gear</div>
           <label class="gear-combo-field">
             <span>Rod/reel combo</span>
@@ -1345,22 +1360,6 @@
           </label>
           <button class="button secondary add-flasher-inline trolling-field gear-flasher-action" type="button">New Flasher</button>
           <div class="flasher-preview trolling-field"></div>
-          <div class="row-section-title trolling-field gear-trolling-title">Trolling Details</div>
-          <label class="trolling-field">
-            <span>Trolling method</span>
-            <select class="catch-presentation">
-              <option value="">Select method</option>
-              <option value="downrigger">Downrigger</option>
-              <option value="cheater">Cheater</option>
-              <option value="flatline">Flatline</option>
-              <option value="flatline-leadcore">Planer Board / Leadcore</option>
-              <option value="dipsey-diver">Dipsey Diver</option>
-            </select>
-          </label>
-          <label class="checkbox-label trolling-param param-deepest-rigger">
-            <input class="trip-gear-deepest-rigger" type="checkbox" />
-            <span>Deepest rigger</span>
-          </label>
           <label class="checkbox-label trolling-param param-cheater">
             <input class="trip-gear-cheater" type="checkbox" />
             <span>Add cheater line</span>

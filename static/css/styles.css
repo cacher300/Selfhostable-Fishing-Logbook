@@ -2532,12 +2532,15 @@ textarea[aria-invalid="true"] {
 .spread-cheater-label {
   position: absolute;
   z-index: 6;
+  width: max-content;
+  max-width: min(260px, 40vw);
   color: var(--text);
   font-size: clamp(8px, 0.85vw, 12px);
   font-weight: 900;
   line-height: 1.15;
   transform: translate(7px, -50%);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .spread-lure-link {

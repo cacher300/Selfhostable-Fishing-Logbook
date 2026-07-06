@@ -206,7 +206,8 @@ function currentPeople() {
 }
 
 function populatePersonSelect(select, selectedId = "") {
-  const people = currentPeople();
+  syncPersonRowIds();
+  const people = mergePeople(collectPeople());
   select.innerHTML = `<option value="">No person</option>` + people.map((person) => (
     `<option value="${person.id}" ${person.id === selectedId ? "selected" : ""}>${escapeHtml(person.name)}</option>`
   )).join("");
@@ -298,6 +299,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-speed").value = catchItem.speed || "";
   node.querySelector(".catch-retrieve").value = catchItem.retrieve || "";
   node.querySelector(".catch-ball-depth").value = catchItem.ballDepth || "";
+  updateCheaterDepth(node);
   node.querySelector(".catch-flatline-weight-oz").value = catchItem.flatlineWeightOz || "";
   node.querySelector(".catch-line-behind-board").value = catchItem.lineBehindBoard || "";
   node.querySelector(".catch-estimated-lure-depth").value = catchItem.estimatedLureDepth || "";
@@ -340,7 +342,6 @@ function addTripGearRow(gearItem = {}) {
   ));
   populateComboSelect(node.querySelector(".trip-gear-combo"), gearItem.comboId || matchingCombo?.id || "");
   node.querySelector(".catch-presentation").value = gearItem.presentation || "";
-  node.querySelector(".trip-gear-deepest-rigger").checked = Boolean(gearItem.deepestRigger);
   node.querySelector(".trip-gear-cheater").checked = Boolean(gearItem.hasCheater);
   populateLureSelect(node.querySelector(".trip-gear-lure"), gearItem.lureId || "");
   populateLureSelect(node.querySelector(".trip-gear-cheater-lure"), gearItem.cheaterLureId || "");
@@ -388,7 +389,8 @@ function setupLineOptionsFromForm() {
     if (!row.dataset.gearId) row.dataset.gearId = createId();
     const timeRange = formatDisplayTimeRange(
       row.querySelector(".trip-gear-start-time")?.value,
-      row.querySelector(".trip-gear-end-time")?.value
+      row.querySelector(".trip-gear-end-time")?.value,
+      "12"
     );
     const mainOption = {
       id: row.dataset.gearId,
@@ -419,6 +421,21 @@ function populateSetupLineSelects() {
   document.querySelectorAll(".catch-setup-line").forEach((select) => {
     populateSetupLineSelect(select, select.value);
   });
+}
+
+function syncCatchMethodToSetupLine(row) {
+  const selectedValue = row.querySelector(".catch-setup-line")?.value || "";
+  const presentationSelect = row.querySelector(".catch-presentation");
+  if (!presentationSelect) return;
+
+  const setupLineId = selectedValue.split("::")[0];
+  const setupRow = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
+    .find((gearRow) => gearRow.dataset.gearId === setupLineId);
+  presentationSelect.value = selectedValue.endsWith("::cheater")
+    ? "cheater"
+    : (setupRow?.querySelector(".catch-presentation")?.value || "");
+  updatePresentationFields(row);
+  updateCheaterDepth(row);
 }
 
 function selectedText(select) {
@@ -510,9 +527,7 @@ function collectTripFromForm() {
       lureId: row.querySelector(".trip-gear-lure").value,
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",
-      deepestRigger: trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
-        ? row.querySelector(".trip-gear-deepest-rigger").checked
-        : false,
+      deepestRigger: false,
       hasCheater: trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
         ? row.querySelector(".trip-gear-cheater").checked
         : false,

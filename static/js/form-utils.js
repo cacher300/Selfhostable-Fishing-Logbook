@@ -34,6 +34,9 @@ function updateTrollingVisibility() {
 
 function updatePresentationFields(row) {
   const presentation = row.querySelector(".catch-presentation")?.value || "";
+  const selectedSetupLine = row.querySelector(".catch-setup-line")?.value
+    || row.querySelector(".catch-setup-line")?.dataset.selectedSetupLine
+    || "";
   const estimatedDepthLabel = row.querySelector(".estimated-depth-label");
   row.querySelectorAll(".trolling-param").forEach((field) => field.classList.remove("visible"));
   if (estimatedDepthLabel) {
@@ -44,7 +47,6 @@ function updatePresentationFields(row) {
 
   if (row.classList.contains("gear-used-row")) {
     if (presentation === "downrigger" || presentation === "Downrigger") {
-      row.querySelector(".param-deepest-rigger")?.classList.add("visible");
       row.querySelector(".param-cheater")?.classList.add("visible");
       if (row.querySelector(".trip-gear-cheater")?.checked) {
         row.querySelector(".param-cheater-lure")?.classList.add("visible");
@@ -55,6 +57,9 @@ function updatePresentationFields(row) {
 
   if (["downrigger", "cheater", "Downrigger"].includes(presentation)) {
     row.querySelector(".param-ball-depth")?.classList.add("visible");
+    if (selectedSetupLine.endsWith("::cheater")) {
+      row.querySelector(".param-cheater-depth")?.classList.add("visible");
+    }
   }
   if (presentation === "flatline") {
     row.querySelector(".param-flatline-weight")?.classList.add("visible");
@@ -69,6 +74,13 @@ function updatePresentationFields(row) {
     row.querySelector(".param-line-out")?.classList.add("visible");
     row.querySelector(".param-estimated-depth")?.classList.add("visible");
   }
+}
+
+function updateCheaterDepth(row) {
+  const output = row.querySelector(".catch-cheater-depth");
+  if (!output) return;
+  const ballDepth = Number.parseFloat(row.querySelector(".catch-ball-depth")?.value);
+  output.value = Number.isFinite(ballDepth) ? trimNumber(ballDepth / 2) : "";
 }
 
 function trimNumber(value) {

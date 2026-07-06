@@ -827,22 +827,22 @@ function formatUnitValue(value, key, fromUnit, options = {}) {
   return `${trimNumber(Math.round(converted * (10 ** decimals)) / (10 ** decimals))} ${unitSymbol(key)}`;
 }
 
-function formatDisplayTime(value) {
+function formatDisplayTime(value, format = timeFormatPreference()) {
   const match = String(value || "").match(/(\d{1,2}):(\d{2})/);
   if (!match) return "";
   const hour = Number(match[1]);
   const minute = Number(match[2]);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "";
-  if (timeFormatPreference() === "24") return `${hour}:${String(minute).padStart(2, "0")}`;
+  if (format === "24") return `${hour}:${String(minute).padStart(2, "0")}`;
 
   const suffix = hour >= 12 ? "PM" : "AM";
   const displayHour = hour % 12 || 12;
   return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
-function formatDisplayTimeRange(startTime, endTime) {
-  const start = formatDisplayTime(startTime);
-  const end = formatDisplayTime(endTime);
+function formatDisplayTimeRange(startTime, endTime, format = timeFormatPreference()) {
+  const start = formatDisplayTime(startTime, format);
+  const end = formatDisplayTime(endTime, format);
   return [start, end].filter(Boolean).join("-");
 }
 

@@ -528,6 +528,9 @@ document.addEventListener("change", (event) => {
     syncComboToRow(event.target.closest(".gear-used-row"));
     populateSetupLineSelects();
   }
+  if (event.target.matches(".catch-setup-line")) {
+    syncCatchMethodToSetupLine(event.target.closest(".catch-row"));
+  }
   if (event.target.matches(".catch-presentation, .trip-gear-cheater")) {
     updatePresentationFields(event.target.closest(".catch-row, .gear-used-row"));
   }
@@ -557,6 +560,9 @@ document.addEventListener("input", (event) => {
   if (event.target.closest("#tripForm")) clearTripFormMessage();
   if (event.target.matches(".trip-gear-line-label, .trip-gear-start-time, .trip-gear-end-time")) {
     populateSetupLineSelects();
+  }
+  if (event.target.matches(".catch-ball-depth")) {
+    updateCheaterDepth(event.target.closest(".catch-row"));
   }
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);
