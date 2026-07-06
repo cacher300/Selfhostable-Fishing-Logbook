@@ -2091,6 +2091,12 @@ textarea[aria-invalid="true"] {
   overflow: auto;
   max-height: calc(100vh - 32px);
   padding: clamp(32px, 4vw, 52px);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.trip-summary-shell::-webkit-scrollbar {
+  display: none;
 }
 
 .trip-summary-body {
@@ -2267,8 +2273,8 @@ textarea[aria-invalid="true"] {
 
 .trip-summary-dialog .dialog-header {
   position: fixed;
-  top: 18px;
-  right: max(18px, calc((100vw - min(1480px, calc(100vw - 28px))) / 2 + 18px));
+  top: 34px;
+  right: max(34px, calc((100vw - min(1480px, calc(100vw - 28px))) / 2 + 34px));
   z-index: 2000;
   justify-content: flex-end;
   width: 34px;
