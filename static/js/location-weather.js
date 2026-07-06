@@ -790,6 +790,25 @@ async function refreshTripWeatherPreview(force = false) {
   }
 }
 
+async function resyncTripWeather() {
+  weatherRequestCache.clear();
+  marineRequestCache.clear();
+  astronomyRequestCache.clear();
+  activeTripWeatherKey = "";
+  if (els.resyncWeatherButton) {
+    els.resyncWeatherButton.disabled = true;
+    els.resyncWeatherButton.textContent = "Resyncing...";
+  }
+  try {
+    await refreshTripWeatherPreview(true);
+  } finally {
+    if (els.resyncWeatherButton) {
+      els.resyncWeatherButton.disabled = false;
+      els.resyncWeatherButton.textContent = "Resync Weather";
+    }
+  }
+}
+
 function scheduleTripWeatherPreview(force = false) {
   if (!els.tripDialog?.open) return;
   clearTimeout(weatherPreviewTimer);

@@ -416,6 +416,7 @@ const els = {
   addLaunchButton: document.querySelector("#addLaunchButton"),
   locationManagerList: document.querySelector("#locationManagerList"),
   weatherFetchStatus: document.querySelector("#weatherFetchStatus"),
+  resyncWeatherButton: document.querySelector("#resyncWeatherButton"),
   waveHeight: document.querySelector("#waveHeight"),
   waveChopDisplay: document.querySelector("#waveChopDisplay"),
   settingsPanel: document.querySelector("#settingsPanel"),

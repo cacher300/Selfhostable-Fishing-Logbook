@@ -24,6 +24,7 @@ els.addTripGearButton.addEventListener("click", () => addTripGearRow());
 els.addPersonButton.addEventListener("click", () => addPersonRow());
 els.addLocationButton.addEventListener("click", () => openLocationDialog("location"));
 els.addLaunchButton.addEventListener("click", () => openLocationDialog("launch", els.tripLocation.value));
+els.resyncWeatherButton?.addEventListener("click", resyncTripWeather);
 els.notePhotoInput.addEventListener("change", addNotePhotos);
 els.photoQueueButton.addEventListener("click", () => {
   openPhotoQueue();

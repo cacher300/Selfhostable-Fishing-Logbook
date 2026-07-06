@@ -36,6 +36,50 @@ function validateTripForm() {
   return false;
 }
 
+function tripSaveWarnings() {
+  const warnings = [];
+  const importantFields = [
+    { field: document.querySelector("#startTime"), label: "Trip start time" },
+    { field: document.querySelector("#endTime"), label: "Trip end time" },
+    { field: document.querySelector("#method"), label: "Fishing method" }
+  ];
+  importantFields
+    .filter(({ field }) => !field?.value.trim())
+    .forEach(({ label }) => warnings.push(`${label} is blank.`));
+
+  const trolling = isTrollingTrip();
+  const setupRows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
+  if (trolling && !setupRows.length) warnings.push("No rods have been added to the setup timeline.");
+
+  setupRows.forEach((row, index) => {
+    const label = setupLineLabelFromRow(row, index);
+    const startTime = row.querySelector(".trip-gear-start-time")?.value || "";
+    const endTime = row.querySelector(".trip-gear-end-time")?.value || "";
+    if (!startTime || !endTime) {
+      warnings.push(`${label} is missing a deployment start or stop time.`);
+      return;
+    }
+    const deployedHours = calculateMinutes(startTime, endTime) / 60;
+    if (deployedHours > 12) {
+      warnings.push(`${label} is deployed for ${trimNumber(deployedHours)} hours.`);
+    }
+  });
+
+  document.querySelectorAll(".catch-row").forEach((row) => {
+    const label = fishRowLabel(row);
+    if (!row.querySelector(".catch-person")?.value) warnings.push(`${label} has no person selected.`);
+    if (!row.querySelector(".catch-time")?.value) warnings.push(`${label} has no time.`);
+    if (trolling && !row.querySelector(".catch-setup-line")?.value) warnings.push(`${label} has no rod selected.`);
+  });
+  return warnings;
+}
+
+function confirmTripSaveWarnings() {
+  const warnings = tripSaveWarnings();
+  if (!warnings.length) return true;
+  return confirm(`Please review before saving:\n\n${warnings.map((warning) => `• ${warning}`).join("\n")}\n\nSave anyway?`);
+}
+
 function openTripDialog(trip = null) {
   activeTripId = trip?.id || null;
   els.tripDialogTitle.textContent = trip ? "Edit Trip" : "New Trip";
@@ -270,6 +314,8 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".possible-species-field").classList.toggle("hidden", !lost);
   node.querySelector(".catch-length-field").classList.toggle("hidden", lost);
   node.querySelector(".catch-weight-field").classList.toggle("hidden", lost);
+  node.querySelector(".catch-water-depth-field").classList.toggle("hidden", lost);
+  node.querySelector(".catch-depth-down-field").classList.toggle("hidden", lost);
   node.querySelector(".manual-coordinate-field")?.classList.toggle("hidden", lost);
   node.querySelectorAll(".manual-coordinate-field").forEach((field) => field.classList.toggle("hidden", lost));
   node.querySelector(".catch-photo-title").classList.toggle("hidden", lost);
@@ -384,6 +430,17 @@ function setupLineLabelFromRow(row, index) {
   }, index);
 }
 
+function cheaterLineLabelFromRow(row, index) {
+  const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
+  if (customLabel) return customLabel;
+  const identity = [
+    setupLineSideLabel(row.querySelector(".trip-gear-side")?.value),
+    choiceLabel("trollingPresentations", row.querySelector(".catch-presentation")?.value) || `Rod ${index + 1}`
+  ].filter(Boolean).join(" ");
+  const combo = selectedText(row.querySelector(".trip-gear-combo")).replace("No combo selected", "");
+  return [identity, combo].filter(Boolean).join(": ");
+}
+
 function setupLineOptionsFromForm() {
   return [...els.tripGearRows.querySelectorAll(".gear-used-row")].flatMap((row, index) => {
     if (!row.dataset.gearId) row.dataset.gearId = createId();
@@ -402,7 +459,7 @@ function setupLineOptionsFromForm() {
       mainOption,
       {
         id: `${row.dataset.gearId}::cheater`,
-        label: [`${setupLineLabelFromRow(row, index)} — Cheater`, cheaterLure, timeRange].filter(Boolean).join(" / ")
+        label: [`${cheaterLineLabelFromRow(row, index)} — Cheater`, cheaterLure, timeRange].filter(Boolean).join(" / ")
       }
     ];
   });
@@ -674,6 +731,7 @@ function upsertListValue(listName, value) {
 async function saveTrip(event) {
   event.preventDefault();
   if (!validateTripForm()) return;
+  if (!confirmTripSaveWarnings()) return;
   setTripSaveLoading(true);
 
   try {

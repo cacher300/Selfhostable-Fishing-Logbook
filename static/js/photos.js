@@ -430,6 +430,12 @@ function collectNotePhotos() {
   }));
 }
 
+function applyPhotoCaptureTimeToCatch(row, photos) {
+  const captureTime = photos.find((photo) => /^\d{2}:\d{2}$/.test(photo.captureTime || ""))?.captureTime;
+  const timeInput = row.querySelector(".catch-time");
+  if (captureTime && timeInput) timeInput.value = captureTime;
+}
+
 async function addCatchPhotos(event) {
   const row = event.target.closest(".catch-row");
   const files = [...event.target.files];
@@ -447,6 +453,7 @@ async function addCatchPhotos(event) {
     }));
 
     row.catchPhotos = [...(row.catchPhotos || []), ...photos];
+    applyPhotoCaptureTimeToCatch(row, photos);
     event.target.value = "";
     renderCatchPhotos(row);
     updateRowSummary(row);
@@ -619,6 +626,7 @@ async function claimQueuedPhoto(filename) {
     if (activePhotoQueueTarget.type === "catch") {
       const row = activePhotoQueueTarget.row;
       row.catchPhotos = [...(row.catchPhotos || []), photoItem];
+      applyPhotoCaptureTimeToCatch(row, [photoItem]);
       renderCatchPhotos(row);
       updateRowSummary(row);
     }

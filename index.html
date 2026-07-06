@@ -812,6 +812,7 @@
                 <span>Weather data</span>
                 <strong id="weatherFetchStatus">Choose a mapped location and date</strong>
               </div>
+              <button class="button secondary" id="resyncWeatherButton" type="button">Resync Weather</button>
             </div>
           </div>
         </section>
@@ -1180,11 +1181,11 @@
             <input class="catch-released" type="checkbox" />
             <span>Released after landing</span>
           </label>
-          <label>
+          <label class="catch-water-depth-field">
             <span data-unit-label="depth" data-unit-label-text="Water depth">Water depth</span>
             <input class="catch-water-depth" type="text" placeholder="80 ft" />
           </label>
-          <label>
+          <label class="catch-depth-down-field">
             <span data-unit-label="depth" data-unit-label-text="Estimated depth down">Estimated depth down</span>
             <input class="catch-depth-down" type="text" placeholder="45 ft" />
           </label>

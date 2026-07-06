@@ -28,6 +28,11 @@ function updateTrollingVisibility() {
   document.querySelectorAll("#tripDialog .catch-row .direct-catch-gear:not(.trolling-field)").forEach((element) => {
     element.classList.toggle("hidden", trolling);
   });
+  document.querySelectorAll("#tripDialog .catch-row").forEach((row) => {
+    const hideDuplicateDepth = trolling || row.classList.contains("lost-fish-row");
+    row.querySelector(".catch-water-depth-field")?.classList.toggle("hidden", hideDuplicateDepth);
+    row.querySelector(".catch-depth-down-field")?.classList.toggle("hidden", hideDuplicateDepth);
+  });
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updatePresentationFields);
   renderLiveTrollingSpread();
 }

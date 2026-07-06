@@ -2538,7 +2538,7 @@ textarea[aria-invalid="true"] {
   font-size: clamp(8px, 0.85vw, 12px);
   font-weight: 900;
   line-height: 1.15;
-  transform: translate(7px, -50%);
+  transform: translate(7px, -135%);
   white-space: normal;
   overflow-wrap: break-word;
 }
