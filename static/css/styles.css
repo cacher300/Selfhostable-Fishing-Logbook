@@ -1945,6 +1945,18 @@ textarea[aria-invalid="true"] {
   min-width: 210px;
 }
 
+.map-header-legend {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.map-header-legend .map-legend {
+  justify-content: center;
+}
+
 .fish-map {
   min-height: min(72vh, 760px);
   overflow: hidden;
@@ -5179,6 +5191,16 @@ textarea[aria-invalid="true"] {
   .map-header {
     align-items: start;
     flex-direction: column;
+  }
+
+  .map-header-legend {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .map-header-legend .map-legend {
+    justify-content: flex-start;
   }
 
   .map-tools {

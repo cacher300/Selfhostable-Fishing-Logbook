@@ -14,16 +14,22 @@
 }
 
 function tripMediaMapRecordsForTrip(trip) {
+  const tripSource = tripWeatherCoordinates(trip);
   return (trip.notePhotos || []).map((media, index) => {
-    if (!isUsableCoordinates(media.coordinates)) return null;
     const video = isVideoMedia(media);
+    const embeddedCoordinates = isUsableCoordinates(media.coordinates) ? media.coordinates : null;
+    const coordinates = embeddedCoordinates || (!video && isUsableCoordinates(tripSource?.coordinates)
+      ? tripSource.coordinates
+      : null);
+    if (!coordinates) return null;
     return {
       id: media.id || `${trip.id}-media-${index}`,
       type: video ? "trip-video" : "trip-photo",
       filterValue: video ? "Trip Videos" : "Trip Photos",
       trip,
       media,
-      coordinates: media.coordinates
+      coordinates,
+      coordinateSource: embeddedCoordinates ? "media" : "trip"
     };
   }).filter(Boolean);
 }
@@ -216,9 +222,8 @@ function renderFishMap() {
   const allRecords = catchMapRecords();
   renderMapSpeciesFilter(allRecords);
   const records = filteredMapRecords(allRecords);
-  els.mapSummary.textContent = records.length === 1 ? "1 geotagged item" : `${records.length} geotagged items`;
+  els.mapLegend.innerHTML = renderMapLegend(allRecords);
   renderMapList(records);
-  els.mapCatchList.insertAdjacentHTML("afterbegin", renderMapLegend(allRecords));
 
   if (!window.L) {
     els.fishMap.innerHTML = `<div class="empty-state"><p>Map tiles are unavailable, but saved GPS coordinates are listed below.</p></div>`;
@@ -271,6 +276,8 @@ function renderTripSummaryMap(trip) {
   if (!mapNode) return;
   const allRecords = catchMapRecordsForTrip(trip);
   renderTripSummaryMapFilter(allRecords);
+  const legend = document.querySelector("#tripSummaryMapLegend");
+  if (legend) legend.innerHTML = renderMapLegend(allRecords);
   const records = filteredMapRecords(allRecords, activeTripSummaryMapFilter);
 
   if (!window.L) {
@@ -1178,6 +1185,7 @@ function openTripSummary(trip) {
     <section class="summary-section summary-map-section">
       <div class="summary-section-heading">
         <h3>Fish Map</h3>
+        <div id="tripSummaryMapLegend" class="map-header-legend"></div>
         <div class="summary-map-tools">
           <label>
             <span>Species</span>

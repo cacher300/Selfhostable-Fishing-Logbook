@@ -312,7 +312,7 @@ const els = {
   advancedStatsPanel: document.querySelector("#advancedStatsPanel"),
   mapPanel: document.querySelector("#mapPanel"),
   fishMap: document.querySelector("#fishMap"),
-  mapSummary: document.querySelector("#mapSummary"),
+  mapLegend: document.querySelector("#mapLegend"),
   mapCatchList: document.querySelector("#mapCatchList"),
   mapSpeciesFilter: document.querySelector("#mapSpeciesFilter"),
   statsMethodFilter: document.querySelector("#statsMethodFilter"),
