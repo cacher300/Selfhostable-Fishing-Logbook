@@ -829,6 +829,12 @@
             <button class="button secondary" id="addTripGearButton" type="button">Add Rod</button>
           </div>
           <div id="tripGearRows" class="gear-used-rows"></div>
+          <div id="tripTrollingSpreadPreview" class="trolling-spread-editor trolling-field">
+            <div class="trolling-spread-editor-heading">
+              <h4>Trolling Spread</h4>
+            </div>
+            <div id="tripTrollingSpreadCanvas"></div>
+          </div>
         </section>
 
         <section class="trip-form-section catch-editor" id="tripCatchesSection">
@@ -1015,6 +1021,10 @@
             <span>Type</span>
             <select id="lureType"></select>
           </label>
+          <label id="lureDivingDepthField" class="hidden">
+            <span>Diving depth</span>
+            <input id="lureDivingDepth" type="text" placeholder="8–12 ft" />
+          </label>
           <label>
             <span>Brand / model</span>
             <input id="lureBrand" type="text" placeholder="Acme" />
@@ -1022,6 +1032,10 @@
           <label>
             <span>Color</span>
             <input id="lureColor" type="text" placeholder="Blue/Silver" />
+          </label>
+          <label class="checkbox-field">
+            <input id="lureGlow" type="checkbox" />
+            <span>Glow</span>
           </label>
           <label>
             <span>Lure image</span>
@@ -1042,11 +1056,26 @@
       </form>
     </dialog>
 
+    <dialog id="lureInfoDialog" class="dialog small-dialog">
+      <div class="dialog-content">
+        <div class="dialog-header">
+          <div>
+            <h2 id="lureInfoTitle">Lure</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="Close">x</button>
+        </div>
+        <div id="lureInfoContent" class="lure-info-content"></div>
+        <div class="dialog-actions end-only">
+          <button class="button secondary" type="button" data-close-dialog>Close</button>
+          <button class="button primary" id="editLureFromInfoButton" type="button">Edit Lure</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="flasherDialog" class="dialog small-dialog">
       <form id="flasherForm" method="dialog">
         <div class="dialog-header">
           <div>
-            <p class="eyebrow">Optional attractor</p>
             <h2>Add Flasher</h2>
           </div>
           <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close">x</button>
@@ -1070,6 +1099,10 @@
             <span>Color</span>
             <input id="flasherColor" type="text" placeholder="Green Chrome" />
           </label>
+          <label class="checkbox-field">
+            <input id="flasherGlow" type="checkbox" />
+            <span>Glow</span>
+          </label>
           <label>
             <span>Flasher image</span>
             <input id="flasherImage" type="file" accept="image/*,video/*" />
@@ -1089,11 +1122,29 @@
       </form>
     </dialog>
 
+    <dialog id="flasherInfoDialog" class="dialog small-dialog">
+      <div class="dialog-content">
+        <div class="dialog-header">
+          <div>
+            <h2 id="flasherInfoTitle">Flasher</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="Close">x</button>
+        </div>
+        <div id="flasherInfoContent" class="lure-info-content"></div>
+        <div class="dialog-actions end-only">
+          <button class="button secondary" type="button" data-close-dialog>Close</button>
+          <button class="button primary" id="editFlasherFromInfoButton" type="button">Edit Flasher</button>
+        </div>
+      </div>
+    </dialog>
+
     <template id="catchRowTemplate">
       <article class="catch-row">
         <div class="collapsible-row-header">
           <button class="row-collapse-button" type="button" data-toggle-row aria-expanded="true">
-            <span class="row-collapse-icon">v</span>
+            <span class="row-collapse-icon" aria-hidden="true">
+              <svg viewBox="0 0 16 16"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
+            </span>
             <span class="collapsible-row-summary">Catch</span>
           </button>
           <button class="icon-button remove-catch" type="button" aria-label="Remove catch">x</button>
@@ -1243,7 +1294,9 @@
       <article class="gear-used-row">
         <div class="collapsible-row-header">
           <button class="row-collapse-button" type="button" data-toggle-row aria-expanded="true">
-            <span class="row-collapse-icon">v</span>
+            <span class="row-collapse-icon" aria-hidden="true">
+              <svg viewBox="0 0 16 16"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
+            </span>
             <span class="collapsible-row-summary">Rod Change</span>
           </button>
           <button class="icon-button remove-trip-gear" type="button" aria-label="Remove gear">x</button>
@@ -1314,6 +1367,14 @@
           <label class="checkbox-label trolling-param param-deepest-rigger">
             <input class="trip-gear-deepest-rigger" type="checkbox" />
             <span>Deepest rigger</span>
+          </label>
+          <label class="checkbox-label trolling-param param-cheater">
+            <input class="trip-gear-cheater" type="checkbox" />
+            <span>Add cheater line</span>
+          </label>
+          <label class="trolling-param param-cheater-lure">
+            <span>Cheater lure</span>
+            <select class="trip-gear-cheater-lure"></select>
           </label>
         </div>
       </article>

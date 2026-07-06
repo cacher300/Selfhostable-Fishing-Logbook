@@ -30,12 +30,33 @@ els.photoQueueButton.addEventListener("click", () => {
 });
 els.photoQueueInput.addEventListener("change", addPhotosToQueue);
 els.lureForm.addEventListener("submit", saveLure);
+document.querySelector("#lureType").addEventListener("change", updateLureDivingDepthField);
 els.flasherForm.addEventListener("submit", saveFlasher);
 els.reelForm.addEventListener("submit", saveReel);
 els.rodForm.addEventListener("submit", saveRod);
 els.comboForm.addEventListener("submit", saveCombo);
 els.lureDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("lure"));
+els.lureInfoDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("lureInfo"));
+els.editLureFromInfoButton.addEventListener("click", () => {
+  const lure = state.lures.find((item) => item.id === els.lureInfoDialog.dataset.lureId);
+  if (!lure) return;
+  const shouldReturnToTrip = returnToTripDialog.lureInfo;
+  returnToTripDialog.lureInfo = false;
+  els.lureInfoDialog.close();
+  openLureDialog(lure);
+  returnToTripDialog.lure = shouldReturnToTrip;
+});
 els.flasherDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("flasher"));
+els.flasherInfoDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("flasherInfo"));
+els.editFlasherFromInfoButton.addEventListener("click", () => {
+  const flasher = state.flashers.find((item) => item.id === els.flasherInfoDialog.dataset.flasherId);
+  if (!flasher) return;
+  const shouldReturnToTrip = returnToTripDialog.flasherInfo;
+  returnToTripDialog.flasherInfo = false;
+  els.flasherInfoDialog.close();
+  openFlasherDialog(flasher);
+  returnToTripDialog.flasher = shouldReturnToTrip;
+});
 els.reelDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("reel"));
 els.rodDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("rod"));
 els.photoQueueDialog.addEventListener("close", restoreDialogAfterPhotoQueue);
@@ -227,6 +248,7 @@ document.addEventListener("click", (event) => {
   if (removeCatch) {
     removeCatch.closest(".catch-row").remove();
     updateAllRowSummaries();
+    renderLiveTrollingSpread();
   }
 
   const removeTripGear = event.target.closest(".remove-trip-gear");
@@ -234,6 +256,7 @@ document.addEventListener("click", (event) => {
     removeTripGear.closest(".gear-used-row").remove();
     populateSetupLineSelects();
     updateAllRowSummaries();
+    renderLiveTrollingSpread();
   }
 
   const removePerson = event.target.closest(".remove-person");
@@ -430,6 +453,18 @@ document.addEventListener("click", (event) => {
     if (lure) openLureDialog(lure);
   }
 
+  const spreadLureButton = event.target.closest("[data-spread-lure-id]");
+  if (spreadLureButton) {
+    const lure = state.lures.find((item) => item.id === spreadLureButton.dataset.spreadLureId);
+    if (lure) openLureInfoDialog(lure, "spread-preview");
+  }
+
+  const spreadFlasherButton = event.target.closest("[data-spread-flasher-id]");
+  if (spreadFlasherButton) {
+    const flasher = state.flashers.find((item) => item.id === spreadFlasherButton.dataset.spreadFlasherId);
+    if (flasher) openFlasherInfoDialog(flasher, "spread-preview");
+  }
+
   const editFlasherButton = event.target.closest("[data-edit-flasher]");
   if (editFlasherButton) {
     const flasher = state.flashers.find((item) => item.id === editFlasherButton.dataset.editFlasher);
@@ -493,14 +528,15 @@ document.addEventListener("change", (event) => {
     syncComboToRow(event.target.closest(".gear-used-row"));
     populateSetupLineSelects();
   }
-  if (event.target.matches(".catch-presentation")) {
+  if (event.target.matches(".catch-presentation, .trip-gear-cheater")) {
     updatePresentationFields(event.target.closest(".catch-row, .gear-used-row"));
   }
-  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label")) {
+  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-cheater, .trip-gear-cheater-lure")) {
     populateSetupLineSelects();
   }
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);
+  if (event.target.closest("#tripForm")) renderLiveTrollingSpread();
 });
 
 document.addEventListener("input", (event) => {
@@ -524,6 +560,7 @@ document.addEventListener("input", (event) => {
   }
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);
+  if (event.target.closest("#tripForm")) renderLiveTrollingSpread();
 });
 
 document.addEventListener("keydown", (event) => {

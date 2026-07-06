@@ -285,7 +285,7 @@ def create_app(config: dict | None = None) -> Flask:
             abort(404)
         static_root = (ROOT / "static").resolve()
         requested = (static_root / filename).resolve()
-        if static_root not in requested.parents or requested.suffix not in {".css", ".js"}:
+        if static_root not in requested.parents or requested.suffix.lower() not in {".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".webp"}:
             abort(404)
         return send_from_directory(static_root, filename)
 

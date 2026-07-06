@@ -69,6 +69,13 @@ class SecurityTests(unittest.TestCase):
         self.assertNotIn("no-store", response.headers.get("Cache-Control", ""))
         response.close()
 
+    def test_static_route_serves_images_but_rejects_other_file_types(self) -> None:
+        image_response = self.client.get("/static/img/boat_rotated_90ccw_bg_223_243_251.png")
+        self.assertEqual(200, image_response.status_code)
+        image_response.close()
+
+        self.assertEqual(404, self.client.get("/static/not-a-web-asset.txt").status_code)
+
     def test_mutation_requires_csrf_token(self) -> None:
         response = self.client.put(
             "/api/logbook",

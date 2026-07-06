@@ -84,8 +84,13 @@ function openTripDialog(trip = null) {
   if (!trip?.catches?.length) addCatchRow();
   populateSetupLineSelects();
   updateTrollingVisibility();
+  renderLiveTrollingSpread();
   syncUnitLabels(els.tripForm);
   els.tripDialog.showModal();
+  els.tripForm.scrollTop = 0;
+  requestAnimationFrame(() => {
+    els.tripForm.scrollTop = 0;
+  });
   scheduleTripWeatherPreview(true);
 }
 
@@ -300,7 +305,9 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-line-out").value = catchItem.lineOut || "";
   node.querySelector(".catch-estimated-depth").value = catchItem.estimatedDepth || "";
   node.querySelector(".catch-notes").value = catchItem.notes || "";
-  node.querySelector(".catch-setup-line").dataset.selectedSetupLine = catchItem.setupLineId || "";
+  node.querySelector(".catch-setup-line").dataset.selectedSetupLine = catchItem.setupLineTarget === "cheater"
+    ? `${catchItem.setupLineId}::cheater`
+    : (catchItem.setupLineId || "");
   populateLureSelect(node.querySelector(".catch-lure"), catchItem.lureId || "");
   renderLurePreview(node);
   renderCatchPhotos(node);
@@ -311,6 +318,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   populateSetupLineSelects();
   updateTrollingVisibility();
   updateAllRowSummaries();
+  renderLiveTrollingSpread();
 }
 
 function addTripGearRow(gearItem = {}) {
@@ -332,7 +340,9 @@ function addTripGearRow(gearItem = {}) {
   populateReelSelect(node.querySelector(".trip-gear-reel"), gearItem.reelId || "");
   node.querySelector(".catch-presentation").value = gearItem.presentation || "";
   node.querySelector(".trip-gear-deepest-rigger").checked = Boolean(gearItem.deepestRigger);
+  node.querySelector(".trip-gear-cheater").checked = Boolean(gearItem.hasCheater);
   populateLureSelect(node.querySelector(".trip-gear-lure"), gearItem.lureId || "");
+  populateLureSelect(node.querySelector(".trip-gear-cheater-lure"), gearItem.cheaterLureId || "");
   populateFlasherSelect(node.querySelector(".trip-gear-flasher"), gearItem.flasherId || "");
   renderLurePreview(node);
   renderFlasherPreview(node);
@@ -343,6 +353,7 @@ function addTripGearRow(gearItem = {}) {
   populateSetupLineSelects();
   updateTrollingVisibility();
   updateAllRowSummaries();
+  renderLiveTrollingSpread();
 }
 
 function populateLureSelect(select, selectedId = "") {
@@ -374,16 +385,25 @@ function setupLineLabelFromRow(row, index) {
 }
 
 function setupLineOptionsFromForm() {
-  return [...els.tripGearRows.querySelectorAll(".gear-used-row")].map((row, index) => {
+  return [...els.tripGearRows.querySelectorAll(".gear-used-row")].flatMap((row, index) => {
     if (!row.dataset.gearId) row.dataset.gearId = createId();
     const timeRange = formatDisplayTimeRange(
       row.querySelector(".trip-gear-start-time")?.value,
       row.querySelector(".trip-gear-end-time")?.value
     );
-    return {
+    const mainOption = {
       id: row.dataset.gearId,
       label: [setupLineLabelFromRow(row, index), timeRange].filter(Boolean).join(" / ")
     };
+    if (!row.querySelector(".trip-gear-cheater")?.checked) return [mainOption];
+    const cheaterLure = selectedText(row.querySelector(".trip-gear-cheater-lure")).replace("No lure selected", "");
+    return [
+      mainOption,
+      {
+        id: `${row.dataset.gearId}::cheater`,
+        label: [`${setupLineLabelFromRow(row, index)} — Cheater`, cheaterLure, timeRange].filter(Boolean).join(" / ")
+      }
+    ];
   });
 }
 
@@ -420,60 +440,46 @@ function fishRowLabel(row) {
   return `Catch ${rowNumber(row, ".catch-row:not(.lost-fish-row)")}`;
 }
 
+function catchSetupSummary(row) {
+  const selectedValue = row.querySelector(".catch-setup-line")?.value || "";
+  if (!selectedValue) return "";
+  const setupLineId = selectedValue.split("::")[0];
+  const setupRow = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
+    .find((gearRow) => gearRow.dataset.gearId === setupLineId);
+  if (!setupRow) return "";
+  const label = [
+    setupLineSideLabel(setupRow.querySelector(".trip-gear-side")?.value),
+    choiceLabel("trollingPresentations", setupRow.querySelector(".catch-presentation")?.value)
+  ].filter(Boolean).join(" ");
+  return selectedValue.endsWith("::cheater") ? `${label} Cheater` : label;
+}
+
 function updateRowSummary(row) {
   const summary = row.querySelector(".collapsible-row-summary");
   if (!summary) return;
 
   if (row.classList.contains("catch-row")) {
-    const waterDepth = row.querySelector(".catch-water-depth").value.trim();
-    const depthDown = row.querySelector(".catch-depth-down").value.trim();
-    const fowCaught = row.querySelector(".catch-fow").value.trim();
     const released = row.querySelector(".catch-released")?.checked && !row.classList.contains("lost-fish-row");
     const trolling = isTrollingTrip();
-    const casting = isCastingTrip();
     const pieces = [
       fishRowLabel(row),
       row.classList.contains("lost-fish-row")
         ? summaryOption(row.querySelector(".catch-possible-species"), ["Select possible species"])
         : summaryOption(row.querySelector(".catch-species"), ["Select species"]),
       released ? "Released" : "",
-      fowCaught,
-      depthDown ? `${depthDown} down` : "",
-      waterDepth ? `${waterDepth} water` : "",
-      summaryOption(row.querySelector(".catch-person"), ["No person"]),
       formatDisplayTime(row.querySelector(".catch-time").value),
-      summaryOption(row.querySelector(".catch-direction"), ["Select direction"]),
       trolling
-        ? summaryOption(row.querySelector(".catch-setup-line"), ["Select rod"])
+        ? catchSetupSummary(row)
         : summaryOption(row.querySelector(".catch-lure"), ["No lure selected"]),
-      casting ? row.querySelector(".catch-retrieve")?.value.trim() : ""
     ].filter(Boolean);
-    summary.textContent = pieces.join(" / ");
+    summary.textContent = pieces.join(" · ");
     return;
   }
 
-  const timeRange = formatDisplayTimeRange(
-    row.querySelector(".trip-gear-start-time").value,
-    row.querySelector(".trip-gear-end-time").value
-  );
-  const gear = [
-    selectedText(row.querySelector(".trip-gear-combo")).replace("No combo selected", ""),
-    selectedText(row.querySelector(".trip-gear-rod")).replace("No rod selected", ""),
-    selectedText(row.querySelector(".trip-gear-reel")).replace("No reel selected", ""),
-    selectedText(row.querySelector(".trip-gear-lure")).replace("No lure selected", ""),
-    selectedText(row.querySelector(".trip-gear-flasher")).replace("No flasher", "")
-  ].filter(Boolean).join(" + ");
-  const lineMeta = [
-    setupLineSideLabel(row.querySelector(".trip-gear-side")?.value),
-    summaryOption(row.querySelector(".catch-presentation"), ["Select method"]),
-    row.querySelector(".trip-gear-deepest-rigger")?.checked ? "Deepest rigger" : ""
-  ].filter(Boolean).join(" ");
   const pieces = [
     `Rod ${rowNumber(row, ".gear-used-row")}`,
-    timeRange,
-    lineMeta,
-    gear,
-    row.querySelector(".trip-gear-change-note").value.trim()
+    setupLineSideLabel(row.querySelector(".trip-gear-side")?.value),
+    summaryOption(row.querySelector(".catch-presentation"), ["Select method"])
   ].filter(Boolean);
   summary.textContent = pieces.join(" / ");
 }
@@ -500,9 +506,17 @@ function collectTripFromForm() {
       lureId: row.querySelector(".trip-gear-lure").value,
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",
-      deepestRigger: trolling && row.querySelector(".catch-presentation").value === "downrigger"
+      deepestRigger: trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
         ? row.querySelector(".trip-gear-deepest-rigger").checked
         : false,
+      hasCheater: trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
+        ? row.querySelector(".trip-gear-cheater").checked
+        : false,
+      cheaterLureId: trolling
+        && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
+        && row.querySelector(".trip-gear-cheater").checked
+        ? row.querySelector(".trip-gear-cheater-lure").value
+        : "",
       lureMinutes: row.querySelector(".trip-gear-lure").value ? setupMinutesFromRow(row) : 0,
       flasherMinutes: trolling && row.querySelector(".trip-gear-flasher").value ? setupMinutesFromRow(row) : 0
     }))
@@ -520,6 +534,8 @@ function collectTripFromForm() {
       || item.flasherMinutes
       || item.presentation
       || item.deepestRigger
+      || item.hasCheater
+      || item.cheaterLureId
     ));
 
   const collectFishRows = (container, lost = false) => [...container.querySelectorAll(".catch-row")]
@@ -557,7 +573,8 @@ function collectTripFromForm() {
       return trolling
         ? {
             ...base,
-            setupLineId: row.querySelector(".catch-setup-line").value,
+            setupLineId: row.querySelector(".catch-setup-line").value.split("::")[0],
+            setupLineTarget: row.querySelector(".catch-setup-line").value.endsWith("::cheater") ? "cheater" : "",
             lureId: row.querySelector(".catch-lure").value,
             flasherId: ""
           }

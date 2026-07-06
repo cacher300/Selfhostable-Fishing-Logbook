@@ -405,7 +405,9 @@ function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {})
   const selectedIndex = Math.max(0, Math.min(Number(options.selectedIndex) || 0, photoCount - 1));
   const selectedPhoto = photos[selectedIndex] || photos[0];
   const selectedBadge = catchMediaBadge(selectedPhoto);
-  const thumbnailPhotos = photos.slice(1);
+  const thumbnailPhotos = photos
+    .map((photo, index) => ({ photo, index }))
+    .filter(({ index }) => index !== selectedIndex);
   const showAllThumbnails = Boolean(options.showAllThumbnails);
   const visibleThumbnailPhotos = showAllThumbnails ? thumbnailPhotos : thumbnailPhotos.slice(0, 4);
   const hiddenThumbnailCount = showAllThumbnails ? 0 : Math.max(0, thumbnailPhotos.length - visibleThumbnailPhotos.length);
@@ -449,8 +451,7 @@ function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {})
       </div>
       ${visibleThumbnailPhotos.length ? `
         <div class="thumbnail-column" aria-label="Catch media thumbnails">
-          ${visibleThumbnailPhotos.map((photo, thumbIndex) => {
-            const actualIndex = thumbIndex + 1;
+          ${visibleThumbnailPhotos.map(({ photo, index: actualIndex }, thumbIndex) => {
             const isActive = actualIndex === selectedIndex;
             const isMoreButton = hiddenThumbnailCount > 0 && thumbIndex === visibleThumbnailPhotos.length - 1;
             return `
@@ -508,7 +509,7 @@ function setupTimelineRecord(trip, gearItem, index) {
     setupLineSideLabel(gearItem.side),
     gearItem.lineLabel,
     gearItem.deepestRigger ? "Deepest rigger" : ""
-  ].filter(Boolean).join(" Â· ");
+  ].filter(Boolean).join(" \u00b7 ");
   return {
     rod: displayTitleText(rod),
     rodReel: displayTitleText(rodReel),
@@ -697,9 +698,8 @@ function renderCatchReportDetails(trip, catchItem) {
 
 function catchDetailRows(trip, catchItem) {
   const record = resolveTripLineRecord({ ...catchItem, trip });
-  const gear = record.setupLine
-    ? setupLineDisplayLabel(trip, record.setupLine)
-    : [lureName(record.lureId), flasherName(record.flasherId)].filter(Boolean).join(" + ");
+  const setup = compactSetupDisplayLabel(record);
+  const lure = [lureName(record.lureId), flasherName(record.flasherId)].filter(Boolean).join(" + ");
   const formatWeightDetail = (value) => {
     const trimmed = String(value || "").trim();
     if (!trimmed) return "";
@@ -727,8 +727,8 @@ function catchDetailRows(trip, catchItem) {
     ["Speed", displaySpeedValue(record.speed)],
     ["Retrieve", record.retrieve],
     ["Direction", record.direction],
-    ["Lure / Setup", displayTitleText(gear)],
-    ["Weather", catchWeatherSummary(catchItem.weatherData) || trip.weather],
+    ["Setup", setup],
+    ["Lure", displayTitleText(lure)],
     ["Notes", displaySentenceText(catchItem.notes)]
   ].filter(([, value]) => value !== null && value !== undefined && value !== "");
   return rows.map(([label, value]) => `
@@ -828,294 +828,20 @@ function renderTripSummaryGear(trip) {
 
 function setupLineCounts(trip, gearItem) {
   const fish = (trip.catches || [])
-    .filter((catchItem) => catchItem.setupLineId === gearItem.id)
+    .filter((catchItem) => catchItem.setupLineId === gearItem.id && catchItem.setupLineTarget !== "cheater")
     .reduce((sum, catchItem) => sum + fishCount(catchItem), 0);
-  const lost = (trip.lostFish || []).filter((fishItem) => fishItem.setupLineId === gearItem.id).length;
+  const lost = (trip.lostFish || [])
+    .filter((fishItem) => fishItem.setupLineId === gearItem.id && fishItem.setupLineTarget !== "cheater")
+    .length;
   return { fish, lost };
 }
 
-function spreadPresentationDistance(gearItem) {
-  const presentation = gearItem.presentation || "";
-  if (presentation === "flatline-leadcore") return "wide";
-  if (presentation === "dipsey-diver") return "mid";
-  return "straight";
+function setupLineCheaterFishCount(trip, gearItem) {
+  return (trip.catches || [])
+    .filter((catchItem) => catchItem.setupLineId === gearItem.id && catchItem.setupLineTarget === "cheater")
+    .reduce((sum, catchItem) => sum + fishCount(catchItem), 0);
 }
 
-function spreadPresentationRank(gearItem) {
-  const distance = spreadPresentationDistance(gearItem);
-  if (distance === "wide") return 0;
-  if (distance === "mid") return 1;
-  if (gearItem.presentation === "downrigger") return 2;
-  if (gearItem.presentation === "cheater") return 3;
-  return 4;
-}
-
-function normalizeSpreadSide(gearItem) {
-  if (["port", "center", "starboard"].includes(gearItem.side)) return gearItem.side;
-  if (["downrigger", "cheater"].includes(gearItem.presentation)) return "center";
-  return "starboard";
-}
-
-function spreadLineKind(gearItem) {
-  if (gearItem.presentation === "downrigger") return "downrigger";
-  if (gearItem.presentation === "cheater") return "cheater";
-  return "branch";
-}
-
-function spreadSternSide(gearItem) {
-  const side = normalizeSpreadSide(gearItem);
-  return side === "port" || side === "starboard" ? side : "center";
-}
-
-function spreadBranchSide(gearItem) {
-  return normalizeSpreadSide(gearItem) === "port" ? "port" : "starboard";
-}
-
-function spreadSternStart(side) {
-  if (side === "port") return { x: 494, y: 209 };
-  if (side === "starboard") return { x: 494, y: 271 };
-  return { x: 536, y: 240 };
-}
-
-function spreadBranchAnchor(side) {
-  if (side === "port") return { x: 350, y: 176 };
-  return { x: 350, y: 304 };
-}
-
-function spreadBranchPoint(side, laneY) {
-  const anchor = spreadBranchAnchor(side);
-  return { x: anchor.x + Math.abs(anchor.y - laneY), y: laneY };
-}
-
-function spreadSternLaneYs(side, count) {
-  if (!count) return [];
-  if (side === "center") {
-    const middle = 240;
-    const step = 34;
-    const offset = ((count - 1) * step) / 2;
-    return Array.from({ length: count }, (_, index) => middle - offset + step * index);
-  }
-  const zones = {
-    port: { start: 206, step: -26 },
-    starboard: { start: 274, step: 26 }
-  };
-  const zone = zones[side] || { start: 240, step: 34 };
-  return Array.from({ length: count }, (_, index) => zone.start + zone.step * index);
-}
-
-function spreadBranchLaneYs(side, count) {
-  if (!count) return [];
-  const zones = {
-    port: { start: 66, step: 46 },
-    starboard: { start: 474, step: -46 }
-  };
-  const zone = zones[side];
-  return Array.from({ length: count }, (_, index) => zone.start + zone.step * index);
-}
-
-function buildSpreadLayouts(trip, lines) {
-  const branchGroups = { port: [], starboard: [] };
-  const downriggerGroups = { port: [], center: [], starboard: [] };
-  const cheaterGroups = { port: [], center: [], starboard: [] };
-  lines.forEach((gearItem, originalIndex) => {
-    const kind = spreadLineKind(gearItem);
-    if (kind === "branch") {
-      const side = spreadBranchSide(gearItem);
-      branchGroups[side].push({ gearItem, originalIndex, side, kind });
-      return;
-    }
-    const side = spreadSternSide(gearItem);
-    const group = kind === "cheater" ? cheaterGroups : downriggerGroups;
-    group[side].push({ gearItem, originalIndex, side, kind });
-  });
-
-  [...Object.values(branchGroups), ...Object.values(downriggerGroups), ...Object.values(cheaterGroups)].forEach((group) => {
-    group.sort((a, b) => (
-      spreadPresentationRank(a.gearItem) - spreadPresentationRank(b.gearItem) ||
-      a.originalIndex - b.originalIndex
-    ));
-  });
-
-  const layouts = [];
-  const spreaders = [];
-  const labelX = 732;
-  const lineEndX = labelX - 24;
-  const downriggerBySide = {};
-
-  ["port", "starboard"].forEach((side) => {
-    const laneYs = spreadBranchLaneYs(side, branchGroups[side].length);
-    if (branchGroups[side].length) {
-      const anchor = spreadBranchAnchor(side);
-      const end = spreadBranchPoint(side, laneYs[0]);
-      spreaders.push({ side, path: `M ${anchor.x} ${anchor.y} L ${end.x} ${end.y}` });
-    }
-    branchGroups[side].forEach((item, index) => {
-      const laneY = laneYs[index];
-      const branch = spreadBranchPoint(side, laneY);
-      layouts.push({
-        ...item,
-        laneY,
-        labelY: laneY,
-        path: `M ${branch.x} ${branch.y} L ${lineEndX} ${laneY}`,
-        marker: branch,
-        labelX,
-        lineEndX,
-        counts: setupLineCounts(trip, item.gearItem)
-      });
-    });
-  });
-
-  ["port", "center", "starboard"].forEach((side) => {
-    const laneYs = spreadSternLaneYs(side, downriggerGroups[side].length);
-    downriggerGroups[side].forEach((item, index) => {
-      const start = spreadSternStart(side);
-      const laneY = laneYs[index];
-      const layout = {
-        ...item,
-        start,
-        laneY,
-        labelY: laneY,
-        path: `M ${start.x} ${start.y} L ${lineEndX} ${laneY}`,
-        marker: { x: lineEndX, y: laneY },
-        labelX,
-        lineEndX,
-        counts: setupLineCounts(trip, item.gearItem)
-      };
-      downriggerBySide[side] = downriggerBySide[side] || layout;
-      layouts.push(layout);
-    });
-  });
-
-  ["port", "center", "starboard"].forEach((side) => {
-    const laneYs = spreadSternLaneYs(side, cheaterGroups[side].length);
-    cheaterGroups[side].forEach((item, index) => {
-      const parent = downriggerBySide[side];
-      const start = parent?.start || spreadSternStart(side);
-      const laneY = parent?.laneY || laneYs[index] || start.y;
-      const endX = parent?.lineEndX || lineEndX;
-      const marker = { x: start.x + (endX - start.x) * 0.5, y: start.y + (laneY - start.y) * 0.5 };
-      layouts.push({
-        ...item,
-        start,
-        laneY,
-        labelY: marker.y - 12,
-        path: `M ${marker.x - 18} ${marker.y} L ${marker.x + 18} ${marker.y}`,
-        marker,
-        labelX: marker.x + 14,
-        lineEndX: endX,
-        counts: setupLineCounts(trip, item.gearItem)
-      });
-    });
-  });
-
-  return { layouts, spreaders };
-}
-
-function spreadLineTitle(gearItem) {
-  return [setupLineSideLabel(normalizeSpreadSide(gearItem)), presentationLabel(gearItem.presentation) || "Setup"].filter(Boolean).join(" ");
-}
-
-function spreadCountText(counts) {
-  return `${counts.fish} fish${counts.lost ? ` Â· ${counts.lost} lost` : ""}`;
-}
-
-function truncateSpreadText(value, maxLength = 34) {
-  const text = String(value || "");
-  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
-}
-
-function wrapSpreadText(value, maxLength = 28, maxLines = 3) {
-  const text = String(value || "").trim();
-  if (!text) return [];
-  const words = text.split(/\s+/);
-  const lines = [];
-  let current = "";
-  words.forEach((word) => {
-    const candidate = current ? `${current} ${word}` : word;
-    if (candidate.length <= maxLength) {
-      current = candidate;
-      return;
-    }
-    if (current) lines.push(current);
-    current = word;
-  });
-  if (current) lines.push(current);
-  if (lines.length <= maxLines) return lines;
-  const visible = lines.slice(0, maxLines);
-  visible[maxLines - 1] = truncateSpreadText(visible[maxLines - 1], maxLength);
-  return visible;
-}
-
-function renderTrollingSpread(trip) {
-  if (!isTrollingTripRecord(trip)) return "";
-  const lines = (trip.gearUsed || []).filter((gearItem) => gearItem.lureId || gearItem.flasherId || gearItem.presentation);
-  if (!lines.length) return `<div class="empty-state compact-empty"><p>No trolling setup lines logged.</p></div>`;
-
-  const spreadPlan = buildSpreadLayouts(trip, lines);
-  const layouts = spreadPlan.layouts;
-  const renderedSpreaders = spreadPlan.spreaders.map((spreader) => (
-    `<path class="spread-side-spreader spread-${escapeHtml(spreader.side)}" d="${spreader.path}" />`
-  )).join("");
-  const renderedLines = layouts.map((layout) => {
-    const gear = gearComboName(layout.gearItem.lureId, layout.gearItem.flasherId) || "No gear logged";
-    const labelLines = wrapSpreadText(spreadLineTitle(layout.gearItem), 24, 3);
-    const detailLines = wrapSpreadText(`${gear} · ${spreadCountText(layout.counts)}`, 34, 3);
-    return `
-      <g class="spread-line spread-${escapeHtml(layout.side)} spread-${escapeHtml(layout.kind)}">
-        <path d="${layout.path}" />
-        <circle cx="${layout.marker.x}" cy="${layout.marker.y}" r="5" />
-        <text x="${layout.labelX}" y="${layout.labelY - 16}" text-anchor="start" class="spread-line-label">
-          ${labelLines.map((line, index) => `<tspan x="${layout.labelX}" dy="${index === 0 ? 0 : 16}">${escapeHtml(line)}</tspan>`).join("")}
-        </text>
-        <text x="${layout.labelX}" y="${layout.labelY + 28}" text-anchor="start" class="spread-line-detail">
-          ${detailLines.map((line, index) => `<tspan x="${layout.labelX}" dy="${index === 0 ? 0 : 14}">${escapeHtml(line)}</tspan>`).join("")}
-        </text>
-      </g>
-    `;
-  }).join("");
-
-  const detailList = layouts.map((layout) => {
-    const gear = gearComboName(layout.gearItem.lureId, layout.gearItem.flasherId) || "No gear logged";
-    return `
-      <article class="spread-detail-card">
-        <strong>${escapeHtml(setupLineDisplayLabel(trip, layout.gearItem))}</strong>
-        <span>${escapeHtml([gear, spreadCountText(layout.counts)].filter(Boolean).join(" · "))}</span>
-      </article>
-    `;
-  }).join("");
-
-  return `
-    <div class="spread-diagram-wrap">
-      <svg class="spread-diagram" viewBox="0 0 1200 520" role="img" aria-label="Trolling spread diagram">
-        <defs>
-          <linearGradient id="boatHull" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0" stop-color="#f8fbfd" />
-            <stop offset="0.55" stop-color="#ffffff" />
-            <stop offset="1" stop-color="#dbe7ef" />
-          </linearGradient>
-        </defs>
-        <rect class="spread-water" x="0" y="0" width="1200" height="520" rx="28" />
-        <g class="spread-boat">
-          <path class="spread-hull" d="M92 240 C134 184 204 152 292 150 L440 150 C475 150 498 174 498 209 L498 271 C498 306 475 330 440 330 L292 330 C204 328 134 296 92 240 Z" />
-          <path class="spread-rub-rail" d="M128 240 C168 198 224 176 294 176 L430 176 C448 176 462 190 462 209 L462 271 C462 290 448 304 430 304 L294 304 C224 304 168 282 128 240 Z" />
-          <path class="spread-bow-deck" d="M152 240 C188 210 230 196 284 196 L284 284 C230 284 188 270 152 240 Z" />
-          <rect class="spread-cockpit" x="302" y="184" width="94" height="112" rx="14" />
-          <rect class="spread-console" x="338" y="206" width="36" height="68" rx="9" />
-          <path class="spread-transom" d="M462 194 L494 209 L494 271 L462 286 Z" />
-          <rect class="spread-motor" x="504" y="212" width="42" height="56" rx="10" />
-          <circle class="spread-bow-eye" cx="124" cy="240" r="10" />
-          <line x1="284" y1="176" x2="284" y2="304" class="spread-seat-line" />
-          <line x1="408" y1="176" x2="408" y2="304" class="spread-seat-line" />
-        </g>
-        ${renderedSpreaders}
-        ${renderedLines}
-      </svg>
-    </div>
-    <div class="spread-detail-list">
-      ${detailList}
-    </div>
-  `;
-}
 function timelineTimeValue(time) {
   if (!time) return 9999;
   const [hours = "0", minutes = "0"] = String(time).split(":");
@@ -1175,9 +901,10 @@ function timelineEventPhoto(photos = [], options = {}) {
 
 function timelineEventHeader(item) {
   const timeLabel = item.time ? formatTimelineDisplayTime(item.time) : timelineTimeLabel(item);
+  const typeLabel = item.type === "Lost" ? "Lost Fish" : item.type;
   return `
     <div class="event-header">
-      <p class="event-kicker">${escapeHtml([item.type.toUpperCase(), timeLabel].filter(Boolean).join(" Â· "))}</p>
+      <p class="event-kicker">${escapeHtml([typeLabel.toUpperCase(), timeLabel].filter(Boolean).join(" \u00b7 "))}</p>
       <h4 class="event-title">${escapeHtml(item.title || item.type)}</h4>
       ${item.summary ? `<p class="event-summary">${escapeHtml(item.summary)}</p>` : ""}
     </div>
@@ -1246,7 +973,7 @@ function tripTimelineItems(trip) {
       setupLabel,
       record.depthDown ? `${record.depthDown} down` : "",
       waterDepth ? `${waterDepth} water` : ""
-    ].filter(Boolean).join(" Â· ");
+    ].filter(Boolean).join(" \u00b7 ");
     const chips = [
       lure,
       speed ? `Speed ${speed}` : "",
@@ -1340,7 +1067,7 @@ function timelineSetupRows(rows = []) {
             <p class="setup-row-title">${escapeHtml(row.position || row.rod || row.rodReel || "Not logged")}</p>
             <span class="setup-action">${escapeHtml(row.action)}</span>
           </div>
-          <p class="setup-row-meta">${escapeHtml([row.presentation || "Setup", [row.startTime, row.endTime].filter(Boolean).join(" to ") || "Time not logged"].filter(Boolean).join(" Â· "))}</p>
+          <p class="setup-row-meta">${escapeHtml([row.presentation || "Setup", [row.startTime, row.endTime].filter(Boolean).join(" to ") || "Time not logged"].filter(Boolean).join(" \u00b7 "))}</p>
           <p class="setup-row-note">${escapeHtml(row.lure || "No lure logged")}</p>
         </article>
       `).join("")}

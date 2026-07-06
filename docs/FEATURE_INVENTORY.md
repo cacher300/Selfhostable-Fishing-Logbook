@@ -117,13 +117,11 @@ Status vocabulary:
 |---|---|---|---|---|---|---|---|---|---|
 | D01 | JSON export | Download normalized logbook data; uploaded binaries are excluded. | Implemented | Settings > Export JSON | Server data file | `data-transfer.js`, `server.py` | Entire logbook | GET `/api/export` | Settings |
 | D02 | JSON import | Parse, minimally shape-check, normalize, persist, and rerender imported data. | Implemented / Partial | Settings > Import JSON | Browser file reader; weak deep validation | `data-transfer.js`, `app-state.js` | Entire logbook | PUT `/api/logbook` | Settings |
-| D03 | Local/NAS backup | Portable opt-in script for monthly JSON backup plus uploads mirror, local retention, and optional mounted path or SSH/rsync/scp target. | Implemented; host verification required | Shell script | POSIX tools, SSH/rsync optional | `scripts/backup-logbook.sh` | Data file + uploads | None | None |
-| D04 | Nightly backup installation | Explicit `--install-cron` action installs a configurable schedule, defaulting to 03:00, and replaces an existing entry for the script. | Implemented; host verification required | Backup script | `crontab` | `scripts/backup-logbook.sh` | Filesystem | None | None |
-| D05 | Docker launch lifecycle | Stop old/current containers, rebuild, and launch Compose without running or scheduling backups. | Implemented; host verification required | `launch-container.sh` | Docker Compose | Launcher/Compose files | Mounted `./data` | Port 80→8080 | None |
-| D06 | Location referential deletion guard | Refuse to delete locations/launches still used by trips. | Implemented | Settings manager delete buttons | Name/ID matching | `locations.js` | Trips/locations | PUT `/api/logbook` | Settings |
-| D07 | Gear referential cleanup | Deleting gear clears references from combos/trips/catches where coded. | Implemented | Gear delete actions | Client-side cascading updates | `gear.js` | Gear and nested IDs | PUT `/api/logbook` | Gear |
-| D08 | Moderation tools | No shared content, reports, bans, review queue, or moderation role. | Not implemented | None | — | — | — | — | — |
-| D09 | Administrative console | No admin-only screen or privileged API. Settings and cleanup are available to every visitor. | Not implemented | None | — | — | — | — | — |
+| D03 | Docker launch lifecycle | Stop old/current containers, rebuild, and launch Compose. | Implemented; host verification required | `launch-container.sh` | Docker Compose | Launcher/Compose files | Mounted `./data` | Port 80→8080 | None |
+| D04 | Location referential deletion guard | Refuse to delete locations/launches still used by trips. | Implemented | Settings manager delete buttons | Name/ID matching | `locations.js` | Trips/locations | PUT `/api/logbook` | Settings |
+| D05 | Gear referential cleanup | Deleting gear clears references from combos/trips/catches where coded. | Implemented | Gear delete actions | Client-side cascading updates | `gear.js` | Gear and nested IDs | PUT `/api/logbook` | Gear |
+| D06 | Moderation tools | No shared content, reports, bans, review queue, or moderation role. | Not implemented | None | — | — | — | — | — |
+| D07 | Administrative console | No admin-only screen or privileged API. Settings and cleanup are available to every visitor. | Not implemented | None | — | — | — | — | — |
 
 ## Technical Features, Integrations, and Hidden Capabilities
 
@@ -140,7 +138,7 @@ Status vocabulary:
 | T09 | Route-based initial view | Direct SPA routes select the matching initial view. In-page navigation does not update the URL and no `popstate` handler exists. | Partial | Direct URL or primary nav | `window.location.pathname` | `app.js` | None | Page routes | Six screens |
 | T10 | Responsive/mobile layout | Reflow navigation, tables, dialogs, sidebar summary, maps, and settings for narrower screens. No native/PWA install exists. | Implemented | CSS media queries | Browser viewport | `styles.css`, `app.js` | None | None | All |
 | T11 | No-store responses | Add `Cache-Control: no-store` to every Flask response. | Implemented | Automatic | Flask response hook | `server.py` | None | All server routes | All |
-| T12 | Environment configuration | Configure bind host/port and backup paths/target/key/retention through environment variables. | Implemented | Process/shell environment | Host process | `backend_config.py`, scripts, Compose | None | None | None |
+| T12 | Environment configuration | Configure bind host/port through environment variables. | Implemented | Process/shell environment | Host process | `backend_config.py`, scripts, Compose | None | None | None |
 | T13 | Backend bulk weather refresh | Refresh every trip with request caching and per-trip error continuation. No route, CLI, schedule, or caller exposes it. | Hidden / Incomplete | Code only | External weather APIs | `weather_service.py` | Mutates all trip weather | None | None |
 | T14 | Removed Pattern Finder residue | Pattern Finder JS/view was removed, but README claims it and `.patterns-*` CSS remains. | Deprecated | No entry point | Git history confirms removal | `README.md`, `styles.css` | None | None | None |
 | T15 | Deprecated `tripTypes` cleanup | Both normalizers delete a legacy `tripTypes` property. | Hidden / Deprecated | Automatic normalization | Legacy imported JSON | `app-state.js`, `logbook_store.py` | Removes top-level field | GET/PUT logbook | None |
@@ -150,7 +148,18 @@ Status vocabulary:
 
 ## Inventory Totals
 
-- Verified implemented, partial, hidden, or deprecated capabilities: **94**.
+- Verified implemented, partial, hidden, or deprecated capabilities: **92**.
+- Core fishing workflow capabilities: **32**.
+- Media, map, and environmental capabilities: **15**.
+- Analytics capabilities counted: **20** (excluding two explicitly absent reports).
+- User/preferences capabilities counted: **5**.
+- Administrative/data-management capabilities counted: **7**.
+- Technical capabilities counted: **15**.
+
+These six mutually exclusive sections total 92. ?Not implemented? rows are retained for audit completeness but excluded from the feature count.
+## Inventory Totals
+
+- Verified implemented, partial, hidden, or deprecated capabilities: **92**.
 - Core fishing workflow capabilities: **32**.
 - Media, map, and environmental capabilities: **15**.
 - Analytics capabilities counted: **20** (excluding two explicitly absent reports).

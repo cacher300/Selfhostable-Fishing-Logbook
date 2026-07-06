@@ -339,11 +339,49 @@ function openLureDialog(lure = null, pendingRowId = "") {
   setValue("editingLureId", lure?.id || "");
   setValue("lureName", lure?.name || "");
   setValue("lureType", lure?.type || "");
+  setValue("lureDivingDepth", lure?.divingDepth || "");
+  updateLureDivingDepthField();
   setValue("lureBrand", lure?.brand || "");
   setValue("lureColor", lure?.color || "");
+  document.querySelector("#lureGlow").checked = Boolean(lure?.glow);
   setValue("lureNotes", lure?.notes || "");
   els.deleteLureButton.classList.toggle("hidden", !editing);
   els.lureDialog.showModal();
+}
+
+function openLureInfoDialog(lure, pendingRowId = "") {
+  if (!lure) return;
+  prepareInlineGearDialog("lureInfo", pendingRowId);
+  const stats = baitStats("lure", lure.id);
+  const hasDivingDepth = ["crankbait", "jerkbait"].includes(lure.type?.toLowerCase());
+  const details = [
+    ["Type", lure.type],
+    ["Diving depth", hasDivingDepth ? lure.divingDepth : ""],
+    ["Brand / model", lure.brand],
+    ["Color", lure.color],
+    ["Glow", lure.glow ? "Yes" : "No"],
+    ["Fish caught", stats.landed],
+    ["Fish lost", stats.lost],
+    ["Trips used", stats.trips],
+    ["Last used", stats.lastUsed]
+  ].filter(([, value]) => value !== "" && value !== null && value !== undefined);
+  document.querySelector("#lureInfoTitle").textContent = lure.name || "Lure";
+  els.lureInfoDialog.dataset.lureId = lure.id;
+  els.lureInfoContent.innerHTML = `
+    ${lure.image ? `<div class="lure-info-media">${mediaMarkup(lure)}</div>` : ""}
+    <dl class="lure-info-list">
+      ${details.map(([label, value]) => `
+        <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>
+      `).join("")}
+    </dl>
+    ${lure.notes ? `<div class="lure-info-notes"><strong>Notes</strong><p>${escapeHtml(lure.notes)}</p></div>` : ""}
+  `;
+  els.lureInfoDialog.showModal();
+}
+
+function updateLureDivingDepthField() {
+  const hasDivingDepth = ["crankbait", "jerkbait"].includes(getValue("lureType").toLowerCase());
+  document.querySelector("#lureDivingDepthField").classList.toggle("hidden", !hasDivingDepth);
 }
 
 function openFlasherDialog(flasher = null, pendingRowId = "") {
@@ -360,9 +398,38 @@ function openFlasherDialog(flasher = null, pendingRowId = "") {
   setValue("flasherType", flasher?.type || "");
   setValue("flasherBrand", flasher?.brand || "");
   setValue("flasherColor", flasher?.color || "");
+  document.querySelector("#flasherGlow").checked = Boolean(flasher?.glow);
   setValue("flasherNotes", flasher?.notes || "");
   els.deleteFlasherButton.classList.toggle("hidden", !editing);
   els.flasherDialog.showModal();
+}
+
+function openFlasherInfoDialog(flasher, pendingRowId = "") {
+  if (!flasher) return;
+  prepareInlineGearDialog("flasherInfo", pendingRowId);
+  const stats = baitStats("flasher", flasher.id);
+  const details = [
+    ["Type", flasher.type],
+    ["Brand / model", flasher.brand],
+    ["Color", flasher.color],
+    ["Glow", flasher.glow ? "Yes" : "No"],
+    ["Fish caught", stats.landed],
+    ["Fish lost", stats.lost],
+    ["Trips used", stats.trips],
+    ["Last used", stats.lastUsed]
+  ].filter(([, value]) => value !== "" && value !== null && value !== undefined);
+  document.querySelector("#flasherInfoTitle").textContent = flasher.name || "Flasher";
+  els.flasherInfoDialog.dataset.flasherId = flasher.id;
+  els.flasherInfoContent.innerHTML = `
+    ${flasher.image ? `<div class="lure-info-media">${mediaMarkup(flasher)}</div>` : ""}
+    <dl class="lure-info-list">
+      ${details.map(([label, value]) => `
+        <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>
+      `).join("")}
+    </dl>
+    ${flasher.notes ? `<div class="lure-info-notes"><strong>Notes</strong><p>${escapeHtml(flasher.notes)}</p></div>` : ""}
+  `;
+  els.flasherInfoDialog.showModal();
 }
 
 async function saveReel(event) {
@@ -477,8 +544,10 @@ async function saveLure(event) {
       id: editingId || createId(),
       name: getValue("lureName"),
       type: getValue("lureType"),
+      divingDepth: ["crankbait", "jerkbait"].includes(getValue("lureType").toLowerCase()) ? getValue("lureDivingDepth") : "",
       brand: getValue("lureBrand"),
       color: getValue("lureColor"),
+      glow: document.querySelector("#lureGlow").checked,
       notes: getValue("lureNotes"),
       ...imageFields(uploadedImage, existing)
     };
@@ -517,6 +586,7 @@ async function saveFlasher(event) {
       type: getValue("flasherType"),
       brand: getValue("flasherBrand"),
       color: getValue("flasherColor"),
+      glow: document.querySelector("#flasherGlow").checked,
       notes: getValue("flasherNotes"),
       ...imageFields(uploadedImage, existing)
     };

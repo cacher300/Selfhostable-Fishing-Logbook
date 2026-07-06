@@ -440,7 +440,7 @@ function deepestRiggerLabel(record) {
 }
 
 function setupDetailDiagnosticLabel(record) {
-  if (record.presentation === "downrigger") return deepestRiggerLabel(record);
+  if (["downrigger", "Downrigger"].includes(record.presentation)) return deepestRiggerLabel(record);
   return "";
 }
 
@@ -899,8 +899,8 @@ function renderAdvancedStats() {
     directionItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => record.direction, setupLineMinutes, trollingLineHours, fish, trollingLost);
     lineSideItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => setupLineSideLabel(record.side), setupLineMinutes, trollingLineHours, fish, trollingLost);
     setupItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => presentationLabel(record.presentation), setupLineMinutes, trollingLineHours, fish, trollingLost);
-    const downriggerGear = trollingGear.filter((record) => record.presentation === "downrigger");
-    const downriggerCatches = trollingCatches.filter((record) => record.presentation === "downrigger");
+    const downriggerGear = trollingGear.filter((record) => ["downrigger", "Downrigger"].includes(record.presentation));
+    const downriggerCatches = trollingCatches.filter((record) => ["downrigger", "Downrigger"].includes(record.presentation));
     const downriggerHours = downriggerGear.reduce((sum, record) => sum + setupLineMinutes(record), 0) / 60;
     downriggerItems = summarizeEffortWithCatches(
       downriggerGear,
@@ -909,7 +909,7 @@ function renderAdvancedStats() {
       setupLineMinutes,
       downriggerHours,
       fish,
-      trollingLost.filter((record) => record.presentation === "downrigger")
+      trollingLost.filter((record) => ["downrigger", "Downrigger"].includes(record.presentation))
     );
     fowRangeItems = makePerformanceItems(summarizeBy(trollingCatches, (record) => fowRange(record.fowCaught)).map((item) => ({
       name: item.name,

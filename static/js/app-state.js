@@ -52,18 +52,35 @@ const defaultReelStyleOptions = ["Baitcaster", "Spinning", "Centerpin", "Fly"];
 const defaultRodTypeOptions = ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"];
 const defaultLineTypeOptions = ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wire", "Copper", "Other"];
 const defaultTrollingPresentationOptions = [
-  { value: "downrigger", label: "Downrigger" },
-  { value: "cheater", label: "Cheater" },
-  { value: "flatline", label: "Flatline" },
-  { value: "flatline-leadcore", label: "Planer Board / Leadcore" },
-  { value: "dipsey-diver", label: "Dipsey Diver" }
+  { value: "Outside Board", label: "Outside Board" },
+  { value: "Inside Board", label: "Inside Board" },
+  { value: "High Diver", label: "High Diver" },
+  { value: "Low Diver", label: "Low Diver" },
+  { value: "Downrigger", label: "Downrigger" },
+  { value: "Chute Rod", label: "Chute Rod" }
 ];
 const defaultTrollingDirectionOptions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const defaultSetupLineSideOptions = [
-  { value: "port", label: "Port" },
-  { value: "center", label: "Center" },
-  { value: "starboard", label: "Starboard" }
+  { value: "Port", label: "Port" },
+  { value: "Center", label: "Center" },
+  { value: "Starboard", label: "Starboard" }
 ];
+
+function migrateTrollingPresentationValue(value) {
+  const legacyValues = {
+    downrigger: "Downrigger",
+    cheater: "Downrigger",
+    flatline: "Chute Rod",
+    "flatline-leadcore": "Outside Board",
+    "dipsey-diver": "High Diver"
+  };
+  return legacyValues[String(value || "")] || String(value || "");
+}
+
+function migrateSetupLineSideValue(value) {
+  const legacyValues = { port: "Port", center: "Center", starboard: "Starboard" };
+  return legacyValues[String(value || "")] || String(value || "");
+}
 const defaultChopRanges = [
   { id: "calm", label: "Calm", maxFeet: 0.5 },
   { id: "light", label: "Light Chop", maxFeet: 1 },
@@ -264,7 +281,9 @@ let pendingRodImage = null;
 let activeGearTab = "reels";
 const returnToTripDialog = {
   lure: false,
+  lureInfo: false,
   flasher: false,
+  flasherInfo: false,
   reel: false,
   rod: false,
   queue: false,
@@ -433,8 +452,14 @@ const els = {
   personRows: document.querySelector("#personRows"),
   lureDialog: document.querySelector("#lureDialog"),
   lureForm: document.querySelector("#lureForm"),
+  lureInfoDialog: document.querySelector("#lureInfoDialog"),
+  lureInfoContent: document.querySelector("#lureInfoContent"),
+  editLureFromInfoButton: document.querySelector("#editLureFromInfoButton"),
   flasherDialog: document.querySelector("#flasherDialog"),
   flasherForm: document.querySelector("#flasherForm"),
+  flasherInfoDialog: document.querySelector("#flasherInfoDialog"),
+  flasherInfoContent: document.querySelector("#flasherInfoContent"),
+  editFlasherFromInfoButton: document.querySelector("#editFlasherFromInfoButton"),
   reelDialog: document.querySelector("#reelDialog"),
   reelForm: document.querySelector("#reelForm"),
   rodDialog: document.querySelector("#rodDialog"),
@@ -604,9 +629,20 @@ function normalizeState(nextState) {
   ["species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingDirections"].forEach((key) => {
     normalized[key] = normalizeTextOptions(normalized[key], defaults[key]);
   });
-  ["trollingPresentations", "setupLineSides"].forEach((key) => {
-    normalized[key] = normalizeChoiceOptions(normalized[key], defaults[key]);
-  });
+  normalized.trollingPresentations = normalizeChoiceOptions(
+    defaults.trollingPresentations,
+    normalized.trollingPresentations.map((item) => {
+      const value = migrateTrollingPresentationValue(typeof item === "object" ? item.value : item);
+      return { value, label: value };
+    })
+  );
+  normalized.setupLineSides = normalizeChoiceOptions(
+    defaults.setupLineSides,
+    normalized.setupLineSides.map((item) => {
+      const value = migrateSetupLineSideValue(typeof item === "object" ? item.value : item);
+      return { value, label: value };
+    })
+  );
 
   normalized.reels = normalized.reels.map((reel) => ({
     lineHistory: [],
@@ -640,7 +676,17 @@ function normalizeState(nextState) {
         comboId: "",
         rodId: "",
         reelId: "",
-        ...gearItem
+        ...gearItem,
+        side: migrateSetupLineSideValue(gearItem.side),
+        presentation: migrateTrollingPresentationValue(gearItem.presentation)
+      })),
+      catches: (trip.catches || []).map((catchItem) => ({
+        ...catchItem,
+        presentation: migrateTrollingPresentationValue(catchItem.presentation)
+      })),
+      lostFish: (trip.lostFish || []).map((fishItem) => ({
+        ...fishItem,
+        presentation: migrateTrollingPresentationValue(fishItem.presentation)
       })),
       location: location?.name || trip.location || "",
       locationId: location?.id || trip.locationId || "",

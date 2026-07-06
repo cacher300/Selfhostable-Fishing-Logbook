@@ -11,7 +11,7 @@ A private, self-hosted fishing journal built to answer one practical question: *
 - Extracts supported photo/video capture time and GPS metadata for maps and timelines.
 - Enriches mapped trips with Open-Meteo weather/marine data and SunriseSunset.io sun/moon data.
 - Reports dashboard totals and detailed fishing, trolling, gear, condition, and diagnostic analytics.
-- Imports/exports JSON and includes a portable, opt-in local/NAS backup script.
+- Imports/exports JSON.
 
 The complete audited feature list is in [docs/FEATURE_INVENTORY.md](docs/FEATURE_INVENTORY.md). Architecture, data, API, development, gaps, and roadmap documentation live under `docs/`.
 
@@ -44,37 +44,16 @@ export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
 
 Open `http://127.0.0.1`. Docker Compose publishes host port 80 to container port 8080 and mounts `./data:/app/data`.
 
-Building and launching the application does not run or schedule backups.
-
-## Data, Export, and Backup
+## Data and Export
 
 Private data is intentionally ignored by git:
 
 ```text
 data/logbook.json
 data/uploads/
-backups/
 ```
 
-JSON export contains the logbook document and media references, not uploaded binary files. A complete backup must include both `data/logbook.json` and `data/uploads/`.
-
-Run a host-side backup manually:
-
-```sh
-NAS_BACKUP_TARGET='/mnt/nas/fishing-logbook' ./scripts/backup-logbook.sh
-```
-
-The target may also be an SSH destination such as `user@host:/path`. `KEEP_MONTHLY_BACKUPS` defaults to 3; `SSH_KEY_PATH`, `LOGBOOK_DIR`, `DATA_FILE`, `UPLOADS_DIR`, and `LOCAL_BACKUP_DIR` are configurable.
-
-The script is self-contained so it can be moved to a separate repository. After moving it, point `LOGBOOK_DIR` at this application. Scheduling is an explicit administration step:
-
-```sh
-LOGBOOK_DIR='/srv/fishing-logbook' \
-NAS_BACKUP_TARGET='/mnt/nas/fishing-logbook' \
-./backup-logbook.sh --install-cron
-```
-
-This installs a 03:00 cron entry by default. Override the schedule with `BACKUP_CRON_SCHEDULE`; running the app launcher never installs it.
+JSON export contains the logbook document and media references, not uploaded binary files.
 
 ## External Services
 

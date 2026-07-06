@@ -29,6 +29,7 @@ function updateTrollingVisibility() {
     element.classList.toggle("hidden", trolling);
   });
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updatePresentationFields);
+  renderLiveTrollingSpread();
 }
 
 function updatePresentationFields(row) {
@@ -42,24 +43,28 @@ function updatePresentationFields(row) {
   if (!isTrollingTrip()) return;
 
   if (row.classList.contains("gear-used-row")) {
-    if (presentation === "downrigger") {
+    if (presentation === "downrigger" || presentation === "Downrigger") {
       row.querySelector(".param-deepest-rigger")?.classList.add("visible");
+      row.querySelector(".param-cheater")?.classList.add("visible");
+      if (row.querySelector(".trip-gear-cheater")?.checked) {
+        row.querySelector(".param-cheater-lure")?.classList.add("visible");
+      }
     }
     return;
   }
 
-  if (presentation === "downrigger" || presentation === "cheater") {
+  if (["downrigger", "cheater", "Downrigger"].includes(presentation)) {
     row.querySelector(".param-ball-depth")?.classList.add("visible");
   }
   if (presentation === "flatline") {
     row.querySelector(".param-flatline-weight")?.classList.add("visible");
     row.querySelector(".param-estimated-depth")?.classList.add("visible");
   }
-  if (presentation === "flatline-leadcore") {
+  if (["flatline-leadcore", "Outside Board", "Inside Board"].includes(presentation)) {
     row.querySelector(".param-board-line")?.classList.add("visible");
     row.querySelector(".param-lure-depth")?.classList.add("visible");
   }
-  if (presentation === "dipsey-diver") {
+  if (["dipsey-diver", "High Diver", "Low Diver"].includes(presentation)) {
     row.querySelector(".param-dipsey-setting")?.classList.add("visible");
     row.querySelector(".param-line-out")?.classList.add("visible");
     row.querySelector(".param-estimated-depth")?.classList.add("visible");
