@@ -224,6 +224,30 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertTrue(valid, error)
         self.assertEqual(1, logbook_store.normalize_logbook(payload)["schemaVersion"])
 
+    def test_lure_name_is_generated_from_color_brand_and_type(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [
+                    {"id": "lure-1", "name": "", "color": "Blue/Silver", "brand": "Acme", "type": "Spoon"}
+                ],
+                "flashers": [],
+            }
+        )
+        self.assertEqual("Blue/Silver Acme Spoon", normalized["lures"][0]["name"])
+
+    def test_trip_title_is_generated_from_date_and_species(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [{"id": "trip-1", "title": "", "date": "2026-07-07", "targetSpecies": "Walleye"}],
+                "lures": [],
+                "flashers": [],
+            }
+        )
+        self.assertEqual("2026-07-07 Walleye Trip", normalized["trips"][0]["title"])
+
     def test_concurrent_writes_always_leave_complete_json(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             directory_path = Path(directory)

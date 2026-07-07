@@ -262,6 +262,7 @@ const activeStatsFilters = {
 let activeMapSpecies = "All map items";
 let activeTripSummaryMapFilter = "All map items";
 let activeGalleryCategory = "all";
+let brandSpotlightTimer = null;
 let fishMap = null;
 let fishMapMarkers = null;
 let tripSummaryMap = null;

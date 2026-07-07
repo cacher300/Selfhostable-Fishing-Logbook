@@ -167,8 +167,21 @@ function renderStats() {
 }
 
 function renderBrandSpotlight() {
-  const randomSort = () => Math.random() - 0.5;
-  const photos = state.trips
+  if (brandSpotlightTimer) {
+    clearInterval(brandSpotlightTimer);
+    brandSpotlightTimer = null;
+  }
+
+  const shufflePhotos = (items) => {
+    const shuffled = [...items];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    return shuffled;
+  };
+
+  const photos = shufflePhotos(state.trips
     .flatMap((trip) => {
       const tripTitle = trip.title || trip.location || "Trip photo";
       const notePhotos = (trip.notePhotos || []).map((photo) => ({
@@ -185,9 +198,7 @@ function renderBrandSpotlight() {
       })));
       return [...notePhotos, ...catchPhotos];
     })
-    .filter((photo) => photo.image && !isVideoMedia(photo))
-    .sort(randomSort)
-    .slice(0, 8);
+    .filter((photo) => photo.image && !isVideoMedia(photo)));
 
   if (!photos.length) {
     els.brandSpotlight.innerHTML = `
@@ -201,7 +212,7 @@ function renderBrandSpotlight() {
   els.brandSpotlight.innerHTML = `
     <div class="spotlight-slides">
       ${photos.map((photo, index) => `
-        <figure class="spotlight-slide" style="--slide-index:${index}; --slide-count:${photos.length};">
+        <figure class="spotlight-slide ${index === 0 ? "is-active" : ""}">
           ${mediaMarkup(photo)}
           <figcaption>
             <strong>${escapeHtml(photo.spotlightTitle || photo.caption || photo.tripTitle)}</strong>
@@ -211,6 +222,16 @@ function renderBrandSpotlight() {
       `).join("")}
     </div>
   `;
+
+  if (photos.length < 2) return;
+
+  let activeIndex = 0;
+  const slides = [...els.brandSpotlight.querySelectorAll(".spotlight-slide")];
+  brandSpotlightTimer = setInterval(() => {
+    slides[activeIndex]?.classList.remove("is-active");
+    activeIndex = (activeIndex + 1) % slides.length;
+    slides[activeIndex]?.classList.add("is-active");
+  }, 4200);
 }
 
 function renderFilters() {
@@ -418,15 +439,15 @@ function renderTrips() {
   els.sortSelect.value = sortValue;
   els.tripTable.innerHTML = `
     <div class="table-row header">
+      ${tripHeaderSortButton("date", "Date")}
       ${tripHeaderSortButton("location", "Location")}
       ${tripHeaderSortButton("launch", "Launch")}
       ${tripHeaderSortButton("title", "Title")}
-      ${tripHeaderSortButton("date", "Date")}
-      ${tripHeaderSortButton("hours", "Hours")}
-      ${tripHeaderSortButton("caught", "Caught")}
-      ${tripHeaderSortButton("catchRate", "Catch Rate")}
-      ${tripHeaderSortButton("method", "Method")}
       ${tripHeaderSortButton("target", "Target")}
+      ${tripHeaderSortButton("method", "Method")}
+      ${tripHeaderSortButton("hours", "Hours")}
+      ${tripHeaderSortButton("caught", "Fish")}
+      ${tripHeaderSortButton("catchRate", "Rate")}
       <span></span>
     </div>
   `;
@@ -435,21 +456,21 @@ function renderTrips() {
     const row = document.createElement("div");
     row.className = "table-row";
     row.innerHTML = `
+      <span>${formatDate(trip.date)}</span>
       <button class="location-link" type="button" data-view-trip="${trip.id}">
         ${escapeHtml(trip.location)}
       </button>
       <span>${escapeHtml(trip.launch || "")}</span>
       <span>${escapeHtml(trip.title || "")}</span>
-      <span>${formatDate(trip.date)}</span>
-      <span>${trimNumber(tripHours(trip))}</span>
-      <span>${totalCaught(trip)}</span>
-      <span>${trimNumber(catchRate(trip))}</span>
-      <span class="method-pill">${escapeHtml(trip.method || "Unknown")}</span>
       <span class="trip-pill-stack">
         <span class="target-pill">${escapeHtml(trip.targetSpecies)}</span>
         <span class="intent-pill ${tripIntent(trip) === "experimental" ? "experimental" : ""}">${escapeHtml(intentLabel(tripIntent(trip)))}</span>
         <span class="rating-pill ${escapeHtml(tripRatingClass(tripRatingValue(trip)))}">${escapeHtml(tripRatingLabel(tripRatingValue(trip)))}</span>
       </span>
+      <span class="method-pill">${escapeHtml(trip.method || "Unknown")}</span>
+      <span>${trimNumber(tripHours(trip))}</span>
+      <span>${totalCaught(trip)}</span>
+      <span>${trimNumber(catchRate(trip))}</span>
       <button class="row-button" type="button" data-view-trip="${trip.id}" aria-label="Open trip">&gt;</button>
     `;
     els.tripTable.append(row);

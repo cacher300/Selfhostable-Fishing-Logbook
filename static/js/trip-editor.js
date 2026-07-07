@@ -67,11 +67,19 @@ function tripSaveWarnings() {
 
   document.querySelectorAll(".catch-row").forEach((row) => {
     const label = fishRowLabel(row);
+    const speciesField = row.classList.contains("lost-fish-row")
+      ? row.querySelector(".catch-possible-species")
+      : row.querySelector(".catch-species");
     if (!row.querySelector(".catch-person")?.value) warnings.push(`${label} has no person selected.`);
+    if (!speciesField?.value.trim()) warnings.push(`${label} has no species selected.`);
     if (!row.querySelector(".catch-time")?.value) warnings.push(`${label} has no time.`);
     if (trolling && !row.querySelector(".catch-setup-line")?.value) warnings.push(`${label} has no rod selected.`);
   });
   return warnings;
+}
+
+function generatedTripTitle(trip) {
+  return [trip?.date, trip?.targetSpecies ? `${trip.targetSpecies} Trip` : "Trip"].filter(Boolean).join(" ");
 }
 
 function confirmTripSaveWarnings() {
@@ -125,7 +133,6 @@ function openTripDialog(trip = null) {
   (trip?.gearUsed || []).forEach(addTripGearRow);
   (trip?.catches || []).forEach(addCatchRow);
   (trip?.lostFish || []).forEach(addLostFishRow);
-  if (!trip?.catches?.length) addCatchRow();
   populateSetupLineSelects();
   updateTrollingVisibility();
   renderLiveTrollingSpread();
@@ -736,6 +743,7 @@ async function saveTrip(event) {
 
   try {
     let trip = collectTripFromForm();
+    trip.title = trip.title || generatedTripTitle(trip);
     state.people = mergePeople(state.people, trip.people);
     state.locations = mergeLocations(state.locations, [trip.location]);
     const usedPersonIds = new Set([

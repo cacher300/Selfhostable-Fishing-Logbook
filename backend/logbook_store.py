@@ -102,6 +102,24 @@ def normalize_logbook(payload: dict | None = None) -> dict:
     for key in ("trollingPresentations", "setupLineSides"):
         clean_choice_options(key)
 
+    for lure in normalized["lures"]:
+        if not isinstance(lure, dict):
+            continue
+        name = str(lure.get("name") or "").strip()
+        if name:
+            lure["name"] = name
+            continue
+        generated_name = " ".join(
+            value
+            for value in (
+                str(lure.get("color") or "").strip(),
+                str(lure.get("brand") or "").strip(),
+                str(lure.get("type") or "").strip(),
+            )
+            if value
+        )
+        lure["name"] = generated_name or "Unnamed Lure"
+
     known_people = {
         person.get("id"): person
         for person in normalized["people"]
@@ -202,6 +220,15 @@ def normalize_logbook(payload: dict | None = None) -> dict:
     for trip in normalized["trips"]:
         if not isinstance(trip, dict):
             continue
+        title = str(trip.get("title") or "").strip()
+        if title:
+            trip["title"] = title
+        else:
+            date = str(trip.get("date") or "").strip()
+            species = str(trip.get("targetSpecies") or "").strip()
+            trip["title"] = " ".join(
+                value for value in (date, f"{species} Trip" if species else "Trip") if value
+            )
         location_name = str(trip.get("location", "")).strip()
         location_id = str(trip.get("locationId", "")).strip()
         location_record = next((item for item in normalized["locations"] if item["id"] == location_id), None)

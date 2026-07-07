@@ -13,6 +13,10 @@ function gearDisplayName(item, fallback = "Gear") {
   return item?.shortName || item?.name || [item?.brand, item?.name].filter(Boolean).join(" ") || fallback;
 }
 
+function generatedLureName(lure) {
+  return [lure?.color, lure?.brand, lure?.type].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
+}
+
 function rodName(id) {
   if (!id) return "";
   return gearDisplayName(state.rods.find((rod) => rod.id === id), "");
@@ -551,6 +555,7 @@ async function saveLure(event) {
       notes: getValue("lureNotes"),
       ...imageFields(uploadedImage, existing)
     };
+    lure.name = lure.name || generatedLureName(lure) || "Unnamed Lure";
     const lureIndex = state.lures.findIndex((item) => item.id === lure.id);
     if (lureIndex >= 0) state.lures[lureIndex] = lure;
     else state.lures.push(lure);
