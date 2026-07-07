@@ -373,14 +373,6 @@ document.addEventListener("click", (event) => {
     deleteQueuedPhoto(deleteQueuedPhotoButton.dataset.deleteQueuedPhoto);
   }
 
-  const deleteOrphanMediaButton = event.target.closest("[data-delete-orphan-media]");
-  if (deleteOrphanMediaButton) {
-    deleteOrphanMedia(
-      deleteOrphanMediaButton.dataset.deleteOrphanCategory,
-      deleteOrphanMediaButton.dataset.deleteOrphanMedia
-    );
-  }
-
   const editManagedLocation = event.target.closest("[data-edit-managed-location]");
   if (editManagedLocation) {
     openLocationDialog("location", editManagedLocation.dataset.editManagedLocation);

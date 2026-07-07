@@ -448,7 +448,6 @@ function renderTrips() {
       ${tripHeaderSortButton("hours", "Hours")}
       ${tripHeaderSortButton("caught", "Fish")}
       ${tripHeaderSortButton("catchRate", "Rate")}
-      <span></span>
     </div>
   `;
 
@@ -471,7 +470,6 @@ function renderTrips() {
       <span>${trimNumber(tripHours(trip))}</span>
       <span>${totalCaught(trip)}</span>
       <span>${trimNumber(catchRate(trip))}</span>
-      <button class="row-button" type="button" data-view-trip="${trip.id}" aria-label="Open trip">&gt;</button>
     `;
     els.tripTable.append(row);
   });

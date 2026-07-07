@@ -639,7 +639,7 @@ textarea[aria-invalid="true"] {
 
 .table-row {
   display: grid;
-  grid-template-columns: minmax(96px, 0.8fr) minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(88px, 0.78fr) minmax(58px, 0.52fr) minmax(66px, 0.58fr) minmax(78px, 0.7fr) 34px;
+  grid-template-columns: minmax(96px, 0.8fr) minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(88px, 0.78fr) minmax(58px, 0.52fr) minmax(66px, 0.58fr) minmax(78px, 0.7fr);
   align-items: center;
   gap: 14px;
   min-height: 64px;
@@ -729,7 +729,7 @@ textarea[aria-invalid="true"] {
   min-width: 0;
   color: var(--text);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4900,7 +4900,7 @@ textarea[aria-invalid="true"] {
   }
 
   .table-row {
-    grid-template-columns: 1fr 0.9fr 1fr 70px 42px;
+    grid-template-columns: 1fr 0.9fr 1fr 70px;
   }
 
   .table-row > :nth-child(4),
@@ -5193,7 +5193,7 @@ textarea[aria-invalid="true"] {
   }
 
   .table-row {
-    grid-template-columns: 1fr 1fr 44px;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
 

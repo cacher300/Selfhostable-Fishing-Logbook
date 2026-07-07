@@ -172,3 +172,9 @@ def orphaned_upload_items() -> list[dict]:
     return items
 
 
+def cleanup_orphaned_uploads() -> int:
+    items = orphaned_upload_items()
+    for item in items:
+        delete_upload_file(item["category"], item["filename"], item)
+    return len(items)
+

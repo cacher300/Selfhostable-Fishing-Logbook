@@ -4,10 +4,9 @@ import json
 import uuid
 from pathlib import Path
 
-from flask import Flask, Response, abort, jsonify, redirect, request, send_file, send_from_directory
+from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
-from werkzeug.wrappers import Response as WerkzeugResponse
 
 from backend.backend_config import (
     ALLOWED_MEDIA_EXTENSIONS,
@@ -33,7 +32,7 @@ from backend.request_security import configure_request_security, csrf_token
 from backend.media_service import (
     create_upload_preview,
     delete_upload_file,
-    orphaned_upload_items,
+    cleanup_orphaned_uploads,
     read_upload_metadata,
     referenced_uploads,
     upload_category_path,
@@ -92,6 +91,7 @@ def create_app(config: dict | None = None) -> Flask:
             return jsonify({"error": error}), 400
 
         write_logbook(normalize_logbook(payload))
+        cleanup_orphaned_uploads()
         return jsonify({"ok": True})
 
     @app.get("/api/weather/archive")
@@ -176,7 +176,7 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.get("/api/orphaned-media")
     def list_orphaned_media() -> Response:
-        return jsonify({"media": orphaned_upload_items()})
+        return jsonify({"media": [], "deleted": cleanup_orphaned_uploads()})
 
     @app.delete("/api/uploads/<category>/<filename>")
     def delete_upload(category: str, filename: str) -> tuple[Response, int] | Response:
@@ -265,9 +265,6 @@ def create_app(config: dict | None = None) -> Flask:
         return "", 204
 
     @app.get("/")
-    def index() -> WerkzeugResponse:
-        return redirect("/trips")
-
     @app.get("/trips")
     @app.get("/stats")
     @app.get("/map")

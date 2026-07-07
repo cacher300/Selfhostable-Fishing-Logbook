@@ -474,8 +474,6 @@ const els = {
   galleryCategoryFilter: document.querySelector("#galleryCategoryFilter"),
   galleryStatus: document.querySelector("#galleryStatus"),
   galleryGrid: document.querySelector("#galleryGrid"),
-  orphanMediaStatus: document.querySelector("#orphanMediaStatus"),
-  orphanMediaGrid: document.querySelector("#orphanMediaGrid"),
   gearTabs: document.querySelector("#gearTabs"),
   gearTabPanels: document.querySelector("#gearTabPanels"),
   reelInventoryTable: document.querySelector("#reelInventoryTable"),
