@@ -454,9 +454,10 @@ function renderTrips() {
   trips.forEach((trip) => {
     const row = document.createElement("div");
     row.className = "table-row";
+    row.dataset.viewTrip = trip.id;
     row.innerHTML = `
       <span>${formatDate(trip.date)}</span>
-      <button class="location-link" type="button" data-view-trip="${trip.id}">
+      <button class="location-link" type="button">
         ${escapeHtml(trip.location)}
       </button>
       <span>${escapeHtml(trip.launch || "")}</span>

@@ -690,6 +690,7 @@ textarea[aria-invalid="true"] {
 
 .table-row:not(.header):hover {
   background: #f8fafb;
+  cursor: pointer;
 }
 
 .location-link {
