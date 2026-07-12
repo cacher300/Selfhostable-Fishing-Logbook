@@ -1638,9 +1638,11 @@ textarea[aria-invalid="true"] {
 }
 
 .gear-used-row .param-leadcore {
-  grid-column: 3 / 5;
+  grid-column: 3 / 4;
   grid-row: 5;
   align-self: end;
+  width: max-content;
+  min-width: 150px;
 }
 
 .gear-used-row .param-cheater-lure {

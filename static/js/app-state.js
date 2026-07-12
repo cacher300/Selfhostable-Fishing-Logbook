@@ -710,7 +710,10 @@ function normalizeState(nextState) {
 }
 
 function normalizeTextOptions(options = [], fallback = []) {
-  const source = Array.isArray(options) ? options : fallback;
+  const source = [
+    ...(Array.isArray(options) ? options : []),
+    ...(Array.isArray(fallback) ? fallback : [])
+  ];
   const seen = new Set();
   return source
     .map((item) => typeof item === "object" ? item?.label || item?.value : item)

@@ -67,7 +67,10 @@ def normalize_logbook(payload: dict | None = None) -> dict:
     def clean_text_options(key: str) -> None:
         seen = set()
         cleaned = []
-        source = normalized.get(key) if isinstance(normalized.get(key), list) else DEFAULT_LOGBOOK[key]
+        source = [
+            *(normalized.get(key) if isinstance(normalized.get(key), list) else []),
+            *DEFAULT_LOGBOOK[key],
+        ]
         for item in source:
             value = item.get("label") or item.get("value") if isinstance(item, dict) else item
             text = str(value or "").strip()
