@@ -441,7 +441,7 @@ function renderTrips() {
     <div class="table-row header">
       ${tripHeaderSortButton("date", "Date")}
       ${tripHeaderSortButton("location", "Location")}
-      ${tripHeaderSortButton("launch", "Launch")}
+      ${tripHeaderSortButton("launch", "Launch / Area Fished")}
       ${tripHeaderSortButton("title", "Title")}
       ${tripHeaderSortButton("target", "Target")}
       ${tripHeaderSortButton("method", "Method")}

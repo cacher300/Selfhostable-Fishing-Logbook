@@ -535,10 +535,11 @@ document.addEventListener("change", (event) => {
   if (event.target.matches(".catch-setup-line")) {
     syncCatchMethodToSetupLine(event.target.closest(".catch-row"));
   }
-  if (event.target.matches(".catch-presentation, .trip-gear-cheater")) {
+  if (event.target.matches(".catch-presentation, .trip-gear-cheater, .trip-gear-leadcore")) {
     updatePresentationFields(event.target.closest(".catch-row, .gear-used-row"));
+    document.querySelectorAll(".catch-row").forEach(updatePresentationFields);
   }
-  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-cheater, .trip-gear-cheater-lure")) {
+  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-cheater, .trip-gear-cheater-lure, .trip-gear-leadcore")) {
     populateSetupLineSelects();
   }
   const row = event.target.closest(".catch-row, .gear-used-row");
@@ -568,6 +569,9 @@ document.addEventListener("input", (event) => {
   if (event.target.matches(".catch-ball-depth")) {
     updateCheaterDepth(event.target.closest(".catch-row"));
   }
+  if (event.target.matches(".catch-leadcore-colors")) {
+    updateLeadcoreEstimatedDepth(event.target.closest(".catch-row"));
+  }
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);
   if (event.target.closest("#tripForm")) renderLiveTrollingSpread();
@@ -588,6 +592,23 @@ document.addEventListener("keydown", (event) => {
 document.querySelector("#method").addEventListener("input", updateTrollingVisibility);
 document.querySelector("#method").addEventListener("change", updateTrollingVisibility);
 els.personRows.addEventListener("input", () => {
+  populatePersonSelects();
+  updateAllRowSummaries();
+});
+els.personRows.addEventListener("change", (event) => {
+  const row = event.target.closest(".person-row");
+  if (event.target.matches(".person-select") && row) {
+    const input = row.querySelector(".person-name");
+    if (event.target.value === "__new__") {
+      row.dataset.personId = createId();
+      input.classList.remove("hidden");
+      input.focus();
+    } else {
+      row.dataset.personId = event.target.value || createId();
+      input.value = "";
+      input.classList.add("hidden");
+    }
+  }
   populatePersonSelects();
   updateAllRowSummaries();
 });

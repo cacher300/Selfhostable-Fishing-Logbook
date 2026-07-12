@@ -14,7 +14,7 @@ function gearDisplayName(item, fallback = "Gear") {
 }
 
 function generatedLureName(lure) {
-  return [lure?.color, lure?.brand, lure?.type].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
+  return [lure?.color, lure?.bladeType, lure?.brand, lure?.type].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
 }
 
 function rodName(id) {
@@ -344,6 +344,7 @@ function openLureDialog(lure = null, pendingRowId = "") {
   setValue("lureName", lure?.name || "");
   setValue("lureType", lure?.type || "");
   setValue("lureDivingDepth", lure?.divingDepth || "");
+  setValue("lureBladeType", lure?.bladeType || "");
   updateLureDivingDepthField();
   setValue("lureBrand", lure?.brand || "");
   setValue("lureColor", lure?.color || "");
@@ -358,9 +359,11 @@ function openLureInfoDialog(lure, pendingRowId = "") {
   prepareInlineGearDialog("lureInfo", pendingRowId);
   const stats = baitStats("lure", lure.id);
   const hasDivingDepth = ["crankbait", "jerkbait"].includes(lure.type?.toLowerCase());
+  const hasBladeType = isWormHarnessType(lure.type);
   const details = [
     ["Type", lure.type],
     ["Diving depth", hasDivingDepth ? lure.divingDepth : ""],
+    ["Blade type", hasBladeType ? lure.bladeType : ""],
     ["Brand / model", lure.brand],
     ["Color", lure.color],
     ["Glow", lure.glow ? "Yes" : "No"],
@@ -384,8 +387,14 @@ function openLureInfoDialog(lure, pendingRowId = "") {
 }
 
 function updateLureDivingDepthField() {
-  const hasDivingDepth = ["crankbait", "jerkbait"].includes(getValue("lureType").toLowerCase());
+  const lureType = getValue("lureType");
+  const hasDivingDepth = ["crankbait", "jerkbait"].includes(lureType.toLowerCase());
   document.querySelector("#lureDivingDepthField").classList.toggle("hidden", !hasDivingDepth);
+  document.querySelector("#lureBladeTypeField").classList.toggle("hidden", !isWormHarnessType(lureType));
+}
+
+function isWormHarnessType(type) {
+  return String(type || "").trim().toLowerCase() === "worm harness";
 }
 
 function openFlasherDialog(flasher = null, pendingRowId = "") {
@@ -549,6 +558,7 @@ async function saveLure(event) {
       name: getValue("lureName"),
       type: getValue("lureType"),
       divingDepth: ["crankbait", "jerkbait"].includes(getValue("lureType").toLowerCase()) ? getValue("lureDivingDepth") : "",
+      bladeType: isWormHarnessType(getValue("lureType")) ? getValue("lureBladeType") : "",
       brand: getValue("lureBrand"),
       color: getValue("lureColor"),
       glow: document.querySelector("#lureGlow").checked,

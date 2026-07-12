@@ -184,7 +184,7 @@ const defaults = {
     "Bluegill"
   ],
   methods: ["Trolling", "Casting", "Jigging", "Fly Fishing", "Bait Fishing", "Ice Fishing", "Shore Fishing"],
-  lureTypes: ["Spoon", "Crankbait", "Spinner", "Jig", "Dropshot", "Soft Plastic", "Fly", "Plug", "Swimbait", "Flasher/Fly", "Jerkbait", "Topwater", "Other"],
+  lureTypes: ["Spoon", "Crankbait", "Spinner", "Worm Harness", "Jig", "Dropshot", "Soft Plastic", "Fly", "Plug", "Swimbait", "Flasher/Fly", "Jerkbait", "Topwater", "Other"],
   flasherTypes: ["Paddle", "Dodger", "Spin Doctor", "Meat Rig", "Attractor", "Other"],
   waterClarities: structuredClone(defaultWaterClarityOptions),
   weatherTypes: structuredClone(defaultWeatherOptions),

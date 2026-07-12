@@ -19,7 +19,7 @@ function populateLaunchSelect(selectedId = "") {
   const location = state.locations.find((item) => item.id === els.tripLocation.value);
   const selectedLaunch = findLaunchByIdOrName(location, selectedId, selectedId);
   const launches = location?.launches || [];
-  els.tripLaunch.innerHTML = `<option value="">No launch selected</option>` + launches.map((launch) => (
+  els.tripLaunch.innerHTML = `<option value="">No launch / area selected</option>` + launches.map((launch) => (
     `<option value="${escapeHtml(launch.id)}" ${launch.id === selectedLaunch?.id ? "selected" : ""}>${escapeHtml(launch.name)}</option>`
   )).join("");
   updateLocationControls();
@@ -117,10 +117,14 @@ function openLocationDialog(mode = "location", locationId = "", launchId = "") {
   const location = state.locations.find((item) => item.id === activeLocationPickerLocationId);
   const launch = findLaunchByIdOrName(location, activeLocationPickerLaunchId, "");
   const editingLaunch = mode === "launch";
-  els.locationDialogTitle.textContent = editingLaunch ? (launch ? "Edit Launch" : "Add Launch") : (location ? "Edit Location" : "Add Location");
+  els.locationDialogTitle.textContent = editingLaunch ? (launch ? "Edit Launch / Area Fished" : "Add Launch / Area Fished") : (location ? "Edit Location" : "Add Location");
   els.locationParentRow.classList.toggle("hidden", !editingLaunch);
   els.locationParentName.value = location?.name || "";
-  els.locationName.value = editingLaunch ? (launch?.name || "") : (location?.name || "");
+  document.querySelector("#locationPickerInstruction").textContent = editingLaunch
+    ? "Press the launch or area fished on the map to place the pin."
+    : "Press the waterbody location on the map to place the pin.";
+  els.locationName.placeholder = editingLaunch ? "North Shore Marina or Offshore Shelf" : "Lake Ontario";
+  els.locationName.value = editingLaunch ? (launch?.name || "North Shore Marina") : (location?.name || "");
   const coordinates = editingLaunch ? launch?.coordinates : location?.coordinates;
   els.locationLatitude.value = coordinates?.latitude ?? "";
   els.locationLongitude.value = coordinates?.longitude ?? "";
@@ -217,7 +221,7 @@ async function deleteManagedLaunch(locationId, launchId) {
   if (!location || !launch) return;
   const usedTrips = state.trips.filter((trip) => tripUsesLaunch(trip, location, launch));
   if (usedTrips.length) {
-    alert(`This launch is used by ${usedTrips.length} saved trip${usedTrips.length === 1 ? "" : "s"}. Edit those trips before deleting it.`);
+    alert(`This launch / area fished is used by ${usedTrips.length} saved trip${usedTrips.length === 1 ? "" : "s"}. Edit those trips before deleting it.`);
     return;
   }
   if (!confirm(`Delete ${launch.name}?`)) return;

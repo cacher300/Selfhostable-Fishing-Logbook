@@ -236,16 +236,45 @@ function addPersonRow(person = {}) {
 
 function collectPeople() {
   return [...els.personRows.querySelectorAll(".person-row")]
-    .map((row) => ({
-      id: row.dataset.personId || createId(),
-      name: row.querySelector(".person-name").value.trim()
-    }))
+    .map((row) => personFromRow(row))
     .filter((person) => person.name);
+}
+
+function personFromRow(row) {
+  const select = row.querySelector(".person-select");
+  const input = row.querySelector(".person-name");
+  const selected = select?.value || "";
+  if (selected && selected !== "__new__") {
+    const existing = state.people.find((person) => person.id === selected)
+      || collectNewPeople({ excludeRow: row }).find((person) => person.id === selected);
+    return {
+      id: existing?.id || row.dataset.personId || selected,
+      name: existing?.name || select.selectedOptions[0]?.textContent?.trim() || ""
+    };
+  }
+  return {
+    id: row.dataset.personId || createId(),
+    name: input?.value.trim() || ""
+  };
+}
+
+function collectNewPeople({ excludeRow = null } = {}) {
+  return [...els.personRows.querySelectorAll(".person-row")]
+    .filter((row) => row !== excludeRow)
+    .map((row) => {
+      const select = row.querySelector(".person-select");
+      const input = row.querySelector(".person-name");
+      if (select?.value !== "__new__") return null;
+      const name = input?.value.trim();
+      return name ? { id: row.dataset.personId || createId(), name } : null;
+    })
+    .filter(Boolean);
 }
 
 function syncPersonRowIds() {
   els.personRows.querySelectorAll(".person-row").forEach((row) => {
-    const name = row.querySelector(".person-name").value.trim().toLowerCase();
+    const person = personFromRow(row);
+    const name = person.name.trim().toLowerCase();
     const existingPerson = state.people.find((person) => person.name?.trim().toLowerCase() === name);
     if (existingPerson) row.dataset.personId = existingPerson.id;
   });
@@ -266,8 +295,30 @@ function populatePersonSelect(select, selectedId = "") {
 
 function populatePersonSelects() {
   populateDatalist(els.personOptions, currentPeople().map((person) => person.name).filter(Boolean));
+  populatePersonRowSelects();
   document.querySelectorAll(".catch-person").forEach((select) => {
     populatePersonSelect(select, select.value);
+  });
+}
+
+function populatePersonRowSelects() {
+  const allPeople = currentPeople();
+  els.personRows.querySelectorAll(".person-row").forEach((row) => {
+    const select = row.querySelector(".person-select");
+    const input = row.querySelector(".person-name");
+    const isAddingNew = select.value === "__new__";
+    const customName = input.value.trim();
+    const selectedId = row.dataset.personId || "";
+    const hasExistingSelection = allPeople.some((person) => person.id === selectedId);
+    const addingNew = isAddingNew || (!hasExistingSelection && customName);
+    select.innerHTML = [
+      `<option value="">Select person</option>`,
+      ...allPeople.map((person) => (
+        `<option value="${escapeHtml(person.id)}" ${person.id === selectedId ? "selected" : ""}>${escapeHtml(person.name)}</option>`
+      )),
+      `<option value="__new__" ${addingNew ? "selected" : ""}>Add new person...</option>`
+    ].join("");
+    input.classList.toggle("hidden", select.value !== "__new__");
   });
 }
 
@@ -355,6 +406,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   updateCheaterDepth(node);
   node.querySelector(".catch-flatline-weight-oz").value = catchItem.flatlineWeightOz || "";
   node.querySelector(".catch-line-behind-board").value = catchItem.lineBehindBoard || "";
+  node.querySelector(".catch-leadcore-colors").value = catchItem.leadcoreColors || "";
   node.querySelector(".catch-estimated-lure-depth").value = catchItem.estimatedLureDepth || "";
   node.querySelector(".catch-dipsey-setting").value = catchItem.dipseySetting || "";
   node.querySelector(".catch-line-out").value = catchItem.lineOut || "";
@@ -396,6 +448,7 @@ function addTripGearRow(gearItem = {}) {
   populateComboSelect(node.querySelector(".trip-gear-combo"), gearItem.comboId || matchingCombo?.id || "");
   node.querySelector(".catch-presentation").value = gearItem.presentation || "";
   node.querySelector(".trip-gear-cheater").checked = Boolean(gearItem.hasCheater);
+  node.querySelector(".trip-gear-leadcore").checked = Boolean(gearItem.hasLeadcore);
   populateLureSelect(node.querySelector(".trip-gear-lure"), gearItem.lureId || "");
   populateLureSelect(node.querySelector(".trip-gear-cheater-lure"), gearItem.cheaterLureId || "");
   populateFlasherSelect(node.querySelector(".trip-gear-flasher"), gearItem.flasherId || "");
@@ -500,6 +553,7 @@ function syncCatchMethodToSetupLine(row) {
     : (setupRow?.querySelector(".catch-presentation")?.value || "");
   updatePresentationFields(row);
   updateCheaterDepth(row);
+  updateLeadcoreEstimatedDepth(row);
 }
 
 function selectedText(select) {
@@ -585,6 +639,9 @@ function collectTripFromForm() {
       changeNote: row.querySelector(".trip-gear-change-note").value.trim(),
       side: trolling ? row.querySelector(".trip-gear-side").value : "",
       lineLabel: trolling ? row.querySelector(".trip-gear-line-label").value.trim() : "",
+      hasLeadcore: trolling && isLeadcoreCapablePresentation(row.querySelector(".catch-presentation").value)
+        ? row.querySelector(".trip-gear-leadcore").checked
+        : false,
       comboId: row.querySelector(".trip-gear-combo").value,
       rodId: selectedComboForRow(row)?.rodId || "",
       reelId: selectedComboForRow(row)?.reelId || "",
@@ -608,6 +665,7 @@ function collectTripFromForm() {
       || item.endTime
       || item.changeNote
       || item.lineLabel
+      || item.hasLeadcore
       || item.comboId
       || item.rodId
       || item.reelId
@@ -643,6 +701,7 @@ function collectTripFromForm() {
         ballDepth: trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
         flatlineWeightOz: trolling ? row.querySelector(".catch-flatline-weight-oz").value.trim() : "",
         lineBehindBoard: trolling ? row.querySelector(".catch-line-behind-board").value.trim() : "",
+        leadcoreColors: trolling ? row.querySelector(".catch-leadcore-colors").value.trim() : "",
         estimatedLureDepth: trolling ? row.querySelector(".catch-estimated-lure-depth").value.trim() : "",
         dipseySetting: trolling ? row.querySelector(".catch-dipsey-setting").value.trim() : "",
         lineOut: trolling ? row.querySelector(".catch-line-out").value.trim() : "",
@@ -681,6 +740,7 @@ function collectTripFromForm() {
       || item.ballDepth
       || item.flatlineWeightOz
       || item.lineBehindBoard
+      || item.leadcoreColors
       || item.estimatedLureDepth
       || item.dipseySetting
       || item.lineOut

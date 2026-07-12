@@ -743,10 +743,10 @@
               <datalist id="personOptions"></datalist>
             </div>
             <div class="location-field">
-              <span>Launch</span>
+              <span>Launch / Area Fished</span>
               <div class="inline-control-row">
                 <select id="tripLaunch"></select>
-                <button class="icon-button" id="addLaunchButton" type="button" aria-label="Add launch">+</button>
+                <button class="icon-button" id="addLaunchButton" type="button" aria-label="Add launch or area fished">+</button>
               </div>
             </div>
             <label>
@@ -1041,6 +1041,16 @@
             <span>Diving depth</span>
             <input id="lureDivingDepth" type="text" placeholder="8–12 ft" />
           </label>
+          <label id="lureBladeTypeField" class="hidden">
+            <span>Blade type</span>
+            <select id="lureBladeType">
+              <option value="">Select blade type</option>
+              <option value="Colorado">Colorado</option>
+              <option value="Willow Leaf">Willow Leaf</option>
+              <option value="Indiana">Indiana</option>
+              <option value="Butterfly">Butterfly</option>
+            </select>
+          </label>
           <label>
             <span>Brand / model</span>
             <input id="lureBrand" type="text" placeholder="Acme" />
@@ -1276,6 +1286,10 @@
             <span data-unit-label="depth" data-unit-label-text="Line behind board">Line behind board</span>
             <input class="catch-line-behind-board" type="text" placeholder="150 ft" />
           </label>
+          <label class="trolling-param param-leadcore-colors">
+            <span>Leadcore colors</span>
+            <input class="catch-leadcore-colors" type="number" min="0" step="0.5" placeholder="5" />
+          </label>
           <label class="trolling-param param-lure-depth">
             <span data-unit-label="depth" data-unit-label-text="Estimated lure depth">Estimated lure depth</span>
             <input class="catch-estimated-lure-depth" type="text" placeholder="35 ft" />
@@ -1358,6 +1372,10 @@
               <option value="dipsey-diver">Dipsey Diver</option>
             </select>
           </label>
+          <label class="checkbox-label trolling-param param-leadcore">
+            <input class="trip-gear-leadcore" type="checkbox" />
+            <span>Leadcore</span>
+          </label>
           <div class="row-section-title gear-title">Gear</div>
           <label class="gear-combo-field">
             <span>Rod/reel combo</span>
@@ -1389,7 +1407,8 @@
 
     <template id="personRowTemplate">
       <article class="person-row">
-        <input class="person-name" type="text" placeholder="Name" list="personOptions" />
+        <select class="person-select" aria-label="Person"></select>
+        <input class="person-name hidden" type="text" placeholder="Name" />
         <button class="button danger remove-person" type="button">Remove</button>
       </article>
     </template>
@@ -1412,15 +1431,10 @@
             <span>Name</span>
             <input id="locationName" type="text" required placeholder="Lake Ontario" />
           </label>
-          <label>
-            <span>Latitude</span>
-            <input id="locationLatitude" type="text" inputmode="decimal" required placeholder="43.25000" />
-          </label>
-          <label>
-            <span>Longitude</span>
-            <input id="locationLongitude" type="text" inputmode="decimal" required placeholder="-79.80000" />
-          </label>
+          <input id="locationLatitude" type="hidden" required />
+          <input id="locationLongitude" type="hidden" required />
         </div>
+        <p class="map-pin-instruction" id="locationPickerInstruction">Press the launch or area fished on the map to place the pin.</p>
         <div id="locationPickerMap" class="fish-map location-picker-map"></div>
         <div class="dialog-actions">
           <button class="button primary" value="default" type="submit">Save Pin</button>

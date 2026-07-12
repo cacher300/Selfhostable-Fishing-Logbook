@@ -40,6 +40,7 @@ function updateTrollingVisibility() {
 function updatePresentationFields(row) {
   const presentation = row.querySelector(".catch-presentation")?.value || "";
   const estimatedDepthLabel = row.querySelector(".estimated-depth-label");
+  const isLeadcoreCatch = row.classList.contains("catch-row") && catchRowUsesLeadcore(row);
   row.querySelectorAll(".trolling-param").forEach((field) => field.classList.remove("visible"));
   if (estimatedDepthLabel) {
     estimatedDepthLabel.dataset.unitLabelText = presentation === "flatline" ? "Estimated depth down" : "Estimated depth";
@@ -48,6 +49,12 @@ function updatePresentationFields(row) {
   if (!isTrollingTrip()) return;
 
   if (row.classList.contains("gear-used-row")) {
+    if (isLeadcoreCapablePresentation(presentation)) {
+      row.querySelector(".param-leadcore")?.classList.add("visible");
+    } else {
+      const leadcoreToggle = row.querySelector(".trip-gear-leadcore");
+      if (leadcoreToggle) leadcoreToggle.checked = false;
+    }
     if (presentation === "downrigger" || presentation === "Downrigger") {
       row.querySelector(".param-cheater")?.classList.add("visible");
       if (row.querySelector(".trip-gear-cheater")?.checked) {
@@ -68,14 +75,55 @@ function updatePresentationFields(row) {
     row.querySelector(".param-estimated-depth")?.classList.add("visible");
   }
   if (["flatline-leadcore", "Outside Board", "Inside Board"].includes(presentation)) {
-    row.querySelector(".param-board-line")?.classList.add("visible");
     row.querySelector(".param-lure-depth")?.classList.add("visible");
+  }
+  if (isLeadcoreCatch) {
+    row.querySelector(".param-leadcore-colors")?.classList.add("visible");
+    row.querySelector(".param-lure-depth")?.classList.add("visible");
+    updateLeadcoreEstimatedDepth(row);
+  } else {
+    const estimatedLureDepth = row.querySelector(".catch-estimated-lure-depth");
+    if (estimatedLureDepth) estimatedLureDepth.readOnly = false;
   }
   if (["dipsey-diver", "High Diver", "Low Diver"].includes(presentation)) {
     row.querySelector(".param-dipsey-setting")?.classList.add("visible");
     row.querySelector(".param-line-out")?.classList.add("visible");
     row.querySelector(".param-estimated-depth")?.classList.add("visible");
   }
+}
+
+function isLeadcoreCapablePresentation(presentation) {
+  return ["Outside Board", "Inside Board", "Chute Rod", "flatline-leadcore", "flatline"].includes(presentation);
+}
+
+function setupRowForCatchRow(row) {
+  const selectedValue = row.querySelector(".catch-setup-line")?.value || "";
+  const setupLineId = selectedValue.split("::")[0];
+  return [...els.tripGearRows.querySelectorAll(".gear-used-row")]
+    .find((gearRow) => gearRow.dataset.gearId === setupLineId);
+}
+
+function catchRowUsesLeadcore(row) {
+  const setupRow = setupRowForCatchRow(row);
+  const presentation = setupRow?.querySelector(".catch-presentation")?.value || "";
+  return isLeadcoreCapablePresentation(presentation) && Boolean(setupRow?.querySelector(".trip-gear-leadcore")?.checked);
+}
+
+function leadcoreDepthLabel(colors) {
+  const feet = colors * 5;
+  const converted = convertUnitValue(feet, "ft", unitPreference("depth"));
+  if (converted === null) return "";
+  const decimals = unitPreference("depth") === "m" ? 1 : 0;
+  const rounded = Math.round(converted * (10 ** decimals)) / (10 ** decimals);
+  return `${trimNumber(rounded)} ${unitSymbol("depth")}`;
+}
+
+function updateLeadcoreEstimatedDepth(row) {
+  const colors = Number(row.querySelector(".catch-leadcore-colors")?.value);
+  const output = row.querySelector(".catch-estimated-lure-depth");
+  if (!output) return;
+  output.readOnly = true;
+  output.value = Number.isFinite(colors) && colors > 0 ? leadcoreDepthLabel(colors) : "";
 }
 
 function updateCheaterDepth(row) {
