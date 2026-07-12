@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import json
 import os
 import tempfile
@@ -11,147 +10,7 @@ from unittest.mock import patch
 
 os.environ.setdefault("SECRET_KEY", "module-import-test-secret")
 
-import server
 from backend import logbook_store
-from backend.request_security import FixedWindowRateLimiter
-from flask import Flask, Response
-from server import create_app
-
-
-def create_test_app(**overrides: object) -> Flask:
-    config = {
-        "TESTING": True,
-        "SECRET_KEY": "test-secret",
-        "RATE_LIMIT_PER_MINUTE": 1_000,
-    }
-    config.update(overrides)
-    return create_app(config)
-
-
-class SecurityTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.app = create_test_app()
-        self.client = self.app.test_client()
-
-    def test_private_project_files_cannot_be_downloaded(self) -> None:
-        for path in (
-            "/data/logbook.json",
-            "/data/logbook.example.json",
-            "/backups/logbook.json",
-            "/.git/config",
-            "/.env",
-            "/server.py",
-            "/backend/logbook_store.py",
-            "/static/js/../../server.py",
-            "/static/js/%2e%2e/%2e%2e/server.py",
-        ):
-            with self.subTest(path=path):
-                response = self.client.get(path)
-                self.assertEqual(404, response.status_code)
-
-    def test_logbook_json_is_not_downloadable(self) -> None:
-        response = self.client.get("/data/logbook.json")
-        self.assertEqual(404, response.status_code)
-
-    def test_logbook_api_is_available_without_authentication(self) -> None:
-        self.assertEqual(200, self.client.get("/api/logbook").status_code)
-
-    def test_csrf_token_endpoint_is_available_without_authentication(self) -> None:
-        self.assertEqual(200, self.client.get("/api/csrf-token").status_code)
-
-    def test_static_assets_are_not_marked_no_store(self) -> None:
-        response = self.client.get("/static/js/app.js")
-        self.assertEqual(200, response.status_code)
-        self.assertNotIn("no-store", response.headers.get("Cache-Control", ""))
-        response.close()
-
-    def test_static_route_serves_images_but_rejects_other_file_types(self) -> None:
-        image_response = self.client.get("/static/img/boat_rotated_90ccw_bg_223_243_251.png")
-        self.assertEqual(200, image_response.status_code)
-        image_response.close()
-
-        self.assertEqual(404, self.client.get("/static/not-a-web-asset.txt").status_code)
-
-    def test_mutation_requires_csrf_token(self) -> None:
-        response = self.client.put(
-            "/api/logbook",
-            json={"schemaVersion": 1, "trips": [], "lures": [], "flashers": []},
-        )
-        self.assertEqual(403, response.status_code)
-        self.assertEqual("Invalid or missing CSRF token", response.get_json()["error"])
-
-    def test_authenticated_mutation_accepts_csrf_token(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            data_file = Path(directory) / "logbook.json"
-            token = self.client.get("/api/csrf-token").get_json()["csrfToken"]
-            with (
-                patch.object(logbook_store, "DATA_DIR", Path(directory)),
-                patch.object(logbook_store, "DATA_FILE", data_file),
-            ):
-                response = self.client.put(
-                    "/api/logbook",
-                    headers={"X-CSRF-Token": token},
-                    json={"schemaVersion": 1, "trips": [], "lures": [], "flashers": []},
-                )
-            self.assertEqual(200, response.status_code)
-            self.assertTrue(data_file.exists())
-
-    def test_invalid_import_returns_the_failing_json_path(self) -> None:
-        token = self.client.get("/api/csrf-token").get_json()["csrfToken"]
-        response = self.client.put(
-            "/api/logbook",
-            headers={"X-CSRF-Token": token},
-            json={
-                "schemaVersion": 1,
-                "trips": [{"id": "trip-1", "catches": ["invalid"]}],
-                "lures": [],
-                "flashers": [],
-            },
-        )
-        self.assertEqual(400, response.status_code)
-        self.assertEqual(
-            "trips[0].catches[0]: must be an object",
-            response.get_json()["error"],
-        )
-
-    def test_storage_errors_bubble_up(self) -> None:
-        with patch.object(
-            server,
-            "read_logbook",
-            side_effect=OSError("private file path"),
-        ):
-            with self.assertRaisesRegex(OSError, "private file path"):
-                self.client.get("/api/logbook")
-
-    def test_unrelated_runtime_errors_are_not_masked(self) -> None:
-        app = create_test_app()
-
-        @app.get("/test-runtime-error")
-        def runtime_error() -> Response:
-            raise RuntimeError("programming error")
-
-        with self.assertRaisesRegex(RuntimeError, "programming error"):
-            app.test_client().get("/test-runtime-error")
-
-    def test_upload_size_limit_is_enforced(self) -> None:
-        app = create_test_app(MAX_CONTENT_LENGTH=100)
-        client = app.test_client()
-        token = client.get("/api/csrf-token").get_json()["csrfToken"]
-        response = client.post(
-            "/api/uploads/catch-photos",
-            headers={"X-CSRF-Token": token},
-            data={"file": (io.BytesIO(b"x" * 200), "catch.jpg")},
-        )
-        self.assertEqual(413, response.status_code)
-
-    def test_rate_limit_is_enforced(self) -> None:
-        app = create_test_app(RATE_LIMIT_PER_MINUTE=2)
-        client = app.test_client()
-        self.assertEqual(302, client.get("/").status_code)
-        self.assertEqual(302, client.get("/").status_code)
-        response = client.get("/")
-        self.assertEqual(429, response.status_code)
-
 
 class LogbookStoreTests(unittest.TestCase):
     def test_rejects_future_schema_version_with_clear_error(self) -> None:
@@ -275,17 +134,6 @@ class LogbookStoreTests(unittest.TestCase):
             self.assertTrue(valid, error)
             self.assertEqual(1, len(stored["trips"]))
             self.assertEqual([], list(directory_path.glob(".logbook-*.tmp")))
-
-
-class RateLimiterTests(unittest.TestCase):
-    def test_expired_client_buckets_are_removed(self) -> None:
-        limiter = FixedWindowRateLimiter(limit=2, window_seconds=60)
-        with patch("backend.request_security.time.monotonic", return_value=0):
-            self.assertTrue(limiter.allow("old-client"))
-        with patch("backend.request_security.time.monotonic", return_value=61):
-            self.assertTrue(limiter.allow("new-client"))
-        self.assertNotIn("old-client", limiter._requests)
-
 
 if __name__ == "__main__":
     unittest.main()

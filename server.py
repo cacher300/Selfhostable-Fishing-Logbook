@@ -264,8 +264,9 @@ def create_app(config: dict | None = None) -> Flask:
     def favicon() -> tuple[str, int]:
         return "", 204
 
-    @app.get("/")
     @app.get("/trips")
+    @app.get("/")
+    @app.get("/bests")
     @app.get("/stats")
     @app.get("/map")
     @app.get("/gear")
