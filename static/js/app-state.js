@@ -279,6 +279,7 @@ let activeLocationPickerLaunchId = "";
 let activeTripWeatherData = null;
 let activeTripWeatherKey = "";
 let weatherPreviewTimer = null;
+let tripFormInitialSnapshot = "";
 let activePhotoQueueTarget = null;
 let pendingLureImage = null;
 let pendingFlasherImage = null;

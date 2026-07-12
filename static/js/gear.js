@@ -170,15 +170,11 @@ function renderFlasherPreview(row) {
 
 function prepareInlineGearDialog(type, pendingRowId = "") {
   returnToTripDialog[type] = Boolean(pendingRowId) && els.tripDialog.open;
-  if (returnToTripDialog[type]) els.tripDialog.close();
 }
 
 function restoreTripDialogAfterInlineGear(type) {
   if (!returnToTripDialog[type]) return;
   returnToTripDialog[type] = false;
-  setTimeout(() => {
-    if (!els.tripDialog.open) els.tripDialog.showModal();
-  }, 0);
 }
 
 function populateGearSelect(select, items, selectedId, placeholder, labelFn) {

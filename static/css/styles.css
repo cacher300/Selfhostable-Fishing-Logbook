@@ -1649,6 +1649,9 @@ textarea[aria-invalid="true"] {
   grid-column: 3 / 5;
   grid-row: 5;
   align-self: end;
+  width: max-content;
+  min-width: 190px;
+  justify-self: start;
 }
 
 .gear-used-row .param-leadcore {
@@ -1687,6 +1690,11 @@ textarea[aria-invalid="true"] {
 .gear-used-row .gear-lure-action {
   grid-column: 3 / 4;
   grid-row: 8;
+  justify-self: start;
+  width: max-content;
+  min-width: 120px;
+  padding-right: 18px;
+  padding-left: 18px;
 }
 
 .gear-used-row .lure-preview {
@@ -1749,8 +1757,8 @@ textarea[aria-invalid="true"] {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 42px;
-  padding: 8px;
+  min-height: 50px;
+  padding: 5px 10px;
   border: 1px solid #dbe2eb;
   border-radius: 6px;
   background: #fff;

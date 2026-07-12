@@ -62,6 +62,11 @@ els.editFlasherFromInfoButton.addEventListener("click", () => {
 els.reelDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("reel"));
 els.rodDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("rod"));
 els.photoQueueDialog.addEventListener("close", restoreDialogAfterPhotoQueue);
+els.tripDialog.addEventListener("cancel", (event) => {
+  if (!isTripFormDirty()) return;
+  event.preventDefault();
+  closeTripDialog();
+});
 els.summaryEditTripButton.addEventListener("click", () => {
   const trip = state.trips.find((item) => item.id === activeSummaryTripId);
   if (!trip) return;
@@ -177,7 +182,11 @@ els.sortSelect.addEventListener("input", () => {
 
 document.addEventListener("click", (event) => {
   const closeButton = event.target.closest("[data-close-dialog]");
-  if (closeButton) closeButton.closest("dialog").close();
+  if (closeButton) {
+    const dialog = closeButton.closest("dialog");
+    if (dialog === els.tripDialog) closeTripDialog();
+    else dialog.close();
+  }
 
   const timelineFilterButton = event.target.closest("[data-timeline-filter]");
   if (timelineFilterButton) {

@@ -21,6 +21,40 @@ function setTripSaveLoading(saving) {
   els.saveTripButton.setAttribute("aria-busy", String(saving));
 }
 
+function tripFormSnapshot() {
+  if (!els.tripForm) return "";
+  const controls = [...els.tripForm.querySelectorAll("input, select, textarea")]
+    .filter((control) => control.type !== "file")
+    .map((control) => ({
+      name: control.id || control.name || control.className || control.tagName,
+      value: control.type === "checkbox" || control.type === "radio" ? control.checked : control.value
+    }));
+  return JSON.stringify({
+    controls,
+    notePhotos: activeNotePhotos.map((photo) => photo.id || photo.filename || photo.url || photo.image || ""),
+    catchPhotos: [...els.catchRows.querySelectorAll(".catch-row")].map((row) => (row.catchPhotos || []).map((photo) => photo.id || photo.filename || photo.url || photo.image || "")),
+    lostCount: els.lostFishRows.querySelectorAll(".catch-row").length,
+    gearCount: els.tripGearRows.querySelectorAll(".gear-used-row").length,
+    peopleCount: els.personRows.querySelectorAll(".person-row").length
+  });
+}
+
+function resetTripFormSnapshot() {
+  tripFormInitialSnapshot = tripFormSnapshot();
+}
+
+function isTripFormDirty() {
+  return els.tripDialog?.open && tripFormSnapshot() !== tripFormInitialSnapshot;
+}
+
+function closeTripDialog({ force = false } = {}) {
+  if (!els.tripDialog.open) return true;
+  if (!force && isTripFormDirty() && !confirm("Discard unsaved trip changes?")) return false;
+  tripFormInitialSnapshot = "";
+  els.tripDialog.close();
+  return true;
+}
+
 function validateTripForm() {
   clearTripFormMessage();
   const requiredFields = [
@@ -141,6 +175,7 @@ function openTripDialog(trip = null) {
   els.tripForm.scrollTop = 0;
   requestAnimationFrame(() => {
     els.tripForm.scrollTop = 0;
+    resetTripFormSnapshot();
   });
   scheduleTripWeatherPreview(true);
 }
@@ -827,7 +862,7 @@ async function saveTrip(event) {
     else state.trips.push(trip);
 
     await saveState();
-    els.tripDialog.close();
+    closeTripDialog({ force: true });
     renderAll();
   } catch (error) {
     console.error("Could not save trip.", error);
@@ -843,7 +878,7 @@ async function deleteActiveTrip() {
   state.trips = state.trips.filter((item) => item.id !== activeTripId);
   try {
     await saveState();
-    els.tripDialog.close();
+    closeTripDialog({ force: true });
     renderAll();
   } catch (error) {
     console.error("Could not delete trip.", error);

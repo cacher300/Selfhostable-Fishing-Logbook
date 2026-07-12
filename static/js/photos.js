@@ -541,11 +541,6 @@ async function openPhotoQueue(target = null) {
   returnToTripDialog.flasherImage = target?.type === "flasher" && els.flasherDialog.open;
   returnToTripDialog.reelImage = target?.type === "reel" && els.reelDialog.open;
   returnToTripDialog.rodImage = target?.type === "rod" && els.rodDialog.open;
-  if (returnToTripDialog.queue) els.tripDialog.close();
-  if (returnToTripDialog.lureImage) els.lureDialog.close();
-  if (returnToTripDialog.flasherImage) els.flasherDialog.close();
-  if (returnToTripDialog.reelImage) els.reelDialog.close();
-  if (returnToTripDialog.rodImage) els.rodDialog.close();
   els.photoQueueDialog.showModal();
   await renderPhotoQueue();
 }
@@ -553,33 +548,18 @@ async function openPhotoQueue(target = null) {
 function restoreDialogAfterPhotoQueue() {
   if (returnToTripDialog.queue) {
     returnToTripDialog.queue = false;
-    setTimeout(() => {
-      if (!els.tripDialog.open) els.tripDialog.showModal();
-    }, 0);
   }
   if (returnToTripDialog.lureImage) {
     returnToTripDialog.lureImage = false;
-    setTimeout(() => {
-      if (!els.lureDialog.open) els.lureDialog.showModal();
-    }, 0);
   }
   if (returnToTripDialog.flasherImage) {
     returnToTripDialog.flasherImage = false;
-    setTimeout(() => {
-      if (!els.flasherDialog.open) els.flasherDialog.showModal();
-    }, 0);
   }
   if (returnToTripDialog.reelImage) {
     returnToTripDialog.reelImage = false;
-    setTimeout(() => {
-      if (!els.reelDialog.open) els.reelDialog.showModal();
-    }, 0);
   }
   if (returnToTripDialog.rodImage) {
     returnToTripDialog.rodImage = false;
-    setTimeout(() => {
-      if (!els.rodDialog.open) els.rodDialog.showModal();
-    }, 0);
   }
 }
 
