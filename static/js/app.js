@@ -1,6 +1,7 @@
 const routeViews = {
   "/": "trips",
   "/trips": "trips",
+  "/bests": "bests",
   "/stats": "stats",
   "/map": "map",
   "/gear": "gear",
@@ -87,6 +88,7 @@ els.deleteReelButton.addEventListener("click", deleteReel);
 els.deleteRodButton.addEventListener("click", deleteRod);
 els.deleteComboButton.addEventListener("click", deleteCombo);
 els.tripsViewButton.addEventListener("click", () => setView("trips"));
+els.bestsViewButton.addEventListener("click", () => setView("bests"));
 els.statsViewButton.addEventListener("click", () => setView("stats"));
 els.mapViewButton.addEventListener("click", () => setView("map"));
 els.gearViewButton.addEventListener("click", () => setView("gear"));
@@ -107,6 +109,15 @@ els.importInput.addEventListener("change", importJson);
 els.statsMethodFilter.addEventListener("change", () => {
   activeStatsMethod = els.statsMethodFilter.value;
   renderAdvancedStats();
+});
+els.bestsYearFilter?.addEventListener("change", () => {
+  activePersonalBestsFilters.year = els.bestsYearFilter.value;
+  activePersonalBestsFilters.month = "All months";
+  renderPersonalBests();
+});
+els.bestsMonthFilter?.addEventListener("change", () => {
+  activePersonalBestsFilters.month = els.bestsMonthFilter.value;
+  renderPersonalBests();
 });
 els.statsSortFilter?.addEventListener("change", () => {
   activeStatsSort = els.statsSortFilter.value;
@@ -582,6 +593,7 @@ els.personRows.addEventListener("input", () => {
 });
 
 function setView(view) {
+  const showingBests = view === "bests";
   const showingStats = view === "stats";
   const showingMap = view === "map";
   const showingGear = view === "gear";
@@ -589,6 +601,7 @@ function setView(view) {
   const showingSettings = view === "settings";
   const viewButtons = {
     trips: els.tripsViewButton,
+    bests: els.bestsViewButton,
     stats: els.statsViewButton,
     map: els.mapViewButton,
     gear: els.gearViewButton,
@@ -597,14 +610,17 @@ function setView(view) {
   };
   const viewTitles = {
     trips: "Trips",
+    bests: "Personal Bests",
     stats: "Advanced Stats",
     map: "Map",
     gear: "Gear",
     gallery: "Gallery",
     settings: "Settings",
   };
-  els.tripControls.classList.toggle("hidden", showingStats || showingMap || showingGear || showingGallery || showingSettings);
-  els.tripListPanel.classList.toggle("hidden", showingStats || showingMap || showingGear || showingGallery || showingSettings);
+  document.body.dataset.activeView = view;
+  els.tripControls.classList.toggle("hidden", showingBests || showingStats || showingMap || showingGear || showingGallery || showingSettings);
+  els.tripListPanel.classList.toggle("hidden", showingBests || showingStats || showingMap || showingGear || showingGallery || showingSettings);
+  els.personalBestsPanel.classList.toggle("hidden", !showingBests);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
   els.mapPanel.classList.toggle("hidden", !showingMap);
   els.gearPanel.classList.toggle("hidden", !showingGear);
@@ -615,6 +631,7 @@ function setView(view) {
     button.setAttribute("aria-current", buttonView === view ? "page" : "false");
   });
   document.querySelector(".topbar h2").textContent = viewTitles[view] || "Trips";
+  if (showingBests) renderPersonalBests();
   renderAdvancedStats();
   if (showingMap) renderFishMap();
   if (showingGallery) renderGallery();

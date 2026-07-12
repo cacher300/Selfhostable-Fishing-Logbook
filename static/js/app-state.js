@@ -259,6 +259,10 @@ const activeStatsFilters = {
   month: "All months",
   rating: "All ratings"
 };
+const activePersonalBestsFilters = {
+  year: "All years",
+  month: "All months"
+};
 let activeMapSpecies = "All map items";
 let activeTripSummaryMapFilter = "All map items";
 let activeGalleryCategory = "all";
@@ -310,6 +314,11 @@ const els = {
   tripTable: document.querySelector("#tripTable"),
   tripControls: document.querySelector("#tripControls"),
   tripListPanel: document.querySelector("#tripListPanel"),
+  personalBestsPanel: document.querySelector("#personalBestsPanel"),
+  bestsYearFilter: document.querySelector("#bestsYearFilter"),
+  bestsMonthFilter: document.querySelector("#bestsMonthFilter"),
+  personalBestsMetricGrid: document.querySelector("#personalBestsMetricGrid"),
+  personalBestsGrid: document.querySelector("#personalBestsGrid"),
   advancedStatsPanel: document.querySelector("#advancedStatsPanel"),
   mapPanel: document.querySelector("#mapPanel"),
   fishMap: document.querySelector("#fishMap"),
@@ -381,6 +390,7 @@ const els = {
   sortSelect: document.querySelector("#sortSelect"),
   newTripButton: document.querySelector("#newTripButton"),
   tripsViewButton: document.querySelector("#tripsViewButton"),
+  bestsViewButton: document.querySelector("#bestsViewButton"),
   statsViewButton: document.querySelector("#statsViewButton"),
   mapViewButton: document.querySelector("#mapViewButton"),
   gearViewButton: document.querySelector("#gearViewButton"),

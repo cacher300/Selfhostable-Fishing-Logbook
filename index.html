@@ -106,8 +106,30 @@
           </div>
         </section>
 
+        <section class="personal-bests-page hidden" id="personalBestsPanel" aria-label="Personal best catches">
+          <div class="personal-bests-header">
+            <div>
+              <p class="eyebrow">Largest landed fish</p>
+              <h3>Personal Bests</h3>
+            </div>
+            <div class="personal-bests-tools">
+              <label>
+                <span>Year</span>
+                <select id="bestsYearFilter"></select>
+              </label>
+              <label>
+                <span>Month</span>
+                <select id="bestsMonthFilter"></select>
+              </label>
+            </div>
+          </div>
+          <div class="metric-grid" id="personalBestsMetricGrid"></div>
+          <div id="personalBestsGrid" class="personal-bests-grid"></div>
+        </section>
+
         <section class="stats-page hidden" id="advancedStatsPanel" aria-label="Advanced fishing statistics">
           <div class="stats-toolbar">
+            <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
             <label>
               <span>Stats scope</span>
               <select id="statsMethodFilter"></select>
@@ -1419,6 +1441,7 @@
     <script src="static/js/trolling-spread.js"></script>
     <script src="static/js/maps-summary.js"></script>
     <script src="static/js/stats.js"></script>
+    <script src="static/js/personal-bests.js"></script>
     <script src="static/js/form-utils.js"></script>
     <script src="static/js/data-transfer.js"></script>
     <script src="static/js/gallery.js"></script>

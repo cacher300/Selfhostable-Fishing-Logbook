@@ -526,6 +526,7 @@ function renderAll() {
   renderBrandSpotlight();
   renderStats();
   renderTrips();
+  renderPersonalBests();
   renderAdvancedStats();
   renderGearLibrary();
   syncUnitLabels();

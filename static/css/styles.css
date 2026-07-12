@@ -1756,6 +1756,133 @@ textarea[aria-invalid="true"] {
   gap: 18px;
 }
 
+.personal-bests-page {
+  display: grid;
+  gap: 18px;
+}
+
+.personal-bests-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.personal-bests-header h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.personal-bests-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 12px;
+  min-width: min(420px, 100%);
+}
+
+.personal-bests-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.personal-best-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.personal-best-media {
+  min-height: 176px;
+  background: #edf2f5;
+}
+
+.personal-best-photo,
+.personal-best-photo-placeholder,
+.personal-best-media .media-download-frame,
+.personal-best-media .media-download-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 176px;
+}
+
+.personal-best-photo {
+  object-fit: cover;
+}
+
+.personal-best-photo-placeholder {
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(135deg, rgba(17, 135, 83, 0.16), rgba(39, 99, 167, 0.08)),
+    #f5f8fb;
+  color: var(--green-dark);
+  font-size: 40px;
+  font-weight: 900;
+}
+
+.personal-best-body {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.personal-best-title-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.personal-best-title-row h4 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.15;
+}
+
+.personal-best-title-row .stats-badge {
+  max-width: 170px;
+  white-space: normal;
+}
+
+.personal-best-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin: 0;
+}
+
+.personal-best-details div {
+  min-width: 0;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+
+.personal-best-details dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.personal-best-details dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.personal-best-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .patterns-header {
   display: flex;
   align-items: end;
@@ -5112,6 +5239,13 @@ textarea[aria-invalid="true"] {
     box-shadow: 0 12px 28px rgba(17, 135, 83, 0.32);
   }
 
+  body:not([data-active-view="trips"]) #newTripButton {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    box-shadow: none;
+  }
+
   .button,
   .file-button,
   .dialog-actions button {
@@ -5259,10 +5393,16 @@ textarea[aria-invalid="true"] {
 
   .photo-queue-actions,
   .photo-queue-card .photo-queue-card-actions,
+  .personal-bests-header,
   .gallery-header,
   .gallery-tools {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .personal-bests-tools {
+    grid-template-columns: 1fr;
+    min-width: 0;
   }
 
   .gallery-tools label {
@@ -5390,6 +5530,14 @@ textarea[aria-invalid="true"] {
 
   .pattern-card-header {
     display: grid;
+  }
+
+  .personal-best-title-row {
+    display: grid;
+  }
+
+  .personal-best-title-row .stats-badge {
+    max-width: 100%;
   }
 }
 
