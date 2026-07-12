@@ -273,6 +273,9 @@ let tripSummaryMap = null;
 let tripSummaryMapMarkers = null;
 let locationPickerMap = null;
 let locationPickerMarker = null;
+let catchLocationPickerMap = null;
+let catchLocationPickerMarker = null;
+let activeCatchLocationRow = null;
 let activeLocationPickerMode = "location";
 let activeLocationPickerLocationId = "";
 let activeLocationPickerLaunchId = "";
@@ -443,6 +446,10 @@ const els = {
   locationForm: document.querySelector("#locationForm"),
   locationDialogTitle: document.querySelector("#locationDialogTitle"),
   locationPickerMap: document.querySelector("#locationPickerMap"),
+  catchLocationDialog: document.querySelector("#catchLocationDialog"),
+  catchLocationPickerMap: document.querySelector("#catchLocationPickerMap"),
+  saveCatchLocationButton: document.querySelector("#saveCatchLocationButton"),
+  clearCatchLocationButton: document.querySelector("#clearCatchLocationButton"),
   locationParentRow: document.querySelector("#locationParentRow"),
   locationParentName: document.querySelector("#locationParentName"),
   locationName: document.querySelector("#locationName"),

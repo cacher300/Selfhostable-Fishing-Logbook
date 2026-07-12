@@ -110,6 +110,104 @@ function ensureLocationPickerMap(coordinates) {
   }
 }
 
+function selectedTripLocationCoordinates() {
+  const location = state.locations.find((item) => item.id === els.tripLocation?.value);
+  const launch = findLaunchByIdOrName(location, els.tripLaunch?.value, "");
+  if (isUsableCoordinates(launch?.coordinates)) return launch.coordinates;
+  if (isUsableCoordinates(location?.coordinates)) return location.coordinates;
+  return null;
+}
+
+function catchLocationFromRow(row) {
+  const coordinates = {
+    latitude: Number(row.querySelector(".catch-latitude")?.value),
+    longitude: Number(row.querySelector(".catch-longitude")?.value),
+    manual: true
+  };
+  return isUsableCoordinates(coordinates) ? coordinates : null;
+}
+
+function setCatchLocationForRow(row, coordinates) {
+  if (!row) return;
+  const latitudeInput = row.querySelector(".catch-latitude");
+  const longitudeInput = row.querySelector(".catch-longitude");
+  if (isUsableCoordinates(coordinates)) {
+    latitudeInput.value = coordinates.latitude;
+    longitudeInput.value = coordinates.longitude;
+  } else {
+    latitudeInput.value = "";
+    longitudeInput.value = "";
+  }
+  updateCatchLocationSummary(row);
+  updateRowSummary(row);
+  renderLiveTrollingSpread();
+}
+
+function updateCatchLocationSummary(row) {
+  const summary = row?.querySelector(".catch-location-summary");
+  if (!summary) return;
+  const coordinates = catchLocationFromRow(row);
+  summary.textContent = coordinates ? "Location selected" : "";
+}
+
+function setCatchLocationPickerCoordinates(coordinates) {
+  if (!window.L || !catchLocationPickerMap || !isUsableCoordinates(coordinates)) return;
+  const point = [coordinates.latitude, coordinates.longitude];
+  if (!catchLocationPickerMarker) {
+    catchLocationPickerMarker = L.marker(point, { draggable: true }).addTo(catchLocationPickerMap);
+    catchLocationPickerMarker.on("dragend", () => {
+      const latLng = catchLocationPickerMarker.getLatLng();
+      setCatchLocationPickerCoordinates({ latitude: latLng.lat, longitude: latLng.lng });
+    });
+  } else {
+    catchLocationPickerMarker.setLatLng(point);
+  }
+  catchLocationPickerMap.setView(point, Math.max(catchLocationPickerMap.getZoom(), 10));
+}
+
+function ensureCatchLocationPickerMap(coordinates) {
+  if (!window.L || !els.catchLocationPickerMap) return;
+  if (!catchLocationPickerMap) {
+    catchLocationPickerMap = L.map(els.catchLocationPickerMap, seamlessMapOptions());
+    addSeamlessTileLayer(catchLocationPickerMap);
+    catchLocationPickerMap.on("click", (event) => {
+      setCatchLocationPickerCoordinates({ latitude: event.latlng.lat, longitude: event.latlng.lng });
+    });
+  }
+  const center = isUsableCoordinates(coordinates) ? [coordinates.latitude, coordinates.longitude] : [43.7, -79.4];
+  catchLocationPickerMap.setView(center, isUsableCoordinates(coordinates) ? 10 : 7);
+  setTimeout(() => catchLocationPickerMap.invalidateSize(), 50);
+  if (isUsableCoordinates(coordinates)) setCatchLocationPickerCoordinates(coordinates);
+  else if (catchLocationPickerMarker) {
+    catchLocationPickerMarker.remove();
+    catchLocationPickerMarker = null;
+  }
+}
+
+function openCatchLocationDialog(row) {
+  activeCatchLocationRow = row;
+  const coordinates = catchLocationFromRow(row) || firstCatchCoordinates(row) || selectedTripLocationCoordinates();
+  els.catchLocationDialog.showModal();
+  ensureCatchLocationPickerMap(coordinates);
+}
+
+function saveCatchLocationFromPicker() {
+  if (!activeCatchLocationRow || !catchLocationPickerMarker) {
+    alert("Pick a spot on the map first.");
+    return;
+  }
+  const latLng = catchLocationPickerMarker.getLatLng();
+  setCatchLocationForRow(activeCatchLocationRow, { latitude: latLng.lat, longitude: latLng.lng, manual: true });
+  activeCatchLocationRow = null;
+  els.catchLocationDialog.close();
+}
+
+function clearActiveCatchLocation() {
+  if (activeCatchLocationRow) setCatchLocationForRow(activeCatchLocationRow, null);
+  activeCatchLocationRow = null;
+  els.catchLocationDialog.close();
+}
+
 function openLocationDialog(mode = "location", locationId = "", launchId = "") {
   activeLocationPickerMode = mode;
   activeLocationPickerLocationId = locationId || els.tripLocation.value || "";

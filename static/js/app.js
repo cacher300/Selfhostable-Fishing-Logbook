@@ -62,6 +62,8 @@ els.editFlasherFromInfoButton.addEventListener("click", () => {
 els.reelDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("reel"));
 els.rodDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("rod"));
 els.photoQueueDialog.addEventListener("close", restoreDialogAfterPhotoQueue);
+els.saveCatchLocationButton?.addEventListener("click", saveCatchLocationFromPicker);
+els.clearCatchLocationButton?.addEventListener("click", clearActiveCatchLocation);
 els.tripDialog.addEventListener("cancel", (event) => {
   if (!isTripFormDirty()) return;
   event.preventDefault();
@@ -362,6 +364,11 @@ document.addEventListener("click", (event) => {
     });
   }
 
+  const pickCatchLocationButton = event.target.closest(".pick-catch-location");
+  if (pickCatchLocationButton) {
+    openCatchLocationDialog(pickCatchLocationButton.closest(".catch-row"));
+  }
+
   const selectQueuedPhoto = event.target.closest("[data-select-queued-photo]");
   if (selectQueuedPhoto) {
     if (event.target.closest("[data-delete-queued-photo]")) return;
@@ -556,9 +563,13 @@ document.addEventListener("change", (event) => {
   if (event.target.matches(".catch-time-unknown")) {
     updateUnknownTimeField(event.target.closest(".catch-row"));
   }
+  if (event.target.matches(".catch-details-unknown")) {
+    updateCatchDetailsUnknown(event.target.closest(".catch-row"), { clear: event.target.checked });
+  }
   if (event.target.matches(".catch-presentation, .trip-gear-cheater, .trip-gear-leadcore")) {
     updatePresentationFields(event.target.closest(".catch-row, .gear-used-row"));
     document.querySelectorAll(".catch-row").forEach(updatePresentationFields);
+    document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
   }
   if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-cheater, .trip-gear-cheater-lure, .trip-gear-leadcore")) {
     populateSetupLineSelects();
@@ -616,8 +627,13 @@ document.addEventListener("keydown", (event) => {
 });
 
 
-document.querySelector("#method").addEventListener("input", updateTrollingVisibility);
-document.querySelector("#method").addEventListener("change", updateTrollingVisibility);
+function updateMethodVisibility() {
+  updateTrollingVisibility();
+  document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
+}
+
+document.querySelector("#method").addEventListener("input", updateMethodVisibility);
+document.querySelector("#method").addEventListener("change", updateMethodVisibility);
 els.personRows.addEventListener("input", () => {
   populatePersonSelects();
   updateAllRowSummaries();

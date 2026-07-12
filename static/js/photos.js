@@ -471,7 +471,7 @@ function renderCatchPhotos(row) {
   grid.innerHTML = photos.map((photo) => `
     <article class="catch-photo-card" data-catch-photo="${photo.id}">
       ${mediaMarkup(photo)}
-      <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch photo">x</button>
+      <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       <span>${escapeHtml(photo.name || "Catch photo")}</span>
       ${isUsableCoordinates(photo.coordinates) ? `<small>${formatCoordinates(photo.coordinates)}</small>` : `<small>No GPS metadata</small>`}
     </article>
@@ -487,15 +487,7 @@ function firstCatchCoordinates(row) {
 }
 
 function manualCoordinatesFromRow(row) {
-  const latitudeText = row.querySelector(".catch-latitude")?.value.trim() || "";
-  const longitudeText = row.querySelector(".catch-longitude")?.value.trim() || "";
-  if (!latitudeText && !longitudeText) return null;
-  const coordinates = {
-    latitude: Number(latitudeText),
-    longitude: Number(longitudeText),
-    manual: true
-  };
-  return isUsableCoordinates(coordinates) ? coordinates : null;
+  return catchLocationFromRow(row);
 }
 
 function fishCoordinatesFromRow(row) {
@@ -521,7 +513,7 @@ async function renderPhotoQueue() {
     <article class="photo-queue-card" data-queue-photo="${escapeHtml(photo.filename)}" ${activePhotoQueueTarget ? `data-select-queued-photo="${escapeHtml(photo.filename)}" tabindex="0" role="button"` : ""}>
       <div class="photo-queue-image-wrap">
         ${mediaMarkup(photo)}
-        <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${escapeHtml(photo.filename)}" aria-label="Remove queued photo">x</button>
+        <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${escapeHtml(photo.filename)}" aria-label="Remove queued photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       </div>
       <div>
         <strong>${escapeHtml(photo.name || "Queued photo")}</strong>

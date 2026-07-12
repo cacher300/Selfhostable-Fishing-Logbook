@@ -843,6 +843,27 @@ textarea[aria-invalid="true"] {
   width: min(900px, calc(100vw - 32px));
 }
 
+#catchLocationDialog .dialog-content {
+  display: grid;
+  gap: 16px;
+}
+
+#catchLocationDialog .location-picker-map {
+  margin-top: 0;
+}
+
+#catchLocationDialog .dialog-actions {
+  bottom: 0;
+  margin-top: 0;
+  margin-right: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+  padding-right: 0;
+  padding-bottom: 0;
+  padding-left: 0;
+  border-top: 0;
+}
+
 .dialog::backdrop {
   background: rgba(7, 21, 46, 0.45);
 }
@@ -995,6 +1016,17 @@ textarea[aria-invalid="true"] {
   background: #fff;
   color: var(--text);
   font-weight: 900;
+}
+
+.icon-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
 }
 
 .form-grid {
@@ -1596,6 +1628,39 @@ textarea[aria-invalid="true"] {
 
 .catch-notes-label {
   grid-column: 1 / -1;
+}
+
+.catch-details-unknown-field {
+  width: 100%;
+}
+
+.catch-row.details-unknown .catch-detail-optional {
+  display: none !important;
+}
+
+.catch-location-field {
+  display: grid;
+  align-self: end;
+  gap: 0;
+}
+
+.catch-location-summary {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.catch-location-field .pick-catch-location {
+  width: 100%;
+  min-height: 44px;
+  justify-content: flex-start;
+  align-items: center;
+  padding-right: 12px;
+  padding-left: 12px;
+  border-color: #cbd3df;
+  background: #fff;
+  color: var(--ink);
+  line-height: 1.2;
 }
 
 .add-lure-inline {
