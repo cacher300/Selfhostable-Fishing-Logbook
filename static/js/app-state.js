@@ -925,7 +925,7 @@ function mediaDownloadName(item) {
   return /\.[a-zA-Z0-9]{2,5}$/.test(normalized) ? normalized : `${normalized}${extension}`;
 }
 
-function mediaMarkup(item, className = "") {
+function mediaMarkup(item, className = "", options = {}) {
   const source = previewImage(item);
   if (!source) return "";
   if (isVideoMedia(item)) {
@@ -933,6 +933,9 @@ function mediaMarkup(item, className = "") {
     return `<video class="${escapeHtml(className)}" src="${escapeHtml(videoSource)}" controls preload="metadata"></video>`;
   }
   const originalSource = originalMediaUrl(item) || source;
+  if (options.download === false) {
+    return `<img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">`;
+  }
   return `
     <span class="media-download-frame">
       <img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">

@@ -96,6 +96,26 @@ class LogbookStoreTests(unittest.TestCase):
         )
         self.assertEqual("Blue/Silver Acme Spoon", normalized["lures"][0]["name"])
 
+    def test_spoon_lure_name_can_include_size(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [
+                    {
+                        "id": "lure-1",
+                        "name": "",
+                        "color": "Blue/Silver",
+                        "spoonSize": "Magnum",
+                        "brand": "Acme",
+                        "type": "Spoon",
+                    }
+                ],
+                "flashers": [],
+            }
+        )
+        self.assertEqual("Blue/Silver Magnum Acme Spoon", normalized["lures"][0]["name"])
+
     def test_trip_title_is_generated_from_date_and_species(self) -> None:
         normalized = logbook_store.normalize_logbook(
             {

@@ -518,17 +518,17 @@ async function renderPhotoQueue() {
   }
 
   els.photoQueueGrid.innerHTML = photos.map((photo) => `
-    <article class="photo-queue-card" data-queue-photo="${photo.filename}">
+    <article class="photo-queue-card" data-queue-photo="${escapeHtml(photo.filename)}" ${activePhotoQueueTarget ? `data-select-queued-photo="${escapeHtml(photo.filename)}" tabindex="0" role="button"` : ""}>
       <div class="photo-queue-image-wrap">
         ${mediaMarkup(photo)}
-        <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${photo.filename}" aria-label="Remove queued photo">x</button>
+        <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${escapeHtml(photo.filename)}" aria-label="Remove queued photo">x</button>
       </div>
       <div>
         <strong>${escapeHtml(photo.name || "Queued photo")}</strong>
         <span>${isUsableCoordinates(photo.coordinates) ? escapeHtml(formatCoordinates(photo.coordinates)) : "No GPS metadata"}</span>
       </div>
       <div class="photo-queue-card-actions">
-        ${activePhotoQueueTarget ? `<button class="button primary" type="button" data-select-queued-photo="${photo.filename}">Use Photo</button>` : ""}
+        ${activePhotoQueueTarget ? `<button class="button primary" type="button" data-select-queued-photo="${escapeHtml(photo.filename)}">Use Photo</button>` : ""}
       </div>
     </article>
   `).join("");

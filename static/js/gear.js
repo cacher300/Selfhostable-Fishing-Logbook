@@ -14,7 +14,7 @@ function gearDisplayName(item, fallback = "Gear") {
 }
 
 function generatedLureName(lure) {
-  return [lure?.color, lure?.bladeType, lure?.brand, lure?.type].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
+  return [lure?.color, lure?.spoonSize, lure?.bladeType, lure?.brand, lure?.type].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
 }
 
 function rodName(id) {
@@ -121,7 +121,7 @@ function renderQueuedGearImage(type) {
   if (!container) return;
   container.classList.toggle("hidden", !pending);
   container.innerHTML = pending ? `
-    ${mediaMarkup(pending)}
+    ${mediaMarkup(pending, "", { download: type !== "lure" })}
     <span>${escapeHtml(pending.name || "Queued photo selected")}</span>
   ` : "";
 }
@@ -383,6 +383,7 @@ function openLureDialog(lure = null, pendingRowId = "") {
   setValue("lureType", lure?.type || "");
   setValue("lureDivingDepth", lure?.divingDepth || "");
   setValue("lureBladeType", lure?.bladeType || "");
+  setValue("lureSpoonSize", lure?.spoonSize || "");
   updateLureDivingDepthField();
   setValue("lureBrand", lure?.brand || "");
   setValue("lureColor", lure?.color || "");
@@ -398,10 +399,12 @@ function openLureInfoDialog(lure, pendingRowId = "") {
   const stats = baitStats("lure", lure.id);
   const hasDivingDepth = ["crankbait", "jerkbait"].includes(lure.type?.toLowerCase());
   const hasBladeType = isWormHarnessType(lure.type);
+  const hasSpoonSize = isSpoonType(lure.type);
   const details = [
     ["Type", lure.type],
     ["Diving depth", hasDivingDepth ? lure.divingDepth : ""],
     ["Blade type", hasBladeType ? lure.bladeType : ""],
+    ["Spoon size", hasSpoonSize ? lure.spoonSize : ""],
     ["Brand / model", lure.brand],
     ["Color", lure.color],
     ["Glow", lure.glow ? "Yes" : "No"],
@@ -429,10 +432,15 @@ function updateLureDivingDepthField() {
   const hasDivingDepth = ["crankbait", "jerkbait"].includes(lureType.toLowerCase());
   document.querySelector("#lureDivingDepthField").classList.toggle("hidden", !hasDivingDepth);
   document.querySelector("#lureBladeTypeField").classList.toggle("hidden", !isWormHarnessType(lureType));
+  document.querySelector("#lureSpoonSizeField").classList.toggle("hidden", !isSpoonType(lureType));
 }
 
 function isWormHarnessType(type) {
   return String(type || "").trim().toLowerCase() === "worm harness";
+}
+
+function isSpoonType(type) {
+  return String(type || "").trim().toLowerCase() === "spoon";
 }
 
 function openFlasherDialog(flasher = null, pendingRowId = "") {
@@ -597,6 +605,7 @@ async function saveLure(event) {
       type: getValue("lureType"),
       divingDepth: ["crankbait", "jerkbait"].includes(getValue("lureType").toLowerCase()) ? getValue("lureDivingDepth") : "",
       bladeType: isWormHarnessType(getValue("lureType")) ? getValue("lureBladeType") : "",
+      spoonSize: isSpoonType(getValue("lureType")) ? getValue("lureSpoonSize") : "",
       brand: getValue("lureBrand"),
       color: getValue("lureColor"),
       glow: document.querySelector("#lureGlow").checked,

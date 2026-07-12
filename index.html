@@ -1051,6 +1051,16 @@
               <option value="Butterfly">Butterfly</option>
             </select>
           </label>
+          <label id="lureSpoonSizeField" class="hidden">
+            <span>Spoon size</span>
+            <select id="lureSpoonSize">
+              <option value="">Select spoon size</option>
+              <option value="Micro">Micro</option>
+              <option value="Small">Small</option>
+              <option value="Standard">Standard</option>
+              <option value="Magnum">Magnum</option>
+            </select>
+          </label>
           <label>
             <span>Brand / model</span>
             <input id="lureBrand" type="text" placeholder="Acme" />
@@ -1201,6 +1211,10 @@
             <span>Time</span>
             <input class="catch-time" type="time" />
           </label>
+          <label class="checkbox-label catch-time-unknown-field">
+            <input class="catch-time-unknown" type="checkbox" />
+            <span>Unknown time</span>
+          </label>
           <label class="checkbox-label catch-released-field">
             <input class="catch-released" type="checkbox" />
             <span>Released after landing</span>
@@ -1237,7 +1251,7 @@
             <input class="catch-retrieve" type="text" placeholder="Slow roll, pause-twitch, burn-stop" />
           </label>
           <div class="row-section-title trolling-field">Trolling Details</div>
-          <label class="trolling-field direct-catch-gear">
+          <label class="trolling-field direct-catch-gear catch-presentation-field hidden">
             <span>Trolling method</span>
             <select class="catch-presentation">
               <option value="">Select method</option>

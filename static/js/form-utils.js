@@ -16,7 +16,7 @@ function isCastingTrip() {
 function updateTrollingVisibility() {
   const trolling = isTrollingTrip();
   const casting = isCastingTrip();
-  document.querySelectorAll("#tripDialog .trolling-field").forEach((element) => {
+  document.querySelectorAll("#tripDialog .trolling-field:not(.catch-presentation-field)").forEach((element) => {
     element.classList.toggle("hidden", !trolling);
   });
   document.querySelectorAll("#tripDialog .casting-field").forEach((element) => {

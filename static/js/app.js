@@ -364,6 +364,7 @@ document.addEventListener("click", (event) => {
 
   const selectQueuedPhoto = event.target.closest("[data-select-queued-photo]");
   if (selectQueuedPhoto) {
+    if (event.target.closest("[data-delete-queued-photo]")) return;
     claimQueuedPhoto(selectQueuedPhoto.dataset.selectQueuedPhoto);
   }
 
@@ -552,6 +553,9 @@ document.addEventListener("change", (event) => {
   if (event.target.matches(".catch-setup-line")) {
     syncCatchMethodToSetupLine(event.target.closest(".catch-row"));
   }
+  if (event.target.matches(".catch-time-unknown")) {
+    updateUnknownTimeField(event.target.closest(".catch-row"));
+  }
   if (event.target.matches(".catch-presentation, .trip-gear-cheater, .trip-gear-leadcore")) {
     updatePresentationFields(event.target.closest(".catch-row, .gear-used-row"));
     document.querySelectorAll(".catch-row").forEach(updatePresentationFields);
@@ -597,6 +601,12 @@ document.addEventListener("input", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && document.querySelector("#catchDetailPopout")) {
     closeSummaryCatchDetail();
+    return;
+  }
+  const queuedPhotoCard = event.target.closest?.(".photo-queue-card[data-select-queued-photo]");
+  if (queuedPhotoCard && ["Enter", " "].includes(event.key)) {
+    event.preventDefault();
+    claimQueuedPhoto(queuedPhotoCard.dataset.selectQueuedPhoto);
     return;
   }
   const catchDetailCard = event.target.closest?.(".timeline-catch-card[data-summary-catch-index]");

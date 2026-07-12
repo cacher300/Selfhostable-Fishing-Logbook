@@ -106,7 +106,7 @@ function tripSaveWarnings() {
       : row.querySelector(".catch-species");
     if (!row.querySelector(".catch-person")?.value) warnings.push(`${label} has no person selected.`);
     if (!speciesField?.value.trim()) warnings.push(`${label} has no species selected.`);
-    if (!row.querySelector(".catch-time")?.value) warnings.push(`${label} has no time.`);
+    if (!row.querySelector(".catch-time")?.value && !row.querySelector(".catch-time-unknown")?.checked) warnings.push(`${label} has no time.`);
     if (trolling && !row.querySelector(".catch-setup-line")?.value) warnings.push(`${label} has no rod selected.`);
   });
   return warnings;
@@ -366,7 +366,15 @@ function addLostFishRow(fishItem = {}) {
 }
 
 function defaultFishTime(catchItem = {}) {
-  return catchItem.time ?? getValue("startTime");
+  return catchItem.timeUnknown ? "" : (catchItem.time ?? getValue("startTime"));
+}
+
+function updateUnknownTimeField(row) {
+  const unknown = row.querySelector(".catch-time-unknown")?.checked;
+  const timeInput = row.querySelector(".catch-time");
+  if (!timeInput) return;
+  if (unknown) timeInput.value = "";
+  timeInput.disabled = Boolean(unknown);
 }
 
 function defaultSetupStartTime(gearItem = {}) {
@@ -382,6 +390,7 @@ function syncTripTimesToBlankRows() {
   const endTime = getValue("endTime");
   if (startTime) {
     document.querySelectorAll("#catchRows .catch-time, #lostFishRows .catch-time, #tripGearRows .trip-gear-start-time").forEach((field) => {
+      if (field.closest(".catch-row")?.querySelector(".catch-time-unknown")?.checked) return;
       if (!field.value) field.value = startTime;
     });
   }
@@ -425,6 +434,8 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-length").value = lost ? "" : (catchItem.length || "");
   node.querySelector(".catch-weight").value = lost ? "" : (catchItem.weight || "");
   node.querySelector(".catch-time").value = defaultFishTime(catchItem);
+  node.querySelector(".catch-time-unknown").checked = Boolean(catchItem.timeUnknown);
+  updateUnknownTimeField(node);
   node.querySelector(".catch-water-depth").value = catchItem.waterDepth || catchItem.depth || "";
   node.querySelector(".catch-depth-down").value = catchItem.depthDown || catchItem.depth || "";
   const manualCoordinates = isUsableCoordinates(catchItem.manualCoordinates)
@@ -636,7 +647,7 @@ function updateRowSummary(row) {
         ? summaryOption(row.querySelector(".catch-possible-species"), ["Select possible species"])
         : summaryOption(row.querySelector(".catch-species"), ["Select species"]),
       released ? "Released" : "",
-      formatDisplayTime(row.querySelector(".catch-time").value),
+      row.querySelector(".catch-time-unknown")?.checked ? "Unknown time" : formatDisplayTime(row.querySelector(".catch-time").value),
       trolling
         ? catchSetupSummary(row)
         : summaryOption(row.querySelector(".catch-lure"), ["No lure selected"]),
@@ -726,6 +737,7 @@ function collectTripFromForm() {
         length: lost ? "" : row.querySelector(".catch-length").value.trim(),
         weight: lost ? "" : row.querySelector(".catch-weight").value.trim(),
         time: row.querySelector(".catch-time").value,
+        timeUnknown: row.querySelector(".catch-time-unknown").checked,
         waterDepth: row.querySelector(".catch-water-depth").value.trim(),
         depthDown: row.querySelector(".catch-depth-down").value.trim(),
         presentation: trolling ? row.querySelector(".catch-presentation").value : "",
@@ -762,6 +774,7 @@ function collectTripFromForm() {
       || item.possibleSpecies
       || item.length
       || item.weight
+      || item.timeUnknown
       || item.waterDepth
       || item.depthDown
       || item.setupLineId

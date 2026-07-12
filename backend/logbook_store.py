@@ -116,6 +116,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             value
             for value in (
                 str(lure.get("color") or "").strip(),
+                str(lure.get("spoonSize") or "").strip(),
                 str(lure.get("bladeType") or "").strip(),
                 str(lure.get("brand") or "").strip(),
                 str(lure.get("type") or "").strip(),
