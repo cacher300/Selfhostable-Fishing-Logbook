@@ -1182,8 +1182,22 @@ textarea[aria-invalid="true"] {
 
 .person-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) 120px;
+  grid-template-columns: minmax(180px, 280px) minmax(180px, 1fr) max-content;
   gap: 10px;
+  justify-content: start;
+  align-items: end;
+}
+
+.person-row .person-name.hidden {
+  display: none;
+}
+
+.person-row .remove-person {
+  justify-self: start;
+  width: max-content;
+  min-width: 0;
+  padding-right: 16px;
+  padding-left: 16px;
 }
 
 .note-photo-grid {
@@ -5088,7 +5102,10 @@ textarea[aria-invalid="true"] {
   .gear-used-row .lure-preview,
   .gear-used-row .gear-flasher-field,
   .gear-used-row .gear-flasher-action,
-  .gear-used-row .flasher-preview {
+  .gear-used-row .flasher-preview,
+  .gear-used-row .param-cheater,
+  .gear-used-row .param-leadcore,
+  .gear-used-row .param-cheater-lure {
     grid-column: auto;
     grid-row: auto;
   }

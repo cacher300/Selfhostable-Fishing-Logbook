@@ -522,7 +522,15 @@ document.addEventListener("change", (event) => {
     scheduleTripWeatherPreview(true);
   }
   if (event.target.closest("#tripForm")) clearTripFormMessage();
-  if (event.target.matches(".catch-lure, .trip-gear-lure")) {
+  if (event.target.matches(".catch-lure, .trip-gear-lure, .trip-gear-cheater-lure")) {
+    if (event.target.value.startsWith("__type__:")) {
+      populateLuresForType(event.target, event.target.value.replace("__type__:", ""));
+      reopenLurePicker(event.target);
+      return;
+    }
+    if (!event.target.value && event.target.dataset.lurePickerMode === "lures") {
+      renderLureTypeOptions(event.target);
+    }
     renderLurePreview(event.target.closest(".catch-row, .gear-used-row"));
   }
   if (event.target.matches(".catch-flasher, .trip-gear-flasher")) {

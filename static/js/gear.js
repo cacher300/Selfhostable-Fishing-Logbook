@@ -200,11 +200,53 @@ function populateComboSelect(select, selectedId = "") {
   populateGearSelect(select, state.rodReelCombos, selectedId, "No combo selected", (combo) => comboName(combo.id) || "Combo");
 }
 
+function savedLureTypes() {
+  return [...new Set(state.lures.map((lure) => String(lure.type || "").trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function lureTypeOptionValue(type) {
+  return `__type__:${type}`;
+}
+
+function lureOptionsForType(type) {
+  return state.lures.filter((lure) => String(lure.type || "").trim() === type);
+}
+
+function renderLureTypeOptions(select) {
+  select.dataset.lurePickerMode = "types";
+  select.dataset.lurePickerType = "";
+  select.innerHTML = `<option value="">Select lure</option>` + savedLureTypes().map((type) => (
+    `<option value="${escapeHtml(lureTypeOptionValue(type))}">${escapeHtml(type)}</option>`
+  )).join("");
+}
+
 function populateLureSelect(select, selectedId = "") {
-  select.innerHTML = `<option value="">No lure selected</option>` + state.lures.map((lure) => {
+  const selectedLure = state.lures.find((lure) => lure.id === selectedId);
+  if (!selectedLure) {
+    renderLureTypeOptions(select);
+    return;
+  }
+  populateLuresForType(select, String(selectedLure.type || "").trim(), selectedId);
+}
+
+function populateLuresForType(select, type, selectedId = "") {
+  select.dataset.lurePickerMode = "lures";
+  select.dataset.lurePickerType = type;
+  const lures = lureOptionsForType(type);
+  select.innerHTML = `<option value="">Select lure</option>` + lures.map((lure) => {
     const label = [lure.name, lure.color].filter(Boolean).join(" - ");
     return `<option value="${lure.id}" ${lure.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
+}
+
+function reopenLurePicker(select) {
+  select.focus();
+  try {
+    select.showPicker?.();
+  } catch (_error) {
+    // Some browsers do not allow programmatic reopening of native selects.
+  }
 }
 
 function populateFlasherSelect(select, selectedId = "") {
@@ -571,12 +613,16 @@ async function saveLure(event) {
     else state.lures.push(lure);
     upsertListValue("lureTypes", lure.type);
     await saveState();
-    [...document.querySelectorAll(".catch-lure, .trip-gear-lure")].forEach((select) => populateLureSelect(select, select.value));
+    [...document.querySelectorAll(".catch-lure, .trip-gear-lure, .trip-gear-cheater-lure")].forEach((select) => populateLureSelect(select, select.value));
     const rowId = getValue("pendingCatchRow");
     const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
-    if (row) row.querySelector(".catch-lure, .trip-gear-lure").value = lure.id;
-    if (row) renderLurePreview(row);
-    if (row) updateRowSummary(row);
+    if (row) {
+      const select = row.querySelector(".catch-lure, .trip-gear-lure");
+      populateLuresForType(select, lure.type, lure.id);
+      select.value = lure.id;
+      renderLurePreview(row);
+      updateRowSummary(row);
+    }
     els.lureDialog.close();
     els.lureForm.reset();
     pendingLureImage = null;
