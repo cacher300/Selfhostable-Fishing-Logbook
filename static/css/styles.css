@@ -608,6 +608,12 @@ textarea[aria-invalid="true"] {
   box-shadow: 0 0 0 3px rgba(188, 47, 47, 0.12);
 }
 
+.catch-row .catch-presentation:disabled {
+  color: var(--ink);
+  opacity: 1;
+  cursor: default;
+}
+
 .form-message {
   margin-bottom: 14px;
   padding: 12px 14px;
@@ -4024,6 +4030,9 @@ textarea[aria-invalid="true"] {
 
 .stats-toolbar {
   display: grid;
+  position: sticky;
+  top: 10px;
+  z-index: 12;
   grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
   gap: 12px;
   padding: 16px;
@@ -4031,6 +4040,32 @@ textarea[aria-invalid="true"] {
   border-radius: 8px;
   background: var(--panel);
   box-shadow: var(--shadow);
+}
+
+.stats-page-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 4px 2px 2px;
+}
+
+.stats-page-header h2 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 40px);
+  letter-spacing: -0.04em;
+}
+
+.stats-page-header p,
+.efficiency-leaders .section-heading p {
+  margin: 5px 0 0;
+  color: var(--muted);
+}
+
+.stats-scope {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .stats-toolbar label {
@@ -4056,12 +4091,19 @@ textarea[aria-invalid="true"] {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(9, minmax(100px, 1fr));
+  gap: 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
 }
 
 .metric-card {
-  padding: 16px;
+  padding: 15px 14px;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .metric-card span {
@@ -4074,7 +4116,7 @@ textarea[aria-invalid="true"] {
 .metric-card strong {
   display: block;
   margin-top: 6px;
-  font-size: 28px;
+  font-size: 24px;
 }
 
 .analytics-grid {
@@ -4091,6 +4133,10 @@ textarea[aria-invalid="true"] {
 .efficiency-leaders {
   display: grid;
   gap: 12px;
+  padding: 16px;
+  border: 1px solid #9bbdf8;
+  border-radius: 8px;
+  background: #f7fbff;
 }
 
 .efficiency-leaders .section-heading {
@@ -4111,7 +4157,7 @@ textarea[aria-invalid="true"] {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
-  box-shadow: var(--shadow);
+  box-shadow: none;
 }
 
 .leader-card span {

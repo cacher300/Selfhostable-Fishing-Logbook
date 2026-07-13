@@ -38,10 +38,21 @@ function updateTrollingVisibility() {
 }
 
 function updatePresentationFields(row) {
-  const presentation = row.querySelector(".catch-presentation")?.value || "";
+  const presentationSelect = row.querySelector(".catch-presentation");
+  const presentation = presentationSelect?.value || "";
+  const catchPresentationField = row.querySelector(".catch-presentation-field");
+  const isCatchRow = row.classList.contains("catch-row");
+  const hasSelectedRod = Boolean(row.querySelector(".catch-setup-line")?.value);
   const estimatedDepthLabel = row.querySelector(".estimated-depth-label");
-  const isLeadcoreCatch = row.classList.contains("catch-row") && catchRowUsesLeadcore(row);
+  const isLeadcoreCatch = isCatchRow && catchRowUsesLeadcore(row);
   row.querySelectorAll(".trolling-param").forEach((field) => field.classList.remove("visible"));
+  if (isCatchRow && presentationSelect) {
+    presentationSelect.disabled = true;
+    presentationSelect.setAttribute("aria-disabled", "true");
+  }
+  if (catchPresentationField) {
+    catchPresentationField.classList.toggle("hidden", !isTrollingTrip() || !hasSelectedRod || row.classList.contains("lost-fish-row"));
+  }
   if (estimatedDepthLabel) {
     estimatedDepthLabel.dataset.unitLabelText = presentation === "flatline" ? "Estimated depth down" : "Estimated depth";
     estimatedDepthLabel.textContent = presentation === "flatline" ? "Estimated depth down" : "Estimated depth";

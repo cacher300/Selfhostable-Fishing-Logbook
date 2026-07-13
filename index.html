@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Selfhostable Fishing Logbook</title>
+    <title>Fishing Logbook</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="static/css/styles.css" />
   </head>
@@ -11,7 +11,7 @@
     <div class="app-shell">
       <aside class="sidebar" aria-label="Logbook summary">
         <div class="brand-block">
-          <h1>Selfhostable Fishing Logbook</h1>
+          <h1>Fishing Logbook</h1>
           <div class="brand-spotlight" id="brandSpotlight" aria-label="Recent fishing photos"></div>
         </div>
 
@@ -127,9 +127,24 @@
           <div id="personalBestsGrid" class="personal-bests-grid"></div>
         </section>
 
-        <section class="stats-page hidden" id="advancedStatsPanel" aria-label="Advanced fishing statistics">
+        <section class="stats-page hidden" id="advancedStatsPanel" aria-label="Fishing performance statistics">
+          <header class="stats-page-header">
+            <div>
+              <p>Compare production against exposure, then decide what to repeat.</p>
+            </div>
+            <div class="stats-scope" id="statsActiveScope" aria-live="polite">All time · All methods</div>
+          </header>
           <div class="stats-toolbar">
             <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
+            <label>
+              <span>Date range</span>
+              <select id="statsDateFilter">
+                <option value="all">All time</option>
+                <option value="season">This season</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+            </label>
             <label>
               <span>Stats scope</span>
               <select id="statsMethodFilter"></select>
@@ -154,7 +169,7 @@
             </label>
             <label class="inline-toggle">
               <input id="statsIncludeLostToggle" type="checkbox" />
-              <span>Include lost fish</span>
+              <span>Rank by strike opportunities</span>
             </label>
             <label>
               <span>Species</span>
@@ -194,20 +209,20 @@
             </label>
           </div>
           <div class="metric-grid" id="advancedMetricGrid"></div>
-          <section class="efficiency-leaders" aria-label="Key performance signals">
+          <section class="efficiency-leaders" aria-label="Actionable insights">
             <div class="section-heading">
               <div>
-                <p class="eyebrow">Pattern clues</p>
-                <h3>Key Performance Signals</h3>
+                <h3>Actionable insights</h3>
+                <p>Exposure-adjusted findings, with sample size and confidence.</p>
               </div>
             </div>
             <div class="leader-grid" id="efficiencyLeadersGrid"></div>
           </section>
           <div class="analytics-groups">
-            <details class="stats-group" open>
+            <details class="stats-group">
               <summary>
-                <span>Overview</span>
-                <small>Outcome summary, species mix, release rate, and time-of-day context</small>
+                <span>Species &amp; targeting</span>
+                <small>Outcome, species mix, release rate, target success, and bite timing</small>
               </summary>
               <div class="analytics-grid">
                 <article class="analytics-card wide-card">
@@ -239,7 +254,7 @@
 
             <details class="stats-group" open>
               <summary>
-                <span>Lure And Gear Performance</span>
+                <span>Lure &amp; bait performance</span>
                 <small>Time-adjusted lure return, plus trolling flashers and combinations when trolling is selected</small>
               </summary>
               <div class="analytics-grid">
@@ -280,8 +295,8 @@
 
             <details class="stats-group" data-trolling-group open>
               <summary>
-                <span>Depth And FOW</span>
-                <small>Direction, trolling method, downrigger position, FOW, and depth by production rate</small>
+                <span>Trolling setup performance</span>
+                <small>Port vs starboard, method, direction, flasher, combination, FOW, and depth</small>
               </summary>
               <div class="analytics-grid">
                 <article class="analytics-card show-chart" data-default-view="chart">
@@ -315,10 +330,10 @@
               </div>
             </details>
 
-            <details class="stats-group" open>
+            <details class="stats-group">
               <summary>
-                <span>Technique Performance</span>
-                <small>Method, location, people, and month by efficiency</small>
+                <span>Trip patterns</span>
+                <small>Method, location, angler, month, intent, and rating</small>
               </summary>
               <div class="analytics-grid">
                 <article class="analytics-card show-chart" data-default-view="chart">
@@ -340,7 +355,7 @@
               </div>
             </details>
 
-            <details class="stats-group" open>
+            <details class="stats-group">
               <summary>
                 <span>Conditions</span>
                 <small>Water clarity, weather tag, wind, pressure, cloud cover, fronts, and moon windows</small>
@@ -403,8 +418,8 @@
 
             <details class="stats-group">
               <summary>
-                <span>Advanced Tables</span>
-                <small>Detailed outcome, pattern, intent, rating, and diagnostic checks</small>
+                <span>Data quality &amp; advanced tables</span>
+                <small>Missing attribution, unreliable exposure, intent, rating, and diagnostics</small>
               </summary>
               <div class="analytics-grid">
                 <article class="analytics-card">
@@ -1489,6 +1504,7 @@
     <script src="static/js/gear.js"></script>
     <script src="static/js/trolling-spread.js"></script>
     <script src="static/js/maps-summary.js"></script>
+    <script src="static/js/stats-analytics.js"></script>
     <script src="static/js/stats.js"></script>
     <script src="static/js/personal-bests.js"></script>
     <script src="static/js/form-utils.js"></script>

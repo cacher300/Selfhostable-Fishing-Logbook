@@ -42,7 +42,8 @@ function tripHasFlasher(trip, flasher) {
 
 function scopedTrips() {
   return state.trips.filter((trip) => (
-    (activeStatsMethod === "All methods" || trip.method === activeStatsMethod)
+    tripMatchesStatsDate(trip)
+    && (activeStatsMethod === "All methods" || trip.method === activeStatsMethod)
     && (activeStatsFilters.location === "All locations" || trip.location === activeStatsFilters.location)
     && (activeStatsFilters.waterClarity === "All clarity" || trip.waterClarity === activeStatsFilters.waterClarity)
     && (activeStatsFilters.weather === "All weather" || trip.weather === activeStatsFilters.weather)
@@ -53,6 +54,18 @@ function scopedTrips() {
     && tripHasLure(trip, activeStatsFilters.lure)
     && tripHasFlasher(trip, activeStatsFilters.flasher)
   ));
+}
+
+function tripMatchesStatsDate(trip) {
+  if (activeStatsDateRange === "all") return true;
+  const tripDate = new Date(`${trip.date || ""}T12:00:00`);
+  if (Number.isNaN(tripDate.getTime())) return false;
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  if (activeStatsDateRange === "season") return tripDate.getFullYear() === today.getFullYear();
+  const cutoff = new Date(today);
+  cutoff.setDate(cutoff.getDate() - Number(activeStatsDateRange));
+  return tripDate >= cutoff && tripDate <= today;
 }
 
 function catchRecords(trips = state.trips) {
@@ -259,16 +272,16 @@ function summarizeGearPerformance(records, keyFn, minutesFn = () => 0) {
 }
 
 function confidenceFor(hours, trips) {
-  if (trips >= 6 && hours >= 15) return "High";
-  if (trips >= 3 && trips <= 5 && hours >= 5 && hours <= 15) return "Medium";
-  return "Low";
+  return StatsAnalytics.confidence(hours, trips);
 }
 
 function performanceLabel(item, averageRate = 0) {
   if (item.missingTime) return "Missing time data";
-  if (item.confidence === "Low") return "Needs more data";
+  if (item.strikes >= 3 && item.landingPercentage !== null && item.landingPercentage < 0.5) return "High strikes, low landing";
+  if (item.confidence === "Low" && item.fishPerHour > averageRate) return "Promising, needs more data";
+  if (item.confidence === "Low") return "Insufficient data";
   if (item.efficiencyIndex >= 1.5) return "High efficiency";
-  if (item.usageShare >= 25 && item.efficiencyIndex < 0.75) return "Overused / low return";
+  if (item.usageShare >= 15 && item.efficiencyIndex < 0.75) return "Overused, low return";
   if (item.fish >= 2 && item.fishPerHour >= averageRate) return "Consistent producer";
   if (item.fish >= 2 && item.fishPerHour < averageRate) return "High fish count, low rate";
   if (item.fish > 0 && item.fishPerHour > averageRate) return "Low fish count, high rate";
@@ -295,6 +308,8 @@ function sortPerformanceItems(items) {
 
 function statsComparablePerformanceValue(item, key) {
   if (["fishPerHour", "efficiencyIndex", "overperformance", "usageShare"].includes(key) && !item.hasUsableTime) return -1;
+  if (activeStatsIncludeLost && key === "fish") return item.strikes || 0;
+  if (activeStatsIncludeLost && key === "fishPerHour") return item.strikesPerHour || 0;
   return item[key] || 0;
 }
 
@@ -307,13 +322,16 @@ function filterPerformanceItems(items) {
 }
 
 function performanceRows(items, labelHeader = "Name") {
-  const includeLost = activeStatsIncludeLost || items.some((item) => item.lost > 0);
   return filterPerformanceItems(sortPerformanceItems(items)).map((item) => {
-    const row = [
+    return [
     item.name || labelHeader,
     item.fish,
+    item.lost || 0,
+    item.strikes || item.fish + (item.lost || 0),
     item.hasUsableTime ? trimNumber(item.hours) : "Missing time data",
     item.hasUsableTime ? trimNumber(item.fishPerHour) : "n/a",
+    item.hasUsableTime ? trimNumber(item.strikesPerHour) : "n/a",
+    item.landingPercentage === null ? "n/a" : `${trimNumber(item.landingPercentage * 100)}%`,
     item.trips,
     trimNumber(item.fishPerTrip),
     item.hasUsableTime ? `${trimNumber(item.usageShare)}%` : "n/a",
@@ -323,8 +341,6 @@ function performanceRows(items, labelHeader = "Name") {
     item.confidence,
     item.label
     ];
-    if (includeLost) row.push(item.lost || 0);
-    return row;
   });
 }
 
@@ -336,10 +352,11 @@ function makePerformanceItems(items, totalHours, totalFish) {
     const hasUsableTime = hasTimeSample && hours > 0;
     const trips = item.trips instanceof Set ? item.trips.size : number(item.trips);
     const fish = number(item.fish);
-    const usageShare = hasUsableTime && totalHours ? (hours / totalHours) * 100 : 0;
-    const catchShare = totalFish ? (fish / totalFish) * 100 : 0;
-    const efficiencyIndex = hasUsableTime && usageShare ? catchShare / usageShare : 0;
-    const overperformance = hasUsableTime ? catchShare - usageShare : 0;
+    const metrics = StatsAnalytics.performanceMetrics({ landed: fish, lost: number(item.lost), hours: hasUsableTime ? hours : null, trips, totalHours, totalLanded: totalFish });
+    const usageShare = metrics.timeShare === null ? 0 : metrics.timeShare * 100;
+    const catchShare = metrics.fishShare === null ? 0 : metrics.fishShare * 100;
+    const efficiencyIndex = metrics.efficiencyIndex ?? 0;
+    const overperformance = metrics.performanceDelta === null ? 0 : metrics.performanceDelta * 100;
     const next = {
       ...item,
       hours,
@@ -349,6 +366,9 @@ function makePerformanceItems(items, totalHours, totalFish) {
       hasUsableTime,
       missingTime: fish > 0 && !hasUsableTime,
       fishPerHour: hasUsableTime ? fish / hours : 0,
+      strikes: fish + number(item.lost) + number(item.missed),
+      strikesPerHour: hasUsableTime ? (fish + number(item.lost) + number(item.missed)) / hours : 0,
+      landingPercentage: StatsAnalytics.safeDivide(fish, fish + number(item.lost)),
       fishPerTrip: trips ? fish / trips : 0,
       usageShare,
       catchShare,
@@ -598,7 +618,7 @@ function bestReliableLeader(items) {
 
 function underperformingHighUseLeader(items) {
   return [...filterPerformanceItems(items || [])]
-    .filter((item) => item.hasUsableTime && item.efficiencyIndex > 0 && item.efficiencyIndex < 0.75)
+    .filter((item) => item.hasUsableTime && item.usageShare >= 15 && item.efficiencyIndex < 0.75)
     .sort((a, b) => b.hours - a.hours || a.efficiencyIndex - b.efficiencyIndex)[0];
 }
 
@@ -801,37 +821,39 @@ function renderAdvancedStats() {
   const longestTrip = [...tripsWithHours].sort((a, b) => b.hours - a.hours || compareTripsByDateTime(a.trip, b.trip, "desc"))[0];
   const shortestTrip = [...tripsWithHours].sort((a, b) => a.hours - b.hours || compareTripsByDateTime(a.trip, b.trip, "desc"))[0];
 
+  if (els.statsActiveScope) {
+    const scopeBits = [activeStatsMethod, activeStatsFilters.species, activeStatsFilters.location]
+      .filter((value) => value && !value.startsWith("All "));
+    const dateLabel = els.statsDateFilter?.selectedOptions?.[0]?.textContent || "All time";
+    els.statsActiveScope.textContent = [dateLabel, ...(scopeBits.length ? scopeBits : ["All methods"])].join(" / ");
+  }
+
   els.advancedMetricGrid.innerHTML = [
     ["Trips", trips.length],
-    ["Total hours", trimNumber(hours)],
-    ["Avg trip length", tripsWithHours.length ? `${trimNumber(averageTripLength)} hr` : "0 hr"],
-    ["Longest trip", longestTrip ? `${trimNumber(longestTrip.hours)} hr` : "0 hr"],
-    ["Shortest trip", shortestTrip ? `${trimNumber(shortestTrip.hours)} hr` : "0 hr"],
+    ["Fishing hours", `${trimNumber(hours)} hr`],
     ["Landed fish", fish],
     ["Fish / hour", hours ? trimNumber(fish / hours) : "0"],
     ["Fish / trip", trips.length ? trimNumber(fish / trips.length) : "0"],
-    ["Lbs / hour", hours ? trimNumber(pounds / hours) : "0"],
     ["Skunk trips", `${skunkTrips} (${formatPercent(skunkTrips, trips.length)})`],
-    ["Best trip", bestTrip ? `${scopedTripFish(bestTrip)} fish` : "0"],
-    ["Best catch rate", bestCatchRateTrip ? `${trimNumber(scopedCatchRate(bestCatchRateTrip))}/hr` : "0"],
     ["Lost fish", lostFish],
     ["Released / kept", `${releasedFish}/${keptFish}`],
-    ["Lure use time", minutesToHours(lureMinutes)],
-    ["Flasher use time", isTrollingScope ? minutesToHours(flasherMinutes) : "Trolling only"]
+    ["Species", new Set(records.map((record) => record.species).filter(Boolean)).size]
   ].map(([label, value]) => `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
 
-  const performanceHeaders = ["Name", "Fish", "Hours", "Fish / hr", "Trips", "Fish / trip", "Time %", "Fish %", "Efficiency", "Over", "Confidence", "Label"];
+  const performanceHeaders = ["Name", "Landed", "Lost", "Strikes", "Hours", "Fish / hr", "Strikes / hr", "Landing %", "Trips", "Fish / trip", "Time %", "Fish %", "Efficiency", "Delta", "Confidence", "Label"];
   const headersForPerformance = (name, items = []) => {
     const headers = [name, ...performanceHeaders.slice(1)];
-    if (activeStatsIncludeLost || items.some((item) => item.lost > 0)) headers.push("Lost");
     return headers;
   };
-  const lureItems = summarizeEffortPerformance(
-    gearRecords.filter((record) => record.lureId),
+  const timedSetupRecords = gearRecords.filter((record) => record.source === "trip");
+  const lureItems = summarizeEffortWithCatches(
+    timedSetupRecords.filter((record) => record.lureId),
+    records,
     (record) => lureName(record.lureId),
     (record) => record.lureMinutes,
     lureHours,
-    fish
+    fish,
+    lostRecords
   );
   renderStatsTable(els.lureStatsTable, headersForPerformance("Lure", lureItems), performanceRows(lureItems, "Lure"));
   renderStatsTable(els.lureShareStatsTable, headersForPerformance("Lure", lureItems), performanceRows(lureItems, "Lure"));
@@ -874,12 +896,14 @@ function renderAdvancedStats() {
   });
 
   if (isTrollingScope) {
-    flasherItems = summarizeEffortPerformance(
-      gearRecords.filter((record) => record.flasherId),
+    flasherItems = summarizeEffortWithCatches(
+      timedSetupRecords.filter((record) => record.flasherId),
+      records.filter(isTrollingRecord),
       (record) => flasherName(record.flasherId),
       (record) => record.flasherMinutes,
       flasherHours,
-      fish
+      fish,
+      lostRecords.filter(isTrollingRecord)
     );
     trollingGear = gearRecords.filter((record) => record.trip.method === "Trolling" && record.source === "trip");
     const trollingLineHours = trollingGear.reduce((sum, record) => sum + setupLineMinutes(record), 0) / 60;

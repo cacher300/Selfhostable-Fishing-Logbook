@@ -243,6 +243,7 @@ let activeTripTimelineFilter = "all";
 let activeNotePhotos = [];
 let activeTripSort = { key: "date", direction: "desc" };
 let activeStatsMethod = "All methods";
+let activeStatsDateRange = "all";
 let activeStatsSort = "fishPerHour";
 let activeStatsMinTrips = 0;
 let activeStatsMinHours = 0;
@@ -330,6 +331,7 @@ const els = {
   mapCatchList: document.querySelector("#mapCatchList"),
   mapSpeciesFilter: document.querySelector("#mapSpeciesFilter"),
   statsMethodFilter: document.querySelector("#statsMethodFilter"),
+  statsDateFilter: document.querySelector("#statsDateFilter"),
   statsSortFilter: document.querySelector("#statsSortFilter"),
   statsMinTripsInput: document.querySelector("#statsMinTripsInput"),
   statsMinHoursInput: document.querySelector("#statsMinHoursInput"),
@@ -344,6 +346,7 @@ const els = {
   statsMonthFilter: document.querySelector("#statsMonthFilter"),
   statsRatingFilter: document.querySelector("#statsRatingFilter"),
   advancedMetricGrid: document.querySelector("#advancedMetricGrid"),
+  statsActiveScope: document.querySelector("#statsActiveScope"),
   efficiencyLeadersGrid: document.querySelector("#efficiencyLeadersGrid"),
   outcomeStatsTable: document.querySelector("#outcomeStatsTable"),
   lureStatsTable: document.querySelector("#lureStatsTable"),

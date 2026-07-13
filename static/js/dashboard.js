@@ -253,6 +253,23 @@ function renderFilters() {
 }
 
 function renderStatsMethodFilter() {
+  if (window.location.pathname === "/stats") {
+    const params = new URLSearchParams(window.location.search);
+    activeStatsDateRange = ["all", "season", "30", "90"].includes(params.get("range")) ? params.get("range") : "all";
+    activeStatsMethod = params.get("method") || activeStatsMethod;
+    activeStatsSort = params.get("sort") || activeStatsSort;
+    activeStatsMinTrips = Math.max(0, Math.floor(Number(params.get("minTrips")) || 0));
+    activeStatsMinHours = Math.max(0, Number(params.get("minHours")) || 0);
+    activeStatsIncludeLost = params.get("outcome") === "strikes";
+    Object.keys(activeStatsFilters).forEach((key) => {
+      if (params.has(key)) activeStatsFilters[key] = params.get(key);
+    });
+    if (els.statsDateFilter) els.statsDateFilter.value = activeStatsDateRange;
+    if (els.statsSortFilter) els.statsSortFilter.value = activeStatsSort;
+    if (els.statsMinTripsInput) els.statsMinTripsInput.value = activeStatsMinTrips;
+    if (els.statsMinHoursInput) els.statsMinHoursInput.value = activeStatsMinHours;
+    if (els.statsIncludeLostToggle) els.statsIncludeLostToggle.checked = activeStatsIncludeLost;
+  }
   const methods = ["All methods", ...new Set([...state.methods, ...state.trips.map((trip) => trip.method)].filter(Boolean))];
   if (!methods.includes(activeStatsMethod)) activeStatsMethod = "All methods";
   els.statsMethodFilter.innerHTML = methods.map((method) => (

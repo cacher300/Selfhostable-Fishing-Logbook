@@ -646,6 +646,7 @@ function populateSetupLineSelects() {
   document.querySelectorAll(".catch-setup-line").forEach((select) => {
     populateSetupLineSelect(select, select.value);
   });
+  document.querySelectorAll("#catchRows .catch-row").forEach(syncCatchMethodToSetupLine);
 }
 
 function syncCatchMethodToSetupLine(row) {

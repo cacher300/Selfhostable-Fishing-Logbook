@@ -115,6 +115,12 @@ els.exportButton.addEventListener("click", exportJson);
 els.importInput.addEventListener("change", importJson);
 els.statsMethodFilter.addEventListener("change", () => {
   activeStatsMethod = els.statsMethodFilter.value;
+  syncStatsUrl();
+  renderAdvancedStats();
+});
+els.statsDateFilter?.addEventListener("change", () => {
+  activeStatsDateRange = els.statsDateFilter.value;
+  syncStatsUrl();
   renderAdvancedStats();
 });
 els.bestsYearFilter?.addEventListener("change", () => {
@@ -128,18 +134,22 @@ els.bestsMonthFilter?.addEventListener("change", () => {
 });
 els.statsSortFilter?.addEventListener("change", () => {
   activeStatsSort = els.statsSortFilter.value;
+  syncStatsUrl();
   renderAdvancedStats();
 });
 els.statsMinTripsInput?.addEventListener("input", () => {
   activeStatsMinTrips = Math.max(0, Math.floor(Number(els.statsMinTripsInput.value) || 0));
+  syncStatsUrl();
   renderAdvancedStats();
 });
 els.statsMinHoursInput?.addEventListener("input", () => {
   activeStatsMinHours = Math.max(0, Number(els.statsMinHoursInput.value) || 0);
+  syncStatsUrl();
   renderAdvancedStats();
 });
 els.statsIncludeLostToggle?.addEventListener("change", () => {
   activeStatsIncludeLost = Boolean(els.statsIncludeLostToggle.checked);
+  syncStatsUrl();
   renderAdvancedStats();
 });
 [
@@ -155,9 +165,26 @@ els.statsIncludeLostToggle?.addEventListener("change", () => {
 ].forEach(([key, control]) => {
   control.addEventListener("change", () => {
     activeStatsFilters[key] = control.value;
+    syncStatsUrl();
     renderAdvancedStats();
   });
 });
+
+function syncStatsUrl() {
+  if (window.location.pathname !== "/stats") return;
+  const params = new URLSearchParams();
+  if (activeStatsDateRange !== "all") params.set("range", activeStatsDateRange);
+  if (activeStatsMethod !== "All methods") params.set("method", activeStatsMethod);
+  if (activeStatsSort !== "fishPerHour") params.set("sort", activeStatsSort);
+  if (activeStatsMinTrips) params.set("minTrips", String(activeStatsMinTrips));
+  if (activeStatsMinHours) params.set("minHours", String(activeStatsMinHours));
+  if (activeStatsIncludeLost) params.set("outcome", "strikes");
+  Object.entries(activeStatsFilters).forEach(([key, value]) => {
+    if (value && !value.startsWith("All ")) params.set(key, value);
+  });
+  const query = params.toString();
+  history.replaceState(null, "", `/stats${query ? `?${query}` : ""}`);
+}
 els.mapSpeciesFilter.addEventListener("change", () => {
   activeMapSpecies = els.mapSpeciesFilter.value;
   renderFishMap();
@@ -675,7 +702,7 @@ function setView(view) {
   const viewTitles = {
     trips: "Trips",
     bests: "Personal Bests",
-    stats: "Advanced Stats",
+    stats: "Stats",
     map: "Map",
     gear: "Gear",
     gallery: "Gallery",
