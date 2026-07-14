@@ -198,15 +198,12 @@ function renderMapLegend(records, options = {}) {
 function mapPopupHtml(record) {
   const { trip, media, coordinates } = record;
   const title = [mapRecordTitle(record), trip.location].filter(Boolean).join(" at ");
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`;
   return `
     <div class="map-popup" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
       ${media?.image ? mediaMarkup(media) : ""}
       <strong>${escapeHtml(title)}</strong>
       <span>${escapeHtml(formatDate(trip.date))}</span>
-      <span>${escapeHtml(formatCoordinates(coordinates))}</span>
       <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
-      <a href="${mapsUrl}" target="_blank" rel="noreferrer">Open in Maps</a>
     </div>
   `;
 }
@@ -218,17 +215,14 @@ function renderMapList(records) {
   }
 
   els.mapCatchList.innerHTML = records.map((record) => {
-    const { trip, media, coordinates } = record;
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`;
+    const { trip, media } = record;
     return `
       <article class="map-catch-card" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
         ${media?.image ? mediaMarkup(media) : ""}
         <div>
           <strong>${escapeHtml(mapRecordTitle(record))}</strong>
           <span>${escapeHtml([formatDate(trip.date), trip.location].filter(Boolean).join(" / "))}</span>
-          <span>${escapeHtml(formatCoordinates(coordinates))}</span>
           <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
-          <a href="${mapsUrl}" target="_blank" rel="noreferrer">Open in Maps</a>
         </div>
       </article>
     `;
@@ -439,16 +433,11 @@ function catchMediaPreview(photo, speciesOrTitle, index, options = {}) {
   `;
 }
 
-function catchMediaBadge(photo) {
-  return isVideoMedia(photo) ? `<span class="catch-media-badge">Video</span>` : "";
-}
-
 function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {}) {
-  if (!photos.length) return `<div class="empty-state compact-empty"><p>No catch media.</p></div>`;
+  if (!photos.length) return "";
   const photoCount = photos.length;
   const selectedIndex = Math.max(0, Math.min(Number(options.selectedIndex) || 0, photoCount - 1));
   const selectedPhoto = photos[selectedIndex] || photos[0];
-  const selectedBadge = catchMediaBadge(selectedPhoto);
   const thumbnailPhotos = photos
     .map((photo, index) => ({ photo, index }))
     .filter(({ index }) => index !== selectedIndex);
@@ -489,7 +478,6 @@ function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {})
             loading: "eager",
             enableDownload: options.context === "detail"
           })}
-          ${selectedBadge}
         </span>
         ${openButton}
       </div>
@@ -509,7 +497,6 @@ function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {})
                 aria-pressed="${isActive ? "true" : "false"}"
               >
                 ${catchMediaPreview(photo, speciesOrTitle, actualIndex, { className: "thumbnail-image", loading: "lazy", thumbnail: true, decorative: true })}
-                ${catchMediaBadge(photo)}
                 ${isMoreButton ? `<span class="more-overlay">+${hiddenThumbnailCount}</span>` : ""}
               </button>
             `;

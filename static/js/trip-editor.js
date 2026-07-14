@@ -664,7 +664,8 @@ function populateSetupLineSelects() {
 function rodOptionFromGearRow(row, index) {
   const combo = selectedComboForRow(row);
   const rodId = combo?.rodId || "";
-  const lureId = row.querySelector(".trip-gear-lure")?.value || "";
+  const lureSelect = row.querySelector(".trip-gear-lure");
+  const lureId = lureSelect?.value?.startsWith("__type__:") ? "" : (lureSelect?.value || "");
   const fallbackLabel = setupLineLabelFromRow(row, index);
   const label = [
     comboName(row.querySelector(".trip-gear-combo")?.value || "") || rodName(rodId) || fallbackLabel,
@@ -679,23 +680,12 @@ function rodOptionFromGearRow(row, index) {
 }
 
 function catchRodOptionsFromForm(selectedRodId = "") {
-  const gearOptions = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
+  return [...els.tripGearRows.querySelectorAll(".gear-used-row")]
     .map((row, index) => {
       if (!row.dataset.gearId) row.dataset.gearId = createId();
       return rodOptionFromGearRow(row, index);
     })
     .filter((item) => item.rodId);
-  const gearRodIds = new Set(gearOptions.map((item) => item.rodId).filter(Boolean));
-  const selectedInGear = selectedRodId && gearRodIds.has(selectedRodId);
-  const rodOptions = state.rods
-    .filter((rod) => rod.id && (!gearRodIds.has(rod.id) || (selectedRodId === rod.id && !selectedInGear)))
-    .map((rod) => ({
-      id: `rod:${rod.id}`,
-      rodId: rod.id,
-      lureId: "",
-      label: rodName(rod.id) || gearDisplayName(rod, "Rod")
-    }));
-  return [...gearOptions, ...rodOptions];
 }
 
 function populateCatchRodSelect(select, selectedRodId = "", selectedOptionId = "") {
@@ -724,7 +714,7 @@ function syncDirectCatchRodToLure(row) {
   const lureId = option?.dataset.lureId || "";
   if (lureId) {
     const lureSelect = row.querySelector(".catch-lure");
-    lureSelect.value = lureId;
+    populateLureSelect(lureSelect, lureId);
     renderLurePreview(row);
   }
   updateRowSummary(row);

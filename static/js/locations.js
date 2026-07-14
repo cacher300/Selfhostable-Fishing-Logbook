@@ -149,7 +149,7 @@ function updateCatchLocationSummary(row) {
   const coordinates = fishCoordinatesFromRow(row);
   const manualCoordinates = catchLocationFromRow(row);
   if (button) button.textContent = coordinates ? "Selected Location" : "Select Location";
-  if (summary) summary.textContent = manualCoordinates ? "Location selected" : (coordinates ? "Location found from media" : "");
+  if (summary) summary.textContent = manualCoordinates ? "Location selected" : "";
 }
 
 function setCatchLocationPickerCoordinates(coordinates) {
