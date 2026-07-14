@@ -2286,11 +2286,14 @@ textarea[aria-invalid="true"] {
   display: grid;
   gap: 4px;
   min-width: 160px;
+  background: var(--panel);
+  color: var(--text);
 }
 
 .fish-map .leaflet-popup-content-wrapper,
 .fish-map .leaflet-popup-tip {
-  background: var(--card);
+  border: 1px solid var(--line);
+  background: var(--panel);
   color: var(--text);
   box-shadow: var(--shadow);
 }
@@ -4122,6 +4125,14 @@ textarea[aria-invalid="true"] {
   justify-content: space-between;
   gap: 18px;
   padding: 4px 2px 2px;
+}
+
+.stats-page-header .stats-scope {
+  margin-left: auto;
+}
+
+.stats-page-header .button {
+  flex: 0 0 auto;
 }
 
 .stats-page-header h2 {

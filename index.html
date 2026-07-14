@@ -28,13 +28,13 @@
               <div><dt>Waterbodies</dt><dd id="statWaterbodies">0</dd></div>
               <div><dt>Catch Rate</dt><dd id="statCatchRate">0</dd></div>
               <div><dt>Lbs / Hour</dt><dd id="statPoundsPerHour">0</dd></div>
-              <div><dt>Last Trip</dt><dd id="statDaysSinceTrip">-</dd></div>
+              <div><dt>Days Since</dt><dd id="statDaysSinceTrip">-</dd></div>
             </dl>
           </section>
 
           <section class="side-section">
             <div class="section-heading">
-              <h2>Most Caught</h2>
+              <h2>Species</h2>
             </div>
             <div id="speciesBars" class="bar-list"></div>
           </section>
@@ -133,9 +133,9 @@
               <p>Compare production against exposure, then decide what to repeat.</p>
             </div>
             <div class="stats-scope" id="statsActiveScope" aria-live="polite">All time · All methods</div>
+            <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
           </header>
           <div class="stats-toolbar">
-            <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
             <label>
               <span>Date range</span>
               <select id="statsDateFilter">
@@ -1317,6 +1317,10 @@
           <label class="trolling-param param-ball-depth catch-detail-optional">
             <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
             <input class="catch-ball-depth" type="text" placeholder="55 ft" />
+          </label>
+          <label class="checkbox-label trolling-param param-deepest-rigger catch-detail-optional">
+            <input class="catch-deepest-rigger" type="checkbox" />
+            <span>Deepest rigger</span>
           </label>
           <label class="trolling-param param-cheater-depth catch-detail-optional">
             <span data-unit-label="depth" data-unit-label-text="Cheater depth">Cheater depth</span>

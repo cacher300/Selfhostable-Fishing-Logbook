@@ -413,6 +413,7 @@ function clearUnknownCatchDetails(row) {
     ".catch-fow",
     ".catch-speed",
     ".catch-ball-depth",
+    ".catch-deepest-rigger",
     ".catch-cheater-depth",
     ".catch-flatline-weight-oz",
     ".catch-line-behind-board",
@@ -518,6 +519,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-speed").value = catchItem.speed || "";
   node.querySelector(".catch-retrieve").value = catchItem.retrieve || "";
   node.querySelector(".catch-ball-depth").value = catchItem.ballDepth || "";
+  node.querySelector(".catch-deepest-rigger").checked = Boolean(catchItem.deepestRigger);
   updateCheaterDepth(node);
   node.querySelector(".catch-flatline-weight-oz").value = catchItem.flatlineWeightOz || "";
   node.querySelector(".catch-line-behind-board").value = catchItem.lineBehindBoard || "";
@@ -885,6 +887,9 @@ function collectTripFromForm() {
         speed: !detailsUnknown && trolling ? row.querySelector(".catch-speed").value.trim() : "",
         retrieve: !detailsUnknown && casting ? row.querySelector(".catch-retrieve").value.trim() : "",
         ballDepth: !detailsUnknown && trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
+        deepestRigger: !detailsUnknown && trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
+          ? row.querySelector(".catch-deepest-rigger").checked
+          : false,
         flatlineWeightOz: !detailsUnknown && trolling ? row.querySelector(".catch-flatline-weight-oz").value.trim() : "",
         lineBehindBoard: !detailsUnknown && trolling ? row.querySelector(".catch-line-behind-board").value.trim() : "",
         leadcoreColors: !detailsUnknown && trolling ? row.querySelector(".catch-leadcore-colors").value.trim() : "",
@@ -928,6 +933,7 @@ function collectTripFromForm() {
       || item.speed
       || item.retrieve
       || item.ballDepth
+      || item.deepestRigger
       || item.flatlineWeightOz
       || item.lineBehindBoard
       || item.leadcoreColors

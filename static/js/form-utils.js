@@ -78,9 +78,18 @@ function updatePresentationFields(row) {
 
   if (["downrigger", "cheater", "Downrigger", "Cheater"].includes(presentation)) {
     row.querySelector(".param-ball-depth")?.classList.add("visible");
+    if (["downrigger", "Downrigger"].includes(presentation)) {
+      row.querySelector(".param-deepest-rigger")?.classList.add("visible");
+    } else {
+      const deepestRiggerToggle = row.querySelector(".catch-deepest-rigger");
+      if (deepestRiggerToggle) deepestRiggerToggle.checked = false;
+    }
     if (["cheater", "Cheater"].includes(presentation)) {
       row.querySelector(".param-cheater-depth")?.classList.add("visible");
     }
+  } else {
+    const deepestRiggerToggle = row.querySelector(".catch-deepest-rigger");
+    if (deepestRiggerToggle) deepestRiggerToggle.checked = false;
   }
   if (presentation === "flatline") {
     row.querySelector(".param-flatline-weight")?.classList.add("visible");

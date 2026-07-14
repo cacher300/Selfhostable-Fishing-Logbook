@@ -598,7 +598,7 @@ document.addEventListener("change", (event) => {
   if (event.target.matches(".catch-details-unknown")) {
     updateCatchDetailsUnknown(event.target.closest(".catch-row"), { clear: event.target.checked });
   }
-  if (event.target.matches(".catch-presentation, .trip-gear-cheater, .trip-gear-leadcore")) {
+  if (event.target.matches(".catch-presentation, .trip-gear-cheater, .trip-gear-leadcore, .catch-deepest-rigger")) {
     updatePresentationFields(event.target.closest(".catch-row, .gear-used-row"));
     document.querySelectorAll(".catch-row").forEach(updatePresentationFields);
     document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);

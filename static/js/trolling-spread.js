@@ -51,7 +51,7 @@ function resolveTripLineRecord(record) {
     dipseySetting: record.dipseySetting || line.dipseySetting || "",
     lineOut: record.lineOut || line.lineOut || "",
     estimatedDepth: record.estimatedDepth || line.estimatedDepth || "",
-    deepestRigger: line.deepestRigger || record.deepestRigger || false,
+    deepestRigger: record.deepestRigger || false,
     setupLine: line
   };
 }

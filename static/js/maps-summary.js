@@ -538,8 +538,7 @@ function setupTimelineRecord(trip, gearItem, index) {
   const lure = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
   const position = [
     setupLineSideLabel(gearItem.side),
-    gearItem.lineLabel,
-    gearItem.deepestRigger ? "Deepest rigger" : ""
+    gearItem.lineLabel
   ].filter(Boolean).join(" \u00b7 ");
   return {
     rod: displayTitleText(rod),
@@ -839,8 +838,7 @@ function renderTripSummaryGear(trip) {
         const gear = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
         const details = [
           presentationLabel(gearItem.presentation),
-          timeRange,
-          gearItem.deepestRigger ? "Deepest rigger" : ""
+          timeRange
         ].filter(Boolean).join(" / ");
         return `
           <article class="setup-summary-card">
