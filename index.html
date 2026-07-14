@@ -502,6 +502,10 @@
                 <span>Species</span>
                 <select id="mapSpeciesFilter"></select>
               </label>
+              <label class="inline-toggle map-media-toggle">
+                <input id="mapTripPhotosToggle" type="checkbox" />
+                <span>Trip photos</span>
+              </label>
             </div>
           </div>
           <div id="fishMap" class="fish-map"></div>
@@ -952,11 +956,11 @@
         </div>
         <input type="hidden" id="editingReelId" />
         <div class="form-grid">
-          <label><span>Reel short name</span><input id="reelShortName" type="text" required placeholder="BC - Abu Pro Max LP" /></label>
+          <label><span>Reel short name</span><input id="reelShortName" type="text" placeholder="BC - Abu Pro Max LP" /></label>
           <label><span>Style</span><select id="reelStyle"></select></label>
           <label><span>Brand</span><input id="reelBrand" type="text" placeholder="Abu Garcia" /></label>
           <label><span>Name / model</span><input id="reelName" type="text" placeholder="Pro Max" /></label>
-          <label><span>Size</span><input id="reelSize" type="text" placeholder="LP, 3000, 400" /></label>
+          <label><span>Size</span><input id="reelSize" type="text" placeholder="LP, 3000, 4000" /></label>
           <label><span>Weight</span><input id="reelWeight" type="text" placeholder="7.3 oz" /></label>
           <label><span>Gear ratio</span><input id="reelGearRatio" type="text" placeholder="7.1:1" /></label>
           <label><span>Retrieve rate</span><input id="reelRetrieveRate" type="text" placeholder="29 in" /></label>
@@ -970,7 +974,6 @@
           <div id="reelQueuedImage" class="queued-gear-image hidden"></div>
           <div class="row-section-title">Line Tracker</div>
           <div id="reelLineRows" class="line-editor-rows"></div>
-          <button class="button secondary" id="addReelLineButton" type="button">Add Line Entry</button>
           <label class="full-span"><span>Notes</span><textarea id="reelNotes" rows="3" placeholder="Maintenance, handle side, best use"></textarea></label>
         </div>
         <div class="dialog-actions">

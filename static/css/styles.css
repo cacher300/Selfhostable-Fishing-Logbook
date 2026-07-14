@@ -168,10 +168,6 @@ button {
   height: 100%;
 }
 
-.spotlight-slide .media-download-link {
-  left: 12px;
-}
-
 .spotlight-slide::after {
   position: absolute;
   inset: auto 0 0;
@@ -1303,7 +1299,7 @@ textarea[aria-invalid="true"] {
 .media-download-link {
   position: absolute;
   top: 8px;
-  left: 8px;
+  left: 50%;
   z-index: 2;
   display: inline-flex;
   align-items: center;
@@ -1320,14 +1316,14 @@ textarea[aria-invalid="true"] {
   text-decoration: none;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translate(-50%, -4px);
   transition: opacity 140ms ease, transform 140ms ease, background-color 140ms ease, border-color 140ms ease;
 }
 
 .media-download-frame:hover .media-download-link,
 .media-download-frame:focus-within .media-download-link {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(-50%, 0);
 }
 
 .media-download-link:hover,
@@ -2299,7 +2295,8 @@ textarea[aria-invalid="true"] {
 
 .map-popup strong,
 .map-popup span,
-.map-popup a {
+.map-popup a,
+.map-popup button {
   display: block;
 }
 
@@ -2323,7 +2320,7 @@ textarea[aria-invalid="true"] {
   padding: 6px 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: #fff;
+  background: var(--field);
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
@@ -2345,6 +2342,14 @@ textarea[aria-invalid="true"] {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
+  cursor: pointer;
+}
+
+.map-catch-card:hover,
+.map-catch-card:focus-visible {
+  border-color: rgba(17, 135, 83, 0.35);
+  background: var(--hover);
+  outline: none;
 }
 
 .map-catch-card img,
@@ -2391,6 +2396,23 @@ textarea[aria-invalid="true"] {
 .map-catch-card a:hover {
   color: var(--text);
   text-decoration: underline;
+}
+
+.map-popup-trip-link {
+  width: max-content;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.map-popup-trip-link:hover,
+.map-popup-trip-link:focus-visible {
+  color: var(--green);
+  outline: none;
 }
 
 .trip-summary-shell {
@@ -4740,12 +4762,19 @@ textarea[aria-invalid="true"] {
 .gear-tab {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--field);
   color: var(--muted);
   cursor: pointer;
   font-weight: 800;
   padding: 9px 12px;
   white-space: nowrap;
+}
+
+.gear-tab:hover,
+.gear-tab:focus-visible {
+  background: var(--hover);
+  color: var(--text);
+  outline: none;
 }
 
 .gear-tab.is-active {
@@ -5205,6 +5234,7 @@ textarea[aria-invalid="true"] {
 :root[data-theme="dark"] .dialog form,
 :root[data-theme="dark"] .dialog-content,
 :root[data-theme="dark"] .dialog-header,
+:root[data-theme="dark"] .trip-section-nav,
 :root[data-theme="dark"] .dialog-actions {
   background: var(--panel);
   color: var(--text);
@@ -5242,6 +5272,7 @@ textarea[aria-invalid="true"] {
 :root[data-theme="dark"] .personal-best-card,
 :root[data-theme="dark"] .gallery-card,
 :root[data-theme="dark"] .gear-card,
+:root[data-theme="dark"] .map-catch-card,
 :root[data-theme="dark"] .summary-notes-card,
 :root[data-theme="dark"] .summary-map-section,
 :root[data-theme="dark"] .summary-condition-metrics .metric-card,
@@ -5298,6 +5329,7 @@ textarea[aria-invalid="true"] {
 :root[data-theme="dark"] .setup-action,
 :root[data-theme="dark"] .meta-chip,
 :root[data-theme="dark"] .stats-badge,
+:root[data-theme="dark"] .map-legend span,
 :root[data-theme="dark"] .media-download-link,
 :root[data-theme="dark"] .trip-section-nav a,
 :root[data-theme="dark"] .icon-button,

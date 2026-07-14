@@ -10,7 +10,9 @@ function imageFields(uploadedImage, existing = {}) {
 }
 
 function gearDisplayName(item, fallback = "Gear") {
-  return item?.shortName || item?.name || [item?.brand, item?.name].filter(Boolean).join(" ") || fallback;
+  return [item?.brand, item?.name].map((value) => String(value || "").trim()).filter(Boolean).join(" ")
+    || item?.shortName
+    || fallback;
 }
 
 function generatedLureName(lure) {
@@ -51,7 +53,6 @@ function formatCoordinates(coordinates) {
 
 function activeLineEntry(reel) {
   return (reel?.lineHistory || [])
-    .filter((line) => !line.discardedDate)
     .sort((a, b) => String(b.spooledDate || "").localeCompare(String(a.spooledDate || "")))[0] || null;
 }
 
@@ -264,7 +265,7 @@ function syncComboToRow(row) {
 function renderLineRows(lines = []) {
   const container = document.querySelector("#reelLineRows");
   if (!container) return;
-  container.innerHTML = lines.map((line) => lineRowMarkup(line)).join("");
+  container.innerHTML = lineRowMarkup(activeLineEntry({ lineHistory: lines }) || {});
 }
 
 function lineRowMarkup(line = {}) {
@@ -272,7 +273,6 @@ function lineRowMarkup(line = {}) {
   return `
     <article class="line-editor-row" data-line-id="${escapeHtml(id)}">
       <label><span>Spooled date</span><input class="line-spooled-date" type="date" value="${escapeHtml(line.spooledDate || "")}" /></label>
-      <label><span>Discarded date</span><input class="line-discarded-date" type="date" value="${escapeHtml(line.discardedDate || "")}" /></label>
       <label><span>Type</span><select class="line-type">${optionLabels("lineTypes").map((type) => `<option value="${escapeHtml(type)}" ${type === line.type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
       <label><span>Brand</span><input class="line-brand" type="text" value="${escapeHtml(line.brand || "")}" placeholder="Berkley" /></label>
       <label><span>Name</span><input class="line-name" type="text" value="${escapeHtml(line.name || "")}" placeholder="X5" /></label>
@@ -282,17 +282,15 @@ function lineRowMarkup(line = {}) {
       <label><span>Color</span><input class="line-color" type="text" value="${escapeHtml(line.color || "")}" placeholder="Lo-Vis" /></label>
       <label class="checkbox-label"><input class="line-mono-backing" type="checkbox" ${line.monoBacking ? "checked" : ""} /><span>Mono backing</span></label>
       <label class="line-notes-field"><span>Notes</span><input class="line-notes" type="text" value="${escapeHtml(line.notes || "")}" placeholder="Spooling notes" /></label>
-      <button class="button danger remove-line-entry" type="button">Remove</button>
     </article>
   `;
 }
 
 function collectLineRows() {
-  return [...document.querySelectorAll("#reelLineRows .line-editor-row")]
+  const lines = [...document.querySelectorAll("#reelLineRows .line-editor-row")]
     .map((row) => ({
       id: row.dataset.lineId || createId(),
       spooledDate: row.querySelector(".line-spooled-date").value,
-      discardedDate: row.querySelector(".line-discarded-date").value,
       type: row.querySelector(".line-type").value,
       brand: row.querySelector(".line-brand").value.trim(),
       name: row.querySelector(".line-name").value.trim(),
@@ -303,7 +301,8 @@ function collectLineRows() {
       monoBacking: row.querySelector(".line-mono-backing").checked,
       notes: row.querySelector(".line-notes").value.trim()
     }))
-    .filter((line) => line.spooledDate || line.discardedDate || line.type || line.brand || line.name || line.weight || line.notes);
+    .filter((line) => line.spooledDate || line.type || line.brand || line.name || line.weight || line.diameterIn || line.diameterMm || line.color || line.monoBacking || line.notes);
+  return lines.slice(0, 1);
 }
 
 function openReelDialog(reel = null) {
@@ -794,7 +793,7 @@ function renderReelInventory() {
       `<button class="button secondary" type="button" data-edit-reel="${escapeHtml(reel.id)}">Edit</button>`
     ];
   });
-  renderInventoryTable(els.reelInventoryTable, ["Photo", "Short Name", "Spooled Line", "Style", "Brand", "Name", "Size", "Weight", "Gear", "Retrieve", "Max Drag", "Mono Cap", "Braid Cap", "Purchase", "Bought", "Fish", ""], rows, "No saved reels yet.");
+  renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", "Retrieve", "Max Drag", "Mono Cap", "Braid Cap", "Purchase", "Bought", "Fish", ""], rows, "No saved reels yet.");
 }
 
 function renderRodInventory() {
@@ -816,7 +815,7 @@ function renderRodInventory() {
       `<button class="button secondary" type="button" data-edit-rod="${escapeHtml(rod.id)}">Edit</button>`
     ];
   });
-  renderInventoryTable(els.rodInventoryTable, ["Photo", "Short Name", "Type", "Brand", "Name", "Length", "Power", "Action", "Lure Rating", "Purchase", "Bought", "Fish", ""], rows, "No saved rods yet.");
+  renderInventoryTable(els.rodInventoryTable, ["Photo", "Name", "Type", "Brand", "Model", "Length", "Power", "Action", "Lure Rating", "Purchase", "Bought", "Fish", ""], rows, "No saved rods yet.");
 }
 
 function renderComboInventory() {
@@ -835,21 +834,24 @@ function renderComboInventory() {
 }
 
 function renderLineTracker() {
-  const rows = state.reels.flatMap((reel) => (reel.lineHistory || []).map((line) => [
-    escapeHtml(gearDisplayName(reel, "Reel")),
-    escapeHtml(line.spooledDate || "-"),
-    escapeHtml(line.discardedDate || "Active"),
-    escapeHtml(line.type || "-"),
-    escapeHtml(line.brand || "-"),
-    escapeHtml(line.name || "-"),
-    escapeHtml(line.weight || "-"),
-    escapeHtml(line.diameterIn || "-"),
-    escapeHtml(line.diameterMm || "-"),
-    escapeHtml(line.color || "-"),
-    line.monoBacking ? "Yes" : "No",
-    escapeHtml(line.notes || "")
-  ]));
-  renderInventoryTable(els.lineTrackerTable, ["Reel", "Spooled", "Discarded", "Type", "Brand", "Name", "Lb", "Dia In", "Dia Mm", "Color", "Backing", "Notes"], rows, "No line history yet. Edit a reel to add spooling records.");
+  const rows = state.reels.map((reel) => {
+    const line = activeLineEntry(reel);
+    if (!line) return null;
+    return [
+      escapeHtml(gearDisplayName(reel, "Reel")),
+      escapeHtml(line.spooledDate || "-"),
+      escapeHtml(line.type || "-"),
+      escapeHtml(line.brand || "-"),
+      escapeHtml(line.name || "-"),
+      escapeHtml(line.weight || "-"),
+      escapeHtml(line.diameterIn || "-"),
+      escapeHtml(line.diameterMm || "-"),
+      escapeHtml(line.color || "-"),
+      line.monoBacking ? "Yes" : "No",
+      escapeHtml(line.notes || "")
+    ];
+  }).filter(Boolean);
+  renderInventoryTable(els.lineTrackerTable, ["Reel", "Spooled", "Type", "Brand", "Name", "Lb", "Dia In", "Dia Mm", "Color", "Backing", "Notes"], rows, "No current line saved yet. Edit a reel to add current line.");
 }
 
 function renderBaitInventory() {

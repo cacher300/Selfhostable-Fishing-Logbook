@@ -265,7 +265,8 @@ const activePersonalBestsFilters = {
   year: "All years",
   month: "All months"
 };
-let activeMapSpecies = "All map items";
+let activeMapSpecies = "All species";
+let activeMapIncludeTripMedia = false;
 let activeTripSummaryMapFilter = "All map items";
 let activeGalleryCategory = "all";
 let brandSpotlightTimer = null;
@@ -331,6 +332,7 @@ const els = {
   mapLegend: document.querySelector("#mapLegend"),
   mapCatchList: document.querySelector("#mapCatchList"),
   mapSpeciesFilter: document.querySelector("#mapSpeciesFilter"),
+  mapTripPhotosToggle: document.querySelector("#mapTripPhotosToggle"),
   statsMethodFilter: document.querySelector("#statsMethodFilter"),
   statsDateFilter: document.querySelector("#statsDateFilter"),
   statsSortFilter: document.querySelector("#statsSortFilter"),

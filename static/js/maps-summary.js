@@ -145,35 +145,50 @@ function mapRecordTitle(record) {
   return record.catchItem?.species || "Fish";
 }
 
-function mapRecordFilterOptions(records) {
+function mapRecordFilterOptions(records, options = {}) {
   const species = records
     .filter((record) => record.type === "catch")
     .map((record) => record.catchItem.species || "Unknown species");
-  const mediaTypes = records
-    .filter((record) => record.type !== "catch")
-    .map((record) => record.filterValue);
-  return ["All map items", ...new Set([...species, ...mediaTypes])];
+  const mediaTypes = options.includeTripMedia
+    ? records.filter((record) => record.type !== "catch").map((record) => record.filterValue)
+    : [];
+  return [options.allLabel || "All species", ...new Set([...species, ...mediaTypes])];
 }
 
 function renderMapSpeciesFilter(records) {
-  const options = mapRecordFilterOptions(records);
-  if (!options.includes(activeMapSpecies)) activeMapSpecies = "All map items";
+  const options = mapRecordFilterOptions(records, { allLabel: "All species" });
+  if (!options.includes(activeMapSpecies)) activeMapSpecies = "All species";
   els.mapSpeciesFilter.innerHTML = options.map((option) => (
     `<option value="${escapeHtml(option)}" ${option === activeMapSpecies ? "selected" : ""}>${escapeHtml(option)}</option>`
   )).join("");
+  if (els.mapTripPhotosToggle) els.mapTripPhotosToggle.checked = activeMapIncludeTripMedia;
 }
 
-function filteredMapRecords(records, filterValue = activeMapSpecies) {
+function filteredCatchMapRecords(records, filterValue = activeMapSpecies) {
+  const catches = records.filter((record) => record.type === "catch");
+  if (filterValue === "All species") return catches;
+  return catches.filter((record) => record.filterValue === filterValue);
+}
+
+function filteredMapRecords(records, filterValue = activeMapSpecies, options = {}) {
   if (filterValue === "All map items") return records;
-  return records.filter((record) => record.filterValue === filterValue);
+  const catches = filteredCatchMapRecords(records, filterValue);
+  const media = options.includeTripMedia
+    ? records.filter((record) => record.type !== "catch")
+    : [];
+  return [...catches, ...media];
 }
 
-function renderMapLegend(records) {
-  const options = mapRecordFilterOptions(records).slice(1);
-  if (!options.length) return "";
+function renderMapLegend(records, options = {}) {
+  const species = mapRecordFilterOptions(records, { allLabel: "All species" }).slice(1);
+  const mediaTypes = options.includeTripMedia
+    ? [...new Set(records.filter((record) => record.type !== "catch").map((record) => record.filterValue))]
+    : [];
+  const legendItems = [...species, ...mediaTypes];
+  if (!legendItems.length) return "";
   return `
     <div class="map-legend">
-      ${options.map((name) => `
+      ${legendItems.map((name) => `
         <span><i style="--pin-color:${name === "Trip Photos" ? "#2763a7" : name === "Trip Videos" ? "#9a5b00" : speciesColor(name)}"></i>${escapeHtml(name)}</span>
       `).join("")}
     </div>
@@ -185,11 +200,12 @@ function mapPopupHtml(record) {
   const title = [mapRecordTitle(record), trip.location].filter(Boolean).join(" at ");
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`;
   return `
-    <div class="map-popup">
+    <div class="map-popup" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
       ${media?.image ? mediaMarkup(media) : ""}
       <strong>${escapeHtml(title)}</strong>
       <span>${escapeHtml(formatDate(trip.date))}</span>
       <span>${escapeHtml(formatCoordinates(coordinates))}</span>
+      <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
       <a href="${mapsUrl}" target="_blank" rel="noreferrer">Open in Maps</a>
     </div>
   `;
@@ -205,12 +221,13 @@ function renderMapList(records) {
     const { trip, media, coordinates } = record;
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`;
     return `
-      <article class="map-catch-card">
+      <article class="map-catch-card" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
         ${media?.image ? mediaMarkup(media) : ""}
         <div>
           <strong>${escapeHtml(mapRecordTitle(record))}</strong>
           <span>${escapeHtml([formatDate(trip.date), trip.location].filter(Boolean).join(" / "))}</span>
           <span>${escapeHtml(formatCoordinates(coordinates))}</span>
+          <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
           <a href="${mapsUrl}" target="_blank" rel="noreferrer">Open in Maps</a>
         </div>
       </article>
@@ -221,8 +238,8 @@ function renderMapList(records) {
 function renderFishMap() {
   const allRecords = catchMapRecords();
   renderMapSpeciesFilter(allRecords);
-  const records = filteredMapRecords(allRecords);
-  els.mapLegend.innerHTML = renderMapLegend(allRecords);
+  const records = filteredMapRecords(allRecords, activeMapSpecies, { includeTripMedia: activeMapIncludeTripMedia });
+  els.mapLegend.innerHTML = renderMapLegend(allRecords, { includeTripMedia: activeMapIncludeTripMedia });
   renderMapList(records);
 
   if (!window.L) {
@@ -264,7 +281,7 @@ function catchMapRecordsForTrip(trip) {
 function renderTripSummaryMapFilter(records) {
   const filter = document.querySelector("#tripSummaryMapFilter");
   if (!filter) return;
-  const options = mapRecordFilterOptions(records);
+  const options = mapRecordFilterOptions(records, { allLabel: "All map items", includeTripMedia: true });
   if (!options.includes(activeTripSummaryMapFilter)) activeTripSummaryMapFilter = "All map items";
   filter.innerHTML = options.map((option) => (
     `<option value="${escapeHtml(option)}" ${option === activeTripSummaryMapFilter ? "selected" : ""}>${escapeHtml(option)}</option>`
@@ -277,7 +294,7 @@ function renderTripSummaryMap(trip) {
   const allRecords = catchMapRecordsForTrip(trip);
   renderTripSummaryMapFilter(allRecords);
   const legend = document.querySelector("#tripSummaryMapLegend");
-  if (legend) legend.innerHTML = renderMapLegend(allRecords);
+  if (legend) legend.innerHTML = renderMapLegend(allRecords, { includeTripMedia: true });
   const records = filteredMapRecords(allRecords, activeTripSummaryMapFilter);
 
   if (!window.L) {

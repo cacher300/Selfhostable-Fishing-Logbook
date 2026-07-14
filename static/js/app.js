@@ -190,6 +190,10 @@ els.mapSpeciesFilter.addEventListener("change", () => {
   activeMapSpecies = els.mapSpeciesFilter.value;
   renderFishMap();
 });
+els.mapTripPhotosToggle?.addEventListener("change", () => {
+  activeMapIncludeTripMedia = Boolean(els.mapTripPhotosToggle.checked);
+  renderFishMap();
+});
 els.tripSummaryBody.addEventListener("change", (event) => {
   if (!event.target.matches("#tripSummaryMapFilter")) return;
   activeTripSummaryMapFilter = event.target.value;
@@ -292,6 +296,12 @@ document.addEventListener("click", (event) => {
   const viewButton = event.target.closest("[data-view-trip]");
   if (viewButton) {
     const trip = state.trips.find((item) => item.id === viewButton.dataset.viewTrip);
+    if (trip) openTripSummary(trip);
+  }
+
+  const mapTripTarget = event.target.closest("[data-map-view-trip]");
+  if (mapTripTarget && !event.target.closest("a, button")) {
+    const trip = state.trips.find((item) => item.id === mapTripTarget.dataset.mapViewTrip);
     if (trip) openTripSummary(trip);
   }
 
@@ -468,16 +478,6 @@ document.addEventListener("click", (event) => {
     setGearTab(gearTabButton.dataset.gearTab);
   }
 
-  const addLineButton = event.target.closest("#addReelLineButton");
-  if (addLineButton) {
-    document.querySelector("#reelLineRows").insertAdjacentHTML("beforeend", lineRowMarkup());
-  }
-
-  const removeLineButton = event.target.closest(".remove-line-entry");
-  if (removeLineButton) {
-    removeLineButton.closest(".line-editor-row").remove();
-  }
-
   const editReelButton = event.target.closest("[data-edit-reel]");
   if (editReelButton) {
     const reel = state.reels.find((item) => item.id === editReelButton.dataset.editReel);
@@ -646,6 +646,13 @@ document.addEventListener("keydown", (event) => {
   if (queuedPhotoCard && ["Enter", " "].includes(event.key)) {
     event.preventDefault();
     claimQueuedPhoto(queuedPhotoCard.dataset.selectQueuedPhoto);
+    return;
+  }
+  const mapTripTarget = event.target.closest?.("[data-map-view-trip]");
+  if (mapTripTarget && !event.target.closest("a, button") && ["Enter", " "].includes(event.key)) {
+    event.preventDefault();
+    const trip = state.trips.find((item) => item.id === mapTripTarget.dataset.mapViewTrip);
+    if (trip) openTripSummary(trip);
     return;
   }
   const catchDetailCard = event.target.closest?.(".timeline-catch-card[data-summary-catch-index]");
