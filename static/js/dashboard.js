@@ -187,7 +187,7 @@ function renderBrandSpotlight() {
       const notePhotos = (trip.notePhotos || []).map((photo) => ({
         ...photo,
         tripTitle,
-        spotlightTitle: photo.caption || tripTitle,
+        spotlightTitle: photo.caption || "",
         date: trip.date
       }));
       const catchPhotos = (trip.catches || []).flatMap((catchItem) => (catchItem.photos || []).map((photo) => ({
@@ -214,10 +214,11 @@ function renderBrandSpotlight() {
       ${photos.map((photo, index) => `
         <figure class="spotlight-slide ${index === 0 ? "is-active" : ""}">
           ${mediaMarkup(photo)}
-          <figcaption>
-            <strong>${escapeHtml(photo.spotlightTitle || photo.caption || photo.tripTitle)}</strong>
-            <span>${escapeHtml(photo.tripTitle)}</span>
-          </figcaption>
+          ${photo.spotlightTitle ? `
+            <figcaption>
+              <strong>${escapeHtml(photo.spotlightTitle)}</strong>
+            </figcaption>
+          ` : ""}
         </figure>
       `).join("")}
     </div>
