@@ -379,6 +379,10 @@ function displayPhotoTitle(photo) {
   return displaySentenceText(photo.caption || photo.name || "Trip photo");
 }
 
+function timelinePhotoTitle(photo) {
+  return displaySentenceText(photo.caption || "Trip photo");
+}
+
 function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
   if (!photos.length) return `<div class="empty-state compact-empty"><p>${escapeHtml(emptyText)}</p></div>`;
   const className = ["summary-photo-grid", options.compact ? "compact-photo-grid" : "", options.hero ? "hero-photo-grid" : ""].filter(Boolean).join(" ");
@@ -396,21 +400,23 @@ function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
 
 function catchMediaAltText(speciesOrTitle = "", index = 0, options = {}) {
   const label = displayTitleText(speciesOrTitle || "Catch");
-  if (options.thumbnail) return `${label} catch photo ${index + 1}`;
-  return `${label} catch photo`;
+  const mediaType = options.video ? "video" : "photo";
+  if (options.thumbnail) return `${label} catch ${mediaType} ${index + 1}`;
+  return `${label} catch ${mediaType}`;
 }
 
 function catchMediaPreview(photo, speciesOrTitle, index, options = {}) {
   const source = previewImage(photo);
   if (!source) return "";
-  const alt = options.decorative ? "" : catchMediaAltText(speciesOrTitle, index, { thumbnail: options.thumbnail });
-  if (isVideoMedia(photo) && options.thumbnail) {
+  const isVideo = isVideoMedia(photo);
+  const alt = options.decorative ? "" : catchMediaAltText(speciesOrTitle, index, { thumbnail: options.thumbnail, video: isVideo });
+  if (isVideo && options.thumbnail) {
     const videoSource = originalMediaUrl(photo) || source;
     return `<video class="${escapeHtml(options.className || "")}" src="${escapeHtml(videoSource)}" muted playsinline preload="metadata" aria-hidden="true"></video>`;
   }
-  if (isVideoMedia(photo) && !options.thumbnail) {
+  if (isVideo && !options.thumbnail) {
     const videoSource = originalMediaUrl(photo) || source;
-    return `<video class="${escapeHtml(options.className || "")}" src="${escapeHtml(videoSource)}" controls preload="metadata" playsinline aria-label="${escapeHtml(catchMediaAltText(speciesOrTitle, index))}"></video>`;
+    return `<video class="${escapeHtml(options.className || "")}" src="${escapeHtml(videoSource)}" controls preload="metadata" playsinline aria-label="${escapeHtml(catchMediaAltText(speciesOrTitle, index, { video: true }))}"></video>`;
   }
   const imageMarkup = `<img class="${escapeHtml(options.className || "")}" src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" ${options.loading ? `loading="${escapeHtml(options.loading)}"` : ""}>`;
   if (!options.enableDownload) return imageMarkup;
@@ -438,7 +444,7 @@ function catchMediaBadge(photo) {
 }
 
 function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {}) {
-  if (!photos.length) return `<div class="empty-state compact-empty"><p>No catch photos.</p></div>`;
+  if (!photos.length) return `<div class="empty-state compact-empty"><p>No catch media.</p></div>`;
   const photoCount = photos.length;
   const selectedIndex = Math.max(0, Math.min(Number(options.selectedIndex) || 0, photoCount - 1));
   const selectedPhoto = photos[selectedIndex] || photos[0];
@@ -461,7 +467,7 @@ function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {})
         type="button"
         data-catch-gallery-open
         data-open-photo-index="${escapeHtml(String(selectedIndex))}"
-        aria-label="${escapeHtml(`Open ${catchMediaAltText(speciesOrTitle, selectedIndex)} in gallery`)}"
+        aria-label="${escapeHtml(`Open ${catchMediaAltText(speciesOrTitle, selectedIndex, { video: isVideoMedia(selectedPhoto) })} in gallery`)}"
       ></button>
     `
     : "";
@@ -499,7 +505,7 @@ function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {})
                 ${isMoreButton ? "data-catch-gallery-open" : "data-catch-gallery-thumb"}
                 data-photo-index="${escapeHtml(String(actualIndex))}"
                 ${isMoreButton ? `data-open-photo-index="${escapeHtml(String(actualIndex))}"` : ""}
-                aria-label="${escapeHtml(isMoreButton ? `Open ${hiddenThumbnailCount} more catch photos` : `Show ${catchMediaAltText(speciesOrTitle, actualIndex, { thumbnail: true })}`)}"
+                aria-label="${escapeHtml(isMoreButton ? `Open ${hiddenThumbnailCount} more catch media items` : `Show ${catchMediaAltText(speciesOrTitle, actualIndex, { thumbnail: true, video: isVideoMedia(photo) })}`)}"
                 aria-pressed="${isActive ? "true" : "false"}"
               >
                 ${catchMediaPreview(photo, speciesOrTitle, actualIndex, { className: "thumbnail-image", loading: "lazy", thumbnail: true, decorative: true })}
@@ -564,8 +570,9 @@ function compactSetupDisplayLabel(record = {}) {
   const lineLabel = displayTitleText(record.lineLabel || "");
   const side = displayTitleText(setupLineSideLabel(record.side));
   const presentation = displayTitleText(presentationLabel(record.presentation));
+  const rod = displayTitleText(rodName(record.rodId));
   if (lineLabel) return lineLabel;
-  return [side, presentation].filter(Boolean).join(" ");
+  return [side, presentation].filter(Boolean).join(" ") || rod;
 }
 
 function tripWeatherSummaryData(trip) {
@@ -1058,7 +1065,7 @@ function tripTimelineItems(trip) {
   (trip.notePhotos || []).forEach((photo) => {
     items.push({
       type: "Photo",
-      title: displayPhotoTitle(photo),
+      title: timelinePhotoTitle(photo),
       summary: "",
       chips: [],
       time: photo.captureTime || "",

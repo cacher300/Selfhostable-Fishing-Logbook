@@ -145,9 +145,11 @@ function setCatchLocationForRow(row, coordinates) {
 
 function updateCatchLocationSummary(row) {
   const summary = row?.querySelector(".catch-location-summary");
-  if (!summary) return;
-  const coordinates = catchLocationFromRow(row);
-  summary.textContent = coordinates ? "Location selected" : "";
+  const button = row?.querySelector(".pick-catch-location");
+  const coordinates = fishCoordinatesFromRow(row);
+  const manualCoordinates = catchLocationFromRow(row);
+  if (button) button.textContent = coordinates ? "Selected Location" : "Select Location";
+  if (summary) summary.textContent = manualCoordinates ? "Location selected" : (coordinates ? "Location found from media" : "");
 }
 
 function setCatchLocationPickerCoordinates(coordinates) {

@@ -405,6 +405,7 @@ function clearUnknownCatchDetails(row) {
     ".catch-latitude",
     ".catch-longitude",
     ".catch-setup-line",
+    ".catch-rod",
     ".catch-lure",
     ".catch-retrieve",
     ".catch-presentation",
@@ -529,7 +530,9 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-setup-line").dataset.selectedSetupLine = catchItem.setupLineTarget === "cheater"
     ? `${catchItem.setupLineId}::cheater`
     : (catchItem.setupLineId || "");
+  node.querySelector(".catch-rod").dataset.selectedRodId = catchItem.rodId || "";
   populateLureSelect(node.querySelector(".catch-lure"), catchItem.lureId || "");
+  populateCatchRodSelect(node.querySelector(".catch-rod"), catchItem.rodId || "");
   renderLurePreview(node);
   renderCatchPhotos(node);
   updatePresentationFields(node);
@@ -538,6 +541,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   syncUnitLabels(node);
   populateSetupLineSelects();
   updateTrollingVisibility();
+  populateCatchRodSelects();
   updateCatchDetailsUnknown(node);
   updateAllRowSummaries();
   renderLiveTrollingSpread();
@@ -575,6 +579,7 @@ function addTripGearRow(gearItem = {}) {
   syncUnitLabels(node);
   populateSetupLineSelects();
   updateTrollingVisibility();
+  populateCatchRodSelects();
   updateAllRowSummaries();
   renderLiveTrollingSpread();
 }
@@ -656,6 +661,75 @@ function populateSetupLineSelects() {
   document.querySelectorAll("#catchRows .catch-row").forEach(syncCatchMethodToSetupLine);
 }
 
+function rodOptionFromGearRow(row, index) {
+  const combo = selectedComboForRow(row);
+  const rodId = combo?.rodId || "";
+  const lureId = row.querySelector(".trip-gear-lure")?.value || "";
+  const fallbackLabel = setupLineLabelFromRow(row, index);
+  const label = [
+    comboName(row.querySelector(".trip-gear-combo")?.value || "") || rodName(rodId) || fallbackLabel,
+    lureName(lureId)
+  ].filter(Boolean).join(" / ");
+  return {
+    id: row.dataset.gearId || createId(),
+    rodId,
+    lureId,
+    label: label || fallbackLabel || `Rod ${index + 1}`
+  };
+}
+
+function catchRodOptionsFromForm(selectedRodId = "") {
+  const gearOptions = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
+    .map((row, index) => {
+      if (!row.dataset.gearId) row.dataset.gearId = createId();
+      return rodOptionFromGearRow(row, index);
+    })
+    .filter((item) => item.rodId);
+  const gearRodIds = new Set(gearOptions.map((item) => item.rodId).filter(Boolean));
+  const selectedInGear = selectedRodId && gearRodIds.has(selectedRodId);
+  const rodOptions = state.rods
+    .filter((rod) => rod.id && (!gearRodIds.has(rod.id) || (selectedRodId === rod.id && !selectedInGear)))
+    .map((rod) => ({
+      id: `rod:${rod.id}`,
+      rodId: rod.id,
+      lureId: "",
+      label: rodName(rod.id) || gearDisplayName(rod, "Rod")
+    }));
+  return [...gearOptions, ...rodOptions];
+}
+
+function populateCatchRodSelect(select, selectedRodId = "", selectedOptionId = "") {
+  if (!select) return;
+  const selected = selectedRodId || select.dataset.selectedRodId || "";
+  const options = catchRodOptionsFromForm(selected);
+  const selectedOption = options.find((item) => item.id === selectedOptionId)?.id
+    || options.find((item) => item.rodId === selected)?.id
+    || "";
+  select.dataset.selectedRodId = "";
+  select.innerHTML = `<option value="">Select rod</option>` + options.map((item) => (
+    `<option value="${escapeHtml(item.id)}" data-rod-id="${escapeHtml(item.rodId)}" data-lure-id="${escapeHtml(item.lureId)}" ${item.id === selectedOption ? "selected" : ""}>${escapeHtml(item.label)}</option>`
+  )).join("");
+}
+
+function populateCatchRodSelects() {
+  document.querySelectorAll(".catch-rod").forEach((select) => {
+    const selectedRodId = select.selectedOptions?.[0]?.dataset.rodId || select.dataset.selectedRodId || "";
+    populateCatchRodSelect(select, selectedRodId, select.value);
+  });
+}
+
+function syncDirectCatchRodToLure(row) {
+  if (!row) return;
+  const option = row.querySelector(".catch-rod")?.selectedOptions?.[0];
+  const lureId = option?.dataset.lureId || "";
+  if (lureId) {
+    const lureSelect = row.querySelector(".catch-lure");
+    lureSelect.value = lureId;
+    renderLurePreview(row);
+  }
+  updateRowSummary(row);
+}
+
 function syncCatchMethodToSetupLine(row) {
   const selectedValue = row.querySelector(".catch-setup-line")?.value || "";
   const presentationSelect = row.querySelector(".catch-presentation");
@@ -720,7 +794,10 @@ function updateRowSummary(row) {
       row.querySelector(".catch-time-unknown")?.checked ? "Unknown time" : formatDisplayTime(row.querySelector(".catch-time").value),
       trolling
         ? catchSetupSummary(row)
-        : summaryOption(row.querySelector(".catch-lure"), ["No lure selected"]),
+        : [
+            summaryOption(row.querySelector(".catch-rod"), ["Select rod"]),
+            summaryOption(row.querySelector(".catch-lure"), ["No lure selected"])
+          ].filter(Boolean).join(" / "),
     ].filter(Boolean);
     summary.textContent = pieces.join(" · ");
     return;
@@ -830,6 +907,7 @@ function collectTripFromForm() {
         coordinates: detailsUnknown || lost ? null : fishCoordinatesFromRow(row),
         photos: detailsUnknown || lost ? [] : collectCatchPhotos(row)
       };
+      const selectedRodId = row.querySelector(".catch-rod")?.selectedOptions?.[0]?.dataset.rodId || "";
       if (!detailsUnknown && !lost && row.catchWeatherData) base.weatherData = row.catchWeatherData;
       return !detailsUnknown && trolling
         ? {
@@ -839,7 +917,7 @@ function collectTripFromForm() {
             lureId: row.querySelector(".catch-lure").value,
             flasherId: ""
           }
-        : { ...base, lureId: row.querySelector(".catch-lure").value, flasherId: "", presentation: "" };
+        : { ...base, rodId: selectedRodId, lureId: row.querySelector(".catch-lure").value, flasherId: "", presentation: "" };
     })
     .filter((item) => (
       item.species
@@ -850,6 +928,7 @@ function collectTripFromForm() {
       || item.timeUnknown
       || item.waterDepth
       || item.depthDown
+      || item.rodId
       || item.setupLineId
       || item.lureId
       || item.flasherId

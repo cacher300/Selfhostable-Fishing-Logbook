@@ -578,12 +578,16 @@ document.addEventListener("change", (event) => {
     }
     renderLurePreview(event.target.closest(".catch-row, .gear-used-row"));
   }
+  if (event.target.matches(".catch-rod")) {
+    syncDirectCatchRodToLure(event.target.closest(".catch-row"));
+  }
   if (event.target.matches(".catch-flasher, .trip-gear-flasher")) {
     renderFlasherPreview(event.target.closest(".catch-row, .gear-used-row"));
   }
   if (event.target.matches(".trip-gear-combo")) {
     syncComboToRow(event.target.closest(".gear-used-row"));
     populateSetupLineSelects();
+    populateCatchRodSelects();
   }
   if (event.target.matches(".catch-setup-line")) {
     syncCatchMethodToSetupLine(event.target.closest(".catch-row"));
@@ -601,6 +605,7 @@ document.addEventListener("change", (event) => {
   }
   if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-cheater, .trip-gear-cheater-lure, .trip-gear-leadcore")) {
     populateSetupLineSelects();
+    populateCatchRodSelects();
   }
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);

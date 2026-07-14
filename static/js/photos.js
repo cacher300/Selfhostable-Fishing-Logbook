@@ -17,7 +17,7 @@ async function uploadImageFile(file, category, metadata = {}) {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.error || "Image upload failed");
+    throw new Error(payload.error || "Media upload failed");
   }
   const payload = await response.json();
   return {
@@ -409,7 +409,7 @@ function renderNotePhotos() {
 
   els.notePhotoGrid.innerHTML = activeNotePhotos.map((photo) => `
     <article class="note-photo-card" data-note-photo="${photo.id}">
-      ${mediaMarkup(photo)}
+      ${mediaMarkup(photo, "", { download: false })}
       <div class="note-photo-body">
         <input class="note-photo-caption" type="text" value="${escapeHtml(photo.caption || "")}" placeholder="Caption, like fishfinder, launch, rig" />
         <button class="button danger remove-note-photo" type="button">Remove</button>
@@ -456,10 +456,11 @@ async function addCatchPhotos(event) {
     applyPhotoCaptureTimeToCatch(row, photos);
     event.target.value = "";
     renderCatchPhotos(row);
+    updateCatchLocationSummary(row);
     updateRowSummary(row);
   } catch (error) {
-    console.error("Could not add catch photos.", error);
-    showTripFormMessage(error.message || "Those catch photos could not be uploaded.");
+    console.error("Could not add catch media.", error);
+    showTripFormMessage(error.message || "That catch media could not be uploaded.");
   }
 }
 
@@ -470,9 +471,9 @@ function renderCatchPhotos(row) {
   const photos = row.catchPhotos || [];
   grid.innerHTML = photos.map((photo) => `
     <article class="catch-photo-card" data-catch-photo="${photo.id}">
-      ${mediaMarkup(photo)}
-      <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
-      <span>${escapeHtml(photo.name || "Catch photo")}</span>
+      ${mediaMarkup(photo, "", { download: false })}
+      <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch media"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+      <span>${escapeHtml(photo.name || (isVideoMedia(photo) ? "Catch video" : "Catch photo"))}</span>
       ${isUsableCoordinates(photo.coordinates) ? `<small>${formatCoordinates(photo.coordinates)}</small>` : `<small>No GPS metadata</small>`}
     </article>
   `).join("");
@@ -521,7 +522,7 @@ async function renderPhotoQueue() {
   els.photoQueueGrid.innerHTML = photos.map((photo) => `
     <article class="photo-queue-card" data-queue-photo="${escapeHtml(photo.filename)}" ${activePhotoQueueTarget ? `data-select-queued-photo="${escapeHtml(photo.filename)}" tabindex="0" role="button"` : ""}>
       <div class="photo-queue-image-wrap">
-        ${mediaMarkup(photo)}
+        ${mediaMarkup(photo, "", { download: false })}
         <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${escapeHtml(photo.filename)}" aria-label="Remove queued photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       </div>
       <div>
@@ -609,6 +610,7 @@ async function claimQueuedPhoto(filename) {
       row.catchPhotos = [...(row.catchPhotos || []), photoItem];
       applyPhotoCaptureTimeToCatch(row, [photoItem]);
       renderCatchPhotos(row);
+      updateCatchLocationSummary(row);
       updateRowSummary(row);
     }
     if (activePhotoQueueTarget.type === "trip") {

@@ -707,10 +707,12 @@ function normalizeState(nextState) {
         presentation: migrateTrollingPresentationValue(gearItem.presentation)
       })),
       catches: (trip.catches || []).map((catchItem) => ({
+        rodId: "",
         ...catchItem,
         presentation: migrateTrollingPresentationValue(catchItem.presentation)
       })),
       lostFish: (trip.lostFish || []).map((fishItem) => ({
+        rodId: "",
         ...fishItem,
         presentation: migrateTrollingPresentationValue(fishItem.presentation)
       })),

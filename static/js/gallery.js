@@ -1,6 +1,6 @@
 const galleryCategoryLabels = {
   all: "All uploads",
-  "catch-photos": "Catch photos",
+  "catch-photos": "Catch media",
   "trip-photos": "Trip photos",
   lures: "Lures",
   flashers: "Flashers",
