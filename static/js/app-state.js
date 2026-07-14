@@ -210,6 +210,7 @@ const defaults = {
   rods: [],
   rodReelCombos: [],
   settings: {
+    theme: "light",
     timeFormat: "24",
     units: structuredClone(defaultUnits),
     chopRanges: structuredClone(defaultChopRanges)
@@ -438,6 +439,7 @@ const els = {
   waveHeight: document.querySelector("#waveHeight"),
   waveChopDisplay: document.querySelector("#waveChopDisplay"),
   settingsPanel: document.querySelector("#settingsPanel"),
+  themeSelect: document.querySelector("#themeSelect"),
   timeFormatSelect: document.querySelector("#timeFormatSelect"),
   unitSettingsFields: document.querySelector("#unitSettingsFields"),
   saveUnitSettingsButton: document.querySelector("#saveUnitSettingsButton"),
@@ -787,10 +789,15 @@ function normalizeSettings(settings = {}) {
     ...structuredClone(defaults.settings),
     ...(settings && typeof settings === "object" ? settings : {})
   };
+  normalized.theme = normalized.theme === "dark" ? "dark" : "light";
   normalized.timeFormat = normalized.timeFormat === "12" ? "12" : "24";
   normalized.units = normalizeUnits(normalized.units);
   normalized.chopRanges = normalizeChopRanges(normalized.chopRanges);
   return normalized;
+}
+
+function themePreference() {
+  return state.settings?.theme === "dark" ? "dark" : "light";
 }
 
 function timeFormatPreference() {

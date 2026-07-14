@@ -28,7 +28,32 @@ function renderSettings() {
 }
 
 function renderPreferenceSettings() {
+  applyThemePreference();
+  if (els.themeSelect) els.themeSelect.value = themePreference();
   if (els.timeFormatSelect) els.timeFormatSelect.value = timeFormatPreference();
+}
+
+function applyThemePreference(theme = themePreference()) {
+  const normalizedTheme = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = normalizedTheme;
+  document.documentElement.style.colorScheme = normalizedTheme;
+}
+
+async function saveThemePreference() {
+  const theme = els.themeSelect?.value === "dark" ? "dark" : "light";
+  applyThemePreference(theme);
+  state.settings = {
+    ...(state.settings || {}),
+    theme
+  };
+  try {
+    await saveState();
+  } catch (error) {
+    console.error("Could not save theme.", error);
+    alert(error.message || "The theme could not be saved.");
+    applyThemePreference();
+    if (els.themeSelect) els.themeSelect.value = themePreference();
+  }
 }
 
 function renderUnitSettings() {

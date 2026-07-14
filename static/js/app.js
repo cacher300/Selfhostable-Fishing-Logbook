@@ -107,6 +107,7 @@ els.newLibraryReelButton.addEventListener("click", () => openReelDialog());
 els.newLibraryRodButton.addEventListener("click", () => openRodDialog());
 els.newLibraryComboButton.addEventListener("click", () => openComboDialog());
 els.saveChopRangesButton.addEventListener("click", saveChopRanges);
+els.themeSelect?.addEventListener("change", saveThemePreference);
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
 els.saveUnitSettingsButton?.addEventListener("click", saveUnitSettings);
 document.querySelector("#savePredefinedFieldsButton")?.addEventListener("click", savePredefinedFieldSettings);
@@ -743,6 +744,7 @@ function syncMobileSummaryPanel() {
 async function init() {
   syncMobileSummaryPanel();
   state = await loadState();
+  applyThemePreference();
   renderAll();
   setView(viewFromCurrentRoute());
 }

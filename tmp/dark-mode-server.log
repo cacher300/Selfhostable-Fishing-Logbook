@@ -1,0 +1,4 @@
+Selfhostable Fishing Logbook running at http://127.0.0.1:8080
+Data file: C:\Users\cache\fish_code\desktop\data\logbook.json
+ * Serving Flask app 'server'
+ * Debug mode: off
