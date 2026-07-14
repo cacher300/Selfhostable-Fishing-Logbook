@@ -39,6 +39,12 @@ function personalBestScore(catchItem) {
   };
 }
 
+function personalBestDateValue(record) {
+  const parts = record?.dateParts;
+  if (!parts) return Number.MAX_SAFE_INTEGER;
+  return (parts.year * 10000) + (parts.month * 100) + parts.day;
+}
+
 function comparePersonalBestCatches(a, b) {
   const aScore = personalBestScore(a);
   const bScore = personalBestScore(b);
@@ -59,10 +65,11 @@ function personalBestBasis(catchItem) {
 function measuredCatchRecords() {
   return state.trips.flatMap((trip) => {
     const dateParts = tripDateParts(trip);
-    return (trip.catches || []).map((catchItem) => ({
+    return (trip.catches || []).map((catchItem, catchIndex) => ({
       ...resolveTripLineRecord({ ...catchItem, trip }),
       trip,
-      dateParts
+      dateParts,
+      catchIndex
     }));
   }).filter((record) => {
     const hasSpecies = String(record.species || "").trim();
@@ -124,13 +131,70 @@ function personalBestItems() {
   return [...bySpecies.values()].sort((a, b) => String(a.species).localeCompare(String(b.species)));
 }
 
+function comparePersonalBestTimeline(a, b) {
+  const dateDelta = personalBestDateValue(a) - personalBestDateValue(b);
+  if (dateDelta) return dateDelta;
+  return (a.catchIndex || 0) - (b.catchIndex || 0);
+}
+
+function personalBestProgressions(records) {
+  const bySpecies = new Map();
+  records.forEach((record) => {
+    const species = String(record.species || "").trim();
+    if (!bySpecies.has(species)) bySpecies.set(species, []);
+    bySpecies.get(species).push(record);
+  });
+
+  return [...bySpecies.entries()].map(([species, speciesRecords]) => {
+    let best = null;
+    const milestones = speciesRecords
+      .sort(comparePersonalBestTimeline)
+      .reduce((items, record) => {
+        if (!best || comparePersonalBestCatches(record, best) > 0) {
+          items.push({ record, previous: best });
+          best = record;
+        }
+        return items;
+      }, []);
+    return { species, milestones };
+  }).filter((item) => item.milestones.length)
+    .sort((a, b) => a.species.localeCompare(b.species));
+}
+
+function personalBestMeasurementSummary(record) {
+  return [
+    catchMeasurementText(record, "weight"),
+    catchMeasurementText(record, "length")
+  ].filter(Boolean).join(" / ") || "Measured catch";
+}
+
+function personalBestImprovementText(record, previous) {
+  if (!previous) return "First measured best";
+  const current = personalBestScore(record);
+  const last = personalBestScore(previous);
+  const weightDelta = current.weight !== null && last.weight !== null ? current.weight - last.weight : null;
+  const lengthDelta = current.length !== null && last.length !== null ? current.length - last.length : null;
+
+  if (weightDelta > 0) {
+    return `+${trimNumber(weightDelta)} ${unitSymbol("fishWeight")}`;
+  }
+  if (current.weight && !last.weight) return `Added ${catchMeasurementText(record, "weight")}`;
+  if (lengthDelta > 0) {
+    return `+${trimNumber(lengthDelta)} ${unitSymbol("fishLength")}`;
+  }
+  if (current.length && !last.length) return `Added ${catchMeasurementText(record, "length")}`;
+  return "New best";
+}
+
 function renderPersonalBestMetrics(items, records) {
   const heaviest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best) > 0 ? item : best), null);
   const measuredSpecies = new Set(records.map((record) => record.species));
+  const progressionSteps = personalBestProgressions(records).reduce((total, item) => total + item.milestones.length, 0);
   els.personalBestsMetricGrid.innerHTML = [
     ["Species With Bests", items.length],
     ["Measured Catches", records.length],
     ["Measured Species", measuredSpecies.size],
+    ["Progression Steps", progressionSteps],
     ["Top Fish", heaviest ? `${heaviest.species} ${catchMeasurementText(heaviest, "weight") || catchMeasurementText(heaviest, "length")}` : "-"]
   ].map(([label, value]) => `
     <article class="metric-card">
@@ -174,12 +238,62 @@ function renderPersonalBestCard(record) {
   `;
 }
 
+function renderPersonalBestProgression(records) {
+  if (!els.personalBestProgression) return;
+  const progressions = personalBestProgressions(records);
+  if (!progressions.length) {
+    els.personalBestProgression.innerHTML = "";
+    return;
+  }
+
+  els.personalBestProgression.innerHTML = `
+    <div class="personal-best-progression-header">
+      <div>
+        <p class="eyebrow">Record history</p>
+        <h4>Progression of Personal Bests</h4>
+      </div>
+      <span>${escapeHtml(progressions.length)} species</span>
+    </div>
+    <div class="personal-best-progression-grid">
+      ${progressions.map(({ species, milestones }) => `
+        <article class="personal-best-progression-card">
+          <div class="personal-best-progression-card-head">
+            <h5>${escapeHtml(species)}</h5>
+            <span>${escapeHtml(milestones.length)} ${milestones.length === 1 ? "step" : "steps"}</span>
+          </div>
+          <ol class="personal-best-timeline">
+            ${milestones.map(({ record, previous }) => {
+              const tripTitle = record.trip?.title || record.trip?.location || "Saved trip";
+              return `
+                <li>
+                  <div class="personal-best-timeline-point" aria-hidden="true"></div>
+                  <div class="personal-best-timeline-body">
+                    <div class="personal-best-timeline-topline">
+                      <strong>${escapeHtml(personalBestMeasurementSummary(record))}</strong>
+                      <span>${escapeHtml(personalBestImprovementText(record, previous))}</span>
+                    </div>
+                    <div class="personal-best-timeline-meta">
+                      ${escapeHtml(formatDate(record.trip?.date) || "Date not logged")} / ${escapeHtml(tripTitle)}
+                    </div>
+                    <button class="button secondary compact-action" type="button" data-view-trip="${escapeHtml(record.trip?.id || "")}">View Trip</button>
+                  </div>
+                </li>
+              `;
+            }).join("")}
+          </ol>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
 function renderPersonalBests() {
   if (!els.personalBestsPanel) return;
   renderPersonalBestFilters();
   const records = filteredPersonalBestRecords();
   const items = personalBestItems();
   renderPersonalBestMetrics(items, records);
+  renderPersonalBestProgression(records);
   if (!items.length) {
     els.personalBestsGrid.innerHTML = `
       <div class="empty-state table-card">

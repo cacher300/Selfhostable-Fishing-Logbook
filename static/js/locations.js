@@ -147,9 +147,8 @@ function updateCatchLocationSummary(row) {
   const summary = row?.querySelector(".catch-location-summary");
   const button = row?.querySelector(".pick-catch-location");
   const coordinates = fishCoordinatesFromRow(row);
-  const manualCoordinates = catchLocationFromRow(row);
   if (button) button.textContent = coordinates ? "Selected Location" : "Select Location";
-  if (summary) summary.textContent = manualCoordinates ? "Location selected" : "";
+  if (summary) summary.textContent = "";
 }
 
 function setCatchLocationPickerCoordinates(coordinates) {

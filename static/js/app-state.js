@@ -326,6 +326,7 @@ const els = {
   bestsMonthFilter: document.querySelector("#bestsMonthFilter"),
   personalBestsMetricGrid: document.querySelector("#personalBestsMetricGrid"),
   personalBestsGrid: document.querySelector("#personalBestsGrid"),
+  personalBestProgression: document.querySelector("#personalBestProgression"),
   advancedStatsPanel: document.querySelector("#advancedStatsPanel"),
   mapPanel: document.querySelector("#mapPanel"),
   fishMap: document.querySelector("#fishMap"),

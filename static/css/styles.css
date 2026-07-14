@@ -1937,6 +1937,10 @@ textarea[aria-invalid="true"] {
   gap: 14px;
 }
 
+#personalBestsMetricGrid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
 .personal-best-card {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -2032,6 +2036,144 @@ textarea[aria-invalid="true"] {
 .personal-best-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.personal-best-progression {
+  display: grid;
+  gap: 14px;
+}
+
+.personal-best-progression-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.personal-best-progression-header h4 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.personal-best-progression-header > span,
+.personal-best-progression-card-head span,
+.personal-best-timeline-topline span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.personal-best-progression-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.personal-best-progression-card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.personal-best-progression-card-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.personal-best-progression-card-head h5 {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.personal-best-timeline {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.personal-best-timeline li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 16px;
+}
+
+.personal-best-timeline li::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 0;
+  left: 8px;
+  width: 2px;
+  background: var(--line);
+}
+
+.personal-best-timeline li:last-child {
+  padding-bottom: 0;
+}
+
+.personal-best-timeline li:last-child::before {
+  display: none;
+}
+
+.personal-best-timeline-point {
+  position: relative;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 0 1px rgba(17, 135, 83, 0.32);
+}
+
+.personal-best-timeline-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.personal-best-timeline-topline {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.personal-best-timeline-topline strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.personal-best-timeline-topline span {
+  flex: 0 0 auto;
+  color: var(--green-dark);
+}
+
+.personal-best-timeline-meta {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .patterns-header {
@@ -5323,6 +5465,7 @@ textarea[aria-invalid="true"] {
 :root[data-theme="dark"] .stats-help article,
 :root[data-theme="dark"] .stats-group,
 :root[data-theme="dark"] .personal-best-card,
+:root[data-theme="dark"] .personal-best-progression-card,
 :root[data-theme="dark"] .gallery-card,
 :root[data-theme="dark"] .gear-card,
 :root[data-theme="dark"] .map-catch-card,
@@ -5603,6 +5746,10 @@ textarea[aria-invalid="true"] {
   .analytics-grid,
   .stats-group .analytics-grid,
   .patterns-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #personalBestsMetricGrid {
     grid-template-columns: 1fr;
   }
 
@@ -6079,6 +6226,12 @@ textarea[aria-invalid="true"] {
 
   .personal-best-title-row .stats-badge {
     max-width: 100%;
+  }
+
+  .personal-best-progression-header,
+  .personal-best-progression-card-head,
+  .personal-best-timeline-topline {
+    display: grid;
   }
 }
 
