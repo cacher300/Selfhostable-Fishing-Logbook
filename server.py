@@ -5,7 +5,6 @@ import uuid
 from pathlib import Path
 
 from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
-from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
 from backend.backend_config import (
@@ -14,7 +13,6 @@ from backend.backend_config import (
     DATA_FILE,
     DEFAULT_LOGBOOK,
     HOST,
-    MAX_UPLOAD_BYTES,
     PORT,
     PREVIEW_DIRNAME,
     ROOT,
@@ -54,7 +52,6 @@ from backend.weather_service import (
 def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__, static_folder=None)
     app.config.update(
-        MAX_CONTENT_LENGTH=MAX_UPLOAD_BYTES,
         RATE_LIMIT_PER_MINUTE=RATE_LIMIT_PER_MINUTE,
         SECRET_KEY=SECRET_KEY,
         SESSION_COOKIE_HTTPONLY=True,
@@ -69,11 +66,6 @@ def create_app(config: dict | None = None) -> Flask:
         if request.endpoint != "static_files":
             response.headers["Cache-Control"] = "no-store"
         return response
-
-    @app.errorhandler(RequestEntityTooLarge)
-    def upload_too_large(_error: RequestEntityTooLarge) -> tuple[Response, int]:
-        limit_mb = app.config["MAX_CONTENT_LENGTH"] / (1024 * 1024)
-        return jsonify({"error": f"Request exceeds the {limit_mb:g} MB limit"}), 413
 
     @app.get("/api/logbook")
     def get_logbook() -> Response:

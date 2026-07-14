@@ -53,7 +53,7 @@ Proxy errors return an upstream status where available or `503` for network/time
 
 Allowed categories: `catch-photos`, `trip-photos`, `lures`, `flashers`, `reels`, `rods`, `queue`.
 
-Allowed image extensions: AVIF, GIF, HEIC/HEIF, JPEG, PNG, WebP. Allowed video extensions: MOV, MP4/M4V, WebM, AVI, MPEG/MPG, and 3GP. Extension matching is case-normalized. Requests are limited to 25 MB by default; configure `MAX_UPLOAD_BYTES` to change the limit.
+Allowed image extensions: AVIF, GIF, HEIC/HEIF, JPEG, PNG, WebP. Allowed video extensions: MOV, MP4/M4V, WebM, AVI, MPEG/MPG, and 3GP. Extension matching is case-normalized. The app does not enforce an application-level upload size limit.
 
 ### `POST /api/uploads/<category>`
 
