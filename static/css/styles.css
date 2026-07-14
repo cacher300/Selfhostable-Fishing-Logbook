@@ -2225,6 +2225,25 @@ textarea[aria-invalid="true"] {
   min-width: 210px;
 }
 
+.map-tools .map-media-toggle {
+  display: grid;
+  grid-template-columns: 16px max-content;
+  align-items: center;
+  min-width: 0;
+  min-height: 42px;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.map-tools .map-media-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--green);
+}
+
 .map-header-legend {
   display: flex;
   flex: 1 1 auto;
@@ -2235,21 +2254,6 @@ textarea[aria-invalid="true"] {
 
 .map-header-legend .map-legend {
   justify-content: center;
-}
-
-#tripSummaryMapLegend .map-legend {
-  gap: 4px;
-}
-
-#tripSummaryMapLegend .map-legend span {
-  gap: 3px;
-  padding: 3px 5px;
-  font-size: 8px;
-}
-
-#tripSummaryMapLegend .map-legend i {
-  width: 5px;
-  height: 5px;
 }
 
 .fish-map {
@@ -2298,6 +2302,11 @@ textarea[aria-invalid="true"] {
 .map-popup a,
 .map-popup button {
   display: block;
+}
+
+.map-popup .media-download-link,
+.map-catch-card .media-download-link {
+  display: none;
 }
 
 .map-catch-list {
@@ -2455,13 +2464,19 @@ textarea[aria-invalid="true"] {
 }
 
 .summary-metrics {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
   gap: 16px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
 }
 
 .summary-metrics .metric-card {
+  min-width: 0;
   padding: 18px;
   border: 0;
+  border-radius: 8px;
+  background: var(--panel);
   box-shadow: 0 10px 26px rgba(7, 21, 46, 0.06);
 }
 
@@ -2471,6 +2486,8 @@ textarea[aria-invalid="true"] {
 
 .summary-metrics .metric-card strong {
   font-size: 28px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .summary-section {
@@ -2651,14 +2668,19 @@ textarea[aria-invalid="true"] {
 }
 
 .summary-condition-metrics {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
 }
 
 .summary-condition-metrics .metric-card {
+  min-width: 0;
   padding: 16px 18px;
   border: 0;
-  background: #fff;
+  border-radius: 8px;
+  background: var(--panel);
   box-shadow: 0 10px 28px rgba(7, 21, 46, 0.055);
 }
 
@@ -2670,6 +2692,7 @@ textarea[aria-invalid="true"] {
 .summary-condition-metrics .metric-card strong {
   font-size: 20px;
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .weather-secondary-grid {
@@ -4174,6 +4197,31 @@ textarea[aria-invalid="true"] {
   display: block;
   margin-top: 6px;
   font-size: 24px;
+}
+
+.trip-summary-body .summary-metrics,
+.trip-summary-body .summary-condition-metrics {
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+.trip-summary-body .summary-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 16px;
+}
+
+.trip-summary-body .summary-condition-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.trip-summary-body .summary-metrics .metric-card,
+.trip-summary-body .summary-condition-metrics .metric-card {
+  min-width: 0;
+  border: 0;
+  border-radius: 8px;
+  background: var(--panel);
 }
 
 .analytics-grid {
@@ -5815,6 +5863,10 @@ textarea[aria-invalid="true"] {
   .map-tools label,
   .summary-map-tools label {
     min-width: 0;
+  }
+
+  .map-tools .map-media-toggle {
+    width: max-content;
   }
 
   .fish-map {

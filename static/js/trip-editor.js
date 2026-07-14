@@ -123,6 +123,13 @@ function confirmTripSaveWarnings() {
   return confirm(`Please review before saving:\n\n${warnings.map((warning) => `• ${warning}`).join("\n")}\n\nSave anyway?`);
 }
 
+function localDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function openTripDialog(trip = null) {
   activeTripId = trip?.id || null;
   els.tripDialogTitle.textContent = trip ? "Edit Trip" : "New Trip";
@@ -136,7 +143,7 @@ function openTripDialog(trip = null) {
   els.personRows.innerHTML = "";
   activeNotePhotos = structuredClone(trip?.notePhotos || []);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateInputValue();
   setValue("tripId", trip?.id || "");
   setValue("tripTitle", trip?.title || "");
   setValue("tripDate", trip?.date || today);

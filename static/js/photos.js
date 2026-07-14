@@ -501,6 +501,15 @@ async function loadPhotoQueue() {
   return payload.photos || [];
 }
 
+function photoQueueTimeText(photo) {
+  const date = photo.captureDate ? formatDate(photo.captureDate) : "";
+  const time = photo.captureTime ? formatDisplayTime(photo.captureTime) : "";
+  if (date && time) return `${date} ${time}`;
+  if (date) return date;
+  if (time) return time;
+  return "No capture time";
+}
+
 async function renderPhotoQueue() {
   const photos = await loadPhotoQueue();
   els.photoQueueStatus.textContent = photos.length === 1 ? "1 queued photo" : `${photos.length} queued photos`;
@@ -517,7 +526,7 @@ async function renderPhotoQueue() {
       </div>
       <div>
         <strong>${escapeHtml(photo.name || "Queued photo")}</strong>
-        <span>${isUsableCoordinates(photo.coordinates) ? escapeHtml(formatCoordinates(photo.coordinates)) : "No GPS metadata"}</span>
+        <span>${escapeHtml(photoQueueTimeText(photo))}</span>
       </div>
       <div class="photo-queue-card-actions">
         ${activePhotoQueueTarget ? `<button class="button primary" type="button" data-select-queued-photo="${escapeHtml(photo.filename)}">Use Photo</button>` : ""}

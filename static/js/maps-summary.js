@@ -339,6 +339,20 @@ function summaryMetric(label, value) {
   return `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "0")}</strong></article>`;
 }
 
+function tripSpeciesSummary(trip) {
+  const speciesCounts = new Map();
+  (trip.catches || []).forEach((catchItem) => {
+    const species = String(catchItem.species || "").trim();
+    if (!species) return;
+    speciesCounts.set(species, (speciesCounts.get(species) || 0) + fishCount(catchItem));
+  });
+  const topSpecies = [...speciesCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+  return {
+    count: speciesCounts.size,
+    top: topSpecies ? `${displayTitleText(topSpecies[0])} (${topSpecies[1]})` : "None"
+  };
+}
+
 const displayLowercaseTokens = new Set(["mph", "hPa", "kph", "km", "mm", "cm", "lb", "lbs", "ft", "in"]);
 
 function displayTitleText(value = "") {
@@ -1180,6 +1194,7 @@ function openTripSummary(trip) {
   activeTripTimelineFilter = "all";
   els.tripSummaryTitle.textContent = displayTitleText(trip.title || trip.location || "Trip Summary");
   const mapRecords = catchMapRecordsForTrip(trip);
+  const speciesSummary = tripSpeciesSummary(trip);
   els.tripSummaryBody.innerHTML = `
     <section class="summary-hero">
       <div>
@@ -1193,6 +1208,8 @@ function openTripSummary(trip) {
       ${summaryMetric("Caught", totalCaught(trip))}
       ${summaryMetric("Fish/hr", trimNumber(catchRate(trip)))}
       ${summaryMetric("Lost Fish", (trip.lostFish || []).length)}
+      ${summaryMetric("Species", speciesSummary.count)}
+      ${summaryMetric("Best Species", speciesSummary.top)}
     </div>
     ${renderTripKeyConditions(trip)}
     <section class="summary-section summary-notes-card">
