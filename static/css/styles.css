@@ -2923,7 +2923,7 @@ textarea[aria-invalid="true"] {
   z-index: 6;
   width: max-content;
   max-width: min(260px, 40vw);
-  color: var(--text);
+  color: #111827;
   font-size: clamp(8px, 0.85vw, 12px);
   font-weight: 900;
   line-height: 1.15;
@@ -2979,7 +2979,7 @@ textarea[aria-invalid="true"] {
   padding: 2px 5px;
   border-radius: 4px;
   background: rgba(223, 243, 251, 0.94);
-  color: var(--text);
+  color: #111827;
   font-size: clamp(8px, 0.95vw, 13px);
   font-weight: 900;
   line-height: 1.15;
@@ -5353,6 +5353,13 @@ textarea[aria-invalid="true"] {
   border-left-color: #64748b;
 }
 
+:root[data-theme="dark"] .trip-summary-body .summary-metrics .metric-card,
+:root[data-theme="dark"] .trip-summary-body .summary-condition-metrics .metric-card {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: linear-gradient(180deg, rgba(21, 32, 44, 0.98), rgba(15, 24, 34, 0.98));
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22);
+}
+
 :root[data-theme="dark"] .trip-timeline::before {
   background: var(--line);
 }
@@ -5387,9 +5394,7 @@ textarea[aria-invalid="true"] {
 :root[data-theme="dark"] .thumbnail-button,
 :root[data-theme="dark"] .catch-detail-panel .featured-image-wrap,
 :root[data-theme="dark"] .catch-detail-panel .thumbnail-button,
-:root[data-theme="dark"] .photo-queue-image-wrap,
-:root[data-theme="dark"] .spread-water,
-:root[data-theme="dark"] .spread-diagram-wrap {
+:root[data-theme="dark"] .photo-queue-image-wrap {
   background: #0b1118;
 }
 

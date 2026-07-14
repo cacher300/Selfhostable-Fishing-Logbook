@@ -127,6 +127,26 @@ class LogbookStoreTests(unittest.TestCase):
         )
         self.assertEqual("2026-07-07 Walleye Trip", normalized["trips"][0]["title"])
 
+    def test_trip_people_are_saved_without_catches(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "people": [],
+                "trips": [
+                    {
+                        "id": "trip-1",
+                        "people": [{"id": "person-1", "name": "Sam"}],
+                        "catches": [],
+                        "lostFish": [],
+                    }
+                ],
+                "lures": [],
+                "flashers": [],
+            }
+        )
+        self.assertEqual([{"id": "person-1", "name": "Sam"}], normalized["trips"][0]["people"])
+        self.assertEqual([{"id": "person-1", "name": "Sam"}], normalized["people"])
+
     def test_concurrent_writes_always_leave_complete_json(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             directory_path = Path(directory)

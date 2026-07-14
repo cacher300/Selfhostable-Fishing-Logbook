@@ -996,11 +996,6 @@ async function saveTrip(event) {
     trip.title = trip.title || generatedTripTitle(trip);
     state.people = mergePeople(state.people, trip.people);
     state.locations = mergeLocations(state.locations, [trip.location]);
-    const usedPersonIds = new Set([
-      ...trip.catches.map((catchItem) => catchItem.personId).filter(Boolean),
-      ...trip.lostFish.map((fish) => fish.personId).filter(Boolean)
-    ]);
-    trip.people = trip.people.filter((person) => usedPersonIds.has(person.id));
     upsertListValue("species", trip.targetSpecies);
     upsertListValue("methods", trip.method);
     upsertListValue("waterClarities", trip.waterClarity);
