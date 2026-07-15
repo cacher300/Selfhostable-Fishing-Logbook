@@ -16,7 +16,6 @@ from backend.backend_config import (
     PORT,
     PREVIEW_DIRNAME,
     ROOT,
-    RATE_LIMIT_PER_MINUTE,
     SECRET_KEY,
     UPLOAD_CATEGORIES,
 )
@@ -54,7 +53,6 @@ from backend.weather_service import (
 def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__, static_folder=None)
     app.config.update(
-        RATE_LIMIT_PER_MINUTE=RATE_LIMIT_PER_MINUTE,
         SECRET_KEY=SECRET_KEY,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Strict",
@@ -244,15 +242,6 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/uploads/<category>/<filename>")
     def uploaded_file(category: str, filename: str) -> Response:
         return send_from_directory(upload_category_path(category), filename)
-
-    @app.get("/api/export")
-    def export_logbook() -> Response:
-        body = json.dumps(read_logbook(), indent=2)
-        return Response(
-            body,
-            mimetype="application/json",
-            headers={"Content-Disposition": "attachment; filename=fishing-logbook.json"},
-        )
 
     @app.get("/favicon.ico")
     def favicon() -> tuple[str, int]:

@@ -112,8 +112,6 @@ els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
 els.saveUnitSettingsButton?.addEventListener("click", saveUnitSettings);
 document.querySelector("#savePredefinedFieldsButton")?.addEventListener("click", savePredefinedFieldSettings);
 els.settingsAddLocationButton.addEventListener("click", () => openLocationDialog("location"));
-els.exportButton.addEventListener("click", exportJson);
-els.importInput.addEventListener("change", importJson);
 els.statsMethodFilter.addEventListener("change", () => {
   activeStatsMethod = els.statsMethodFilter.value;
   syncStatsUrl();

@@ -416,8 +416,6 @@ const els = {
   photoQueueInput: document.querySelector("#photoQueueInput"),
   photoQueueGrid: document.querySelector("#photoQueueGrid"),
   photoQueueStatus: document.querySelector("#photoQueueStatus"),
-  exportButton: document.querySelector("#exportButton"),
-  importInput: document.querySelector("#importInput"),
   tripSummaryDialog: document.querySelector("#tripSummaryDialog"),
   tripSummaryTitle: document.querySelector("#tripSummaryTitle"),
   tripSummaryBody: document.querySelector("#tripSummaryBody"),
