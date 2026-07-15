@@ -2148,6 +2148,12 @@ textarea[aria-invalid="true"] {
   min-width: 0;
 }
 
+.personal-best-timeline-body .compact-action {
+  justify-self: start;
+  width: auto;
+  min-width: 86px;
+}
+
 .personal-best-timeline-topline {
   display: flex;
   align-items: start;

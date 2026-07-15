@@ -26,10 +26,11 @@ function catchMeasurementValue(catchItem, key) {
 
 function catchMeasurementText(catchItem, key) {
   const value = String(catchItem?.[key] || "").trim();
-  if (value) return value;
+  const unit = unitSymbol(key === "weight" ? "fishWeight" : "fishLength");
+  if (value) return /[a-zA-Z]/.test(value) ? value : `${value} ${unit}`;
   const numberValue = catchMeasurementValue(catchItem, key);
   if (!numberValue) return "";
-  return `${trimNumber(numberValue)} ${unitSymbol(key === "weight" ? "fishWeight" : "fishLength")}`;
+  return `${trimNumber(numberValue)} ${unit}`;
 }
 
 function personalBestScore(catchItem) {
@@ -45,21 +46,19 @@ function personalBestDateValue(record) {
   return (parts.year * 10000) + (parts.month * 100) + parts.day;
 }
 
-function comparePersonalBestCatches(a, b) {
+function comparePersonalBestCatches(a, b, rankBy = activePersonalBestsFilters.rankBy) {
   const aScore = personalBestScore(a);
   const bScore = personalBestScore(b);
+  if (rankBy === "length") {
+    const aLength = aScore.length ?? -1;
+    const bLength = bScore.length ?? -1;
+    if (aLength !== bLength) return aLength - bLength;
+    return (aScore.weight ?? -1) - (bScore.weight ?? -1);
+  }
   const aWeight = aScore.weight ?? -1;
   const bWeight = bScore.weight ?? -1;
   if (aWeight !== bWeight) return aWeight - bWeight;
   return (aScore.length ?? -1) - (bScore.length ?? -1);
-}
-
-function personalBestBasis(catchItem) {
-  const score = personalBestScore(catchItem);
-  if (score.weight && score.length) return "Ranked by weight, length as tie-breaker";
-  if (score.weight) return "Ranked by weight";
-  if (score.length) return "Ranked by length";
-  return "No measurement";
 }
 
 function measuredCatchRecords() {
@@ -119,6 +118,10 @@ function renderPersonalBestFilters() {
   els.bestsMonthFilter.innerHTML = monthOptions.map((month) => (
     `<option value="${escapeHtml(month.value)}" ${month.value === activePersonalBestsFilters.month ? "selected" : ""}>${escapeHtml(month.label)}</option>`
   )).join("");
+
+  if (els.bestsRankFilter) {
+    els.bestsRankFilter.value = activePersonalBestsFilters.rankBy;
+  }
 }
 
 function personalBestItems() {
@@ -162,6 +165,12 @@ function personalBestProgressions(records) {
 }
 
 function personalBestMeasurementSummary(record) {
+  if (activePersonalBestsFilters.rankBy === "length") {
+    return [
+      catchMeasurementText(record, "length"),
+      catchMeasurementText(record, "weight")
+    ].filter(Boolean).join(" / ") || "Measured catch";
+  }
   return [
     catchMeasurementText(record, "weight"),
     catchMeasurementText(record, "length")
@@ -175,6 +184,18 @@ function personalBestImprovementText(record, previous) {
   const weightDelta = current.weight !== null && last.weight !== null ? current.weight - last.weight : null;
   const lengthDelta = current.length !== null && last.length !== null ? current.length - last.length : null;
 
+  if (activePersonalBestsFilters.rankBy === "length") {
+    if (lengthDelta > 0) {
+      return `+${trimNumber(lengthDelta)} ${unitSymbol("fishLength")}`;
+    }
+    if (current.length && !last.length) return `Added ${catchMeasurementText(record, "length")}`;
+    if (weightDelta > 0) {
+      return `+${trimNumber(weightDelta)} ${unitSymbol("fishWeight")}`;
+    }
+    if (current.weight && !last.weight) return `Added ${catchMeasurementText(record, "weight")}`;
+    return "New best";
+  }
+
   if (weightDelta > 0) {
     return `+${trimNumber(weightDelta)} ${unitSymbol("fishWeight")}`;
   }
@@ -187,15 +208,19 @@ function personalBestImprovementText(record, previous) {
 }
 
 function renderPersonalBestMetrics(items, records) {
-  const heaviest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best) > 0 ? item : best), null);
-  const measuredSpecies = new Set(records.map((record) => record.species));
-  const progressionSteps = personalBestProgressions(records).reduce((total, item) => total + item.milestones.length, 0);
+  const topFish = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best) > 0 ? item : best), null);
+  const heaviest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best, "weight") > 0 ? item : best), null);
+  const longest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best, "length") > 0 ? item : best), null);
+  const newest = items.reduce((best, item) => (!best || personalBestDateValue(item) > personalBestDateValue(best) ? item : best), null);
+  const topMeasurement = activePersonalBestsFilters.rankBy === "length"
+    ? catchMeasurementText(topFish, "length") || catchMeasurementText(topFish, "weight")
+    : catchMeasurementText(topFish, "weight") || catchMeasurementText(topFish, "length");
   els.personalBestsMetricGrid.innerHTML = [
-    ["Species With Bests", items.length],
-    ["Measured Catches", records.length],
-    ["Measured Species", measuredSpecies.size],
-    ["Progression Steps", progressionSteps],
-    ["Top Fish", heaviest ? `${heaviest.species} ${catchMeasurementText(heaviest, "weight") || catchMeasurementText(heaviest, "length")}` : "-"]
+    ["Species With PBs", items.length],
+    ["Top PB", topFish ? `${topFish.species} ${topMeasurement}` : "-"],
+    ["Heaviest PB", heaviest ? `${heaviest.species} ${catchMeasurementText(heaviest, "weight") || catchMeasurementText(heaviest, "length")}` : "-"],
+    ["Longest PB", longest ? `${longest.species} ${catchMeasurementText(longest, "length") || catchMeasurementText(longest, "weight")}` : "-"],
+    ["Newest PB", newest ? `${newest.species} ${formatDate(newest.trip?.date) || "Date not logged"}` : "-"]
   ].map(([label, value]) => `
     <article class="metric-card">
       <span>${escapeHtml(label)}</span>
@@ -220,7 +245,6 @@ function renderPersonalBestCard(record) {
             <span class="pattern-rank">Personal best</span>
             <h4>${escapeHtml(record.species)}</h4>
           </div>
-          <span class="stats-badge">${escapeHtml(personalBestBasis(record))}</span>
         </div>
         <dl class="personal-best-details">
           <div><dt>Weight</dt><dd>${escapeHtml(weightText)}</dd></div>
@@ -249,10 +273,8 @@ function renderPersonalBestProgression(records) {
   els.personalBestProgression.innerHTML = `
     <div class="personal-best-progression-header">
       <div>
-        <p class="eyebrow">Record history</p>
         <h4>Progression of Personal Bests</h4>
       </div>
-      <span>${escapeHtml(progressions.length)} species</span>
     </div>
     <div class="personal-best-progression-grid">
       ${progressions.map(({ species, milestones }) => `

@@ -263,7 +263,8 @@ const activeStatsFilters = {
 };
 const activePersonalBestsFilters = {
   year: "All years",
-  month: "All months"
+  month: "All months",
+  rankBy: "weight"
 };
 let activeMapSpecies = "All species";
 let activeMapIncludeTripMedia = false;
@@ -324,6 +325,7 @@ const els = {
   personalBestsPanel: document.querySelector("#personalBestsPanel"),
   bestsYearFilter: document.querySelector("#bestsYearFilter"),
   bestsMonthFilter: document.querySelector("#bestsMonthFilter"),
+  bestsRankFilter: document.querySelector("#bestsRankFilter"),
   personalBestsMetricGrid: document.querySelector("#personalBestsMetricGrid"),
   personalBestsGrid: document.querySelector("#personalBestsGrid"),
   personalBestProgression: document.querySelector("#personalBestProgression"),

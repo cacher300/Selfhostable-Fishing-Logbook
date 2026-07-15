@@ -131,6 +131,10 @@ els.bestsMonthFilter?.addEventListener("change", () => {
   activePersonalBestsFilters.month = els.bestsMonthFilter.value;
   renderPersonalBests();
 });
+els.bestsRankFilter?.addEventListener("change", () => {
+  activePersonalBestsFilters.rankBy = els.bestsRankFilter.value;
+  renderPersonalBests();
+});
 els.statsSortFilter?.addEventListener("change", () => {
   activeStatsSort = els.statsSortFilter.value;
   syncStatsUrl();

@@ -109,7 +109,6 @@
         <section class="personal-bests-page hidden" id="personalBestsPanel" aria-label="Personal best catches">
           <div class="personal-bests-header">
             <div>
-              <p class="eyebrow">Largest landed fish</p>
               <h3>Personal Bests</h3>
             </div>
             <div class="personal-bests-tools">
@@ -120,6 +119,13 @@
               <label>
                 <span>Month</span>
                 <select id="bestsMonthFilter"></select>
+              </label>
+              <label>
+                <span>Rank by</span>
+                <select id="bestsRankFilter">
+                  <option value="weight">Weight</option>
+                  <option value="length">Length</option>
+                </select>
               </label>
             </div>
           </div>
