@@ -2,7 +2,7 @@
 
 ## Storage Model
 
-There are no SQL tables. `data/logbook.json` is one aggregate, versioned JSON document. Schema version 1 is current; unversioned legacy documents migrate to version 1 during normalization. Unknown properties generally survive because normalization is additive rather than a strict serializer.
+`data/logbook.sqlite3` stores a versioned logbook. `logbook_metadata` holds the schema version, settings, and unknown top-level properties. `logbook_entries` stores every top-level collection row with its collection name, stable record ID when present, display position, and JSON payload. Schema version 1 is current; unversioned legacy JSON documents migrate during import and normalization.
 
 ```mermaid
 erDiagram

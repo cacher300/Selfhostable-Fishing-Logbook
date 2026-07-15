@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 import os
+import sqlite3
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
@@ -43,27 +44,45 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertFalse(valid)
         self.assertEqual("settings.units.depth: has an unsupported unit", error)
 
-    def test_write_raises_os_error_when_replace_fails(self) -> None:
+    def test_write_creates_sqlite_database(self) -> None:
         payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
-        with (
-            tempfile.TemporaryDirectory() as directory,
-            patch.object(logbook_store, "DATA_DIR", Path(directory)),
-            patch.object(logbook_store, "DATA_FILE", Path(directory) / "logbook.json"),
-            patch.object(logbook_store.os, "replace", side_effect=OSError("disk error")),
-            self.assertRaisesRegex(OSError, "disk error"),
-        ):
-            logbook_store.write_logbook(payload)
+        with tempfile.TemporaryDirectory() as directory:
+            database_file = Path(directory) / "logbook.sqlite3"
+            with patch.object(logbook_store, "DATABASE_FILE", database_file):
+                logbook_store.write_logbook(payload)
+                self.assertTrue(database_file.is_file())
+                with closing(sqlite3.connect(database_file)) as connection:
+                    tables = {
+                        row[0]
+                        for row in connection.execute(
+                            "SELECT name FROM sqlite_master WHERE type = 'table'"
+                        )
+                    }
+        self.assertIn("logbook_metadata", tables)
+        self.assertIn("logbook_entries", tables)
 
-    def test_write_fsyncs_directory_after_replace(self) -> None:
+    def test_write_and_read_round_trip_through_sqlite(self) -> None:
+        payload = {
+            "schemaVersion": 1,
+            "trips": [{"id": "trip-1", "catches": [], "lostFish": [], "customTripField": "kept"}],
+            "lures": [{"id": "lure-1", "name": "Blue Spoon"}],
+            "flashers": [],
+            "customTopLevelField": {"kept": True},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            database_file = Path(directory) / "logbook.sqlite3"
+            with patch.object(logbook_store, "DATABASE_FILE", database_file):
+                logbook_store.write_logbook(payload)
+                stored = logbook_store.read_logbook()
+        self.assertEqual("kept", stored["trips"][0]["customTripField"])
+        self.assertEqual({"kept": True}, stored["customTopLevelField"])
+
+    def test_read_returns_defaults_before_database_exists(self) -> None:
         payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
-        with (
-            tempfile.TemporaryDirectory() as directory,
-            patch.object(logbook_store, "DATA_DIR", Path(directory)),
-            patch.object(logbook_store, "DATA_FILE", Path(directory) / "logbook.json"),
-            patch.object(logbook_store, "_fsync_directory") as fsync_directory,
-        ):
-            logbook_store.write_logbook(payload)
-        fsync_directory.assert_called_once_with(Path(directory))
+        with tempfile.TemporaryDirectory() as directory:
+            database_file = Path(directory) / "logbook.sqlite3"
+            with patch.object(logbook_store, "DATABASE_FILE", database_file):
+                self.assertEqual([], logbook_store.read_logbook()["trips"])
 
     def test_rejects_invalid_nested_data_with_path(self) -> None:
         valid, error = logbook_store.validate_logbook(
@@ -150,7 +169,7 @@ class LogbookStoreTests(unittest.TestCase):
     def test_concurrent_writes_always_leave_complete_json(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             directory_path = Path(directory)
-            data_file = directory_path / "logbook.json"
+            database_file = directory_path / "logbook.sqlite3"
 
             def write(index: int) -> None:
                 logbook_store.write_logbook(
@@ -163,17 +182,15 @@ class LogbookStoreTests(unittest.TestCase):
                 )
 
             with (
-                patch.object(logbook_store, "DATA_DIR", directory_path),
-                patch.object(logbook_store, "DATA_FILE", data_file),
+                patch.object(logbook_store, "DATABASE_FILE", database_file),
             ):
                 with ThreadPoolExecutor(max_workers=8) as executor:
                     list(executor.map(write, range(30)))
-                stored = json.loads(data_file.read_text(encoding="utf-8"))
+                stored = logbook_store.read_logbook()
                 valid, error = logbook_store.validate_logbook(stored)
 
             self.assertTrue(valid, error)
             self.assertEqual(1, len(stored["trips"]))
-            self.assertEqual([], list(directory_path.glob(".logbook-*.tmp")))
 
 if __name__ == "__main__":
     unittest.main()

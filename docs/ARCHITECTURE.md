@@ -2,14 +2,14 @@
 
 ## System Context
 
-Selfhostable Fishing Logbook is a small single-process web application for one trusted operator or household. Flask serves a plain-JavaScript single-page interface, proxies environmental APIs, and reads/writes one JSON document. Uploaded media stays on the local filesystem.
+Selfhostable Fishing Logbook is a small single-process web application for one trusted operator or household. Flask serves a plain-JavaScript single-page interface, proxies environmental APIs, and reads/writes a SQLite logbook. Uploaded media stays on the local filesystem.
 
 ```mermaid
 flowchart LR
   Browser["Browser SPA"] -->|"GET/PUT logbook"| Flask["Flask server"]
   Browser -->|"upload/list/claim/delete"| Flask
   Browser -->|"weather/marine/astronomy query"| Flask
-  Flask --> JSON["data/logbook.json"]
+  Flask --> SQLite["data/logbook.sqlite3"]
   Flask --> Media["data/uploads/*"]
   Flask --> OM["Open-Meteo APIs"]
   Flask --> SS["SunriseSunset.io"]
@@ -40,7 +40,7 @@ Shared mutable globals couple these files. HTML IDs/classes are effectively inte
 
 `server.py` creates the Flask app and owns HTTP routing. Helpers are separated by concern:
 
-- `logbook_store.py`: whole-document normalization, minimal validation, and JSON I/O.
+- `logbook_store.py`: whole-document normalization, validation, and SQLite I/O.
 - `media_service.py`: upload paths, metadata sidecars, preview generation, references, gallery, orphans.
 - `weather_service.py`: allowlisted external proxies and an unexposed bulk-enrichment implementation.
 - `backend_config.py`: paths, defaults, units, media categories, external URLs, allowlists.
@@ -49,7 +49,7 @@ The Flask development server runs threaded. There is no application-level lock a
 
 ### Persistence
 
-The application stores one aggregate document at `data/logbook.json`. Collections such as `lures`, `locations`, and `trips` are embedded arrays. A trip owns its setup, catches, lost fish, people references, weather snapshot, and media references.
+The application stores its logbook in `data/logbook.sqlite3`. Top-level collections such as `lures`, `locations`, and `trips` are individual SQLite rows with ordered JSON payloads, preserving their nested setup, catches, people references, weather snapshots, and media references.
 
 Media files are stored separately by category. Each file may have `<filename>.json` metadata and `_previews/<stem>.jpg`. JSON export does not include the binaries.
 
@@ -58,7 +58,7 @@ Media files are stored separately by category. Each file may have `<filename>.js
 ### Startup and save
 
 1. The browser requests `/api/logbook`.
-2. Flask reads and normalizes the JSON document.
+2. Flask reads and normalizes the SQLite data.
 3. The browser normalizes again and renders all views.
 4. A mutation updates in-memory state.
 5. `saveState()` normalizes, writes localStorage, then replaces the complete server document with `PUT /api/logbook`.

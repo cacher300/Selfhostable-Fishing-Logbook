@@ -2,16 +2,23 @@ from __future__ import annotations
 
 import json
 import math
-import os
-import tempfile
+import sqlite3
 import uuid
+from contextlib import closing
 from copy import deepcopy
 from threading import RLock
 
-from .backend_config import DATA_DIR, DATA_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
+from .backend_config import DATA_DIR, DATABASE_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
 
 SCHEMA_VERSION = 1
 _STORE_LOCK = RLock()
+_COLLECTION_KEYS = (
+    "species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes",
+    "reelStyles", "rodTypes", "lineTypes", "trollingPresentations", "trollingDirections",
+    "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people",
+    "locations", "trips",
+)
+_OBJECT_COLLECTION_KEYS = {"lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips"}
 
 
 def normalize_logbook(payload: dict | None = None) -> dict:
@@ -254,28 +261,84 @@ def normalize_logbook(payload: dict | None = None) -> dict:
     return normalized
 
 
+def _connect(database_file=None) -> sqlite3.Connection:
+    database_file = database_file or DATABASE_FILE
+    connection = sqlite3.connect(database_file, timeout=10)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys = ON")
+    connection.execute("PRAGMA busy_timeout = 10000")
+    return connection
+
+
+def _initialize_schema(connection: sqlite3.Connection) -> None:
+    connection.execute("PRAGMA journal_mode = WAL")
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS logbook_metadata (
+            key TEXT PRIMARY KEY,
+            value_json TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS logbook_entries (
+            collection_name TEXT NOT NULL,
+            position INTEGER NOT NULL,
+            record_id TEXT,
+            payload_json TEXT NOT NULL,
+            PRIMARY KEY (collection_name, position)
+        )
+        """
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_logbook_entries_record_id "
+        "ON logbook_entries (collection_name, record_id)"
+    )
+
+
+def database_exists() -> bool:
+    return DATABASE_FILE.exists()
+
+
+def initialize_database() -> None:
+    with _STORE_LOCK:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        with closing(_connect()) as connection:
+            with connection:
+                _initialize_schema(connection)
+
+
 def read_logbook() -> dict:
     with _STORE_LOCK:
-        if not DATA_FILE.exists():
+        if not DATABASE_FILE.exists():
             return normalize_logbook()
-
-        with DATA_FILE.open("r", encoding="utf-8") as file:
-            loaded = json.load(file)
+        with closing(_connect()) as connection:
+            with connection:
+                _initialize_schema(connection)
+                metadata = {
+                    row["key"]: json.loads(row["value_json"])
+                    for row in connection.execute("SELECT key, value_json FROM logbook_metadata")
+                }
+                if not metadata:
+                    return normalize_logbook()
+                loaded = metadata.get("extra", {})
+                loaded["schemaVersion"] = metadata.get("schemaVersion", 0)
+                loaded["settings"] = metadata.get("settings", {})
+                for collection_name in _COLLECTION_KEYS:
+                    loaded[collection_name] = [
+                        json.loads(row["payload_json"])
+                        for row in connection.execute(
+                            "SELECT payload_json FROM logbook_entries "
+                            "WHERE collection_name = ? ORDER BY position",
+                            (collection_name,),
+                        )
+                    ]
 
         is_valid, error = validate_logbook(loaded)
         if not is_valid:
             raise ValueError(f"Stored logbook is invalid: {error}")
         return normalize_logbook(loaded)
-
-
-def _fsync_directory(path: str | os.PathLike[str]) -> None:
-    if os.name == "nt":
-        return
-    directory_fd = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    try:
-        os.fsync(directory_fd)
-    finally:
-        os.close(directory_fd)
 
 
 def write_logbook(payload: dict) -> None:
@@ -284,32 +347,48 @@ def write_logbook(payload: dict) -> None:
         raise ValueError(error)
 
     normalized = normalize_logbook(payload)
-
-    temporary_path = None
-    try:
-        with _STORE_LOCK:
-            DATA_DIR.mkdir(parents=True, exist_ok=True)
+    extras = {
+        key: value
+        for key, value in normalized.items()
+        if key not in {*_COLLECTION_KEYS, "schemaVersion", "settings"}
+    }
+    with _STORE_LOCK:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        with closing(_connect()) as connection:
+            _initialize_schema(connection)
+            connection.execute("BEGIN IMMEDIATE")
             try:
-                with tempfile.NamedTemporaryFile(
-                    "w",
-                    encoding="utf-8",
-                    dir=DATA_DIR,
-                    prefix=".logbook-",
-                    suffix=".tmp",
-                    delete=False,
-                ) as file:
-                    temporary_path = file.name
-                    json.dump(normalized, file, indent=2, allow_nan=False)
-                    file.write("\n")
-                    file.flush()
-                    os.fsync(file.fileno())
-                os.replace(temporary_path, DATA_FILE)
-                _fsync_directory(DATA_DIR)
-            finally:
-                if temporary_path and os.path.exists(temporary_path):
-                    os.unlink(temporary_path)
-    except OSError:
-        raise
+                connection.execute("DELETE FROM logbook_metadata")
+                connection.execute("DELETE FROM logbook_entries")
+                connection.executemany(
+                    "INSERT INTO logbook_metadata (key, value_json) VALUES (?, ?)",
+                    (
+                        ("schemaVersion", json.dumps(normalized["schemaVersion"], allow_nan=False)),
+                        ("settings", json.dumps(normalized["settings"], allow_nan=False)),
+                        ("extra", json.dumps(extras, allow_nan=False)),
+                    ),
+                )
+                for collection_name in _COLLECTION_KEYS:
+                    records = normalized[collection_name]
+                    connection.executemany(
+                        """
+                        INSERT INTO logbook_entries (collection_name, position, record_id, payload_json)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (
+                            (
+                                collection_name,
+                                position,
+                                str(record.get("id")) if collection_name in _OBJECT_COLLECTION_KEYS and record.get("id") else None,
+                                json.dumps(record, allow_nan=False, separators=(",", ":")),
+                            )
+                            for position, record in enumerate(records)
+                        ),
+                    )
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
 
 
 def _error(path: str, message: str) -> tuple[bool, str]:

@@ -19,11 +19,11 @@ The complete audited feature list is in [docs/FEATURE_INVENTORY.md](docs/FEATURE
 
 - Backend: Flask/Python.
 - Frontend: plain HTML, CSS, and JavaScript; no build step.
-- Persistence: `data/logbook.json`.
+- Persistence: `data/logbook.sqlite3`.
 - Uploads: `data/uploads/<category>/` with JSON metadata sidecars and image previews.
 - Direct-file fallback: opening `index.html` uses browser localStorage, but uploads and external-data proxies require Flask.
 
-There is no relational database. The JSON document carries a `schemaVersion`, and compatibility normalization runs whenever it is read or written.
+SQLite stores the normalized logbook in transactionally updated collections. The API and JSON export format remain unchanged; compatibility normalization runs whenever it is read or written.
 
 ## Run Locally
 
@@ -50,10 +50,11 @@ Private data is intentionally ignored by git:
 
 ```text
 data/logbook.json
+data/logbook.sqlite3
 data/uploads/
 ```
 
-JSON export contains the logbook document and media references, not uploaded binary files.
+JSON export contains the logbook document and media references, not uploaded binary files. To migrate an existing JSON logbook, run `py scripts/import_json_to_sqlite.py`; use `--replace` only when intentionally replacing an existing SQLite logbook.
 
 ## External Services
 
@@ -69,7 +70,7 @@ Failed weather, marine, or astronomy requests do not prevent a trip from being s
 
 - There are no accounts, roles, or login controls; anyone who can reach the app can use it.
 - Rate limiting is per process and direct client IP; it is only a lightweight guard for local use.
-- JSON updates remain whole-document and last-write-wins, though each file replacement is atomic.
+- The API still replaces the complete logbook document, so concurrent edits can still be last-write-wins even though each SQLite write is transactional.
 - “Baits” currently means the lure library; natural/live bait has no dedicated data model.
 - No dedicated personal-best, year-over-year comparison, notification, or Pattern Finder screen exists.
 

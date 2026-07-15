@@ -9,7 +9,7 @@ py -m pip install -r requirements.txt
 py server.py
 ```
 
-Open `http://127.0.0.1:8080`. The server creates `data/logbook.json` from defaults when started through `main()` and the file is missing.
+Open `http://127.0.0.1:8080`. The server creates `data/logbook.sqlite3` from defaults when started through `main()` and the database is missing. Migrate an existing JSON logbook with `py scripts/import_json_to_sqlite.py`.
 
 Docker:
 
@@ -24,7 +24,7 @@ docker compose down
 
 - `server.py`: Flask routes and static serving.
 - `backend/backend_config.py`: paths, defaults, units, media and proxy constants.
-- `backend/logbook_store.py`: normalization, validation, JSON I/O.
+- `backend/logbook_store.py`: normalization, validation, SQLite I/O.
 - `backend/media_service.py`: uploads, previews, gallery, reference/orphan handling.
 - `backend/weather_service.py`: proxy and weather reduction helpers.
 - `index.html`: all screens, dialogs, and templates.
@@ -47,9 +47,9 @@ Keep landed and lost fish separate. Setup rows describe timed gear configuration
 
 ## Data Safety
 
-Do not commit `data/logbook.json`, uploads, backups, or personal media. Before testing destructive workflows, copy both the JSON file and upload tree. JSON export alone is not a complete media backup.
+Do not commit `data/logbook.json`, `data/logbook.sqlite3`, uploads, backups, or personal media. Before testing destructive workflows, copy the database and upload tree. JSON export alone is not a complete media backup.
 
-The server performs whole-document writes. Avoid running multiple writers against the same file. A failed server PUT can leave localStorage ahead of server state because the browser writes localStorage first.
+The server performs whole-document writes inside SQLite transactions. A failed server PUT can leave localStorage ahead of server state because the browser writes localStorage first.
 
 ## Manual Verification Checklist
 

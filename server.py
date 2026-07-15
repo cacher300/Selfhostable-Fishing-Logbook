@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from backend.backend_config import (
     ALLOWED_MEDIA_EXTENSIONS,
     DATA_DIR,
-    DATA_FILE,
+    DATABASE_FILE,
     DEFAULT_LOGBOOK,
     HOST,
     PORT,
@@ -21,6 +21,8 @@ from backend.backend_config import (
     UPLOAD_CATEGORIES,
 )
 from backend.logbook_store import (
+    database_exists,
+    initialize_database,
     normalize_logbook,
     read_logbook,
     validate_logbook,
@@ -285,11 +287,13 @@ app = create_app()
 
 def main() -> None:
     DATA_DIR.mkdir(exist_ok=True)
-    if not DATA_FILE.exists():
+    if not database_exists():
         write_logbook(DEFAULT_LOGBOOK)
+    else:
+        initialize_database()
 
     print(f"Selfhostable Fishing Logbook running at http://{HOST}:{PORT}")
-    print(f"Data file: {DATA_FILE}")
+    print(f"Database: {DATABASE_FILE}")
     app.run(host=HOST, port=PORT, threaded=True)
 
 

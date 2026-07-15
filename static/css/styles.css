@@ -4283,8 +4283,7 @@ textarea[aria-invalid="true"] {
   letter-spacing: -0.04em;
 }
 
-.stats-page-header p,
-.efficiency-leaders .section-heading p {
+.stats-page-header p {
   margin: 5px 0 0;
   color: var(--muted);
 }
@@ -4380,55 +4379,6 @@ textarea[aria-invalid="true"] {
 .analytics-groups {
   display: grid;
   gap: 16px;
-}
-
-.efficiency-leaders {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid #9bbdf8;
-  border-radius: 8px;
-  background: #f7fbff;
-}
-
-.efficiency-leaders .section-heading {
-  margin-bottom: 0;
-}
-
-.leader-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-}
-
-.leader-card {
-  display: grid;
-  gap: 6px;
-  min-height: 118px;
-  padding: 15px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: none;
-}
-
-.leader-card span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.leader-card strong {
-  color: var(--text);
-  font-size: 18px;
-  line-height: 1.2;
-}
-
-.leader-card small {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
 }
 
 .stats-help {
@@ -5460,7 +5410,6 @@ textarea[aria-invalid="true"] {
 :root[data-theme="dark"] .predefined-field-group[open] .predefined-field-summary,
 :root[data-theme="dark"] .inventory-table,
 :root[data-theme="dark"] .pattern-card,
-:root[data-theme="dark"] .leader-card,
 :root[data-theme="dark"] .stats-help,
 :root[data-theme="dark"] .stats-help article,
 :root[data-theme="dark"] .stats-group,
@@ -5587,11 +5536,6 @@ textarea[aria-invalid="true"] {
 :root[data-theme="dark"] .confidence-pill.high {
   background: var(--active-bg);
   color: var(--active-text);
-}
-
-:root[data-theme="dark"] .efficiency-leaders {
-  border-color: rgba(114, 167, 232, 0.35);
-  background: rgba(39, 99, 167, 0.13);
 }
 
 :root[data-theme="dark"] .analytics-table th,
