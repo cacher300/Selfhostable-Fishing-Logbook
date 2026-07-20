@@ -28,6 +28,21 @@ def normalize_logbook(payload: dict | None = None) -> dict:
 
     normalized.pop("tripTypes", None)
     normalized["schemaVersion"] = SCHEMA_VERSION
+
+    def usable_coordinates(value: object) -> dict | None:
+        if not isinstance(value, dict):
+            return None
+        try:
+            latitude = float(value.get("latitude"))
+            longitude = float(value.get("longitude"))
+        except (TypeError, ValueError):
+            return None
+        if latitude < -90 or latitude > 90 or longitude < -180 or longitude > 180:
+            return None
+        if latitude == 0 and longitude == 0:
+            return None
+        return {"latitude": latitude, "longitude": longitude}
+
     if not isinstance(normalized.get("settings"), dict):
         normalized["settings"] = deepcopy(DEFAULT_LOGBOOK["settings"])
     else:
@@ -64,7 +79,27 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             })
         if not any(item.get("maxFeet") is None for item in cleaned_ranges):
             cleaned_ranges.append(default_ranges[-1])
-        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "timeFormat": time_format, "units": cleaned_units, "chopRanges": cleaned_ranges or default_ranges}
+        cleaned_private_locations = []
+        private_locations = normalized["settings"].get("privatePhotoLocations")
+        if isinstance(private_locations, list):
+            for index, item in enumerate(private_locations):
+                if not isinstance(item, dict):
+                    continue
+                coordinates = usable_coordinates(item.get("coordinates"))
+                if not coordinates:
+                    continue
+                try:
+                    radius_meters = max(25, min(10000, float(item.get("radiusMeters") or 400)))
+                except (TypeError, ValueError):
+                    radius_meters = 400
+                name = str(item.get("name") or f"Home {index + 1}").strip() or f"Home {index + 1}"
+                cleaned_private_locations.append({
+                    "id": str(item.get("id") or uuid.uuid4()),
+                    "name": name,
+                    "radiusMeters": round(radius_meters, 2),
+                    "coordinates": coordinates,
+                })
+        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "timeFormat": time_format, "units": cleaned_units, "chopRanges": cleaned_ranges or default_ranges, "privatePhotoLocations": cleaned_private_locations}
 
     list_keys = ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
     for key in list_keys:
@@ -149,20 +184,6 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             ):
                 known_people[person["id"]] = {"id": person["id"], "name": person["name"]}
     normalized["people"] = list(known_people.values())
-
-    def usable_coordinates(value: object) -> dict | None:
-        if not isinstance(value, dict):
-            return None
-        try:
-            latitude = float(value.get("latitude"))
-            longitude = float(value.get("longitude"))
-        except (TypeError, ValueError):
-            return None
-        if latitude < -90 or latitude > 90 or longitude < -180 or longitude > 180:
-            return None
-        if latitude == 0 and longitude == 0:
-            return None
-        return {"latitude": latitude, "longitude": longitude}
 
     def slug_id(prefix: str, value: str) -> str:
         slug = "".join(char.lower() if char.isalnum() else "-" for char in value).strip("-")
@@ -549,7 +570,28 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
     if not valid:
         return valid, error
     if "chopRanges" in settings:
-        return _validate_nested_records(settings["chopRanges"], "settings.chopRanges")
+        valid, error = _validate_nested_records(settings["chopRanges"], "settings.chopRanges")
+        if not valid:
+            return valid, error
+    if "privatePhotoLocations" in settings:
+        private_locations = settings["privatePhotoLocations"]
+        if not isinstance(private_locations, list):
+            return _error("settings.privatePhotoLocations", "must be a list")
+        for index, item in enumerate(private_locations):
+            path = f"settings.privatePhotoLocations[{index}]"
+            if not isinstance(item, dict):
+                return _error(path, "must be an object")
+            if "coordinates" in item:
+                valid, error = _validate_coordinates(item.get("coordinates"), f"{path}.coordinates")
+                if not valid:
+                    return valid, error
+            if "radiusMeters" in item:
+                try:
+                    radius = float(item["radiusMeters"])
+                except (TypeError, ValueError):
+                    return _error(f"{path}.radiusMeters", "must be a number")
+                if radius < 25 or radius > 10000:
+                    return _error(f"{path}.radiusMeters", "must be between 25 and 10000")
     return True, None
 
 

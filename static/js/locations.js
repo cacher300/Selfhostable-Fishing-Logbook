@@ -42,7 +42,7 @@ function renderLocationManager() {
       <div class="location-manager-heading">
         <div>
           <strong>${escapeHtml(location.name)}</strong>
-          <span>${escapeHtml(coordinateText(location.coordinates) || "No pin saved")}</span>
+          <span>${isUsableCoordinates(location.coordinates) ? "Pin saved" : "No pin saved"}</span>
         </div>
         <div class="location-manager-card-actions">
           <button class="button secondary" type="button" data-edit-managed-location="${escapeHtml(location.id)}">Edit</button>
@@ -53,7 +53,7 @@ function renderLocationManager() {
         <div class="location-manager-launches">
           ${(location.launches || []).map((launch) => `
             <div>
-              <span>${escapeHtml(launch.name)}${coordinateText(launch.coordinates) ? ` / ${escapeHtml(coordinateText(launch.coordinates))}` : ""}</span>
+              <span>${escapeHtml(launch.name)}</span>
               <div class="location-manager-card-actions">
                 <button class="button secondary" type="button" data-location-id="${escapeHtml(location.id)}" data-edit-managed-launch="${escapeHtml(launch.id)}">Edit</button>
                 <button class="button danger" type="button" data-location-id="${escapeHtml(location.id)}" data-delete-managed-launch="${escapeHtml(launch.id)}">Delete</button>

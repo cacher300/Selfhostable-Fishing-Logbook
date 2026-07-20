@@ -612,7 +612,6 @@
         <section class="settings-page hidden" id="settingsPanel" aria-label="Settings">
           <div class="settings-header">
             <div>
-              <p class="eyebrow">Preferences</p>
               <h3>Settings</h3>
             </div>
           </div>
@@ -620,7 +619,6 @@
             <article class="settings-card">
               <div class="settings-card-header">
                 <div>
-                  <p class="eyebrow">Data</p>
                   <h3>Media Intake</h3>
                 </div>
               </div>
@@ -632,7 +630,21 @@
             <article class="settings-card">
               <div class="settings-card-header">
                 <div>
-                  <p class="eyebrow">Display</p>
+                  <h3>Home Location</h3>
+                  <p class="settings-note">Setting a home location stops photos of fish taken at home from being displayed at that location on the map.</p>
+                </div>
+                <button class="button primary" id="addPrivatePhotoLocationButton" type="button">Add Home Location</button>
+              </div>
+              <div class="private-location-layout">
+                <div class="private-location-list" id="privatePhotoLocationList"></div>
+                <div class="private-location-map-panel">
+                  <div id="privatePhotoLocationMap" class="fish-map location-picker-map private-location-map"></div>
+                </div>
+              </div>
+            </article>
+            <article class="settings-card">
+              <div class="settings-card-header">
+                <div>
                   <h3>Appearance</h3>
                 </div>
               </div>
@@ -654,10 +666,8 @@
             <article class="settings-card">
               <div class="settings-card-header">
                 <div>
-                  <p class="eyebrow">Units</p>
                   <h3>Measurements</h3>
                 </div>
-                <button class="button primary" id="saveUnitSettingsButton" type="button">Save Units</button>
               </div>
               <div class="unit-settings-grid" id="unitSettingsFields"></div>
               <p class="settings-note">Open-Meteo values are stored as C, mph, hPa, inches, meters, and converted for display here. Your typed fishing fields use the selected label and placeholder units.</p>
@@ -665,10 +675,8 @@
             <article class="settings-card">
               <div class="settings-card-header">
                 <div>
-                  <p class="eyebrow">Dropdowns</p>
                   <h3>Predefined Fields</h3>
                 </div>
-                <button class="button primary" id="savePredefinedFieldsButton" type="button">Save Fields</button>
               </div>
               <div class="predefined-field-settings" id="predefinedFieldSettings"></div>
               <p class="settings-note">Deleting a member removes it from future dropdown choices. Existing trips keep their saved text.</p>
@@ -676,17 +684,14 @@
             <article class="settings-card">
               <div class="settings-card-header">
                 <div>
-                  <p class="eyebrow">Wave height</p>
                   <h3>Chop Ranges</h3>
                 </div>
-                <button class="button primary" id="saveChopRangesButton" type="button">Save Ranges</button>
               </div>
               <div class="settings-table" id="chopRangeRows"></div>
             </article>
             <article class="settings-card">
               <div class="settings-card-header">
               <div>
-                <p class="eyebrow">Map pins</p>
                 <h3>Waterbodies</h3>
               </div>
               <button class="button primary" id="settingsAddLocationButton" type="button">Add Waterbody</button>

@@ -213,7 +213,8 @@ const defaults = {
     theme: "light",
     timeFormat: "24",
     units: structuredClone(defaultUnits),
-    chopRanges: structuredClone(defaultChopRanges)
+    chopRanges: structuredClone(defaultChopRanges),
+    privatePhotoLocations: []
   },
   people: [],
   locations: [],
@@ -277,6 +278,9 @@ let tripSummaryMap = null;
 let tripSummaryMapMarkers = null;
 let locationPickerMap = null;
 let locationPickerMarker = null;
+let privatePhotoLocationMap = null;
+let privatePhotoLocationLayer = null;
+let activePrivatePhotoLocationId = "";
 let catchLocationPickerMap = null;
 let catchLocationPickerMarker = null;
 let activeCatchLocationRow = null;
@@ -441,6 +445,7 @@ const els = {
   waveHeight: document.querySelector("#waveHeight"),
   waveChopDisplay: document.querySelector("#waveChopDisplay"),
   settingsPanel: document.querySelector("#settingsPanel"),
+  settingsSaveStatus: document.querySelector("#settingsSaveStatus"),
   themeSelect: document.querySelector("#themeSelect"),
   timeFormatSelect: document.querySelector("#timeFormatSelect"),
   unitSettingsFields: document.querySelector("#unitSettingsFields"),
@@ -448,6 +453,9 @@ const els = {
   predefinedFieldSettings: document.querySelector("#predefinedFieldSettings"),
   chopRangeRows: document.querySelector("#chopRangeRows"),
   saveChopRangesButton: document.querySelector("#saveChopRangesButton"),
+  addPrivatePhotoLocationButton: document.querySelector("#addPrivatePhotoLocationButton"),
+  privatePhotoLocationList: document.querySelector("#privatePhotoLocationList"),
+  privatePhotoLocationMap: document.querySelector("#privatePhotoLocationMap"),
   settingsAddLocationButton: document.querySelector("#settingsAddLocationButton"),
   locationDialog: document.querySelector("#locationDialog"),
   locationForm: document.querySelector("#locationForm"),
@@ -797,7 +805,25 @@ function normalizeSettings(settings = {}) {
   normalized.timeFormat = normalized.timeFormat === "12" ? "12" : "24";
   normalized.units = normalizeUnits(normalized.units);
   normalized.chopRanges = normalizeChopRanges(normalized.chopRanges);
+  normalized.privatePhotoLocations = normalizePrivatePhotoLocations(normalized.privatePhotoLocations);
   return normalized;
+}
+
+function normalizePrivatePhotoLocations(locations = []) {
+  if (!Array.isArray(locations)) return [];
+  return locations.map((location, index) => {
+    const coordinates = isUsableCoordinates(location?.coordinates) ? {
+      latitude: Number(location.coordinates.latitude),
+      longitude: Number(location.coordinates.longitude)
+    } : null;
+    const radiusMeters = Math.max(25, Math.min(10000, Number(location?.radiusMeters) || 400));
+    return {
+      id: String(location?.id || createId()),
+      name: String(location?.name || `Home ${index + 1}`).trim() || `Home ${index + 1}`,
+      radiusMeters,
+      coordinates
+    };
+  }).filter((location) => isUsableCoordinates(location.coordinates));
 }
 
 function themePreference() {

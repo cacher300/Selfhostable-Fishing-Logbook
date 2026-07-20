@@ -106,12 +106,48 @@ els.newLibraryFlasherButton.addEventListener("click", () => openFlasherDialog())
 els.newLibraryReelButton.addEventListener("click", () => openReelDialog());
 els.newLibraryRodButton.addEventListener("click", () => openRodDialog());
 els.newLibraryComboButton.addEventListener("click", () => openComboDialog());
-els.saveChopRangesButton.addEventListener("click", saveChopRanges);
+els.saveChopRangesButton?.addEventListener("click", saveChopRanges);
 els.themeSelect?.addEventListener("change", saveThemePreference);
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
 els.saveUnitSettingsButton?.addEventListener("click", saveUnitSettings);
 document.querySelector("#savePredefinedFieldsButton")?.addEventListener("click", savePredefinedFieldSettings);
+els.unitSettingsFields?.addEventListener("change", () => saveUnitSettings({ autosave: true }));
+els.predefinedFieldSettings?.addEventListener("input", (event) => {
+  if (event.target.matches(".predefined-option-label")) {
+    scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }));
+  }
+});
+els.chopRangeRows?.addEventListener("input", (event) => {
+  if (event.target.matches(".chop-range-label, .chop-range-max")) {
+    scheduleSettingsAutosave((options) => saveChopRanges({ ...options, rerender: false }));
+  }
+});
+els.privatePhotoLocationList?.addEventListener("input", (event) => {
+  if (!event.target.matches(".private-location-name, .private-location-radius")) return;
+  const card = event.target.closest("[data-private-location-id]");
+  if (card) activePrivatePhotoLocationId = card.dataset.privateLocationId;
+  if (event.target.matches(".private-location-radius")) {
+    updatePrivateLocationRadiusControl(event.target);
+    const output = card?.querySelector(".private-location-radius-value");
+    if (output) output.textContent = privateLocationRadiusText(privateLocationRadiusMeters(event.target.value));
+  }
+  scheduleSettingsAutosave((options) => savePrivatePhotoLocations(collectPrivatePhotoLocationSettings(), { ...options, rerender: false }));
+});
 els.settingsAddLocationButton.addEventListener("click", () => openLocationDialog("location"));
+els.addPrivatePhotoLocationButton?.addEventListener("click", async () => {
+  const coordinates = privateLocationDefaultCoordinates();
+  const id = createId();
+  activePrivatePhotoLocationId = id;
+  await savePrivatePhotoLocations([
+    ...collectPrivatePhotoLocationSettings(),
+    {
+      id,
+      name: `Home ${privatePhotoLocations().length + 1}`,
+      radiusMeters: 400,
+      coordinates
+    }
+  ]);
+});
 els.statsMethodFilter.addEventListener("change", () => {
   activeStatsMethod = els.statsMethodFilter.value;
   syncStatsUrl();
@@ -345,6 +381,7 @@ document.addEventListener("click", (event) => {
     `);
     updatePredefinedFieldCount(group);
     list?.querySelector(".predefined-option-row:last-child .predefined-option-label")?.focus();
+    scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }));
   }
 
   const removePredefinedOption = event.target.closest(".remove-predefined-option");
@@ -352,6 +389,7 @@ document.addEventListener("click", (event) => {
     const group = removePredefinedOption.closest(".predefined-field-group");
     removePredefinedOption.closest(".predefined-option-row")?.remove();
     updatePredefinedFieldCount(group);
+    scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }), 150);
   }
 
   const removeNotePhoto = event.target.closest(".remove-note-photo");
@@ -461,6 +499,30 @@ document.addEventListener("click", (event) => {
   if (deleteManagedLaunchButton) {
     deleteManagedLaunch(deleteManagedLaunchButton.dataset.locationId, deleteManagedLaunchButton.dataset.deleteManagedLaunch)
       .catch((error) => alert(error.message || "The launch could not be deleted."));
+  }
+
+  const deletePrivateLocationButton = event.target.closest("[data-delete-private-location]");
+  if (deletePrivateLocationButton) {
+    const next = collectPrivatePhotoLocationSettings().filter((location) => location.id !== deletePrivateLocationButton.dataset.deletePrivateLocation);
+    activePrivatePhotoLocationId = next[0]?.id || "";
+    if (privateLocationNameEditId === deletePrivateLocationButton.dataset.deletePrivateLocation) privateLocationNameEditId = "";
+    savePrivatePhotoLocations(next);
+  }
+
+  const editPrivateLocationName = event.target.closest("[data-edit-private-location-name]");
+  if (editPrivateLocationName) {
+    activePrivatePhotoLocationId = editPrivateLocationName.dataset.editPrivateLocationName;
+    privateLocationNameEditId = activePrivatePhotoLocationId;
+    renderPrivatePhotoLocationSettings();
+    const input = els.privatePhotoLocationList?.querySelector(`[data-private-location-id="${CSS.escape(privateLocationNameEditId)}"] .private-location-name`);
+    input?.focus();
+    input?.select();
+  }
+
+  const privateLocationCard = event.target.closest("[data-private-location-id]");
+  if (privateLocationCard && !event.target.closest("[data-edit-private-location-name], button, input, select, textarea")) {
+    activePrivatePhotoLocationId = privateLocationCard.dataset.privateLocationId;
+    renderPrivatePhotoLocationSettings();
   }
 
   const newLureButton = event.target.closest(".add-lure-inline");

@@ -18,12 +18,53 @@ function chopLabelForWaveHeight(value) {
   return (bounded || ranges.find((range) => range.maxFeet === null) || ranges.at(-1))?.label || "";
 }
 
+let settingsAutosaveTimer = null;
+let settingsStatusTimer = null;
+let privateLocationNameEditId = "";
+const privateLocationFocusZoom = 16;
+
+function setSettingsSaveStatus(text = "Autosave on", status = "") {
+  if (!els.settingsSaveStatus) return;
+  els.settingsSaveStatus.textContent = text;
+  els.settingsSaveStatus.classList.toggle("is-saving", status === "saving");
+  els.settingsSaveStatus.classList.toggle("is-error", status === "error");
+}
+
+function markSettingsSaved() {
+  setSettingsSaveStatus("Saved");
+  clearTimeout(settingsStatusTimer);
+  settingsStatusTimer = setTimeout(() => setSettingsSaveStatus("Autosave on"), 1800);
+}
+
+async function runSettingsSave(work, errorMessage, options = {}) {
+  const isAutosave = options.autosave === true;
+  setSettingsSaveStatus(isAutosave ? "Autosaving..." : "Saving...", "saving");
+  try {
+    await work();
+    markSettingsSaved();
+  } catch (error) {
+    console.error(errorMessage, error);
+    setSettingsSaveStatus("Save failed", "error");
+    if (!isAutosave) alert(error.message || errorMessage);
+    throw error;
+  }
+}
+
+function scheduleSettingsAutosave(saveAction, delay = 650) {
+  clearTimeout(settingsAutosaveTimer);
+  setSettingsSaveStatus("Autosaving...", "saving");
+  settingsAutosaveTimer = setTimeout(() => {
+    saveAction({ autosave: true }).catch(() => {});
+  }, delay);
+}
+
 function renderSettings() {
   renderPreferenceSettings();
   renderUnitSettings();
   renderPredefinedFieldSettings();
   syncUnitLabels();
   renderChopRangeSettings();
+  renderPrivatePhotoLocationSettings();
   renderLocationManager();
 }
 
@@ -39,7 +80,7 @@ function applyThemePreference(theme = themePreference()) {
   document.documentElement.style.colorScheme = normalizedTheme;
 }
 
-async function saveThemePreference() {
+async function saveThemePreference(options = {}) {
   const theme = els.themeSelect?.value === "dark" ? "dark" : "light";
   applyThemePreference(theme);
   state.settings = {
@@ -47,10 +88,12 @@ async function saveThemePreference() {
     theme
   };
   try {
-    await saveState();
+    await runSettingsSave(
+      () => saveState(),
+      "The theme could not be saved.",
+      options
+    );
   } catch (error) {
-    console.error("Could not save theme.", error);
-    alert(error.message || "The theme could not be saved.");
     applyThemePreference();
     if (els.themeSelect) els.themeSelect.value = themePreference();
   }
@@ -84,7 +127,7 @@ function renderUnitSettings() {
   `).join("");
 }
 
-async function saveUnitSettings() {
+async function saveUnitSettings(options = {}) {
   const units = normalizeUnits(state.settings?.units);
   document.querySelectorAll("[data-unit-setting]").forEach((select) => {
     units[select.dataset.unitSetting] = select.value;
@@ -94,16 +137,21 @@ async function saveUnitSettings() {
     units: normalizeUnits(units)
   };
   try {
-    await saveState();
-    weatherRequestCache.clear();
-    marineRequestCache.clear();
-    renderAll();
-    syncUnitLabels();
-    const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
-    if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
+    await runSettingsSave(
+      async () => {
+        await saveState();
+        weatherRequestCache.clear();
+        marineRequestCache.clear();
+        renderAll();
+        if (!els.settingsPanel?.classList.contains("hidden")) renderSettings();
+        syncUnitLabels();
+        const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
+        if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
+      },
+      "The unit settings could not be saved.",
+      options
+    );
   } catch (error) {
-    console.error("Could not save units.", error);
-    alert(error.message || "The unit settings could not be saved.");
   }
 }
 
@@ -144,20 +192,24 @@ function syncUnitLabels(root = document) {
   });
 }
 
-async function saveTimeFormatPreference() {
+async function saveTimeFormatPreference(options = {}) {
   state.settings = {
     ...(state.settings || {}),
     timeFormat: els.timeFormatSelect?.value === "12" ? "12" : "24"
   };
   try {
-    await saveState();
-    renderAll();
-    syncUnitLabels();
-    const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
-    if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
+    await runSettingsSave(
+      async () => {
+        await saveState();
+        renderAll();
+        syncUnitLabels();
+        const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
+        if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
+      },
+      "The time format could not be saved.",
+      options
+    );
   } catch (error) {
-    console.error("Could not save time format.", error);
-    alert(error.message || "The time format could not be saved.");
   }
 }
 
@@ -243,15 +295,19 @@ function collectPredefinedFieldSettings() {
   return next;
 }
 
-async function savePredefinedFieldSettings() {
+async function savePredefinedFieldSettings(options = {}) {
   Object.assign(state, collectPredefinedFieldSettings());
   try {
-    await saveState();
-    renderAll();
-    renderSettings();
+    await runSettingsSave(
+      async () => {
+        await saveState();
+        renderAll();
+        if (options.rerender !== false) renderSettings();
+      },
+      "The predefined fields could not be saved.",
+      options
+    );
   } catch (error) {
-    console.error("Could not save predefined fields.", error);
-    alert(error.message || "The predefined fields could not be saved.");
   }
 }
 
@@ -284,7 +340,7 @@ function renderChopRangeSettings() {
   `;
 }
 
-async function saveChopRanges() {
+async function saveChopRanges(options = {}) {
   const current = normalizeChopRanges(state.settings?.chopRanges);
   const ranges = [...document.querySelectorAll(".chop-range-row")].map((row, index) => {
     const maxInput = row.querySelector(".chop-range-max");
@@ -299,11 +355,222 @@ async function saveChopRanges() {
     chopRanges: normalizeChopRanges(ranges)
   };
   try {
-    await saveState();
-    renderSettings();
-    renderTrips();
+    await runSettingsSave(
+      async () => {
+        await saveState();
+        if (options.rerender !== false) renderSettings();
+        renderTrips();
+      },
+      "The chop ranges could not be saved.",
+      options
+    );
   } catch (error) {
-    console.error("Could not save chop ranges.", error);
-    alert(error.message || "The chop ranges could not be saved.");
+  }
+}
+
+function privatePhotoLocations() {
+  const existing = state.settings?.privatePhotoLocations;
+  return normalizePrivatePhotoLocations(existing);
+}
+
+function privateLocationSummary(location) {
+  return `${coordinateText(location.coordinates)} / ${privateLocationRadiusText(location.radiusMeters)}`;
+}
+
+function privateLocationRadiusUnit() {
+  return unitPreference("distance") === "mi" ? "ft" : "m";
+}
+
+function privateLocationRadiusDisplayValue(radiusMeters) {
+  const radius = Math.max(25, Math.min(10000, Number(radiusMeters) || 400));
+  const unit = privateLocationRadiusUnit();
+  const value = unit === "ft" ? convertUnitValue(radius, "m", "ft") : radius;
+  return Math.round(value);
+}
+
+function privateLocationRadiusMeters(displayValue) {
+  const unit = privateLocationRadiusUnit();
+  const value = Number(displayValue) || privateLocationRadiusDisplayValue(400);
+  const meters = unit === "ft" ? convertUnitValue(value, "ft", "m") : value;
+  return Math.max(25, Math.min(10000, meters || 400));
+}
+
+function privateLocationRadiusSliderConfig() {
+  const unit = privateLocationRadiusUnit();
+  if (unit === "ft") {
+    return {
+      min: Math.round(convertUnitValue(25, "m", "ft")),
+      max: Math.round(convertUnitValue(10000, "m", "ft")),
+      step: 1,
+      unit
+    };
+  }
+  return { min: 25, max: 10000, step: 25, unit };
+}
+
+function privateLocationRadiusText(radiusMeters) {
+  const unit = privateLocationRadiusUnit();
+  return `${trimNumber(privateLocationRadiusDisplayValue(radiusMeters))} ${unit}`;
+}
+
+function privateLocationRadiusProgress(displayValue) {
+  const { min, max } = privateLocationRadiusSliderConfig();
+  const radius = Math.max(min, Math.min(max, Number(displayValue) || privateLocationRadiusDisplayValue(400)));
+  return Math.round(((radius - min) / (max - min)) * 10000) / 100;
+}
+
+function privateLocationRadiusStyle(radiusMeters) {
+  return `--private-location-radius-progress: ${privateLocationRadiusProgress(privateLocationRadiusDisplayValue(radiusMeters))}%;`;
+}
+
+function updatePrivateLocationRadiusControl(input) {
+  input.style.setProperty("--private-location-radius-progress", `${privateLocationRadiusProgress(input.value)}%`);
+}
+
+function ensureActivePrivatePhotoLocation(locations = privatePhotoLocations()) {
+  if (!locations.length) {
+    activePrivatePhotoLocationId = "";
+    return "";
+  }
+  if (!locations.some((location) => location.id === activePrivatePhotoLocationId)) {
+    activePrivatePhotoLocationId = locations[0].id;
+  }
+  return activePrivatePhotoLocationId;
+}
+
+function renderPrivatePhotoLocationSettings() {
+  if (!els.privatePhotoLocationList) return;
+  const locations = privatePhotoLocations();
+  const activeLocationId = ensureActivePrivatePhotoLocation(locations);
+  state.settings = {
+    ...(state.settings || {}),
+    privatePhotoLocations: locations
+  };
+  const radiusConfig = privateLocationRadiusSliderConfig();
+  els.privatePhotoLocationList.innerHTML = locations.length ? locations.map((location) => `
+    <article class="private-location-card${location.id === activeLocationId ? " is-selected" : ""}" data-private-location-id="${escapeHtml(location.id)}" aria-current="${location.id === activeLocationId ? "true" : "false"}">
+      <div class="private-location-card-head">
+        <div class="private-location-name-row">
+          ${privateLocationNameEditId === location.id
+            ? `<input class="private-location-name" type="text" value="${escapeHtml(location.name)}" aria-label="Home location name" />`
+            : `<button class="private-location-name-display" type="button" data-edit-private-location-name="${escapeHtml(location.id)}" data-private-location-name="${escapeHtml(location.name)}">${escapeHtml(location.name)}</button>`}
+        </div>
+        <button class="button danger" type="button" data-delete-private-location="${escapeHtml(location.id)}">Delete</button>
+      </div>
+      <label class="settings-control private-location-radius-control">
+        <span>Radius <output class="private-location-radius-value">${escapeHtml(privateLocationRadiusText(location.radiusMeters))}</output></span>
+        <input class="private-location-radius" type="range" min="${radiusConfig.min}" max="${radiusConfig.max}" step="${radiusConfig.step}" value="${escapeHtml(privateLocationRadiusDisplayValue(location.radiusMeters))}" aria-label="Home location radius in ${radiusConfig.unit}" style="${privateLocationRadiusStyle(location.radiusMeters)}" />
+      </label>
+    </article>
+  `).join("") : `<div class="empty-state compact-empty"><p>No home locations saved.</p></div>`;
+  ensurePrivatePhotoLocationMap();
+  renderPrivatePhotoLocationMap();
+}
+
+function privateLocationDefaultCoordinates() {
+  const first = privatePhotoLocations()[0]?.coordinates;
+  if (isUsableCoordinates(first)) return first;
+  const selected = selectedTripLocationCoordinates();
+  if (isUsableCoordinates(selected)) return selected;
+  return { latitude: 43.7, longitude: -79.4 };
+}
+
+async function savePrivatePhotoLocations(nextLocations, options = {}) {
+  state.settings = {
+    ...(state.settings || {}),
+    privatePhotoLocations: normalizePrivatePhotoLocations(nextLocations)
+  };
+  ensureActivePrivatePhotoLocation(state.settings.privatePhotoLocations);
+  try {
+    await runSettingsSave(
+      async () => {
+        await saveState();
+        if (options.rerender !== false) {
+          renderPrivatePhotoLocationSettings();
+        } else {
+          renderPrivatePhotoLocationMap();
+        }
+      },
+      "The private photo locations could not be saved.",
+      options
+    );
+  } catch (error) {
+  }
+}
+
+function collectPrivatePhotoLocationSettings() {
+  const current = new Map(privatePhotoLocations().map((location) => [location.id, location]));
+  return [...els.privatePhotoLocationList.querySelectorAll("[data-private-location-id]")].map((card) => {
+    const existing = current.get(card.dataset.privateLocationId);
+    const nameInput = card.querySelector(".private-location-name");
+    const nameDisplay = card.querySelector("[data-private-location-name]");
+    return {
+      ...existing,
+      name: nameInput?.value.trim() || nameDisplay?.dataset.privateLocationName || existing?.name || "Home",
+      radiusMeters: privateLocationRadiusMeters(card.querySelector(".private-location-radius")?.value || privateLocationRadiusDisplayValue(existing?.radiusMeters || 400))
+    };
+  });
+}
+
+function ensurePrivatePhotoLocationMap() {
+  if (!window.L || !els.privatePhotoLocationMap) return;
+  if (!privatePhotoLocationMap) {
+    privatePhotoLocationMap = L.map(els.privatePhotoLocationMap, seamlessMapOptions());
+    addSeamlessTileLayer(privatePhotoLocationMap);
+    privatePhotoLocationLayer = L.featureGroup().addTo(privatePhotoLocationMap);
+    privatePhotoLocationMap.on("click", async (event) => {
+      const locations = collectPrivatePhotoLocationSettings();
+      const activeLocationId = ensureActivePrivatePhotoLocation(locations);
+      if (!activeLocationId) return;
+      const next = locations.map((location) => (
+        location.id === activeLocationId
+          ? { ...location, coordinates: { latitude: event.latlng.lat, longitude: event.latlng.lng } }
+          : location
+      ));
+      await savePrivatePhotoLocations(next);
+    });
+  }
+  const center = privateLocationDefaultCoordinates();
+  privatePhotoLocationMap.setView([center.latitude, center.longitude], privatePhotoLocations().length ? 11 : 7);
+  setTimeout(() => privatePhotoLocationMap.invalidateSize(), 50);
+}
+
+function renderPrivatePhotoLocationMap() {
+  if (!window.L || !privatePhotoLocationMap || !privatePhotoLocationLayer) return;
+  privatePhotoLocationLayer.clearLayers();
+  const locations = privatePhotoLocations();
+  locations.forEach((location) => {
+    const isActive = location.id === activePrivatePhotoLocationId;
+    const point = [location.coordinates.latitude, location.coordinates.longitude];
+    const circle = L.circle(point, {
+      radius: Number(location.radiusMeters) || 400,
+      color: isActive ? "#118753" : "#65718a",
+      weight: isActive ? 3 : 2,
+      fillColor: "#2fb875",
+      fillOpacity: isActive ? 0.18 : 0.08
+    }).addTo(privatePhotoLocationLayer);
+    circle.bindPopup(`${escapeHtml(location.name)}<br>${escapeHtml(privateLocationSummary(location))}`);
+    const marker = L.marker(point, { draggable: true }).addTo(privatePhotoLocationLayer);
+    marker.on("click", () => {
+      activePrivatePhotoLocationId = location.id;
+      renderPrivatePhotoLocationSettings();
+    });
+    marker.on("dragend", async () => {
+      activePrivatePhotoLocationId = location.id;
+      const latLng = marker.getLatLng();
+      const next = collectPrivatePhotoLocationSettings().map((item) => (
+        item.id === location.id
+          ? { ...item, coordinates: { latitude: latLng.lat, longitude: latLng.lng } }
+          : item
+      ));
+      await savePrivatePhotoLocations(next);
+    });
+  });
+  if (locations.length) {
+    const activeLocation = locations.find((location) => location.id === activePrivatePhotoLocationId) || locations[0];
+    privatePhotoLocationMap.setView(
+      [activeLocation.coordinates.latitude, activeLocation.coordinates.longitude],
+      Math.max(privatePhotoLocationMap.getZoom(), privateLocationFocusZoom)
+    );
   }
 }

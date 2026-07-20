@@ -208,6 +208,7 @@ DEFAULT_LOGBOOK = {
             {"id": "very-choppy", "label": "Very Choppy", "maxFeet": 2},
             {"id": "rough", "label": "Rough", "maxFeet": None},
         ],
+        "privatePhotoLocations": [],
     },
     "people": [],
     "locations": [],

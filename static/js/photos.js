@@ -136,10 +136,10 @@ function parseExifMetadata(arrayBuffer) {
       const latitude = exifCoordinate(view, gpsIfd.get(0x0002), latRefEntry ? getExifAscii(view, latRefEntry.valueOffset, latRefEntry.count) : "N", littleEndian);
       const longitude = exifCoordinate(view, gpsIfd.get(0x0004), lonRefEntry ? getExifAscii(view, lonRefEntry.valueOffset, lonRefEntry.count) : "E", littleEndian);
       const coordinates = latitude === null || longitude === null ? null : { latitude, longitude };
-      return {
+      return scrubIgnoredPhotoMetadata({
         ...(capturedAt || {}),
-        coordinates: shouldIgnorePhotoCoordinates(coordinates) ? null : coordinates
-      };
+        coordinates
+      });
     }
     offset += 2 + segmentLength;
   }
@@ -233,6 +233,8 @@ function parseVideoKeys(view, start, end) {
 function parseVideoMetadata(arrayBuffer) {
   const view = new DataView(arrayBuffer);
   const metadata = {};
+  let ignoreCaptureTime = false;
+  let ignoredMetadataCoordinates = null;
   let metadataKeys = new Map();
 
   function applyTextMetadata(key, value) {
@@ -240,9 +242,18 @@ function parseVideoMetadata(arrayBuffer) {
     const normalizedKey = key.toLowerCase();
     if (!metadata.coordinates && (key === "\u00a9xyz" || normalizedKey.includes("location.iso6709"))) {
       const coordinates = parseIso6709Coordinates(value);
-      if (coordinates) metadata.coordinates = shouldIgnorePhotoCoordinates(coordinates) ? null : coordinates;
+      if (coordinates && shouldIgnorePhotoCoordinates(coordinates)) {
+        ignoreCaptureTime = true;
+        ignoredMetadataCoordinates = coordinates;
+        metadata.coordinates = null;
+        delete metadata.captureDate;
+        delete metadata.captureTime;
+        delete metadata.capturedAt;
+      } else if (coordinates) {
+        metadata.coordinates = coordinates;
+      }
     }
-    if (!metadata.captureTime && (key === "\u00a9day" || normalizedKey.includes("creationdate") || normalizedKey.includes("date"))) {
+    if (!ignoreCaptureTime && !metadata.captureTime && (key === "\u00a9day" || normalizedKey.includes("creationdate") || normalizedKey.includes("date"))) {
       Object.assign(metadata, parseMetadataDateTime(value) || {});
     }
   }
@@ -257,7 +268,7 @@ function parseVideoMetadata(arrayBuffer) {
       const contentStart = offset + headerSize;
       const contentEnd = offset + size;
 
-      if (type === "mvhd" && !metadata.captureTime && contentStart + 8 <= contentEnd) {
+      if (type === "mvhd" && !ignoreCaptureTime && !metadata.captureTime && contentStart + 8 <= contentEnd) {
         const version = view.getUint8(contentStart);
         const creationTime = version === 1 && contentStart + 16 <= contentEnd
           ? (view.getUint32(contentStart + 4) * 4294967296) + view.getUint32(contentStart + 8)
@@ -288,7 +299,7 @@ function parseVideoMetadata(arrayBuffer) {
   }
 
   walkBoxes(0, view.byteLength);
-  return metadata;
+  return ignoreCaptureTime ? scrubIgnoredPhotoMetadata(metadata, ignoredMetadataCoordinates) : scrubIgnoredPhotoMetadata(metadata);
 }
 
 const maxFullVideoMetadataBytes = 64 * 1024 * 1024;
@@ -312,9 +323,6 @@ function hasUsefulMediaMetadata(metadata) {
   return Boolean(metadata?.coordinates || metadata?.captureTime);
 }
 
-const ignoredPhotoLocation = { latitude: 43.16142, longitude: -79.33851 };
-const ignoredPhotoLocationRadiusMeters = 400;
-
 function distanceMeters(a, b) {
   const radius = 6371000;
   const toRadians = (value) => (Number(value) * Math.PI) / 180;
@@ -329,7 +337,20 @@ function distanceMeters(a, b) {
 
 function shouldIgnorePhotoCoordinates(coordinates) {
   if (!coordinates) return false;
-  return distanceMeters(coordinates, ignoredPhotoLocation) <= ignoredPhotoLocationRadiusMeters;
+  const configured = normalizePrivatePhotoLocations(state.settings?.privatePhotoLocations || []);
+  return configured.some((location) => (
+    isUsableCoordinates(location.coordinates)
+    && distanceMeters(coordinates, location.coordinates) <= (Number(location.radiusMeters) || 400)
+  ));
+}
+
+function scrubIgnoredPhotoMetadata(metadata = {}, coordinates = metadata.coordinates) {
+  if (!shouldIgnorePhotoCoordinates(coordinates)) return metadata;
+  const { captureDate, captureTime, capturedAt, ...scrubbed } = metadata;
+  return {
+    ...scrubbed,
+    coordinates: null
+  };
 }
 
 async function extractPhotoCoordinates(file) {
