@@ -349,7 +349,8 @@ function scrubIgnoredPhotoMetadata(metadata = {}, coordinates = metadata.coordin
   const { captureDate, captureTime, capturedAt, ...scrubbed } = metadata;
   return {
     ...scrubbed,
-    coordinates: null
+    coordinates: null,
+    gpsIgnoredReason: "home"
   };
 }
 
@@ -427,9 +428,9 @@ function renderNotePhotos() {
   els.notePhotoGrid.innerHTML = activeNotePhotos.map((photo) => `
     <article class="note-photo-card" data-note-photo="${photo.id}">
       ${mediaMarkup(photo, "", { download: false })}
+      <button class="icon-button remove-note-photo" type="button" aria-label="Remove trip photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       <div class="note-photo-body">
         <input class="note-photo-caption" type="text" value="${escapeHtml(photo.caption || "")}" placeholder="Caption, like fishfinder, launch, rig" />
-        <button class="button danger remove-note-photo" type="button">Remove</button>
       </div>
     </article>
   `).join("");
@@ -450,7 +451,53 @@ function collectNotePhotos() {
 function applyPhotoCaptureTimeToCatch(row, photos) {
   const captureTime = photos.find((photo) => /^\d{2}:\d{2}$/.test(photo.captureTime || ""))?.captureTime;
   const timeInput = row.querySelector(".catch-time");
-  if (captureTime && timeInput) timeInput.value = captureTime;
+  if (captureTime && timeInput) {
+    const changed = timeInput.value !== captureTime;
+    timeInput.value = captureTime;
+    if (changed) flashAutoFilledField(timeInput);
+  }
+}
+
+function gpsTaggedCatchPhotos(row) {
+  return (row?.catchPhotos || []).filter((photo) => isUsableCoordinates(photo.coordinates));
+}
+
+function catchPhotoLocationById(row, photoId = row?.dataset.photoLocationId || "") {
+  if (!photoId) return null;
+  return gpsTaggedCatchPhotos(row).find((photo) => photo.id === photoId) || null;
+}
+
+function catchPhotoTimestampValue(photo) {
+  const timestamp = photo?.capturedAt
+    || (photo?.captureDate && photo?.captureTime ? `${photo.captureDate}T${photo.captureTime}` : "")
+    || (photo?.captureDate ? `${photo.captureDate}T00:00:00` : "");
+  const value = timestamp ? Date.parse(timestamp) : NaN;
+  return Number.isFinite(value) ? value : null;
+}
+
+function defaultCatchPhotoLocation(row) {
+  const taggedPhotos = gpsTaggedCatchPhotos(row);
+  const timestampedPhotos = taggedPhotos
+    .map((photo, index) => ({ photo, index, timestamp: catchPhotoTimestampValue(photo) }))
+    .filter((item) => item.timestamp !== null)
+    .sort((a, b) => a.timestamp - b.timestamp || a.index - b.index);
+  return timestampedPhotos[0]?.photo || taggedPhotos[0] || null;
+}
+
+function selectedCatchPhotoLocation(row) {
+  const taggedPhotos = gpsTaggedCatchPhotos(row);
+  if (!taggedPhotos.length) {
+    if (row) row.dataset.photoLocationId = "";
+    return null;
+  }
+  const selected = catchPhotoLocationById(row);
+  if (selected) return selected;
+  return defaultCatchPhotoLocation(row);
+}
+
+function catchCoordinateFlashKey(coordinates) {
+  if (!isUsableCoordinates(coordinates)) return "";
+  return `${Number(coordinates.latitude).toFixed(6)},${Number(coordinates.longitude).toFixed(6)}`;
 }
 
 async function addCatchPhotos(event) {
@@ -469,11 +516,16 @@ async function addCatchPhotos(event) {
       };
     }));
 
+    const previousPhotoCoordinates = catchCoordinateFlashKey(firstCatchCoordinates(row));
     row.catchPhotos = [...(row.catchPhotos || []), ...photos];
+    selectedCatchPhotoLocation(row);
     applyPhotoCaptureTimeToCatch(row, photos);
     event.target.value = "";
     renderCatchPhotos(row);
     updateCatchLocationSummary(row);
+    if (catchCoordinateFlashKey(firstCatchCoordinates(row)) && catchCoordinateFlashKey(firstCatchCoordinates(row)) !== previousPhotoCoordinates) {
+      flashAutoFilledField(row.querySelector(".pick-catch-location"));
+    }
     updateCatchFowFromLocation(row);
     updateRowSummary(row);
   } catch (error) {
@@ -487,12 +539,25 @@ function renderCatchPhotos(row) {
   if (!grid) return;
 
   const photos = row.catchPhotos || [];
+  const taggedPhotos = gpsTaggedCatchPhotos(row);
+  const selectedPhoto = selectedCatchPhotoLocation(row);
   grid.innerHTML = photos.map((photo) => `
     <article class="catch-photo-card" data-catch-photo="${photo.id}">
       ${mediaMarkup(photo, "", { download: false })}
       <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch media"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
-      <span>${escapeHtml(photo.name || (isVideoMedia(photo) ? "Catch video" : "Catch photo"))}</span>
-      ${isUsableCoordinates(photo.coordinates) ? `<small>${formatCoordinates(photo.coordinates)}</small>` : `<small>No GPS metadata</small>`}
+      ${isUsableCoordinates(photo.coordinates) ? `
+        ${taggedPhotos.length > 1 ? `
+          <label class="catch-photo-gps-choice">
+            <input
+              type="radio"
+              name="catch-photo-gps-${escapeHtml(row.dataset.rowId || "row")}"
+              value="${escapeHtml(photo.id)}"
+              ${selectedPhoto?.id === photo.id ? "checked" : ""}
+            />
+            <span>Use GPS</span>
+          </label>
+        ` : `<span class="catch-photo-gps-label">GPS tagged</span>`}
+      ` : `<small>${photo.gpsIgnoredReason === "home" ? "Home location: GPS ignored" : "No GPS metadata"}</small>`}
     </article>
   `).join("");
 }
@@ -502,7 +567,7 @@ function collectCatchPhotos(row) {
 }
 
 function firstCatchCoordinates(row) {
-  return (row.catchPhotos || []).find((photo) => isUsableCoordinates(photo.coordinates))?.coordinates || null;
+  return selectedCatchPhotoLocation(row)?.coordinates || null;
 }
 
 function manualCoordinatesFromRow(row) {
@@ -544,7 +609,7 @@ async function renderPhotoQueue() {
         <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${escapeHtml(photo.filename)}" aria-label="Remove queued photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       </div>
       <div>
-        <strong>${escapeHtml(photo.name || "Queued photo")}</strong>
+        <strong>${escapeHtml(isVideoMedia(photo) ? "Queued video" : "Queued photo")}</strong>
         <span>${escapeHtml(photoQueueTimeText(photo))}</span>
       </div>
       <div class="photo-queue-card-actions">
@@ -630,10 +695,15 @@ async function claimQueuedPhoto(filename) {
 
     if (activePhotoQueueTarget.type === "catch") {
       const row = activePhotoQueueTarget.row;
+      const previousPhotoCoordinates = catchCoordinateFlashKey(firstCatchCoordinates(row));
       row.catchPhotos = [...(row.catchPhotos || []), photoItem];
+      selectedCatchPhotoLocation(row);
       applyPhotoCaptureTimeToCatch(row, [photoItem]);
       renderCatchPhotos(row);
       updateCatchLocationSummary(row);
+      if (catchCoordinateFlashKey(firstCatchCoordinates(row)) && catchCoordinateFlashKey(firstCatchCoordinates(row)) !== previousPhotoCoordinates) {
+        flashAutoFilledField(row.querySelector(".pick-catch-location"));
+      }
       updateCatchFowFromLocation(row);
       updateRowSummary(row);
     }

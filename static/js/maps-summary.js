@@ -1,5 +1,8 @@
 function catchMapRecordForTrip(trip, catchItem, catchIndex) {
-  const mediaWithCoordinates = (catchItem.photos || []).find((photo) => isUsableCoordinates(photo.coordinates));
+  const selectedPhoto = catchItem.photoLocationId
+    ? (catchItem.photos || []).find((photo) => photo.id === catchItem.photoLocationId && isUsableCoordinates(photo.coordinates))
+    : null;
+  const mediaWithCoordinates = selectedPhoto || (catchItem.photos || []).find((photo) => isUsableCoordinates(photo.coordinates));
   const coordinates = isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : mediaWithCoordinates?.coordinates;
   if (!isUsableCoordinates(coordinates)) return null;
   return {
@@ -405,7 +408,7 @@ function displaySentenceText(value = "") {
 }
 
 function displayPhotoTitle(photo) {
-  return displaySentenceText(photo.caption || photo.name || "Trip photo");
+  return displaySentenceText(photo.caption || "Trip photo");
 }
 
 function timelinePhotoTitle(photo) {
@@ -420,7 +423,7 @@ function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
       ${photos.map((photo) => `
         <figure class="summary-photo-card">
           ${mediaMarkup(photo, "summary-photo-asset")}
-          ${!options.hideCaptions && (photo.caption || photo.name) ? `<figcaption>${escapeHtml(displayPhotoTitle(photo))}</figcaption>` : ""}
+          ${!options.hideCaptions && photo.caption ? `<figcaption>${escapeHtml(displayPhotoTitle(photo))}</figcaption>` : ""}
         </figure>
       `).join("")}
     </div>

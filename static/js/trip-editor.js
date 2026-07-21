@@ -15,10 +15,11 @@ function showTripFormMessage(message, fields = []) {
 }
 
 function setTripSaveLoading(saving) {
-  if (!els.saveTripButton) return;
-  els.saveTripButton.disabled = saving;
-  els.saveTripButton.classList.toggle("is-loading", saving);
-  els.saveTripButton.setAttribute("aria-busy", String(saving));
+  document.querySelectorAll("[data-trip-save]").forEach((button) => {
+    button.disabled = saving;
+    button.classList.toggle("is-loading", saving);
+    button.setAttribute("aria-busy", String(saving));
+  });
 }
 
 function tripFormSnapshot() {
@@ -41,17 +42,49 @@ function tripFormSnapshot() {
 
 function resetTripFormSnapshot() {
   tripFormInitialSnapshot = tripFormSnapshot();
+  tripFormUserChanged = false;
+  syncTripFormChrome();
 }
 
 function isTripFormDirty() {
   return els.tripDialog?.open && tripFormSnapshot() !== tripFormInitialSnapshot;
 }
 
+function tripDateLabel(value) {
+  if (!value) return "";
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.valueOf())
+    ? value
+    : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function updateTripDialogHeader() {
+  const title = getValue("tripTitle") || (activeTripId ? "Untitled Trip" : "New Trip");
+  const date = tripDateLabel(document.querySelector("#tripDate")?.value);
+  const location = selectedText(els.tripLocation);
+  els.tripDialogTitle.textContent = title;
+  if (els.tripDialogMeta) {
+    els.tripDialogMeta.textContent = [date, location].filter(Boolean).join(" \u2022 ") || "Trip details";
+  }
+}
+
+function syncTripFormChrome() {
+  els.tripSaveBar?.classList.toggle("is-dirty", tripFormUserChanged && isTripFormDirty());
+  updateTripDialogHeader();
+}
+
+function markTripFormChanged() {
+  tripFormUserChanged = true;
+  syncTripFormChrome();
+}
+
 function closeTripDialog({ force = false } = {}) {
   if (!els.tripDialog.open) return true;
   if (!force && isTripFormDirty() && !confirm("Discard unsaved trip changes?")) return false;
   tripFormInitialSnapshot = "";
+  tripFormUserChanged = false;
   els.tripDialog.close();
+  els.tripSaveBar?.classList.remove("is-dirty");
   return true;
 }
 
@@ -132,7 +165,6 @@ function localDateInputValue(date = new Date()) {
 
 function openTripDialog(trip = null) {
   activeTripId = trip?.id || null;
-  els.tripDialogTitle.textContent = trip ? "Edit Trip" : "New Trip";
   els.deleteTripButton.classList.toggle("hidden", !trip);
   els.tripForm.reset();
   setTripSaveLoading(false);
@@ -168,7 +200,8 @@ function openTripDialog(trip = null) {
   setValue("tripNotes", trip?.notes || "");
   activeTripWeatherData = trip?.weatherData || null;
   activeTripWeatherKey = "";
-  setWeatherStatus(activeTripWeatherData?.daily ? "Weather loaded" : "Choose a mapped location and date");
+  setWeatherStatus(activeTripWeatherData?.daily ? weatherCardConditionsLabel() : "Choose a mapped location and date");
+  renderWeatherSummary(activeTripWeatherData);
   renderNotePhotos();
 
   const tripPeople = trip?.people || [];
@@ -191,6 +224,7 @@ function openTripDialog(trip = null) {
     els.tripForm.scrollTop = 0;
     els.personRows.querySelector("[data-focus-person-name='true'] .person-name")?.focus({ preventScroll: true });
     resetTripFormSnapshot();
+    updateTripDialogHeader();
   });
   scheduleTripWeatherPreview(true);
 }
@@ -468,12 +502,18 @@ function syncTripTimesToBlankRows() {
   if (startTime) {
     document.querySelectorAll("#catchRows .catch-time, #lostFishRows .catch-time, #tripGearRows .trip-gear-start-time").forEach((field) => {
       if (field.closest(".catch-row")?.querySelector(".catch-time-unknown")?.checked) return;
-      if (!field.value) field.value = startTime;
+      if (!field.value) {
+        field.value = startTime;
+        flashAutoFilledField(field);
+      }
     });
   }
   if (endTime) {
     document.querySelectorAll("#tripGearRows .trip-gear-end-time").forEach((field) => {
-      if (!field.value) field.value = endTime;
+      if (!field.value) {
+        field.value = endTime;
+        flashAutoFilledField(field);
+      }
     });
   }
   updateAllRowSummaries();
@@ -486,6 +526,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.dataset.rowId = createId();
   node.dataset.catchId = catchItem.id || "";
   node.catchPhotos = lost ? [] : structuredClone(catchItem.photos || []);
+  node.dataset.photoLocationId = lost ? "" : (catchItem.photoLocationId || "");
   node.catchWeatherData = catchItem.weatherData || null;
   node.catchDepthData = {
     depth_m: catchItem.depth_m ?? null,
@@ -817,6 +858,32 @@ function updateRowSummary(row) {
   summary.textContent = pieces.join(" / ");
 }
 
+const baseUpdateRowSummary = updateRowSummary;
+updateRowSummary = function updateRowSummaryWithDetails(row) {
+  baseUpdateRowSummary(row);
+  if (!row.classList.contains("catch-row")) return;
+
+  const summary = row.querySelector(".collapsible-row-summary");
+  const detail = row.querySelector(".collapsible-row-detail");
+  if (!summary || !detail) return;
+
+  const species = row.classList.contains("lost-fish-row")
+    ? summaryOption(row.querySelector(".catch-possible-species"), ["Select possible species"])
+    : summaryOption(row.querySelector(".catch-species"), ["Select species"]);
+  const size = row.classList.contains("lost-fish-row")
+    ? ""
+    : [row.querySelector(".catch-length")?.value.trim(), row.querySelector(".catch-weight")?.value.trim()].filter(Boolean).join(" / ");
+  const time = row.querySelector(".catch-time-unknown")?.checked
+    ? "Unknown time"
+    : formatDisplayTime(row.querySelector(".catch-time")?.value || "");
+  const lure = isTrollingTrip()
+    ? catchSetupSummary(row)
+    : summaryOption(row.querySelector(".catch-lure"), ["No lure selected"]);
+
+  summary.textContent = fishRowLabel(row);
+  detail.textContent = [species, size, time, lure].filter(Boolean).join(" \u2022 ");
+};
+
 function updateAllRowSummaries() {
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updateRowSummary);
 }
@@ -914,6 +981,7 @@ function collectTripFromForm() {
         notes: detailsUnknown ? "" : row.querySelector(".catch-notes").value.trim(),
         manualCoordinates: detailsUnknown ? null : manualCoordinatesFromRow(row),
         coordinates: detailsUnknown ? null : fishCoordinatesFromRow(row),
+        photoLocationId: detailsUnknown || lost ? "" : (catchPhotoLocationById(row)?.id || ""),
         photos: detailsUnknown || lost ? [] : collectCatchPhotos(row)
       };
       const selectedRodId = row.querySelector(".catch-rod")?.selectedOptions?.[0]?.dataset.rodId || "";

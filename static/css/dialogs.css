@@ -362,7 +362,7 @@
   margin: -4px -2px 18px;
   padding: 8px 2px;
   overflow-x: auto;
-  background: rgba(255, 255, 255, 0.96);
+  background: transparent;
   border-bottom: 1px solid var(--line);
 }
 

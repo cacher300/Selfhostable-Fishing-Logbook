@@ -427,7 +427,10 @@ document.addEventListener("click", (event) => {
     const row = removeCatchPhoto.closest(".catch-row");
     const card = removeCatchPhoto.closest("[data-catch-photo]");
     row.catchPhotos = (row.catchPhotos || []).filter((photo) => photo.id !== card.dataset.catchPhoto);
+    if (row.dataset.photoLocationId === card.dataset.catchPhoto) row.dataset.photoLocationId = "";
     renderCatchPhotos(row);
+    updateCatchLocationSummary(row);
+    updateCatchFowFromLocation(row);
     updateRowSummary(row);
   }
 
@@ -635,6 +638,17 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches(".catch-photo-gps-choice input")) {
+    const row = event.target.closest(".catch-row");
+    if (row) {
+      row.dataset.photoLocationId = event.target.value;
+      updateCatchLocationSummary(row);
+      updateCatchFowFromLocation(row);
+      updateRowSummary(row);
+      renderCatchPhotos(row);
+    }
+    return;
+  }
   if (event.target.matches(".catch-photo-input")) {
     addCatchPhotos(event);
     return;
@@ -667,7 +681,10 @@ document.addEventListener("change", (event) => {
     updateAutoWaveChopDisplay();
     scheduleTripWeatherPreview(true);
   }
-  if (event.target.closest("#tripForm")) clearTripFormMessage();
+  if (event.target.closest("#tripForm")) {
+    clearTripFormMessage();
+    markTripFormChanged();
+  }
   if (event.target.matches(".catch-lure, .trip-gear-lure, .trip-gear-cheater-lure")) {
     if (event.target.value.startsWith("__type__:")) {
       populateLuresForType(event.target, event.target.value.replace("__type__:", ""));
@@ -728,7 +745,10 @@ document.addEventListener("input", (event) => {
     const coordinates = locationFormCoordinates();
     if (coordinates) setLocationFormCoordinates(coordinates);
   }
-  if (event.target.closest("#tripForm")) clearTripFormMessage();
+  if (event.target.closest("#tripForm")) {
+    clearTripFormMessage();
+    markTripFormChanged();
+  }
   if (event.target.matches(".trip-gear-line-label, .trip-gear-start-time, .trip-gear-end-time")) {
     populateSetupLineSelects();
   }
@@ -765,6 +785,21 @@ document.addEventListener("keydown", (event) => {
   if (!catchDetailCard || !["Enter", " "].includes(event.key)) return;
   event.preventDefault();
   openSummaryCatchDetail(Number(catchDetailCard.dataset.summaryCatchIndex));
+});
+
+document.addEventListener("click", (event) => {
+  const tab = event.target.closest("#tripDialog .trip-section-nav a");
+  if (tab) {
+    document.querySelectorAll("#tripDialog .trip-section-nav a").forEach((item) => {
+      item.classList.toggle("is-active", item === tab);
+    });
+  }
+  if (event.target.closest("#tripForm") && !event.target.closest("[data-close-dialog]")) {
+    queueMicrotask(() => {
+      if (isTripFormDirty()) tripFormUserChanged = true;
+      syncTripFormChrome();
+    });
+  }
 });
 
 

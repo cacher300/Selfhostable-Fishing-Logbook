@@ -123,7 +123,7 @@ function renderQueuedGearImage(type) {
   container.classList.toggle("hidden", !pending);
   container.innerHTML = pending ? `
     ${mediaMarkup(pending, "", { download: type !== "lure" })}
-    <span>${escapeHtml(pending.name || "Queued photo selected")}</span>
+    <span>${escapeHtml(isVideoMedia(pending) ? "Queued video selected" : "Queued photo selected")}</span>
   ` : "";
 }
 

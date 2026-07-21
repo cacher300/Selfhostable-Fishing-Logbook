@@ -45,6 +45,7 @@
 }
 
 .note-photo-card {
+  position: relative;
   overflow: hidden;
   width: 180px;
   border: 1px solid var(--line);
@@ -113,6 +114,32 @@
   border-bottom: 0;
 }
 
+.note-photo-card .remove-note-photo {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  border-color: rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.74);
+  color: #142033;
+  opacity: 0;
+  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(6px);
+  transition: opacity 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.note-photo-card:hover .remove-note-photo,
+.note-photo-card:focus-within .remove-note-photo {
+  opacity: 1;
+}
+
+.note-photo-card .remove-note-photo:hover,
+.note-photo-card .remove-note-photo:focus-visible {
+  background: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
+}
+
 .note-photo-body {
   display: grid;
   gap: 8px;
@@ -131,6 +158,47 @@
 .catch-photo-editor {
   display: grid;
   gap: 10px;
+}
+
+.catch-media-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.catch-media-action {
+  display: inline-flex;
+  width: auto;
+  min-width: 132px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #cbd3df;
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.catch-media-action:hover,
+.catch-media-action:focus-visible {
+  border-color: var(--green-dark);
+  background: #f8fbf9;
+}
+
+.catch-media-action svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .catch-photo-grid {
@@ -172,30 +240,79 @@
   border-bottom: 0;
 }
 
-.catch-photo-card .icon-button {
+.catch-photo-card .remove-catch-photo {
   position: absolute;
   top: 6px;
   right: 6px;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
+  border-color: rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.74);
+  color: #142033;
+  opacity: 0;
+  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(6px);
+  transition: opacity 140ms ease, background 140ms ease, transform 140ms ease;
 }
 
-.catch-photo-card span {
-  display: block;
-  overflow: hidden;
-  padding: 8px;
-  color: var(--muted);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.catch-photo-card:hover .remove-catch-photo,
+.catch-photo-card:focus-within .remove-catch-photo {
+  opacity: 1;
+}
+
+.catch-photo-card .remove-catch-photo:hover,
+.catch-photo-card .remove-catch-photo:focus-visible {
+  background: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
 }
 
 .catch-photo-card small {
-  display: block;
-  padding: 0 8px 8px;
+  display: grid;
+  min-height: 34px;
+  place-items: center;
+  padding: 8px;
   color: var(--green-dark);
   font-size: 11px;
   font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.catch-photo-gps-label {
+  display: grid;
+  min-height: 34px;
+  place-items: center;
+  padding: 6px 8px;
+  color: var(--green-dark);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.catch-photo-gps-choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 6px 8px;
+  color: var(--green-dark);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.catch-photo-gps-choice input {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--green-dark);
+}
+
+.catch-photo-gps-choice input:disabled {
+  opacity: 1;
 }
 
 .photo-queue-shell {
@@ -334,6 +451,469 @@
   gap: 12px;
 }
 
+/* Trip editor refresh: uses the existing form controls and workflows with a calmer hierarchy. */
+#tripDialog .dialog-header {
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 14px;
+  border-bottom-color: var(--line);
+}
+
+#tripDialog .dialog-header h2 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.trip-dialog-meta,
+#tripDialog .section-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.trip-dialog-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#tripDialog .trip-section-nav {
+  top: 67px;
+  gap: 4px;
+  margin: -4px -2px 20px;
+  padding: 6px 2px;
+  border-bottom: 0;
+  background: transparent;
+}
+
+#tripDialog .trip-section-nav a {
+  min-height: 38px;
+  border-color: transparent;
+  border-radius: 6px;
+  padding: 9px 14px;
+  color: var(--muted);
+}
+
+#tripDialog .trip-section-nav a:hover,
+#tripDialog .trip-section-nav a:focus-visible,
+#tripDialog .trip-section-nav a.is-active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+#tripDialog .trip-form-section {
+  gap: 16px;
+  padding: 26px 0;
+  border-top-color: transparent;
+}
+
+#tripDialog .trip-form-section:first-of-type {
+  padding-top: 4px;
+}
+
+#tripDialog .section-heading h3 {
+  margin: 0;
+  font-size: 19px;
+}
+
+#tripDialog .form-grid {
+  width: min(100%, 740px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 16px 18px;
+}
+
+#tripDialog .trip-overview-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 740px) minmax(340px, 1fr);
+  align-items: start;
+  gap: 22px;
+}
+
+#tripDialog .trip-overview-main {
+  display: grid;
+  align-content: start;
+}
+
+#tripDialog .trip-overview-main .trip-form-section {
+  width: 100%;
+}
+
+#tripDialog .trip-basics-water-fields {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+#tripDialog .trip-overview-layout > .weather-fetch-panel {
+  grid-column: auto;
+  align-self: start;
+  justify-self: center;
+  box-sizing: border-box;
+  max-width: 440px;
+  min-height: 0;
+}
+
+#tripDialog .form-grid label,
+#tripDialog .form-grid .location-field {
+  max-width: none;
+}
+
+#tripDialog .intent-control,
+#tripDialog .trip-rating-control {
+  max-width: none;
+}
+
+#tripDialog label,
+#tripDialog .location-field {
+  gap: 5px;
+}
+
+#tripDialog :where(input:not([type="radio"]):not([type="checkbox"]):not([type="range"]):not([type="file"]), select) {
+  height: 40px;
+  border-radius: 6px;
+}
+
+#tripDialog select {
+  background-position:
+    calc(100% - 18px) 16px,
+    calc(100% - 12px) 16px;
+}
+
+#tripDialog .inline-control-row {
+  gap: 8px;
+}
+
+#tripDialog .inline-control-row .icon-button {
+  height: 40px;
+  min-width: 40px;
+}
+
+#tripDialog .trip-time-field {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+#tripDialog .trip-time-field legend {
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#tripDialog .trip-time-inputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
+}
+
+#tripDialog .trip-time-field label {
+  max-width: none;
+}
+
+#tripDialog .trip-time-separator {
+  display: grid;
+  height: 40px;
+  place-items: center;
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+#tripDialog .intent-control {
+  gap: 0;
+}
+
+#tripDialog .intent-control legend {
+  margin-bottom: 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+#tripDialog .intent-control span {
+  min-height: 36px;
+  border-radius: 0;
+}
+
+#tripDialog .intent-control label:first-of-type span {
+  border-radius: 6px 0 0 6px;
+}
+
+#tripDialog .intent-control label:last-of-type span {
+  margin-left: -1px;
+  border-radius: 0 6px 6px 0;
+}
+
+#tripDialog .intent-control input:checked + span {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+#tripDialog .trip-rating-control {
+  width: 100%;
+  justify-self: start;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#tripDialog .rating-heading span {
+  color: var(--text);
+  font-weight: 800;
+}
+
+#tripDialog .rating-heading strong {
+  border: 1px solid #b9d9c8;
+  border-radius: 5px;
+  padding: 2px 6px;
+  background: #ecf7f1;
+}
+
+#tripDialog .rating-scale {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+#tripDialog .trip-rating-control input[type="range"] {
+  width: 100%;
+  height: 18px;
+  padding: 0;
+  border: 0;
+}
+
+#tripDialog .conditions-grid {
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+#tripDialog .conditions-grid label {
+  max-width: none;
+}
+
+#tripDialog .condition-group {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+#tripDialog .condition-group h4 {
+  margin: 0 0 2px;
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#tripDialog .weather-fetch-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  padding: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+#tripDialog .weather-fetch-panel > .weather-card-header {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+#tripDialog .weather-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#tripDialog .weather-card-title svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#tripDialog .weather-card-title h4 {
+  margin: 0;
+  font-size: 19px;
+}
+
+#tripDialog .weather-card-source {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#tripDialog .weather-card-source > span {
+  overflow: hidden;
+  max-width: 180px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#tripDialog .weather-card-source button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--green-dark);
+  font: inherit;
+  cursor: pointer;
+}
+
+#tripDialog .weather-card-source button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+#tripDialog .weather-card-status {
+  margin: 6px 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#tripDialog .weather-fetch-panel > .weather-summary {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 1fr;
+  margin: 0;
+  border-top: 0;
+}
+
+#tripDialog .weather-fetch-panel > .weather-card-status,
+#tripDialog .weather-fetch-panel > .weather-summary-updated,
+#tripDialog .weather-fetch-panel > .weather-card-provider {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#tripDialog .weather-data-row {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  border-bottom: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
+#tripDialog .weather-data-row > span {
+  color: #46566f;
+  font-weight: 700;
+}
+
+#tripDialog .weather-data-row b {
+  color: var(--text);
+  font-size: 13px;
+  text-align: right;
+}
+
+#tripDialog .weather-control-row select,
+#tripDialog .weather-control-row input {
+  width: min(158px, 52%);
+  height: 30px;
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+#tripDialog .weather-summary-updated {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+#tripDialog .weather-card-provider {
+  margin-top: auto;
+  padding-top: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+#tripDialog .people-editor > #addPersonButton {
+  width: max-content;
+  justify-self: start;
+}
+
+#tripDialog .trip-save-bar {
+  display: none;
+}
+
+#tripDialog .trip-save-bar.is-dirty {
+  display: flex;
+}
+
+#tripDialog .trip-save-bar::before {
+  content: "Unsaved changes";
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+#tripDialog .catch-row,
+#tripDialog .gear-used-row {
+  border-color: #dce3eb;
+  background: #fff;
+  box-shadow: 0 5px 18px rgba(15, 23, 42, 0.05);
+}
+
+#tripDialog .catch-row.collapsed,
+#tripDialog .gear-used-row.collapsed {
+  padding-top: 13px;
+  padding-bottom: 13px;
+}
+
+#tripDialog .row-collapse-button {
+  gap: 10px;
+}
+
+#tripDialog .collapsible-row-summary {
+  font-size: 15px;
+}
+
+#tripDialog .collapsible-row-detail {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#tripDialog .catch-notes {
+  min-height: 88px;
+}
+
 .catch-row,
 .gear-used-row {
   padding: 16px;
@@ -430,7 +1010,7 @@
 }
 
 .catch-details-unknown-field {
-  width: 100%;
+  width: auto;
 }
 
 .catch-row.details-unknown .catch-detail-optional {
@@ -438,21 +1018,65 @@
 }
 
 .catch-location-field {
-  display: grid;
+  display: flex;
   align-self: end;
-  gap: 0;
+  align-items: flex-end;
 }
 
-.catch-location-summary {
+.catch-field-with-option {
+  display: flex;
+  align-self: end;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.catch-field-with-option > label:not(.checkbox-label) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.catch-location-action-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.inline-field-option {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: auto;
+  box-sizing: border-box;
+  height: 40px;
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid #cbd3df;
+  border-radius: 6px;
+  background: #fff;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.inline-field-option input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--green-dark);
 }
 
 .catch-location-field .pick-catch-location {
-  width: 100%;
-  min-height: 44px;
-  justify-content: flex-start;
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
+  height: 40px;
+  min-height: 40px;
+  justify-content: center;
   align-items: center;
   padding-right: 12px;
   padding-left: 12px;
@@ -460,6 +1084,27 @@
   background: #fff;
   color: var(--ink);
   line-height: 1.2;
+  white-space: nowrap;
+}
+
+.auto-fill-flash {
+  animation: autoFillFlash 1.15s ease-out;
+}
+
+@keyframes autoFillFlash {
+  0% {
+    border-color: #f4b400;
+    background-color: #fff6d8;
+    box-shadow: 0 0 0 3px rgba(244, 180, 0, 0.28);
+  }
+  70% {
+    border-color: #f4b400;
+    background-color: #fff9e8;
+    box-shadow: 0 0 0 1px rgba(244, 180, 0, 0.14);
+  }
+  100% {
+    box-shadow: none;
+  }
 }
 
 .add-lure-inline {
@@ -609,6 +1254,10 @@
 
 .trolling-param.visible {
   display: grid;
+}
+
+.catch-field-with-option.trolling-param.visible {
+  display: flex;
 }
 
 .checkbox-label.trolling-param.visible {

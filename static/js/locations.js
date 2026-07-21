@@ -230,6 +230,14 @@ function setCatchLocationForRow(row, coordinates) {
   renderLiveTrollingSpread();
 }
 
+function flashAutoFilledField(target) {
+  if (!target) return;
+  target.classList.remove("auto-fill-flash");
+  void target.offsetWidth;
+  target.classList.add("auto-fill-flash");
+  setTimeout(() => target.classList.remove("auto-fill-flash"), 1400);
+}
+
 function catchDepthFieldsFromPayload(payload = {}) {
   return {
     depth_m: payload.depth_m ?? null,
@@ -278,7 +286,9 @@ async function updateCatchFowForCoordinates(row, coordinates, options = {}) {
     if (fowInput && fowInput.value.trim() && fowInput.value !== "Looking up..." && !options.force) return;
     row.catchDepthData = catchDepthFieldsFromPayload(payload);
     if (fowInput) {
+      const nextFow = payload.fowCaught || "";
       fowInput.value = payload.fowCaught || "";
+      if (nextFow) flashAutoFilledField(fowInput);
       updateRowSummary(row);
       renderLiveTrollingSpread();
     }
@@ -341,7 +351,7 @@ function openCatchLocationDialog(row) {
   const existingCatchCoordinates = catchLocationFromRow(row);
   const center = existingCatchCoordinates || firstCatchCoordinates(row) || selectedTripLocationCoordinates();
   els.catchLocationDialog.showModal();
-  ensureCatchLocationPickerMap(center, { placeMarker: Boolean(existingCatchCoordinates) });
+  ensureCatchLocationPickerMap(center, { placeMarker: isUsableCoordinates(existingCatchCoordinates || firstCatchCoordinates(row)) });
 }
 
 function saveCatchLocationFromPicker() {

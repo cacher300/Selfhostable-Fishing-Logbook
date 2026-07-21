@@ -764,15 +764,19 @@
         <div class="dialog-header">
           <div>
             <h2 id="tripDialogTitle">New Trip</h2>
+            <p class="trip-dialog-meta" id="tripDialogMeta">Today's trip</p>
           </div>
-          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+          <div class="trip-dialog-header-actions">
+            <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+            <button class="button primary" type="submit" data-trip-save>Save</button>
+            <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+          </div>
         </div>
 
         <input type="hidden" id="tripId" />
         <div class="form-message hidden" id="tripFormMessage" role="alert"></div>
         <nav class="trip-section-nav" aria-label="Trip form sections">
-          <a href="#tripBasicsSection">Basics</a>
-          <a href="#tripConditionsSection">Conditions</a>
+          <a href="#tripBasicsSection" class="is-active">Basics</a>
           <a href="#tripPeopleSection">People</a>
           <a href="#tripSetupSection">Setup</a>
           <a href="#tripCatchesSection">Catches</a>
@@ -780,9 +784,14 @@
           <a href="#tripNotesSection">Photos</a>
         </nav>
 
+        <div class="trip-overview-layout">
+          <div class="trip-overview-main">
         <section class="trip-form-section" id="tripBasicsSection">
           <div class="section-heading">
-            <h3>Trip Basics</h3>
+            <div>
+              <h3>Trip Basics</h3>
+              <p>General information about this fishing trip.</p>
+            </div>
           </div>
           <div class="form-grid">
             <label>
@@ -808,14 +817,20 @@
                 <button class="icon-button" id="addLaunchButton" type="button" aria-label="Add launch or area fished">+</button>
               </div>
             </div>
-            <label>
-              <span>Start time</span>
-              <input id="startTime" type="time" />
-            </label>
-            <label>
-              <span>End time</span>
-              <input id="endTime" type="time" />
-            </label>
+            <fieldset class="trip-time-field">
+              <legend>Trip Time</legend>
+              <div class="trip-time-inputs">
+                <label>
+                  <span class="visually-hidden">Start time</span>
+                  <input id="startTime" type="time" />
+                </label>
+                <span class="trip-time-separator" aria-hidden="true">&#8594;</span>
+                <label>
+                  <span class="visually-hidden">End time</span>
+                  <input id="endTime" type="time" />
+                </label>
+              </div>
+            </fieldset>
             <label>
               <span>Target species</span>
               <select id="targetSpecies" required></select>
@@ -824,6 +839,20 @@
               <span>Method</span>
               <select id="method"></select>
             </label>
+            <div class="trip-basics-water-fields">
+              <label>
+                <span data-unit-label="waterTemperature" data-unit-label-text="Water temperature">Water temperature</span>
+                <input id="waterTemp" type="text" placeholder="54 F" />
+              </label>
+              <label>
+                <span>Water clarity</span>
+                <select id="waterClarity"></select>
+              </label>
+              <label>
+                <span data-unit-label="depth" data-unit-label-text="FOW range">FOW range</span>
+                <input id="structure" type="text" placeholder="40-60 FOW" />
+              </label>
+            </div>
             <fieldset class="intent-control">
               <legend>Trip intent</legend>
               <label>
@@ -850,56 +879,58 @@
             </div>
           </div>
         </section>
-
-        <section class="trip-form-section" id="tripConditionsSection">
-          <div class="section-heading">
-            <h3>Conditions</h3>
           </div>
-          <div class="form-grid conditions-grid">
-            <label>
-              <span data-unit-label="waterTemperature" data-unit-label-text="Water temperature">Water temperature</span>
-              <input id="waterTemp" type="text" placeholder="54 F" />
-            </label>
-            <label>
-              <span>Water clarity</span>
-              <select id="waterClarity"></select>
-            </label>
-            <label>
-              <span>Weather</span>
-              <select id="weather"></select>
-            </label>
-            <label>
-              <span data-unit-label="waveHeight" data-unit-label-text="Wave height">Wave height</span>
-              <input id="waveHeight" type="text" placeholder="Wave height not available for this location" />
-            </label>
-            <label>
-              <span>Wave chop</span>
-              <input id="waveChopDisplay" type="text" placeholder="Auto from wave height" readonly />
-            </label>
-            <label>
-              <span data-unit-label="depth" data-unit-label-text="FOW range">FOW range</span>
-              <input id="structure" type="text" placeholder="40-60 FOW" />
-            </label>
-            <div class="weather-fetch-panel">
-              <div>
-                <strong id="weatherFetchStatus">Choose a mapped location and date</strong>
+          <aside class="weather-fetch-panel" aria-label="Weather conditions">
+            <header class="weather-card-header">
+              <div class="weather-card-title">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H7a4 4 0 0 1-.5-7.97A6 6 0 0 1 18 10a4.5 4.5 0 0 1-.5 9Z"/><path d="M8 4V2m8 3 1.5-1.5M4.5 8 3 6.5"/></svg>
+                <h4>Weather</h4>
               </div>
-              <button class="button secondary" id="resyncWeatherButton" type="button">Resync Weather</button>
+              <div class="weather-card-source">
+                <span id="weatherSummaryLocation">Select location</span>
+                <button id="resyncWeatherButton" type="button">Resync <span aria-hidden="true">&#8635;</span></button>
+              </div>
+            </header>
+            <p class="weather-card-status" id="weatherFetchStatus">Choose a mapped location and date</p>
+            <div class="weather-summary" id="weatherSummary" aria-live="polite">
+              <div class="weather-data-row"><span>Temperature</span><b id="weatherSummaryTemperature">-</b></div>
+              <label class="weather-data-row weather-control-row"><span>Weather</span><select id="weather"></select></label>
+              <div class="weather-data-row"><span>Wind</span><b id="weatherSummaryWind">-</b></div>
+              <div class="weather-data-row"><span>Gusts</span><b id="weatherSummaryGusts">-</b></div>
+              <div class="weather-data-row"><span>Cloud Cover</span><b id="weatherSummaryCloudCover">-</b></div>
+              <div class="weather-data-row"><span>Precipitation</span><b id="weatherSummaryPrecipitation">-</b></div>
+              <div class="weather-data-row"><span>Pressure</span><b id="weatherSummaryPressure">-</b></div>
+              <div class="weather-data-row"><span>Visibility</span><b id="weatherSummaryVisibility">-</b></div>
+              <label class="weather-data-row weather-control-row">
+                <span data-unit-label="waveHeight" data-unit-label-text="Wave height">Wave Height</span>
+                <input id="waveHeight" type="text" placeholder="Not available" />
+              </label>
+              <label class="weather-data-row weather-control-row">
+                <span>Wave Chop</span><input id="waveChopDisplay" type="text" placeholder="Auto from wave height" readonly />
+              </label>
             </div>
-          </div>
-        </section>
+            <small class="weather-summary-updated" id="weatherSummaryUpdated"></small>
+            <small class="weather-card-provider">Weather data provided by Open-Meteo</small>
+          </aside>
+        </div>
 
         <section class="trip-form-section people-editor" id="tripPeopleSection">
           <div class="section-heading">
-            <h3>People</h3>
-            <button class="button secondary" id="addPersonButton" type="button">Add Person</button>
+            <div>
+              <h3>People</h3>
+              <p>Everyone who fished on this trip.</p>
+            </div>
           </div>
+          <button class="button secondary" id="addPersonButton" type="button">Add Person</button>
           <div id="personRows" class="person-rows"></div>
         </section>
 
         <section class="trip-form-section gear-used-editor" id="tripSetupSection">
           <div class="section-heading">
-            <h3>Setup Timeline</h3>
+            <div>
+              <h3>Setup Timeline</h3>
+              <p>Rods and gear used throughout the trip.</p>
+            </div>
             <button class="button secondary" id="addTripGearButton" type="button">Add Rod</button>
           </div>
           <div id="tripGearRows" class="gear-used-rows"></div>
@@ -913,7 +944,9 @@
 
         <section class="trip-form-section catch-editor" id="tripCatchesSection">
           <div class="section-heading">
-            <h3>Catches</h3>
+            <div>
+              <h3>Catches</h3>
+            </div>
             <button class="button secondary" id="addCatchButton" type="button">Add Catch</button>
           </div>
           <div id="catchRows" class="catch-rows"></div>
@@ -921,7 +954,10 @@
 
         <section class="trip-form-section catch-editor" id="tripLostFishSection">
           <div class="section-heading">
-            <h3>Lost Fish</h3>
+            <div>
+              <h3>Lost Fish</h3>
+              <p>Strikes or fish that came off before landing.</p>
+            </div>
             <button class="button secondary" id="addLostFishButton" type="button">Add Lost Fish</button>
           </div>
           <div id="lostFishRows" class="catch-rows"></div>
@@ -929,13 +965,20 @@
 
         <section class="trip-form-section note-attachments" id="tripNotesSection">
           <div class="section-heading">
-            <h3>Photos And Notes</h3>
+            <div>
+              <h3>Photos And Notes</h3>
+              <p>Trip media and the details you want to remember.</p>
+            </div>
             <div class="section-actions">
-              <label class="button secondary file-button">
-                Add Photos
+              <label class="button file-button catch-media-action">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+                Upload Media
                 <input id="notePhotoInput" type="file" accept="image/*,video/*" multiple />
               </label>
-              <button class="button secondary" type="button" data-use-photo-queue="trip-photos">Use Queue</button>
+              <button class="button catch-media-action" type="button" data-use-photo-queue="trip-photos">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4h8v8H4zM6 2h4M6 14h4" /></svg>
+                Use Queue
+              </button>
             </div>
           </div>
           <label class="wide-label">
@@ -945,11 +988,11 @@
           <div id="notePhotoGrid" class="note-photo-grid"></div>
         </section>
 
-        <div class="dialog-actions">
+        <div class="dialog-actions trip-save-bar" id="tripSaveBar" aria-live="polite">
           <button class="button danger" id="deleteTripButton" type="button">Delete</button>
           <div>
             <button class="button secondary" type="button" data-close-dialog>Cancel</button>
-            <button class="button primary" id="saveTripButton" type="submit">Save Trip</button>
+            <button class="button primary" id="saveTripButton" type="submit" data-trip-save>Save Changes</button>
           </div>
         </div>
       </form>
@@ -1238,11 +1281,11 @@
               <svg viewBox="0 0 16 16"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
             </span>
             <span class="collapsible-row-summary">Catch</span>
+            <span class="collapsible-row-detail"></span>
           </button>
           <button class="icon-button remove-catch" type="button" aria-label="Remove catch"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
         <div class="collapsible-row-body">
-          <div class="row-section-title">Catch Details</div>
           <label class="catch-detail-optional">
             <span>Person</span>
             <select class="catch-person"></select>
@@ -1259,32 +1302,38 @@
             <span data-unit-label="fishLength" data-unit-label-text="Length">Length</span>
             <input class="catch-length" type="text" placeholder="28 in" />
           </label>
-          <label class="catch-weight-field catch-detail-required">
-            <span data-unit-label="fishWeight" data-unit-label-text="Weight">Weight</span>
-            <input class="catch-weight" type="text" placeholder="9 lb" />
-          </label>
-          <label class="catch-detail-optional">
-            <span>Time</span>
-            <input class="catch-time" type="time" />
-          </label>
-          <label class="checkbox-label catch-time-unknown-field catch-detail-optional">
-            <input class="catch-time-unknown" type="checkbox" />
-            <span>Unknown time</span>
-          </label>
-          <div class="catch-location-field catch-detail-optional">
-            <button class="button secondary pick-catch-location" type="button">Select Location</button>
-            <small class="catch-location-summary"></small>
+          <div class="catch-field-with-option catch-weight-field catch-detail-required">
+            <label>
+              <span data-unit-label="fishWeight" data-unit-label-text="Weight">Weight</span>
+              <input class="catch-weight" type="text" placeholder="9 lb" />
+            </label>
+            <label class="checkbox-label inline-field-option catch-released-field">
+              <input class="catch-released" type="checkbox" />
+              <span>Released after landing</span>
+            </label>
+          </div>
+          <div class="row-section-title catch-detail-optional">Location</div>
+          <div class="catch-field-with-option catch-detail-optional">
+            <label>
+              <span>Time</span>
+              <input class="catch-time" type="time" />
+            </label>
+            <label class="checkbox-label inline-field-option catch-time-unknown-field">
+              <input class="catch-time-unknown" type="checkbox" />
+              <span>Unknown time</span>
+            </label>
+          </div>
+          <div class="catch-location-field">
+            <div class="catch-location-action-row">
+              <button class="button secondary pick-catch-location catch-detail-optional" type="button">Select Location</button>
+              <label class="checkbox-label inline-field-option catch-details-unknown-field">
+                <input class="catch-details-unknown" type="checkbox" />
+                <span>Details unknown</span>
+              </label>
+            </div>
             <input class="catch-latitude" type="hidden" />
             <input class="catch-longitude" type="hidden" />
           </div>
-          <label class="checkbox-label catch-released-field catch-detail-optional">
-            <input class="catch-released" type="checkbox" />
-            <span>Released after landing</span>
-          </label>
-          <label class="checkbox-label catch-details-unknown-field">
-            <input class="catch-details-unknown" type="checkbox" />
-            <span>Details unknown</span>
-          </label>
           <label class="catch-water-depth-field catch-detail-optional">
             <span data-unit-label="depth" data-unit-label-text="Water depth">Water depth</span>
             <input class="catch-water-depth" type="text" placeholder="80 ft" />
@@ -1293,7 +1342,7 @@
             <span data-unit-label="depth" data-unit-label-text="Estimated depth down">Estimated depth down</span>
             <input class="catch-depth-down" type="text" placeholder="45 ft" />
           </label>
-          <div class="row-section-title catch-detail-optional">Rod</div>
+          <div class="row-section-title catch-detail-optional">Equipment</div>
           <label class="trolling-catch-line-field catch-detail-optional">
             <span>Rod</span>
             <select class="catch-setup-line"></select>
@@ -1346,14 +1395,16 @@
             <span data-unit-label="speed" data-unit-label-text="Speed">Speed</span>
             <input class="catch-speed" type="text" placeholder="2.4 mph" />
           </label>
-          <label class="trolling-param param-ball-depth catch-detail-optional">
-            <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
-            <input class="catch-ball-depth" type="text" placeholder="55 ft" />
-          </label>
-          <label class="checkbox-label trolling-param param-deepest-rigger catch-detail-optional">
-            <input class="catch-deepest-rigger" type="checkbox" />
-            <span>Deepest rigger</span>
-          </label>
+          <div class="catch-field-with-option trolling-param param-ball-depth catch-detail-optional">
+            <label>
+              <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
+              <input class="catch-ball-depth" type="text" placeholder="55 ft" />
+            </label>
+            <label class="checkbox-label inline-field-option trolling-param param-deepest-rigger">
+              <input class="catch-deepest-rigger" type="checkbox" />
+              <span>Deepest rigger</span>
+            </label>
+          </div>
           <label class="trolling-param param-cheater-depth catch-detail-optional">
             <span data-unit-label="depth" data-unit-label-text="Cheater depth">Cheater depth</span>
             <input class="catch-cheater-depth" type="text" readonly aria-readonly="true" />
@@ -1389,15 +1440,21 @@
           <div class="row-section-title catch-detail-optional">Notes</div>
           <label class="catch-notes-label catch-detail-optional">
             <span>Catch notes</span>
-            <textarea class="catch-notes" rows="2" placeholder="Retrieve, strike, release notes"></textarea>
+            <textarea class="catch-notes" rows="3" placeholder="Add notes about the catch: bite description, fish behavior, or weather observations"></textarea>
           </label>
           <div class="row-section-title catch-photo-title catch-detail-optional">Catch Media</div>
           <div class="catch-photo-editor catch-detail-optional">
-            <label class="button secondary file-button">
-              Add Media
-              <input class="catch-photo-input" type="file" accept="image/*,video/*" multiple />
-            </label>
-            <button class="button secondary use-catch-photo-queue" type="button">Use Queue</button>
+            <div class="catch-media-actions">
+              <label class="button file-button catch-media-action">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+                Upload Media
+                <input class="catch-photo-input" type="file" accept="image/*,video/*" multiple />
+              </label>
+              <button class="button use-catch-photo-queue catch-media-action" type="button">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4h8v8H4zM6 2h4M6 14h4" /></svg>
+                Use Queue
+              </button>
+            </div>
             <div class="catch-photo-grid"></div>
           </div>
         </div>

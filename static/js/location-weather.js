@@ -131,6 +131,7 @@ async function fetchWeatherBundle(coordinates, startDate, endDate) {
     "surface_pressure",
     "pressure_msl",
     "cloud_cover",
+    "visibility",
     "wind_speed_10m",
     "wind_direction_10m",
     "wind_gusts_10m"
@@ -265,6 +266,7 @@ function hourlyRecords(bundle) {
     pressureHpa: hourly.pressure_msl?.[index] ?? hourly.surface_pressure?.[index] ?? null,
     pressureMslHpa: hourly.pressure_msl?.[index] ?? null,
     cloudCoverPercent: hourly.cloud_cover?.[index] ?? null,
+    visibilityM: hourly.visibility?.[index] ?? null,
     windSpeedMph: hourly.wind_speed_10m?.[index] ?? null,
     windDirectionDegrees: hourly.wind_direction_10m?.[index] ?? null,
     windGustMph: hourly.wind_gusts_10m?.[index] ?? null
@@ -333,8 +335,19 @@ function maxNumber(records, key) {
   return Math.round(Math.max(...values) * 10) / 10;
 }
 
+function mostFrequentValue(records, key) {
+  const counts = new Map();
+  records.forEach((record) => {
+    const value = record?.[key];
+    if (value === null || value === undefined || value === "") return;
+    counts.set(value, (counts.get(value) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+}
+
 function tripWindowSummary(records) {
   return {
+    weatherCode: mostFrequentValue(records, "weatherCode"),
     temperatureC: averageNumber(records, "temperatureC"),
     apparentTemperatureC: averageNumber(records, "apparentTemperatureC"),
     temperatureMaxC: maxNumber(records, "temperatureC"),
@@ -343,6 +356,7 @@ function tripWindowSummary(records) {
     pressureHpa: averageNumber(records, "pressureHpa"),
     pressureMslHpa: averageNumber(records, "pressureMslHpa"),
     cloudCoverPercent: averageNumber(records, "cloudCoverPercent"),
+    visibilityM: averageNumber(records, "visibilityM"),
     precipitationIn: sumNumber(records, "precipitationIn"),
     windSpeedMph: averageNumber(records, "windSpeedMph"),
     windGustMph: averageNumber(records, "windGustMph"),
@@ -747,6 +761,84 @@ function setWeatherStatus(message) {
   if (els.weatherFetchStatus) els.weatherFetchStatus.textContent = message;
 }
 
+function weatherTagForCode(code) {
+  const value = Number(code);
+  if (!Number.isFinite(value)) return "";
+  if (value === 0) return "Sunny";
+  if ([1, 2].includes(value)) return "Partly Cloudy";
+  if (value === 3) return "Overcast";
+  if ([45, 48].includes(value)) return "Fog";
+  if ([51, 53, 55, 56, 57, 61, 66, 80].includes(value)) return "Light Rain";
+  if ([63, 65, 67, 81, 82].includes(value)) return "Heavy Rain";
+  if ([71, 73, 75, 77, 85, 86].includes(value)) return "Snow";
+  if ([95, 96, 99].includes(value)) return "Thunderstorms";
+  return "Mixed";
+}
+
+function weatherCardConditionsLabel() {
+  const time = formatDisplayTime(document.querySelector("#startTime")?.value || "");
+  return time ? `Conditions at ${time}` : "Trip-window conditions";
+}
+
+function weatherCardLocationLabel(weatherData) {
+  const launch = els.tripLaunch?.selectedOptions?.[0]?.textContent?.trim();
+  const location = els.tripLocation?.selectedOptions?.[0]?.textContent?.trim();
+  return weatherData?.source?.name
+    || (!["No launch / area selected", ""].includes(launch) ? launch : "")
+    || (!["Select location", ""].includes(location) ? location : "")
+    || "Select location";
+}
+
+function weatherCardWindText(summary) {
+  if (!Number.isFinite(Number(summary?.windSpeedMph))) return "Not available";
+  const direction = windDirectionLabel(summary.windDirectionDegrees);
+  const speed = formatUnitValue(summary.windSpeedMph, "windSpeed", "mph");
+  return [direction, speed].filter(Boolean).join(" ");
+}
+
+function setWeatherCardValue(element, value) {
+  if (element) element.textContent = value || "Not available";
+}
+
+function renderWeatherSummary(weatherData = activeTripWeatherData) {
+  const summary = weatherData?.tripWindow;
+  const hasSummary = summary && [summary.temperatureC, summary.windSpeedMph, summary.pressureHpa, summary.cloudCoverPercent]
+    .some((value) => Number.isFinite(Number(value)));
+  els.weatherSummary?.classList.toggle("has-data", Boolean(hasSummary));
+  if (els.weatherSummaryLocation) els.weatherSummaryLocation.textContent = weatherCardLocationLabel(weatherData);
+  if (!hasSummary) {
+    [
+      els.weatherSummaryTemperature,
+      els.weatherSummaryWind,
+      els.weatherSummaryGusts,
+      els.weatherSummaryCloudCover,
+      els.weatherSummaryPrecipitation,
+      els.weatherSummaryPressure,
+      els.weatherSummaryVisibility
+    ].forEach((element) => setWeatherCardValue(element, "-"));
+    if (els.weatherSummaryUpdated) els.weatherSummaryUpdated.textContent = "";
+    return;
+  }
+
+  setWeatherCardValue(els.weatherSummaryTemperature, Number.isFinite(Number(summary.temperatureC)) ? celsiusText(summary.temperatureC) : "Not available");
+  setWeatherCardValue(els.weatherSummaryWind, weatherCardWindText(summary));
+  setWeatherCardValue(els.weatherSummaryGusts, Number.isFinite(Number(summary.windGustMph)) ? formatUnitValue(summary.windGustMph, "windSpeed", "mph") : "Not available");
+  setWeatherCardValue(els.weatherSummaryCloudCover, Number.isFinite(Number(summary.cloudCoverPercent)) ? `${Math.round(summary.cloudCoverPercent)}%` : "Not available");
+  setWeatherCardValue(els.weatherSummaryPrecipitation, Number.isFinite(Number(summary.precipitationIn)) ? formatUnitValue(summary.precipitationIn, "precipitation", "in", { decimals: 1 }) : "Not available");
+  setWeatherCardValue(els.weatherSummaryPressure, Number.isFinite(Number(summary.pressureHpa)) ? formatUnitValue(summary.pressureHpa, "pressure", "hPa", { decimals: 2 }) : "Not available");
+  setWeatherCardValue(els.weatherSummaryVisibility, Number.isFinite(Number(summary.visibilityM)) ? formatUnitValue(summary.visibilityM, "distance", "m", { decimals: 1 }) : "Not available");
+
+  const autoWeatherTag = weatherTagForCode(summary.weatherCode);
+  const weatherSelect = document.querySelector("#weather");
+  if (autoWeatherTag && weatherSelect && !weatherSelect.value) weatherSelect.value = autoWeatherTag;
+  if (els.weatherSummaryUpdated) {
+    const fetchedAt = weatherData?.fetchedAt ? new Date(weatherData.fetchedAt) : null;
+    els.weatherSummaryUpdated.textContent = fetchedAt && !Number.isNaN(fetchedAt.valueOf())
+      ? `Updated ${fetchedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+      : "Weather data ready";
+  }
+}
+
 function syncMarineWaveHeightToForm(weatherData) {
   updateMarineWaveHeightPlaceholder(weatherData);
   updateAutoWaveChopDisplay(weatherData);
@@ -768,17 +860,21 @@ async function refreshTripWeatherPreview(force = false) {
   activeTripWeatherKey = key;
   if (!trip.date || !source) {
     activeTripWeatherData = null;
+    renderWeatherSummary();
     setWeatherStatus(source ? "Choose a trip date" : "Add a location or launch pin to fetch weather");
     return;
   }
   setWeatherStatus("Fetching weather...");
+  renderWeatherSummary(null);
   try {
     const result = await buildWeatherDataForTrip(trip, source, false);
     activeTripWeatherData = result.tripWeather;
     syncMarineWaveHeightToForm(activeTripWeatherData);
-    setWeatherStatus(`Weather ready from ${source.name}`);
+    renderWeatherSummary();
+    setWeatherStatus(weatherCardConditionsLabel());
   } catch (error) {
     activeTripWeatherData = null;
+    renderWeatherSummary();
     setWeatherStatus(error.message || "Weather fetch failed");
   }
 }
@@ -797,7 +893,7 @@ async function resyncTripWeather() {
   } finally {
     if (els.resyncWeatherButton) {
       els.resyncWeatherButton.disabled = false;
-      els.resyncWeatherButton.textContent = "Resync Weather";
+      els.resyncWeatherButton.textContent = "Resync";
     }
   }
 }

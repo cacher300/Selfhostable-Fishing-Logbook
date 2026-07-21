@@ -347,6 +347,12 @@
     width: 100%;
   }
 
+  .catch-media-actions .button,
+  .catch-media-actions .file-button,
+  .section-actions .catch-media-action {
+    width: auto;
+  }
+
   .dialog {
     width: 100vw;
     max-width: none;
@@ -391,6 +397,62 @@
 
   .trip-section-nav a {
     padding: 8px 11px;
+  }
+
+  #tripDialog .dialog-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #tripDialog .trip-dialog-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+  }
+
+  #tripDialog .trip-dialog-header-actions .button {
+    width: 100%;
+  }
+
+  #tripDialog .form-grid,
+  #tripDialog .conditions-grid {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  #tripDialog .trip-overview-layout {
+    grid-template-columns: 1fr;
+  }
+
+  #tripDialog .trip-overview-layout > .weather-fetch-panel {
+    min-height: 0;
+  }
+
+  #tripDialog .form-grid label,
+  #tripDialog .form-grid .location-field,
+  #tripDialog .intent-control,
+  #tripDialog .trip-rating-control,
+  #tripDialog .conditions-grid .weather-fetch-panel {
+    width: 100%;
+    max-width: none;
+  }
+
+  #tripDialog .trip-basics-water-fields {
+    grid-template-columns: 1fr;
+  }
+
+  #tripDialog .trip-time-inputs {
+    grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr);
+  }
+
+  #tripDialog .catch-field-with-option,
+  #tripDialog .catch-location-action-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  #tripDialog .inline-field-option {
+    width: max-content;
   }
 
   .trip-form-section {

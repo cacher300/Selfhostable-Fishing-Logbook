@@ -6,8 +6,8 @@ data/uploads/
 __pycache__/
 *.py[cod]
 
-# Local server logs.
-tmp/*.log
+# Local generated files and server logs.
+tmp/
 
 # Local editor and OS noise.
 .vscode/

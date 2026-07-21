@@ -151,6 +151,42 @@
   color: var(--text);
 }
 
+:root[data-theme="dark"] #tripDialog .dialog-header,
+:root[data-theme="dark"] #tripDialog .trip-save-bar {
+  background: var(--panel);
+}
+
+:root[data-theme="dark"] #tripDialog .trip-section-nav {
+  background: transparent;
+}
+
+:root[data-theme="dark"] #tripDialog .trip-section-nav a.is-active,
+:root[data-theme="dark"] #tripDialog .intent-control input:checked + span {
+  border-color: var(--active-bg);
+  background: var(--active-bg);
+  color: var(--active-text);
+}
+
+:root[data-theme="dark"] #tripDialog .conditions-grid .weather-fetch-panel {
+  border-color: var(--line);
+  background: var(--panel-soft);
+}
+
+:root[data-theme="dark"] #tripDialog .weather-fetch-panel {
+  border-color: var(--line);
+  background: var(--panel-soft);
+}
+
+:root[data-theme="dark"] #tripDialog .weather-data-row > span {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] #tripDialog .catch-row,
+:root[data-theme="dark"] #tripDialog .gear-used-row {
+  background: var(--field);
+  border-color: var(--line);
+}
+
 :root[data-theme="dark"] .trip-photos-disclosure > summary::after {
   background: var(--panel);
   color: var(--text);

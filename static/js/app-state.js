@@ -53,6 +53,7 @@ let activeTripWeatherData = null;
 let activeTripWeatherKey = "";
 let weatherPreviewTimer = null;
 let tripFormInitialSnapshot = "";
+let tripFormUserChanged = false;
 let activePhotoQueueTarget = null;
 let pendingLureImage = null;
 let pendingFlasherImage = null;

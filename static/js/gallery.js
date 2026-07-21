@@ -34,7 +34,7 @@ function renderGalleryFilters() {
 }
 
 function galleryCard(item, options = {}) {
-  const title = item.name || item.filename || "Upload";
+  const title = item.mediaType?.startsWith("video") ? "Uploaded video" : "Uploaded photo";
   const details = [
     galleryCategoryLabels[item.category] || item.category,
     item.mediaType || "",
@@ -47,7 +47,7 @@ function galleryCard(item, options = {}) {
         ${mediaMarkup(item)}
       </div>
       <div class="gallery-card-body">
-        <strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong>
+        <strong>${escapeHtml(title)}</strong>
         <span>${escapeHtml(details)}</span>
         ${item.captureTime ? `<span>${escapeHtml([item.captureDate, item.captureTime].filter(Boolean).join(" "))}</span>` : ""}
         <a class="button secondary" href="${escapeHtml(item.downloadUrl || item.url)}" download="${escapeHtml(downloadName)}">Download Original</a>
