@@ -85,13 +85,9 @@ els.summaryEditTripButton.addEventListener("click", () => {
 });
 els.summaryDeleteTripButton.addEventListener("click", async () => {
   const trip = state.trips.find((item) => item.id === activeSummaryTripId);
-  if (!trip || !confirm(`Delete ${trip.title || trip.location || "this trip"}?`)) return;
-  state.trips = state.trips.filter((item) => item.id !== trip.id);
-  activeSummaryTripId = null;
+  if (!trip) return;
   try {
-    await saveState();
-    els.tripSummaryDialog.close();
-    renderAll();
+    await deleteTripById(trip.id, { closeSummary: true });
   } catch (error) {
     console.error("Could not delete trip.", error);
     alert(error.message || "The trip could not be deleted.");
@@ -472,6 +468,17 @@ document.addEventListener("click", (event) => {
     scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }), 150);
   }
 
+  const metadataLockButton = event.target.closest("[data-metadata-lock]");
+  if (metadataLockButton) {
+    const row = metadataLockButton.closest(".catch-row");
+    const field = metadataLockButton.dataset.metadataLock;
+    if (row) {
+      const locked = !isCatchMetadataLocked(row, field);
+      setCatchMetadataLock(row, field, locked);
+    }
+    return;
+  }
+
   const removeNotePhoto = event.target.closest(".remove-note-photo");
   if (removeNotePhoto) {
     const card = removeNotePhoto.closest("[data-note-photo]");
@@ -483,11 +490,14 @@ document.addEventListener("click", (event) => {
   if (removeCatchPhoto) {
     const row = removeCatchPhoto.closest(".catch-row");
     const card = removeCatchPhoto.closest("[data-catch-photo]");
+    const removedSelectedLocation = row.dataset.photoLocationId === card.dataset.catchPhoto;
+    const removedHeroPhoto = row.dataset.heroPhotoId === card.dataset.catchPhoto;
     row.catchPhotos = (row.catchPhotos || []).filter((photo) => photo.id !== card.dataset.catchPhoto);
-    if (row.dataset.photoLocationId === card.dataset.catchPhoto) row.dataset.photoLocationId = "";
+    if (removedSelectedLocation) row.dataset.photoLocationId = "";
+    if (removedHeroPhoto) row.dataset.heroPhotoId = "";
     renderCatchPhotos(row);
     updateCatchLocationSummary(row);
-    updateCatchFowFromLocation(row);
+    updateCatchFowFromLocation(row, { force: removedSelectedLocation });
     updateRowSummary(row);
   }
 
@@ -709,12 +719,27 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches(".catch-photo-hero-choice input")) {
+    const row = event.target.closest(".catch-row");
+    if (row) {
+      row.dataset.heroPhotoId = event.target.value;
+      renderCatchPhotos(row);
+      updateRowSummary(row);
+    }
+    return;
+  }
+
   if (event.target.matches(".catch-photo-gps-choice input")) {
     const row = event.target.closest(".catch-row");
     if (row) {
       row.dataset.photoLocationId = event.target.value;
+      const selectedPhoto = catchPhotoById(row, event.target.value);
+      if (selectedPhoto) {
+        applyPhotoCaptureTimeToCatch(row, [selectedPhoto]);
+        applyPhotoLocationToCatch(row, selectedPhoto);
+      }
       updateCatchLocationSummary(row);
-      updateCatchFowFromLocation(row);
+      updateCatchFowFromLocation(row, { force: true });
       updateRowSummary(row);
       renderCatchPhotos(row);
     }

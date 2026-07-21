@@ -632,7 +632,7 @@ def _validate_trips(payload: dict) -> tuple[bool, str | None]:
             if not valid:
                 return valid, error
         for catch_index, catch in enumerate(trip.get("catches", [])):
-            for field in ("coordinates", "manualCoordinates"):
+            for field in ("coordinates", "manualCoordinates", "lockedLocationCoordinates"):
                 valid, error = _validate_coordinates(
                     catch.get(field),
                     f"{path}.catches[{catch_index}].{field}",

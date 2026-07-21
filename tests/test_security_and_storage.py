@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import tempfile
@@ -76,6 +77,45 @@ class LogbookStoreTests(unittest.TestCase):
                 stored = logbook_store.read_logbook()
         self.assertEqual("kept", stored["trips"][0]["customTripField"])
         self.assertEqual({"kept": True}, stored["customTopLevelField"])
+
+    def test_catch_metadata_lock_status_is_saved_in_sqlite(self) -> None:
+        locks = {"time": True, "location": True, "fow": False}
+        locked_coordinates = {"latitude": 43.12345, "longitude": -79.12345}
+        payload = {
+            "schemaVersion": 1,
+            "trips": [
+                {
+                    "id": "trip-1",
+                    "title": "Locked Metadata Trip",
+                    "catches": [
+                        {
+                            "id": "catch-1",
+                            "metadataLocks": locks,
+                            "lockedLocationCoordinates": locked_coordinates,
+                        }
+                    ],
+                    "lostFish": [],
+                }
+            ],
+            "lures": [],
+            "flashers": [],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            database_file = Path(directory) / "logbook.sqlite3"
+            with patch.object(logbook_store, "DATABASE_FILE", database_file):
+                logbook_store.write_logbook(payload)
+                with closing(sqlite3.connect(database_file)) as connection:
+                    payload_json = connection.execute(
+                        "SELECT payload_json FROM logbook_entries WHERE collection_name = ? AND record_id = ?",
+                        ("trips", "trip-1"),
+                    ).fetchone()[0]
+                raw_trip = json.loads(payload_json)
+                stored = logbook_store.read_logbook()
+
+        self.assertEqual(locks, raw_trip["catches"][0]["metadataLocks"])
+        self.assertEqual(locked_coordinates, raw_trip["catches"][0]["lockedLocationCoordinates"])
+        self.assertEqual(locks, stored["trips"][0]["catches"][0]["metadataLocks"])
+        self.assertEqual(locked_coordinates, stored["trips"][0]["catches"][0]["lockedLocationCoordinates"])
 
     def test_read_returns_defaults_before_database_exists(self) -> None:
         payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}

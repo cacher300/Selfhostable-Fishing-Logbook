@@ -247,20 +247,21 @@ function catchDepthFieldsFromPayload(payload = {}) {
   };
 }
 
-async function updateCatchFowFromLocation(row) {
+async function updateCatchFowFromLocation(row, options = {}) {
   if (!row) return;
+  if (isCatchMetadataLocked(row, "fow") && !options.ignoreMetadataLock) return;
   const coordinates = fishCoordinatesFromRow(row);
-  updateCatchFowForCoordinates(row, coordinates);
+  updateCatchFowForCoordinates(row, coordinates, options);
 }
 
 async function updateCatchFowForCoordinates(row, coordinates, options = {}) {
   if (!row) return;
+  if (isCatchMetadataLocked(row, "fow") && !options.ignoreMetadataLock) return;
   if (!isUsableCoordinates(coordinates)) {
     row.catchDepthData = null;
     return;
   }
   const fowInput = row.querySelector(".catch-fow");
-  if (fowInput?.value.trim() && !options.force) return;
 
   const lookupKey = `${Number(coordinates.latitude).toFixed(5)},${Number(coordinates.longitude).toFixed(5)}`;
   row.dataset.depthLookupKey = lookupKey;
@@ -283,7 +284,6 @@ async function updateCatchFowForCoordinates(row, coordinates, options = {}) {
     }
     const payload = await response.json();
     if (row.dataset.depthLookupKey !== lookupKey) return;
-    if (fowInput && fowInput.value.trim() && fowInput.value !== "Looking up..." && !options.force) return;
     row.catchDepthData = catchDepthFieldsFromPayload(payload);
     if (fowInput) {
       const nextFow = payload.fowCaught || "";

@@ -1347,10 +1347,15 @@
           </div>
           <div class="row-section-title catch-detail-optional">Location</div>
           <div class="catch-field-with-option catch-detail-optional">
-            <label>
-              <span>Time</span>
-              <input class="catch-time" type="time" />
-            </label>
+            <div class="metadata-lock-field">
+              <label>
+                <span>Time</span>
+                <input class="catch-time" type="time" />
+              </label>
+              <button class="metadata-lock-button" type="button" data-metadata-lock="time" aria-pressed="false" aria-label="Lock time from photo metadata">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /></svg>
+              </button>
+            </div>
             <label class="checkbox-label inline-field-option catch-time-unknown-field">
               <input class="catch-time-unknown" type="checkbox" />
               <span>Unknown time</span>
@@ -1359,6 +1364,9 @@
           <div class="catch-location-field">
             <div class="catch-location-action-row">
               <button class="button secondary pick-catch-location catch-detail-optional" type="button">Select Location</button>
+              <button class="metadata-lock-button catch-detail-optional" type="button" data-metadata-lock="location" aria-pressed="false" aria-label="Lock location from photo metadata">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /></svg>
+              </button>
               <label class="checkbox-label inline-field-option catch-details-unknown-field">
                 <input class="catch-details-unknown" type="checkbox" />
                 <span>Details unknown</span>
@@ -1420,10 +1428,15 @@
               <option value="NW">NW</option>
             </select>
           </label>
-          <label class="trolling-field catch-detail-optional">
-            <span data-unit-label="depth" data-unit-label-text="FOW">FOW caught</span>
-            <input class="catch-fow" type="text" placeholder="80 FOW" />
-          </label>
+          <div class="trolling-field catch-detail-optional metadata-lock-field">
+            <label>
+              <span data-unit-label="depth" data-unit-label-text="FOW">FOW caught</span>
+              <input class="catch-fow" type="text" placeholder="80 FOW" />
+            </label>
+            <button class="metadata-lock-button" type="button" data-metadata-lock="fow" aria-pressed="false" aria-label="Lock FOW from photo metadata">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /></svg>
+            </button>
+          </div>
           <label class="trolling-field catch-detail-optional">
             <span data-unit-label="speed" data-unit-label-text="Speed">Speed</span>
             <input class="catch-speed" type="text" placeholder="2.4 mph" />

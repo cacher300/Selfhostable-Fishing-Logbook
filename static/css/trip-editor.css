@@ -204,7 +204,7 @@
 .catch-photo-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 150px;
+  grid-auto-columns: 180px;
   grid-template-columns: none;
   gap: 10px;
   max-width: 100%;
@@ -217,7 +217,7 @@
 .catch-photo-card {
   position: relative;
   overflow: hidden;
-  width: 150px;
+  width: 180px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -227,7 +227,7 @@
 .catch-photo-card video {
   display: block;
   width: 100%;
-  height: 106px;
+  height: 128px;
   object-fit: cover;
   border-bottom: 1px solid var(--line);
 }
@@ -290,12 +290,13 @@
   text-align: center;
 }
 
-.catch-photo-gps-choice {
+.catch-photo-gps-choice,
+.catch-photo-hero-choice {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 5px;
-  min-height: 34px;
+  min-height: 32px;
   padding: 6px 8px;
   color: var(--green-dark);
   font-size: 11px;
@@ -303,15 +304,31 @@
   line-height: 1.1;
 }
 
-.catch-photo-gps-choice input {
+.catch-photo-hero-choice {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.catch-photo-hero-choice:has(input:checked) {
+  color: var(--green-dark);
+}
+
+.catch-photo-gps-choice input,
+.catch-photo-hero-choice input {
   flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
+  inline-size: 14px;
+  block-size: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  max-width: 14px;
+  max-height: 14px;
   margin: 0;
+  padding: 0;
   accent-color: var(--green-dark);
 }
 
-.catch-photo-gps-choice input:disabled {
+.catch-photo-gps-choice input:disabled,
+.catch-photo-hero-choice input:disabled {
   opacity: 1;
 }
 
@@ -841,17 +858,28 @@
 
 #tripDialog .trip-save-bar {
   display: none;
+  position: static;
+  z-index: auto;
+  flex-direction: row;
+  justify-content: space-between;
+  margin: 22px 0 0;
+  padding: 16px 0 0;
+  background: transparent;
 }
 
-#tripDialog .trip-save-bar.is-dirty {
+#tripDialog .trip-save-bar.is-dirty,
+#tripDialog .trip-save-bar.is-existing-trip {
   display: flex;
 }
 
-#tripDialog .trip-save-bar::before {
-  content: "Unsaved changes";
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 800;
+#tripDialog .trip-save-bar > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+#tripDialog .trip-save-bar button {
+  width: auto;
 }
 
 #tripDialog .catch-row,
@@ -1059,6 +1087,87 @@
   color: var(--ink);
   line-height: 1.2;
   white-space: nowrap;
+}
+
+.metadata-lock-field {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.metadata-lock-field > label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.metadata-lock-button {
+  position: relative;
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd3df;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 1px 2px rgba(7, 21, 46, 0.06);
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.metadata-lock-button:hover,
+.metadata-lock-button:focus-visible {
+  border-color: var(--green-dark);
+  color: var(--green-dark);
+  transform: translateY(-1px);
+}
+
+.metadata-lock-button.is-locked {
+  border-color: rgba(17, 135, 83, 0.28);
+  background: var(--active-bg);
+  color: var(--active-text);
+  box-shadow: inset 0 0 0 1px rgba(17, 135, 83, 0.12), 0 1px 2px rgba(7, 21, 46, 0.08);
+}
+
+.metadata-lock-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.metadata-lock-button::after {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: min(280px, 72vw);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #07152e;
+  color: #fff;
+  box-shadow: 0 10px 26px rgba(7, 21, 46, 0.2);
+  content: attr(data-tooltip);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  text-align: left;
+  transform: translate(-50%, 4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.metadata-lock-button:hover::after,
+.metadata-lock-button:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .auto-fill-flash {

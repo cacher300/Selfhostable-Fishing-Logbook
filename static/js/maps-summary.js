@@ -474,7 +474,13 @@ function catchMediaPreview(photo, speciesOrTitle, index, options = {}) {
 function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {}) {
   if (!photos.length) return "";
   const photoCount = photos.length;
-  const selectedIndex = Math.max(0, Math.min(Number(options.selectedIndex) || 0, photoCount - 1));
+  const heroIndex = options.heroPhotoId
+    ? photos.findIndex((photo) => photo.id === options.heroPhotoId)
+    : -1;
+  const requestedIndex = Number.isFinite(Number(options.selectedIndex))
+    ? Number(options.selectedIndex)
+    : heroIndex;
+  const selectedIndex = Math.max(0, Math.min(heroIndex >= 0 && options.selectedIndex === undefined ? heroIndex : requestedIndex || 0, photoCount - 1));
   const selectedPhoto = photos[selectedIndex] || photos[0];
   const thumbnailPhotos = photos
     .map((photo, index) => ({ photo, index }))
@@ -773,7 +779,7 @@ function catchDetailRows(trip, catchItem) {
   `).join("");
 }
 
-function renderCatchDetailPopout(trip, catchItem, index, selectedIndex = 0) {
+function renderCatchDetailPopout(trip, catchItem, index, selectedIndex) {
   return `
     <div class="catch-detail-popout" id="catchDetailPopout" role="dialog" aria-modal="true" aria-label="Catch details">
       <div class="catch-detail-panel">
@@ -786,6 +792,7 @@ function renderCatchDetailPopout(trip, catchItem, index, selectedIndex = 0) {
         ${renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${index + 1}`, {
           catchIndex: index,
           selectedIndex,
+          heroPhotoId: catchItem.heroPhotoId,
           context: "detail",
           showAllThumbnails: true
         })}
@@ -822,7 +829,7 @@ function renderTripSummaryCatches(trip) {
         </div>
         ${renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${index + 1}`, {
           catchIndex: index,
-          selectedIndex: 0,
+          heroPhotoId: catchItem.heroPhotoId,
           context: "summary"
         })}
       </article>
@@ -893,7 +900,9 @@ function timelineMetaChips(chips = []) {
 
 function timelineEventPhoto(photos = [], options = {}) {
   if (!photos.length) return "";
-  const photo = photos[0];
+  const photo = options.heroPhotoId
+    ? photos.find((item) => item.id === options.heroPhotoId) || photos[0]
+    : photos[0];
   const extraCount = Math.max(0, photos.length - 1);
   return `
     <figure class="timeline-photo-frame">
@@ -994,6 +1003,7 @@ function tripTimelineItems(trip) {
       note: displaySentenceText(catchItem.notes || ""),
       time: catchItem.time,
       photos: catchItem.photos || [],
+      heroPhotoId: catchItem.heroPhotoId || "",
       sortTime: timelineTimeValue(catchItem.time)
     });
   });
@@ -1088,7 +1098,7 @@ function renderTimelineEventCard(item) {
     <div class="${classes}" ${interactiveAttributes}>
       ${timelineEventHeader(item)}
       ${item.setupRows?.length ? timelineSetupRows(item.setupRows) : ""}
-      ${item.type === "Catch" ? timelineEventPhoto(item.photos, { hideCount: false }) : ""}
+      ${item.type === "Catch" ? timelineEventPhoto(item.photos, { hideCount: false, heroPhotoId: item.heroPhotoId }) : ""}
       ${item.type === "Photo" ? timelineEventPhoto(item.photos, { hideCount: true }) : ""}
       ${item.note ? `<p class="event-note">${escapeHtml(item.note)}</p>` : ""}
       ${timelineMetaChips(item.chips)}
@@ -1132,6 +1142,7 @@ function refreshCatchMediaGallery(gallery, selectedIndex = 0) {
   wrapper.innerHTML = renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${catchIndex + 1}`, {
     catchIndex,
     selectedIndex,
+    heroPhotoId: catchItem.heroPhotoId,
     context: gallery.dataset.galleryContext || "summary",
     showAllThumbnails: gallery.dataset.showAllThumbnails === "true"
   }).trim();
@@ -1139,7 +1150,7 @@ function refreshCatchMediaGallery(gallery, selectedIndex = 0) {
   if (nextGallery) gallery.replaceWith(nextGallery);
 }
 
-function openSummaryCatchDetail(catchIndex, selectedIndex = 0) {
+function openSummaryCatchDetail(catchIndex, selectedIndex) {
   const trip = state.trips.find((item) => item.id === activeSummaryTripId);
   const catchItem = trip?.catches?.[catchIndex];
   const host = document.querySelector("#catchDetailHost");

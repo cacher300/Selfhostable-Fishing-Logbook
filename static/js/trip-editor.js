@@ -85,6 +85,7 @@ function closeTripDialog({ force = false } = {}) {
   tripFormUserChanged = false;
   els.tripDialog.close();
   els.tripSaveBar?.classList.remove("is-dirty");
+  els.tripSaveBar?.classList.remove("is-existing-trip");
   return true;
 }
 
@@ -156,6 +157,36 @@ function confirmTripSaveWarnings() {
   return confirm(`Please review before saving:\n\n${warnings.map((warning) => `• ${warning}`).join("\n")}\n\nSave anyway?`);
 }
 
+function tripDeleteTitle(trip) {
+  return String(trip?.title || generatedTripTitle(trip || {}) || trip?.location || "Untitled trip").trim();
+}
+
+function confirmTripDeletion(trip) {
+  const title = tripDeleteTitle(trip);
+  if (!confirm(`Delete "${title}"?\n\nThis permanently removes the trip, catches, notes, and saved trip media references.`)) return false;
+  if (!confirm(`Second check: are you absolutely sure you want to delete "${title}"?`)) return false;
+  const typed = prompt(`Final check: type the trip title exactly to delete it.\n\n${title}`);
+  if (typed !== title) {
+    alert("Trip title did not match. The trip was not deleted.");
+    return false;
+  }
+  return true;
+}
+
+async function deleteTripById(tripId, options = {}) {
+  const trip = state.trips.find((item) => item.id === tripId);
+  if (!trip || !confirmTripDeletion(trip)) return false;
+  state.trips = state.trips.filter((item) => item.id !== tripId);
+  await saveState();
+  if (options.closeEditor) closeTripDialog({ force: true });
+  if (options.closeSummary) {
+    activeSummaryTripId = null;
+    els.tripSummaryDialog.close();
+  }
+  renderAll();
+  return true;
+}
+
 function localDateInputValue(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -166,6 +197,7 @@ function localDateInputValue(date = new Date()) {
 function openTripDialog(trip = null) {
   activeTripId = trip?.id || null;
   els.deleteTripButton.classList.toggle("hidden", !trip);
+  els.tripSaveBar?.classList.toggle("is-existing-trip", Boolean(trip));
   els.tripForm.reset();
   setTripSaveLoading(false);
   clearTripFormMessage();
@@ -468,8 +500,15 @@ function clearUnknownCatchDetails(row) {
   ].forEach((selector) => setControlValue(row.querySelector(selector)));
   row.catchPhotos = [];
   row.catchWeatherData = null;
+  row.catchMetadataLocks = { time: false, location: false, fow: false };
+  row.dataset.metadataLockTime = "false";
+  row.dataset.metadataLockLocation = "false";
+  row.dataset.metadataLockFow = "false";
+  delete row.dataset.lockedLocationLatitude;
+  delete row.dataset.lockedLocationLongitude;
   renderCatchPhotos(row);
   renderLurePreview(row);
+  updateMetadataLockButtons(row);
   updateCatchLocationSummary(row);
 }
 
@@ -527,6 +566,22 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.dataset.catchId = catchItem.id || "";
   node.catchPhotos = lost ? [] : structuredClone(catchItem.photos || []);
   node.dataset.photoLocationId = lost ? "" : (catchItem.photoLocationId || "");
+  node.dataset.heroPhotoId = lost ? "" : (catchItem.heroPhotoId || "");
+  node.catchMetadataLocks = {
+    time: !lost && Boolean(catchItem.metadataLocks?.time),
+    location: !lost && Boolean(catchItem.metadataLocks?.location),
+    fow: !lost && Boolean(catchItem.metadataLocks?.fow)
+  };
+  node.dataset.metadataLockTime = String(node.catchMetadataLocks.time);
+  node.dataset.metadataLockLocation = String(node.catchMetadataLocks.location);
+  node.dataset.metadataLockFow = String(node.catchMetadataLocks.fow);
+  const lockedLocationCoordinates = isUsableCoordinates(catchItem.lockedLocationCoordinates)
+    ? catchItem.lockedLocationCoordinates
+    : (node.catchMetadataLocks.location && isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : null);
+  if (lockedLocationCoordinates) {
+    node.dataset.lockedLocationLatitude = lockedLocationCoordinates.latitude;
+    node.dataset.lockedLocationLongitude = lockedLocationCoordinates.longitude;
+  }
   node.catchWeatherData = catchItem.weatherData || null;
   node.catchDepthData = {
     depth_m: catchItem.depth_m ?? null,
@@ -592,6 +647,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   populateCatchRodSelect(node.querySelector(".catch-rod"), catchItem.rodId || "");
   renderLurePreview(node);
   renderCatchPhotos(node);
+  updateMetadataLockButtons(node);
   updatePresentationFields(node);
 
   container.append(node);
@@ -979,9 +1035,12 @@ function collectTripFromForm() {
         lineOut: !detailsUnknown && trolling ? row.querySelector(".catch-line-out").value.trim() : "",
         estimatedDepth: !detailsUnknown && trolling ? row.querySelector(".catch-estimated-depth").value.trim() : "",
         notes: detailsUnknown ? "" : row.querySelector(".catch-notes").value.trim(),
+        metadataLocks: detailsUnknown || lost ? { time: false, location: false, fow: false } : catchMetadataLocksPayload(row),
+        lockedLocationCoordinates: detailsUnknown || lost ? null : lockedPhotoCoordinatesFromRow(row),
         manualCoordinates: detailsUnknown ? null : manualCoordinatesFromRow(row),
         coordinates: detailsUnknown ? null : fishCoordinatesFromRow(row),
         photoLocationId: detailsUnknown || lost ? "" : (catchPhotoLocationById(row)?.id || ""),
+        heroPhotoId: detailsUnknown || lost ? "" : (selectedCatchHeroPhoto(row)?.id || ""),
         photos: detailsUnknown || lost ? [] : collectCatchPhotos(row)
       };
       const selectedRodId = row.querySelector(".catch-rod")?.selectedOptions?.[0]?.dataset.rodId || "";
@@ -1114,13 +1173,8 @@ async function saveTrip(event) {
 
 async function deleteActiveTrip() {
   if (!activeTripId) return;
-  const trip = state.trips.find((item) => item.id === activeTripId);
-  if (!confirm(`Delete ${trip?.title || trip?.location || "this trip"}?`)) return;
-  state.trips = state.trips.filter((item) => item.id !== activeTripId);
   try {
-    await saveState();
-    closeTripDialog({ force: true });
-    renderAll();
+    await deleteTripById(activeTripId, { closeEditor: true });
   } catch (error) {
     console.error("Could not delete trip.", error);
     showTripFormMessage(error.message || "The trip could not be deleted.");

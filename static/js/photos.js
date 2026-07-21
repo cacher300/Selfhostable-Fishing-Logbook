@@ -448,14 +448,144 @@ function collectNotePhotos() {
   }));
 }
 
+function catchMetadataLocks(row) {
+  if (!row) return {};
+  const fromDataset = (field) => row.dataset[`metadataLock${field[0].toUpperCase()}${field.slice(1)}`];
+  row.catchMetadataLocks = {
+    time: fromDataset("time") === undefined ? Boolean(row.catchMetadataLocks?.time) : fromDataset("time") === "true",
+    location: fromDataset("location") === undefined ? Boolean(row.catchMetadataLocks?.location) : fromDataset("location") === "true",
+    fow: fromDataset("fow") === undefined ? Boolean(row.catchMetadataLocks?.fow) : fromDataset("fow") === "true"
+  };
+  return row.catchMetadataLocks;
+}
+
+function isCatchMetadataLocked(row, field) {
+  return Boolean(catchMetadataLocks(row)[field]);
+}
+
+function lockedPhotoCoordinatesFromRow(row) {
+  if (!isCatchMetadataLocked(row, "location")) return null;
+  const coordinates = {
+    latitude: Number(row?.dataset.lockedLocationLatitude),
+    longitude: Number(row?.dataset.lockedLocationLongitude)
+  };
+  return isUsableCoordinates(coordinates) ? coordinates : null;
+}
+
+function metadataLockIconMarkup(locked) {
+  return locked
+    ? `<path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />`
+    : `<path d="M4.5 7V5.2a3.5 3.5 0 0 1 6.5-1.8" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />`;
+}
+
+function metadataLockFieldLabel(field) {
+  return field === "fow" ? "FOW" : field;
+}
+
+function metadataLockDatasetKey(field) {
+  return `metadataLock${field[0].toUpperCase()}${field.slice(1)}`;
+}
+
+function freezeCatchLocationLock(row) {
+  const coordinates = fishCoordinatesFromRow(row);
+  if (isUsableCoordinates(coordinates)) {
+    row.dataset.lockedLocationLatitude = coordinates.latitude;
+    row.dataset.lockedLocationLongitude = coordinates.longitude;
+  } else {
+    delete row.dataset.lockedLocationLatitude;
+    delete row.dataset.lockedLocationLongitude;
+  }
+}
+
+function updateMetadataLockButtons(row) {
+  if (!row) return;
+  row.querySelectorAll("[data-metadata-lock]").forEach((button) => {
+    const field = button.dataset.metadataLock;
+    const locked = isCatchMetadataLocked(row, field);
+    const label = metadataLockFieldLabel(field);
+    button.classList.toggle("is-locked", locked);
+    button.setAttribute("aria-pressed", String(locked));
+    button.setAttribute("aria-label", `${locked ? "Unlock" : "Lock"} ${label} photo metadata updates`);
+    button.title = locked
+      ? `Locked: photo metadata will not change this catch ${label}. Click to unlock future photo metadata updates.`
+      : `Unlocked: future photo metadata can update this catch ${label} when photos are added or selected. Click to lock the current value.`;
+    button.dataset.tooltip = button.title;
+    const icon = button.querySelector("svg");
+    if (icon) icon.innerHTML = metadataLockIconMarkup(locked);
+  });
+}
+
+function setCatchMetadataLock(row, field, locked) {
+  const locks = catchMetadataLocks(row);
+  if (!(field in locks)) return;
+  if (field === "location") {
+    if (locked) freezeCatchLocationLock(row);
+    else {
+      delete row.dataset.lockedLocationLatitude;
+      delete row.dataset.lockedLocationLongitude;
+    }
+  }
+  locks[field] = Boolean(locked);
+  row.dataset[metadataLockDatasetKey(field)] = String(Boolean(locked));
+  row.catchMetadataLocks = locks;
+  updateMetadataLockButtons(row);
+  updateCatchLocationSummary(row);
+  updateRowSummary(row);
+}
+
+function catchMetadataLocksPayload(row) {
+  const locks = catchMetadataLocks(row);
+  return {
+    time: Boolean(locks.time),
+    location: Boolean(locks.location),
+    fow: Boolean(locks.fow)
+  };
+}
+
+function normalizePhotoTimeString(value) {
+  const match = String(value || "").trim().match(/(?:^|[^\d])(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)?\b/i);
+  if (!match) return "";
+  let hour = Number(match[1]);
+  const minute = match[2];
+  const meridiem = (match[3] || "").toUpperCase();
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return "";
+  if (meridiem === "PM" && hour < 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, "0")}:${minute}`;
+}
+
+function photoCaptureTimeValue(photo) {
+  return normalizePhotoTimeString(photo?.captureTime)
+    || normalizePhotoTimeString(photo?.capturedAt)
+    || normalizePhotoTimeString(`${photo?.captureDate || ""} ${photo?.captureTime || ""}`);
+}
+
 function applyPhotoCaptureTimeToCatch(row, photos) {
-  const captureTime = photos.find((photo) => /^\d{2}:\d{2}$/.test(photo.captureTime || ""))?.captureTime;
+  if (isCatchMetadataLocked(row, "time")) return false;
+  const captureTime = photos.map(photoCaptureTimeValue).find(Boolean);
   const timeInput = row.querySelector(".catch-time");
   if (captureTime && timeInput) {
+    const unknownInput = row.querySelector(".catch-time-unknown");
+    if (unknownInput?.checked) {
+      unknownInput.checked = false;
+      updateUnknownTimeField(row);
+    }
     const changed = timeInput.value !== captureTime;
     timeInput.value = captureTime;
-    if (changed) flashAutoFilledField(timeInput);
+    flashAutoFilledField(timeInput);
+    return true;
   }
+  return false;
+}
+
+function applyPhotoLocationToCatch(row, photo) {
+  if (isCatchMetadataLocked(row, "location") || !isUsableCoordinates(photo?.coordinates)) return false;
+  const previousCoordinates = fishCoordinatesFromRow(row);
+  setCatchLocationForRow(row, null);
+  row.dataset.photoLocationId = photo.id || "";
+  const changed = catchCoordinateFlashKey(previousCoordinates) !== catchCoordinateFlashKey(photo.coordinates);
+  if (changed) flashAutoFilledField(row.querySelector(".pick-catch-location"));
+  return changed;
 }
 
 function gpsTaggedCatchPhotos(row) {
@@ -465,6 +595,20 @@ function gpsTaggedCatchPhotos(row) {
 function catchPhotoLocationById(row, photoId = row?.dataset.photoLocationId || "") {
   if (!photoId) return null;
   return gpsTaggedCatchPhotos(row).find((photo) => photo.id === photoId) || null;
+}
+
+function catchPhotoById(row, photoId = row?.dataset.photoLocationId || "") {
+  if (!photoId) return null;
+  return (row?.catchPhotos || []).find((photo) => photo.id === photoId) || null;
+}
+
+function selectedCatchHeroPhoto(row) {
+  const photos = row?.catchPhotos || [];
+  if (!photos.length) {
+    if (row) row.dataset.heroPhotoId = "";
+    return null;
+  }
+  return photos.find((photo) => photo.id === row?.dataset.heroPhotoId) || photos[0];
 }
 
 function catchPhotoTimestampValue(photo) {
@@ -516,16 +660,13 @@ async function addCatchPhotos(event) {
       };
     }));
 
-    const previousPhotoCoordinates = catchCoordinateFlashKey(firstCatchCoordinates(row));
     row.catchPhotos = [...(row.catchPhotos || []), ...photos];
-    selectedCatchPhotoLocation(row);
-    applyPhotoCaptureTimeToCatch(row, photos);
+    const selectedPhoto = selectedCatchPhotoLocation(row);
+    if (selectedPhoto) applyPhotoLocationToCatch(row, selectedPhoto);
+    applyPhotoCaptureTimeToCatch(row, selectedPhoto ? [selectedPhoto] : photos);
     event.target.value = "";
     renderCatchPhotos(row);
     updateCatchLocationSummary(row);
-    if (catchCoordinateFlashKey(firstCatchCoordinates(row)) && catchCoordinateFlashKey(firstCatchCoordinates(row)) !== previousPhotoCoordinates) {
-      flashAutoFilledField(row.querySelector(".pick-catch-location"));
-    }
     updateCatchFowFromLocation(row);
     updateRowSummary(row);
   } catch (error) {
@@ -541,6 +682,7 @@ function renderCatchPhotos(row) {
   const photos = row.catchPhotos || [];
   const taggedPhotos = gpsTaggedCatchPhotos(row);
   const selectedPhoto = selectedCatchPhotoLocation(row);
+  const heroPhoto = selectedCatchHeroPhoto(row);
   grid.innerHTML = photos.map((photo) => `
     <article class="catch-photo-card" data-catch-photo="${photo.id}">
       ${mediaMarkup(photo, "", { download: false })}
@@ -554,10 +696,19 @@ function renderCatchPhotos(row) {
               value="${escapeHtml(photo.id)}"
               ${selectedPhoto?.id === photo.id ? "checked" : ""}
             />
-            <span>Use GPS</span>
+            <span>Use time and location</span>
           </label>
         ` : `<span class="catch-photo-gps-label">GPS tagged</span>`}
       ` : `<small>${photo.gpsIgnoredReason === "home" ? "Home location: GPS ignored" : "No GPS metadata"}</small>`}
+      <label class="catch-photo-hero-choice">
+        <input
+          type="radio"
+          name="catch-photo-hero-${escapeHtml(row.dataset.rowId || "row")}"
+          value="${escapeHtml(photo.id)}"
+          ${heroPhoto?.id === photo.id ? "checked" : ""}
+        />
+        <span>Hero photo</span>
+      </label>
     </article>
   `).join("");
 }
@@ -567,6 +718,7 @@ function collectCatchPhotos(row) {
 }
 
 function firstCatchCoordinates(row) {
+  if (isCatchMetadataLocked(row, "location")) return null;
   return selectedCatchPhotoLocation(row)?.coordinates || null;
 }
 
@@ -575,7 +727,7 @@ function manualCoordinatesFromRow(row) {
 }
 
 function fishCoordinatesFromRow(row) {
-  return manualCoordinatesFromRow(row) || firstCatchCoordinates(row);
+  return manualCoordinatesFromRow(row) || lockedPhotoCoordinatesFromRow(row) || firstCatchCoordinates(row);
 }
 
 async function loadPhotoQueue() {
@@ -695,15 +847,12 @@ async function claimQueuedPhoto(filename) {
 
     if (activePhotoQueueTarget.type === "catch") {
       const row = activePhotoQueueTarget.row;
-      const previousPhotoCoordinates = catchCoordinateFlashKey(firstCatchCoordinates(row));
       row.catchPhotos = [...(row.catchPhotos || []), photoItem];
-      selectedCatchPhotoLocation(row);
-      applyPhotoCaptureTimeToCatch(row, [photoItem]);
+      const selectedPhoto = selectedCatchPhotoLocation(row);
+      if (selectedPhoto) applyPhotoLocationToCatch(row, selectedPhoto);
+      applyPhotoCaptureTimeToCatch(row, selectedPhoto ? [selectedPhoto] : [photoItem]);
       renderCatchPhotos(row);
       updateCatchLocationSummary(row);
-      if (catchCoordinateFlashKey(firstCatchCoordinates(row)) && catchCoordinateFlashKey(firstCatchCoordinates(row)) !== previousPhotoCoordinates) {
-        flashAutoFilledField(row.querySelector(".pick-catch-location"));
-      }
       updateCatchFowFromLocation(row);
       updateRowSummary(row);
     }
