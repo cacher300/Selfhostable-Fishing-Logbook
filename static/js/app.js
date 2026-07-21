@@ -126,6 +126,17 @@ els.settingsSaveNowButton?.addEventListener("click", saveCurrentSettingsTab);
 els.saveUnitSettingsButton?.addEventListener("click", saveUnitSettings);
 document.querySelector("#savePredefinedFieldsButton")?.addEventListener("click", savePredefinedFieldSettings);
 els.unitSettingsFields?.addEventListener("change", () => saveUnitSettings({ autosave: true }));
+els.unitSettingsFields?.addEventListener("input", (event) => {
+    if (event.target.matches("[data-bathymetry-lake-calibration]")) {
+    scheduleSettingsAutosave((options) => saveUnitSettings({ ...options, rerender: false }));
+  }
+});
+els.fowCalibrationFields?.addEventListener("change", () => saveUnitSettings({ autosave: true }));
+els.fowCalibrationFields?.addEventListener("input", (event) => {
+  if (event.target.matches("[data-bathymetry-lake-calibration]")) {
+    scheduleSettingsAutosave((options) => saveUnitSettings({ ...options, rerender: false }));
+  }
+});
 els.predefinedFieldSettings?.addEventListener("input", (event) => {
   if (event.target.matches(".predefined-option-label")) {
     scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }));

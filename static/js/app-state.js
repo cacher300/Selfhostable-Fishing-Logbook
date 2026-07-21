@@ -375,10 +375,35 @@ function normalizeSettings(settings = {}) {
   };
   normalized.theme = normalized.theme === "dark" ? "dark" : "light";
   normalized.timeFormat = normalized.timeFormat === "12" ? "12" : "24";
+  const legacyBathymetryOffset = normalizeBathymetryOffsetFeet(settings?.bathymetryOffsetFeet);
+  normalized.bathymetryLakeCalibrationsFeet = normalizeBathymetryLakeCalibrations(
+    settings?.bathymetryLakeCalibrationsFeet,
+    settings?.bathymetryLakeOffsetsFeet,
+    legacyBathymetryOffset
+  );
+  delete normalized.bathymetryOffsetFeet;
+  delete normalized.bathymetryLakeOffsetsFeet;
   normalized.units = normalizeUnits(normalized.units);
   normalized.chopRanges = normalizeChopRanges(normalized.chopRanges);
   normalized.privatePhotoLocations = normalizePrivatePhotoLocations(normalized.privatePhotoLocations);
   return normalized;
+}
+
+function normalizeBathymetryOffsetFeet(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.round(number * 100) / 100;
+}
+
+function normalizeBathymetryLakeCalibrations(calibrations, offsets, fallback = 0) {
+  const lakes = ["Erie", "Ontario", "St. Clair", "Huron", "Michigan", "Superior"];
+  return Object.fromEntries(lakes.map((lake) => [
+    lake,
+    {
+      shallowOffsetFeet: 0,
+      offshoreOffsetFeet: normalizeBathymetryOffsetFeet(calibrations?.[lake]?.offshoreOffsetFeet ?? offsets?.[lake] ?? fallback)
+    }
+  ]));
 }
 
 function normalizePrivatePhotoLocations(locations = []) {

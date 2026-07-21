@@ -151,6 +151,13 @@
   display: block;
 }
 
+.map-depth-popup small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .map-popup .media-download-link,
 .map-catch-card .media-download-link {
   display: none;

@@ -65,6 +65,7 @@ function renderSettings() {
   syncSettingsTabs();
   renderPreferenceSettings();
   renderUnitSettings();
+  renderFowCalibrationSettings();
   renderPredefinedFieldSettings();
   syncUnitLabels();
   renderChopRangeSettings();
@@ -158,14 +159,47 @@ function renderUnitSettings() {
   `).join("");
 }
 
+function renderFowCalibrationSettings() {
+  if (!els.fowCalibrationFields) return;
+  const calibrationUnit = unitPreference("depth") || "ft";
+  const lakeCalibrations = normalizeBathymetryLakeCalibrations(state.settings?.bathymetryLakeCalibrationsFeet);
+  els.fowCalibrationFields.innerHTML = ["Erie", "Ontario", "St. Clair", "Huron", "Michigan", "Superior"].map((lake) => `
+    <label class="settings-control">
+      <span>${escapeHtml(lake)} FOW adjustment</span>
+      <input data-bathymetry-lake-calibration="${escapeHtml(lake)}" data-bathymetry-calibration-end="offshoreOffsetFeet" type="number" step="0.1" value="${escapeHtml(bathymetryOffsetDisplayValue(lakeCalibrations[lake].offshoreOffsetFeet, calibrationUnit))}" />
+    </label>
+  `).join("");
+}
+
+function bathymetryOffsetDisplayValue(offsetFeet, depthUnit = unitPreference("depth")) {
+  const offset = normalizeBathymetryOffsetFeet(offsetFeet);
+  const converted = convertUnitValue(offset, "ft", depthUnit || "ft");
+  if (converted === null) return "0";
+  return trimNumber(Math.round(converted * 100) / 100);
+}
+
+function bathymetryOffsetFeetFromDisplay(value, depthUnit = unitPreference("depth")) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  const converted = convertUnitValue(number, depthUnit || "ft", "ft");
+  return normalizeBathymetryOffsetFeet(converted);
+}
+
 async function saveUnitSettings(options = {}) {
   const units = normalizeUnits(state.settings?.units);
   document.querySelectorAll("[data-unit-setting]").forEach((select) => {
     units[select.dataset.unitSetting] = select.value;
   });
+  const lakeCalibrations = {};
+  document.querySelectorAll("[data-bathymetry-lake-calibration]").forEach((input) => {
+    const lake = input.dataset.bathymetryLakeCalibration;
+    lakeCalibrations[lake] ||= {};
+    lakeCalibrations[lake][input.dataset.bathymetryCalibrationEnd] = bathymetryOffsetFeetFromDisplay(input.value, units.depth);
+  });
   state.settings = {
     ...(state.settings || {}),
-    units: normalizeUnits(units)
+    units: normalizeUnits(units),
+    bathymetryLakeCalibrationsFeet: normalizeBathymetryLakeCalibrations(lakeCalibrations)
   };
   try {
     await runSettingsSave(
@@ -174,7 +208,7 @@ async function saveUnitSettings(options = {}) {
         weatherRequestCache.clear();
         marineRequestCache.clear();
         renderAll();
-        if (!els.settingsPanel?.classList.contains("hidden")) renderSettings();
+        if (options.rerender !== false && !els.settingsPanel?.classList.contains("hidden")) renderSettings();
         syncUnitLabels();
         const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
         if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);

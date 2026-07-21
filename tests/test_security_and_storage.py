@@ -45,6 +45,59 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertFalse(valid)
         self.assertEqual("settings.units.depth: has an unsupported unit", error)
 
+    def test_rejects_invalid_lake_bathymetry_calibration_with_clear_error(self) -> None:
+        valid, error = logbook_store.validate_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {"bathymetryLakeCalibrationsFeet": {"Erie": {"offshoreOffsetFeet": "deep-ish"}}},
+            }
+        )
+        self.assertFalse(valid)
+        self.assertEqual("settings.bathymetryLakeCalibrationsFeet.Erie.offshoreOffsetFeet: must be a number", error)
+
+    def test_lake_bathymetry_calibrations_are_normalized_in_settings(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {"bathymetryLakeCalibrationsFeet": {"Erie": {"shallowOffsetFeet": "1.25", "offshoreOffsetFeet": "2.5"}}},
+            }
+        )
+        self.assertEqual(0, normalized["settings"]["bathymetryLakeCalibrationsFeet"]["Erie"]["shallowOffsetFeet"])
+        self.assertEqual(2.5, normalized["settings"]["bathymetryLakeCalibrationsFeet"]["Erie"]["offshoreOffsetFeet"])
+        self.assertEqual(0, normalized["settings"]["bathymetryLakeCalibrationsFeet"]["Ontario"]["offshoreOffsetFeet"])
+
+    def test_legacy_bathymetry_offset_is_copied_to_each_lake(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {"bathymetryOffsetFeet": "1.25"},
+            }
+        )
+        self.assertEqual(0, normalized["settings"]["bathymetryLakeCalibrationsFeet"]["Erie"]["shallowOffsetFeet"])
+        self.assertEqual(1.25, normalized["settings"]["bathymetryLakeCalibrationsFeet"]["Ontario"]["offshoreOffsetFeet"])
+        self.assertNotIn("bathymetryOffsetFeet", normalized["settings"])
+
+    def test_lake_bathymetry_calibration_allows_any_numeric_value(self) -> None:
+        valid, error = logbook_store.validate_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {"bathymetryLakeCalibrationsFeet": {"Erie": {"shallowOffsetFeet": -250.75, "offshoreOffsetFeet": 12}}},
+            }
+        )
+        self.assertTrue(valid, error)
+
     def test_write_creates_sqlite_database(self) -> None:
         payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
         with tempfile.TemporaryDirectory() as directory:

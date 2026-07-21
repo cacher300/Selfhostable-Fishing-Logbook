@@ -120,7 +120,8 @@ def create_app(config: dict | None = None) -> Flask:
             return jsonify({"error": "Catch coordinates are invalid."}), 400
         latitude, longitude = coordinates
         try:
-            result = lookup_depth(latitude, longitude)
+            settings = read_logbook().get("settings", {})
+            result = lookup_depth(latitude, longitude, settings.get("bathymetryLakeCalibrationsFeet"))
         except Exception:
             app.logger.exception("Depth lookup failed for catch coordinates.")
             return jsonify({"error": "Depth lookup unavailable."}), 503

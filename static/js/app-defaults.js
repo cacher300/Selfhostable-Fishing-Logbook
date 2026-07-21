@@ -183,6 +183,11 @@ const defaults = {
   settings: {
     theme: "light",
     timeFormat: "24",
+    bathymetryLakeCalibrationsFeet: {
+      Erie: { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 }, Ontario: { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 },
+      "St. Clair": { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 }, Huron: { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 },
+      Michigan: { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 }, Superior: { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 }
+    },
     units: structuredClone(defaultUnits),
     chopRanges: structuredClone(defaultChopRanges),
     privatePhotoLocations: []

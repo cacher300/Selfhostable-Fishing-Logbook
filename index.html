@@ -651,6 +651,7 @@
           <nav class="settings-tabs" aria-label="Settings sections">
             <button class="settings-tab is-active" type="button" data-settings-tab="general" aria-selected="true">General</button>
             <button class="settings-tab" type="button" data-settings-tab="measurements" aria-selected="false">Measurements</button>
+            <button class="settings-tab" type="button" data-settings-tab="fow-calibration" aria-selected="false">FOW Calibration</button>
             <button class="settings-tab" type="button" data-settings-tab="lists" aria-selected="false">Categories</button>
             <button class="settings-tab" type="button" data-settings-tab="waterbodies" aria-selected="false">Waterbodies</button>
           </nav>
@@ -718,6 +719,15 @@
                   </div>
                 </div>
                 <div class="settings-table" id="chopRangeRows"></div>
+              </section>
+            </div>
+            <div class="settings-tab-panel" data-settings-panel="fow-calibration" hidden>
+              <section class="settings-section" aria-labelledby="fowCalibrationSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="fowCalibrationSettingsHeading">FOW Calibration</h4>
+                  <p>Match calculated FOW to the lake's water level and your fishfinder.</p>
+                </div>
+                <div class="unit-settings-grid" id="fowCalibrationFields"></div>
               </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="lists" hidden>

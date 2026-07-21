@@ -155,6 +155,7 @@ const els = {
   themeSelect: document.querySelector("#themeSelect"),
   timeFormatSelect: document.querySelector("#timeFormatSelect"),
   unitSettingsFields: document.querySelector("#unitSettingsFields"),
+  fowCalibrationFields: document.querySelector("#fowCalibrationFields"),
   saveUnitSettingsButton: document.querySelector("#saveUnitSettingsButton"),
   predefinedFieldSettings: document.querySelector("#predefinedFieldSettings"),
   chopRangeRows: document.querySelector("#chopRangeRows"),

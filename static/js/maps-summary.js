@@ -84,6 +84,7 @@ function addMapMarker(layerGroup, record) {
     fillColor: color,
     fillOpacity: 0.86,
     weight: 2,
+    bubblingMouseEvents: false,
     pane: record.type === "catch" ? "fishMarkers" : "tripMediaMarkers"
   }).bindPopup(mapPopupHtml(record)).addTo(layerGroup);
 }
@@ -133,6 +134,82 @@ function addSeamlessTileLayer(map) {
   tileLayer.on("load tileload", () => requestAnimationFrame(() => snapMapTilePane(map)));
   bindMapTilePaneSnapping(map);
   return tileLayer;
+}
+
+function mapDepthText(payload = {}) {
+  if (payload.depth_ft !== null && payload.depth_ft !== undefined && Number(payload.depth_ft) !== 0) return `${formatUnitValue(payload.depth_ft, "depth", "ft", { decimals: 1 })} FOW`;
+  if (payload.depth_m !== null && payload.depth_m !== undefined && Number(payload.depth_m) !== 0) return `${formatUnitValue(payload.depth_m, "depth", "m", { decimals: 1 })} FOW`;
+  if (payload.fowCaught) return String(payload.fowCaught).includes("FOW") ? String(payload.fowCaught) : `${payload.fowCaught} FOW`;
+  return "";
+}
+
+function catchFowPopupValue(catchItem = {}) {
+  const fow = String(catchItem.fowCaught || catchItem.waterDepth || "").trim();
+  if (fow) return /[a-zA-Z]/.test(fow) ? fow : `${fow} ${unitSymbol("depth")}`;
+  if (catchItem.depth_ft !== null && catchItem.depth_ft !== undefined) return formatUnitValue(catchItem.depth_ft, "depth", "ft", { decimals: 1 });
+  if (catchItem.depth_m !== null && catchItem.depth_m !== undefined) return formatUnitValue(catchItem.depth_m, "depth", "m", { decimals: 1 });
+  return "";
+}
+
+function mapDepthPopupHtml(coordinates, payload = null, status = "loading") {
+  const coordinateLine = coordinateText(coordinates);
+  if (status === "loading") {
+    return `
+      <div class="map-popup map-depth-popup">
+        <strong>Depth lookup</strong>
+        <span>Looking up...</span>
+        <small>${escapeHtml(coordinateLine)}</small>
+      </div>
+    `;
+  }
+  if (status === "error") {
+    return `
+      <div class="map-popup map-depth-popup">
+        <strong>Depth unavailable</strong>
+        <span>Could not fetch depth here.</span>
+        <small>${escapeHtml(coordinateLine)}</small>
+      </div>
+    `;
+  }
+  const depthText = mapDepthText(payload);
+  return `
+    <div class="map-popup map-depth-popup">
+      <strong>${escapeHtml(depthText || "No depth found")}</strong>
+      <small>${escapeHtml(coordinateLine)}</small>
+    </div>
+  `;
+}
+
+async function showDepthPopupForMapClick(map, event) {
+  if (!map) return;
+  const coordinates = {
+    latitude: Number(event.latlng?.lat),
+    longitude: Number(event.latlng?.lng)
+  };
+  if (!Number.isFinite(coordinates.latitude) || !Number.isFinite(coordinates.longitude)) return;
+  const popup = L.popup()
+    .setLatLng(event.latlng)
+    .setContent(mapDepthPopupHtml(coordinates))
+    .openOn(map);
+  try {
+    const params = new URLSearchParams({
+      latitude: coordinates.latitude.toFixed(6),
+      longitude: coordinates.longitude.toFixed(6)
+    });
+    const response = await fetch(`/api/bathymetry/depth?${params}`);
+    if (!response.ok) throw new Error("Depth lookup unavailable");
+    const payload = await response.json();
+    popup.setContent(mapDepthPopupHtml(coordinates, payload, "ready"));
+  } catch (error) {
+    console.error("Could not fetch map depth.", error);
+    popup.setContent(mapDepthPopupHtml(coordinates, null, "error"));
+  }
+}
+
+function bindDepthLookupPopup(map) {
+  if (!map || map._logbookDepthLookupBound) return;
+  map._logbookDepthLookupBound = true;
+  map.on("click", (event) => showDepthPopupForMapClick(map, event));
 }
 
 function ensureMapPageChartOverlay(map) {
@@ -234,11 +311,13 @@ function renderMapLegend(records, options = {}) {
 function mapPopupHtml(record) {
   const { trip, media, coordinates } = record;
   const title = [mapRecordTitle(record), trip.location].filter(Boolean).join(" at ");
+  const fowValue = record.type === "catch" ? catchFowPopupValue(record.catchItem) : "";
   return `
     <div class="map-popup" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
       ${media?.image ? mediaMarkup(media) : ""}
       <strong>${escapeHtml(title)}</strong>
       <span>${escapeHtml(formatDate(trip.date))}</span>
+      ${fowValue ? `<span><strong>FOW</strong>${escapeHtml(fowValue)}</span>` : ""}
       <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
     </div>
   `;
@@ -280,6 +359,7 @@ function renderFishMap() {
   if (!fishMap) {
     fishMap = L.map(els.fishMap, seamlessMapOptions());
     addSeamlessTileLayer(fishMap);
+    bindDepthLookupPopup(fishMap);
     syncMapPageChartOverlay(fishMap);
     ensureMapMarkerPanes(fishMap);
     fishMapMarkers = L.layerGroup().addTo(fishMap);
@@ -337,12 +417,14 @@ function renderTripSummaryMap(trip) {
   if (!tripSummaryMap) {
     tripSummaryMap = L.map(mapNode, seamlessMapOptions());
     addSeamlessTileLayer(tripSummaryMap);
+    bindDepthLookupPopup(tripSummaryMap);
     ensureMapMarkerPanes(tripSummaryMap);
     tripSummaryMapMarkers = L.layerGroup().addTo(tripSummaryMap);
   } else if (tripSummaryMap.getContainer() !== mapNode) {
     tripSummaryMap.remove();
     tripSummaryMap = L.map(mapNode, seamlessMapOptions());
     addSeamlessTileLayer(tripSummaryMap);
+    bindDepthLookupPopup(tripSummaryMap);
     ensureMapMarkerPanes(tripSummaryMap);
     tripSummaryMapMarkers = L.layerGroup().addTo(tripSummaryMap);
   }

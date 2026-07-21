@@ -93,6 +93,8 @@ DEFAULT_UNITS = {
     "fishLength": "in",
     "fishWeight": "lb",
 }
+
+BATHYMETRY_LAKES = ("Erie", "Ontario", "St. Clair", "Huron", "Michigan", "Superior")
 UNIT_OPTIONS = {
     "depth": {"m", "ft"},
     "distance": {"km", "mi"},
@@ -201,6 +203,10 @@ DEFAULT_LOGBOOK = {
     "rodReelCombos": [],
     "settings": {
         "timeFormat": "24",
+        "bathymetryLakeCalibrationsFeet": {
+            lake: {"shallowOffsetFeet": 0, "offshoreOffsetFeet": 0}
+            for lake in BATHYMETRY_LAKES
+        },
         "units": deepcopy(DEFAULT_UNITS),
         "chopRanges": [
             {"id": "calm", "label": "Calm", "maxFeet": 0.5},

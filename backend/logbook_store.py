@@ -8,7 +8,7 @@ from contextlib import closing
 from copy import deepcopy
 from threading import RLock
 
-from .backend_config import DATA_DIR, DATABASE_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
+from .backend_config import BATHYMETRY_LAKES, DATA_DIR, DATABASE_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
 
 SCHEMA_VERSION = 1
 _STORE_LOCK = RLock()
@@ -51,6 +51,22 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         time_format = str(normalized["settings"].get("timeFormat") or "24")
         if time_format not in ("12", "24"):
             time_format = "24"
+        try:
+            legacy_bathymetry_offset_feet = float(normalized["settings"].get("bathymetryOffsetFeet") or 0)
+        except (TypeError, ValueError):
+            legacy_bathymetry_offset_feet = 0
+        raw_lake_offsets = normalized["settings"].get("bathymetryLakeOffsetsFeet")
+        raw_lake_calibrations = normalized["settings"].get("bathymetryLakeCalibrationsFeet")
+        lake_calibrations = {}
+        for lake in BATHYMETRY_LAKES:
+            legacy_offset = raw_lake_offsets.get(lake, legacy_bathymetry_offset_feet) if isinstance(raw_lake_offsets, dict) else legacy_bathymetry_offset_feet
+            calibration = raw_lake_calibrations.get(lake) if isinstance(raw_lake_calibrations, dict) else None
+            offshore_value = calibration.get("offshoreOffsetFeet", legacy_offset) if isinstance(calibration, dict) else legacy_offset
+            try:
+                offshore_offset = round(float(offshore_value or 0), 2)
+            except (TypeError, ValueError):
+                offshore_offset = 0
+            lake_calibrations[lake] = {"shallowOffsetFeet": 0, "offshoreOffsetFeet": offshore_offset}
         raw_units = normalized["settings"].get("units")
         cleaned_units = deepcopy(DEFAULT_UNITS)
         if isinstance(raw_units, dict):
@@ -99,7 +115,9 @@ def normalize_logbook(payload: dict | None = None) -> dict:
                     "radiusMeters": round(radius_meters, 2),
                     "coordinates": coordinates,
                 })
-        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "timeFormat": time_format, "units": cleaned_units, "chopRanges": cleaned_ranges or default_ranges, "privatePhotoLocations": cleaned_private_locations}
+        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "timeFormat": time_format, "bathymetryLakeCalibrationsFeet": lake_calibrations, "units": cleaned_units, "chopRanges": cleaned_ranges or default_ranges, "privatePhotoLocations": cleaned_private_locations}
+        normalized["settings"].pop("bathymetryOffsetFeet", None)
+        normalized["settings"].pop("bathymetryLakeOffsetsFeet", None)
 
     list_keys = ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
     for key in list_keys:
@@ -566,6 +584,20 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
         return True, None
     if "timeFormat" in settings and settings["timeFormat"] not in ("12", "24"):
         return _error("settings.timeFormat", 'must be "12" or "24"')
+    if "bathymetryLakeCalibrationsFeet" in settings:
+        calibrations = settings["bathymetryLakeCalibrationsFeet"]
+        if not isinstance(calibrations, dict):
+            return _error("settings.bathymetryLakeCalibrationsFeet", "must be an object")
+        for lake, calibration in calibrations.items():
+            if lake not in BATHYMETRY_LAKES:
+                return _error("settings.bathymetryLakeCalibrationsFeet", "has an unsupported lake")
+            if not isinstance(calibration, dict):
+                return _error(f"settings.bathymetryLakeCalibrationsFeet.{lake}", "must be an object")
+            for key in ("shallowOffsetFeet", "offshoreOffsetFeet"):
+                try:
+                    float(calibration.get(key, 0))
+                except (TypeError, ValueError):
+                    return _error(f"settings.bathymetryLakeCalibrationsFeet.{lake}.{key}", "must be a number")
     valid, error = _validate_units(settings)
     if not valid:
         return valid, error
