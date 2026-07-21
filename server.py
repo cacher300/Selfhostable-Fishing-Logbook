@@ -27,6 +27,13 @@ from backend.logbook_store import (
     validate_logbook,
     write_logbook,
 )
+from backend.bathymetry_service import (
+    apply_depth_result,
+    lookup_depth,
+    preserve_existing_depth_fields,
+    schedule_depth_enrichment,
+    valid_coordinates,
+)
 from backend.request_security import configure_request_security, csrf_token
 from backend.media_service import (
     create_upload_preview,
@@ -82,7 +89,10 @@ def create_app(config: dict | None = None) -> Flask:
         if not is_valid:
             return jsonify({"error": error}), 400
 
-        write_logbook(normalize_logbook(payload))
+        normalized = normalize_logbook(payload)
+        preserve_existing_depth_fields(normalized, read_logbook())
+        write_logbook(normalized)
+        schedule_depth_enrichment()
         cleanup_orphaned_uploads()
         return jsonify({"ok": True})
 
@@ -100,6 +110,24 @@ def create_app(config: dict | None = None) -> Flask:
     def marine_weather() -> tuple[Response, int]:
         payload, status = marine_weather_payload(request.args)
         return jsonify(payload), status
+
+    @app.get("/api/bathymetry/depth")
+    def catch_depth() -> tuple[Response, int]:
+        coordinates = valid_coordinates({
+            "latitude": request.args.get("latitude"),
+            "longitude": request.args.get("longitude"),
+        })
+        if coordinates is None:
+            return jsonify({"error": "Catch coordinates are invalid."}), 400
+        latitude, longitude = coordinates
+        try:
+            result = lookup_depth(latitude, longitude)
+        except Exception:
+            app.logger.exception("Depth lookup failed for catch coordinates.")
+            return jsonify({"error": "Depth lookup unavailable."}), 503
+        catch = {}
+        apply_depth_result(catch, result)
+        return jsonify(catch)
 
     @app.get("/api/astronomy")
     def astronomy() -> tuple[Response, int]:

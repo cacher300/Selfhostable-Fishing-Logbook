@@ -17,6 +17,9 @@ function viewFromCurrentRoute() {
 els.newTripButton.addEventListener("click", () => openTripDialog());
 els.tripForm.addEventListener("submit", saveTrip);
 els.locationForm.addEventListener("submit", saveLocationPin);
+els.deleteLocationDialogButton?.addEventListener("click", () => {
+  deleteActiveLocationFromDialog().catch((error) => alert(error.message || "The location could not be deleted."));
+});
 els.tripRating.addEventListener("input", updateTripRatingLabel);
 els.deleteTripButton.addEventListener("click", deleteActiveTrip);
 els.addCatchButton.addEventListener("click", () => addCatchRow());
@@ -25,6 +28,11 @@ els.addTripGearButton.addEventListener("click", () => addTripGearRow());
 els.addPersonButton.addEventListener("click", () => addPersonRow());
 els.addLocationButton.addEventListener("click", () => openLocationDialog("location"));
 els.addLaunchButton.addEventListener("click", () => openLocationDialog("launch", els.tripLocation.value));
+els.locationManagerSearch?.addEventListener("input", renderLocationManager);
+els.locationManagerList?.addEventListener("dragstart", handleLocationManagerDragStart);
+els.locationManagerList?.addEventListener("dragover", handleLocationManagerDragOver);
+els.locationManagerList?.addEventListener("drop", handleLocationManagerDrop);
+els.locationManagerList?.addEventListener("dragend", handleLocationManagerDragEnd);
 els.resyncWeatherButton?.addEventListener("click", resyncTripWeather);
 els.notePhotoInput.addEventListener("change", addNotePhotos);
 els.photoQueueButton.addEventListener("click", () => {
@@ -109,6 +117,16 @@ els.newLibraryComboButton.addEventListener("click", () => openComboDialog());
 els.saveChopRangesButton?.addEventListener("click", saveChopRanges);
 els.themeSelect?.addEventListener("change", saveThemePreference);
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
+document.querySelectorAll("[data-settings-tab]").forEach((tab) => {
+  tab.addEventListener("click", () => setSettingsTab(tab.dataset.settingsTab));
+});
+document.querySelectorAll("[data-time-format-option]").forEach((input) => {
+  input.addEventListener("change", saveTimeFormatPreference);
+});
+els.editChopRangesButton?.addEventListener("click", toggleChopRangeEditing);
+els.cancelChopRangesButton?.addEventListener("click", cancelChopRangeEditing);
+els.settingsCancelButton?.addEventListener("click", renderSettings);
+els.settingsSaveNowButton?.addEventListener("click", saveCurrentSettingsTab);
 els.saveUnitSettingsButton?.addEventListener("click", saveUnitSettings);
 document.querySelector("#savePredefinedFieldsButton")?.addEventListener("click", savePredefinedFieldSettings);
 els.unitSettingsFields?.addEventListener("change", () => saveUnitSettings({ autosave: true }));
@@ -119,7 +137,7 @@ els.predefinedFieldSettings?.addEventListener("input", (event) => {
 });
 els.chopRangeRows?.addEventListener("input", (event) => {
   if (event.target.matches(".chop-range-label, .chop-range-max")) {
-    scheduleSettingsAutosave((options) => saveChopRanges({ ...options, rerender: false }));
+    setSettingsSaveStatus("Editing chop ranges");
   }
 });
 els.privatePhotoLocationList?.addEventListener("input", (event) => {
@@ -231,6 +249,10 @@ els.mapSpeciesFilter.addEventListener("change", () => {
 els.mapTripPhotosToggle?.addEventListener("change", () => {
   activeMapIncludeTripMedia = Boolean(els.mapTripPhotosToggle.checked);
   renderFishMap();
+});
+els.mapNoaaChartsToggle?.addEventListener("change", () => {
+  activeMapShowNOAACharts = Boolean(els.mapNoaaChartsToggle.checked);
+  syncMapPageChartOverlay(fishMap);
 });
 els.tripSummaryBody.addEventListener("change", (event) => {
   if (!event.target.matches("#tripSummaryMapFilter")) return;
@@ -481,22 +503,36 @@ document.addEventListener("click", (event) => {
 
   const editManagedLocation = event.target.closest("[data-edit-managed-location]");
   if (editManagedLocation) {
+    event.preventDefault();
+    event.stopPropagation();
     openLocationDialog("location", editManagedLocation.dataset.editManagedLocation);
+  }
+
+  const addManagedLaunch = event.target.closest("[data-add-managed-launch]");
+  if (addManagedLaunch) {
+    event.preventDefault();
+    openLocationDialog("launch", addManagedLaunch.dataset.addManagedLaunch);
   }
 
   const deleteManagedLocationButton = event.target.closest("[data-delete-managed-location]");
   if (deleteManagedLocationButton) {
+    event.preventDefault();
+    event.stopPropagation();
     deleteManagedLocation(deleteManagedLocationButton.dataset.deleteManagedLocation)
       .catch((error) => alert(error.message || "The waterbody could not be deleted."));
   }
 
   const editManagedLaunch = event.target.closest("[data-edit-managed-launch]");
   if (editManagedLaunch) {
+    event.preventDefault();
+    event.stopPropagation();
     openLocationDialog("launch", editManagedLaunch.dataset.locationId, editManagedLaunch.dataset.editManagedLaunch);
   }
 
   const deleteManagedLaunchButton = event.target.closest("[data-delete-managed-launch]");
   if (deleteManagedLaunchButton) {
+    event.preventDefault();
+    event.stopPropagation();
     deleteManagedLaunch(deleteManagedLaunchButton.dataset.locationId, deleteManagedLaunchButton.dataset.deleteManagedLaunch)
       .catch((error) => alert(error.message || "The launch could not be deleted."));
   }

@@ -9,7 +9,7 @@ py -m pip install -r requirements.txt
 py server.py
 ```
 
-Open `http://127.0.0.1:8080`. The server creates `data/logbook.sqlite3` from defaults when started through `main()` and the database is missing. Migrate an existing JSON logbook with `py scripts/import_json_to_sqlite.py`.
+Open `http://127.0.0.1:8080`. The server creates `data/logbook.sqlite3` from defaults when started through `main()` and the database is missing.
 
 Docker:
 

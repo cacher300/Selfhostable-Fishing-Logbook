@@ -31,39 +31,126 @@ function updateLocationControls() {
   scheduleTripWeatherPreview();
 }
 
+let draggedLocationManagerId = "";
+
+async function saveLocationOrderFromManager() {
+  const orderedIds = [...els.locationManagerList.querySelectorAll("[data-managed-location-id]")]
+    .map((card) => card.dataset.managedLocationId);
+  if (!orderedIds.length) return;
+  const order = new Map(orderedIds.map((id, index) => [id, index]));
+  state.locations = [...state.locations].sort((a, b) => {
+    const aOrder = order.has(a.id) ? order.get(a.id) : Number.MAX_SAFE_INTEGER;
+    const bOrder = order.has(b.id) ? order.get(b.id) : Number.MAX_SAFE_INTEGER;
+    return aOrder - bOrder;
+  });
+  populateLocationSelect();
+  await saveState();
+}
+
+function handleLocationManagerDragStart(event) {
+  if (!event.target.closest(".location-manager-drag-handle")) {
+    event.preventDefault();
+    return;
+  }
+  const card = event.target.closest("[data-managed-location-id]");
+  if (!card || els.locationManagerSearch?.value) return;
+  draggedLocationManagerId = card.dataset.managedLocationId;
+  card.classList.add("is-dragging");
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", draggedLocationManagerId);
+}
+
+function handleLocationManagerDragOver(event) {
+  const card = event.target.closest("[data-managed-location-id]");
+  if (!card || !draggedLocationManagerId || card.dataset.managedLocationId === draggedLocationManagerId) return;
+  event.preventDefault();
+  const dragged = els.locationManagerList.querySelector(`[data-managed-location-id="${CSS.escape(draggedLocationManagerId)}"]`);
+  if (!dragged) return;
+  const rect = card.getBoundingClientRect();
+  const after = event.clientY > rect.top + rect.height / 2;
+  card[after ? "after" : "before"](dragged);
+}
+
+async function handleLocationManagerDrop(event) {
+  if (!draggedLocationManagerId) return;
+  event.preventDefault();
+  const dragged = els.locationManagerList.querySelector(".is-dragging");
+  dragged?.classList.remove("is-dragging");
+  draggedLocationManagerId = "";
+  await saveLocationOrderFromManager().catch((error) => {
+    console.error("Could not reorder waterbodies.", error);
+  });
+}
+
+function handleLocationManagerDragEnd() {
+  els.locationManagerList?.querySelector(".is-dragging")?.classList.remove("is-dragging");
+  draggedLocationManagerId = "";
+}
+
 function renderLocationManager() {
   if (!els.locationManagerList) return;
   if (!state.locations.length) {
-    els.locationManagerList.innerHTML = `<div class="empty-state compact-empty"><p>No locations saved yet.</p></div>`;
+    els.locationManagerList.innerHTML = `
+      <div class="empty-state compact-empty">
+        <p><strong>No waterbodies yet</strong></p>
+        <p>Save your favorite lakes and fishing spots for quick trip creation.</p>
+      </div>
+    `;
     return;
   }
-  els.locationManagerList.innerHTML = state.locations.map((location) => `
-    <article class="location-manager-card">
-      <div class="location-manager-heading">
-        <div>
-          <strong>${escapeHtml(location.name)}</strong>
-          <span>${isUsableCoordinates(location.coordinates) ? "Pin saved" : "No pin saved"}</span>
+  const query = String(els.locationManagerSearch?.value || "").trim().toLowerCase();
+  const locations = query
+    ? state.locations.filter((location) => [
+      location.name,
+      ...(location.launches || []).map((launch) => launch.name)
+    ].some((value) => String(value || "").toLowerCase().includes(query)))
+    : state.locations;
+  if (!locations.length) {
+    els.locationManagerList.innerHTML = `<div class="empty-state compact-empty"><p>No waterbodies match that search.</p></div>`;
+    return;
+  }
+  els.locationManagerList.innerHTML = locations.map((location) => {
+    const launches = location.launches || [];
+    return `
+    <details class="location-manager-card" data-managed-location-id="${escapeHtml(location.id)}" draggable="true" open>
+      <summary class="location-manager-heading">
+        <div class="location-manager-title-row">
+          <span class="location-manager-drag-handle" aria-hidden="true">☰</span>
+          <div>
+            <strong>${escapeHtml(location.name)}</strong>
+            <span>${launches.length} saved ${launches.length === 1 ? "location" : "locations"}</span>
+          </div>
         </div>
-        <div class="location-manager-card-actions">
-          <button class="button secondary" type="button" data-edit-managed-location="${escapeHtml(location.id)}">Edit</button>
-          <button class="button danger" type="button" data-delete-managed-location="${escapeHtml(location.id)}">Delete</button>
-        </div>
-      </div>
-      ${(location.launches || []).length ? `
+        <details class="overflow-menu location-manager-menu">
+          <summary aria-label="${escapeHtml(`Actions for ${location.name}`)}">⋮</summary>
+          <div>
+            <button type="button" data-edit-managed-location="${escapeHtml(location.id)}">Rename</button>
+            <button type="button" data-edit-managed-location="${escapeHtml(location.id)}">Edit Pins</button>
+            <button type="button" data-delete-managed-location="${escapeHtml(location.id)}">Delete</button>
+          </div>
+        </details>
+      </summary>
+      ${launches.length ? `
         <div class="location-manager-launches">
-          ${(location.launches || []).map((launch) => `
-            <div>
-              <span>${escapeHtml(launch.name)}</span>
-              <div class="location-manager-card-actions">
-                <button class="button secondary" type="button" data-location-id="${escapeHtml(location.id)}" data-edit-managed-launch="${escapeHtml(launch.id)}">Edit</button>
-                <button class="button danger" type="button" data-location-id="${escapeHtml(location.id)}" data-delete-managed-launch="${escapeHtml(launch.id)}">Delete</button>
-              </div>
+          ${launches.map((launch) => `
+            <div class="location-manager-launch-row">
+              <span><i aria-hidden="true">•</i>${escapeHtml(launch.name)}</span>
+              <details class="overflow-menu location-manager-menu">
+                <summary aria-label="${escapeHtml(`Actions for ${launch.name}`)}">⋮</summary>
+                <div>
+                  <button type="button" data-location-id="${escapeHtml(location.id)}" data-edit-managed-launch="${escapeHtml(launch.id)}">Rename</button>
+                  <button type="button" data-location-id="${escapeHtml(location.id)}" data-edit-managed-launch="${escapeHtml(launch.id)}">Edit Pin</button>
+                  <button type="button" data-location-id="${escapeHtml(location.id)}" data-delete-managed-launch="${escapeHtml(launch.id)}">Delete</button>
+                </div>
+              </details>
             </div>
           `).join("")}
         </div>
-      ` : `<div class="location-manager-launches"><span>No launches saved</span></div>`}
-    </article>
-  `).join("");
+      ` : `<div class="location-manager-launches empty-launch-list"><span>No saved locations yet.</span></div>`}
+      <button class="button secondary location-manager-add-launch" type="button" data-add-managed-launch="${escapeHtml(location.id)}">+ Add Location</button>
+    </details>
+  `;
+  }).join("");
 }
 
 function locationFormCoordinates() {
@@ -143,6 +230,69 @@ function setCatchLocationForRow(row, coordinates) {
   renderLiveTrollingSpread();
 }
 
+function catchDepthFieldsFromPayload(payload = {}) {
+  return {
+    depth_m: payload.depth_m ?? null,
+    depth_ft: payload.depth_ft ?? null,
+    lake_name: payload.lake_name ?? null,
+    depth_source: payload.depth_source ?? null
+  };
+}
+
+async function updateCatchFowFromLocation(row) {
+  if (!row || row.classList.contains("lost-fish-row")) return;
+  const coordinates = fishCoordinatesFromRow(row);
+  updateCatchFowForCoordinates(row, coordinates);
+}
+
+async function updateCatchFowForCoordinates(row, coordinates, options = {}) {
+  if (!row || row.classList.contains("lost-fish-row")) return;
+  if (!isUsableCoordinates(coordinates)) {
+    row.catchDepthData = null;
+    return;
+  }
+  const fowInput = row.querySelector(".catch-fow");
+  if (fowInput?.value.trim() && !options.force) return;
+
+  const lookupKey = `${Number(coordinates.latitude).toFixed(5)},${Number(coordinates.longitude).toFixed(5)}`;
+  row.dataset.depthLookupKey = lookupKey;
+  if (fowInput) {
+    fowInput.value = "Looking up...";
+    fowInput.readOnly = true;
+    fowInput.setAttribute("aria-readonly", "true");
+    updateRowSummary(row);
+    renderLiveTrollingSpread();
+  }
+  try {
+    const params = new URLSearchParams({
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude
+    });
+    const response = await fetch(`/api/bathymetry/depth?${params}`);
+    if (!response.ok) {
+      if (row.dataset.depthLookupKey === lookupKey && fowInput?.value === "Looking up...") fowInput.value = "";
+      return;
+    }
+    const payload = await response.json();
+    if (row.dataset.depthLookupKey !== lookupKey) return;
+    if (fowInput && fowInput.value.trim() && fowInput.value !== "Looking up..." && !options.force) return;
+    row.catchDepthData = catchDepthFieldsFromPayload(payload);
+    if (fowInput) {
+      fowInput.value = payload.fowCaught || "";
+      updateRowSummary(row);
+      renderLiveTrollingSpread();
+    }
+  } catch (error) {
+    console.error("Could not auto-fill catch FOW.", error);
+    if (row.dataset.depthLookupKey === lookupKey && fowInput?.value === "Looking up...") fowInput.value = "";
+  } finally {
+    if (row.dataset.depthLookupKey === lookupKey && fowInput) {
+      fowInput.readOnly = false;
+      fowInput.removeAttribute("aria-readonly");
+    }
+  }
+}
+
 function updateCatchLocationSummary(row) {
   const summary = row?.querySelector(".catch-location-summary");
   const button = row?.querySelector(".pick-catch-location");
@@ -166,8 +316,9 @@ function setCatchLocationPickerCoordinates(coordinates) {
   catchLocationPickerMap.setView(point, Math.max(catchLocationPickerMap.getZoom(), 10));
 }
 
-function ensureCatchLocationPickerMap(coordinates) {
+function ensureCatchLocationPickerMap(coordinates, options = {}) {
   if (!window.L || !els.catchLocationPickerMap) return;
+  const placeMarker = options.placeMarker !== false;
   if (!catchLocationPickerMap) {
     catchLocationPickerMap = L.map(els.catchLocationPickerMap, seamlessMapOptions());
     addSeamlessTileLayer(catchLocationPickerMap);
@@ -178,7 +329,7 @@ function ensureCatchLocationPickerMap(coordinates) {
   const center = isUsableCoordinates(coordinates) ? [coordinates.latitude, coordinates.longitude] : [43.7, -79.4];
   catchLocationPickerMap.setView(center, isUsableCoordinates(coordinates) ? 10 : 7);
   setTimeout(() => catchLocationPickerMap.invalidateSize(), 50);
-  if (isUsableCoordinates(coordinates)) setCatchLocationPickerCoordinates(coordinates);
+  if (isUsableCoordinates(coordinates) && placeMarker) setCatchLocationPickerCoordinates(coordinates);
   else if (catchLocationPickerMarker) {
     catchLocationPickerMarker.remove();
     catchLocationPickerMarker = null;
@@ -187,9 +338,10 @@ function ensureCatchLocationPickerMap(coordinates) {
 
 function openCatchLocationDialog(row) {
   activeCatchLocationRow = row;
-  const coordinates = catchLocationFromRow(row) || firstCatchCoordinates(row) || selectedTripLocationCoordinates();
+  const existingCatchCoordinates = catchLocationFromRow(row);
+  const center = existingCatchCoordinates || firstCatchCoordinates(row) || selectedTripLocationCoordinates();
   els.catchLocationDialog.showModal();
-  ensureCatchLocationPickerMap(coordinates);
+  ensureCatchLocationPickerMap(center, { placeMarker: Boolean(existingCatchCoordinates) });
 }
 
 function saveCatchLocationFromPicker() {
@@ -198,7 +350,9 @@ function saveCatchLocationFromPicker() {
     return;
   }
   const latLng = catchLocationPickerMarker.getLatLng();
-  setCatchLocationForRow(activeCatchLocationRow, { latitude: latLng.lat, longitude: latLng.lng, manual: true });
+  const coordinates = { latitude: latLng.lat, longitude: latLng.lng, manual: true };
+  setCatchLocationForRow(activeCatchLocationRow, coordinates);
+  updateCatchFowForCoordinates(activeCatchLocationRow, coordinates, { force: true });
   activeCatchLocationRow = null;
   els.catchLocationDialog.close();
 }
@@ -224,6 +378,11 @@ function openLocationDialog(mode = "location", locationId = "", launchId = "") {
     : "Press the waterbody location on the map to place the pin.";
   els.locationName.placeholder = editingLaunch ? "North Shore Marina or Offshore Shelf" : "Lake Ontario";
   els.locationName.value = editingLaunch ? (launch?.name || "North Shore Marina") : (location?.name || "");
+  const isEditingExisting = editingLaunch ? Boolean(launch) : Boolean(location);
+  if (els.deleteLocationDialogButton) {
+    els.deleteLocationDialogButton.classList.toggle("hidden", !isEditingExisting);
+    els.deleteLocationDialogButton.textContent = editingLaunch ? "Delete Launch" : "Delete Waterbody";
+  }
   const coordinates = editingLaunch ? launch?.coordinates : location?.coordinates;
   els.locationLatitude.value = coordinates?.latitude ?? "";
   els.locationLongitude.value = coordinates?.longitude ?? "";
@@ -300,34 +459,43 @@ function tripUsesLaunch(trip, location, launch) {
 
 async function deleteManagedLocation(locationId) {
   const location = state.locations.find((item) => item.id === locationId);
-  if (!location) return;
+  if (!location) return false;
   const usedTrips = state.trips.filter((trip) => tripUsesLocation(trip, location));
   if (usedTrips.length) {
     alert(`This waterbody is used by ${usedTrips.length} saved trip${usedTrips.length === 1 ? "" : "s"}. Edit those trips before deleting it.`);
-    return;
+    return false;
   }
-  if (!confirm(`Delete ${location.name}?`)) return;
+  if (!confirm(`Delete ${location.name}?`)) return false;
   state.locations = state.locations.filter((item) => item.id !== location.id);
   populateLocationSelect();
   renderLocationManager();
   await saveState();
   renderFilters();
+  return true;
 }
 
 async function deleteManagedLaunch(locationId, launchId) {
   const location = state.locations.find((item) => item.id === locationId);
   const launch = findLaunchByIdOrName(location, launchId, "");
-  if (!location || !launch) return;
+  if (!location || !launch) return false;
   const usedTrips = state.trips.filter((trip) => tripUsesLaunch(trip, location, launch));
   if (usedTrips.length) {
     alert(`This launch / area fished is used by ${usedTrips.length} saved trip${usedTrips.length === 1 ? "" : "s"}. Edit those trips before deleting it.`);
-    return;
+    return false;
   }
-  if (!confirm(`Delete ${launch.name}?`)) return;
+  if (!confirm(`Delete ${launch.name}?`)) return false;
   location.launches = (location.launches || []).filter((item) => item.id !== launch.id);
   populateLocationSelect(location.id);
   populateLaunchSelect();
   renderLocationManager();
   await saveState();
   renderFilters();
+  return true;
+}
+
+async function deleteActiveLocationFromDialog() {
+  const deleted = activeLocationPickerMode === "launch"
+    ? await deleteManagedLaunch(activeLocationPickerLocationId, activeLocationPickerLaunchId)
+    : await deleteManagedLocation(activeLocationPickerLocationId);
+  if (deleted) els.locationDialog.close();
 }

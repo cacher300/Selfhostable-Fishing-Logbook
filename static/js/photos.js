@@ -478,6 +478,7 @@ async function addCatchPhotos(event) {
     event.target.value = "";
     renderCatchPhotos(row);
     updateCatchLocationSummary(row);
+    updateCatchFowFromLocation(row);
     updateRowSummary(row);
   } catch (error) {
     console.error("Could not add catch media.", error);
@@ -590,6 +591,8 @@ async function addPhotosToQueue(event) {
   const files = [...event.target.files];
   if (!files.length) return;
   els.photoQueueStatus.textContent = "Uploading photos...";
+  els.photoQueueUploadButton?.classList.add("is-loading");
+  if (els.photoQueueInput) els.photoQueueInput.disabled = true;
   try {
     await Promise.all(files.map(async (file) => {
       const metadata = await extractMediaMetadata(file);
@@ -600,6 +603,9 @@ async function addPhotosToQueue(event) {
   } catch (error) {
     console.error("Could not add photos to queue.", error);
     els.photoQueueStatus.textContent = error.message || "Photos could not be uploaded.";
+  } finally {
+    els.photoQueueUploadButton?.classList.remove("is-loading");
+    if (els.photoQueueInput) els.photoQueueInput.disabled = false;
   }
 }
 
@@ -632,6 +638,7 @@ async function claimQueuedPhoto(filename) {
       applyPhotoCaptureTimeToCatch(row, [photoItem]);
       renderCatchPhotos(row);
       updateCatchLocationSummary(row);
+      updateCatchFowFromLocation(row);
       updateRowSummary(row);
     }
     if (activePhotoQueueTarget.type === "trip") {

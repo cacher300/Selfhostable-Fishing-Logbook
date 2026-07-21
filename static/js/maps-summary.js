@@ -132,6 +132,39 @@ function addSeamlessTileLayer(map) {
   return tileLayer;
 }
 
+function ensureMapPageChartOverlay(map) {
+  if (!map || map._logbookNoaaLayer || map._logbookNoaaLayerUnavailable) return;
+  const noaaLayer = window.createNOAAChartLayer?.();
+  if (!noaaLayer) {
+    map._logbookNoaaLayerUnavailable = true;
+    if (els.mapNoaaChartsToggle) {
+      els.mapNoaaChartsToggle.checked = false;
+      els.mapNoaaChartsToggle.disabled = true;
+    }
+    return;
+  }
+  map._logbookNoaaLayer = noaaLayer;
+}
+
+function syncMapPageChartOverlay(map) {
+  if (!map) return;
+  ensureMapPageChartOverlay(map);
+  const noaaLayer = map._logbookNoaaLayer;
+  if (!noaaLayer) return;
+
+  if (els.mapNoaaChartsToggle) {
+    els.mapNoaaChartsToggle.checked = activeMapShowNOAACharts;
+    els.mapNoaaChartsToggle.disabled = false;
+  }
+
+  if (activeMapShowNOAACharts) {
+    if (!map.hasLayer(noaaLayer)) noaaLayer.addTo(map);
+    noaaLayer.bringToFront?.();
+  } else if (map.hasLayer(noaaLayer)) {
+    map.removeLayer(noaaLayer);
+  }
+}
+
 function settleMapLayout(map) {
   setTimeout(() => {
     map.invalidateSize();
@@ -244,9 +277,11 @@ function renderFishMap() {
   if (!fishMap) {
     fishMap = L.map(els.fishMap, seamlessMapOptions());
     addSeamlessTileLayer(fishMap);
+    syncMapPageChartOverlay(fishMap);
     ensureMapMarkerPanes(fishMap);
     fishMapMarkers = L.layerGroup().addTo(fishMap);
   }
+  syncMapPageChartOverlay(fishMap);
   ensureMapMarkerPanes(fishMap);
 
   fishMapMarkers.clearLayers();

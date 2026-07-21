@@ -504,6 +504,10 @@
                 <input id="mapTripPhotosToggle" type="checkbox" />
                 <span>Trip photos</span>
               </label>
+              <label class="inline-toggle map-chart-toggle">
+                <input id="mapNoaaChartsToggle" type="checkbox" checked />
+                <span>NOAA charts</span>
+              </label>
             </div>
           </div>
           <div id="fishMap" class="fish-map"></div>
@@ -610,94 +614,124 @@
         </section>
 
         <section class="settings-page hidden" id="settingsPanel" aria-label="Settings">
-          <div class="settings-header">
-            <div>
-              <h3>Settings</h3>
-            </div>
-          </div>
+          <nav class="settings-tabs" aria-label="Settings sections">
+            <button class="settings-tab is-active" type="button" data-settings-tab="general" aria-selected="true">General</button>
+            <button class="settings-tab" type="button" data-settings-tab="measurements" aria-selected="false">Measurements</button>
+            <button class="settings-tab" type="button" data-settings-tab="lists" aria-selected="false">Categories</button>
+            <button class="settings-tab" type="button" data-settings-tab="waterbodies" aria-selected="false">Waterbodies</button>
+          </nav>
           <div class="settings-grid">
-            <article class="settings-card">
-              <div class="settings-card-header">
-                <div>
-                  <h3>Media Intake</h3>
+            <div class="settings-tab-panel is-active" data-settings-panel="general">
+              <section class="settings-section" aria-labelledby="mediaIntakeSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="mediaIntakeSettingsHeading">General</h4>
                 </div>
-              </div>
-              <div class="settings-action-row">
-                <button class="button secondary" id="photoQueueButton" type="button">Photo Queue</button>
-              </div>
-              <p class="settings-note">Assign uploaded phone media from the queue.</p>
-            </article>
-            <article class="settings-card">
-              <div class="settings-card-header">
-                <div>
-                  <h3>Home Location</h3>
-                  <p class="settings-note">Setting a home location stops photos of fish taken at home from being displayed at that location on the map.</p>
+                <div class="settings-row">
+                  <div>
+                    <strong>Photo Queue</strong>
+                    <span>Upload photos on your phone for use on desktop.</span>
+                  </div>
+                  <button class="button secondary settings-button-with-icon" id="photoQueueButton" type="button">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.25 4.25 6.2 3h3.6l.95 1.25H13A1.5 1.5 0 0 1 14.5 5.75v6A1.5 1.5 0 0 1 13 13.25H3A1.5 1.5 0 0 1 1.5 11.75v-6A1.5 1.5 0 0 1 3 4.25z" /><circle cx="8" cy="8.75" r="2.25" /></svg>
+                    Photo Queue
+                  </button>
                 </div>
-                <button class="button primary" id="addPrivatePhotoLocationButton" type="button">Add Home Location</button>
-              </div>
-              <div class="private-location-layout">
-                <div class="private-location-list" id="privatePhotoLocationList"></div>
-                <div class="private-location-map-panel">
-                  <div id="privatePhotoLocationMap" class="fish-map location-picker-map private-location-map"></div>
+              </section>
+              <section class="settings-section" aria-labelledby="appearanceSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="appearanceSettingsHeading">Appearance</h4>
                 </div>
-              </div>
-            </article>
-            <article class="settings-card">
-              <div class="settings-card-header">
-                <div>
-                  <h3>Appearance</h3>
+                <div class="settings-field-grid">
+                  <label class="settings-control">
+                    <span>Theme</span>
+                    <select id="themeSelect">
+                      <option value="light">Light</option>
+                      <option value="dark">Dark</option>
+                    </select>
+                  </label>
+                  <fieldset class="settings-radio-group">
+                    <legend>Time Format</legend>
+                    <select class="visually-hidden" id="timeFormatSelect" tabindex="-1" aria-hidden="true">
+                      <option value="24">24-hour</option>
+                      <option value="12">12-hour</option>
+                    </select>
+                    <label><input type="radio" name="timeFormatChoice" value="24" data-time-format-option /> 24 Hour</label>
+                    <label><input type="radio" name="timeFormatChoice" value="12" data-time-format-option /> 12 Hour</label>
+                  </fieldset>
                 </div>
-              </div>
-              <label class="settings-control">
-                <span>Theme</span>
-                <select id="themeSelect">
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
-              </label>
-              <label class="settings-control">
-                <span>Clock display</span>
-                <select id="timeFormatSelect">
-                  <option value="24">24-hour</option>
-                  <option value="12">12-hour</option>
-                </select>
-              </label>
-            </article>
-            <article class="settings-card">
-              <div class="settings-card-header">
-                <div>
-                  <h3>Measurements</h3>
-                </div>
-              </div>
-              <div class="unit-settings-grid" id="unitSettingsFields"></div>
-              <p class="settings-note">Open-Meteo values are stored as C, mph, hPa, inches, meters, and converted for display here. Your typed fishing fields use the selected label and placeholder units.</p>
-            </article>
-            <article class="settings-card">
-              <div class="settings-card-header">
-                <div>
-                  <h3>Predefined Fields</h3>
-                </div>
-              </div>
-              <div class="predefined-field-settings" id="predefinedFieldSettings"></div>
-              <p class="settings-note">Deleting a member removes it from future dropdown choices. Existing trips keep their saved text.</p>
-            </article>
-            <article class="settings-card">
-              <div class="settings-card-header">
-                <div>
-                  <h3>Chop Ranges</h3>
-                </div>
-              </div>
-              <div class="settings-table" id="chopRangeRows"></div>
-            </article>
-            <article class="settings-card">
-              <div class="settings-card-header">
-              <div>
-                <h3>Waterbodies</h3>
-              </div>
-              <button class="button primary" id="settingsAddLocationButton" type="button">Add Waterbody</button>
+              </section>
             </div>
-              <div class="location-manager-list" id="locationManagerList"></div>
-            </article>
+            <div class="settings-tab-panel" data-settings-panel="measurements" hidden>
+              <section class="settings-section" aria-labelledby="measurementSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="measurementSettingsHeading">Measurements</h4>
+                  <p>Choose how values are displayed throughout the app.</p>
+                </div>
+                <div class="unit-settings-grid" id="unitSettingsFields"></div>
+              </section>
+              <section class="settings-section" aria-labelledby="chopRangeSettingsHeading">
+                <div class="settings-section-copy settings-section-copy--action">
+                  <div>
+                    <h4 id="chopRangeSettingsHeading">Chop Ranges</h4>
+                    <p>Review the labels used when wave height is converted into fishing conditions.</p>
+                  </div>
+                  <div class="settings-inline-actions">
+                    <button class="button secondary settings-button-with-icon" id="editChopRangesButton" type="button">
+                      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 12.5 4 9l6.5-6.5 3 3L7 12zM9.5 3.5l3 3" /></svg>
+                      Edit Chop Ranges
+                    </button>
+                    <button class="button secondary hidden" id="cancelChopRangesButton" type="button">Cancel</button>
+                  </div>
+                </div>
+                <div class="settings-table" id="chopRangeRows"></div>
+              </section>
+            </div>
+            <div class="settings-tab-panel" data-settings-panel="lists" hidden>
+              <section class="settings-section" aria-labelledby="predefinedFieldSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="predefinedFieldSettingsHeading">Categories</h4>
+                </div>
+                <div class="predefined-field-settings" id="predefinedFieldSettings"></div>
+              </section>
+            </div>
+            <div class="settings-tab-panel" data-settings-panel="waterbodies" hidden>
+              <section class="settings-section" aria-labelledby="waterbodySettingsHeading">
+                <div class="settings-section-header">
+                  <div class="settings-section-copy">
+                    <h4 id="waterbodySettingsHeading">Waterbodies</h4>
+                    <p>Add lakes, rivers, and specific launches or locations on each waterbody.</p>
+                  </div>
+                  <button class="button primary settings-button-with-icon" id="settingsAddLocationButton" type="button">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg>
+                    Add Waterbody
+                  </button>
+                </div>
+                <label class="settings-control location-manager-search">
+                  <span>Search waterbodies</span>
+                  <input id="locationManagerSearch" type="search" placeholder="Search waterbodies..." />
+                </label>
+                <div class="location-manager-list" id="locationManagerList"></div>
+              </section>
+              <section class="settings-section settings-section--home-location" aria-labelledby="homeLocationSettingsHeading">
+                <div class="settings-section-header">
+                  <div class="settings-section-copy">
+                    <h4 id="homeLocationSettingsHeading">Home Location</h4>
+                    <p>By setting a home location, any photos taken at home will not be mapped to home on the fish map.</p>
+                  </div>
+                  <button class="button primary settings-button-with-icon" id="addPrivatePhotoLocationButton" type="button">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg>
+                    Add Home Location
+                  </button>
+                </div>
+                <div class="private-location-layout">
+                  <div class="private-location-list" id="privatePhotoLocationList"></div>
+                  <div class="private-location-map-panel">
+                    <div id="privatePhotoLocationMap" class="fish-map location-picker-map private-location-map"></div>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <span class="visually-hidden" id="settingsSaveStatus" aria-live="polite">Autosave on</span>
           </div>
         </section>
       </main>
@@ -930,7 +964,7 @@
           <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
         <div class="photo-queue-actions">
-          <label class="button primary file-button">
+          <label class="button primary file-button" id="photoQueueUploadButton">
             Upload to Queue
             <input id="photoQueueInput" type="file" accept="image/*,video/*" multiple />
           </label>
@@ -1463,7 +1497,6 @@
       <form id="locationForm" method="dialog">
         <div class="dialog-header">
           <div>
-            <p class="eyebrow">Map pin</p>
             <h2 id="locationDialogTitle">Add Location</h2>
           </div>
           <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
@@ -1483,8 +1516,11 @@
         <p class="map-pin-instruction" id="locationPickerInstruction">Press the launch or area fished on the map to place the pin.</p>
         <div id="locationPickerMap" class="fish-map location-picker-map"></div>
         <div class="dialog-actions">
-          <button class="button primary" value="default" type="submit">Save Pin</button>
-          <button class="button secondary" value="cancel" type="button" data-close-dialog>Cancel</button>
+          <button class="button danger hidden" id="deleteLocationDialogButton" type="button">Delete</button>
+          <div>
+            <button class="button secondary" value="cancel" type="button" data-close-dialog>Cancel</button>
+            <button class="button primary" value="default" type="submit">Save Pin</button>
+          </div>
         </div>
       </form>
     </dialog>
@@ -1509,6 +1545,7 @@
     </dialog>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/esri-leaflet@3.0.16/dist/esri-leaflet.js"></script>
     <script src="static/js/app-state.js"></script>
     <script src="static/js/locations.js"></script>
     <script src="static/js/location-weather.js"></script>
@@ -1518,6 +1555,7 @@
     <script src="static/js/trip-editor.js"></script>
     <script src="static/js/gear.js"></script>
     <script src="static/js/trolling-spread.js"></script>
+    <script src="static/js/noaaCharts.js"></script>
     <script src="static/js/maps-summary.js"></script>
     <script src="static/js/stats-analytics.js"></script>
     <script src="static/js/stats.js"></script>

@@ -269,6 +269,7 @@ const activePersonalBestsFilters = {
 };
 let activeMapSpecies = "All species";
 let activeMapIncludeTripMedia = false;
+let activeMapShowNOAACharts = true;
 let activeTripSummaryMapFilter = "All map items";
 let activeGalleryCategory = "all";
 let brandSpotlightTimer = null;
@@ -340,6 +341,7 @@ const els = {
   mapCatchList: document.querySelector("#mapCatchList"),
   mapSpeciesFilter: document.querySelector("#mapSpeciesFilter"),
   mapTripPhotosToggle: document.querySelector("#mapTripPhotosToggle"),
+  mapNoaaChartsToggle: document.querySelector("#mapNoaaChartsToggle"),
   statsMethodFilter: document.querySelector("#statsMethodFilter"),
   statsDateFilter: document.querySelector("#statsDateFilter"),
   statsSortFilter: document.querySelector("#statsSortFilter"),
@@ -419,6 +421,7 @@ const els = {
   newLibraryComboButton: document.querySelector("#newLibraryComboButton"),
   photoQueueButton: document.querySelector("#photoQueueButton"),
   photoQueueDialog: document.querySelector("#photoQueueDialog"),
+  photoQueueUploadButton: document.querySelector("#photoQueueUploadButton"),
   photoQueueInput: document.querySelector("#photoQueueInput"),
   photoQueueGrid: document.querySelector("#photoQueueGrid"),
   photoQueueStatus: document.querySelector("#photoQueueStatus"),
@@ -439,6 +442,7 @@ const els = {
   addLocationButton: document.querySelector("#addLocationButton"),
   tripLaunch: document.querySelector("#tripLaunch"),
   addLaunchButton: document.querySelector("#addLaunchButton"),
+  locationManagerSearch: document.querySelector("#locationManagerSearch"),
   locationManagerList: document.querySelector("#locationManagerList"),
   weatherFetchStatus: document.querySelector("#weatherFetchStatus"),
   resyncWeatherButton: document.querySelector("#resyncWeatherButton"),
@@ -446,6 +450,10 @@ const els = {
   waveChopDisplay: document.querySelector("#waveChopDisplay"),
   settingsPanel: document.querySelector("#settingsPanel"),
   settingsSaveStatus: document.querySelector("#settingsSaveStatus"),
+  settingsCancelButton: document.querySelector("#settingsCancelButton"),
+  settingsSaveNowButton: document.querySelector("#settingsSaveNowButton"),
+  editChopRangesButton: document.querySelector("#editChopRangesButton"),
+  cancelChopRangesButton: document.querySelector("#cancelChopRangesButton"),
   themeSelect: document.querySelector("#themeSelect"),
   timeFormatSelect: document.querySelector("#timeFormatSelect"),
   unitSettingsFields: document.querySelector("#unitSettingsFields"),
@@ -460,6 +468,7 @@ const els = {
   locationDialog: document.querySelector("#locationDialog"),
   locationForm: document.querySelector("#locationForm"),
   locationDialogTitle: document.querySelector("#locationDialogTitle"),
+  deleteLocationDialogButton: document.querySelector("#deleteLocationDialogButton"),
   locationPickerMap: document.querySelector("#locationPickerMap"),
   catchLocationDialog: document.querySelector("#catchLocationDialog"),
   catchLocationPickerMap: document.querySelector("#catchLocationPickerMap"),

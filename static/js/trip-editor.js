@@ -479,6 +479,12 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.dataset.catchId = catchItem.id || "";
   node.catchPhotos = lost ? [] : structuredClone(catchItem.photos || []);
   node.catchWeatherData = catchItem.weatherData || null;
+  node.catchDepthData = lost ? null : {
+    depth_m: catchItem.depth_m ?? null,
+    depth_ft: catchItem.depth_ft ?? null,
+    lake_name: catchItem.lake_name ?? null,
+    depth_source: catchItem.depth_source ?? null
+  };
   node.querySelector(".remove-catch").setAttribute("aria-label", lost ? "Remove lost fish" : "Remove catch");
   node.querySelector(".catch-released-field").classList.toggle("hidden", lost);
   node.querySelector(".catch-details-unknown-field").classList.toggle("hidden", lost);
@@ -904,6 +910,9 @@ function collectTripFromForm() {
       };
       const selectedRodId = row.querySelector(".catch-rod")?.selectedOptions?.[0]?.dataset.rodId || "";
       if (!detailsUnknown && !lost && row.catchWeatherData) base.weatherData = row.catchWeatherData;
+      if (!detailsUnknown && !lost && row.catchDepthData) {
+        Object.assign(base, row.catchDepthData);
+      }
       return !detailsUnknown && trolling
         ? {
             ...base,

@@ -24,6 +24,7 @@ OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 SUNRISE_SUNSET_URL = "https://api.sunrisesunset.io/json"
+GREAT_LAKES_BATHYMETRY_URL = "https://edumaps.esri.ca/arcgis/rest/services/MapServices/GreatLakesBathymetry/MapServer/0/query"
 WEATHER_QUERY_KEYS = {
     "latitude",
     "longitude",

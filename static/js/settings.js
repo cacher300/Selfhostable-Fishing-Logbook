@@ -21,6 +21,9 @@ function chopLabelForWaveHeight(value) {
 let settingsAutosaveTimer = null;
 let settingsStatusTimer = null;
 let privateLocationNameEditId = "";
+let activeSettingsTab = "general";
+let chopRangesEditing = false;
+let chopRangesEditSnapshot = null;
 const privateLocationFocusZoom = 16;
 
 function setSettingsSaveStatus(text = "Autosave on", status = "") {
@@ -59,6 +62,7 @@ function scheduleSettingsAutosave(saveAction, delay = 650) {
 }
 
 function renderSettings() {
+  syncSettingsTabs();
   renderPreferenceSettings();
   renderUnitSettings();
   renderPredefinedFieldSettings();
@@ -72,6 +76,33 @@ function renderPreferenceSettings() {
   applyThemePreference();
   if (els.themeSelect) els.themeSelect.value = themePreference();
   if (els.timeFormatSelect) els.timeFormatSelect.value = timeFormatPreference();
+  document.querySelectorAll("[data-time-format-option]").forEach((input) => {
+    input.checked = input.value === timeFormatPreference();
+  });
+}
+
+function setSettingsTab(tab = "general") {
+  activeSettingsTab = tab;
+  syncSettingsTabs();
+  if (tab === "waterbodies") {
+    setTimeout(() => privatePhotoLocationMap?.invalidateSize(), 80);
+  }
+}
+
+function syncSettingsTabs() {
+  const tabs = document.querySelectorAll("[data-settings-tab]");
+  const panels = document.querySelectorAll("[data-settings-panel]");
+  if (![...tabs].some((tab) => tab.dataset.settingsTab === activeSettingsTab)) activeSettingsTab = "general";
+  tabs.forEach((tab) => {
+    const active = tab.dataset.settingsTab === activeSettingsTab;
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  panels.forEach((panel) => {
+    const active = panel.dataset.settingsPanel === activeSettingsTab;
+    panel.classList.toggle("is-active", active);
+    panel.hidden = !active;
+  });
 }
 
 function applyThemePreference(theme = themePreference()) {
@@ -103,17 +134,17 @@ function renderUnitSettings() {
   if (!els.unitSettingsFields) return;
   const units = normalizeUnits(state.settings?.units);
   const rows = [
-    ["depth", "Depth fields"],
-    ["distance", "Map distances"],
-    ["speed", "Trolling speed"],
-    ["windSpeed", "Wind speed"],
+    ["depth", "Depth"],
+    ["distance", "Distance"],
+    ["speed", "Speed"],
+    ["windSpeed", "Wind"],
     ["pressure", "Pressure"],
-    ["airTemperature", "Air temperature"],
-    ["waterTemperature", "Water temperature"],
+    ["airTemperature", "Air Temp"],
+    ["waterTemperature", "Water Temp"],
     ["precipitation", "Precipitation"],
-    ["waveHeight", "Wave height"],
-    ["fishLength", "Fish length"],
-    ["fishWeight", "Fish weight"]
+    ["waveHeight", "Wave Height"],
+    ["fishLength", "Fish Length"],
+    ["fishWeight", "Fish Weight"]
   ];
   els.unitSettingsFields.innerHTML = rows.map(([key, label]) => `
     <label class="settings-control">
@@ -193,9 +224,12 @@ function syncUnitLabels(root = document) {
 }
 
 async function saveTimeFormatPreference(options = {}) {
+  const checked = document.querySelector("[data-time-format-option]:checked");
+  const nextTimeFormat = checked?.value || els.timeFormatSelect?.value || "24";
+  if (els.timeFormatSelect) els.timeFormatSelect.value = nextTimeFormat === "12" ? "12" : "24";
   state.settings = {
     ...(state.settings || {}),
-    timeFormat: els.timeFormatSelect?.value === "12" ? "12" : "24"
+    timeFormat: nextTimeFormat === "12" ? "12" : "24"
   };
   try {
     await runSettingsSave(
@@ -243,13 +277,13 @@ function renderPredefinedFieldSettings() {
     return `
       <details class="predefined-field-group" data-predefined-key="${escapeHtml(group.key)}">
         <summary class="predefined-field-summary">
-          <span>${escapeHtml(group.label)}</span>
+          <span>
+            <strong>${escapeHtml(group.label)}</strong>
+            <small>${items.slice(0, 3).map((item) => escapeHtml(predefinedFieldValue(item))).join(", ")}${items.length > 3 ? "..." : ""}</small>
+          </span>
           <span class="predefined-field-count">${items.length} ${items.length === 1 ? "item" : "items"}</span>
         </summary>
         <div class="predefined-field-body">
-          <div class="predefined-field-header">
-          <button class="button secondary add-predefined-option" type="button">Add</button>
-          </div>
           <div class="predefined-option-list">
             ${items.map((item, index) => `
               <div class="predefined-option-row" data-option-index="${index}">
@@ -258,6 +292,9 @@ function renderPredefinedFieldSettings() {
               </div>
             `).join("")}
             </div>
+          <div class="predefined-field-header">
+            <button class="button secondary add-predefined-option" type="button">Add</button>
+          </div>
         </div>
       </details>
     `;
@@ -314,6 +351,25 @@ async function savePredefinedFieldSettings(options = {}) {
 function renderChopRangeSettings() {
   if (!els.chopRangeRows) return;
   const ranges = normalizeChopRanges(state.settings?.chopRanges);
+  if (els.editChopRangesButton) {
+    els.editChopRangesButton.textContent = chopRangesEditing ? "Done Editing" : "Edit Chop Ranges";
+  }
+  els.cancelChopRangesButton?.classList.toggle("hidden", !chopRangesEditing);
+  if (!chopRangesEditing) {
+    const lastBoundedRange = [...ranges].reverse().find((range) => range.maxFeet !== null);
+    const overflowText = lastBoundedRange ? `> ${trimNumber(lastBoundedRange.maxFeet)} ft` : "Above previous range";
+    els.chopRangeRows.innerHTML = `
+      <div class="chop-range-list">
+        ${ranges.map((range) => `
+          <div class="chop-range-display-row">
+            <strong>${escapeHtml(range.label)}</strong>
+            <span>${range.maxFeet === null ? escapeHtml(overflowText) : `&le; ${escapeHtml(trimNumber(range.maxFeet))} ft`}</span>
+          </div>
+        `).join("")}
+      </div>
+    `;
+    return;
+  }
   els.chopRangeRows.innerHTML = `
     <table>
       <thead>
@@ -340,6 +396,47 @@ function renderChopRangeSettings() {
   `;
 }
 
+async function toggleChopRangeEditing() {
+  if (chopRangesEditing) {
+    await saveChopRanges();
+    chopRangesEditing = false;
+    chopRangesEditSnapshot = null;
+    renderChopRangeSettings();
+    return;
+  }
+  chopRangesEditSnapshot = normalizeChopRanges(state.settings?.chopRanges);
+  chopRangesEditing = true;
+  renderChopRangeSettings();
+}
+
+async function cancelChopRangeEditing() {
+  clearTimeout(settingsAutosaveTimer);
+  if (chopRangesEditSnapshot) {
+    state.settings = {
+      ...(state.settings || {}),
+      chopRanges: normalizeChopRanges(chopRangesEditSnapshot)
+    };
+    await runSettingsSave(
+      async () => {
+        await saveState();
+        renderTrips();
+      },
+      "The chop range edits could not be cancelled."
+    ).catch(() => {});
+  }
+  chopRangesEditing = false;
+  chopRangesEditSnapshot = null;
+  renderChopRangeSettings();
+}
+
+function saveCurrentSettingsTab() {
+  if (activeSettingsTab === "measurements" && chopRangesEditing) return saveChopRanges();
+  if (activeSettingsTab === "measurements") return saveUnitSettings();
+  if (activeSettingsTab === "lists") return savePredefinedFieldSettings();
+  if (activeSettingsTab === "waterbodies") return savePrivatePhotoLocations(collectPrivatePhotoLocationSettings());
+  return runSettingsSave(() => saveState(), "The settings could not be saved.");
+}
+
 async function saveChopRanges(options = {}) {
   const current = normalizeChopRanges(state.settings?.chopRanges);
   const ranges = [...document.querySelectorAll(".chop-range-row")].map((row, index) => {
@@ -358,7 +455,11 @@ async function saveChopRanges(options = {}) {
     await runSettingsSave(
       async () => {
         await saveState();
-        if (options.rerender !== false) renderSettings();
+        if (options.rerender !== false) {
+          chopRangesEditing = false;
+          chopRangesEditSnapshot = null;
+          renderSettings();
+        }
         renderTrips();
       },
       "The chop ranges could not be saved.",

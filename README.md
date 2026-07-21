@@ -54,7 +54,7 @@ data/logbook.sqlite3
 data/uploads/
 ```
 
-JSON export contains the logbook document and media references, not uploaded binary files. To migrate an existing JSON logbook, run `py scripts/import_json_to_sqlite.py`; use `--replace` only when intentionally replacing an existing SQLite logbook.
+JSON export contains the logbook document and media references, not uploaded binary files.
 
 ## External Services
 
