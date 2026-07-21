@@ -7,6 +7,7 @@ const els = {
   statWaterbodies: document.querySelector("#statWaterbodies"),
   statCatchRate: document.querySelector("#statCatchRate"),
   statPoundsPerHour: document.querySelector("#statPoundsPerHour"),
+  statWeightPerHourLabel: document.querySelector("#statWeightPerHourLabel"),
   statDaysSinceTrip: document.querySelector("#statDaysSinceTrip"),
   speciesBars: document.querySelector("#speciesBars"),
   lureBars: document.querySelector("#lureBars"),

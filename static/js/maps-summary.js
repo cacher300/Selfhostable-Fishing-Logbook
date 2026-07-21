@@ -139,13 +139,13 @@ function addSeamlessTileLayer(map) {
 function mapDepthText(payload = {}) {
   if (payload.depth_ft !== null && payload.depth_ft !== undefined && Number(payload.depth_ft) !== 0) return `${formatUnitValue(payload.depth_ft, "depth", "ft", { decimals: 1 })} FOW`;
   if (payload.depth_m !== null && payload.depth_m !== undefined && Number(payload.depth_m) !== 0) return `${formatUnitValue(payload.depth_m, "depth", "m", { decimals: 1 })} FOW`;
-  if (payload.fowCaught) return String(payload.fowCaught).includes("FOW") ? String(payload.fowCaught) : `${payload.fowCaught} FOW`;
+  if (payload.fowCaught) return displayFowValue(payload.fowCaught);
   return "";
 }
 
 function catchFowPopupValue(catchItem = {}) {
   const fow = String(catchItem.fowCaught || catchItem.waterDepth || "").trim();
-  if (fow) return /[a-zA-Z]/.test(fow) ? fow : `${fow} ${unitSymbol("depth")}`;
+  if (fow) return displayFowValue(fow);
   if (catchItem.depth_ft !== null && catchItem.depth_ft !== undefined) return formatUnitValue(catchItem.depth_ft, "depth", "ft", { decimals: 1 });
   if (catchItem.depth_m !== null && catchItem.depth_m !== undefined) return formatUnitValue(catchItem.depth_m, "depth", "m", { decimals: 1 });
   return "";
@@ -331,12 +331,14 @@ function renderMapList(records) {
 
   els.mapCatchList.innerHTML = records.map((record) => {
     const { trip, media } = record;
+    const fowValue = record.type === "catch" ? catchFowPopupValue(record.catchItem) : "";
     return `
       <article class="map-catch-card" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
         ${media?.image ? mediaMarkup(media) : ""}
         <div>
           <strong>${escapeHtml(mapRecordTitle(record))}</strong>
           <span>${escapeHtml([formatDate(trip.date), trip.location].filter(Boolean).join(" / "))}</span>
+          ${fowValue ? `<span><strong>FOW</strong> ${escapeHtml(fowValue)}</span>` : ""}
           <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
         </div>
       </article>
@@ -643,9 +645,12 @@ function summaryValueItem(label, value, options = {}) {
 }
 
 function displaySpeedValue(value) {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) return "";
-  return /[a-zA-Z]/.test(trimmed) ? trimmed : `${trimmed} ${unitSymbol("speed")}`;
+  return displayStoredMeasurement(value, "speed");
+}
+
+function displayFowValue(value) {
+  const text = displayStoredMeasurement(value, "depth");
+  return /\bFOW\b/i.test(text) ? text : `${text} FOW`;
 }
 
 function setupTimelineRecord(trip, gearItem, index) {
@@ -726,9 +731,9 @@ function renderTripKeyConditions(trip) {
     <section class="summary-section summary-key-conditions" aria-label="Key conditions">
       <div class="metric-grid summary-condition-metrics">
         ${summaryMetric("Weather", trip.weather || catchWeatherSummary(weatherData) || "Not logged")}
-        ${summaryMetric("Water Temp", trip.waterTemp || "Not logged")}
+        ${summaryMetric("Water Temp", displayStoredMeasurement(trip.waterTemp, "waterTemperature") || "Not logged")}
         ${summaryMetric("Wind", primaryWindText || "Not logged")}
-        ${summaryMetric("FOW Range", trip.structure || "Not logged")}
+        ${summaryMetric("FOW Range", displayStoredMeasurement(trip.structure, "depth") || "Not logged")}
       </div>
     </section>
   `;
@@ -790,21 +795,21 @@ function renderCatchReportDetails(trip, catchItem) {
   const trollingTrip = isTrollingTripRecord(trip);
   const castingTrip = String(trip?.method || "").toLowerCase() === "casting";
   const depthDetails = [];
-  if (record.fowCaught) depthDetails.push(`${record.fowCaught} FOW`);
-  if (record.depthDown) depthDetails.push(`${record.depthDown} down`);
+  if (record.fowCaught) depthDetails.push(displayFowValue(record.fowCaught));
+  if (record.depthDown) depthDetails.push(`${displayStoredMeasurement(record.depthDown, "depth")} down`);
   if (presentation === "flatline") {
     if (record.flatlineWeightOz) depthDetails.push(`${record.flatlineWeightOz} oz`);
-    if (record.estimatedDepth) depthDetails.push(`${record.estimatedDepth} down`);
+    if (record.estimatedDepth) depthDetails.push(`${displayStoredMeasurement(record.estimatedDepth, "depth")} down`);
   } else if (presentation === "flatline-leadcore") {
-    if (record.lineBehindBoard) depthDetails.push(`${record.lineBehindBoard} behind board`);
-    if (record.estimatedLureDepth) depthDetails.push(`${record.estimatedLureDepth} lure depth`);
+    if (record.lineBehindBoard) depthDetails.push(`${displayStoredMeasurement(record.lineBehindBoard, "depth")} behind board`);
+    if (record.estimatedLureDepth) depthDetails.push(`${displayStoredMeasurement(record.estimatedLureDepth, "depth")} lure depth`);
   } else if (presentation === "dipsey-diver") {
     if (record.dipseySetting) depthDetails.push(`${record.dipseySetting} setting`);
-    if (record.lineOut) depthDetails.push(`${record.lineOut} out`);
+    if (record.lineOut) depthDetails.push(`${displayStoredMeasurement(record.lineOut, "depth")} out`);
   } else if (record.ballDepth) {
-    depthDetails.push(`${record.ballDepth} ball`);
+    depthDetails.push(`${displayStoredMeasurement(record.ballDepth, "depth")} ball`);
   }
-  if (record.estimatedDepth && presentation !== "flatline") depthDetails.push(`${record.estimatedDepth} est.`);
+  if (record.estimatedDepth && presentation !== "flatline") depthDetails.push(`${displayStoredMeasurement(record.estimatedDepth, "depth")} est.`);
   const setupLabel = record.setupLine ? setupLineDisplayLabel(trip, record.setupLine) : "";
   return `
     <dl class="catch-meta-list">
@@ -823,20 +828,16 @@ function catchDetailRows(trip, catchItem) {
   const setup = compactSetupDisplayLabel(record);
   const lure = [lureName(record.lureId), flasherName(record.flasherId)].filter(Boolean).join(" + ");
   const formatWeightDetail = (value) => {
-    const trimmed = String(value || "").trim();
-    if (!trimmed) return "";
-    return /[a-zA-Z]/.test(trimmed) ? trimmed : `${trimmed} ${unitSymbol("fishWeight")}`;
+    return displayStoredMeasurement(value, "fishWeight");
   };
   const formatDepthDetail = (value) => {
-    const trimmed = String(value || "").trim();
-    if (!trimmed) return "";
-    return /[a-zA-Z]/.test(trimmed) ? trimmed : `${trimmed} ${unitSymbol("depth")}`;
+    return displayStoredMeasurement(value, "depth");
   };
   const rows = [
     ["Species", displayTitleText(record.species || catchItem.species)],
     ["Status", record.released ? "Released" : "Kept"],
     ["Time", catchItem.time ? formatDisplayTime(catchItem.time) : ""],
-    ["Length", record.length],
+    ["Length", displayStoredMeasurement(record.length, "fishLength")],
     ["Weight", formatWeightDetail(record.weight)],
     ["FOW", formatDepthDetail(record.fowCaught || record.waterDepth)],
     ["Depth Down", formatDepthDetail(record.depthDown)],

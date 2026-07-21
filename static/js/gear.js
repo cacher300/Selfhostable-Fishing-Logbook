@@ -54,7 +54,7 @@ function activeLineEntry(reel) {
 function lineSummary(line) {
   if (!line) return "";
   return [
-    [line.type, line.weight ? `${line.weight} lb` : ""].filter(Boolean).join(" "),
+    [line.type, displayStoredMeasurement(line.weight, "fishWeight")].filter(Boolean).join(" "),
     [line.brand, line.name].filter(Boolean).join(" "),
     line.color
   ].filter(Boolean).join(" / ");
@@ -271,7 +271,7 @@ function lineRowMarkup(line = {}) {
       <label><span>Type</span><select class="line-type">${optionLabels("lineTypes").map((type) => `<option value="${escapeHtml(type)}" ${type === line.type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
       <label><span>Brand</span><input class="line-brand" type="text" value="${escapeHtml(line.brand || "")}" placeholder="Berkley" /></label>
       <label><span>Name</span><input class="line-name" type="text" value="${escapeHtml(line.name || "")}" placeholder="X5" /></label>
-      <label><span>Weight</span><input class="line-weight" type="text" value="${escapeHtml(line.weight || "")}" placeholder="30" /></label>
+      <label><span>Weight (${unitSymbol("fishWeight")})</span><input class="line-weight" type="text" value="${escapeHtml(line.weight || "")}" placeholder="30" /></label>
       <label><span>Diameter in</span><input class="line-diameter-in" type="text" value="${escapeHtml(line.diameterIn || "")}" placeholder="0.008" /></label>
       <label><span>Diameter mm</span><input class="line-diameter-mm" type="text" value="${escapeHtml(line.diameterMm || "")}" placeholder="0.20" /></label>
       <label><span>Color</span><input class="line-color" type="text" value="${escapeHtml(line.color || "")}" placeholder="Lo-Vis" /></label>
@@ -779,7 +779,7 @@ function renderReelInventory() {
       escapeHtml(reel.weight || "-"),
       escapeHtml(reel.gearRatio || "-"),
       escapeHtml(reel.retrieveRate || "-"),
-      escapeHtml(reel.maxDrag || "-"),
+      escapeHtml(displayStoredMeasurement(reel.maxDrag, "fishWeight") || "-"),
       escapeHtml(reel.monoCapacity || "-"),
       escapeHtml(reel.braidCapacity || "-"),
       escapeHtml(reel.purchaseAmount || "-"),
@@ -788,7 +788,7 @@ function renderReelInventory() {
       `<button class="button secondary" type="button" data-edit-reel="${escapeHtml(reel.id)}">Edit</button>`
     ];
   });
-  renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", "Retrieve", "Max Drag", "Mono Cap", "Braid Cap", "Purchase", "Bought", "Fish", ""], rows, "No saved reels yet.");
+  renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", "Retrieve", `Max Drag (${unitSymbol("fishWeight")})`, "Mono Cap", "Braid Cap", "Purchase", "Bought", "Fish", ""], rows, "No saved reels yet.");
 }
 
 function renderRodInventory() {
@@ -838,7 +838,7 @@ function renderLineTracker() {
       escapeHtml(line.type || "-"),
       escapeHtml(line.brand || "-"),
       escapeHtml(line.name || "-"),
-      escapeHtml(line.weight || "-"),
+      escapeHtml(displayStoredMeasurement(line.weight, "fishWeight") || "-"),
       escapeHtml(line.diameterIn || "-"),
       escapeHtml(line.diameterMm || "-"),
       escapeHtml(line.color || "-"),
@@ -846,7 +846,7 @@ function renderLineTracker() {
       escapeHtml(line.notes || "")
     ];
   }).filter(Boolean);
-  renderInventoryTable(els.lineTrackerTable, ["Reel", "Spooled", "Type", "Brand", "Name", "Lb", "Dia In", "Dia Mm", "Color", "Backing", "Notes"], rows, "No current line saved yet. Edit a reel to add current line.");
+  renderInventoryTable(els.lineTrackerTable, ["Reel", "Spooled", "Type", "Brand", "Name", `Weight (${unitSymbol("fishWeight")})`, "Dia In", "Dia Mm", "Color", "Backing", "Notes"], rows, "No current line saved yet. Edit a reel to add current line.");
 }
 
 function renderBaitInventory() {

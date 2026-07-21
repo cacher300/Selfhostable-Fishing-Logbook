@@ -857,8 +857,8 @@ function renderAdvancedStats() {
   renderStatsTable(els.bestPatternStatsTable, ["Pattern", "Fish", "Hours", "Fish / hr", "Trips", "Confidence"], summarizeBestPatterns(records, trips));
   renderStatsTable(els.timeOfDayStatsTable, ["Time", "Fish", "Lost", "Share"], summarizeTimeOfDay(records, lostRecords, fishInteractions));
   renderStatsTable(els.releaseStatsTable, ["Species", "Landed", "Released", "Kept", "Release %"], summarizeReleasePatterns(records));
-  renderStatsTable(els.fowStatsTable, ["FOW", "Fish", "Trips", "Fish Share"], fishShareRows(fowItems));
-  renderStatsTable(els.depthDownStatsTable, ["Depth Down", "Fish", "Trips", "Fish Share"], fishShareRows(depthItems));
+  renderStatsTable(els.fowStatsTable, [`FOW (${unitSymbol("depth")})`, "Fish", "Trips", "Fish Share"], fishShareRows(fowItems));
+  renderStatsTable(els.depthDownStatsTable, [`Depth Down (${unitSymbol("depth")})`, "Fish", "Trips", "Fish Share"], fishShareRows(depthItems));
 
   const locationRows = trips.map((trip) => ({
     ...trip,
@@ -1027,8 +1027,9 @@ function parseFirstNumber(value) {
 function fowRange(value) {
   const fow = parseFirstNumber(value);
   if (!fow) return "";
-  const start = Math.floor(fow / 10) * 10;
-  return `${start}-${start + 10} FOW (${unitSymbol("depth")})`;
+  const rangeSize = unitPreference("depth") === "m" ? 3 : 10;
+  const start = Math.floor(fow / rangeSize) * rangeSize;
+  return `${trimNumber(start)}-${trimNumber(start + rangeSize)} FOW (${unitSymbol("depth")})`;
 }
 
 function fishPerHour(item) {

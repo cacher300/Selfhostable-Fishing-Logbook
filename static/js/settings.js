@@ -1,13 +1,14 @@
 function parseWaveHeightFeet(value) {
   if (value === null || value === undefined || value === "") return null;
-  if (typeof value === "number") return Number.isFinite(value) ? value * 3.28084 : null;
+  if (typeof value === "number") return Number.isFinite(value) ? convertUnitValue(value, unitPreference("waveHeight"), "ft") : null;
   const text = String(value).trim().toLowerCase();
   const match = text.match(/-?\d+(?:\.\d+)?/);
   if (!match) return null;
   const number = Number(match[0]);
   if (!Number.isFinite(number) || number < 0) return null;
-  if (/\bm\b|meter|metre/.test(text)) return number * 3.28084;
-  return number;
+  const explicitUnit = explicitMeasurementUnit(text.match(/[a-zA-Z°]+/)?.[0]);
+  const sourceUnit = explicitUnit || unitPreference("waveHeight");
+  return convertUnitValue(number, sourceUnit, "ft") ?? null;
 }
 
 function chopLabelForWaveHeight(value) {
@@ -186,7 +187,9 @@ function bathymetryOffsetFeetFromDisplay(value, depthUnit = unitPreference("dept
 }
 
 async function saveUnitSettings(options = {}) {
-  const units = normalizeUnits(state.settings?.units);
+  const previousState = structuredClone(state);
+  const previousUnits = normalizeUnits(state.settings?.units);
+  const units = { ...previousUnits };
   document.querySelectorAll("[data-unit-setting]").forEach((select) => {
     units[select.dataset.unitSetting] = select.value;
   });
@@ -194,11 +197,14 @@ async function saveUnitSettings(options = {}) {
   document.querySelectorAll("[data-bathymetry-lake-calibration]").forEach((input) => {
     const lake = input.dataset.bathymetryLakeCalibration;
     lakeCalibrations[lake] ||= {};
-    lakeCalibrations[lake][input.dataset.bathymetryCalibrationEnd] = bathymetryOffsetFeetFromDisplay(input.value, units.depth);
+    // The field was rendered in the unit that was active before this save.
+    lakeCalibrations[lake][input.dataset.bathymetryCalibrationEnd] = bathymetryOffsetFeetFromDisplay(input.value, previousUnits.depth);
   });
+  const nextUnits = normalizeUnits(units);
+  convertStoredMeasurements(previousUnits, nextUnits);
   state.settings = {
     ...(state.settings || {}),
-    units: normalizeUnits(units),
+    units: nextUnits,
     bathymetryLakeCalibrationsFeet: normalizeBathymetryLakeCalibrations(lakeCalibrations)
   };
   try {
@@ -217,6 +223,9 @@ async function saveUnitSettings(options = {}) {
       options
     );
   } catch (error) {
+    state = previousState;
+    renderAll();
+    if (options.rerender !== false && !els.settingsPanel?.classList.contains("hidden")) renderSettings();
   }
 }
 
@@ -236,6 +245,9 @@ function syncUnitLabels(root = document) {
   });
   root.querySelectorAll(".catch-weight").forEach((input) => {
     input.placeholder = unitPreference("fishWeight") === "kg" ? "4 kg" : "9 lb";
+  });
+  root.querySelectorAll("#reelMaxDrag").forEach((input) => {
+    input.placeholder = unitPreference("fishWeight") === "kg" ? "8 kg" : "18 lb";
   });
   root.querySelectorAll(".catch-water-depth").forEach((input) => {
     input.placeholder = `24 FOW (${unitSymbol("depth")})`;

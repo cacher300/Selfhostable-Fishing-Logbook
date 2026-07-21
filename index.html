@@ -27,7 +27,7 @@
               <div><dt>Hours Fished</dt><dd id="statHours">0</dd></div>
               <div><dt>Waterbodies</dt><dd id="statWaterbodies">0</dd></div>
               <div><dt>Catch Rate</dt><dd id="statCatchRate">0</dd></div>
-              <div><dt>Lbs / Hour</dt><dd id="statPoundsPerHour">0</dd></div>
+              <div><dt id="statWeightPerHourLabel">Lbs / Hour</dt><dd id="statPoundsPerHour">0</dd></div>
               <div><dt>Days Since</dt><dd id="statDaysSinceTrip">-</dd></div>
             </dl>
           </section>
@@ -490,10 +490,6 @@
 
         <section class="map-page hidden" id="mapPanel" aria-label="Fish catch map">
           <div class="map-header">
-            <div>
-              <p class="eyebrow">Fish locations</p>
-              <h3>Fish Map</h3>
-            </div>
             <div id="mapLegend" class="map-header-legend"></div>
             <div class="map-tools">
               <label>
@@ -1081,7 +1077,7 @@
           <label><span>Weight</span><input id="reelWeight" type="text" placeholder="7.3 oz" /></label>
           <label><span>Gear ratio</span><input id="reelGearRatio" type="text" placeholder="7.1:1" /></label>
           <label><span>Retrieve rate</span><input id="reelRetrieveRate" type="text" placeholder="29 in" /></label>
-          <label><span>Max drag</span><input id="reelMaxDrag" type="text" placeholder="18 lb" /></label>
+          <label><span data-unit-label="fishWeight" data-unit-label-text="Max drag">Max drag</span><input id="reelMaxDrag" type="text" placeholder="18 lb" /></label>
           <label><span>Mono capacity</span><input id="reelMonoCapacity" type="text" placeholder="145/12" /></label>
           <label><span>Braid capacity</span><input id="reelBraidCapacity" type="text" placeholder="140/30" /></label>
           <label><span>Purchase amount</span><input id="reelPurchaseAmount" type="text" placeholder="89.99" /></label>

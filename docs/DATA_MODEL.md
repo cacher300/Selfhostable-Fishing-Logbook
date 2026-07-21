@@ -48,7 +48,7 @@ Legacy top-level `tripTypes` is removed during normalization.
 - `units`: `depth`, `distance`, `speed`, `windSpeed`, `pressure`, `airTemperature`, `waterTemperature`, `precipitation`, `waveHeight`, `fishLength`, `fishWeight`.
 - `chopRanges[]`: `{ id, label, maxFeet }`; at least one open-ended `maxFeet: null` range is ensured.
 
-Typed fishing measurements such as `waterTemp`, `weight`, and `fowCaught` are strings. Unit settings alter labels/placeholders and API display conversion; they do not rewrite typed historical values.
+Typed fishing measurements such as `waterTemp`, `weight`, and `fowCaught` are strings. When a unit preference changes, the client converts persisted numeric fishing values in the same save transaction, then updates the preference. This keeps existing trips, catches, lost fish, legacy setup-line measurements, analytics, and edit forms physically consistent in the newly selected display unit. Free-form nonnumeric text is left unchanged.
 
 ## Location and Person
 

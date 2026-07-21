@@ -10,11 +10,6 @@
   gap: 12px;
 }
 
-.map-header h3 {
-  margin: 0;
-  font-size: 22px;
-}
-
 .map-summary {
   color: var(--muted);
   font-size: 13px;
@@ -67,13 +62,12 @@
 .map-header-legend {
   display: flex;
   flex: 1 1 auto;
-  justify-content: center;
+  justify-content: flex-start;
   min-width: 0;
-  margin-left: auto;
 }
 
 .map-header-legend .map-legend {
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .fish-map {

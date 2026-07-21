@@ -148,7 +148,7 @@ function renderStats() {
   const allCatches = state.trips.flatMap((trip) => (trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip })));
   const fish = state.trips.reduce((sum, trip) => sum + totalCaught(trip), 0);
   const hours = state.trips.reduce((sum, trip) => sum + tripHours(trip), 0);
-  const pounds = state.trips.reduce((sum, trip) => sum + totalWeight(trip), 0);
+  const totalFishWeight = state.trips.reduce((sum, trip) => sum + totalWeight(trip), 0);
   const waterbodies = new Set(state.trips.map((trip) => trip.location).filter(Boolean));
   const dateMetrics = fishingDateMetrics(state.trips);
 
@@ -157,7 +157,8 @@ function renderStats() {
   els.statHours.textContent = trimNumber(hours);
   els.statWaterbodies.textContent = waterbodies.size;
   els.statCatchRate.textContent = hours ? trimNumber(fish / hours) : "0";
-  els.statPoundsPerHour.textContent = hours ? trimNumber(pounds / hours) : "0";
+  els.statPoundsPerHour.textContent = hours ? trimNumber(totalFishWeight / hours) : "0";
+  if (els.statWeightPerHourLabel) els.statWeightPerHourLabel.textContent = `${unitSymbol("fishWeight")} / Hour`;
   els.statDaysSinceTrip.textContent = dateMetrics.daysSinceLastTrip ?? "-";
 
   const speciesCounts = countBy(allCatches, (item) => item.species, fishCount);

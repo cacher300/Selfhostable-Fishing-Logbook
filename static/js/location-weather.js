@@ -62,7 +62,7 @@ function updateAutoWaveChopDisplay(weatherData = activeTripWeatherData) {
 
 function tripWaveHeightDisplay(trip, weatherData) {
   const saved = String(trip?.waveHeight || "").trim();
-  if (saved) return saved;
+  if (saved) return displayStoredMeasurement(saved, "waveHeight");
   const marine = marineSnapshot(weatherData);
   if (marine?.marineDataAvailable && marine.waveHeightM !== null && marine.waveHeightM !== undefined) {
     return formatMarineWaveHeightM(marine.waveHeightM);

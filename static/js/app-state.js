@@ -457,25 +457,125 @@ function convertUnitValue(value, fromUnit, toUnit) {
   if (fromUnit === toUnit) return number;
   if (fromUnit === "C" && toUnit === "F") return (number * 9 / 5) + 32;
   if (fromUnit === "F" && toUnit === "C") return (number - 32) * 5 / 9;
-  if (fromUnit === "mph" && toUnit === "kph") return number * 1.609344;
-  if (fromUnit === "mph" && toUnit === "kn") return number * 0.868976;
-  if (fromUnit === "kph" && toUnit === "mph") return number / 1.609344;
-  if (fromUnit === "kph" && toUnit === "kn") return number * 0.539957;
-  if (fromUnit === "m" && toUnit === "ft") return number * 3.28084;
-  if (fromUnit === "ft" && toUnit === "m") return number / 3.28084;
-  if (fromUnit === "m" && toUnit === "km") return number / 1000;
-  if (fromUnit === "m" && toUnit === "mi") return number / 1609.344;
-  if (fromUnit === "km" && toUnit === "mi") return number * 0.621371;
-  if (fromUnit === "mi" && toUnit === "km") return number / 0.621371;
-  if (fromUnit === "hPa" && toUnit === "kPa") return number / 10;
-  if (fromUnit === "hPa" && toUnit === "inHg") return number * 0.0295299830714;
-  if (fromUnit === "hPa" && toUnit === "mmHg") return number * 0.750061683;
-  if (fromUnit === "kPa" && toUnit === "hPa") return number * 10;
-  if (fromUnit === "inHg" && toUnit === "hPa") return number / 0.0295299830714;
-  if (fromUnit === "mmHg" && toUnit === "hPa") return number / 0.750061683;
-  if (fromUnit === "in" && toUnit === "mm") return number * 25.4;
-  if (fromUnit === "mm" && toUnit === "in") return number / 25.4;
+  const conversions = [
+    { units: { kph: 1, mph: 1.609344, kn: 1.852 } },
+    { units: { m: 1, ft: 0.3048, km: 1000, mi: 1609.344, in: 0.0254, mm: 0.001, cm: 0.01 } },
+    { units: { kg: 1, lb: 0.45359237 } },
+    { units: { hPa: 1, kPa: 10, inHg: 33.8638866667, mmHg: 1.33322387415 } }
+  ];
+  const conversion = conversions.find((item) => fromUnit in item.units && toUnit in item.units);
+  if (conversion) return number * conversion.units[fromUnit] / conversion.units[toUnit];
   return number;
+}
+
+const measurementUnitAliases = {
+  feet: "ft", foot: "ft", ft: "ft",
+  meter: "m", meters: "m", metre: "m", metres: "m", m: "m",
+  kilometer: "km", kilometers: "km", kilometre: "km", kilometres: "km", km: "km",
+  mile: "mi", miles: "mi", mi: "mi",
+  inch: "in", inches: "in", in: "in",
+  millimeter: "mm", millimeters: "mm", millimetre: "mm", millimetres: "mm", mm: "mm",
+  centimeter: "cm", centimeters: "cm", centimetre: "cm", centimetres: "cm", cm: "cm",
+  pound: "lb", pounds: "lb", lbs: "lb", lb: "lb",
+  kilogram: "kg", kilograms: "kg", kg: "kg",
+  c: "C", f: "F", kph: "kph", mph: "mph", kn: "kn",
+  hpa: "hPa", kpa: "kPa", inhg: "inHg", mmhg: "mmHg"
+};
+
+function explicitMeasurementUnit(suffix) {
+  return measurementUnitAliases[String(suffix || "").trim().replace(/^°/, "").toLowerCase()] || "";
+}
+
+function convertedMeasurementText(value, fromUnit, toUnit) {
+  if (value === null || value === undefined || value === "" || fromUnit === toUnit) return value;
+  const text = String(value).trim();
+  const range = text.match(/^(-?(?:\d+(?:\.\d+)?|\.\d+))\s*-\s*(-?(?:\d+(?:\.\d+)?|\.\d+))(?:\s*([a-zA-Z°]+))?$/);
+  if (range) {
+    const explicitUnit = explicitMeasurementUnit(range[3]);
+    const first = convertUnitValue(range[1], explicitUnit || fromUnit, toUnit);
+    const second = convertUnitValue(range[2], explicitUnit || fromUnit, toUnit);
+    if (first === null || second === null) return value;
+    const suffix = explicitUnit ? ` ${unitSymbolForValue(toUnit)}` : (range[3] ? ` ${range[3]}` : "");
+    return `${trimConvertedMeasurement(first)}-${trimConvertedMeasurement(second)}${suffix}`;
+  }
+  const match = text.match(/^(-?(?:\d+(?:\.\d+)?|\.\d+))(?:\s*([a-zA-Z°]+))?$/);
+  if (!match) return value;
+  const explicitUnit = explicitMeasurementUnit(match[2]);
+  const converted = convertUnitValue(match[1], explicitUnit || fromUnit, toUnit);
+  if (converted === null) return value;
+  const number = trimConvertedMeasurement(converted);
+  if (explicitUnit) return `${number} ${unitSymbolForValue(toUnit)}`;
+  return match[2] ? `${number} ${match[2]}` : number;
+}
+
+function unitSymbolForValue(unit) {
+  return unit === "C" || unit === "F" ? `°${unit}` : unit;
+}
+
+function trimConvertedMeasurement(value) {
+  return String(Math.round(Number(value) * 1000) / 1000);
+}
+
+function displayStoredMeasurement(value, key) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const range = text.match(/^-?(?:\d+(?:\.\d+)?|\.\d+)\s*-\s*-?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*([a-zA-Z°]+))?$/);
+  if (range) {
+    if (explicitMeasurementUnit(range[1])) return text;
+    return String(range[1] || "").toUpperCase() === "FOW" ? `${text} (${unitSymbol(key)})` : `${text} ${unitSymbol(key)}`;
+  }
+  const match = text.match(/^(-?(?:\d+(?:\.\d+)?|\.\d+))(?:\s*([a-zA-Z°]+))?$/);
+  if (!match) return text;
+  if (explicitMeasurementUnit(match[2])) return text;
+  if (String(match[2] || "").toUpperCase() === "FOW") return `${text} (${unitSymbol(key)})`;
+  return `${text} ${unitSymbol(key)}`;
+}
+
+function convertStoredMeasurements(previousUnits, nextUnits) {
+  const tripMeasurements = [
+    ["waterTemp", "waterTemperature"],
+    ["waveHeight", "waveHeight"],
+    ["structure", "depth"]
+  ];
+  const catchMeasurements = [
+    ["length", "fishLength"],
+    ["weight", "fishWeight"],
+    ["waterDepth", "depth"],
+    ["depthDown", "depth"],
+    ["fowCaught", "depth"],
+    ["speed", "speed"],
+    ["ballDepth", "depth"],
+    ["lineBehindBoard", "depth"],
+    ["estimatedLureDepth", "depth"],
+    ["lineOut", "depth"],
+    ["estimatedDepth", "depth"]
+  ];
+  const convertRecord = (record, measurements) => {
+    if (!record || typeof record !== "object") return;
+    measurements.forEach(([field, unitKey]) => {
+      const fromUnit = previousUnits[unitKey];
+      const toUnit = nextUnits[unitKey];
+      if (fromUnit !== toUnit) record[field] = convertedMeasurementText(record[field], fromUnit, toUnit);
+    });
+  };
+
+  state.trips.forEach((trip) => {
+    convertRecord(trip, tripMeasurements);
+    if (previousUnits.windSpeed !== nextUnits.windSpeed && trip.wind) {
+      trip.wind = String(trip.wind).replace(/(-?(?:\d+(?:\.\d+)?|\.\d+))\s*(kph|mph|kn)\b/gi, (match, number, sourceUnit) => {
+        const converted = convertUnitValue(number, explicitMeasurementUnit(sourceUnit), nextUnits.windSpeed);
+        return converted === null ? match : `${trimConvertedMeasurement(converted)} ${unitSymbolForValue(nextUnits.windSpeed)}`;
+      });
+    }
+    (trip.catches || []).forEach((catchItem) => convertRecord(catchItem, catchMeasurements));
+    (trip.lostFish || []).forEach((fishItem) => convertRecord(fishItem, catchMeasurements));
+    // Older imports can put the same measurements on a setup line.
+    (trip.gearUsed || []).forEach((gearItem) => convertRecord(gearItem, catchMeasurements));
+  });
+  (state.reels || []).forEach((reel) => {
+    convertRecord(reel, [["maxDrag", "fishWeight"]]);
+    (reel.lineHistory || []).forEach((line) => convertRecord(line, [["weight", "fishWeight"]]));
+  });
 }
 
 function formatUnitValue(value, key, fromUnit, options = {}) {
