@@ -99,6 +99,32 @@ def referenced_uploads(value: object) -> set[tuple[str, str]]:
     return references
 
 
+def upload_captions(value: object) -> dict[tuple[str, str], list[str]]:
+    captions: dict[tuple[str, str], list[str]] = {}
+
+    def add_caption(media_key: tuple[str, str] | None, caption: object) -> None:
+        text = str(caption or "").strip()
+        if not media_key or not text:
+            return
+        values = captions.setdefault(media_key, [])
+        if text not in values:
+            values.append(text)
+
+    def walk(item: object) -> None:
+        if isinstance(item, list):
+            for child in item:
+                walk(child)
+            return
+        if not isinstance(item, dict):
+            return
+        add_caption(media_key_from_reference(item), item.get("caption"))
+        for child in item.values():
+            walk(child)
+
+    walk(value)
+    return captions
+
+
 def create_upload_preview(category: str, filename: str) -> str:
     source = upload_category_path(category) / filename
     preview = upload_preview_path(category, filename)
@@ -177,4 +203,3 @@ def cleanup_orphaned_uploads() -> int:
     for item in items:
         delete_upload_file(item["category"], item["filename"], item)
     return len(items)
-

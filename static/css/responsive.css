@@ -531,19 +531,13 @@
 
   .photo-queue-actions,
   .photo-queue-card .photo-queue-card-actions,
-  .personal-bests-header,
-  .gallery-header,
-  .gallery-tools {
+  .personal-bests-header {
     align-items: stretch;
     flex-direction: column;
   }
 
   .personal-bests-tools {
     grid-template-columns: 1fr;
-    min-width: 0;
-  }
-
-  .gallery-tools label {
     min-width: 0;
   }
 

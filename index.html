@@ -598,19 +598,53 @@
 
         <section class="gallery-page hidden" id="galleryPanel" aria-label="Uploaded photo gallery">
           <div class="gallery-header">
-            <div>
-              <p class="eyebrow">Raw media</p>
-              <h3>Media Gallery</h3>
-            </div>
             <div class="gallery-tools">
+              <label class="gallery-search">
+                <span>Search</span>
+                <input id="gallerySearchInput" type="search" placeholder="Search media" autocomplete="off" />
+              </label>
+              <label>
+                <span>Sort</span>
+                <select id="gallerySortSelect">
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                  <option value="mediaType">Media Type</option>
+                  <option value="fileSize">File Size</option>
+                </select>
+              </label>
+              <label>
+                <span>Per page</span>
+                <select id="galleryPageSizeSelect">
+                  <option value="25">25</option>
+                  <option value="50" selected>50</option>
+                  <option value="100">100</option>
+                  <option value="200">200</option>
+                  <option value="all">All</option>
+                </select>
+              </label>
               <label>
                 <span>Category</span>
                 <select id="galleryCategoryFilter"></select>
               </label>
-              <span id="galleryStatus" class="map-summary">No uploads loaded</span>
+              <button class="button secondary gallery-select-mode-button" id="gallerySelectModeButton" type="button">Select Photos</button>
             </div>
           </div>
+          <div class="gallery-filter-row" id="galleryQuickFilters" aria-label="Gallery quick filters"></div>
+          <div class="gallery-selection-bar hidden" id="gallerySelectionBar" aria-live="polite">
+            <strong id="gallerySelectionCount">0 selected</strong>
+            <div class="gallery-selection-actions">
+              <button class="button secondary" id="galleryBatchDownloadButton" type="button">Download</button>
+              <button class="button danger" id="galleryBatchDeleteButton" type="button">Delete</button>
+              <button class="button secondary" id="galleryClearSelectionButton" type="button">Clear</button>
+            </div>
+          </div>
+          <span id="galleryStatus" class="map-summary">No uploads loaded</span>
           <div id="galleryGrid" class="gallery-grid"></div>
+          <div class="gallery-pagination hidden" id="galleryPagination" aria-label="Gallery pages">
+            <button class="button secondary" id="galleryPreviousPageButton" type="button">Previous</button>
+            <span id="galleryPageStatus">Page 1 of 1</span>
+            <button class="button secondary" id="galleryNextPageButton" type="button">Next</button>
+          </div>
         </section>
 
         <section class="settings-page hidden" id="settingsPanel" aria-label="Settings">
@@ -910,7 +944,6 @@
               </label>
             </div>
             <small class="weather-summary-updated" id="weatherSummaryUpdated"></small>
-            <small class="weather-card-provider">Weather data provided by Open-Meteo</small>
           </aside>
         </div>
 
@@ -1442,7 +1475,7 @@
             <span>Catch notes</span>
             <textarea class="catch-notes" rows="3" placeholder="Add notes about the catch: bite description, fish behavior, or weather observations"></textarea>
           </label>
-          <div class="row-section-title catch-photo-title catch-detail-optional">Catch Media</div>
+          <div class="row-section-title catch-photo-title catch-detail-optional">Catch photos</div>
           <div class="catch-photo-editor catch-detail-optional">
             <div class="catch-media-actions">
               <label class="button file-button catch-media-action">

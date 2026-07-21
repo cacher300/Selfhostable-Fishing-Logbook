@@ -263,7 +263,27 @@ els.tripSummaryBody.addEventListener("change", (event) => {
 });
 els.galleryCategoryFilter.addEventListener("change", () => {
   activeGalleryCategory = els.galleryCategoryFilter.value;
+  if (activeGalleryCategory !== "all") activeGalleryQuickFilter = activeGalleryCategory;
+  activeGalleryPage = 1;
   renderGallery();
+});
+els.gallerySearchInput?.addEventListener("input", syncGallerySearchSort);
+els.gallerySortSelect?.addEventListener("input", syncGallerySearchSort);
+els.galleryPageSizeSelect?.addEventListener("input", syncGallerySearchSort);
+els.galleryPreviousPageButton?.addEventListener("click", () => setGalleryPage(activeGalleryPage - 1));
+els.galleryNextPageButton?.addEventListener("click", () => setGalleryPage(activeGalleryPage + 1));
+els.gallerySelectModeButton?.addEventListener("click", () => setGallerySelectionMode(!gallerySelectionMode));
+els.galleryBatchDownloadButton?.addEventListener("click", () => downloadGalleryItems(selectedGalleryPayload()));
+els.galleryBatchDeleteButton?.addEventListener("click", async () => {
+  try {
+    await deleteGalleryItems(selectedGalleryPayload());
+  } catch (error) {
+    console.error("Could not delete gallery media.", error);
+    alert(error.message || "Selected media could not be deleted.");
+  }
+});
+els.galleryClearSelectionButton?.addEventListener("click", () => {
+  setGallerySelectionMode(false);
 });
 [els.searchInput, els.targetFilter, els.methodFilter, els.yearFilter].forEach((control) => {
   control.addEventListener("input", () => {
@@ -276,6 +296,43 @@ els.sortSelect.addEventListener("input", () => {
 });
 
 document.addEventListener("click", (event) => {
+  const galleryQuickFilterButton = event.target.closest("[data-gallery-quick-filter]");
+  if (galleryQuickFilterButton) {
+    activeGalleryQuickFilter = galleryQuickFilterButton.dataset.galleryQuickFilter || "all";
+    activeGalleryPage = 1;
+    if (galleryCategoryLabels[activeGalleryQuickFilter]) {
+      activeGalleryCategory = activeGalleryQuickFilter;
+      els.galleryCategoryFilter.value = activeGalleryCategory;
+      renderGallery();
+    } else {
+      activeGalleryCategory = "all";
+      els.galleryCategoryFilter.value = "all";
+      renderGallery();
+    }
+  }
+
+  const galleryOpen = event.target.closest("[data-gallery-open]");
+  if (galleryOpen) {
+    event.preventDefault();
+    openGalleryLightbox(Number(galleryOpen.dataset.galleryOpen));
+  }
+
+  const galleryDelete = event.target.closest("[data-gallery-delete]");
+  if (galleryDelete) {
+    event.preventDefault();
+    deleteGalleryItems([findGalleryItem(galleryDelete.dataset.galleryDelete)].filter(Boolean)).catch((error) => {
+      console.error("Could not delete gallery media.", error);
+      alert(error.message || "Selected media could not be deleted.");
+    });
+  }
+
+  if (event.target.closest("[data-gallery-lightbox-close]") || event.target.classList.contains("gallery-lightbox")) {
+    closeGalleryLightbox();
+  }
+
+  if (event.target.closest("[data-gallery-lightbox-prev]")) stepGalleryLightbox(-1);
+  if (event.target.closest("[data-gallery-lightbox-next]")) stepGalleryLightbox(1);
+
   const closeButton = event.target.closest("[data-close-dialog]");
   if (closeButton) {
     const dialog = closeButton.closest("dialog");
@@ -635,6 +692,20 @@ document.addEventListener("click", (event) => {
     setValue("editingFlasherId", deleteFlasherButton.dataset.deleteFlasher);
     deleteFlasher();
   }
+});
+
+document.addEventListener("change", (event) => {
+  const gallerySelect = event.target.closest("[data-gallery-select]");
+  if (gallerySelect) {
+    toggleGallerySelection(gallerySelect.dataset.gallerySelect, gallerySelect.checked);
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (!document.querySelector(".gallery-lightbox")) return;
+  if (event.key === "Escape") closeGalleryLightbox();
+  if (event.key === "ArrowLeft") stepGalleryLightbox(-1);
+  if (event.key === "ArrowRight") stepGalleryLightbox(1);
 });
 
 document.addEventListener("change", (event) => {

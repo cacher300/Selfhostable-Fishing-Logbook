@@ -794,12 +794,7 @@ function renderWeatherSummary(weatherData = activeTripWeatherData) {
   const autoWeatherTag = weatherTagForCode(summary.weatherCode);
   const weatherSelect = document.querySelector("#weather");
   if (autoWeatherTag && weatherSelect && !weatherSelect.value) weatherSelect.value = autoWeatherTag;
-  if (els.weatherSummaryUpdated) {
-    const fetchedAt = weatherData?.fetchedAt ? new Date(weatherData.fetchedAt) : null;
-    els.weatherSummaryUpdated.textContent = fetchedAt && !Number.isNaN(fetchedAt.valueOf())
-      ? `Updated ${fetchedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-      : "Weather data ready";
-  }
+  if (els.weatherSummaryUpdated) els.weatherSummaryUpdated.textContent = "";
 }
 
 function syncMarineWaveHeightToForm(weatherData) {

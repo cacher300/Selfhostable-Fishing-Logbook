@@ -40,6 +40,7 @@ from backend.media_service import (
     cleanup_orphaned_uploads,
     read_upload_metadata,
     referenced_uploads,
+    upload_captions,
     upload_category_path,
     upload_gallery_items,
     upload_media_type,
@@ -189,6 +190,11 @@ def create_app(config: dict | None = None) -> Flask:
         items = []
         for item_category in categories:
             items.extend(upload_gallery_items(item_category))
+        captions = upload_captions(read_logbook())
+        for item in items:
+            item_captions = captions.get((item["category"], item["filename"]), [])
+            if item_captions:
+                item["captions"] = item_captions
         items.sort(key=lambda item: item["modified"], reverse=True)
         return jsonify({"media": items})
 
