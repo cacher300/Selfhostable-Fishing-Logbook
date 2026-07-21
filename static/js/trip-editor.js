@@ -258,7 +258,7 @@ function openTripDialog(trip = null) {
     resetTripFormSnapshot();
     updateTripDialogHeader();
   });
-  scheduleTripWeatherPreview(true);
+  if (!trip) scheduleTripWeatherPreview(true);
 }
 
 function setValue(id, value) {

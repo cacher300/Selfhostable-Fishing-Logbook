@@ -88,12 +88,12 @@ def signed_depth(value: float, magnitude: float) -> float:
 def corrected_bathymetry_depths(depth_ft: object, depth_m: object) -> tuple[float | None, float | None]:
     feet = finite_float(depth_ft)
     meters = finite_float(depth_m)
-    if feet is not None:
+    if feet not in (None, 0):
         corrected_feet = signed_depth(feet, abs(feet) + DEPTH_OFFSET_FEET)
         meter_sign_source = meters if meters not in (None, 0) else feet
         corrected_meters = signed_depth(meter_sign_source, abs(corrected_feet) / FEET_PER_METER)
         return round(corrected_meters, 3), round(corrected_feet, 3)
-    if meters is not None:
+    if meters not in (None, 0):
         corrected_feet_magnitude = abs(meters) * FEET_PER_METER + DEPTH_OFFSET_FEET
         corrected_feet = signed_depth(meters, corrected_feet_magnitude)
         corrected_meters = signed_depth(meters, corrected_feet_magnitude / FEET_PER_METER)
@@ -274,6 +274,8 @@ def has_depth_metadata(catch: dict) -> bool:
 
 
 def format_fow_value(depth_ft: object, depth_m: object = None) -> str:
+    if depth_ft is None and depth_m is None:
+        return ""
     try:
         value = abs(float(depth_ft))
     except (TypeError, ValueError):
