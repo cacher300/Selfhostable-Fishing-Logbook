@@ -261,7 +261,8 @@ async function updateCatchFowForCoordinates(row, coordinates, options = {}) {
     row.catchDepthData = null;
     return;
   }
-  const fowInput = row.querySelector(".catch-fow");
+  const fowInput = row.querySelector(".catch-fow-field:not(.hidden) .catch-fow")
+    || row.querySelector(".catch-water-depth-field:not(.hidden) .catch-water-depth");
 
   const lookupKey = `${Number(coordinates.latitude).toFixed(5)},${Number(coordinates.longitude).toFixed(5)}`;
   row.dataset.depthLookupKey = lookupKey;

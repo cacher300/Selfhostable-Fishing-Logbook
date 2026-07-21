@@ -204,7 +204,7 @@ function syncUnitLabels(root = document) {
     input.placeholder = unitPreference("fishWeight") === "kg" ? "4 kg" : "9 lb";
   });
   root.querySelectorAll(".catch-water-depth").forEach((input) => {
-    input.placeholder = `24 ${unitSymbol("depth")}`;
+    input.placeholder = `24 FOW (${unitSymbol("depth")})`;
   });
   root.querySelectorAll(".catch-depth-down").forEach((input) => {
     input.placeholder = `14 ${unitSymbol("depth")}`;
