@@ -54,6 +54,18 @@ label > small,
   border-top: 0;
 }
 
+.settings-section--waterbodies {
+  row-gap: 8px;
+}
+
+.waterbody-settings-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) auto;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .location-manager-card {
   display: grid;
   gap: 8px;
@@ -181,10 +193,22 @@ label > small,
 
 .location-manager-search {
   max-width: 320px;
+  width: 100%;
 }
 
 .location-manager-search input {
   width: 100%;
+}
+
+@media (max-width: 720px) {
+  .waterbody-settings-actions {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .waterbody-settings-actions .button {
+    justify-self: start;
+  }
 }
 
 .overflow-menu {

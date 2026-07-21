@@ -252,6 +252,7 @@ els.mapTripPhotosToggle?.addEventListener("change", () => {
 });
 els.mapNoaaChartsToggle?.addEventListener("change", () => {
   activeMapShowNOAACharts = Boolean(els.mapNoaaChartsToggle.checked);
+  saveMapNoaaChartsPreference(activeMapShowNOAACharts);
   syncMapPageChartOverlay(fishMap);
 });
 els.tripSummaryBody.addEventListener("change", (event) => {

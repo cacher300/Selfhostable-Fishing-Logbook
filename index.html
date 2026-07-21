@@ -695,21 +695,23 @@
               </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="waterbodies" hidden>
-              <section class="settings-section" aria-labelledby="waterbodySettingsHeading">
+              <section class="settings-section settings-section--waterbodies" aria-labelledby="waterbodySettingsHeading">
                 <div class="settings-section-header">
                   <div class="settings-section-copy">
                     <h4 id="waterbodySettingsHeading">Waterbodies</h4>
                     <p>Add lakes, rivers, and specific launches or locations on each waterbody.</p>
                   </div>
-                  <button class="button primary settings-button-with-icon" id="settingsAddLocationButton" type="button">
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg>
-                    Add Waterbody
-                  </button>
+                  <div class="waterbody-settings-actions">
+                    <label class="settings-control location-manager-search">
+                      <span>Search waterbodies</span>
+                      <input id="locationManagerSearch" type="search" placeholder="Search waterbodies..." />
+                    </label>
+                    <button class="button primary settings-button-with-icon" id="settingsAddLocationButton" type="button">
+                      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg>
+                      Add Waterbody
+                    </button>
+                  </div>
                 </div>
-                <label class="settings-control location-manager-search">
-                  <span>Search waterbodies</span>
-                  <input id="locationManagerSearch" type="search" placeholder="Search waterbodies..." />
-                </label>
                 <div class="location-manager-list" id="locationManagerList"></div>
               </section>
               <section class="settings-section settings-section--home-location" aria-labelledby="homeLocationSettingsHeading">
@@ -761,7 +763,6 @@
       <form id="tripForm" method="dialog" novalidate>
         <div class="dialog-header">
           <div>
-            <p class="eyebrow">Trip log</p>
             <h2 id="tripDialogTitle">New Trip</h2>
           </div>
           <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
@@ -881,7 +882,6 @@
             </label>
             <div class="weather-fetch-panel">
               <div>
-                <span>Weather data</span>
                 <strong id="weatherFetchStatus">Choose a mapped location and date</strong>
               </div>
               <button class="button secondary" id="resyncWeatherButton" type="button">Resync Weather</button>
@@ -1231,9 +1231,9 @@
     </dialog>
 
     <template id="catchRowTemplate">
-      <article class="catch-row">
+      <article class="catch-row collapsed">
         <div class="collapsible-row-header">
-          <button class="row-collapse-button" type="button" data-toggle-row aria-expanded="true">
+          <button class="row-collapse-button" type="button" data-toggle-row aria-expanded="false">
             <span class="row-collapse-icon" aria-hidden="true">
               <svg viewBox="0 0 16 16"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
             </span>
@@ -1405,9 +1405,9 @@
     </template>
 
     <template id="tripGearRowTemplate">
-      <article class="gear-used-row">
+      <article class="gear-used-row collapsed">
         <div class="collapsible-row-header">
-          <button class="row-collapse-button" type="button" data-toggle-row aria-expanded="true">
+          <button class="row-collapse-button" type="button" data-toggle-row aria-expanded="false">
             <span class="row-collapse-icon" aria-hidden="true">
               <svg viewBox="0 0 16 16"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
             </span>

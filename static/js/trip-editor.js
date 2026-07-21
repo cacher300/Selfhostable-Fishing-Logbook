@@ -171,7 +171,13 @@ function openTripDialog(trip = null) {
   setWeatherStatus(activeTripWeatherData?.daily ? "Weather loaded" : "Choose a mapped location and date");
   renderNotePhotos();
 
-  (trip?.people || []).forEach(addPersonRow);
+  const tripPeople = trip?.people || [];
+  if (tripPeople.length) {
+    tripPeople.forEach(addPersonRow);
+  } else {
+    const savedPeople = (state.people || []).filter((person) => person.name?.trim());
+    addPersonRow(savedPeople.length === 1 ? savedPeople[0] : {}, { editNew: savedPeople.length !== 1 });
+  }
   (trip?.gearUsed || []).forEach(addTripGearRow);
   (trip?.catches || []).forEach(addCatchRow);
   (trip?.lostFish || []).forEach(addLostFishRow);
@@ -183,6 +189,7 @@ function openTripDialog(trip = null) {
   els.tripForm.scrollTop = 0;
   requestAnimationFrame(() => {
     els.tripForm.scrollTop = 0;
+    els.personRows.querySelector("[data-focus-person-name='true'] .person-name")?.focus({ preventScroll: true });
     resetTripFormSnapshot();
   });
   scheduleTripWeatherPreview(true);
@@ -258,13 +265,24 @@ function intentLabel(value) {
   return value === "experimental" ? "Experimental" : "Serious";
 }
 
-function addPersonRow(person = {}) {
+function hasCatchDepthData(depthData) {
+  return Boolean(depthData && Object.values(depthData).some((value) => value !== null && value !== undefined && value !== ""));
+}
+
+function addPersonRow(person = {}, { editNew = false } = {}) {
   const template = document.querySelector("#personRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.personId = person.id || createId();
   node.querySelector(".person-name").value = person.name || "";
   els.personRows.append(node);
   populatePersonSelects();
+  if (editNew) {
+    const select = node.querySelector(".person-select");
+    const input = node.querySelector(".person-name");
+    select.value = "__new__";
+    input.classList.remove("hidden");
+    node.dataset.focusPersonName = "true";
+  }
 }
 
 function collectPeople() {
@@ -469,7 +487,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.dataset.catchId = catchItem.id || "";
   node.catchPhotos = lost ? [] : structuredClone(catchItem.photos || []);
   node.catchWeatherData = catchItem.weatherData || null;
-  node.catchDepthData = lost ? null : {
+  node.catchDepthData = {
     depth_m: catchItem.depth_m ?? null,
     depth_ft: catchItem.depth_ft ?? null,
     lake_name: catchItem.lake_name ?? null,
@@ -894,13 +912,13 @@ function collectTripFromForm() {
         lineOut: !detailsUnknown && trolling ? row.querySelector(".catch-line-out").value.trim() : "",
         estimatedDepth: !detailsUnknown && trolling ? row.querySelector(".catch-estimated-depth").value.trim() : "",
         notes: detailsUnknown ? "" : row.querySelector(".catch-notes").value.trim(),
-        manualCoordinates: detailsUnknown || lost ? null : manualCoordinatesFromRow(row),
-        coordinates: detailsUnknown || lost ? null : fishCoordinatesFromRow(row),
+        manualCoordinates: detailsUnknown ? null : manualCoordinatesFromRow(row),
+        coordinates: detailsUnknown ? null : fishCoordinatesFromRow(row),
         photos: detailsUnknown || lost ? [] : collectCatchPhotos(row)
       };
       const selectedRodId = row.querySelector(".catch-rod")?.selectedOptions?.[0]?.dataset.rodId || "";
       if (!detailsUnknown && !lost && row.catchWeatherData) base.weatherData = row.catchWeatherData;
-      if (!detailsUnknown && !lost && row.catchDepthData) {
+      if (!detailsUnknown && hasCatchDepthData(row.catchDepthData)) {
         Object.assign(base, row.catchDepthData);
       }
       return !detailsUnknown && trolling

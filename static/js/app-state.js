@@ -29,7 +29,8 @@ const activePersonalBestsFilters = {
 };
 let activeMapSpecies = "All species";
 let activeMapIncludeTripMedia = false;
-let activeMapShowNOAACharts = true;
+const mapNoaaChartsPreferenceKey = `${storageKey}-map-noaa-charts`;
+let activeMapShowNOAACharts = loadMapNoaaChartsPreference();
 let activeTripSummaryMapFilter = "All map items";
 let activeGalleryCategory = "all";
 let brandSpotlightTimer = null;
@@ -72,6 +73,22 @@ const returnToTripDialog = {
   rodImage: false
 };
 
+function loadMapNoaaChartsPreference() {
+  try {
+    const saved = localStorage.getItem(mapNoaaChartsPreferenceKey);
+    return saved === null ? true : saved === "true";
+  } catch {
+    return true;
+  }
+}
+
+function saveMapNoaaChartsPreference(showCharts) {
+  try {
+    localStorage.setItem(mapNoaaChartsPreferenceKey, String(Boolean(showCharts)));
+  } catch {
+    // The map can still work when browser storage is unavailable.
+  }
+}
 
 async function loadState() {
   try {

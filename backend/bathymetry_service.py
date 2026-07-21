@@ -273,12 +273,20 @@ def depth_fields(catch: dict) -> dict:
     }
 
 
+def trip_fish_records(trip: dict) -> list:
+    return [
+        fish
+        for key in ("catches", "lostFish")
+        for fish in (trip.get(key) if isinstance(trip.get(key), list) else [])
+    ]
+
+
 def preserve_existing_depth_fields(incoming_logbook: dict, existing_logbook: dict) -> dict:
     depth_by_catch_id = {}
     for trip in existing_logbook.get("trips", []):
         if not isinstance(trip, dict):
             continue
-        for catch in trip.get("catches", []):
+        for catch in trip_fish_records(trip):
             if not isinstance(catch, dict) or not catch.get("id") or not has_depth_metadata(catch):
                 continue
             depth_by_catch_id[str(catch["id"])] = depth_fields(catch)
@@ -286,7 +294,7 @@ def preserve_existing_depth_fields(incoming_logbook: dict, existing_logbook: dic
     for trip in incoming_logbook.get("trips", []):
         if not isinstance(trip, dict):
             continue
-        for catch in trip.get("catches", []):
+        for catch in trip_fish_records(trip):
             if not isinstance(catch, dict) or not catch.get("id") or not catch_needs_depth(catch):
                 continue
             existing_depth = depth_by_catch_id.get(str(catch["id"]))
@@ -313,7 +321,7 @@ def enrich_logbook_depths(logbook: dict | None = None) -> dict:
     for trip in source.get("trips", []):
         if not isinstance(trip, dict):
             continue
-        for catch in trip.get("catches", []):
+        for catch in trip_fish_records(trip):
             if not isinstance(catch, dict) or not catch_needs_depth(catch):
                 continue
             if has_depth_metadata(catch):
@@ -342,7 +350,7 @@ def patch_saved_depths(enriched_logbook: dict) -> None:
     for trip in enriched_logbook.get("trips", []):
         if not isinstance(trip, dict):
             continue
-        for catch in trip.get("catches", []):
+        for catch in trip_fish_records(trip):
             if not isinstance(catch, dict) or not catch.get("id"):
                 continue
             if any(key in catch for key in ("depth_m", "depth_ft", "lake_name", "depth_source")):
@@ -354,7 +362,7 @@ def patch_saved_depths(enriched_logbook: dict) -> None:
     for trip in current.get("trips", []):
         if not isinstance(trip, dict):
             continue
-        for catch in trip.get("catches", []):
+        for catch in trip_fish_records(trip):
             if not isinstance(catch, dict) or not catch.get("id") or not catch_needs_depth(catch):
                 continue
             depth = depth_by_catch_id.get(str(catch["id"]))

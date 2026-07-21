@@ -31,7 +31,6 @@ from backend.bathymetry_service import (
     apply_depth_result,
     lookup_depth,
     preserve_existing_depth_fields,
-    schedule_depth_enrichment,
     valid_coordinates,
 )
 from backend.request_security import configure_request_security, csrf_token
@@ -92,7 +91,6 @@ def create_app(config: dict | None = None) -> Flask:
         normalized = normalize_logbook(payload)
         preserve_existing_depth_fields(normalized, read_logbook())
         write_logbook(normalized)
-        schedule_depth_enrichment()
         cleanup_orphaned_uploads()
         return jsonify({"ok": True})
 

@@ -240,13 +240,13 @@ function catchDepthFieldsFromPayload(payload = {}) {
 }
 
 async function updateCatchFowFromLocation(row) {
-  if (!row || row.classList.contains("lost-fish-row")) return;
+  if (!row) return;
   const coordinates = fishCoordinatesFromRow(row);
   updateCatchFowForCoordinates(row, coordinates);
 }
 
 async function updateCatchFowForCoordinates(row, coordinates, options = {}) {
-  if (!row || row.classList.contains("lost-fish-row")) return;
+  if (!row) return;
   if (!isUsableCoordinates(coordinates)) {
     row.catchDepthData = null;
     return;
