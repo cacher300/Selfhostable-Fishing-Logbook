@@ -1,4 +1,4 @@
-﻿function catchMapRecordForTrip(trip, catchItem, catchIndex) {
+function catchMapRecordForTrip(trip, catchItem, catchIndex) {
   const mediaWithCoordinates = (catchItem.photos || []).find((photo) => isUsableCoordinates(photo.coordinates));
   const coordinates = isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : mediaWithCoordinates?.coordinates;
   if (!isUsableCoordinates(coordinates)) return null;
@@ -551,16 +551,6 @@ function summaryValueItem(label, value, options = {}) {
   `;
 }
 
-function summaryChip(label, value, options = {}) {
-  if (!value && !options.showEmpty) return "";
-  return `
-    <span class="summary-chip ${options.kind || ""}">
-      ${label ? `<strong>${escapeHtml(label)}</strong>` : ""}
-      ${escapeHtml(value || "Not logged")}
-    </span>
-  `;
-}
-
 function displaySpeedValue(value) {
   const trimmed = String(value || "").trim();
   if (!trimmed) return "";
@@ -691,31 +681,6 @@ function renderTripWeatherDetailsSection(trip) {
       </div>
     </section>
   `;
-}
-
-function compactCatchDetails(trip, catchItem, options = {}) {
-  const record = resolveTripLineRecord({ ...catchItem, trip });
-  const gear = record.setupLine
-    ? setupLineDisplayLabel(trip, record.setupLine)
-    : [lureName(record.lureId), flasherName(record.flasherId)].filter(Boolean).join(" + ");
-  const fishingDetails = [
-    options.showOutcome ? (record.released ? "Released" : "Kept") : (record.released ? "Released" : ""),
-    record.length,
-    record.weight,
-    record.time,
-    record.fowCaught,
-    record.depthDown ? `${record.depthDown} down` : "",
-    record.waterDepth ? `${record.waterDepth} water` : "",
-    displaySpeedValue(record.speed),
-    gear
-  ].filter(Boolean).join(" / ");
-  const weatherDetails = [
-    catchWeatherSummary(catchItem.weatherData),
-    catchWeatherComparison(catchItem.weatherData, trip.weatherData),
-    moonWindowForTime(catchItem.time, trip.weatherData?.sunMoon)
-  ].filter(Boolean).join(" / ");
-  const location = record.coordinates ? formatCoordinates(record.coordinates) : "";
-  return [fishingDetails, weatherDetails, location].filter(Boolean).join(" | ");
 }
 
 function catchMetaRow(label, value) {
@@ -860,35 +825,6 @@ function renderTripSummaryCatches(trip) {
       </article>
     `;
   }).join("");
-}
-
-function renderTripSummaryGear(trip) {
-  const gearUsed = trip.gearUsed || [];
-  if (!gearUsed.length) return `<div class="empty-state compact-empty"><p>No setup timeline entries.</p></div>`;
-  return `
-    <div class="summary-list">
-      ${gearUsed.map((gearItem, index) => {
-        const timeRange = formatDisplayTimeRange(gearItem.startTime, gearItem.endTime);
-        const rodReel = comboName(gearItem.comboId) || [rodName(gearItem.rodId), reelName(gearItem.reelId)].filter(Boolean).join(" + ");
-        const gear = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
-        const details = [
-          presentationLabel(gearItem.presentation),
-          timeRange
-        ].filter(Boolean).join(" / ");
-        return `
-          <article class="setup-summary-card">
-            <div>
-              <strong>${escapeHtml(displayTitleText(setupLineDisplayLabel(trip, gearItem) || setupLineSideLabel(gearItem.side) || `Rod ${index + 1}`))}</strong>
-              <span>${escapeHtml(displayTitleText(rodReel) || "No rod/reel logged")}</span>
-            </div>
-            <span>${escapeHtml(displayTitleText(gear) || "No lure/flasher logged")}</span>
-            <small>${escapeHtml(details || "No setup details")}</small>
-            ${gearItem.changeNote ? `<p>${escapeHtml(displaySentenceText(gearItem.changeNote))}</p>` : ""}
-          </article>
-        `;
-      }).join("")}
-    </div>
-  `;
 }
 
 function setupLineCounts(trip, gearItem) {

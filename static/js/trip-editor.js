@@ -250,16 +250,6 @@ function mergePeople(...personLists) {
   return [...peopleById.values()].filter((person) => person.name);
 }
 
-function mergeTextList(...lists) {
-  const values = new Map();
-  lists.flat().forEach((value) => {
-    const text = String(value || "").trim();
-    if (!text) return;
-    values.set(text.toLowerCase(), text);
-  });
-  return [...values.values()].sort((a, b) => a.localeCompare(b));
-}
-
 function tripIntent(trip) {
   return trip?.intent === "experimental" ? "experimental" : "serious";
 }

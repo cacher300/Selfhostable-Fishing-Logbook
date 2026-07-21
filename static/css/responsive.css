@@ -1,0 +1,802 @@
+@media (min-width: 761px) {
+  .sidebar {
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow: auto;
+    scrollbar-width: none;
+  }
+
+  .sidebar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topbar-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 980px) {
+  .main-panel {
+    padding: 20px 16px 36px;
+  }
+
+  .controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .table-row {
+    grid-template-columns: 1fr 0.9fr 1fr 70px;
+  }
+
+  .table-row > :nth-child(4),
+  .table-row > :nth-child(5),
+  .table-row > :nth-child(6),
+  .table-row > :nth-child(7),
+  .table-row > :nth-child(9) {
+    display: none;
+  }
+
+  .form-grid,
+  .catch-row .collapsible-row-body,
+  .gear-used-row .collapsible-row-body {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .gear-used-row .gear-lure-field,
+  .gear-used-row .gear-combo-field,
+  .gear-used-row .gear-rod-field,
+  .gear-used-row .gear-reel-field,
+  .gear-used-row .gear-start-field,
+  .gear-used-row .gear-end-field,
+  .gear-used-row .gear-change-field,
+  .gear-used-row .gear-side-field,
+  .gear-used-row .gear-label-field,
+  .gear-used-row .gear-trolling-title,
+  .gear-used-row .gear-trolling-field,
+  .gear-used-row .gear-title,
+  .gear-used-row .gear-lure-action,
+  .gear-used-row .lure-preview,
+  .gear-used-row .gear-flasher-field,
+  .gear-used-row .gear-flasher-action,
+  .gear-used-row .flasher-preview,
+  .gear-used-row .param-cheater,
+  .gear-used-row .param-leadcore,
+  .gear-used-row .param-cheater-lure {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .lure-preview,
+  .flasher-preview {
+    grid-column: 1 / -1;
+  }
+
+  .metric-grid,
+  .analytics-grid,
+  .stats-group .analytics-grid,
+  .patterns-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-section {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 28px 22px;
+  }
+
+  .settings-section > :not(.settings-section-copy):not(.settings-section-header) {
+    grid-column: 1;
+  }
+
+  .settings-card,
+  .settings-card--full {
+    grid-column: auto;
+  }
+
+  #personalBestsMetricGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .patterns-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brand-block {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding-bottom: 10px;
+  }
+
+  .brand-spotlight {
+    display: none;
+  }
+
+  .mobile-summary-panel {
+    display: block;
+    border-top: 1px solid var(--line);
+  }
+
+  .mobile-summary-panel > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+    padding: 0 16px;
+    color: var(--text);
+    font-weight: 900;
+    list-style: none;
+  }
+
+  .mobile-summary-panel > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobile-summary-panel > summary::after {
+    content: "+";
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .mobile-summary-panel[open] > summary::after {
+    content: "-";
+  }
+
+  .mobile-summary-panel .side-section {
+    padding: 14px 16px;
+  }
+
+  .mobile-summary-panel .side-section:first-of-type .section-heading {
+    display: none;
+  }
+
+  .private-location-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-header,
+  .settings-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-page {
+    gap: 18px;
+  }
+
+  .settings-header h3 {
+    font-size: 30px;
+  }
+
+  .settings-tabs {
+    margin-right: -16px;
+    padding-right: 16px;
+  }
+
+  .settings-section {
+    padding: 24px 16px;
+  }
+
+  .settings-field-grid,
+  .unit-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-control select,
+  .settings-control input {
+    width: 100%;
+  }
+
+  .settings-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .private-location-card-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .private-location-card-head .button {
+    width: 100%;
+  }
+
+  .private-location-map {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root[data-theme="dark"] body {
+    background: var(--bg);
+  }
+
+  :root[data-theme="dark"] .topbar {
+    background: rgba(14, 20, 27, 0.98);
+    box-shadow: 0 1px 0 var(--line), 0 8px 22px rgba(0, 0, 0, 0.32);
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .app-shell {
+    border: 0;
+  }
+
+  .brand-block {
+    padding: 14px 16px 10px;
+  }
+
+  .brand-block h1 {
+    font-size: 20px;
+  }
+
+  .brand-spotlight,
+  .brand-spotlight-empty {
+    min-height: 118px;
+  }
+
+  .spotlight-slides {
+    height: 132px;
+  }
+
+  .main-panel {
+    padding: 0 12px 88px;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    align-items: stretch;
+    flex-direction: column;
+    margin: 0 -12px 14px;
+    padding: 10px 12px 12px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 1px 0 var(--line), 0 8px 22px rgba(7, 21, 46, 0.08);
+  }
+
+  .topbar h2 {
+    font-size: 22px;
+  }
+
+  .topbar,
+  .topbar-actions,
+  .dialog-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topbar-actions,
+  .utility-actions,
+  .dialog-actions > div,
+  .section-actions,
+  .section-heading {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .view-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin: 0 -12px;
+    padding: 4px 12px 8px;
+    overflow-x: auto;
+    border-width: 1px 0;
+    border-radius: 0;
+  }
+
+  .view-nav .button {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 82px;
+  }
+
+  .utility-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #newTripButton {
+    position: fixed;
+    right: 14px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    z-index: 8;
+    width: auto;
+    min-width: 118px;
+    box-shadow: 0 12px 28px rgba(17, 135, 83, 0.32);
+  }
+
+  body:not([data-active-view="trips"]) #newTripButton {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    box-shadow: none;
+  }
+
+  .button,
+  .file-button,
+  .dialog-actions button {
+    width: 100%;
+  }
+
+  .dialog {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .dialog form {
+    max-height: 100dvh;
+    padding: 16px;
+  }
+
+  #tripDialog,
+  #tripDialog form {
+    max-height: 100dvh;
+  }
+
+  #tripDialog form {
+    padding: 16px;
+  }
+
+  .dialog-header {
+    top: -16px;
+    margin: -16px -16px 14px;
+    padding: 16px 16px 12px;
+    border-bottom-color: var(--line);
+  }
+
+  #tripDialog .dialog-header {
+    top: -16px;
+    margin: -16px -16px 14px;
+    padding: 16px 16px 12px;
+  }
+
+  .trip-section-nav {
+    top: 54px;
+    margin: -6px -16px 14px;
+    padding: 8px 16px;
+  }
+
+  .trip-section-nav a {
+    padding: 8px 11px;
+  }
+
+  .trip-form-section {
+    padding: 16px 0;
+    scroll-margin-top: 118px;
+  }
+
+  .dialog-actions {
+    bottom: -16px;
+    margin: 18px -16px -16px;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .dialog-actions > div {
+    gap: 10px;
+  }
+
+  .catch-row,
+  .gear-used-row {
+    padding: 12px;
+  }
+
+  .controls,
+  .form-grid,
+  .catch-row .collapsible-row-body,
+  .gear-used-row .collapsible-row-body,
+  .person-row,
+  .line-editor-row {
+    grid-template-columns: 1fr;
+  }
+
+  .table-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .table-row > :nth-child(3),
+  .table-row > :nth-child(4),
+  .table-row > :nth-child(5),
+  .table-row > :nth-child(6),
+  .table-row > :nth-child(7),
+  .table-row > :nth-child(8),
+  .table-row > :nth-child(9) {
+    display: none;
+  }
+
+  .catch-photo-grid,
+  .note-photo-grid {
+    grid-template-columns: none;
+  }
+
+  .map-header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .map-header-legend {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .map-header-legend .map-legend {
+    justify-content: flex-start;
+  }
+
+  .map-tools {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .map-tools label,
+  .summary-map-tools label {
+    min-width: 0;
+  }
+
+  .map-tools .map-media-toggle,
+  .map-tools .map-chart-toggle {
+    width: max-content;
+  }
+
+  .fish-map {
+    min-height: 360px;
+  }
+
+  .map-catch-list {
+    grid-template-columns: 1fr;
+  }
+
+  .trip-summary-shell {
+    max-height: 100dvh;
+    padding: 16px;
+  }
+
+  .photo-queue-shell {
+    max-height: 100dvh;
+    padding: 16px;
+  }
+
+  .photo-queue-actions,
+  .photo-queue-card .photo-queue-card-actions,
+  .personal-bests-header,
+  .gallery-header,
+  .gallery-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .personal-bests-tools {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .gallery-tools label {
+    min-width: 0;
+  }
+
+  .photo-queue-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary-hero h3 {
+    font-size: 22px;
+  }
+
+  .summary-metrics,
+  .summary-detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .trip-summary-map {
+    min-height: 320px;
+  }
+
+  .timeline-item {
+    grid-template-columns: 64px 18px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .timeline-time {
+    font-size: 12px;
+    padding-top: 16px;
+  }
+
+  .compact-photo-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .spread-diagram {
+    min-height: 0;
+  }
+
+  .summary-section-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .summary-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary-catch-card {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .catch-detail-panel {
+    width: min(980px, calc(100vw - 48px));
+    padding: 24px;
+    border-radius: 18px;
+  }
+
+  .catch-detail-panel .catch-media-gallery {
+    grid-template-columns: minmax(0, 1fr) 112px;
+    gap: 14px;
+  }
+
+  .catch-detail-panel .featured-image-wrap,
+  .catch-detail-panel .featured-image-wrap .media-download-frame,
+  .catch-detail-panel .featured-image,
+  .catch-detail-panel .catch-media-gallery .featured-image-wrap video,
+  .catch-detail-panel .catch-media-gallery.is-scrollable .thumbnail-column {
+    max-height: min(58vh, 560px);
+  }
+
+  .catch-media-gallery {
+    max-width: none;
+  }
+
+  .featured-image-wrap,
+  .catch-media-gallery.is-scrollable .thumbnail-column {
+    height: 320px;
+    max-height: 320px;
+  }
+
+  .patterns-header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .patterns-toolbar,
+  .pattern-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-group > summary {
+    align-items: flex-start;
+  }
+
+  .stats-group .analytics-grid {
+    padding: 12px;
+  }
+
+  .analytics-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .stats-view-toggle,
+  .stats-view-toggle button {
+    width: 100%;
+  }
+
+  .stats-chart-row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .stats-chart-value {
+    text-align: left;
+  }
+
+  .stats-help-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pattern-card-header {
+    display: grid;
+  }
+
+  .personal-best-title-row {
+    display: grid;
+  }
+
+  .personal-best-title-row .stats-badge {
+    max-width: 100%;
+  }
+
+  .personal-best-progression-header,
+  .personal-best-progression-card-head,
+  .personal-best-timeline-topline {
+    display: grid;
+  }
+}
+
+@media (max-width: 640px) {
+  .catch-detail-popout {
+    padding: 16px;
+  }
+
+  .catch-detail-panel {
+    width: min(100%, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    padding: 18px;
+    border-radius: 18px;
+    gap: 18px;
+  }
+
+  .catch-detail-close {
+    top: 20px;
+    right: 20px;
+  }
+
+  .catch-detail-heading {
+    padding-right: 44px;
+  }
+
+  .catch-detail-heading h4 {
+    font-size: 22px;
+  }
+
+  .catch-detail-panel .catch-media-gallery {
+    display: block;
+  }
+
+  .catch-detail-panel .featured-image-wrap {
+    height: auto;
+    max-height: none;
+    border-radius: 16px;
+  }
+
+  .catch-detail-panel .featured-image-wrap .media-download-frame,
+  .catch-detail-panel .featured-image,
+  .catch-detail-panel .catch-media-gallery .featured-image-wrap video {
+    max-height: 60vh;
+  }
+
+  .catch-detail-panel .thumbnail-column {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: none;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 0;
+  }
+
+  .catch-detail-panel .catch-media-gallery.is-scrollable .thumbnail-column {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .catch-detail-panel .thumbnail-button {
+    border-radius: 14px;
+  }
+
+  .summary-catch-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .catch-media-gallery {
+    display: block;
+    max-width: none;
+  }
+
+  .featured-image-wrap {
+    height: 260px;
+    border-radius: 14px;
+  }
+
+  .featured-image-button:focus-visible {
+    border-radius: 14px;
+  }
+
+  .thumbnail-column {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: none;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .catch-media-gallery.is-scrollable .thumbnail-column {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .thumbnail-button {
+    border-radius: 10px;
+  }
+
+  .catch-meta-row {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .trip-timeline {
+    width: 100%;
+    padding: 0 12px;
+  }
+
+  .trip-timeline::before {
+    content: none;
+  }
+
+  .timeline-filter {
+    justify-content: flex-start;
+  }
+
+  .timeline-item {
+    display: block;
+  }
+
+  .timeline-time,
+  .timeline-dot {
+    display: none;
+  }
+
+  .event-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .event-photo {
+    aspect-ratio: 4 / 5;
+    height: auto;
+  }
+
+  .setup-row-topline {
+    flex-direction: column;
+  }
+}
+
+#tripSummaryBody .summary-metrics .metric-card span,
+#tripSummaryBody .summary-map-tools label,
+#tripSummaryBody .summary-map-tools select,
+#tripSummaryBody .spread-detail-card span {
+  font-size: 15px;
+}
+
+#tripSummaryBody .event-kicker {
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+
+#tripSummaryBody .summary-metrics .metric-card strong {
+  font-size: 28px;
+}

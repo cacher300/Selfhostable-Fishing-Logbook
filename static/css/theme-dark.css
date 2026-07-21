@@ -1,0 +1,245 @@
+:root[data-theme="dark"] .brand-spotlight-empty {
+  background:
+    linear-gradient(135deg, rgba(56, 184, 120, 0.16), rgba(114, 167, 232, 0.08)),
+    linear-gradient(180deg, #172231, #101821);
+}
+
+:root[data-theme="dark"] .dialog,
+:root[data-theme="dark"] .dialog form,
+:root[data-theme="dark"] .dialog-content,
+:root[data-theme="dark"] .dialog-header,
+:root[data-theme="dark"] .trip-section-nav,
+:root[data-theme="dark"] .dialog-actions {
+  background: var(--panel);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .form-message {
+  border-color: rgba(240, 108, 103, 0.42);
+  background: rgba(240, 108, 103, 0.12);
+  color: #ffaaa6;
+}
+
+:root[data-theme="dark"] .button.primary {
+  color: #06130d;
+}
+
+:root[data-theme="dark"] .button.primary:hover {
+  background: #65d899;
+}
+
+:root[data-theme="dark"] .button.danger {
+  border-color: rgba(240, 108, 103, 0.42);
+  color: #ffaaa6;
+}
+
+:root[data-theme="dark"] .settings-card,
+:root[data-theme="dark"] .predefined-field-group,
+:root[data-theme="dark"] .predefined-field-body,
+:root[data-theme="dark"] .predefined-field-group[open] .predefined-field-summary,
+:root[data-theme="dark"] .inventory-table,
+:root[data-theme="dark"] .pattern-card,
+:root[data-theme="dark"] .stats-help,
+:root[data-theme="dark"] .stats-help article,
+:root[data-theme="dark"] .stats-group,
+:root[data-theme="dark"] .personal-best-card,
+:root[data-theme="dark"] .personal-best-progression-card,
+:root[data-theme="dark"] .gallery-card,
+:root[data-theme="dark"] .gear-card,
+:root[data-theme="dark"] .map-catch-card,
+:root[data-theme="dark"] .summary-notes-card,
+:root[data-theme="dark"] .summary-map-section,
+:root[data-theme="dark"] .summary-condition-metrics .metric-card,
+:root[data-theme="dark"] .summary-weather-details-section,
+:root[data-theme="dark"] .summary-catch-card,
+:root[data-theme="dark"] .summary-photo-card,
+:root[data-theme="dark"] .catch-detail-panel,
+:root[data-theme="dark"] .event-card,
+:root[data-theme="dark"] .setup-summary-card,
+:root[data-theme="dark"] .spread-detail-card,
+:root[data-theme="dark"] .photo-queue-card,
+:root[data-theme="dark"] .catch-photo-card,
+:root[data-theme="dark"] .note-photo-card,
+:root[data-theme="dark"] .lure-preview-card,
+:root[data-theme="dark"] .flasher-preview-card {
+  background: var(--panel);
+}
+
+:root[data-theme="dark"] .event-card {
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"] .event-card.catch {
+  border-left-color: #059669;
+}
+
+:root[data-theme="dark"] .event-card.lost {
+  border-left-color: #dc2626;
+}
+
+:root[data-theme="dark"] .event-card.photo {
+  border-left-color: #2563eb;
+}
+
+:root[data-theme="dark"] .event-card.setup {
+  border-left-color: #64748b;
+}
+
+:root[data-theme="dark"] .trip-summary-body .summary-metrics .metric-card,
+:root[data-theme="dark"] .trip-summary-body .summary-condition-metrics .metric-card {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: linear-gradient(180deg, rgba(21, 32, 44, 0.98), rgba(15, 24, 34, 0.98));
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-theme="dark"] .trip-timeline::before {
+  background: var(--line);
+}
+
+:root[data-theme="dark"] .timeline-dot::before {
+  border-color: var(--panel);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+:root[data-theme="dark"] .catch-row,
+:root[data-theme="dark"] .gear-used-row,
+:root[data-theme="dark"] .line-editor-row,
+:root[data-theme="dark"] .setup-row,
+:root[data-theme="dark"] .pattern-stats span,
+:root[data-theme="dark"] .summary-weather-empty,
+:root[data-theme="dark"] .queued-gear-image {
+  background: var(--panel-soft);
+}
+
+:root[data-theme="dark"] .lure-info-media,
+:root[data-theme="dark"] .personal-best-media,
+:root[data-theme="dark"] .fish-map,
+:root[data-theme="dark"] .inventory-thumb,
+:root[data-theme="dark"] .inventory-thumb-placeholder,
+:root[data-theme="dark"] .gallery-media img,
+:root[data-theme="dark"] .gallery-media video,
+:root[data-theme="dark"] .gear-image-placeholder,
+:root[data-theme="dark"] .timeline-photo-frame,
+:root[data-theme="dark"] .event-photo,
+:root[data-theme="dark"] .featured-image-wrap,
+:root[data-theme="dark"] .featured-image,
+:root[data-theme="dark"] .thumbnail-button,
+:root[data-theme="dark"] .catch-detail-panel .featured-image-wrap,
+:root[data-theme="dark"] .catch-detail-panel .thumbnail-button,
+:root[data-theme="dark"] .photo-queue-image-wrap {
+  background: #0b1118;
+}
+
+:root[data-theme="dark"] .trip-photos-disclosure > summary,
+:root[data-theme="dark"] .stats-view-toggle,
+:root[data-theme="dark"] .stats-chart-track,
+:root[data-theme="dark"] .timeline-filter-button,
+:root[data-theme="dark"] .setup-action,
+:root[data-theme="dark"] .meta-chip,
+:root[data-theme="dark"] .stats-badge,
+:root[data-theme="dark"] .map-legend span,
+:root[data-theme="dark"] .media-download-link,
+:root[data-theme="dark"] .trip-section-nav a,
+:root[data-theme="dark"] .icon-button,
+:root[data-theme="dark"] .intent-control span,
+:root[data-theme="dark"] .trip-rating-control,
+:root[data-theme="dark"] .rating-pill,
+:root[data-theme="dark"] .checkbox-label,
+:root[data-theme="dark"] .catch-location-field .pick-catch-location {
+  background: var(--field);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .trip-photos-disclosure > summary::after {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+:root[data-theme="dark"] .stats-view-toggle button.is-active,
+:root[data-theme="dark"] .timeline-filter-button:hover,
+:root[data-theme="dark"] .timeline-filter-button.is-active,
+:root[data-theme="dark"] .intent-control input:checked + span,
+:root[data-theme="dark"] .rating-pill.outstanding,
+:root[data-theme="dark"] .confidence-pill.high {
+  background: var(--active-bg);
+  color: var(--active-text);
+}
+
+:root[data-theme="dark"] .analytics-table th,
+:root[data-theme="dark"] .inventory-table th,
+:root[data-theme="dark"] .settings-table th {
+  background: var(--panel-soft);
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] .settings-grid,
+:root[data-theme="dark"] .settings-save-bar {
+  background: rgba(21, 29, 38, 0.94);
+}
+
+:root[data-theme="dark"] .settings-tab:hover {
+  background: var(--hover);
+}
+
+:root[data-theme="dark"] .summary-notes-card p,
+:root[data-theme="dark"] .summary-value,
+:root[data-theme="dark"] .summary-value strong,
+:root[data-theme="dark"] .summary-weather-details-section .summary-value strong,
+:root[data-theme="dark"] .event-title,
+:root[data-theme="dark"] .setup-row-title,
+:root[data-theme="dark"] .catch-meta-row dd,
+:root[data-theme="dark"] .spread-lure-link,
+:root[data-theme="dark"] .spread-html-label,
+:root[data-theme="dark"] .spread-html-label span {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .event-kicker,
+:root[data-theme="dark"] .event-summary,
+:root[data-theme="dark"] .event-note,
+:root[data-theme="dark"] .meta-chip,
+:root[data-theme="dark"] .setup-row-meta,
+:root[data-theme="dark"] .setup-row-note,
+:root[data-theme="dark"] .catch-subtitle,
+:root[data-theme="dark"] .catch-meta-row dt,
+:root[data-theme="dark"] .timeline-photo-frame figcaption {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] .rating-pill.bad {
+  border-color: rgba(240, 108, 103, 0.46);
+  background: rgba(240, 108, 103, 0.12);
+  color: #ffaaa6;
+}
+
+:root[data-theme="dark"] .rating-pill.mediocre,
+:root[data-theme="dark"] .confidence-pill.medium,
+:root[data-theme="dark"] .stats-confidence-low {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+:root[data-theme="dark"] .stats-confidence-medium {
+  background: rgba(114, 167, 232, 0.15);
+  color: #acd0fb;
+}
+
+:root[data-theme="dark"] .stats-confidence-high {
+  background: var(--active-bg);
+  color: var(--active-text);
+}
+
+:root[data-theme="dark"] .stats-positive {
+  color: #8be6b5;
+}
+
+:root[data-theme="dark"] .stats-negative {
+  color: #ffaaa6;
+}
+
+:root[data-theme="dark"] .topbar {
+  background: transparent;
+}
+

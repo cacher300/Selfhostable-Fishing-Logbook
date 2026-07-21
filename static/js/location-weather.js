@@ -250,13 +250,6 @@ function openMeteoUnit(bundle, key, fallback = "") {
   return value;
 }
 
-function openMeteoValue(bundle, values, key, index, targetUnit, fallbackUnit) {
-  const sourceValue = values?.[key]?.[index] ?? null;
-  const sourceUnit = openMeteoUnit(bundle, key, fallbackUnit);
-  if (!sourceUnit) return null;
-  return convertUnitValue(sourceValue, sourceUnit, targetUnit);
-}
-
 function hourlyRecords(bundle) {
   const hourly = bundle.hourly || {};
   return (hourly.time || []).map((time, index) => ({
@@ -824,39 +817,3 @@ function weatherValueWithTrend(value, ...trendParts) {
   return [value || "Not logged", ...trends].join(" / ");
 }
 
-function renderWeatherDetails(weatherData, trip = {}) {
-  if (!weatherData || weatherData.status === "missing-coordinates") {
-    return `<span><strong>API Weather</strong>Add a mapped location pin to fetch weather.</span>`;
-  }
-  if (weatherData.status === "error") {
-    return `<span><strong>API Weather</strong>${escapeHtml(weatherData.message || "Weather fetch failed.")}</span>`;
-  }
-  const window = weatherData.tripWindow || {};
-  const daily = weatherData.daily || {};
-  const trend = weatherData.trend || {};
-  const waveHeightChopText = formatWaveHeightChopLine(trip, weatherData);
-  const barometricTrend = window.pressureTrendRateHpa3h === null || window.pressureTrendRateHpa3h === undefined
-    ? "Not logged"
-    : `${window.pressureTrendRateHpa3h > 0 ? "+" : ""}${formatUnitValue(Math.abs(window.pressureTrendRateHpa3h), "pressure", "hPa", { decimals: 1 })} / 3 hr / ${window.pressureTrendRateLabel || barometricTrendLabel(window.pressureTrendRateHpa3h)}`;
-  const windTrend = [
-    trend.windTrend,
-    trend.windDirectionShiftDegrees ? `${trend.windDirectionShiftDegrees} deg wind shift` : ""
-  ].filter(Boolean).join(" / ");
-  return `
-    <span><strong>Front Tag</strong>${escapeHtml(weatherData.frontTag || "Not logged")}</span>
-    <span><strong>Air Temp</strong>${escapeHtml(formatUnitValue(window.temperatureC, "airTemperature", "C"))}</span>
-    <span><strong>Feels Like</strong>${escapeHtml(formatUnitValue(window.apparentTemperatureC, "airTemperature", "C"))}</span>
-    <span><strong>Wind</strong>${escapeHtml(weatherValueWithTrend(weatherWindText(weatherData) || formatUnitValue(daily.windSpeedMaxMph, "windSpeed", "mph"), windTrend))}</span>
-    <span><strong>Pressure</strong>${escapeHtml(weatherValueWithTrend(formatUnitValue(window.pressureHpa, "pressure", "hPa", { decimals: 1 }), trend.pressureTrend))}</span>
-    <span><strong>Barometric Trend</strong>${escapeHtml(barometricTrend)}</span>
-    <span><strong>Wave Height / Chop</strong>${escapeHtml(waveHeightChopText)}</span>
-    <span><strong>Humidity</strong>${escapeHtml(weatherValue(window.humidityPercent, "%"))}</span>
-    <span><strong>Cloud Cover</strong>${escapeHtml(weatherValue(window.cloudCoverPercent, "%"))}</span>
-    <span><strong>Sunshine</strong>${escapeHtml(sunshineDurationText(daily.sunshineDurationSeconds))}</span>
-    <span><strong>Sunrise / Sunset</strong>${escapeHtml([timeText(weatherData.sunMoon?.sunrise) || daily.sunrise?.slice(11, 16), timeText(weatherData.sunMoon?.sunset) || daily.sunset?.slice(11, 16)].filter(Boolean).join(" / ") || "Not logged")}</span>
-    <span><strong>Moon</strong>${escapeHtml(weatherData.sunMoon ? `${weatherData.sunMoon.phase} (${weatherData.sunMoon.illuminationPercent}%)` : "Not logged")}</span>
-    <span><strong>Moonrise / Moonset</strong>${escapeHtml(weatherData.sunMoon ? [timeText(weatherData.sunMoon.moonrise), timeText(weatherData.sunMoon.moonset)].filter(Boolean).join(" / ") || "Not logged" : "Not logged")}</span>
-    <span><strong>Precipitation</strong>${escapeHtml(formatUnitValue(window.precipitationIn ?? daily.precipitationIn, "precipitation", "in", { decimals: 1 }))}</span>
-    <span><strong>Trip High / Low</strong>${escapeHtml(`${formatUnitValue(window.temperatureMaxC, "airTemperature", "C")} / ${formatUnitValue(window.temperatureMinC, "airTemperature", "C")}`)}</span>
-  `;
-}

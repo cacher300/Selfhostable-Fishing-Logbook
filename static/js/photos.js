@@ -353,10 +353,6 @@ function scrubIgnoredPhotoMetadata(metadata = {}, coordinates = metadata.coordin
   };
 }
 
-async function extractPhotoCoordinates(file) {
-  return (await extractMediaMetadata(file)).coordinates || null;
-}
-
 async function extractPhotoMetadata(file) {
   const isJpeg = file.type?.includes("jpeg") || /\.(jpe?g)$/i.test(file.name || "");
   if (!isJpeg) return {};

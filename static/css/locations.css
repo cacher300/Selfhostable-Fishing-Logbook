@@ -1,0 +1,520 @@
+.controls {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.25fr) minmax(180px, 0.9fr) minmax(160px, 0.75fr) minmax(140px, 0.65fr) minmax(170px, 0.75fr);
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+label {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+label > small,
+.location-field small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.location-field,
+.weather-fetch-panel {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.inline-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.inline-control-row .icon-button {
+  width: auto;
+  min-width: 42px;
+  padding: 0 10px;
+}
+
+.location-manager-list {
+  display: grid;
+  gap: 10px;
+  border-top: 0;
+}
+
+.location-manager-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(216, 222, 232, 0.78);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 1px 2px rgba(7, 21, 46, 0.04), 0 10px 26px rgba(7, 21, 46, 0.04);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.location-manager-card:hover {
+  border-color: rgba(17, 135, 83, 0.24);
+  box-shadow: 0 1px 2px rgba(7, 21, 46, 0.04), 0 14px 32px rgba(7, 21, 46, 0.07);
+}
+
+.location-manager-card.is-dragging {
+  opacity: 0.58;
+  transform: scale(0.995);
+}
+
+.location-manager-heading,
+.location-manager-launches > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 12px;
+}
+
+.location-manager-heading {
+  min-height: 42px;
+  padding: 0;
+  list-style: none;
+  cursor: pointer;
+}
+
+.location-manager-heading::-webkit-details-marker {
+  display: none;
+}
+
+.location-manager-title-row {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.location-manager-title-row > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.location-manager-drag-handle {
+  color: var(--muted);
+  cursor: grab;
+  font-size: 15px;
+  line-height: 1.25;
+  opacity: 0.72;
+}
+
+.location-manager-card span,
+.location-manager-launches span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.location-manager-card-actions {
+  display: grid;
+  grid-template-columns: 80px;
+  gap: 8px;
+  justify-content: end;
+  white-space: nowrap;
+}
+
+.location-manager-card-actions .button {
+  justify-content: center;
+  width: 100%;
+}
+
+.location-manager-launches {
+  display: grid;
+  gap: 3px;
+  padding: 2px 0 0 29px;
+  border-top: 0;
+}
+
+.location-manager-launches > div {
+  min-height: 30px;
+  border-bottom: 0;
+}
+
+.location-manager-launches > div:last-child {
+  border-bottom: 0;
+}
+
+.location-manager-launch-row {
+  padding: 0;
+}
+
+.location-manager-launch-row > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.location-manager-launch-row i {
+  color: var(--green);
+  font-style: normal;
+}
+
+.location-manager-add-launch {
+  justify-self: start;
+  min-height: 32px;
+  margin-left: 29px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.location-manager-search {
+  max-width: 320px;
+}
+
+.location-manager-search input {
+  width: 100%;
+}
+
+.overflow-menu {
+  position: relative;
+  justify-self: end;
+}
+
+.overflow-menu > summary {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+  list-style: none;
+  cursor: pointer;
+}
+
+.overflow-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.overflow-menu > summary:hover,
+.overflow-menu[open] > summary {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.overflow-menu > div {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 10;
+  display: grid;
+  min-width: 140px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.overflow-menu button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.overflow-menu button:hover {
+  background: var(--hover);
+}
+
+.overflow-menu button[data-delete-managed-location],
+.overflow-menu button[data-delete-managed-launch] {
+  color: var(--red);
+}
+
+.location-manager-launch-row .overflow-menu {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.location-manager-launch-row:hover .overflow-menu,
+.location-manager-launch-row:focus-within .overflow-menu {
+  opacity: 1;
+}
+
+.private-location-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-top: 0;
+}
+
+.private-location-list {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.private-location-map-panel {
+  display: grid;
+  order: -1;
+}
+
+.private-location-map-panel .map-pin-instruction {
+  margin-top: 0;
+}
+
+.private-location-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  cursor: pointer;
+}
+
+.private-location-card.is-selected {
+  border-color: rgba(17, 135, 83, 0.48);
+  background: var(--field);
+  box-shadow: 0 10px 24px rgba(7, 21, 46, 0.07);
+}
+
+.private-location-card-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.private-location-name-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.private-location-name-display {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 900;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.private-location-name-display:hover,
+.private-location-name-display:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.private-location-name-row .private-location-name {
+  width: min(220px, 100%);
+  min-height: 34px;
+  padding: 0 9px;
+  font-weight: 900;
+}
+
+.private-location-map {
+  min-height: 360px;
+  margin-top: 0;
+  border-radius: 8px;
+}
+
+.private-location-radius-control > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.private-location-radius-value {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.private-location-radius {
+  --private-location-radius-progress: 0%;
+  --private-location-radius-track-height: 6px;
+  --private-location-radius-thumb-size: 18px;
+  appearance: none;
+  width: 100%;
+  height: var(--private-location-radius-thumb-size);
+  margin: 4px 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.private-location-radius::-webkit-slider-runnable-track {
+  height: var(--private-location-radius-track-height);
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--green) 0 var(--private-location-radius-progress),
+    var(--line) var(--private-location-radius-progress) 100%
+  );
+}
+
+.private-location-radius::-webkit-slider-thumb {
+  appearance: none;
+  width: var(--private-location-radius-thumb-size);
+  height: var(--private-location-radius-thumb-size);
+  margin-top: calc((var(--private-location-radius-track-height) - var(--private-location-radius-thumb-size)) / 2);
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 1px 4px rgba(7, 21, 46, 0.22);
+}
+
+.private-location-radius::-moz-range-track {
+  height: var(--private-location-radius-track-height);
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--green) 0 var(--private-location-radius-progress),
+    var(--line) var(--private-location-radius-progress) 100%
+  );
+}
+
+.private-location-radius::-moz-range-thumb {
+  width: var(--private-location-radius-thumb-size);
+  height: var(--private-location-radius-thumb-size);
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 1px 4px rgba(7, 21, 46, 0.22);
+}
+
+.private-location-radius:focus-visible {
+  outline: none;
+}
+
+.private-location-radius:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(17, 135, 83, 0.18), 0 1px 4px rgba(7, 21, 46, 0.22);
+}
+
+.private-location-radius:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px rgba(17, 135, 83, 0.18), 0 1px 4px rgba(7, 21, 46, 0.22);
+}
+
+.weather-fetch-panel {
+  grid-column: span 2;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+}
+
+.weather-fetch-panel div {
+  display: grid;
+  gap: 4px;
+}
+
+.weather-fetch-panel strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.conditions-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.conditions-grid .weather-fetch-panel {
+  grid-column: span 1;
+  align-self: end;
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+.conditions-grid .weather-fetch-panel div {
+  gap: 2px;
+}
+
+.conditions-grid .weather-fetch-panel span,
+.conditions-grid .weather-fetch-panel strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+  color: var(--text);
+  padding: 10px 11px;
+  line-height: 1.2;
+  outline: none;
+}
+
+input,
+select {
+  height: 42px;
+}
+
+select {
+  appearance: none;
+  padding-right: 38px;
+  background-color: var(--field);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 17px,
+    calc(100% - 12px) 17px;
+  background-repeat: no-repeat;
+  background-size: 6px 6px, 6px 6px;
+}
+
+textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(17, 135, 83, 0.14);
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(188, 47, 47, 0.12);
+}
+
