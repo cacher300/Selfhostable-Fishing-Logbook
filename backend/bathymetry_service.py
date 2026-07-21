@@ -15,6 +15,8 @@ from .backend_config import GREAT_LAKES_BATHYMETRY_URL
 from .logbook_store import read_logbook, write_logbook
 
 DEPTH_SOURCE = "Great Lakes Bathymetry ArcGIS"
+DEPTH_OFFSET_FEET = 7.5
+FEET_PER_METER = 3.28084
 SEARCH_DISTANCES_METERS = (500, 1000, 2000)
 logger = logging.getLogger(__name__)
 
@@ -55,9 +57,13 @@ def lookup_depth(latitude: float, longitude: float) -> dict | None:
         nearest = nearest_bathymetry_feature(latitude, longitude, features)
         if nearest is None:
             continue
+        depth_m, depth_ft = corrected_bathymetry_depths(
+            nearest.get("attributes", {}).get("depth_ft"),
+            nearest.get("attributes", {}).get("depth_m"),
+        )
         result = {
-            "depth_m": nearest.get("attributes", {}).get("depth_m"),
-            "depth_ft": nearest.get("attributes", {}).get("depth_ft"),
+            "depth_m": depth_m,
+            "depth_ft": depth_ft,
             "lake_name": nearest.get("attributes", {}).get("Lake"),
             "depth_source": DEPTH_SOURCE,
         }
@@ -65,6 +71,34 @@ def lookup_depth(latitude: float, longitude: float) -> dict | None:
             _BATHYMETRY_CACHE[key] = deepcopy(result)
         return result
     return None
+
+
+def finite_float(value: object) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def signed_depth(value: float, magnitude: float) -> float:
+    return math.copysign(magnitude, value) if value != 0 else magnitude
+
+
+def corrected_bathymetry_depths(depth_ft: object, depth_m: object) -> tuple[float | None, float | None]:
+    feet = finite_float(depth_ft)
+    meters = finite_float(depth_m)
+    if feet is not None:
+        corrected_feet = signed_depth(feet, abs(feet) + DEPTH_OFFSET_FEET)
+        meter_sign_source = meters if meters not in (None, 0) else feet
+        corrected_meters = signed_depth(meter_sign_source, abs(corrected_feet) / FEET_PER_METER)
+        return round(corrected_meters, 3), round(corrected_feet, 3)
+    if meters is not None:
+        corrected_feet_magnitude = abs(meters) * FEET_PER_METER + DEPTH_OFFSET_FEET
+        corrected_feet = signed_depth(meters, corrected_feet_magnitude)
+        corrected_meters = signed_depth(meters, corrected_feet_magnitude / FEET_PER_METER)
+        return round(corrected_meters, 3), round(corrected_feet, 3)
+    return None, None
 
 
 def query_bathymetry_features(latitude: float, longitude: float, distance_meters: int) -> list[dict]:

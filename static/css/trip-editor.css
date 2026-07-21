@@ -1021,8 +1021,10 @@
 
 .catch-location-field {
   display: flex;
+  grid-column: span 2;
   align-self: end;
   align-items: flex-end;
+  min-width: 0;
 }
 
 .catch-field-with-option {
@@ -1041,6 +1043,9 @@
   display: flex;
   align-items: flex-end;
   gap: 10px;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .inline-field-option {

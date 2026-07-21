@@ -1020,7 +1020,7 @@ function collectTripFromForm() {
         depthDown: detailsUnknown ? "" : row.querySelector(".catch-depth-down").value.trim(),
         presentation: !detailsUnknown && trolling ? row.querySelector(".catch-presentation").value : "",
         direction: !detailsUnknown && trolling ? row.querySelector(".catch-direction").value : "",
-        fowCaught: !detailsUnknown && trolling ? row.querySelector(".catch-fow").value.trim() : "",
+        fowCaught: !detailsUnknown && (trolling || lost) ? row.querySelector(".catch-fow").value.trim() : "",
         speed: !detailsUnknown && trolling ? row.querySelector(".catch-speed").value.trim() : "",
         retrieve: !detailsUnknown && casting ? row.querySelector(".catch-retrieve").value.trim() : "",
         ballDepth: !detailsUnknown && trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
