@@ -160,29 +160,6 @@
   background: var(--warning-bg);
 }
 
-.row-button {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
-  overflow: hidden;
-  border: 1px solid transparent;
-  background: transparent;
-  border-radius: 50%;
-  color: var(--muted);
-  font-size: 0;
-  line-height: 1;
-}
-
-.row-button::before {
-  content: ">";
-  font-size: 16px;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.row-button:hover,
 .icon-button:hover {
   background: var(--hover);
 }

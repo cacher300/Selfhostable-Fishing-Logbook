@@ -16,10 +16,6 @@
   font-size: 22px;
 }
 
-.orphan-media-header {
-  margin-top: 22px;
-}
-
 .gallery-tools label {
   min-width: 220px;
 }
@@ -151,11 +147,5 @@
 
 .end-only .danger {
   margin-right: auto;
-}
-
-.lure-choice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 

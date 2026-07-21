@@ -52,8 +52,6 @@
 
   .gear-used-row .gear-lure-field,
   .gear-used-row .gear-combo-field,
-  .gear-used-row .gear-rod-field,
-  .gear-used-row .gear-reel-field,
   .gear-used-row .gear-start-field,
   .gear-used-row .gear-end-field,
   .gear-used-row .gear-change-field,
@@ -81,8 +79,7 @@
 
   .metric-grid,
   .analytics-grid,
-  .stats-group .analytics-grid,
-  .patterns-grid {
+  .stats-group .analytics-grid {
     grid-template-columns: 1fr;
   }
 
@@ -100,17 +97,8 @@
     grid-column: 1;
   }
 
-  .settings-card,
-  .settings-card--full {
-    grid-column: auto;
-  }
-
   #personalBestsMetricGrid {
     grid-template-columns: 1fr;
-  }
-
-  .patterns-toolbar {
-    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -177,18 +165,8 @@
     grid-template-columns: 1fr;
   }
 
-  .settings-header,
-  .settings-card-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
   .settings-page {
     gap: 18px;
-  }
-
-  .settings-header h3 {
-    font-size: 30px;
   }
 
   .settings-tabs {
@@ -414,8 +392,7 @@
     width: 100%;
   }
 
-  #tripDialog .form-grid,
-  #tripDialog .conditions-grid {
+  #tripDialog .form-grid {
     width: 100%;
     grid-template-columns: 1fr;
   }
@@ -431,8 +408,7 @@
   #tripDialog .form-grid label,
   #tripDialog .form-grid .location-field,
   #tripDialog .intent-control,
-  #tripDialog .trip-rating-control,
-  #tripDialog .conditions-grid .weather-fetch-panel {
+  #tripDialog .trip-rating-control {
     width: 100%;
     max-width: none;
   }
@@ -579,8 +555,7 @@
     font-size: 22px;
   }
 
-  .summary-metrics,
-  .summary-detail-grid {
+  .summary-metrics {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -649,16 +624,6 @@
     max-height: 320px;
   }
 
-  .patterns-header {
-    align-items: start;
-    flex-direction: column;
-  }
-
-  .patterns-toolbar,
-  .pattern-stats {
-    grid-template-columns: 1fr;
-  }
-
   .stats-group > summary {
     align-items: flex-start;
   }
@@ -688,10 +653,6 @@
 
   .stats-help-grid {
     grid-template-columns: 1fr;
-  }
-
-  .pattern-card-header {
-    display: grid;
   }
 
   .personal-best-title-row {
@@ -849,8 +810,7 @@
 
 #tripSummaryBody .summary-metrics .metric-card span,
 #tripSummaryBody .summary-map-tools label,
-#tripSummaryBody .summary-map-tools select,
-#tripSummaryBody .spread-detail-card span {
+#tripSummaryBody .summary-map-tools select {
   font-size: 15px;
 }
 

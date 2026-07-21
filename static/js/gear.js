@@ -46,11 +46,6 @@ function flasherName(id) {
   return state.flashers.find((flasher) => flasher.id === id)?.name || "";
 }
 
-function formatCoordinates(coordinates) {
-  if (!isUsableCoordinates(coordinates)) return "";
-  return `${Number(coordinates.latitude).toFixed(5)}, ${Number(coordinates.longitude).toFixed(5)}`;
-}
-
 function activeLineEntry(reel) {
   return (reel?.lineHistory || [])
     .sort((a, b) => String(b.spooledDate || "").localeCompare(String(a.spooledDate || "")))[0] || null;

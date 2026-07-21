@@ -1,11 +1,3 @@
-  display: grid;
-  gap: 10px;
-}
-
-.summary-list p {
-  margin: 0;
-}
-
 .trip-timeline {
   --timeline-gap: 32px;
   --timeline-line-offset: 98px;
@@ -648,22 +640,6 @@
   width: fit-content;
   max-width: 100%;
   grid-template-columns: repeat(auto-fit, minmax(280px, max-content));
-}
-
-.setup-summary-card {
-  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1.4fr) minmax(160px, 0.8fr);
-  align-items: start;
-  column-gap: 18px;
-}
-
-.setup-summary-card strong {
-  font-size: 18px;
-}
-
-.setup-summary-card small {
-  color: var(--muted);
-  font-size: 15px;
-  font-weight: 800;
 }
 
 .catch-detail-popout {

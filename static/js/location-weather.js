@@ -238,19 +238,6 @@ async function fetchAstronomyBundle(coordinates, date, timezone = "") {
   return request;
 }
 
-function openMeteoUnit(bundle, key, fallback = "") {
-  const units = {
-    ...(bundle?.hourly_units || {}),
-    ...(bundle?.daily_units || {})
-  };
-  const value = String(units[key] || "").trim();
-  if (!value) return fallback;
-  if (value.toLowerCase() === "undefined") return "";
-  if (value === "\u00b0C") return "C";
-  if (value === "\u00b0F") return "F";
-  return value;
-}
-
 function hourlyRecords(bundle) {
   const hourly = bundle.hourly || {};
   return (hourly.time || []).map((time, index) => ({
@@ -689,13 +676,6 @@ function hourlyWindText(hourly) {
   return `${direction ? `${direction} ` : ""}${formatUnitValue(wind, "windSpeed", "mph")}${gust}`;
 }
 
-function sunshineDurationText(seconds) {
-  const value = Number(seconds);
-  if (!Number.isFinite(value)) return "Not logged";
-  const hours = value / 3600;
-  return `${Math.round(hours * 10) / 10} hr`;
-}
-
 function celsiusText(value) {
   return formatUnitValue(value, "airTemperature", "C");
 }
@@ -709,23 +689,6 @@ function catchWeatherSummary(weatherData) {
     hourlyWindText(hourly),
     hourly.cloudCoverPercent === null || hourly.cloudCoverPercent === undefined ? "" : `${Math.round(hourly.cloudCoverPercent)}% cloud`
   ].filter(Boolean).join(" · ");
-}
-
-function signedWeatherDelta(value, suffix) {
-  const numberValue = Number(value);
-  if (!Number.isFinite(numberValue) || Math.abs(numberValue) < 0.5) return "";
-  return `${numberValue > 0 ? "+" : ""}${Math.round(numberValue)}${suffix}`;
-}
-
-function catchWeatherComparison(catchWeather, tripWeather) {
-  const hourly = catchWeather?.hourly;
-  const tripWindow = tripWeather?.tripWindow;
-  if (!hourly || !tripWindow) return "";
-  return [
-    signedWeatherDelta(convertUnitValue(Number(hourly.windSpeedMph) - Number(tripWindow.windSpeedMph), "mph", unitPreference("windSpeed")), ` ${unitSymbol("windSpeed")} wind`),
-    signedWeatherDelta(convertUnitValue(Number(hourly.temperatureC) - Number(tripWindow.temperatureC), "C", unitPreference("airTemperature")), ` ${unitSymbol("airTemperature")}`),
-    signedWeatherDelta(Number(hourly.cloudCoverPercent) - Number(tripWindow.cloudCoverPercent), "% cloud")
-  ].filter(Boolean).join(" / ");
 }
 
 function weatherTrendText(weatherData) {

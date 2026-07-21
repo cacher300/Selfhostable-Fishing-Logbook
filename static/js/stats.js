@@ -1130,22 +1130,6 @@ function comboMinutes(record) {
   return lureMinutes || flasherMinutes || 0;
 }
 
-function summarizeTrips(trips, keyFn) {
-  const map = new Map();
-  trips.forEach((trip) => {
-    const key = keyFn(trip);
-    if (!key) return;
-    const current = map.get(key) || { name: key, trips: 0, fish: 0, hours: 0 };
-    current.trips += 1;
-    current.fish += trip.fish ?? totalCaught(trip);
-    current.hours += tripHours(trip);
-    map.set(key, current);
-  });
-  return [...map.values()]
-    .sort((a, b) => b.fish - a.fish || b.trips - a.trips)
-    .map((item) => [item.name, item.trips, item.fish, trimNumber(item.hours), item.hours ? trimNumber(item.fish / item.hours) : "0"]);
-}
-
 function statsNumericValue(value) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const text = String(value || "").replace(/,/g, "");

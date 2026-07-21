@@ -136,19 +136,6 @@ label > small,
   overflow-wrap: anywhere;
 }
 
-.location-manager-card-actions {
-  display: grid;
-  grid-template-columns: 80px;
-  gap: 8px;
-  justify-content: end;
-  white-space: nowrap;
-}
-
-.location-manager-card-actions .button {
-  justify-content: center;
-  width: 100%;
-}
-
 .location-manager-launches {
   display: grid;
   gap: 3px;
@@ -467,28 +454,6 @@ label > small,
 .weather-fetch-panel strong {
   color: var(--text);
   font-size: 13px;
-}
-
-.conditions-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.conditions-grid .weather-fetch-panel {
-  grid-column: span 1;
-  align-self: end;
-  min-height: 42px;
-  padding: 8px 10px;
-}
-
-.conditions-grid .weather-fetch-panel div {
-  gap: 2px;
-}
-
-.conditions-grid .weather-fetch-panel span,
-.conditions-grid .weather-fetch-panel strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 input,

@@ -33,12 +33,10 @@
   color: #ffaaa6;
 }
 
-:root[data-theme="dark"] .settings-card,
 :root[data-theme="dark"] .predefined-field-group,
 :root[data-theme="dark"] .predefined-field-body,
 :root[data-theme="dark"] .predefined-field-group[open] .predefined-field-summary,
 :root[data-theme="dark"] .inventory-table,
-:root[data-theme="dark"] .pattern-card,
 :root[data-theme="dark"] .stats-help,
 :root[data-theme="dark"] .stats-help article,
 :root[data-theme="dark"] .stats-group,
@@ -55,8 +53,6 @@
 :root[data-theme="dark"] .summary-photo-card,
 :root[data-theme="dark"] .catch-detail-panel,
 :root[data-theme="dark"] .event-card,
-:root[data-theme="dark"] .setup-summary-card,
-:root[data-theme="dark"] .spread-detail-card,
 :root[data-theme="dark"] .photo-queue-card,
 :root[data-theme="dark"] .catch-photo-card,
 :root[data-theme="dark"] .note-photo-card,
@@ -105,7 +101,6 @@
 :root[data-theme="dark"] .gear-used-row,
 :root[data-theme="dark"] .line-editor-row,
 :root[data-theme="dark"] .setup-row,
-:root[data-theme="dark"] .pattern-stats span,
 :root[data-theme="dark"] .summary-weather-empty,
 :root[data-theme="dark"] .queued-gear-image {
   background: var(--panel-soft);
@@ -167,11 +162,6 @@
   color: var(--active-text);
 }
 
-:root[data-theme="dark"] #tripDialog .conditions-grid .weather-fetch-panel {
-  border-color: var(--line);
-  background: var(--panel-soft);
-}
-
 :root[data-theme="dark"] #tripDialog .weather-fetch-panel {
   border-color: var(--line);
   background: var(--panel-soft);
@@ -197,8 +187,7 @@
 :root[data-theme="dark"] .timeline-filter-button:hover,
 :root[data-theme="dark"] .timeline-filter-button.is-active,
 :root[data-theme="dark"] .intent-control input:checked + span,
-:root[data-theme="dark"] .rating-pill.outstanding,
-:root[data-theme="dark"] .confidence-pill.high {
+:root[data-theme="dark"] .rating-pill.outstanding {
   background: var(--active-bg);
   color: var(--active-text);
 }
@@ -210,8 +199,7 @@
   color: var(--muted);
 }
 
-:root[data-theme="dark"] .settings-grid,
-:root[data-theme="dark"] .settings-save-bar {
+:root[data-theme="dark"] .settings-grid {
   background: rgba(21, 29, 38, 0.94);
 }
 
@@ -251,7 +239,6 @@
 }
 
 :root[data-theme="dark"] .rating-pill.mediocre,
-:root[data-theme="dark"] .confidence-pill.medium,
 :root[data-theme="dark"] .stats-confidence-low {
   background: var(--warning-bg);
   color: var(--warning-text);
