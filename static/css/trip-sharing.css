@@ -1,0 +1,85 @@
+.share-trip-dialog { width: min(1240px, calc(100vw - 28px)); font-family: Roboto, Arial, sans-serif; }
+.share-trip-shell { max-height: min(880px, calc(100vh - 28px)); overflow: auto; padding: 22px; }
+.share-trip-layout { display: grid; grid-template-columns: minmax(250px, .72fr) minmax(0, 1.28fr); gap: 24px; margin-top: 18px; }
+.share-trip-controls { display: grid; gap: 13px; align-content: start; }
+.share-trip-controls label:not(.checkbox-label) { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; }
+.share-trip-controls select, .share-trip-controls input, .share-trip-controls textarea { width: 100%; }
+.share-trip-controls textarea { resize: vertical; text-transform: none; font-weight: 500; }
+.share-trip-privacy { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.share-trip-preview { overflow: hidden; border-radius: 14px; box-shadow: 0 12px 34px rgba(11, 29, 38, .23); }
+.share-card { position: relative; aspect-ratio: 1.905 / 1; display: grid; grid-template-columns: 42% 58%; overflow: hidden; background: linear-gradient(135deg, #103f39, #227767); color: white; }
+.share-card::after { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.12), transparent); content: ""; pointer-events: none; }
+.share-card-photo { min-width: 0; background: rgba(0, 0, 0, .18); }
+.share-card-photo img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.share-trip-photo-fallback { width: 100%; height: 100%; display: grid; place-content: center; gap: 8px; color: rgba(255,255,255,.88); font-size: clamp(26px, 6vw, 62px); text-align: center; }
+.share-trip-photo-fallback span { font-size: clamp(10px, 1.3vw, 15px); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.share-card-content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: clamp(22px, 4vw, 56px); }
+.share-card-kicker, .share-card-brand { margin: 0; font-size: clamp(9px, 1.15vw, 15px); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+.share-card h3 { margin: 12px 0; font-size: clamp(22px, 3.2vw, 47px); line-height: .98; }
+.share-card-result { margin: 0; font-size: clamp(12px, 1.5vw, 19px); font-weight: 800; line-height: 1.35; }
+.share-card-note { margin: 14px 0 0; font-size: clamp(10px, 1.15vw, 15px); line-height: 1.35; opacity: .9; }
+.share-card-brand { margin-top: auto; }
+.share-card-spotlight, .share-card-recap { grid-template-columns: 54% 46%; }
+.share-card-pattern .share-card-content { background: rgba(4, 34, 38, .28); }
+@media (max-width: 720px) { .share-trip-layout { grid-template-columns: 1fr; } .share-trip-preview-panel { order: -1; } .share-trip-shell { padding: 16px; } }
+
+.share-report { overflow: hidden; padding: clamp(14px, 2vw, 28px); background: #061b2b; color: #edf7ff; font-family: Roboto, Arial, sans-serif; font-size: clamp(9px, 1vw, 14px); line-height: 1.35; }
+.share-report header { display: grid; grid-template-columns: 1fr 27%; gap: 18px; min-height: 120px; border-bottom: 1px solid #27516a; padding-bottom: 14px; }
+.share-report header p, .share-report h4 { margin: 0; color: #82c8f6; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.share-report h3 { margin: 10px 0; font-size: clamp(25px, 3vw, 47px); line-height: .95; }
+.report-hero { overflow: hidden; border: 1px solid #316887; border-radius: 5px; align-self: start; background:#08243a; }.report-hero img{width:100%;height:auto;display:block;object-fit:contain}.report-hero .share-trip-photo-fallback{min-height:105px;font-size:25px}
+.report-hero:empty { display: none; }
+.share-report header:has(.report-hero:empty) { grid-template-columns: 1fr; }
+.report-metrics { display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:14px 0 }.report-metrics b{padding:10px;background:#0c2a3e;border:1px solid #28536d;color:#9add78;font-size:clamp(16px,2vw,29px);text-align:center}.report-metrics small{display:block;color:#b8cfdd;font-size:8px;letter-spacing:.06em;text-transform:uppercase}.report-metrics .red{color:#ff7777}
+.report-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.report-grid section,.report-log{border:1px solid #28536d;background:#08243a;padding:10px}.report-grid p{margin:7px 0}.conditions-heading{margin-top:12px !important}
+.report-log{padding:0;overflow:hidden;grid-column:1 / -1;border-color:#39718f}.report-log h4{padding:12px 14px;border-bottom:1px solid #39718f;color:#d9f1ff;font-size:clamp(13px,1.35vw,18px)} .report-log table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:clamp(8px,.85vw,12px)}.report-log th{color:#82c8f6;text-align:left;text-transform:uppercase;letter-spacing:.04em}.report-log th,.report-log td{padding:6px 8px;border-bottom:1px solid #1f4258;white-space:normal;overflow-wrap:anywhere;vertical-align:top}.report-log th:nth-child(1),.report-log td:nth-child(1){width:3%}.report-log th:nth-child(2),.report-log td:nth-child(2){width:8%}.report-log th:nth-child(3),.report-log td:nth-child(3){width:8%}.report-log th:nth-child(4),.report-log td:nth-child(4){width:13%}.report-log th:nth-child(5),.report-log td:nth-child(5){width:6%}.report-log th:nth-child(6),.report-log td:nth-child(6){width:6%}.report-log th:nth-child(7),.report-log td:nth-child(7){width:14%}.report-log th:nth-child(8),.report-log td:nth-child(8){width:9%}.report-log th:nth-child(9),.report-log td:nth-child(9){width:33%}.timeline-compact .report-log table{font-size:clamp(6px,.65vw,9px)}.timeline-compact .report-log th,.timeline-compact .report-log td{padding:3px 4px}.report-log .landed td:nth-child(3){color:#9add78}.report-log .missed td:nth-child(3){color:#ff7777}
+
+.report-metrics { grid-template-columns: repeat(4, 1fr); }
+.report-log { margin-top: 14px; }
+.report-log th,
+.report-log td { box-sizing: border-box; }
+.report-log th { white-space: nowrap; }
+.timeline-compact .report-log table { font-size: clamp(8px, .85vw, 12px); }
+.timeline-compact .report-log th,
+.timeline-compact .report-log td { padding: 6px 8px; }
+.report-grid section:nth-child(4) > h4:first-child,
+.report-grid section:nth-child(4) > p:first-of-type { display: none; }
+.report-grid section:nth-child(4) .conditions-heading { margin-top: 0 !important; }
+
+/* Keep the compact timeline readable at preview and export widths. */
+.report-log th,
+.report-log td { padding: 6px; }
+.report-log th,
+.report-log td:not(:last-child) { white-space: nowrap; overflow-wrap: normal; }
+.report-log th:nth-child(1), .report-log td:nth-child(1) { width: 4%; }
+.report-log th:nth-child(2), .report-log td:nth-child(2) { width: 10%; }
+.report-log th:nth-child(3), .report-log td:nth-child(3) { width: 11%; }
+.report-log th:nth-child(4), .report-log td:nth-child(4) { width: 15%; }
+.report-log th:nth-child(5), .report-log td:nth-child(5) { width: 7%; }
+.report-log th:nth-child(6), .report-log td:nth-child(6) { width: 7%; }
+.report-log th:nth-child(7), .report-log td:nth-child(7) { width: 16%; }
+.report-log th:nth-child(8), .report-log td:nth-child(8) { width: 10%; }
+.report-log th:nth-child(9), .report-log td:nth-child(9) { width: 20%; }
+
+/* Photo Story keeps the complete report but gives the selected image top billing. */
+.layout-photo-story header { display: flex; flex-direction: column-reverse; gap: 16px; }
+.layout-photo-story .report-hero { width: 100%; }
+.layout-photo-story .report-hero img { width: 100%; max-height: 520px; object-fit: contain; }
+.layout-photo-story h3 { font-size: clamp(28px, 3.8vw, 54px); }
+
+/* Photo Split pairs a large natural-aspect image with the trip title. */
+.layout-photo-split header { grid-template-columns: 44% 56%; align-items: center; }
+.layout-photo-split header > div:first-child { grid-column: 2; grid-row: 1; padding: 18px; }
+.layout-photo-split .report-hero { grid-column: 1; grid-row: 1; width: 100%; }
+.layout-photo-split .report-hero img { max-height: 460px; object-fit: contain; }
+.layout-photo-split header:has(.report-hero:empty) > div:first-child { grid-column: 1; padding: 0; }
+
+/* Catch Spotlight uses a taller social composition centred on the biggest catch. */
+.layout-catch-spotlight { width: min(100%, 820px); margin-inline: auto; }
+.layout-catch-spotlight header { display: flex; flex-direction: column-reverse; gap: 16px; }
+.layout-catch-spotlight .report-hero { width: 100%; }
+.layout-catch-spotlight .report-hero img { width: 100%; max-height: 680px; object-fit: contain; }
+.layout-catch-spotlight .report-grid { grid-template-columns: 1fr; }
+.layout-catch-spotlight .report-log table { font-size: 9px; }
+.layout-catch-spotlight .report-log th,
+.layout-catch-spotlight .report-log td { padding: 4px; }

@@ -486,6 +486,7 @@ function clearUnknownCatchDetails(row) {
     ".catch-direction",
     ".catch-fow",
     ".catch-speed",
+    ".catch-shaker",
     ".catch-ball-depth",
     ".catch-deepest-rigger",
     ".catch-cheater-depth",
@@ -627,6 +628,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-direction").value = catchItem.direction || "";
   node.querySelector(".catch-fow").value = catchItem.fowCaught || "";
   node.querySelector(".catch-speed").value = catchItem.speed || "";
+  node.querySelector(".catch-shaker").checked = Boolean(catchItem.shaker);
   node.querySelector(".catch-retrieve").value = catchItem.retrieve || "";
   node.querySelector(".catch-ball-depth").value = catchItem.ballDepth || "";
   node.querySelector(".catch-deepest-rigger").checked = Boolean(catchItem.deepestRigger);
@@ -681,6 +683,7 @@ function addTripGearRow(gearItem = {}) {
   node.querySelector(".catch-presentation").value = gearItem.presentation || "";
   node.querySelector(".trip-gear-cheater").checked = Boolean(gearItem.hasCheater);
   node.querySelector(".trip-gear-leadcore").checked = Boolean(gearItem.hasLeadcore);
+  node.querySelector(".trip-gear-distance-behind").value = gearItem.distanceBehind || "";
   populateLureSelect(node.querySelector(".trip-gear-lure"), gearItem.lureId || "");
   populateLureSelect(node.querySelector(".trip-gear-cheater-lure"), gearItem.cheaterLureId || "");
   populateFlasherSelect(node.querySelector(".trip-gear-flasher"), gearItem.flasherId || "");
@@ -970,6 +973,7 @@ function collectTripFromForm() {
       lureId: row.querySelector(".trip-gear-lure").value,
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",
+      distanceBehind: trolling ? row.querySelector(".trip-gear-distance-behind").value.trim() : "",
       deepestRigger: false,
       hasCheater: trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
         ? row.querySelector(".trip-gear-cheater").checked
@@ -996,6 +1000,7 @@ function collectTripFromForm() {
       || item.lureMinutes
       || item.flasherMinutes
       || item.presentation
+      || item.distanceBehind
       || item.deepestRigger
       || item.hasCheater
       || item.cheaterLureId
@@ -1022,6 +1027,7 @@ function collectTripFromForm() {
         direction: !detailsUnknown && trolling ? row.querySelector(".catch-direction").value : "",
         fowCaught: !detailsUnknown && (trolling || lost) ? row.querySelector(".catch-fow").value.trim() : "",
         speed: !detailsUnknown && trolling ? row.querySelector(".catch-speed").value.trim() : "",
+        shaker: !detailsUnknown && trolling ? row.querySelector(".catch-shaker").checked : false,
         retrieve: !detailsUnknown && casting ? row.querySelector(".catch-retrieve").value.trim() : "",
         ballDepth: !detailsUnknown && trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
         deepestRigger: !detailsUnknown && trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
@@ -1075,6 +1081,7 @@ function collectTripFromForm() {
       || item.direction
       || item.fowCaught
       || item.speed
+      || item.shaker
       || item.retrieve
       || item.ballDepth
       || item.deepestRigger

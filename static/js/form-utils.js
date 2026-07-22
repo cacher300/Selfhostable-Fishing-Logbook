@@ -63,6 +63,14 @@ function updatePresentationFields(row) {
   if (!isTrollingTrip()) return;
 
   if (row.classList.contains("gear-used-row")) {
+    const distanceBehindLabel = row.querySelector(".trip-gear-distance-behind-label");
+    if (presentation === "downrigger" || presentation === "Downrigger") {
+      row.querySelector(".param-distance-behind")?.classList.add("visible");
+      if (distanceBehindLabel) distanceBehindLabel.textContent = "Distance behind ball";
+    } else if (["dipsey-diver", "High Diver", "Low Diver"].includes(presentation)) {
+      row.querySelector(".param-distance-behind")?.classList.add("visible");
+      if (distanceBehindLabel) distanceBehindLabel.textContent = "Distance behind Dipsy";
+    }
     if (isLeadcoreCapablePresentation(presentation)) {
       row.querySelector(".param-leadcore")?.classList.add("visible");
     } else {

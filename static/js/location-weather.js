@@ -119,6 +119,8 @@ function tripEndDate(trip) {
 async function fetchWeatherBundle(coordinates, startDate, endDate) {
   const key = weatherCacheKey(coordinates, startDate, endDate);
   if (weatherRequestCache.has(key)) return weatherRequestCache.get(key);
+  const today = new Date().toISOString().slice(0, 10);
+  const endpoint = startDate >= today ? "/api/weather/forecast" : "/api/weather/archive";
   const hourlyFields = [
     "temperature_2m",
     "apparent_temperature",
@@ -131,7 +133,6 @@ async function fetchWeatherBundle(coordinates, startDate, endDate) {
     "surface_pressure",
     "pressure_msl",
     "cloud_cover",
-    "visibility",
     "wind_speed_10m",
     "wind_direction_10m",
     "wind_gusts_10m"
@@ -163,8 +164,6 @@ async function fetchWeatherBundle(coordinates, startDate, endDate) {
       "wind_direction_10m_dominant"
     ].join(",")
   });
-  const today = new Date().toISOString().slice(0, 10);
-  const endpoint = startDate >= today ? "/api/weather/forecast" : "/api/weather/archive";
   const request = fetch(`${endpoint}?${params}`)
     .then((response) => {
       return response.json().then((data) => {
@@ -253,7 +252,6 @@ function hourlyRecords(bundle) {
     pressureHpa: hourly.pressure_msl?.[index] ?? hourly.surface_pressure?.[index] ?? null,
     pressureMslHpa: hourly.pressure_msl?.[index] ?? null,
     cloudCoverPercent: hourly.cloud_cover?.[index] ?? null,
-    visibilityM: hourly.visibility?.[index] ?? null,
     windSpeedMph: hourly.wind_speed_10m?.[index] ?? null,
     windDirectionDegrees: hourly.wind_direction_10m?.[index] ?? null,
     windGustMph: hourly.wind_gusts_10m?.[index] ?? null
@@ -343,7 +341,6 @@ function tripWindowSummary(records) {
     pressureHpa: averageNumber(records, "pressureHpa"),
     pressureMslHpa: averageNumber(records, "pressureMslHpa"),
     cloudCoverPercent: averageNumber(records, "cloudCoverPercent"),
-    visibilityM: averageNumber(records, "visibilityM"),
     precipitationIn: sumNumber(records, "precipitationIn"),
     windSpeedMph: averageNumber(records, "windSpeedMph"),
     windGustMph: averageNumber(records, "windGustMph"),
@@ -776,8 +773,7 @@ function renderWeatherSummary(weatherData = activeTripWeatherData) {
       els.weatherSummaryGusts,
       els.weatherSummaryCloudCover,
       els.weatherSummaryPrecipitation,
-      els.weatherSummaryPressure,
-      els.weatherSummaryVisibility
+      els.weatherSummaryPressure
     ].forEach((element) => setWeatherCardValue(element, "-"));
     if (els.weatherSummaryUpdated) els.weatherSummaryUpdated.textContent = "";
     return;
@@ -789,8 +785,6 @@ function renderWeatherSummary(weatherData = activeTripWeatherData) {
   setWeatherCardValue(els.weatherSummaryCloudCover, Number.isFinite(Number(summary.cloudCoverPercent)) ? `${Math.round(summary.cloudCoverPercent)}%` : "Not available");
   setWeatherCardValue(els.weatherSummaryPrecipitation, Number.isFinite(Number(summary.precipitationIn)) ? formatUnitValue(summary.precipitationIn, "precipitation", "in", { decimals: 1 }) : "Not available");
   setWeatherCardValue(els.weatherSummaryPressure, Number.isFinite(Number(summary.pressureHpa)) ? formatUnitValue(summary.pressureHpa, "pressure", "hPa", { decimals: 2 }) : "Not available");
-  setWeatherCardValue(els.weatherSummaryVisibility, Number.isFinite(Number(summary.visibilityM)) ? formatUnitValue(summary.visibilityM, "distance", "m", { decimals: 1 }) : "Not available");
-
   const autoWeatherTag = weatherTagForCode(summary.weatherCode);
   const weatherSelect = document.querySelector("#weather");
   if (autoWeatherTag && weatherSelect && !weatherSelect.value) weatherSelect.value = autoWeatherTag;

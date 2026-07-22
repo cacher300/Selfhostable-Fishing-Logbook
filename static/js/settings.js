@@ -283,6 +283,7 @@ async function saveTimeFormatPreference(options = {}) {
         await saveState();
         renderAll();
         syncUnitLabels();
+        if (activeTripWeatherData?.daily) setWeatherStatus(weatherCardConditionsLabel());
         const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
         if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
       },

@@ -93,6 +93,10 @@ els.summaryDeleteTripButton.addEventListener("click", async () => {
     alert(error.message || "The trip could not be deleted.");
   }
 });
+els.summaryShareTripButton?.addEventListener("click", () => {
+  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+  if (trip) openTripShareStudio(trip);
+});
 els.deleteLureButton.addEventListener("click", deleteLure);
 els.deleteFlasherButton.addEventListener("click", deleteFlasher);
 els.deleteReelButton.addEventListener("click", deleteReel);
@@ -828,7 +832,7 @@ document.addEventListener("change", (event) => {
     document.querySelectorAll(".catch-row").forEach(updatePresentationFields);
     document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
   }
-  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-cheater, .trip-gear-cheater-lure, .trip-gear-leadcore")) {
+  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-distance-behind, .trip-gear-cheater, .trip-gear-cheater-lure, .trip-gear-leadcore")) {
     populateSetupLineSelects();
     populateCatchRodSelects();
   }

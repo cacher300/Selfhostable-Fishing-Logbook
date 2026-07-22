@@ -4,8 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Fishing Logbook</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="static/css/styles.css" />
+    <link rel="stylesheet" href="static/css/trip-sharing.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -792,10 +796,26 @@
         <div class="dialog-actions">
           <button class="button danger" id="summaryDeleteTripButton" type="button">Delete</button>
           <div>
+            <button class="button secondary" id="summaryShareTripButton" type="button">Share Trip</button>
             <button class="button secondary" type="button" data-close-dialog>Close</button>
             <button class="button primary" id="summaryEditTripButton" type="button">Edit Trip</button>
           </div>
         </div>
+      </div>
+    </dialog>
+
+    <dialog id="shareTripDialog" class="dialog share-trip-dialog">
+      <div class="share-trip-shell">
+        <div class="dialog-header"><div><h2>Share Trip</h2></div><button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button></div>
+        <div class="share-trip-layout">
+          <form id="shareTripForm" class="share-trip-controls">
+            <label><span>Layout</span><select id="shareTripLayout"><option value="complete">Complete Report</option><option value="photo-story">Photo Story</option><option value="photo-split">Photo Split</option><option value="catch-spotlight">Catch Spotlight</option></select></label>
+            <label><span>Hero photo</span><select id="shareTripPhoto"></select></label>
+            <label><span>Headline</span><input id="shareTripHeadline" maxlength="72" /></label>
+          </form>
+          <div class="share-trip-preview-panel"><div id="shareTripPreview" class="share-trip-preview" aria-live="polite"></div></div>
+        </div>
+        <div class="dialog-actions"><span></span><div><button class="button secondary" type="button" data-close-dialog>Close</button><button class="button primary" id="shareTripDownload" type="button">Download</button></div></div>
       </div>
     </dialog>
 
@@ -940,7 +960,6 @@
               <div class="weather-data-row"><span>Cloud Cover</span><b id="weatherSummaryCloudCover">-</b></div>
               <div class="weather-data-row"><span>Precipitation</span><b id="weatherSummaryPrecipitation">-</b></div>
               <div class="weather-data-row"><span>Pressure</span><b id="weatherSummaryPressure">-</b></div>
-              <div class="weather-data-row"><span>Visibility</span><b id="weatherSummaryVisibility">-</b></div>
               <label class="weather-data-row weather-control-row">
                 <span data-unit-label="waveHeight" data-unit-label-text="Wave height">Wave Height</span>
                 <input id="waveHeight" type="text" placeholder="Not available" />
@@ -1447,6 +1466,10 @@
             <span data-unit-label="speed" data-unit-label-text="Speed">Speed</span>
             <input class="catch-speed" type="text" placeholder="2.4 mph" />
           </label>
+          <label class="checkbox-label trolling-field catch-detail-optional">
+            <input class="catch-shaker" type="checkbox" />
+            <span>Shaker</span>
+          </label>
           <div class="catch-field-with-option trolling-param param-ball-depth catch-detail-optional">
             <label>
               <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
@@ -1565,6 +1588,10 @@
             <input class="trip-gear-leadcore" type="checkbox" />
             <span>Leadcore</span>
           </label>
+          <label class="trolling-param param-distance-behind">
+            <span class="trip-gear-distance-behind-label">Distance behind</span>
+            <input class="trip-gear-distance-behind" type="text" placeholder="e.g., 20 ft" />
+          </label>
           <div class="row-section-title gear-title">Gear</div>
           <label class="gear-combo-field">
             <span>Rod/reel combo</span>
@@ -1655,6 +1682,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/esri-leaflet@3.0.16/dist/esri-leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="static/js/app-config.js"></script>
     <script src="static/js/app-defaults.js"></script>
     <script src="static/js/app-state.js"></script>
@@ -1670,6 +1698,7 @@
     <script src="static/js/trolling-spread.js"></script>
     <script src="static/js/noaaCharts.js"></script>
     <script src="static/js/maps-summary.js"></script>
+    <script src="static/js/trip-sharing.js"></script>
     <script src="static/js/stats-analytics.js"></script>
     <script src="static/js/stats.js"></script>
     <script src="static/js/stats-rendering.js"></script>

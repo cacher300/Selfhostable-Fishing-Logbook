@@ -67,7 +67,8 @@
   .gear-used-row .flasher-preview,
   .gear-used-row .param-cheater,
   .gear-used-row .param-leadcore,
-  .gear-used-row .param-cheater-lure {
+  .gear-used-row .param-cheater-lure,
+  .gear-used-row .param-distance-behind {
     grid-column: auto;
     grid-row: auto;
   }
