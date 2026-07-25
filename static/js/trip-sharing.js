@@ -168,8 +168,8 @@ function shareWeatherParts(trip) {
 }
 
 function shareFormatSize(fish) {
-  const weight = fish?.weight ? `${trimNumber(fish.weight)} lb` : "";
-  const length = fish?.length ? `${trimNumber(fish.length)} in` : "";
+  const weight = fish?.weight ? displayStoredMeasurement(fish.weight, "fishWeight") : "";
+  const length = fish?.length ? displayStoredMeasurement(fish.length, "fishLength") : "";
   return [weight, length].filter(Boolean).join(" · ");
 }
 
@@ -238,8 +238,7 @@ function shareMetricData(trip) {
     encounters,
     hours,
     species: shareSpecies(trip).length,
-    score: `${landed}/${encounters}`,
-    rate: hours > 0 ? landed / hours : null
+    score: `${landed}/${encounters}`
   };
 }
 
@@ -501,6 +500,7 @@ function setShareMode(mode) {
   shareControl("shareTripPreviewFrame").hidden = mode !== "image";
   shareControl("shareTripTextEditor").hidden = mode !== "text";
   shareControl("shareTripCopyImage").hidden = mode !== "image" || !(window.ClipboardItem && navigator.clipboard?.write);
+  shareControl("shareTripCopyText").hidden = mode !== "text" || !navigator.clipboard?.writeText;
   shareSetStatus("");
   sharePreview();
 }
@@ -513,8 +513,23 @@ function openTripShareStudio(trip) {
   shareControl("shareTripPhoto").value = String(defaultSharePhotoIndex(trip));
   shareControl("shareTripLayout").value = "complete";
   shareControl("shareTripTheme").value = "deep-water";
+  shareControl("shareTextStyle").value = "detailed";
+  shareControl("shareTextUnits").value = "app";
   shareControl("shareTripHeadline").value = `${shareLaunch(trip)} fishing report`;
   shareControl("shareTripSubtitle").value = "";
+  shareControl("shareTripAccent").value = "#18b9d6";
+  shareControl("shareTripBranding").value = "off";
+  [
+    ["shareShowNotes", true],
+    ["shareShowConditions", true],
+    ["shareShowTimeline", true],
+    ["shareIncludeMisses", true],
+    ["shareShowLures", true],
+    ["shareShowEmpty", false],
+    ["shareShowLocation", false]
+  ].forEach(([id, checked]) => {
+    shareControl(id).checked = checked;
+  });
   setShareMode("image");
   els.shareTripDialog.showModal();
 }
@@ -544,7 +559,7 @@ async function shareWithStatus(button, action, successMessage) {
   }
 }
 
-async function shareReportCanvas(format = "png") {
+async function shareReportCanvas() {
   const report = shareControl("shareTripPreview")?.querySelector(".share-report");
   if (!report) throw new Error("The report preview is unavailable.");
   if (!window.html2canvas) throw new Error("The image exporter is still loading.");
@@ -589,7 +604,7 @@ function shareDownloadBlob(blob, extension) {
 }
 
 async function shareDownloadImage(format) {
-  const canvas = await shareReportCanvas(format);
+  const canvas = await shareReportCanvas();
   const mime = format === "jpg" ? "image/jpeg" : "image/png";
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, format === "jpg" ? 0.93 : 1));
   if (!blob) throw new Error("The report image could not be created.");
@@ -598,12 +613,13 @@ async function shareDownloadImage(format) {
 
 async function shareCopyImage() {
   if (!(window.ClipboardItem && navigator.clipboard?.write)) throw new Error("Copy Image is not supported in this browser.");
-  const canvas = await shareReportCanvas("png");
+  const canvas = await shareReportCanvas();
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
   await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
 }
 
 async function shareCopyText() {
+  if (!navigator.clipboard?.writeText) throw new Error("Copy Text is not supported in this browser.");
   const editor = shareControl("shareTripTextEditor");
   await navigator.clipboard.writeText(editor.value);
 }
