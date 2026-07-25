@@ -28,11 +28,10 @@ SQLite stores the normalized logbook in transactionally updated collections. The
 ## Run Locally
 
 ```powershell
-py -m pip install -r requirements.txt
-py server.py
+.\scripts\run-local.ps1
 ```
 
-Open `http://127.0.0.1:8080`. Configure `HOST` and `PORT` with environment variables if needed.
+The launcher creates `.venv` when needed, installs missing dependencies, and starts the app at `http://127.0.0.1:8080`. Configure `HOST` and `PORT` with environment variables if needed.
 
 ## Run with Docker
 

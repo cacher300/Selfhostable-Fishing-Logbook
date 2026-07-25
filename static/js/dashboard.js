@@ -506,6 +506,8 @@ function renderSelectOptions() {
   populateOptionSelect(document.querySelector("#weather"), optionLabels("weatherTypes"), "Select weather");
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
+  populateOptionSelect(document.querySelector("#lureBladeType"), optionLabels("lureBladeTypes"), "Select blade type");
+  populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
   document.querySelectorAll(".catch-species").forEach((select) => populateOptionSelect(select, state.species, "Select species"));
   document.querySelectorAll(".catch-possible-species").forEach((select) => populateOptionSelect(select, state.species, "Select possible species"));
   document.querySelectorAll(".catch-presentation").forEach((select) => populateChoiceSelect(select, optionChoices("trollingPresentations"), "Select method"));

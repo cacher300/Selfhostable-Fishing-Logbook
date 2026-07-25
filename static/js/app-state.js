@@ -2,6 +2,9 @@ let state = structuredClone(defaults);
 let activeTripId = null;
 let activeSummaryTripId = null;
 let activeTripTimelineFilter = "all";
+let activeReportTimelineFilter = "all";
+let activeReportTimelineSort = { key: "time", direction: "asc" };
+let activeReportTimelineColumns = null;
 let activeNotePhotos = [];
 let activeTripSort = { key: "date", direction: "desc" };
 let activeStatsMethod = "All methods";
@@ -229,10 +232,10 @@ function normalizeState(nextState) {
   delete normalized.tripTypes;
   normalized.settings = normalizeSettings(normalized.settings);
 
-  ["species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips"].forEach((key) => {
+  ["species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips"].forEach((key) => {
     if (!Array.isArray(normalized[key])) normalized[key] = structuredClone(defaults[key]);
   });
-  ["species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingDirections"].forEach((key) => {
+  ["species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingDirections"].forEach((key) => {
     normalized[key] = normalizeTextOptions(normalized[key], defaults[key]);
   });
   normalized.trollingPresentations = normalizeChoiceOptions(

@@ -16,6 +16,9 @@ function viewFromCurrentRoute() {
 
 els.newTripButton.addEventListener("click", () => openTripDialog());
 els.tripForm.addEventListener("submit", saveTrip);
+els.tripForm.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") event.preventDefault();
+});
 els.locationForm.addEventListener("submit", saveLocationPin);
 els.deleteLocationDialogButton?.addEventListener("click", () => {
   deleteActiveLocationFromDialog().catch((error) => alert(error.message || "The location could not be deleted."));
@@ -114,6 +117,17 @@ els.newLibraryFlasherButton.addEventListener("click", () => openFlasherDialog())
 els.newLibraryReelButton.addEventListener("click", () => openReelDialog());
 els.newLibraryRodButton.addEventListener("click", () => openRodDialog());
 els.newLibraryComboButton.addEventListener("click", () => openComboDialog());
+document.querySelector("#comboRod").addEventListener("change", () => {
+  if (getValue("editingComboId")) return;
+  const shortNameInput = document.querySelector("#comboShortName");
+  if (shortNameInput.value && shortNameInput.dataset.autoName !== "true") return;
+  const rod = state.rods.find((item) => item.id === getValue("comboRod"));
+  shortNameInput.value = rod?.shortName || rod?.name || "";
+  shortNameInput.dataset.autoName = "true";
+});
+document.querySelector("#comboShortName").addEventListener("input", (event) => {
+  event.target.dataset.autoName = "";
+});
 els.saveChopRangesButton?.addEventListener("click", saveChopRanges);
 els.themeSelect?.addEventListener("change", saveThemePreference);
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
@@ -358,9 +372,50 @@ document.addEventListener("click", (event) => {
     refreshTripTimelinePanel();
   }
 
+  const reportAction = event.target.closest("[data-report-action]");
+  if (reportAction) {
+    const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+    if (trip && reportAction.dataset.reportAction === "edit") openTripDialog(trip);
+    if (trip && reportAction.dataset.reportAction === "share") openTripShareStudio(trip);
+  }
+
+  const reportFilter = event.target.closest("[data-report-filter]");
+  if (reportFilter) {
+    activeReportTimelineFilter = reportFilter.dataset.reportFilter || "all";
+    refreshReportTimeline();
+  }
+
+  const reportSort = event.target.closest("[data-report-sort]");
+  if (reportSort) {
+    const key = reportSort.dataset.reportSort;
+    activeReportTimelineSort = {
+      key,
+      direction: activeReportTimelineSort.key === key && activeReportTimelineSort.direction === "asc" ? "desc" : "asc"
+    };
+    refreshReportTimeline();
+  }
+
+  const reportHeroPhoto = event.target.closest("[data-report-open-photo]");
+  if (reportHeroPhoto) {
+    const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+    const photo = trip?.notePhotos?.[0];
+    if (photo) openTripReportPhotoLightbox(photo);
+  }
+
+  if (event.target.closest("[data-close-report-photo]") || event.target.classList.contains("report-photo-lightbox")) {
+    document.querySelector(".report-photo-lightbox")?.remove();
+  }
+
   const catchDetailButton = event.target.closest("[data-summary-catch-index]");
   if (catchDetailButton) {
     openSummaryCatchDetail(Number(catchDetailButton.dataset.summaryCatchIndex));
+  }
+
+  const catchLureLink = event.target.closest("[data-catch-lure-id]");
+  if (catchLureLink) {
+    event.stopPropagation();
+    const lure = state.lures.find((item) => item.id === catchLureLink.dataset.catchLureId);
+    if (lure) openLureInfoDialog(lure, "catch-detail");
   }
 
   const catchGalleryThumb = event.target.closest("[data-catch-gallery-thumb]");
@@ -670,10 +725,22 @@ document.addEventListener("click", (event) => {
     if (reel) openReelDialog(reel);
   }
 
+  const duplicateReelButton = event.target.closest("[data-duplicate-reel]");
+  if (duplicateReelButton) {
+    const reel = state.reels.find((item) => item.id === duplicateReelButton.dataset.duplicateReel);
+    if (reel) openReelDialog(reel, { duplicate: true });
+  }
+
   const editRodButton = event.target.closest("[data-edit-rod]");
   if (editRodButton) {
     const rod = state.rods.find((item) => item.id === editRodButton.dataset.editRod);
     if (rod) openRodDialog(rod);
+  }
+
+  const duplicateRodButton = event.target.closest("[data-duplicate-rod]");
+  if (duplicateRodButton) {
+    const rod = state.rods.find((item) => item.id === duplicateRodButton.dataset.duplicateRod);
+    if (rod) openRodDialog(rod, { duplicate: true });
   }
 
   const editComboButton = event.target.closest("[data-edit-combo]");
@@ -717,6 +784,20 @@ document.addEventListener("click", (event) => {
     setValue("editingFlasherId", deleteFlasherButton.dataset.deleteFlasher);
     deleteFlasher();
   }
+});
+
+document.addEventListener("change", (event) => {
+  const columnToggle = event.target.closest?.("[data-report-column]");
+  if (!columnToggle) return;
+  const columns = reportColumns();
+  if (columnToggle.checked) columns.add(columnToggle.dataset.reportColumn);
+  else columns.delete(columnToggle.dataset.reportColumn);
+  try {
+    localStorage.setItem(reportColumnPreferenceKey, JSON.stringify([...columns]));
+  } catch {
+    // Column preferences remain available for this session when storage is unavailable.
+  }
+  refreshReportTimeline();
 });
 
 document.addEventListener("change", (event) => {

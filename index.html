@@ -806,16 +806,62 @@
 
     <dialog id="shareTripDialog" class="dialog share-trip-dialog">
       <div class="share-trip-shell">
-        <div class="dialog-header"><div><h2>Share Trip</h2></div><button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button></div>
+        <div class="share-trip-header">
+          <h2>Share Trip</h2>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <div class="share-trip-tabs" role="tablist" aria-label="Report format">
+          <button id="shareImageTab" class="share-tab is-active" type="button" role="tab" aria-selected="true" data-share-mode="image">Image Report</button>
+          <button id="shareTextTab" class="share-tab" type="button" role="tab" aria-selected="false" data-share-mode="text">Text Report</button>
+        </div>
         <div class="share-trip-layout">
           <form id="shareTripForm" class="share-trip-controls">
-            <label><span>Layout</span><select id="shareTripLayout"><option value="complete">Complete Report</option><option value="photo-story">Photo Story</option><option value="photo-split">Photo Split</option><option value="catch-spotlight">Catch Spotlight</option></select></label>
-            <label><span>Hero photo</span><select id="shareTripPhoto"></select></label>
-            <label><span>Headline</span><input id="shareTripHeadline" maxlength="72" /></label>
+            <div class="share-image-settings">
+              <label><span>Layout</span><select id="shareTripLayout"><option value="complete">Complete Report</option><option value="timeline">Timeline Report</option></select></label>
+              <label><span>Theme</span><select id="shareTripTheme"><option value="deep-water">Deep Water Dark</option><option value="clean-light">Clean Light</option><option value="nautical">Nautical Blue</option></select></label>
+              <label><span>Hero photo</span><select id="shareTripPhoto"></select></label>
+            </div>
+            <div class="share-text-settings" hidden>
+              <label><span>Text style</span><select id="shareTextStyle"><option value="detailed">Detailed Fishing Report</option><option value="concise">Concise Social Post</option><option value="fish-log">Fish-by-Fish Log</option></select></label>
+              <label><span>Units</span><select id="shareTextUnits"><option value="app">Use app settings</option><option value="imperial">Imperial</option><option value="metric">Metric</option></select></label>
+            </div>
+            <label><span>Headline</span><input id="shareTripHeadline" maxlength="90" /></label>
+            <label><span>Subtitle <small>optional</small></span><input id="shareTripSubtitle" maxlength="120" /></label>
+            <div class="share-image-settings share-control-pair">
+              <label><span>Accent</span><input id="shareTripAccent" type="color" value="#18b9d6" /></label>
+              <label><span>Branding</span><select id="shareTripBranding"><option value="off">Off</option><option value="on">Show app name</option></select></label>
+            </div>
+            <section class="share-option-group share-content-group" aria-labelledby="shareContentHeading">
+              <h3 id="shareContentHeading">Content</h3>
+              <div>
+                <label class="share-check share-content-card"><input id="shareShowNotes" type="checkbox" checked /><span>Trip notes</span></label>
+                <label class="share-check share-content-card"><input id="shareShowConditions" type="checkbox" checked /><span>Conditions</span></label>
+                <label class="share-check share-content-card"><input id="shareShowTimeline" type="checkbox" checked /><span>Catch timeline</span></label>
+                <label class="share-check share-content-card"><input id="shareIncludeMisses" type="checkbox" checked /><span>Missed or lost fish</span></label>
+                <label class="share-check share-content-card"><input id="shareShowLures" type="checkbox" checked /><span>Exact lure details</span></label>
+                <label class="share-check share-content-card"><input id="shareShowEmpty" type="checkbox" /><span>Empty fields</span></label>
+                <label class="share-check share-content-card"><input id="shareShowLocation" type="checkbox" /><span>Exact fishing area</span></label>
+              </div>
+            </section>
           </form>
-          <div class="share-trip-preview-panel"><div id="shareTripPreview" class="share-trip-preview" aria-live="polite"></div></div>
+          <section class="share-trip-preview-panel" aria-label="Live report preview">
+            <div id="shareTripPreviewFrame" class="share-trip-preview-frame">
+              <div id="shareTripPreview" class="share-trip-preview" aria-live="polite"></div>
+            </div>
+            <textarea id="shareTripTextEditor" class="share-trip-text-editor" aria-label="Editable text report" spellcheck="true" hidden></textarea>
+          </section>
         </div>
-        <div class="dialog-actions"><span></span><div><button class="button secondary" type="button" data-close-dialog>Close</button><button class="button primary" id="shareTripDownload" type="button">Download</button></div></div>
+        <div class="share-trip-actions">
+          <button class="button secondary" type="button" data-close-dialog>Close</button>
+          <span id="shareTripStatus" class="share-trip-status" role="status" aria-live="polite"></span>
+          <div>
+            <button class="button secondary share-text-action" id="shareTripCopyText" type="button" hidden>Copy Text</button>
+            <button class="button secondary share-text-action" id="shareTripDownloadText" type="button" hidden>Download TXT</button>
+            <button class="button secondary share-image-action" id="shareTripCopyImage" type="button">Copy Image</button>
+            <button class="button secondary share-image-action" id="shareTripDownloadJpg" type="button">Download JPG</button>
+            <button class="button primary share-image-action" id="shareTripDownloadPng" type="button">Download PNG</button>
+          </div>
+        </div>
       </div>
     </dialog>
 
@@ -964,9 +1010,6 @@
                 <span data-unit-label="waveHeight" data-unit-label-text="Wave height">Wave Height</span>
                 <input id="waveHeight" type="text" placeholder="Not available" />
               </label>
-              <label class="weather-data-row weather-control-row">
-                <span>Wave Chop</span><input id="waveChopDisplay" type="text" placeholder="Auto from wave height" readonly />
-              </label>
             </div>
             <small class="weather-summary-updated" id="weatherSummaryUpdated"></small>
           </aside>
@@ -1013,10 +1056,9 @@
         <section class="trip-form-section catch-editor" id="tripLostFishSection">
           <div class="section-heading">
             <div>
-              <h3>Lost Fish</h3>
-              <p>Strikes or fish that came off before landing.</p>
+              <h3>Missed Fish</h3>
             </div>
-            <button class="button secondary" id="addLostFishButton" type="button">Add Lost Fish</button>
+            <button class="button secondary" id="addLostFishButton" type="button">Add Missed Fish</button>
           </div>
           <div id="lostFishRows" class="catch-rows"></div>
         </section>
@@ -1101,6 +1143,7 @@
           <label><span>Braid capacity</span><input id="reelBraidCapacity" type="text" placeholder="140/30" /></label>
           <label><span>Purchase amount</span><input id="reelPurchaseAmount" type="text" placeholder="89.99" /></label>
           <label><span>Date bought</span><input id="reelDateBought" type="date" /></label>
+          <label><span>Quantity available</span><input id="reelQuantityAvailable" type="number" min="0" step="1" placeholder="1" /></label>
           <label><span>Reel image</span><input id="reelImage" type="file" accept="image/*,video/*" /></label>
           <button class="button secondary align-end" type="button" data-use-photo-queue="reels">Use Queue</button>
           <div id="reelQueuedImage" class="queued-gear-image hidden"></div>
@@ -1138,6 +1181,7 @@
           <label><span>Lure rating</span><input id="rodLureRating" type="text" placeholder="1/2 - 2 oz" /></label>
           <label><span>Purchase amount</span><input id="rodPurchaseAmount" type="text" placeholder="69.99" /></label>
           <label><span>Date bought</span><input id="rodDateBought" type="date" /></label>
+          <label><span>Quantity available</span><input id="rodQuantityAvailable" type="number" min="0" step="1" placeholder="1" /></label>
           <label><span>Rod image</span><input id="rodImage" type="file" accept="image/*,video/*" /></label>
           <button class="button secondary" type="button" data-use-photo-queue="rods">Use Queue</button>
           <div id="rodQueuedImage" class="queued-gear-image hidden"></div>
@@ -1200,23 +1244,11 @@
           </label>
           <label id="lureBladeTypeField" class="hidden">
             <span>Blade type</span>
-            <select id="lureBladeType">
-              <option value="">Select blade type</option>
-              <option value="Colorado">Colorado</option>
-              <option value="Willow Leaf">Willow Leaf</option>
-              <option value="Indiana">Indiana</option>
-              <option value="Butterfly">Butterfly</option>
-            </select>
+            <select id="lureBladeType"></select>
           </label>
           <label id="lureSpoonSizeField" class="hidden">
             <span>Spoon size</span>
-            <select id="lureSpoonSize">
-              <option value="">Select spoon size</option>
-              <option value="Micro">Micro</option>
-              <option value="Small">Small</option>
-              <option value="Standard">Standard</option>
-              <option value="Magnum">Magnum</option>
-            </select>
+            <select id="lureSpoonSize"></select>
           </label>
           <label>
             <span>Brand / model</span>
@@ -1225,6 +1257,10 @@
           <label>
             <span>Color</span>
             <input id="lureColor" type="text" placeholder="Blue/Silver" />
+          </label>
+          <label>
+            <span>Quantity available</span>
+            <input id="lureQuantityAvailable" type="number" min="0" step="1" placeholder="1" />
           </label>
           <label class="checkbox-field">
             <input id="lureGlow" type="checkbox" />
@@ -1344,31 +1380,39 @@
           <button class="icon-button remove-catch" type="button" aria-label="Remove catch"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
         <div class="collapsible-row-body">
-          <label class="catch-detail-optional">
-            <span>Person</span>
-            <select class="catch-person"></select>
-          </label>
-          <label class="catch-species-field catch-detail-required">
-            <span>Species</span>
-            <select class="catch-species"></select>
-          </label>
-          <label class="possible-species-field hidden">
-            <span>Possible species</span>
-            <select class="catch-possible-species"></select>
-          </label>
-          <label class="catch-length-field catch-detail-required">
-            <span data-unit-label="fishLength" data-unit-label-text="Length">Length</span>
-            <input class="catch-length" type="text" placeholder="28 in" />
-          </label>
-          <div class="catch-field-with-option catch-weight-field catch-detail-required">
-            <label>
-              <span data-unit-label="fishWeight" data-unit-label-text="Weight">Weight</span>
-              <input class="catch-weight" type="text" placeholder="9 lb" />
+          <div class="catch-identity-row">
+            <label class="catch-detail-optional">
+              <span>Person</span>
+              <select class="catch-person"></select>
             </label>
-            <label class="checkbox-label inline-field-option catch-released-field">
-              <input class="catch-released" type="checkbox" />
-              <span>Released after landing</span>
+            <label class="catch-species-field catch-detail-required">
+              <span>Species</span>
+              <select class="catch-species"></select>
             </label>
+            <label class="possible-species-field hidden">
+              <span>Possible species</span>
+              <select class="catch-possible-species"></select>
+            </label>
+            <label class="catch-length-field catch-detail-required">
+              <span data-unit-label="fishLength" data-unit-label-text="Length">Length</span>
+              <input class="catch-length" type="text" inputmode="decimal" placeholder="28 in" />
+            </label>
+            <div class="catch-field-with-option catch-weight-field catch-detail-required">
+              <label>
+                <span data-unit-label="fishWeight" data-unit-label-text="Weight">Weight</span>
+                <input class="catch-weight" type="text" inputmode="decimal" placeholder="9 lb" />
+              </label>
+              <div class="catch-status-options">
+                <label class="checkbox-label inline-field-option catch-shaker-field trolling-field catch-detail-optional">
+                  <input class="catch-shaker" type="checkbox" />
+                  <span>Shaker</span>
+                </label>
+                <label class="checkbox-label inline-field-option catch-released-field">
+                  <input class="catch-released" type="checkbox" />
+                  <span>Released after landing</span>
+                </label>
+              </div>
+            </div>
           </div>
           <div class="row-section-title catch-detail-optional">Location</div>
           <div class="catch-field-with-option catch-detail-optional">
@@ -1465,10 +1509,6 @@
           <label class="trolling-field catch-detail-optional">
             <span data-unit-label="speed" data-unit-label-text="Speed">Speed</span>
             <input class="catch-speed" type="text" placeholder="2.4 mph" />
-          </label>
-          <label class="checkbox-label trolling-field catch-detail-optional">
-            <input class="catch-shaker" type="checkbox" />
-            <span>Shaker</span>
           </label>
           <div class="catch-field-with-option trolling-param param-ball-depth catch-detail-optional">
             <label>

@@ -301,9 +301,11 @@ const predefinedFieldGroups = [
   { key: "weatherTypes", label: "Weather" },
   { key: "lureTypes", label: "Lure types" },
   { key: "flasherTypes", label: "Flasher types" },
-  { key: "reelStyles", label: "Reel styles" },
-  { key: "rodTypes", label: "Rod types" },
+  { key: "reelStyles", label: "Reel categories" },
+  { key: "rodTypes", label: "Rod categories" },
   { key: "lineTypes", label: "Line types" },
+  { key: "lureBladeTypes", label: "Lure blade types" },
+  { key: "lureSpoonSizes", label: "Lure spoon sizes" },
   { key: "trollingPresentations", label: "Trolling methods", choice: true },
   { key: "trollingDirections", label: "Trolling directions" },
   { key: "setupLineSides", label: "Setup line sides", choice: true }

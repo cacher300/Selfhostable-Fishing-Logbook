@@ -526,10 +526,10 @@
 .summary-condition-metrics .metric-card {
   min-width: 0;
   padding: 16px 18px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--panel);
-  box-shadow: 0 10px 28px rgba(7, 21, 46, 0.055);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  box-shadow: none;
 }
 
 .summary-condition-metrics .metric-card span {
@@ -570,15 +570,18 @@
 }
 
 .weather-secondary-grid .summary-value {
-  padding: 14px 0;
-  border-bottom: 1px solid #e8edf3;
-  color: #111;
+  min-height: 86px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text);
   font-size: 15px;
   font-weight: 750;
 }
 
 .summary-weather-details-section .summary-value strong {
-  color: #111;
+  color: var(--muted);
 }
 
 .summary-weather-empty {
@@ -589,9 +592,9 @@
 
 .summary-weather-details-section {
   padding: 24px;
-  border: 0;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 12px 34px rgba(7, 21, 46, 0.07);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: none;
 }
 

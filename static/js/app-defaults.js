@@ -19,9 +19,11 @@ const defaultWeatherOptions = [
   "Mixed"
 ];
 
-const defaultReelStyleOptions = ["Baitcaster", "Spinning", "Centerpin", "Fly"];
+const defaultReelStyleOptions = ["Baitcaster", "Spinning", "Linecounter", "Centerpin", "Fly"];
 const defaultRodTypeOptions = ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"];
 const defaultLineTypeOptions = ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wire", "Copper", "Other"];
+const defaultLureBladeTypeOptions = ["Colorado", "Willow Leaf", "Indiana", "Butterfly"];
+const defaultLureSpoonSizeOptions = ["Micro", "Small", "Standard", "Magnum"];
 const defaultTrollingPresentationOptions = [
   { value: "Outside Board", label: "Outside Board" },
   { value: "Inside Board", label: "Inside Board" },
@@ -162,6 +164,8 @@ const defaults = {
   reelStyles: structuredClone(defaultReelStyleOptions),
   rodTypes: structuredClone(defaultRodTypeOptions),
   lineTypes: structuredClone(defaultLineTypeOptions),
+  lureBladeTypes: structuredClone(defaultLureBladeTypeOptions),
+  lureSpoonSizes: structuredClone(defaultLureSpoonSizeOptions),
   trollingPresentations: structuredClone(defaultTrollingPresentationOptions),
   trollingDirections: structuredClone(defaultTrollingDirectionOptions),
   setupLineSides: structuredClone(defaultSetupLineSideOptions),

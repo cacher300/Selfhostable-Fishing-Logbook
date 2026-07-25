@@ -168,6 +168,22 @@
   background: #0b1118;
 }
 
+/* Catch media stays inside the dark surface instead of retaining its light thumbnail rail. */
+:root[data-theme="dark"] .catch-detail-panel .thumbnail-column {
+  border-color: var(--line);
+  background: var(--panel-soft);
+}
+
+:root[data-theme="dark"] .catch-detail-panel .thumbnail-button {
+  border-color: var(--line);
+  background: var(--field);
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .catch-detail-panel .thumbnail-button.is-active {
+  box-shadow: 0 0 0 2px var(--green);
+}
+
 :root[data-theme="dark"] .trip-photos-disclosure > summary,
 :root[data-theme="dark"] .stats-view-toggle,
 :root[data-theme="dark"] .stats-chart-track,

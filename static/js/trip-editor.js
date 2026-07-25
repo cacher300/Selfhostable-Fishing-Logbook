@@ -225,9 +225,7 @@ function openTripDialog(trip = null) {
   setValue("waterClarity", trip?.waterClarity || "");
   setValue("weather", trip?.weather || "");
   setValue("waveHeight", trip?.waveHeight || "");
-  setValue("waveChopDisplay", trip?.waveChop || "");
   updateMarineWaveHeightPlaceholder(trip?.weatherData || activeTripWeatherData);
-  updateAutoWaveChopDisplay(trip?.weatherData || activeTripWeatherData);
   setValue("structure", trip?.structure || "");
   setValue("tripNotes", trip?.notes || "");
   activeTripWeatherData = trip?.weatherData || null;
@@ -262,7 +260,8 @@ function openTripDialog(trip = null) {
 }
 
 function setValue(id, value) {
-  document.querySelector(`#${id}`).value = value;
+  const input = document.querySelector(`#${id}`);
+  if (input) input.value = value;
 }
 
 function getValue(id) {

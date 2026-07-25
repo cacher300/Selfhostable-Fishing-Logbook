@@ -742,10 +742,10 @@
 
 .catch-detail-panel .thumbnail-column {
   gap: 14px;
-  padding: 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 22px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel-soft);
 }
 
 .catch-detail-panel .catch-media-gallery.is-scrollable .thumbnail-column {
@@ -754,10 +754,18 @@
 }
 
 .catch-detail-panel .thumbnail-button {
-  border: 1px solid #dbe4ee;
-  border-radius: 18px;
-  background: #f8fafc;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--field);
+  box-shadow: none;
+}
+
+.catch-detail-panel .thumbnail-button .thumbnail-image,
+.catch-detail-panel .thumbnail-button video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .catch-detail-panel .thumbnail-button.is-active {
@@ -767,30 +775,43 @@
 .catch-detail-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px 20px;
+  gap: 10px;
   margin: 0;
 }
 
 .catch-detail-grid div {
   min-width: 0;
-  padding: 12px 0;
-  border-bottom: 1px solid #e6ebf2;
+  min-height: 84px;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
 }
 
 .catch-detail-grid dt {
   color: var(--muted);
-  font-size: 15px;
-  font-weight: 850;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .045em;
+  text-transform: uppercase;
 }
 
 .catch-detail-grid dd {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   color: var(--text);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 850;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
+
+.catch-detail-grid .status { border-left: 3px solid var(--green); }
+.catch-detail-grid .setup { background: var(--active-bg); border-color: var(--chip-line); }
+.catch-detail-grid .lure { background: var(--active-bg); border-color: var(--chip-line); }
+.catch-detail-grid .notes { grid-column: 1 / -1; }
+.catch-detail-grid .notes { min-height: 0; }
+.catch-detail-lure-link { padding: 0; border: 0; border-bottom: 1px solid currentColor; background: transparent; color: var(--green-dark); font-weight: 900; line-height: inherit; text-align: left; }
+.catch-detail-lure-link:hover, .catch-detail-lure-link:focus-visible { color: var(--green); outline-offset: 4px; }
 
 .compact-empty {
   padding: 18px;

@@ -14,7 +14,7 @@ SCHEMA_VERSION = 1
 _STORE_LOCK = RLock()
 _COLLECTION_KEYS = (
     "species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes",
-    "reelStyles", "rodTypes", "lineTypes", "trollingPresentations", "trollingDirections",
+    "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections",
     "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people",
     "locations", "trips",
 )
@@ -119,7 +119,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         normalized["settings"].pop("bathymetryOffsetFeet", None)
         normalized["settings"].pop("bathymetryLakeOffsetsFeet", None)
 
-    list_keys = ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
+    list_keys = ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
     for key in list_keys:
         if not isinstance(normalized.get(key), list):
             normalized[key] = deepcopy(DEFAULT_LOGBOOK[key])
@@ -160,7 +160,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
                 seen.add(folded)
         normalized[key] = cleaned
 
-    for key in ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingDirections"):
+    for key in ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingDirections"):
         clean_text_options(key)
     for key in ("trollingPresentations", "setupLineSides"):
         clean_choice_options(key)
@@ -525,7 +525,7 @@ def _validate_required_lists(payload: dict) -> tuple[bool, str | None]:
 def _validate_option_lists(payload: dict) -> tuple[bool, str | None]:
     keys = (
         "species", "methods", "lureTypes", "flasherTypes", "waterClarities",
-        "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "trollingDirections",
+        "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingDirections",
     )
     for key in keys:
         if key not in payload:

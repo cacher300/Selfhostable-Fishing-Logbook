@@ -178,9 +178,11 @@ DEFAULT_LOGBOOK = {
         "Snow",
         "Mixed",
     ],
-    "reelStyles": ["Baitcaster", "Spinning", "Centerpin", "Fly"],
+    "reelStyles": ["Baitcaster", "Spinning", "Linecounter", "Centerpin", "Fly"],
     "rodTypes": ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"],
     "lineTypes": ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wire", "Copper", "Other"],
+    "lureBladeTypes": ["Colorado", "Willow Leaf", "Indiana", "Butterfly"],
+    "lureSpoonSizes": ["Micro", "Small", "Standard", "Magnum"],
     "trollingPresentations": [
         {"value": "Outside Board", "label": "Outside Board"},
         {"value": "Inside Board", "label": "Inside Board"},

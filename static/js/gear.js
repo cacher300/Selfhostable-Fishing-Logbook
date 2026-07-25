@@ -300,14 +300,15 @@ function collectLineRows() {
   return lines.slice(0, 1);
 }
 
-function openReelDialog(reel = null) {
+function openReelDialog(reel = null, { duplicate = false } = {}) {
   els.reelForm.reset();
   pendingReelImage = null;
   renderQueuedGearImage("reel");
   populateOptionSelect(document.querySelector("#reelStyle"), optionLabels("reelStyles"), "Select style");
-  const editing = Boolean(reel);
-  document.querySelector("#reelDialog h2").textContent = editing ? "Edit Reel" : "Add Reel";
-  setValue("editingReelId", reel?.id || "");
+  const editing = Boolean(reel) && !duplicate;
+  document.querySelector("#reelDialog h2").textContent = editing ? "Edit Reel" : duplicate ? "Duplicate Reel" : "Add Reel";
+  els.reelDialog.dataset.duplicateFromId = duplicate ? reel?.id || "" : "";
+  setValue("editingReelId", editing ? reel?.id || "" : "");
   setValue("reelShortName", reel?.shortName || "");
   setValue("reelStyle", reel?.style || "");
   setValue("reelBrand", reel?.brand || "");
@@ -321,20 +322,22 @@ function openReelDialog(reel = null) {
   setValue("reelBraidCapacity", reel?.braidCapacity || "");
   setValue("reelPurchaseAmount", reel?.purchaseAmount || "");
   setValue("reelDateBought", reel?.dateBought || "");
+  setValue("reelQuantityAvailable", reel?.quantityAvailable ?? "");
   setValue("reelNotes", reel?.notes || "");
   renderLineRows(reel?.lineHistory || []);
   els.deleteReelButton.classList.toggle("hidden", !editing);
   els.reelDialog.showModal();
 }
 
-function openRodDialog(rod = null) {
+function openRodDialog(rod = null, { duplicate = false } = {}) {
   els.rodForm.reset();
   pendingRodImage = null;
   renderQueuedGearImage("rod");
   populateOptionSelect(document.querySelector("#rodType"), optionLabels("rodTypes"), "Select type");
-  const editing = Boolean(rod);
-  document.querySelector("#rodDialog h2").textContent = editing ? "Edit Rod" : "Add Rod";
-  setValue("editingRodId", rod?.id || "");
+  const editing = Boolean(rod) && !duplicate;
+  document.querySelector("#rodDialog h2").textContent = editing ? "Edit Rod" : duplicate ? "Duplicate Rod" : "Add Rod";
+  els.rodDialog.dataset.duplicateFromId = duplicate ? rod?.id || "" : "";
+  setValue("editingRodId", editing ? rod?.id || "" : "");
   setValue("rodShortName", rod?.shortName || "");
   setValue("rodType", rod?.type || "");
   setValue("rodBrand", rod?.brand || "");
@@ -345,6 +348,7 @@ function openRodDialog(rod = null) {
   setValue("rodLureRating", rod?.lureRating || "");
   setValue("rodPurchaseAmount", rod?.purchaseAmount || "");
   setValue("rodDateBought", rod?.dateBought || "");
+  setValue("rodQuantityAvailable", rod?.quantityAvailable ?? "");
   setValue("rodNotes", rod?.notes || "");
   els.deleteRodButton.classList.toggle("hidden", !editing);
   els.rodDialog.showModal();
@@ -356,6 +360,7 @@ function openComboDialog(combo = null) {
   document.querySelector("#comboDialog h2").textContent = editing ? "Edit Combo" : "Add Combo";
   setValue("editingComboId", combo?.id || "");
   setValue("comboShortName", combo?.shortName || "");
+  document.querySelector("#comboShortName").dataset.autoName = "";
   populateRodSelect(document.querySelector("#comboRod"), combo?.rodId || "");
   populateReelSelect(document.querySelector("#comboReel"), combo?.reelId || "");
   setValue("comboNotes", combo?.notes || "");
@@ -369,6 +374,8 @@ function openLureDialog(lure = null, pendingRowId = "") {
   pendingLureImage = null;
   renderQueuedGearImage("lure");
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
+  populateOptionSelect(document.querySelector("#lureBladeType"), optionLabels("lureBladeTypes"), "Select blade type");
+  populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
   const editing = Boolean(lure);
   document.querySelector("#lureDialog h2").textContent = editing ? "Edit Lure" : "Add Lure";
   setValue("pendingCatchRow", pendingRowId);
@@ -381,6 +388,7 @@ function openLureDialog(lure = null, pendingRowId = "") {
   updateLureDivingDepthField();
   setValue("lureBrand", lure?.brand || "");
   setValue("lureColor", lure?.color || "");
+  setValue("lureQuantityAvailable", lure?.quantityAvailable ?? "");
   document.querySelector("#lureGlow").checked = Boolean(lure?.glow);
   setValue("lureNotes", lure?.notes || "");
   els.deleteLureButton.classList.toggle("hidden", !editing);
@@ -401,6 +409,7 @@ function openLureInfoDialog(lure, pendingRowId = "") {
     ["Spoon size", hasSpoonSize ? lure.spoonSize : ""],
     ["Brand / model", lure.brand],
     ["Color", lure.color],
+    ["Quantity available", lure.quantityAvailable],
     ["Glow", lure.glow ? "Yes" : "No"],
     ["Fish caught", stats.landed],
     ["Fish lost", stats.lost],
@@ -489,7 +498,7 @@ async function saveReel(event) {
   event.preventDefault();
   try {
     const editingId = getValue("editingReelId");
-    const existing = state.reels.find((item) => item.id === editingId);
+    const existing = state.reels.find((item) => item.id === editingId || item.id === els.reelDialog.dataset.duplicateFromId);
     const imageFile = document.querySelector("#reelImage").files[0];
     const uploadedImage = imageFile ? await uploadImageFile(imageFile, "reels") : pendingReelImage;
     const reel = {
@@ -507,6 +516,7 @@ async function saveReel(event) {
       braidCapacity: getValue("reelBraidCapacity"),
       purchaseAmount: getValue("reelPurchaseAmount"),
       dateBought: getValue("reelDateBought"),
+      quantityAvailable: getValue("reelQuantityAvailable"),
       notes: getValue("reelNotes"),
       lineHistory: collectLineRows(),
       ...imageFields(uploadedImage, existing)
@@ -519,6 +529,7 @@ async function saveReel(event) {
     await saveState();
     els.reelDialog.close();
     els.reelForm.reset();
+    els.reelDialog.dataset.duplicateFromId = "";
     pendingReelImage = null;
     renderAll();
   } catch (error) {
@@ -531,7 +542,7 @@ async function saveRod(event) {
   event.preventDefault();
   try {
     const editingId = getValue("editingRodId");
-    const existing = state.rods.find((item) => item.id === editingId);
+    const existing = state.rods.find((item) => item.id === editingId || item.id === els.rodDialog.dataset.duplicateFromId);
     const imageFile = document.querySelector("#rodImage").files[0];
     const uploadedImage = imageFile ? await uploadImageFile(imageFile, "rods") : pendingRodImage;
     const rod = {
@@ -546,6 +557,7 @@ async function saveRod(event) {
       lureRating: getValue("rodLureRating"),
       purchaseAmount: getValue("rodPurchaseAmount"),
       dateBought: getValue("rodDateBought"),
+      quantityAvailable: getValue("rodQuantityAvailable"),
       notes: getValue("rodNotes"),
       ...imageFields(uploadedImage, existing)
     };
@@ -556,6 +568,7 @@ async function saveRod(event) {
     await saveState();
     els.rodDialog.close();
     els.rodForm.reset();
+    els.rodDialog.dataset.duplicateFromId = "";
     pendingRodImage = null;
     renderAll();
   } catch (error) {
@@ -602,6 +615,7 @@ async function saveLure(event) {
       spoonSize: isSpoonType(getValue("lureType")) ? getValue("lureSpoonSize") : "",
       brand: getValue("lureBrand"),
       color: getValue("lureColor"),
+      quantityAvailable: getValue("lureQuantityAvailable"),
       glow: document.querySelector("#lureGlow").checked,
       notes: getValue("lureNotes"),
       ...imageFields(uploadedImage, existing)
@@ -784,11 +798,12 @@ function renderReelInventory() {
       escapeHtml(reel.braidCapacity || "-"),
       escapeHtml(reel.purchaseAmount || "-"),
       escapeHtml(reel.dateBought || "-"),
+      escapeHtml(reel.quantityAvailable === "" || reel.quantityAvailable === null || reel.quantityAvailable === undefined ? "-" : reel.quantityAvailable),
       `${counts.landed}${counts.lost ? ` / ${counts.lost} lost` : ""}`,
-      `<button class="button secondary" type="button" data-edit-reel="${escapeHtml(reel.id)}">Edit</button>`
+      `<div class="inventory-actions"><button class="button secondary" type="button" data-edit-reel="${escapeHtml(reel.id)}">Edit</button><button class="button secondary" type="button" data-duplicate-reel="${escapeHtml(reel.id)}">Duplicate</button></div>`
     ];
   });
-  renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", "Retrieve", `Max Drag (${unitSymbol("fishWeight")})`, "Mono Cap", "Braid Cap", "Purchase", "Bought", "Fish", ""], rows, "No saved reels yet.");
+  renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", "Retrieve", `Max Drag (${unitSymbol("fishWeight")})`, "Mono Cap", "Braid Cap", "Purchase", "Bought", "Available", "Fish", ""], rows, "No saved reels yet.");
 }
 
 function renderRodInventory() {
@@ -806,11 +821,12 @@ function renderRodInventory() {
       escapeHtml(rod.lureRating || "-"),
       escapeHtml(rod.purchaseAmount || "-"),
       escapeHtml(rod.dateBought || "-"),
+      escapeHtml(rod.quantityAvailable === "" || rod.quantityAvailable === null || rod.quantityAvailable === undefined ? "-" : rod.quantityAvailable),
       `${counts.landed}${counts.lost ? ` / ${counts.lost} lost` : ""}`,
-      `<button class="button secondary" type="button" data-edit-rod="${escapeHtml(rod.id)}">Edit</button>`
+      `<div class="inventory-actions"><button class="button secondary" type="button" data-edit-rod="${escapeHtml(rod.id)}">Edit</button><button class="button secondary" type="button" data-duplicate-rod="${escapeHtml(rod.id)}">Duplicate</button></div>`
     ];
   });
-  renderInventoryTable(els.rodInventoryTable, ["Photo", "Name", "Type", "Brand", "Model", "Length", "Power", "Action", "Lure Rating", "Purchase", "Bought", "Fish", ""], rows, "No saved rods yet.");
+  renderInventoryTable(els.rodInventoryTable, ["Photo", "Name", "Type", "Brand", "Model", "Length", "Power", "Action", "Lure Rating", "Purchase", "Bought", "Available", "Fish", ""], rows, "No saved rods yet.");
 }
 
 function renderComboInventory() {
@@ -858,6 +874,7 @@ function renderBaitInventory() {
       escapeHtml(lure.type || "-"),
       escapeHtml(lure.brand || "-"),
       escapeHtml(lure.color || "-"),
+      escapeHtml(lure.quantityAvailable === "" || lure.quantityAvailable === null || lure.quantityAvailable === undefined ? "-" : lure.quantityAvailable),
       stats.landed,
       stats.lost,
       stats.trips,
@@ -865,7 +882,7 @@ function renderBaitInventory() {
       `<button class="button secondary" type="button" data-edit-lure="${escapeHtml(lure.id)}">Edit</button>`
     ];
   });
-  renderInventoryTable(els.baitInventoryTable, ["Photo", "Lure", "Type", "Brand", "Color", "Fish", "Lost", "Trips", "Last Used", ""], rows, "No saved lures yet.");
+  renderInventoryTable(els.baitInventoryTable, ["Photo", "Lure", "Type", "Brand", "Color", "Available", "Fish", "Lost", "Trips", "Last Used", ""], rows, "No saved lures yet.");
 }
 
 function renderFlasherInventory() {

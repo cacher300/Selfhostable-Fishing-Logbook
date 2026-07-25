@@ -192,6 +192,8 @@
 }
 
 .catch-media-action svg {
+  display: block;
+  flex: 0 0 15px;
   width: 15px;
   height: 15px;
   fill: none;
@@ -298,7 +300,7 @@
   gap: 5px;
   min-height: 32px;
   padding: 6px 8px;
-  color: var(--green-dark);
+  color: var(--muted);
   font-size: 11px;
   font-weight: 800;
   line-height: 1.1;
@@ -310,6 +312,10 @@
 }
 
 .catch-photo-hero-choice:has(input:checked) {
+  color: var(--green-dark);
+}
+
+.catch-photo-gps-choice:has(input:checked) {
   color: var(--green-dark);
 }
 
@@ -546,7 +552,7 @@
 
 #tripDialog .trip-overview-layout {
   display: grid;
-  grid-template-columns: minmax(0, 740px) minmax(340px, 1fr);
+  grid-template-columns: minmax(0, 700px) minmax(400px, 1fr);
   align-items: start;
   gap: 22px;
 }
@@ -572,7 +578,7 @@
   align-self: start;
   justify-self: center;
   box-sizing: border-box;
-  max-width: 440px;
+  max-width: 500px;
   min-height: 0;
 }
 
@@ -1027,6 +1033,22 @@
   min-width: 0;
 }
 
+.catch-identity-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(180px, 260px) minmax(180px, 1fr) 96px max-content;
+  gap: 12px;
+}
+
+.catch-identity-row .catch-length,
+.catch-identity-row .catch-weight {
+  width: 8ch;
+}
+
+.catch-identity-row .catch-weight-field {
+  width: max-content;
+}
+
 .catch-field-with-option {
   display: flex;
   align-self: end;
@@ -1037,6 +1059,28 @@
 .catch-field-with-option > label:not(.checkbox-label) {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.catch-status-options {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.catch-status-options .inline-field-option {
+  border-radius: 0;
+}
+
+.catch-status-options .inline-field-option + .inline-field-option {
+  margin-left: -1px;
+}
+
+.catch-status-options .inline-field-option:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.catch-status-options .inline-field-option:last-child {
+  border-radius: 0 6px 6px 0;
 }
 
 .catch-location-action-row {
@@ -1274,7 +1318,8 @@
 
 .gear-used-row .param-distance-behind {
   grid-column: 4 / 6;
-  grid-row: 6;
+  grid-row: 5;
+  align-self: start;
 }
 
 .gear-used-row .gear-title {

@@ -209,6 +209,23 @@
 }
 
 @media (max-width: 640px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .main-panel,
+  .topbar,
+  .topbar-actions,
+  .view-nav,
+  .settings-page,
+  .gear-page,
+  .gallery-page,
+  .map-page,
+  .stats-page-header {
+    min-width: 0;
+  }
   :root[data-theme="dark"] body {
     background: var(--bg);
   }
@@ -286,8 +303,17 @@
     margin: 0 -12px;
     padding: 4px 12px 8px;
     overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
     border-width: 1px 0;
     border-radius: 0;
+  }
+
+  .view-nav::-webkit-scrollbar,
+  .settings-tabs::-webkit-scrollbar,
+  .gear-tabs::-webkit-scrollbar,
+  .gallery-filter-row::-webkit-scrollbar {
+    display: none;
   }
 
   .view-nav .button {
@@ -301,6 +327,37 @@
     grid-template-columns: 1fr auto;
     align-items: center;
     gap: 8px;
+  }
+
+  .stats-page-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    padding: 2px 0;
+  }
+
+  .stats-page-header h2 {
+    font-size: 28px;
+  }
+
+  .stats-page-header .stats-scope {
+    margin-left: 0;
+  }
+
+  .stats-page-header .button {
+    width: 100%;
+  }
+
+  .stats-toolbar {
+    position: static;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .stats-toolbar .inline-toggle {
+    min-height: 42px;
+    padding: 0 2px;
   }
 
   #newTripButton {
@@ -428,6 +485,10 @@
     flex-direction: column;
   }
 
+  #tripDialog .catch-identity-row {
+    grid-template-columns: 1fr;
+  }
+
   #tripDialog .inline-field-option {
     width: max-content;
   }
@@ -459,6 +520,39 @@
   .person-row,
   .line-editor-row {
     grid-template-columns: 1fr;
+  }
+
+  .gear-page-header,
+  .gear-header,
+  .gallery-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .gear-actions {
+    justify-content: stretch;
+  }
+
+  .gear-actions .button {
+    flex: 1 1 140px;
+  }
+
+  .inventory-table {
+    margin-right: -12px;
+    border-right: 0;
+    border-radius: 8px 0 0 8px;
+    overscroll-behavior-inline: contain;
+  }
+
+  .inventory-table table {
+    min-width: 680px;
+  }
+
+  .gallery-filter-row,
+  .settings-tabs,
+  .gear-tabs {
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
   }
 
   .table-row {
@@ -553,6 +647,17 @@
   .summary-metrics {
     grid-template-columns: 1fr 1fr;
   }
+
+  .report-header { grid-template-columns: 1fr; gap: 18px; }
+  .report-hero-photo { width: min(260px, 100%); }
+  .report-stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .report-stat-strip div:nth-child(2n) { border-right: 0; }
+  .report-fact-grid { grid-template-columns: 1fr; }
+  .report-fact-section { border-right: 0; border-bottom: 1px solid #d7e2eb; }
+  .report-fact-section:last-child { border-bottom: 0; }
+  .report-timeline-heading { align-items: start; flex-direction: column; }
+  .report-timeline-tools { justify-content: flex-start; }
+  .weather-secondary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .trip-summary-map {
     min-height: 320px;
@@ -690,6 +795,12 @@
   .catch-detail-heading h4 {
     font-size: 22px;
   }
+
+  .catch-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .weather-secondary-grid { grid-template-columns: 1fr; }
 
   .catch-detail-panel .catch-media-gallery {
     display: block;
