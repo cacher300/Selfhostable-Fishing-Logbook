@@ -699,14 +699,15 @@ function addTripGearRow(gearItem = {}) {
   renderLiveTrollingSpread();
 }
 
-function applyDefaultTrollingSpread() {
+function applyDefaultTrollingSpread({ force = false } = {}) {
   if (activeTripId || !isTrollingTrip()) return false;
   const targetSpecies = getValue("targetSpecies");
   const targetKey = targetSpecies || "__all__";
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
   const existingDefaultRows = rows.filter((row) => row.dataset.defaultTrollingSpread === "true");
   const onlyDefaultRows = rows.length > 0 && existingDefaultRows.length === rows.length;
-  if (rows.length && (!onlyDefaultRows || existingDefaultRows.every((row) => row.dataset.defaultTrollingSpreadTarget === targetKey))) return false;
+  const defaultRowsMatchTarget = existingDefaultRows.every((row) => row.dataset.defaultTrollingSpreadTarget === targetKey);
+  if (rows.length && (!onlyDefaultRows || (!force && defaultRowsMatchTarget))) return false;
   const spread = defaultTrollingSpreadForSpecies(targetSpecies);
   if (onlyDefaultRows) rows.forEach((row) => row.remove());
   if (!spread.length) return false;

@@ -1039,16 +1039,14 @@ document.addEventListener("click", (event) => {
 });
 
 
-function updateMethodVisibility() {
+function updateMethodVisibility({ refreshDefaultSpread = false } = {}) {
   updateTrollingVisibility();
-  applyDefaultTrollingSpread();
+  applyDefaultTrollingSpread({ force: refreshDefaultSpread });
   document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
 }
 
-document.querySelector("#method").addEventListener("input", updateMethodVisibility);
-document.querySelector("#method").addEventListener("change", updateMethodVisibility);
-document.querySelector("#targetSpecies").addEventListener("input", updateMethodVisibility);
-document.querySelector("#targetSpecies").addEventListener("change", updateMethodVisibility);
+document.querySelector("#method").addEventListener("change", () => updateMethodVisibility({ refreshDefaultSpread: true }));
+document.querySelector("#targetSpecies").addEventListener("change", () => updateMethodVisibility({ refreshDefaultSpread: true }));
 els.personRows.addEventListener("input", () => {
   populatePersonSelects();
   updateAllRowSummaries();
