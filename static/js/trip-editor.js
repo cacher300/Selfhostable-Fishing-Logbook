@@ -666,6 +666,10 @@ function addTripGearRow(gearItem = {}) {
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.rowId = createId();
   node.dataset.gearId = gearItem.id || "";
+  if (gearItem.defaultTrollingSpread) {
+    node.dataset.defaultTrollingSpread = "true";
+    node.dataset.defaultTrollingSpreadTarget = gearItem.defaultTrollingSpreadTarget || "__all__";
+  }
 
   node.querySelector(".trip-gear-start-time").value = defaultSetupStartTime(gearItem);
   node.querySelector(".trip-gear-end-time").value = defaultSetupEndTime(gearItem);
@@ -699,17 +703,18 @@ function addTripGearRow(gearItem = {}) {
   renderLiveTrollingSpread();
 }
 
-function applyDefaultTrollingSpread({ force = false } = {}) {
-  if (activeTripId || !isTrollingTrip()) return false;
+function applyDefaultTrollingSpread({ force = false, replaceExisting = false } = {}) {
+  if (!isTrollingTrip()) return false;
   const targetSpecies = getValue("targetSpecies");
   const targetKey = targetSpecies || "__all__";
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
   const existingDefaultRows = rows.filter((row) => row.dataset.defaultTrollingSpread === "true");
   const onlyDefaultRows = rows.length > 0 && existingDefaultRows.length === rows.length;
+  const canReplaceRows = onlyDefaultRows || replaceExisting;
   const defaultRowsMatchTarget = existingDefaultRows.every((row) => row.dataset.defaultTrollingSpreadTarget === targetKey);
-  if (rows.length && (!onlyDefaultRows || (!force && defaultRowsMatchTarget))) return false;
+  if (rows.length && (!canReplaceRows || (!force && defaultRowsMatchTarget))) return false;
   const spread = defaultTrollingSpreadForSpecies(targetSpecies);
-  if (onlyDefaultRows) rows.forEach((row) => row.remove());
+  if (canReplaceRows) rows.forEach((row) => row.remove());
   if (!spread.length) return false;
   spread.forEach((item) => addTripGearRow({
     comboId: item.comboId,
@@ -1054,6 +1059,8 @@ function collectTripFromForm() {
   const gearUsed = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
     .map((row) => ({
       id: row.dataset.gearId || createId(),
+      defaultTrollingSpread: row.dataset.defaultTrollingSpread === "true",
+      defaultTrollingSpreadTarget: row.dataset.defaultTrollingSpreadTarget || "",
       personId: "",
       startTime: row.querySelector(".trip-gear-start-time").value,
       endTime: row.querySelector(".trip-gear-end-time").value,

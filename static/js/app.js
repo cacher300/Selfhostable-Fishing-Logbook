@@ -1041,7 +1041,10 @@ document.addEventListener("click", (event) => {
 
 function updateMethodVisibility({ refreshDefaultSpread = false } = {}) {
   updateTrollingVisibility();
-  applyDefaultTrollingSpread({ force: refreshDefaultSpread });
+  applyDefaultTrollingSpread({
+    force: refreshDefaultSpread,
+    replaceExisting: refreshDefaultSpread && Boolean(activeTripId)
+  });
   document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
 }
 
