@@ -27,6 +27,9 @@ const els = {
   mapLegend: document.querySelector("#mapLegend"),
   mapCatchList: document.querySelector("#mapCatchList"),
   mapSpeciesFilter: document.querySelector("#mapSpeciesFilter"),
+  mapYearFilter: document.querySelector("#mapYearFilter"),
+  mapYearFilterControl: document.querySelector("#mapYearFilterControl"),
+  mapHideYearFilterToggle: document.querySelector("#mapHideYearFilterToggle"),
   mapTripPhotosToggle: document.querySelector("#mapTripPhotosToggle"),
   mapNoaaChartsToggle: document.querySelector("#mapNoaaChartsToggle"),
   statsMethodFilter: document.querySelector("#statsMethodFilter"),
@@ -160,6 +163,11 @@ const els = {
   fowCalibrationFields: document.querySelector("#fowCalibrationFields"),
   saveUnitSettingsButton: document.querySelector("#saveUnitSettingsButton"),
   predefinedFieldSettings: document.querySelector("#predefinedFieldSettings"),
+  importLastTrollingSpreadButton: document.querySelector("#importLastTrollingSpreadButton"),
+  defaultTrollingSpreadRows: document.querySelector("#defaultTrollingSpreadRows"),
+  defaultTrollingSpreadTargetSpecies: document.querySelector("#defaultTrollingSpreadTargetSpecies"),
+  addDefaultTrollingSpreadRowButton: document.querySelector("#addDefaultTrollingSpreadRowButton"),
+  defaultTrollingSpreadCanvas: document.querySelector("#defaultTrollingSpreadCanvas"),
   chopRangeRows: document.querySelector("#chopRangeRows"),
   saveChopRangesButton: document.querySelector("#saveChopRangesButton"),
   addPrivatePhotoLocationButton: document.querySelector("#addPrivatePhotoLocationButton"),
@@ -239,7 +247,5 @@ const els = {
   comboInventoryTable: document.querySelector("#comboInventoryTable"),
   lineTrackerTable: document.querySelector("#lineTrackerTable"),
   baitInventoryTable: document.querySelector("#baitInventoryTable"),
-  flasherInventoryTable: document.querySelector("#flasherInventoryTable"),
-  lureLibraryGrid: document.querySelector("#lureLibraryGrid"),
-  flasherLibraryGrid: document.querySelector("#flasherLibraryGrid")
+  flasherInventoryTable: document.querySelector("#flasherInventoryTable")
 };

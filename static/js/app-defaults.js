@@ -19,7 +19,7 @@ const defaultWeatherOptions = [
   "Mixed"
 ];
 
-const defaultReelStyleOptions = ["Baitcaster", "Spinning", "Linecounter", "Centerpin", "Fly"];
+const defaultReelStyleOptions = ["Baitcaster", "Spinning", "Linecounter", "Trolling", "Centerpin", "Fly"];
 const defaultRodTypeOptions = ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"];
 const defaultLineTypeOptions = ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wire", "Copper", "Other"];
 const defaultLureBladeTypeOptions = ["Colorado", "Willow Leaf", "Indiana", "Butterfly"];
@@ -194,6 +194,8 @@ const defaults = {
     },
     units: structuredClone(defaultUnits),
     chopRanges: structuredClone(defaultChopRanges),
+    defaultTrollingSpread: [],
+    defaultTrollingSpreads: [],
     privatePhotoLocations: []
   },
   people: [],

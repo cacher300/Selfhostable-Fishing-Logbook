@@ -560,6 +560,12 @@ function photoCaptureTimeValue(photo) {
     || normalizePhotoTimeString(`${photo?.captureDate || ""} ${photo?.captureTime || ""}`);
 }
 
+function catchPhotoCaptureTimeMarkup(photo) {
+  const captureTime = photoCaptureTimeValue(photo);
+  if (!captureTime) return "";
+  return `<time class="catch-photo-capture-time" datetime="${escapeHtml(captureTime)}">${escapeHtml(formatDisplayTime(captureTime))}</time>`;
+}
+
 function applyPhotoCaptureTimeToCatch(row, photos) {
   if (isCatchMetadataLocked(row, "time")) return false;
   const captureTime = photos.map(photoCaptureTimeValue).find(Boolean);
@@ -696,9 +702,9 @@ function renderCatchPhotos(row) {
               value="${escapeHtml(photo.id)}"
               ${selectedPhoto?.id === photo.id ? "checked" : ""}
             />
-            <span>Use time and location</span>
+            <span class="catch-photo-gps-copy">Use time and location${catchPhotoCaptureTimeMarkup(photo)}</span>
           </label>
-        ` : `<span class="catch-photo-gps-label">GPS tagged</span>`}
+        ` : `<span class="catch-photo-gps-label"><span>GPS tagged</span>${catchPhotoCaptureTimeMarkup(photo)}</span>`}
       ` : `<small>${photo.gpsIgnoredReason === "home" ? "Home location: GPS ignored" : "No GPS metadata"}</small>`}
       <label class="catch-photo-hero-choice">
         <input

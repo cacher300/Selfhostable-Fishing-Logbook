@@ -102,6 +102,42 @@
   grid-column: 2;
 }
 
+.default-trolling-spread-list {
+  display: grid;
+  gap: 10px;
+}
+
+.default-trolling-spread-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.default-trolling-spread-row label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.default-trolling-spread-row select {
+  min-width: 0;
+}
+
+.default-trolling-spread-row .button {
+  min-height: 42px;
+}
+
+.settings-section > .default-trolling-spread-preview.default-trolling-spread-preview {
+  grid-column: 1 / -1;
+  width: min(100%, 1180px);
+  justify-self: center;
+  margin-top: 8px;
+}
+
 .settings-section--home-location {
   row-gap: 10px;
 }
@@ -205,7 +241,8 @@
 
 .predefined-field-settings {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 28px;
   margin-top: 0;
 }
 

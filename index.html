@@ -500,6 +500,14 @@
                 <span>Species</span>
                 <select id="mapSpeciesFilter"></select>
               </label>
+              <label id="mapYearFilterControl">
+                <span>Year</span>
+                <select id="mapYearFilter"></select>
+              </label>
+              <label class="inline-toggle map-year-filter-toggle">
+                <input id="mapHideYearFilterToggle" type="checkbox" />
+                <span>Hide year filtering</span>
+              </label>
               <label class="inline-toggle map-media-toggle">
                 <input id="mapTripPhotosToggle" type="checkbox" />
                 <span>Trip photos</span>
@@ -516,9 +524,13 @@
 
         <section class="gear-page hidden" id="gearPanel" aria-label="Gear inventory">
           <div class="gear-header gear-page-header">
-            <div>
-              <p class="eyebrow">Inventory</p>
-              <h3>Gear Management</h3>
+            <div class="gear-tabs" id="gearTabs" role="tablist" aria-label="Gear inventory sections">
+              <button class="gear-tab is-active" type="button" data-gear-tab="reels">Reels</button>
+              <button class="gear-tab" type="button" data-gear-tab="rods">Rods</button>
+              <button class="gear-tab" type="button" data-gear-tab="combos">Combos</button>
+              <button class="gear-tab" type="button" data-gear-tab="line">Line Tracker</button>
+              <button class="gear-tab" type="button" data-gear-tab="baits">Baits</button>
+              <button class="gear-tab" type="button" data-gear-tab="flashers">Flashers</button>
             </div>
             <div class="gear-actions">
               <button class="button primary" id="newLibraryReelButton" type="button">New Reel</button>
@@ -526,19 +538,10 @@
               <button class="button secondary" id="newLibraryComboButton" type="button">New Combo</button>
             </div>
           </div>
-          <div class="gear-tabs" id="gearTabs" role="tablist" aria-label="Gear inventory sections">
-            <button class="gear-tab is-active" type="button" data-gear-tab="reels">Reels</button>
-            <button class="gear-tab" type="button" data-gear-tab="rods">Rods</button>
-            <button class="gear-tab" type="button" data-gear-tab="combos">Combos</button>
-            <button class="gear-tab" type="button" data-gear-tab="line">Line Tracker</button>
-            <button class="gear-tab" type="button" data-gear-tab="baits">Baits</button>
-            <button class="gear-tab" type="button" data-gear-tab="flashers">Flashers</button>
-          </div>
           <div id="gearTabPanels" class="gear-tab-panels">
             <section class="gear-tab-panel" data-gear-panel="reels">
               <div class="gear-header">
                 <div>
-                  <p class="eyebrow">Reel inventory</p>
                   <h3>Reels</h3>
                 </div>
               </div>
@@ -547,7 +550,6 @@
             <section class="gear-tab-panel hidden" data-gear-panel="rods">
               <div class="gear-header">
                 <div>
-                  <p class="eyebrow">Rod inventory</p>
                   <h3>Rods</h3>
                 </div>
               </div>
@@ -556,7 +558,6 @@
             <section class="gear-tab-panel hidden" data-gear-panel="combos">
               <div class="gear-header">
                 <div>
-                  <p class="eyebrow">Rod and reel pairs</p>
                   <h3>Combos</h3>
                 </div>
               </div>
@@ -565,7 +566,6 @@
             <section class="gear-tab-panel hidden" data-gear-panel="line">
               <div class="gear-header">
                 <div>
-                  <p class="eyebrow">Current reel line</p>
                   <h3>Line Tracker</h3>
                 </div>
               </div>
@@ -574,24 +574,20 @@
             <section class="gear-tab-panel hidden" data-gear-panel="baits">
               <div class="gear-header">
                 <div>
-                  <p class="eyebrow">Bait inventory</p>
                   <h3>Lures</h3>
                 </div>
                 <button class="button primary" id="newLibraryLureButton" type="button">New Lure</button>
               </div>
               <div class="inventory-table" id="baitInventoryTable"></div>
-              <div class="gear-grid compact-gear-grid" id="lureLibraryGrid"></div>
             </section>
             <section class="gear-tab-panel hidden" data-gear-panel="flashers">
               <div class="gear-header">
                 <div>
-                  <p class="eyebrow">Attractor inventory</p>
                   <h3>Flashers</h3>
                 </div>
                 <button class="button primary" id="newLibraryFlasherButton" type="button">New Flasher</button>
               </div>
               <div class="inventory-table" id="flasherInventoryTable"></div>
-              <div class="gear-grid compact-gear-grid" id="flasherLibraryGrid"></div>
             </section>
           </div>
         </section>
@@ -650,6 +646,7 @@
         <section class="settings-page hidden" id="settingsPanel" aria-label="Settings">
           <nav class="settings-tabs" aria-label="Settings sections">
             <button class="settings-tab is-active" type="button" data-settings-tab="general" aria-selected="true">General</button>
+            <button class="settings-tab" type="button" data-settings-tab="trolling-spread" aria-selected="false">Trolling Spread</button>
             <button class="settings-tab" type="button" data-settings-tab="measurements" aria-selected="false">Measurements</button>
             <button class="settings-tab" type="button" data-settings-tab="fow-calibration" aria-selected="false">FOW Calibration</button>
             <button class="settings-tab" type="button" data-settings-tab="lists" aria-selected="false">Categories</button>
@@ -693,6 +690,25 @@
                     <label><input type="radio" name="timeFormatChoice" value="24" data-time-format-option /> 24 Hour</label>
                     <label><input type="radio" name="timeFormatChoice" value="12" data-time-format-option /> 12 Hour</label>
                   </fieldset>
+                </div>
+              </section>
+            </div>
+            <div class="settings-tab-panel" data-settings-panel="trolling-spread" hidden>
+              <section class="settings-section" aria-labelledby="defaultSpreadSettingsHeading">
+                <div class="settings-section-copy settings-section-copy--action">
+                  <div>
+                    <h4 id="defaultSpreadSettingsHeading">Default Trolling Spread</h4>
+                    <p>This default spread will be autofilled for all trolling trips.</p>
+                  </div>
+                  <label class="settings-control">
+                    <span>Target species</span>
+                    <select id="defaultTrollingSpreadTargetSpecies"></select>
+                  </label>
+                  <button class="button secondary" id="addDefaultTrollingSpreadRowButton" type="button">Add Rod</button>
+                </div>
+                <div class="settings-table" id="defaultTrollingSpreadRows"></div>
+                <div class="default-trolling-spread-preview" id="defaultTrollingSpreadPreview">
+                  <div id="defaultTrollingSpreadCanvas"></div>
                 </div>
               </section>
             </div>
@@ -1032,7 +1048,10 @@
               <h3>Setup Timeline</h3>
               <p>Rods and gear used throughout the trip.</p>
             </div>
-            <button class="button secondary" id="addTripGearButton" type="button">Add Rod</button>
+            <div class="section-actions">
+              <button class="button secondary trolling-field" id="importLastTrollingSpreadButton" type="button">Import Last Spread</button>
+              <button class="button secondary" id="addTripGearButton" type="button">Add Rod</button>
+            </div>
           </div>
           <div id="tripGearRows" class="gear-used-rows"></div>
           <div id="tripTrollingSpreadPreview" class="trolling-spread-editor trolling-field">
@@ -1143,8 +1162,8 @@
           <label><span>Braid capacity</span><input id="reelBraidCapacity" type="text" placeholder="140/30" /></label>
           <label><span>Purchase amount</span><input id="reelPurchaseAmount" type="text" placeholder="89.99" /></label>
           <label><span>Date bought</span><input id="reelDateBought" type="date" /></label>
-          <label><span>Quantity available</span><input id="reelQuantityAvailable" type="number" min="0" step="1" placeholder="1" /></label>
-          <label><span>Reel image</span><input id="reelImage" type="file" accept="image/*,video/*" /></label>
+          <label><span>Quantity owned</span><input id="reelQuantityAvailable" type="number" min="0" step="1" placeholder="1" /></label>
+          <label><span>Reel photos</span><input id="reelImage" type="file" accept="image/*,video/*" multiple /></label>
           <button class="button secondary align-end" type="button" data-use-photo-queue="reels">Use Queue</button>
           <div id="reelQueuedImage" class="queued-gear-image hidden"></div>
           <div class="row-section-title">Line Tracker</div>
@@ -1181,8 +1200,8 @@
           <label><span>Lure rating</span><input id="rodLureRating" type="text" placeholder="1/2 - 2 oz" /></label>
           <label><span>Purchase amount</span><input id="rodPurchaseAmount" type="text" placeholder="69.99" /></label>
           <label><span>Date bought</span><input id="rodDateBought" type="date" /></label>
-          <label><span>Quantity available</span><input id="rodQuantityAvailable" type="number" min="0" step="1" placeholder="1" /></label>
-          <label><span>Rod image</span><input id="rodImage" type="file" accept="image/*,video/*" /></label>
+          <label><span>Quantity owned</span><input id="rodQuantityAvailable" type="number" min="0" step="1" placeholder="1" /></label>
+          <label><span>Rod photos</span><input id="rodImage" type="file" accept="image/*,video/*" multiple /></label>
           <button class="button secondary" type="button" data-use-photo-queue="rods">Use Queue</button>
           <div id="rodQueuedImage" class="queued-gear-image hidden"></div>
           <label><span>Notes</span><textarea id="rodNotes" rows="3" placeholder="Use case, preferred reel, repairs"></textarea></label>
@@ -1199,14 +1218,13 @@
       <form id="comboForm" method="dialog">
         <div class="dialog-header">
           <div>
-            <p class="eyebrow">Rod and reel pair</p>
             <h2>Add Combo</h2>
           </div>
           <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
         <input type="hidden" id="editingComboId" />
         <div class="form-grid one-column">
-          <label><span>Combo short name</span><input id="comboShortName" type="text" placeholder="Port dipsey combo" /></label>
+          <label><span>Name</span><input id="comboShortName" type="text" placeholder="Port dipsey combo" /></label>
           <label><span>Rod</span><select id="comboRod"></select></label>
           <label><span>Reel</span><select id="comboReel"></select></label>
           <label><span>Notes</span><textarea id="comboNotes" rows="3" placeholder="Default line or trolling role"></textarea></label>
@@ -1259,7 +1277,7 @@
             <input id="lureColor" type="text" placeholder="Blue/Silver" />
           </label>
           <label>
-            <span>Quantity available</span>
+            <span>Quantity owned</span>
             <input id="lureQuantityAvailable" type="number" min="0" step="1" placeholder="1" />
           </label>
           <label class="checkbox-field">
@@ -1598,7 +1616,7 @@
             <input class="trip-gear-end-time" type="time" />
           </label>
           <label class="gear-change-field">
-            <span>Change note</span>
+            <span>Note</span>
             <input class="trip-gear-change-note" type="text" placeholder="Started spoon/flasher, changed depth, switched lure" />
           </label>
           <label class="trolling-field gear-side-field">

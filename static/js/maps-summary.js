@@ -70,20 +70,29 @@ function speciesColor(species = "Fish") {
   return speciesMarkerColors[hash % speciesMarkerColors.length];
 }
 
+function mapRecordYear(record) {
+  return String(record.trip?.date || "").match(/^\d{4}/)?.[0] || "Unknown year";
+}
+
+function mapYearColor(year) {
+  return speciesColor(`year-${year}`);
+}
+
 function mapRecordColor(record) {
   if (record.type === "trip-photo") return "#2763a7";
   if (record.type === "trip-video") return "#9a5b00";
   return speciesColor(record.catchItem?.species);
 }
 
-function addMapMarker(layerGroup, record) {
-  const color = mapRecordColor(record);
+function addMapMarker(layerGroup, record, options = {}) {
+  const fillColor = mapRecordColor(record);
+  const color = options.colorByYear ? mapYearColor(mapRecordYear(record)) : fillColor;
   return L.circleMarker([record.coordinates.latitude, record.coordinates.longitude], {
     radius: record.type === "catch" ? 8 : 7,
     color,
-    fillColor: color,
+    fillColor,
     fillOpacity: 0.86,
-    weight: 2,
+    weight: options.colorByYear ? 3 : 2,
     bubblingMouseEvents: false,
     pane: record.type === "catch" ? "fishMarkers" : "tripMediaMarkers"
   }).bindPopup(mapPopupHtml(record)).addTo(layerGroup);
@@ -277,6 +286,26 @@ function renderMapSpeciesFilter(records) {
   if (els.mapTripPhotosToggle) els.mapTripPhotosToggle.checked = activeMapIncludeTripMedia;
 }
 
+function mapYearFilterOptions(records) {
+  const years = [...new Set(records.map(mapRecordYear))];
+  return ["All years", ...years.sort((a, b) => {
+    if (a === "Unknown year") return 1;
+    if (b === "Unknown year") return -1;
+    return b.localeCompare(a);
+  })];
+}
+
+function renderMapYearFilter(records) {
+  const options = mapYearFilterOptions(records);
+  if (!options.includes(activeMapYear)) activeMapYear = "All years";
+  els.mapYearFilter.innerHTML = options.map((option) => (
+    `<option value="${escapeHtml(option)}" ${option === activeMapYear ? "selected" : ""}>${escapeHtml(option)}</option>`
+  )).join("");
+  els.mapYearFilter.disabled = activeMapYearFilteringHidden;
+  els.mapYearFilterControl?.classList.toggle("hidden", activeMapYearFilteringHidden);
+  if (els.mapHideYearFilterToggle) els.mapHideYearFilterToggle.checked = activeMapYearFilteringHidden;
+}
+
 function filteredCatchMapRecords(records, filterValue = activeMapSpecies) {
   const catches = records.filter((record) => record.type === "catch");
   if (filterValue === "All species") return catches;
@@ -290,6 +319,11 @@ function filteredMapRecords(records, filterValue = activeMapSpecies, options = {
     ? records.filter((record) => record.type !== "catch")
     : [];
   return [...catches, ...media];
+}
+
+function filteredMapRecordsByYear(records, year = activeMapYear) {
+  if (activeMapYearFilteringHidden || year === "All years") return records;
+  return records.filter((record) => mapRecordYear(record) === year);
 }
 
 function renderMapLegend(records, options = {}) {
@@ -323,6 +357,18 @@ function mapPopupHtml(record) {
   `;
 }
 
+function renderMapYearLegend(records, options = {}) {
+  const legendItems = mapRecordFilterOptions(records, { allLabel: "All species", includeTripMedia: options.includeTripMedia }).slice(1);
+  const years = options.showYearOutlines ? mapYearFilterOptions(records).slice(1) : [];
+  if (!years.length && !legendItems.length) return "";
+  return `
+    <div class="map-legend map-dual-legend">
+      ${legendItems.length ? `<strong>Species</strong>${legendItems.map((name) => `<span><i style="--pin-color:${name === "Trip Photos" ? "#2763a7" : name === "Trip Videos" ? "#9a5b00" : speciesColor(name)}"></i>${escapeHtml(name)}</span>`).join("")}` : ""}
+      ${years.length ? `<strong>Year outline</strong>${years.map((year) => `<span><i class="map-year-key" style="--pin-color:${mapYearColor(year)}"></i>${escapeHtml(year)}</span>`).join("")}` : ""}
+    </div>
+  `;
+}
+
 function renderMapList(records) {
   if (!records.length) {
     els.mapCatchList.innerHTML = `<div class="empty-state"><p>No geotagged map items match this filter.</p></div>`;
@@ -349,8 +395,14 @@ function renderMapList(records) {
 function renderFishMap() {
   const allRecords = catchMapRecords();
   renderMapSpeciesFilter(allRecords);
-  const records = filteredMapRecords(allRecords, activeMapSpecies, { includeTripMedia: activeMapIncludeTripMedia });
-  els.mapLegend.innerHTML = renderMapLegend(allRecords, { includeTripMedia: activeMapIncludeTripMedia });
+  renderMapYearFilter(allRecords);
+  const records = filteredMapRecordsByYear(
+    filteredMapRecords(allRecords, activeMapSpecies, { includeTripMedia: activeMapIncludeTripMedia })
+  );
+  els.mapLegend.innerHTML = renderMapYearLegend(allRecords, {
+    includeTripMedia: activeMapIncludeTripMedia,
+    showYearOutlines: !activeMapYearFilteringHidden
+  });
   renderMapList(records);
 
   if (!window.L) {
@@ -380,7 +432,7 @@ function renderFishMap() {
   records.forEach((record) => {
     const point = [record.coordinates.latitude, record.coordinates.longitude];
     bounds.push(point);
-    addMapMarker(fishMapMarkers, record);
+    addMapMarker(fishMapMarkers, record, { colorByYear: !activeMapYearFilteringHidden });
   });
 
   if (bounds.length === 1) fishMap.setView(bounds[0], 13);

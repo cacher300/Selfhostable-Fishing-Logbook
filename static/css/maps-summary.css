@@ -28,7 +28,8 @@
 }
 
 .map-tools .map-media-toggle,
-.map-tools .map-chart-toggle {
+.map-tools .map-chart-toggle,
+.map-tools .map-year-filter-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -46,7 +47,8 @@
 }
 
 .map-tools .map-media-toggle input,
-.map-tools .map-chart-toggle input {
+.map-tools .map-chart-toggle input,
+.map-tools .map-year-filter-toggle input {
   width: 16px;
   height: 16px;
   margin: 0;
@@ -54,7 +56,8 @@
 }
 
 .map-tools .map-chart-toggle:has(input:focus-visible),
-.map-tools .map-media-toggle:has(input:focus-visible) {
+.map-tools .map-media-toggle:has(input:focus-visible),
+.map-tools .map-year-filter-toggle:has(input:focus-visible) {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
@@ -189,6 +192,18 @@
   height: 10px;
   border-radius: 999px;
   background: var(--pin-color);
+}
+
+.map-dual-legend strong {
+  align-self: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.map-dual-legend .map-year-key {
+  box-sizing: border-box;
+  border: 3px solid var(--pin-color);
+  background: transparent;
 }
 
 .map-catch-card {

@@ -98,6 +98,55 @@ class LogbookStoreTests(unittest.TestCase):
         )
         self.assertTrue(valid, error)
 
+    def test_default_trolling_spread_is_normalized_without_lure_data(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {
+                    "defaultTrollingSpread": [
+                        {
+                            "comboId": "combo-1",
+                            "side": "port",
+                            "presentation": "downrigger",
+                            "lureId": "lure-1",
+                        },
+                        {"comboId": "", "side": "starboard"},
+                    ]
+                },
+            }
+        )
+        self.assertEqual(
+            [{"comboId": "combo-1", "side": "port", "presentation": "downrigger"}],
+            normalized["settings"]["defaultTrollingSpread"],
+        )
+
+    def test_default_trolling_spreads_support_target_species(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {
+                    "defaultTrollingSpreads": [
+                        {
+                            "targetSpecies": "Walleye",
+                            "spread": [
+                                {"comboId": "walleye-combo", "side": "Port", "presentation": "Downrigger", "lureId": "ignored"}
+                            ],
+                        }
+                    ]
+                },
+            }
+        )
+        self.assertEqual(
+            [{"targetSpecies": "Walleye", "spread": [{"comboId": "walleye-combo", "side": "Port", "presentation": "Downrigger"}]}],
+            normalized["settings"]["defaultTrollingSpreads"],
+        )
+
     def test_write_creates_sqlite_database(self) -> None:
         payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
         with tempfile.TemporaryDirectory() as directory:

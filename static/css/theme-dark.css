@@ -76,9 +76,6 @@
   opacity: 1;
 }
 
-:root[data-theme="dark"] .predefined-field-group,
-:root[data-theme="dark"] .predefined-field-body,
-:root[data-theme="dark"] .predefined-field-group[open] .predefined-field-summary,
 :root[data-theme="dark"] .inventory-table,
 :root[data-theme="dark"] .stats-help,
 :root[data-theme="dark"] .stats-help article,

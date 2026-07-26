@@ -31,6 +31,8 @@ const activePersonalBestsFilters = {
   rankBy: "weight"
 };
 let activeMapSpecies = "All species";
+let activeMapYear = "All years";
+let activeMapYearFilteringHidden = false;
 let activeMapIncludeTripMedia = false;
 const mapNoaaChartsPreferenceKey = `${storageKey}-map-noaa-charts`;
 let activeMapShowNOAACharts = loadMapNoaaChartsPreference();
@@ -388,6 +390,11 @@ function normalizeSettings(settings = {}) {
   delete normalized.bathymetryLakeOffsetsFeet;
   normalized.units = normalizeUnits(normalized.units);
   normalized.chopRanges = normalizeChopRanges(normalized.chopRanges);
+  normalized.defaultTrollingSpread = normalizeDefaultTrollingSpread(normalized.defaultTrollingSpread);
+  normalized.defaultTrollingSpreads = normalizeDefaultTrollingSpreads(
+    normalized.defaultTrollingSpreads,
+    normalized.defaultTrollingSpread
+  );
   normalized.privatePhotoLocations = normalizePrivatePhotoLocations(normalized.privatePhotoLocations);
   return normalized;
 }
@@ -407,6 +414,42 @@ function normalizeBathymetryLakeCalibrations(calibrations, offsets, fallback = 0
       offshoreOffsetFeet: normalizeBathymetryOffsetFeet(calibrations?.[lake]?.offshoreOffsetFeet ?? offsets?.[lake] ?? fallback)
     }
   ]));
+}
+
+function normalizeDefaultTrollingSpread(spread = []) {
+  if (!Array.isArray(spread)) return [];
+  return spread.map((item) => ({
+    comboId: String(item?.comboId || "").trim(),
+    side: String(item?.side || "").trim(),
+    presentation: String(item?.presentation || "").trim()
+  })).filter((item) => item.comboId);
+}
+
+function normalizeDefaultTrollingSpreads(spreads = [], legacySpread = []) {
+  const normalized = new Map();
+  if (Array.isArray(spreads)) {
+    spreads.forEach((item) => {
+      if (!item || typeof item !== "object") return;
+      const spread = normalizeDefaultTrollingSpread(item.spread);
+      if (!spread.length) return;
+      normalized.set(String(item.targetSpecies || "").trim(), spread);
+    });
+  }
+  const fallback = normalizeDefaultTrollingSpread(legacySpread);
+  if (fallback.length && !normalized.has("")) normalized.set("", fallback);
+  return [...normalized.entries()].map(([targetSpecies, spread]) => ({ targetSpecies, spread }));
+}
+
+function defaultTrollingSpreadForSpecies(
+  targetSpecies = "",
+  spreads = state.settings?.defaultTrollingSpreads,
+  legacySpread = state.settings?.defaultTrollingSpread
+) {
+  const normalized = normalizeDefaultTrollingSpreads(spreads, legacySpread);
+  const target = String(targetSpecies || "").trim();
+  return normalized.find((item) => item.targetSpecies === target)?.spread
+    || normalized.find((item) => !item.targetSpecies)?.spread
+    || [];
 }
 
 function normalizePrivatePhotoLocations(locations = []) {

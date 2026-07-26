@@ -215,7 +215,7 @@
 
 .gallery-hover-overlay {
   position: absolute;
-  inset: auto 10px 70px 10px;
+  inset: auto 10px 32px 10px;
   z-index: 4;
   display: flex;
   justify-content: center;
@@ -649,6 +649,11 @@
   display: flex;
   gap: 8px;
   margin-top: 4px;
+}
+
+.inventory-actions {
+  display: flex;
+  gap: 6px;
 }
 
 .dialog-actions {

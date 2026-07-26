@@ -28,6 +28,7 @@ els.deleteTripButton.addEventListener("click", deleteActiveTrip);
 els.addCatchButton.addEventListener("click", () => addCatchRow());
 els.addLostFishButton.addEventListener("click", () => addLostFishRow());
 els.addTripGearButton.addEventListener("click", () => addTripGearRow());
+els.importLastTrollingSpreadButton?.addEventListener("click", importLastTrollingSpread);
 els.addPersonButton.addEventListener("click", () => addPersonRow());
 els.addLocationButton.addEventListener("click", () => openLocationDialog("location"));
 els.addLaunchButton.addEventListener("click", () => openLocationDialog("launch", els.tripLocation.value));
@@ -46,6 +47,10 @@ els.lureForm.addEventListener("submit", saveLure);
 document.querySelector("#lureType").addEventListener("change", updateLureDivingDepthField);
 els.flasherForm.addEventListener("submit", saveFlasher);
 els.reelForm.addEventListener("submit", saveReel);
+document.querySelector("#reelLineRows")?.addEventListener("change", (event) => {
+  if (!event.target.matches(".line-type")) return;
+  updateMonoBackingVisibility(event.target.closest(".line-editor-row"));
+});
 els.rodForm.addEventListener("submit", saveRod);
 els.comboForm.addEventListener("submit", saveCombo);
 els.lureDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("lure"));
@@ -131,6 +136,22 @@ document.querySelector("#comboShortName").addEventListener("input", (event) => {
 els.saveChopRangesButton?.addEventListener("click", saveChopRanges);
 els.themeSelect?.addEventListener("change", saveThemePreference);
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
+els.addDefaultTrollingSpreadRowButton?.addEventListener("click", addDefaultTrollingSpreadRow);
+els.defaultTrollingSpreadRows?.addEventListener("change", () => {
+  const targetSpecies = activeDefaultTrollingSpreadTargetSpecies;
+  const spread = collectDefaultTrollingSpreadSettings();
+  updateDefaultTrollingSpreadSettings(targetSpecies, spread);
+  renderDefaultTrollingSpreadPreview();
+  scheduleSettingsAutosave((options) => saveDefaultTrollingSpreadSettings({ ...options, rerender: false, targetSpecies, spread }));
+});
+els.defaultTrollingSpreadTargetSpecies?.addEventListener("change", () => {
+  const targetSpecies = activeDefaultTrollingSpreadTargetSpecies;
+  const spread = collectDefaultTrollingSpreadSettings();
+  updateDefaultTrollingSpreadSettings(targetSpecies, spread);
+  scheduleSettingsAutosave((options) => saveDefaultTrollingSpreadSettings({ ...options, rerender: false, targetSpecies, spread }));
+  activeDefaultTrollingSpreadTargetSpecies = els.defaultTrollingSpreadTargetSpecies.value;
+  renderDefaultTrollingSpreadSettings();
+});
 document.querySelectorAll("[data-settings-tab]").forEach((tab) => {
   tab.addEventListener("click", () => setSettingsTab(tab.dataset.settingsTab));
 });
@@ -269,6 +290,14 @@ function syncStatsUrl() {
 }
 els.mapSpeciesFilter.addEventListener("change", () => {
   activeMapSpecies = els.mapSpeciesFilter.value;
+  renderFishMap();
+});
+els.mapYearFilter.addEventListener("change", () => {
+  activeMapYear = els.mapYearFilter.value;
+  renderFishMap();
+});
+els.mapHideYearFilterToggle?.addEventListener("change", () => {
+  activeMapYearFilteringHidden = Boolean(els.mapHideYearFilterToggle.checked);
   renderFishMap();
 });
 els.mapTripPhotosToggle?.addEventListener("change", () => {
@@ -538,6 +567,16 @@ document.addEventListener("click", (event) => {
     scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }), 150);
   }
 
+  const removeDefaultTrollingSpreadRow = event.target.closest(".remove-default-trolling-spread-row");
+  if (removeDefaultTrollingSpreadRow) {
+    removeDefaultTrollingSpreadRow.closest(".default-trolling-spread-row")?.remove();
+    const targetSpecies = activeDefaultTrollingSpreadTargetSpecies;
+    const spread = collectDefaultTrollingSpreadSettings();
+    updateDefaultTrollingSpreadSettings(targetSpecies, spread);
+    renderDefaultTrollingSpreadPreview();
+    scheduleSettingsAutosave((options) => saveDefaultTrollingSpreadSettings({ ...options, rerender: false, targetSpecies, spread }), 150);
+  }
+
   const metadataLockButton = event.target.closest("[data-metadata-lock]");
   if (metadataLockButton) {
     const row = metadataLockButton.closest(".catch-row");
@@ -594,6 +633,11 @@ document.addEventListener("click", (event) => {
   const rodQueueButton = event.target.closest("[data-use-photo-queue='rods']");
   if (rodQueueButton) {
     openPhotoQueue({ type: "rod", category: "rods" });
+  }
+
+  const queuedGearImagePreview = event.target.closest("[data-open-queued-gear-preview]");
+  if (queuedGearImagePreview) {
+    openQueuedGearImagePreview(queuedGearImagePreview.dataset.openQueuedGearPreview);
   }
 
   const catchQueueButton = event.target.closest(".use-catch-photo-queue");
@@ -997,11 +1041,14 @@ document.addEventListener("click", (event) => {
 
 function updateMethodVisibility() {
   updateTrollingVisibility();
+  applyDefaultTrollingSpread();
   document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
 }
 
 document.querySelector("#method").addEventListener("input", updateMethodVisibility);
 document.querySelector("#method").addEventListener("change", updateMethodVisibility);
+document.querySelector("#targetSpecies").addEventListener("input", updateMethodVisibility);
+document.querySelector("#targetSpecies").addEventListener("change", updateMethodVisibility);
 els.personRows.addEventListener("input", () => {
   populatePersonSelects();
   updateAllRowSummaries();
@@ -1063,6 +1110,9 @@ function setView(view) {
     button.setAttribute("aria-current", buttonView === view ? "page" : "false");
   });
   document.querySelector(".topbar h2").textContent = viewTitles[view] || "Trips";
+  if (window.matchMedia("(max-width: 640px)").matches) {
+    viewButtons[view]?.scrollIntoView({ block: "nearest", inline: "center" });
+  }
   if (showingBests) renderPersonalBests();
   renderAdvancedStats();
   if (showingMap) renderFishMap();

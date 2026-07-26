@@ -3,8 +3,17 @@
   gap: 18px;
 }
 
-.gear-page-header {
+.gear-header.gear-page-header {
   align-items: center;
+}
+
+.gear-page-header .gear-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.gear-page-header .gear-actions {
+  flex: 0 0 auto;
 }
 
 .gear-actions {
@@ -88,8 +97,8 @@
 .inventory-thumb,
 .inventory-thumb-placeholder {
   display: block;
-  width: 54px;
-  height: 42px;
+  width: 96px;
+  height: 72px;
   border: 1px solid var(--line);
   border-radius: 6px;
   object-fit: cover;
@@ -103,6 +112,7 @@
   font-size: 10px;
   font-weight: 800;
 }
+
 
 .line-editor-rows {
   display: grid;
@@ -130,9 +140,5 @@
 
 .align-end {
   align-self: end;
-}
-
-.compact-gear-grid {
-  margin-top: 12px;
 }
 

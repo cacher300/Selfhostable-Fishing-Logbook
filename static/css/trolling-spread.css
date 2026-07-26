@@ -233,12 +233,27 @@
   box-shadow: inset 0 0 60px rgba(14, 116, 144, 0.06);
 }
 
+#defaultTrollingSpreadPreview .spread-diagram-wrap {
+  box-shadow: inset 0 0 60px rgba(14, 116, 144, 0.06);
+}
+
 #tripTrollingSpreadCanvas {
+  min-width: 0;
+}
+
+#defaultTrollingSpreadCanvas {
   min-width: 0;
 }
 
 #tripTrollingSpreadPreview .spread-diagram {
   width: 100%;
+  min-height: 0;
+  margin: 0 auto;
+}
+
+#defaultTrollingSpreadPreview .spread-diagram {
+  width: 100%;
+  aspect-ratio: 1400 / 850;
   min-height: 0;
   margin: 0 auto;
 }

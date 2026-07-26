@@ -281,7 +281,10 @@
 }
 
 .catch-photo-gps-label {
-  display: grid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 34px;
   place-items: center;
   padding: 6px 8px;
@@ -317,6 +320,21 @@
 
 .catch-photo-gps-choice:has(input:checked) {
   color: var(--green-dark);
+}
+
+.catch-photo-gps-copy {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 6px;
+}
+
+.catch-photo-capture-time {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .catch-photo-gps-choice input,
@@ -600,6 +618,21 @@
 #tripDialog :where(input:not([type="radio"]):not([type="checkbox"]):not([type="range"]):not([type="file"]), select) {
   height: 40px;
   border-radius: 6px;
+}
+
+.queued-gear-image-preview {
+  display: block;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.queued-gear-image-preview:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
 }
 
 #tripDialog select {
@@ -1278,7 +1311,7 @@
 }
 
 .gear-used-row .gear-change-field {
-  grid-column: 3 / 6;
+  grid-column: 3 / 5;
   grid-row: 2;
 }
 
@@ -1309,16 +1342,16 @@
 }
 
 .gear-used-row .param-cheater-lure {
-  grid-column: 4 / 5;
-  grid-row: 5;
+  grid-column: 3 / 5;
+  grid-row: 6;
   align-self: start;
   justify-self: start;
   width: 100%;
 }
 
 .gear-used-row .param-distance-behind {
-  grid-column: 4 / 6;
-  grid-row: 5;
+  grid-column: 1 / 3;
+  grid-row: 6;
   align-self: start;
 }
 
@@ -1332,7 +1365,7 @@
 }
 
 .gear-used-row .gear-label-field {
-  grid-column: 2 / 6;
+  grid-column: 2 / 5;
   grid-row: 3;
 }
 

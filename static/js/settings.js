@@ -25,6 +25,7 @@ let privateLocationNameEditId = "";
 let activeSettingsTab = "general";
 let chopRangesEditing = false;
 let chopRangesEditSnapshot = null;
+let activeDefaultTrollingSpreadTargetSpecies = "";
 const privateLocationFocusZoom = 16;
 
 function setSettingsSaveStatus(text = "Autosave on", status = "") {
@@ -65,6 +66,7 @@ function scheduleSettingsAutosave(saveAction, delay = 650) {
 function renderSettings() {
   syncSettingsTabs();
   renderPreferenceSettings();
+  renderDefaultTrollingSpreadSettings();
   renderUnitSettings();
   renderFowCalibrationSettings();
   renderPredefinedFieldSettings();
@@ -72,6 +74,135 @@ function renderSettings() {
   renderChopRangeSettings();
   renderPrivatePhotoLocationSettings();
   renderLocationManager();
+}
+
+function defaultTrollingSpreadRowMarkup(item = {}) {
+  const comboId = String(item.comboId || "");
+  const side = String(item.side || "");
+  const presentation = String(item.presentation || "");
+  const comboOptions = state.rodReelCombos.map((combo) => (
+    `<option value="${escapeHtml(combo.id)}" ${combo.id === comboId ? "selected" : ""}>${escapeHtml(comboName(combo.id) || "Rod / reel combo")}</option>`
+  )).join("");
+  const choiceOptions = (key, selectedValue, emptyLabel) => (
+    `<option value="">${escapeHtml(emptyLabel)}</option>${optionChoices(key).map((option) => (
+      `<option value="${escapeHtml(option.value)}" ${option.value === selectedValue ? "selected" : ""}>${escapeHtml(option.label)}</option>`
+    )).join("")}`
+  );
+  return `
+    <div class="default-trolling-spread-row">
+      <label>
+        <span>Rod / reel combo</span>
+        <select class="default-spread-combo">
+          <option value="">Select rod / reel combo</option>
+          ${comboOptions}
+        </select>
+      </label>
+      <label>
+        <span>Side</span>
+        <select class="default-spread-side">${choiceOptions("setupLineSides", side, "Select side")}</select>
+      </label>
+      <label>
+        <span>Trolling method</span>
+        <select class="default-spread-presentation">${choiceOptions("trollingPresentations", presentation, "Select method")}</select>
+      </label>
+      <button class="button danger remove-default-trolling-spread-row" type="button">Remove</button>
+    </div>
+  `;
+}
+
+function storedDefaultTrollingSpreadForSpecies(targetSpecies = "") {
+  const target = String(targetSpecies || "").trim();
+  return normalizeDefaultTrollingSpreads(
+    state.settings?.defaultTrollingSpreads,
+    state.settings?.defaultTrollingSpread
+  ).find((item) => item.targetSpecies === target)?.spread || [];
+}
+
+function renderDefaultTrollingSpreadSettings() {
+  if (!els.defaultTrollingSpreadRows) return;
+  const species = [...new Set((state.species || []).map((item) => String(item || "").trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+  if (els.defaultTrollingSpreadTargetSpecies) {
+    if (activeDefaultTrollingSpreadTargetSpecies && !species.includes(activeDefaultTrollingSpreadTargetSpecies)) {
+      activeDefaultTrollingSpreadTargetSpecies = "";
+    }
+    els.defaultTrollingSpreadTargetSpecies.innerHTML = ["All target species", ...species].map((speciesName) => {
+      const value = speciesName === "All target species" ? "" : speciesName;
+      return `<option value="${escapeHtml(value)}" ${value === activeDefaultTrollingSpreadTargetSpecies ? "selected" : ""}>${escapeHtml(speciesName)}</option>`;
+    }).join("");
+  }
+  const spread = storedDefaultTrollingSpreadForSpecies(activeDefaultTrollingSpreadTargetSpecies);
+  els.defaultTrollingSpreadRows.innerHTML = `
+    <div class="default-trolling-spread-list">
+      ${(spread.length ? spread : [{}]).map(defaultTrollingSpreadRowMarkup).join("")}
+    </div>
+  `;
+  renderDefaultTrollingSpreadPreview();
+}
+
+function addDefaultTrollingSpreadRow() {
+  const list = els.defaultTrollingSpreadRows?.querySelector(".default-trolling-spread-list");
+  if (!list) return renderDefaultTrollingSpreadSettings();
+  list.insertAdjacentHTML("beforeend", defaultTrollingSpreadRowMarkup());
+  renderDefaultTrollingSpreadPreview();
+}
+
+function collectDefaultTrollingSpreadSettings() {
+  return [...els.defaultTrollingSpreadRows?.querySelectorAll(".default-trolling-spread-row") || []].map((row) => ({
+    comboId: row.querySelector(".default-spread-combo")?.value || "",
+    side: row.querySelector(".default-spread-side")?.value || "",
+    presentation: row.querySelector(".default-spread-presentation")?.value || ""
+  })).filter((item) => item.comboId);
+}
+
+function defaultTrollingSpreadRodsForPreview() {
+  return collectDefaultTrollingSpreadSettings().map((item, index) => ({
+    ...(state.rodReelCombos.find((combo) => combo.id === item.comboId) || {}),
+    id: `default-spread-${index}`,
+    comboId: item.comboId,
+    lineSide: item.side,
+    trollingMethod: item.presentation,
+    lureId: "",
+    flasherId: "",
+    fishCount: 0,
+    lostCount: 0
+  }));
+}
+
+function renderDefaultTrollingSpreadPreview() {
+  if (!els.defaultTrollingSpreadCanvas || typeof renderSpreadDiagram !== "function") return;
+  els.defaultTrollingSpreadCanvas.innerHTML = renderSpreadDiagram(defaultTrollingSpreadRodsForPreview(), { labelWithCombo: true });
+}
+
+function updateDefaultTrollingSpreadSettings(targetSpecies, spread) {
+  const currentSpread = normalizeDefaultTrollingSpread(spread);
+  const spreads = normalizeDefaultTrollingSpreads(
+    state.settings?.defaultTrollingSpreads,
+    state.settings?.defaultTrollingSpread
+  ).filter((item) => item.targetSpecies !== targetSpecies);
+  if (currentSpread.length) spreads.push({ targetSpecies, spread: currentSpread });
+  state.settings = {
+    ...(state.settings || {}),
+    defaultTrollingSpreads: spreads,
+    defaultTrollingSpread: defaultTrollingSpreadForSpecies("", spreads, [])
+  };
+}
+
+async function saveDefaultTrollingSpreadSettings(options = {}) {
+  const targetSpecies = options.targetSpecies ?? activeDefaultTrollingSpreadTargetSpecies;
+  const spread = options.spread ?? collectDefaultTrollingSpreadSettings();
+  updateDefaultTrollingSpreadSettings(targetSpecies, spread);
+  try {
+    await runSettingsSave(
+      async () => {
+        await saveState();
+        if (options.rerender !== false) renderDefaultTrollingSpreadSettings();
+      },
+      "The default trolling spread could not be saved.",
+      options
+    );
+  } catch (error) {
+  }
 }
 
 function renderPreferenceSettings() {
@@ -479,6 +610,7 @@ async function cancelChopRangeEditing() {
 }
 
 function saveCurrentSettingsTab() {
+  if (activeSettingsTab === "trolling-spread") return saveDefaultTrollingSpreadSettings();
   if (activeSettingsTab === "measurements" && chopRangesEditing) return saveChopRanges();
   if (activeSettingsTab === "measurements") return saveUnitSettings();
   if (activeSettingsTab === "lists") return savePredefinedFieldSettings();

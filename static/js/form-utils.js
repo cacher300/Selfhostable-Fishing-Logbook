@@ -38,6 +38,7 @@ function updateTrollingVisibility() {
   });
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updatePresentationFields);
   renderLiveTrollingSpread();
+  syncLastTrollingSpreadImportButton();
 }
 
 function updatePresentationFields(row) {

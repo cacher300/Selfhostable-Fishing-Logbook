@@ -699,6 +699,96 @@ function addTripGearRow(gearItem = {}) {
   renderLiveTrollingSpread();
 }
 
+function applyDefaultTrollingSpread() {
+  if (activeTripId || !isTrollingTrip()) return false;
+  const targetSpecies = getValue("targetSpecies");
+  const targetKey = targetSpecies || "__all__";
+  const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
+  const existingDefaultRows = rows.filter((row) => row.dataset.defaultTrollingSpread === "true");
+  const onlyDefaultRows = rows.length > 0 && existingDefaultRows.length === rows.length;
+  if (rows.length && (!onlyDefaultRows || existingDefaultRows.every((row) => row.dataset.defaultTrollingSpreadTarget === targetKey))) return false;
+  const spread = defaultTrollingSpreadForSpecies(targetSpecies);
+  if (onlyDefaultRows) rows.forEach((row) => row.remove());
+  if (!spread.length) return false;
+  spread.forEach((item) => addTripGearRow({
+    comboId: item.comboId,
+    side: item.side,
+    presentation: item.presentation,
+    lureId: "",
+    flasherId: "",
+    cheaterLureId: "",
+    hasCheater: false
+  }));
+  [...els.tripGearRows.querySelectorAll(".gear-used-row")].slice(-spread.length).forEach((row) => {
+    row.dataset.defaultTrollingSpread = "true";
+    row.dataset.defaultTrollingSpreadTarget = targetKey;
+  });
+  return true;
+}
+
+function previousTrollingTripForTargetSpecies() {
+  const targetSpecies = getValue("targetSpecies").trim();
+  const tripDate = getValue("tripDate");
+  if (!targetSpecies) return null;
+  return state.trips
+    .filter((trip) => (
+      trip.id !== activeTripId
+      && String(trip.method || "").toLowerCase() === "trolling"
+      && String(trip.targetSpecies || "").trim() === targetSpecies
+      && Array.isArray(trip.gearUsed)
+      && trip.gearUsed.length
+      && (!tripDate || !trip.date || String(trip.date) < tripDate)
+    ))
+    .sort((first, second) => String(second.date || "").localeCompare(String(first.date || "")))[0] || null;
+}
+
+function syncLastTrollingSpreadImportButton() {
+  const button = els.importLastTrollingSpreadButton;
+  if (!button) return;
+  const sourceTrip = isTrollingTrip() ? previousTrollingTripForTargetSpecies() : null;
+  button.disabled = !sourceTrip;
+  button.title = sourceTrip
+    ? `Import the spread from ${formatDate(sourceTrip.date)}`
+    : "Choose a target species with a previous trolling trip to import its spread.";
+}
+
+function lastTripSpreadGearItem(gearItem) {
+  return {
+    comboId: gearItem.comboId || "",
+    rodId: gearItem.rodId || "",
+    reelId: gearItem.reelId || "",
+    side: gearItem.side || "",
+    lineLabel: gearItem.lineLabel || "",
+    presentation: gearItem.presentation || "",
+    hasLeadcore: Boolean(gearItem.hasLeadcore),
+    distanceBehind: gearItem.distanceBehind || "",
+    lureId: gearItem.lureId || "",
+    flasherId: gearItem.flasherId || "",
+    hasCheater: Boolean(gearItem.hasCheater),
+    cheaterLureId: gearItem.cheaterLureId || ""
+  };
+}
+
+function importLastTrollingSpread() {
+  const sourceTrip = previousTrollingTripForTargetSpecies();
+  if (!sourceTrip) {
+    alert("No previous trolling trip with this target species has a spread to import.");
+    return;
+  }
+  const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
+  const onlyDefaultRows = rows.length > 0 && rows.every((row) => row.dataset.defaultTrollingSpread === "true");
+  if (rows.length && !onlyDefaultRows && !window.confirm("Replace the current setup with the spread from your last matching trip?")) return;
+
+  rows.forEach((row) => row.remove());
+  sourceTrip.gearUsed.forEach((gearItem) => addTripGearRow(lastTripSpreadGearItem(gearItem)));
+  populateSetupLineSelects();
+  populateCatchRodSelects();
+  updateAllRowSummaries();
+  renderLiveTrollingSpread();
+  tripFormUserChanged = true;
+  syncTripFormChrome();
+}
+
 function populateLureSelect(select, selectedId = "") {
   select.innerHTML = `<option value="">No lure selected</option>` + state.lures.map((lure) => {
     const label = [lure.name, lure.color].filter(Boolean).join(" - ");
@@ -883,6 +973,12 @@ function catchSetupSummary(row) {
   return selectedValue.endsWith("::cheater") ? `${label} Cheater` : label;
 }
 
+function catchLurePreviewName(row) {
+  const lureId = row.querySelector(".catch-lure")?.value || "";
+  const lure = state.lures.find((item) => item.id === lureId);
+  return lure?.name || summaryOption(row.querySelector(".catch-lure"), ["No lure selected"]);
+}
+
 function updateRowSummary(row) {
   const summary = row.querySelector(".collapsible-row-summary");
   if (!summary) return;
@@ -936,7 +1032,7 @@ updateRowSummary = function updateRowSummaryWithDetails(row) {
     : formatDisplayTime(row.querySelector(".catch-time")?.value || "");
   const lure = isTrollingTrip()
     ? catchSetupSummary(row)
-    : summaryOption(row.querySelector(".catch-lure"), ["No lure selected"]);
+    : catchLurePreviewName(row);
 
   summary.textContent = fishRowLabel(row);
   detail.textContent = [species, size, time, lure].filter(Boolean).join(" \u2022 ");

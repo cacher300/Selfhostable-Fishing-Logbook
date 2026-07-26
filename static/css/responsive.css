@@ -98,6 +98,10 @@
     grid-column: 1;
   }
 
+  .default-trolling-spread-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   #personalBestsMetricGrid {
     grid-template-columns: 1fr;
   }
@@ -180,7 +184,8 @@
   }
 
   .settings-field-grid,
-  .unit-settings-grid {
+  .unit-settings-grid,
+  .predefined-field-settings {
     grid-template-columns: 1fr;
   }
 
@@ -226,6 +231,12 @@
   .stats-page-header {
     min-width: 0;
   }
+
+  /* The desktop summary is useful beside the logbook, but duplicates page
+     space on a phone where the primary views need to lead. */
+  .sidebar {
+    display: none;
+  }
   :root[data-theme="dark"] body {
     background: var(--bg);
   }
@@ -270,14 +281,15 @@
     z-index: 4;
     align-items: stretch;
     flex-direction: column;
-    margin: 0 -12px 14px;
-    padding: 10px 12px 12px;
+    margin: 0 -12px 12px;
+    padding: 10px 12px 10px;
     background: rgba(255, 255, 255, 0.98);
     box-shadow: 0 1px 0 var(--line), 0 8px 22px rgba(7, 21, 46, 0.08);
   }
 
   .topbar h2 {
-    font-size: 22px;
+    font-size: 21px;
+    line-height: 1.15;
   }
 
   .topbar,
@@ -319,7 +331,9 @@
   .view-nav .button {
     flex: 0 0 auto;
     width: auto;
-    min-width: 82px;
+    min-width: 76px;
+    min-height: 36px;
+    padding: 0 12px;
   }
 
   .utility-actions {
@@ -381,6 +395,10 @@
   .file-button,
   .dialog-actions button {
     width: 100%;
+  }
+
+  body:not([data-active-view="trips"]) .utility-actions {
+    padding-top: 2px;
   }
 
   .catch-media-actions .button,
@@ -602,7 +620,8 @@
   }
 
   .map-tools .map-media-toggle,
-  .map-tools .map-chart-toggle {
+  .map-tools .map-chart-toggle,
+  .map-tools .map-year-filter-toggle {
     width: max-content;
   }
 

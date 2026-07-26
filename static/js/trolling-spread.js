@@ -105,25 +105,25 @@ const SLOT_ANCHORS = {
 };
 
 const SLOT_ENDPOINTS = {
-  portOutsideBoard: { xPct: 155, yPct: -38 },
-  portInsideBoard: { xPct: 155, yPct: -29 },
+  portOutsideBoard: { xPct: 155, yPct: -44 },
+  portInsideBoard: { xPct: 155, yPct: -32 },
   portHighDiver: { xPct: 155, yPct: -20 },
   portLowDiver: { xPct: 155, yPct: -8 },
   starboardLowDiver: { xPct: 155, yPct: 108 },
   starboardHighDiver: { xPct: 155, yPct: 120 },
-  starboardInsideBoard: { xPct: 155, yPct: 129 },
-  starboardOutsideBoard: { xPct: 155, yPct: 138 }
+  starboardInsideBoard: { xPct: 155, yPct: 132 },
+  starboardOutsideBoard: { xPct: 155, yPct: 144 }
 };
 
 const SLOT_LANES = {
-  portOutsideBoard: { xPct: 62, yPct: -38 },
-  portInsideBoard: { xPct: 66, yPct: -29 },
-  portHighDiver: { xPct: 70, yPct: -20 },
+  portOutsideBoard: { xPct: 72, yPct: -44 },
+  portInsideBoard: { xPct: 72, yPct: -32 },
+  portHighDiver: { xPct: 72, yPct: -20 },
   portLowDiver: { xPct: 72, yPct: -8 },
   starboardLowDiver: { xPct: 72, yPct: 108 },
-  starboardHighDiver: { xPct: 70, yPct: 120 },
-  starboardInsideBoard: { xPct: 66, yPct: 129 },
-  starboardOutsideBoard: { xPct: 62, yPct: 138 }
+  starboardHighDiver: { xPct: 72, yPct: 120 },
+  starboardInsideBoard: { xPct: 72, yPct: 132 },
+  starboardOutsideBoard: { xPct: 72, yPct: 144 }
 };
 
 const DOWNRIGGER_LINES = {
@@ -142,8 +142,8 @@ const DOWNRIGGER_LINES = {
 };
 
 const SLOT_LABELS = {
-  portOutsideBoard: { xPct: 158, yPct: -38 },
-  portInsideBoard: { xPct: 158, yPct: -29 },
+  portOutsideBoard: { xPct: 158, yPct: -44 },
+  portInsideBoard: { xPct: 158, yPct: -32 },
   portHighDiver: { xPct: 158, yPct: -20 },
   portLowDiver: { xPct: 158, yPct: -8 },
   portDownRigger: { xPct: 158, yPct: 9.61 },
@@ -151,8 +151,8 @@ const SLOT_LABELS = {
   starboardDownRigger: { xPct: 158, yPct: 90.72 },
   starboardLowDiver: { xPct: 158, yPct: 108 },
   starboardHighDiver: { xPct: 158, yPct: 120 },
-  starboardInsideBoard: { xPct: 158, yPct: 129 },
-  starboardOutsideBoard: { xPct: 158, yPct: 138 }
+  starboardInsideBoard: { xPct: 158, yPct: 132 },
+  starboardOutsideBoard: { xPct: 158, yPct: 144 }
 };
 
 const LEGACY_TROLLING_METHODS = {
@@ -347,19 +347,25 @@ function spreadNamePoint(group) {
   };
 }
 
-function renderSpreadDiagram(rods = []) {
+function spreadGroupComboLabel(group) {
+  const combos = [...new Set(group.rods.map((rod) => comboName(rod.comboId)).filter(Boolean))];
+  return combos.join(", ") || group.label;
+}
+
+function renderSpreadDiagram(rods = [], options = {}) {
   const layouts = getSpreadLayout(buildSpreadGroups(rods));
   const renderedLines = layouts.map((group) => {
     const stats = spreadGroupStats(group);
     const gearMarkup = spreadGearMarkup(group);
     const hasDetails = group.rods.length > 1 || gearMarkup || stats;
+    const lineLabel = options.labelWithCombo ? spreadGroupComboLabel(group) : group.label;
     return `
       <div class="spread-group spread-${group.side} spread-${group.markerType}" data-spread-slot="${group.slot}">
         ${group.boomStart ? spreadCssLine(group.boomStart, group.start, "spread-downrigger-boom") : ""}
         ${renderMainSpreadLine(group)}
         ${renderCheater(group)}
         ${spreadMarkerMarkup(group)}
-        <strong class="spread-inline-name" style="${percentPointStyle(spreadNamePoint(group))}">${escapeHtml(group.label)}</strong>
+        <strong class="spread-inline-name" style="${percentPointStyle(spreadNamePoint(group))}">${escapeHtml(lineLabel)}</strong>
         ${hasDetails ? `
           <div class="spread-html-label" style="${percentPointStyle(group.labelPoint)}">
             ${group.rods.length > 1 ? `<span>${group.rods.length} rods</span>` : ""}

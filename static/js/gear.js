@@ -9,6 +9,40 @@ function imageFields(uploadedImage, existing = {}) {
   };
 }
 
+function gearPhotos(item) {
+  if (Array.isArray(item?.photos) && item.photos.length) return item.photos;
+  return item?.image ? [item] : [];
+}
+
+function gearPhotoFields(uploadedPhotos = [], existing = {}) {
+  const photos = [...gearPhotos(existing), ...uploadedPhotos].filter((photo) => photo?.image);
+  return { ...imageFields(photos[0]), photos };
+}
+
+function gearPhotoSignature(item) {
+  return gearPhotos(item).map((photo) => [
+    photo.image || "",
+    photo.previewImage || "",
+    photo.imagePath || "",
+    photo.imageFilename || "",
+    photo.previewPath || "",
+    photo.previewFilename || ""
+  ]);
+}
+
+function duplicateMatchesSource(source, duplicate, fields) {
+  return fields.every((field) => {
+    const sourceValue = Array.isArray(source?.[field]) ? JSON.stringify(source[field]) : String(source?.[field] ?? "");
+    const duplicateValue = Array.isArray(duplicate?.[field]) ? JSON.stringify(duplicate[field]) : String(duplicate?.[field] ?? "");
+    return sourceValue === duplicateValue;
+  }) && JSON.stringify(gearPhotoSignature(source)) === JSON.stringify(gearPhotoSignature(duplicate));
+}
+
+function increasedQuantity(value) {
+  if (String(value ?? "").trim() === "") return "2";
+  return String(Math.max(0, Number(value) || 0) + 1);
+}
+
 function gearDisplayName(item, fallback = "Gear") {
   return [item?.brand, item?.name].map((value) => String(value || "").trim()).filter(Boolean).join(" ")
     || item?.shortName
@@ -60,22 +94,6 @@ function lineSummary(line) {
   ].filter(Boolean).join(" / ");
 }
 
-function gearCatchCounts(predicate) {
-  let landed = 0;
-  let lost = 0;
-  state.trips.forEach((trip) => {
-    (trip.catches || []).forEach((catchItem) => {
-      const line = setupLineForRecord({ ...catchItem, trip });
-      if (line && predicate(line)) landed += fishCount(catchItem);
-    });
-    (trip.lostFish || []).forEach((fish) => {
-      const line = setupLineForRecord({ ...fish, trip });
-      if (line && predicate(line)) lost += 1;
-    });
-  });
-  return { landed, lost };
-}
-
 function baitStats(type, id) {
   const key = type === "flasher" ? "flasherId" : "lureId";
   let landed = 0;
@@ -117,9 +135,30 @@ function renderQueuedGearImage(type) {
   if (!container) return;
   container.classList.toggle("hidden", !pending);
   container.innerHTML = pending ? `
-    ${mediaMarkup(pending, "", { download: type !== "lure" })}
+    ${isVideoMedia(pending)
+      ? mediaMarkup(pending, "", { download: false })
+      : `<button class="queued-gear-image-preview" type="button" data-open-queued-gear-preview="${escapeHtml(type)}" aria-label="Enlarge queued photo">${mediaMarkup(pending, "", { download: false })}</button>`}
     <span>${escapeHtml(isVideoMedia(pending) ? "Queued video selected" : "Queued photo selected")}</span>
   ` : "";
+}
+
+function openQueuedGearImagePreview(type) {
+  const pending = {
+    lure: pendingLureImage,
+    flasher: pendingFlasherImage,
+    reel: pendingReelImage,
+    rod: pendingRodImage
+  }[type];
+  const source = originalMediaUrl(pending);
+  if (!source || isVideoMedia(pending)) return;
+  document.querySelector(".queued-gear-photo-lightbox")?.remove();
+  document.body.insertAdjacentHTML("beforeend", `
+    <div class="report-photo-lightbox queued-gear-photo-lightbox" role="dialog" aria-modal="true" aria-label="Queued gear photo">
+      <button type="button" class="report-photo-lightbox-close" data-close-report-photo aria-label="Close photo">×</button>
+      <img src="${escapeHtml(source)}" alt="Queued gear photo">
+    </div>
+  `);
+  document.querySelector(".queued-gear-photo-lightbox [data-close-report-photo]")?.focus();
 }
 
 function renderLurePreview(row) {
@@ -263,8 +302,23 @@ function renderLineRows(lines = []) {
   container.innerHTML = lineRowMarkup(activeLineEntry({ lineHistory: lines }) || {});
 }
 
+function lineUsesBraid(type) {
+  return String(type || "").trim().toLowerCase() === "braid";
+}
+
+function updateMonoBackingVisibility(row) {
+  if (!row) return;
+  const backingField = row.querySelector(".line-mono-backing-field");
+  const backingInput = row.querySelector(".line-mono-backing");
+  const lineType = row.querySelector(".line-type")?.value;
+  const showBacking = lineUsesBraid(lineType);
+  backingField?.classList.toggle("hidden", !showBacking);
+  if (!showBacking && backingInput) backingInput.checked = false;
+}
+
 function lineRowMarkup(line = {}) {
   const id = line.id || createId();
+  const showMonoBacking = lineUsesBraid(line.type || optionLabels("lineTypes")[0]);
   return `
     <article class="line-editor-row" data-line-id="${escapeHtml(id)}">
       <label><span>Spooled date</span><input class="line-spooled-date" type="date" value="${escapeHtml(line.spooledDate || "")}" /></label>
@@ -275,7 +329,7 @@ function lineRowMarkup(line = {}) {
       <label><span>Diameter in</span><input class="line-diameter-in" type="text" value="${escapeHtml(line.diameterIn || "")}" placeholder="0.008" /></label>
       <label><span>Diameter mm</span><input class="line-diameter-mm" type="text" value="${escapeHtml(line.diameterMm || "")}" placeholder="0.20" /></label>
       <label><span>Color</span><input class="line-color" type="text" value="${escapeHtml(line.color || "")}" placeholder="Lo-Vis" /></label>
-      <label class="checkbox-label"><input class="line-mono-backing" type="checkbox" ${line.monoBacking ? "checked" : ""} /><span>Mono backing</span></label>
+      <label class="checkbox-label line-mono-backing-field ${showMonoBacking ? "" : "hidden"}"><input class="line-mono-backing" type="checkbox" ${line.monoBacking && showMonoBacking ? "checked" : ""} /><span>Mono backing</span></label>
       <label class="line-notes-field"><span>Notes</span><input class="line-notes" type="text" value="${escapeHtml(line.notes || "")}" placeholder="Spooling notes" /></label>
     </article>
   `;
@@ -409,9 +463,8 @@ function openLureInfoDialog(lure, pendingRowId = "") {
     ["Spoon size", hasSpoonSize ? lure.spoonSize : ""],
     ["Brand / model", lure.brand],
     ["Color", lure.color],
-    ["Quantity available", lure.quantityAvailable],
+    ["Quantity owned", lure.quantityAvailable],
     ["Glow", lure.glow ? "Yes" : "No"],
-    ["Fish caught", stats.landed],
     ["Fish lost", stats.lost],
     ["Trips used", stats.trips],
     ["Last used", stats.lastUsed]
@@ -475,7 +528,6 @@ function openFlasherInfoDialog(flasher, pendingRowId = "") {
     ["Brand / model", flasher.brand],
     ["Color", flasher.color],
     ["Glow", flasher.glow ? "Yes" : "No"],
-    ["Fish caught", stats.landed],
     ["Fish lost", stats.lost],
     ["Trips used", stats.trips],
     ["Last used", stats.lastUsed]
@@ -499,8 +551,10 @@ async function saveReel(event) {
   try {
     const editingId = getValue("editingReelId");
     const existing = state.reels.find((item) => item.id === editingId || item.id === els.reelDialog.dataset.duplicateFromId);
-    const imageFile = document.querySelector("#reelImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "reels") : pendingReelImage;
+    const imageFiles = [...document.querySelector("#reelImage").files];
+    const uploadedPhotos = imageFiles.length
+      ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "reels")))
+      : pendingReelImage ? [pendingReelImage] : [];
     const reel = {
       id: editingId || createId(),
       shortName: getValue("reelShortName"),
@@ -519,10 +573,17 @@ async function saveReel(event) {
       quantityAvailable: getValue("reelQuantityAvailable"),
       notes: getValue("reelNotes"),
       lineHistory: collectLineRows(),
-      ...imageFields(uploadedImage, existing)
+      ...gearPhotoFields(uploadedPhotos, existing)
     };
+    const duplicatedUnchanged = !editingId && Boolean(els.reelDialog.dataset.duplicateFromId)
+      && duplicateMatchesSource(existing, reel, [
+        "shortName", "style", "brand", "name", "size", "weight", "gearRatio", "retrieveRate",
+        "maxDrag", "monoCapacity", "braidCapacity", "purchaseAmount", "dateBought", "quantityAvailable",
+        "notes", "lineHistory"
+      ]);
     const index = state.reels.findIndex((item) => item.id === reel.id);
-    if (index >= 0) state.reels[index] = reel;
+    if (duplicatedUnchanged) existing.quantityAvailable = increasedQuantity(existing.quantityAvailable);
+    else if (index >= 0) state.reels[index] = reel;
     else state.reels.push(reel);
     upsertListValue("reelStyles", reel.style);
     reel.lineHistory.forEach((line) => upsertListValue("lineTypes", line.type));
@@ -543,8 +604,10 @@ async function saveRod(event) {
   try {
     const editingId = getValue("editingRodId");
     const existing = state.rods.find((item) => item.id === editingId || item.id === els.rodDialog.dataset.duplicateFromId);
-    const imageFile = document.querySelector("#rodImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "rods") : pendingRodImage;
+    const imageFiles = [...document.querySelector("#rodImage").files];
+    const uploadedPhotos = imageFiles.length
+      ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "rods")))
+      : pendingRodImage ? [pendingRodImage] : [];
     const rod = {
       id: editingId || createId(),
       shortName: getValue("rodShortName"),
@@ -559,10 +622,16 @@ async function saveRod(event) {
       dateBought: getValue("rodDateBought"),
       quantityAvailable: getValue("rodQuantityAvailable"),
       notes: getValue("rodNotes"),
-      ...imageFields(uploadedImage, existing)
+      ...gearPhotoFields(uploadedPhotos, existing)
     };
+    const duplicatedUnchanged = !editingId && Boolean(els.rodDialog.dataset.duplicateFromId)
+      && duplicateMatchesSource(existing, rod, [
+        "shortName", "type", "brand", "name", "length", "power", "action", "lureRating",
+        "purchaseAmount", "dateBought", "quantityAvailable", "notes"
+      ]);
     const index = state.rods.findIndex((item) => item.id === rod.id);
-    if (index >= 0) state.rods[index] = rod;
+    if (duplicatedUnchanged) existing.quantityAvailable = increasedQuantity(existing.quantityAvailable);
+    else if (index >= 0) state.rods[index] = rod;
     else state.rods.push(rod);
     upsertListValue("rodTypes", rod.type);
     await saveState();
@@ -776,12 +845,13 @@ function renderInventoryTable(container, headers, rows, emptyText) {
 }
 
 function inventoryThumb(item) {
-  return item?.image ? mediaMarkup(item, "inventory-thumb") : `<span class="inventory-thumb-placeholder">No image</span>`;
+  const photos = gearPhotos(item);
+  if (!photos.length) return `<span class="inventory-thumb-placeholder">No image</span>`;
+  return mediaMarkup(photos[0], "inventory-thumb");
 }
 
 function renderReelInventory() {
   const rows = state.reels.map((reel) => {
-    const counts = gearCatchCounts((line) => line.reelId === reel.id);
     return [
       inventoryThumb(reel),
       escapeHtml(gearDisplayName(reel, "Reel")),
@@ -799,16 +869,14 @@ function renderReelInventory() {
       escapeHtml(reel.purchaseAmount || "-"),
       escapeHtml(reel.dateBought || "-"),
       escapeHtml(reel.quantityAvailable === "" || reel.quantityAvailable === null || reel.quantityAvailable === undefined ? "-" : reel.quantityAvailable),
-      `${counts.landed}${counts.lost ? ` / ${counts.lost} lost` : ""}`,
       `<div class="inventory-actions"><button class="button secondary" type="button" data-edit-reel="${escapeHtml(reel.id)}">Edit</button><button class="button secondary" type="button" data-duplicate-reel="${escapeHtml(reel.id)}">Duplicate</button></div>`
     ];
   });
-  renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", "Retrieve", `Max Drag (${unitSymbol("fishWeight")})`, "Mono Cap", "Braid Cap", "Purchase", "Bought", "Available", "Fish", ""], rows, "No saved reels yet.");
+  renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", "Retrieve", `Max Drag (${unitSymbol("fishWeight")})`, "Mono Cap", "Braid Cap", "Purchase", "Bought", "Owned", ""], rows, "No saved reels yet.");
 }
 
 function renderRodInventory() {
   const rows = state.rods.map((rod) => {
-    const counts = gearCatchCounts((line) => line.rodId === rod.id);
     return [
       inventoryThumb(rod),
       escapeHtml(gearDisplayName(rod, "Rod")),
@@ -822,26 +890,23 @@ function renderRodInventory() {
       escapeHtml(rod.purchaseAmount || "-"),
       escapeHtml(rod.dateBought || "-"),
       escapeHtml(rod.quantityAvailable === "" || rod.quantityAvailable === null || rod.quantityAvailable === undefined ? "-" : rod.quantityAvailable),
-      `${counts.landed}${counts.lost ? ` / ${counts.lost} lost` : ""}`,
       `<div class="inventory-actions"><button class="button secondary" type="button" data-edit-rod="${escapeHtml(rod.id)}">Edit</button><button class="button secondary" type="button" data-duplicate-rod="${escapeHtml(rod.id)}">Duplicate</button></div>`
     ];
   });
-  renderInventoryTable(els.rodInventoryTable, ["Photo", "Name", "Type", "Brand", "Model", "Length", "Power", "Action", "Lure Rating", "Purchase", "Bought", "Available", "Fish", ""], rows, "No saved rods yet.");
+  renderInventoryTable(els.rodInventoryTable, ["Photo", "Name", "Type", "Brand", "Model", "Length", "Power", "Action", "Lure Rating", "Purchase", "Bought", "Owned", ""], rows, "No saved rods yet.");
 }
 
 function renderComboInventory() {
   const rows = state.rodReelCombos.map((combo) => {
-    const counts = gearCatchCounts((line) => line.comboId === combo.id || (line.rodId === combo.rodId && line.reelId === combo.reelId));
     return [
       escapeHtml(comboName(combo.id) || "Combo"),
       escapeHtml(rodName(combo.rodId) || "-"),
       escapeHtml(reelName(combo.reelId) || "-"),
       escapeHtml(combo.notes || ""),
-      `${counts.landed}${counts.lost ? ` / ${counts.lost} lost` : ""}`,
       `<button class="button secondary" type="button" data-edit-combo="${escapeHtml(combo.id)}">Edit</button>`
     ];
   });
-  renderInventoryTable(els.comboInventoryTable, ["Combo", "Rod", "Reel", "Notes", "Fish", ""], rows, "No saved combos yet.");
+  renderInventoryTable(els.comboInventoryTable, ["Combo", "Rod", "Reel", "Notes", ""], rows, "No saved combos yet.");
 }
 
 function renderLineTracker() {
@@ -875,14 +940,13 @@ function renderBaitInventory() {
       escapeHtml(lure.brand || "-"),
       escapeHtml(lure.color || "-"),
       escapeHtml(lure.quantityAvailable === "" || lure.quantityAvailable === null || lure.quantityAvailable === undefined ? "-" : lure.quantityAvailable),
-      stats.landed,
       stats.lost,
       stats.trips,
       escapeHtml(stats.lastUsed || "-"),
       `<button class="button secondary" type="button" data-edit-lure="${escapeHtml(lure.id)}">Edit</button>`
     ];
   });
-  renderInventoryTable(els.baitInventoryTable, ["Photo", "Lure", "Type", "Brand", "Color", "Available", "Fish", "Lost", "Trips", "Last Used", ""], rows, "No saved lures yet.");
+  renderInventoryTable(els.baitInventoryTable, ["Photo", "Lure", "Type", "Brand", "Color", "Owned", "Lost", "Trips", "Last Used", ""], rows, "No saved lures yet.");
 }
 
 function renderFlasherInventory() {
@@ -894,42 +958,13 @@ function renderFlasherInventory() {
       escapeHtml(flasher.type || "-"),
       escapeHtml(flasher.brand || "-"),
       escapeHtml(flasher.color || "-"),
-      stats.landed,
       stats.lost,
       stats.trips,
       escapeHtml(stats.lastUsed || "-"),
       `<button class="button secondary" type="button" data-edit-flasher="${escapeHtml(flasher.id)}">Edit</button>`
     ];
   });
-  renderInventoryTable(els.flasherInventoryTable, ["Photo", "Flasher", "Type", "Brand", "Color", "Fish", "Lost", "Trips", "Last Used", ""], rows, "No saved flashers yet.");
-}
-
-function renderGearGrid(container, items, type) {
-  if (!container) return;
-  if (!items.length) {
-    container.innerHTML = "";
-    return;
-  }
-  container.innerHTML = items.map((item) => {
-    const image = item.image ? mediaMarkup(item) : `<div class="gear-image-placeholder">No Image</div>`;
-    const details = [item.type, item.brand, item.color].filter(Boolean).join(" / ");
-    const editAttr = type === "lure" ? "data-edit-lure" : "data-edit-flasher";
-    const deleteAttr = type === "lure" ? "data-delete-lure" : "data-delete-flasher";
-    return `
-      <article class="gear-card">
-        ${image}
-        <div class="gear-card-body">
-          <h4>${escapeHtml(item.name)}</h4>
-          <p>${escapeHtml(details || "No details")}</p>
-          <p>${escapeHtml(item.notes || "")}</p>
-          <div class="gear-card-actions">
-            <button class="button secondary" type="button" ${editAttr}="${escapeHtml(item.id)}">Edit</button>
-            <button class="button danger" type="button" ${deleteAttr}="${escapeHtml(item.id)}">Delete</button>
-          </div>
-        </div>
-      </article>
-    `;
-  }).join("");
+  renderInventoryTable(els.flasherInventoryTable, ["Photo", "Flasher", "Type", "Brand", "Color", "Lost", "Trips", "Last Used", ""], rows, "No saved flashers yet.");
 }
 
 function setGearTab(tab) {
@@ -949,7 +984,5 @@ function renderGearLibrary() {
   renderLineTracker();
   renderBaitInventory();
   renderFlasherInventory();
-  renderGearGrid(els.lureLibraryGrid, state.lures, "lure");
-  renderGearGrid(els.flasherLibraryGrid, state.flashers, "flasher");
   setGearTab(activeGearTab);
 }

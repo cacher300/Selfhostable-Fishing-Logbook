@@ -95,6 +95,48 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             })
         if not any(item.get("maxFeet") is None for item in cleaned_ranges):
             cleaned_ranges.append(default_ranges[-1])
+        cleaned_default_spread = []
+        default_spread = normalized["settings"].get("defaultTrollingSpread")
+        if isinstance(default_spread, list):
+            for item in default_spread:
+                if not isinstance(item, dict):
+                    continue
+                combo_id = str(item.get("comboId") or "").strip()
+                if not combo_id:
+                    continue
+                cleaned_default_spread.append({
+                    "comboId": combo_id,
+                    "side": str(item.get("side") or "").strip(),
+                    "presentation": str(item.get("presentation") or "").strip(),
+                })
+        cleaned_default_spreads = []
+        raw_default_spreads = normalized["settings"].get("defaultTrollingSpreads")
+        if isinstance(raw_default_spreads, list):
+            for item in raw_default_spreads:
+                if not isinstance(item, dict):
+                    continue
+                spread = []
+                rows = item.get("spread")
+                if not isinstance(rows, list):
+                    continue
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    combo_id = str(row.get("comboId") or "").strip()
+                    if not combo_id:
+                        continue
+                    spread.append({
+                        "comboId": combo_id,
+                        "side": str(row.get("side") or "").strip(),
+                        "presentation": str(row.get("presentation") or "").strip(),
+                    })
+                if spread:
+                    cleaned_default_spreads.append({
+                        "targetSpecies": str(item.get("targetSpecies") or "").strip(),
+                        "spread": spread,
+                    })
+        if cleaned_default_spread and not any(not item["targetSpecies"] for item in cleaned_default_spreads):
+            cleaned_default_spreads.append({"targetSpecies": "", "spread": cleaned_default_spread})
         cleaned_private_locations = []
         private_locations = normalized["settings"].get("privatePhotoLocations")
         if isinstance(private_locations, list):
@@ -115,7 +157,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
                     "radiusMeters": round(radius_meters, 2),
                     "coordinates": coordinates,
                 })
-        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "timeFormat": time_format, "bathymetryLakeCalibrationsFeet": lake_calibrations, "units": cleaned_units, "chopRanges": cleaned_ranges or default_ranges, "privatePhotoLocations": cleaned_private_locations}
+        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "timeFormat": time_format, "bathymetryLakeCalibrationsFeet": lake_calibrations, "units": cleaned_units, "chopRanges": cleaned_ranges or default_ranges, "defaultTrollingSpread": cleaned_default_spread, "defaultTrollingSpreads": cleaned_default_spreads, "privatePhotoLocations": cleaned_private_locations}
         normalized["settings"].pop("bathymetryOffsetFeet", None)
         normalized["settings"].pop("bathymetryLakeOffsetsFeet", None)
 
@@ -603,6 +645,14 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
         return valid, error
     if "chopRanges" in settings:
         valid, error = _validate_nested_records(settings["chopRanges"], "settings.chopRanges")
+        if not valid:
+            return valid, error
+    if "defaultTrollingSpread" in settings:
+        valid, error = _validate_nested_records(settings["defaultTrollingSpread"], "settings.defaultTrollingSpread")
+        if not valid:
+            return valid, error
+    if "defaultTrollingSpreads" in settings:
+        valid, error = _validate_nested_records(settings["defaultTrollingSpreads"], "settings.defaultTrollingSpreads")
         if not valid:
             return valid, error
     if "privatePhotoLocations" in settings:
