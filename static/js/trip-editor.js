@@ -227,6 +227,7 @@ function openTripDialog(trip = null) {
   setValue("waveHeight", trip?.waveHeight || "");
   updateMarineWaveHeightPlaceholder(trip?.weatherData || activeTripWeatherData);
   setValue("structure", trip?.structure || "");
+  renderProbeTemperatureProfile(trip?.probeTemperatureProfile || []);
   setValue("tripNotes", trip?.notes || "");
   activeTripWeatherData = trip?.weatherData || null;
   activeTripWeatherKey = "";
@@ -266,6 +267,41 @@ function setValue(id, value) {
 
 function getValue(id) {
   return document.querySelector(`#${id}`).value.trim();
+}
+
+const probeProfileDepthsFeet = Array.from({ length: 17 }, (_, index) => index * 10);
+
+function probeTemperatureProfileEntries(profile = []) {
+  return Array.isArray(profile) ? profile.filter((entry) => Number.isFinite(Number(entry?.depthFeet))) : [];
+}
+
+function displayProbeDepth(depthFeet) {
+  const depth = convertUnitValue(depthFeet, "ft", unitPreference("depth"));
+  return `${trimNumber(depth ?? depthFeet)} ${unitSymbol("depth")}`;
+}
+
+function renderProbeTemperatureProfile(profile = []) {
+  const grid = document.querySelector("#probeTemperatureGrid");
+  if (!grid) return;
+  const temperaturesByDepth = new Map(probeTemperatureProfileEntries(profile).map((entry) => [Number(entry.depthFeet), entry.temperature || ""]));
+  grid.innerHTML = probeProfileDepthsFeet.map((depthFeet) => {
+    const depthLabel = displayProbeDepth(depthFeet);
+    return `
+      <label class="probe-temperature-cell">
+        <span>${escapeHtml(depthLabel)}</span>
+        <input type="text" inputmode="decimal" data-probe-depth-feet="${depthFeet}" value="${escapeHtml(temperaturesByDepth.get(depthFeet) || "")}" placeholder="—" aria-label="Probe temperature at ${escapeHtml(depthLabel)}" />
+      </label>
+    `;
+  }).join("");
+}
+
+function collectProbeTemperatureProfile() {
+  return [...document.querySelectorAll("#probeTemperatureGrid [data-probe-depth-feet]")]
+    .map((input) => ({
+      depthFeet: Number(input.dataset.probeDepthFeet),
+      temperature: input.value.trim()
+    }))
+    .filter((entry) => entry.temperature);
 }
 
 function getTripIntent() {
@@ -484,7 +520,8 @@ function clearUnknownCatchDetails(row) {
     ".catch-presentation",
     ".catch-direction",
     ".catch-fow",
-    ".catch-speed",
+    ".catch-gps-speed",
+    ".catch-ball-speed",
     ".catch-shaker",
     ".catch-ball-depth",
     ".catch-deepest-rigger",
@@ -626,7 +663,8 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-presentation").value = catchItem.presentation || "";
   node.querySelector(".catch-direction").value = catchItem.direction || "";
   node.querySelector(".catch-fow").value = catchItem.fowCaught || "";
-  node.querySelector(".catch-speed").value = catchItem.speed || "";
+  node.querySelector(".catch-gps-speed").value = catchItem.gpsSpeed ?? catchItem.speed ?? "";
+  node.querySelector(".catch-ball-speed").value = catchItem.ballSpeed || "";
   node.querySelector(".catch-shaker").checked = Boolean(catchItem.shaker);
   node.querySelector(".catch-retrieve").value = catchItem.retrieve || "";
   node.querySelector(".catch-ball-depth").value = catchItem.ballDepth || "";
@@ -840,9 +878,11 @@ function setupLineOptionsFromForm() {
       row.querySelector(".trip-gear-end-time")?.value,
       "12"
     );
+    const mainLureId = row.querySelector(".trip-gear-lure")?.value || "";
+    const mainLure = mainLureId.startsWith("__type__:") ? "" : lureName(mainLureId);
     const mainOption = {
       id: row.dataset.gearId,
-      label: [setupLineLabelFromRow(row, index), timeRange].filter(Boolean).join(" / ")
+      label: [setupLineLabelFromRow(row, index), mainLure, timeRange].filter(Boolean).join(" / ")
     };
     if (!row.querySelector(".trip-gear-cheater")?.checked) return [mainOption];
     const cheaterLure = selectedText(row.querySelector(".trip-gear-cheater-lure")).replace("No lure selected", "");
@@ -1129,7 +1169,8 @@ function collectTripFromForm() {
         presentation: !detailsUnknown && trolling ? row.querySelector(".catch-presentation").value : "",
         direction: !detailsUnknown && trolling ? row.querySelector(".catch-direction").value : "",
         fowCaught: !detailsUnknown && (trolling || lost) ? row.querySelector(".catch-fow").value.trim() : "",
-        speed: !detailsUnknown && trolling ? row.querySelector(".catch-speed").value.trim() : "",
+        gpsSpeed: !detailsUnknown && trolling ? row.querySelector(".catch-gps-speed").value.trim() : "",
+        ballSpeed: !detailsUnknown && trolling ? row.querySelector(".catch-ball-speed").value.trim() : "",
         shaker: !detailsUnknown && trolling ? row.querySelector(".catch-shaker").checked : false,
         retrieve: !detailsUnknown && casting ? row.querySelector(".catch-retrieve").value.trim() : "",
         ballDepth: !detailsUnknown && trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
@@ -1183,7 +1224,8 @@ function collectTripFromForm() {
       || item.presentation
       || item.direction
       || item.fowCaught
-      || item.speed
+      || item.gpsSpeed
+      || item.ballSpeed
       || item.shaker
       || item.retrieve
       || item.ballDepth
@@ -1225,6 +1267,7 @@ function collectTripFromForm() {
     intent: getTripIntent(),
     tripRating: tripRatingValue({ tripRating: els.tripRating.value }),
     waterTemp: getValue("waterTemp"),
+    probeTemperatureProfile: collectProbeTemperatureProfile(),
     waterClarity: getValue("waterClarity"),
     weather: getValue("weather"),
     waveHeight,

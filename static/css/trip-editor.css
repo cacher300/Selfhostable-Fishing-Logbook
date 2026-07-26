@@ -1082,6 +1082,14 @@
   width: max-content;
 }
 
+.catch-identity-row .catch-weight-field > label:not(.checkbox-label) {
+  flex: 0 0 auto;
+}
+
+.catch-identity-row .catch-weight-field .catch-status-options {
+  flex: 0 0 auto;
+}
+
 .catch-field-with-option {
   display: flex;
   align-self: end;
@@ -1438,8 +1446,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 50px;
-  padding: 5px 10px;
+  min-height: 70px;
+  padding: 6px 10px;
   border: 1px solid #dbe2eb;
   border-radius: 6px;
   background: #fff;
@@ -1449,8 +1457,8 @@
 .lure-preview-card video,
 .flasher-preview-card img,
 .flasher-preview-card video {
-  width: 42px;
-  height: 42px;
+  width: 60px;
+  height: 60px;
   object-fit: cover;
   border-radius: 5px;
   border: 1px solid #dbe2eb;
@@ -1467,5 +1475,93 @@
 .flasher-preview-card span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.probe-temperature-section {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+}
+
+.probe-temperature-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.probe-temperature-heading h4,
+.probe-temperature-heading p {
+  margin: 0;
+}
+
+.probe-temperature-heading h4 {
+  color: var(--green-dark);
+  font-size: 14px;
+}
+
+.probe-temperature-heading p,
+.probe-temperature-heading > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.probe-temperature-heading p {
+  margin-top: 4px;
+}
+
+.probe-temperature-scroll {
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.probe-temperature-grid {
+  display: grid;
+  grid-template-columns: repeat(17, minmax(62px, 1fr));
+  min-width: 1054px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--field);
+}
+
+.probe-temperature-cell {
+  display: grid;
+  min-width: 0;
+  border-right: 1px solid var(--line);
+}
+
+.probe-temperature-cell:last-child {
+  border-right: 0;
+}
+
+.probe-temperature-cell span {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.probe-temperature-cell input {
+  min-width: 0;
+  height: 38px;
+  padding: 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+}
+
+.probe-temperature-cell input:focus {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--green);
+  outline-offset: -2px;
 }
 

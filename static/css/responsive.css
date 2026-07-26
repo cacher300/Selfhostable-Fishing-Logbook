@@ -547,12 +547,37 @@
     flex-direction: column;
   }
 
+  .gear-page-header {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .gear-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .gear-actions {
     justify-content: stretch;
   }
 
   .gear-actions .button {
     flex: 1 1 140px;
+  }
+
+  .gear-page-header .gear-tabs,
+  .gear-page-header .gear-actions {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .gear-page-header .gear-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gear-page-header .gear-actions .button {
+    width: 100%;
+    min-width: 0;
   }
 
   .inventory-table {

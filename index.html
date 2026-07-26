@@ -535,7 +535,9 @@
             <div class="gear-actions">
               <button class="button primary" id="newLibraryReelButton" type="button">New Reel</button>
               <button class="button primary" id="newLibraryRodButton" type="button">New Rod</button>
-              <button class="button secondary" id="newLibraryComboButton" type="button">New Combo</button>
+              <button class="button primary" id="newLibraryComboButton" type="button">New Combo</button>
+              <button class="button primary" id="newLibraryLureButton" type="button">New Lure</button>
+              <button class="button primary" id="newLibraryFlasherButton" type="button">New Flasher</button>
             </div>
           </div>
           <div id="gearTabPanels" class="gear-tab-panels">
@@ -576,7 +578,6 @@
                 <div>
                   <h3>Lures</h3>
                 </div>
-                <button class="button primary" id="newLibraryLureButton" type="button">New Lure</button>
               </div>
               <div class="inventory-table" id="baitInventoryTable"></div>
             </section>
@@ -585,7 +586,6 @@
                 <div>
                   <h3>Flashers</h3>
                 </div>
-                <button class="button primary" id="newLibraryFlasherButton" type="button">New Flasher</button>
               </div>
               <div class="inventory-table" id="flasherInventoryTable"></div>
             </section>
@@ -975,6 +975,17 @@
                 <input id="structure" type="text" placeholder="40-60 FOW" />
               </label>
             </div>
+            <section class="probe-temperature-section" aria-labelledby="probeTemperatureHeading">
+              <div class="probe-temperature-heading">
+                <div>
+                  <h4 id="probeTemperatureHeading">Probe temperature profile</h4>
+                </div>
+                <span data-unit-label="waterTemperature" data-unit-label-text="Temperature">Temperature</span>
+              </div>
+              <div class="probe-temperature-scroll">
+                <div id="probeTemperatureGrid" class="probe-temperature-grid" aria-label="Probe temperature readings by depth"></div>
+              </div>
+            </section>
             <fieldset class="intent-control">
               <legend>Trip intent</legend>
               <label>
@@ -1166,6 +1177,7 @@
           <label><span>Reel photos</span><input id="reelImage" type="file" accept="image/*,video/*" multiple /></label>
           <button class="button secondary align-end" type="button" data-use-photo-queue="reels">Use Queue</button>
           <div id="reelQueuedImage" class="queued-gear-image hidden"></div>
+          <div id="reelExistingPhotos" class="gear-editor-photos hidden"></div>
           <div class="row-section-title">Line Tracker</div>
           <div id="reelLineRows" class="line-editor-rows"></div>
           <label class="full-span"><span>Notes</span><textarea id="reelNotes" rows="3" placeholder="Maintenance, handle side, best use"></textarea></label>
@@ -1204,6 +1216,7 @@
           <label><span>Rod photos</span><input id="rodImage" type="file" accept="image/*,video/*" multiple /></label>
           <button class="button secondary" type="button" data-use-photo-queue="rods">Use Queue</button>
           <div id="rodQueuedImage" class="queued-gear-image hidden"></div>
+          <div id="rodExistingPhotos" class="gear-editor-photos hidden"></div>
           <label><span>Notes</span><textarea id="rodNotes" rows="3" placeholder="Use case, preferred reel, repairs"></textarea></label>
         </div>
         <div class="dialog-actions end-only">
@@ -1290,6 +1303,7 @@
           </label>
           <button class="button secondary" type="button" data-use-photo-queue="lures">Use Queue</button>
           <div id="lureQueuedImage" class="queued-gear-image hidden"></div>
+          <div id="lureExistingPhotos" class="gear-editor-photos hidden"></div>
           <label>
             <span>Notes</span>
             <textarea id="lureNotes" rows="3" placeholder="When and where this lure shines"></textarea>
@@ -1356,6 +1370,7 @@
           </label>
           <button class="button secondary" type="button" data-use-photo-queue="flashers">Use Queue</button>
           <div id="flasherQueuedImage" class="queued-gear-image hidden"></div>
+          <div id="flasherExistingPhotos" class="gear-editor-photos hidden"></div>
           <label>
             <span>Notes</span>
             <textarea id="flasherNotes" rows="3" placeholder="Leader length, speed, water color, species"></textarea>
@@ -1525,8 +1540,12 @@
             </button>
           </div>
           <label class="trolling-field catch-detail-optional">
-            <span data-unit-label="speed" data-unit-label-text="Speed">Speed</span>
-            <input class="catch-speed" type="text" placeholder="2.4 mph" />
+            <span data-unit-label="speed" data-unit-label-text="GPS speed">GPS speed</span>
+            <input class="catch-gps-speed" type="text" placeholder="2.4 mph" />
+          </label>
+          <label class="trolling-field catch-detail-optional">
+            <span data-unit-label="speed" data-unit-label-text="Ball speed">Ball speed</span>
+            <input class="catch-ball-speed" type="text" placeholder="2.2 mph" />
           </label>
           <div class="catch-field-with-option trolling-param param-ball-depth catch-detail-optional">
             <label>

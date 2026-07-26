@@ -142,6 +142,24 @@ function renderQueuedGearImage(type) {
   ` : "";
 }
 
+function renderExistingGearPhotos(type, item = null) {
+  const container = document.querySelector({
+    lure: "#lureExistingPhotos",
+    flasher: "#flasherExistingPhotos",
+    reel: "#reelExistingPhotos",
+    rod: "#rodExistingPhotos"
+  }[type]);
+  if (!container) return;
+  const photos = gearPhotos(item);
+  container.classList.toggle("hidden", !photos.length);
+  container.innerHTML = photos.length ? `
+    <div class="gear-editor-photos-heading">Current ${photos.length === 1 ? "photo" : "photos"}</div>
+    <div class="gear-editor-photo-grid">
+      ${photos.map((photo) => `<div class="gear-editor-photo">${mediaMarkup(photo, "", { download: false })}</div>`).join("")}
+    </div>
+  ` : "";
+}
+
 function openQueuedGearImagePreview(type) {
   const pending = {
     lure: pendingLureImage,
@@ -169,7 +187,7 @@ function renderLurePreview(row) {
     if (preview) preview.innerHTML = "";
     return;
   }
-  const image = lure.image ? mediaMarkup(lure) : "";
+  const image = lure.image ? mediaMarkup(lure, "", { download: false }) : "";
   const details = [lure.type, lure.brand, lure.color].filter(Boolean).join(" / ");
   preview.innerHTML = `
     <div class="lure-preview-card">
@@ -190,7 +208,7 @@ function renderFlasherPreview(row) {
     if (preview) preview.innerHTML = "";
     return;
   }
-  const image = flasher.image ? mediaMarkup(flasher) : "";
+  const image = flasher.image ? mediaMarkup(flasher, "", { download: false }) : "";
   const details = [flasher.type, flasher.brand, flasher.color].filter(Boolean).join(" / ");
   preview.innerHTML = `
     <div class="flasher-preview-card">
@@ -358,6 +376,7 @@ function openReelDialog(reel = null, { duplicate = false } = {}) {
   els.reelForm.reset();
   pendingReelImage = null;
   renderQueuedGearImage("reel");
+  renderExistingGearPhotos("reel", reel);
   populateOptionSelect(document.querySelector("#reelStyle"), optionLabels("reelStyles"), "Select style");
   const editing = Boolean(reel) && !duplicate;
   document.querySelector("#reelDialog h2").textContent = editing ? "Edit Reel" : duplicate ? "Duplicate Reel" : "Add Reel";
@@ -387,6 +406,7 @@ function openRodDialog(rod = null, { duplicate = false } = {}) {
   els.rodForm.reset();
   pendingRodImage = null;
   renderQueuedGearImage("rod");
+  renderExistingGearPhotos("rod", rod);
   populateOptionSelect(document.querySelector("#rodType"), optionLabels("rodTypes"), "Select type");
   const editing = Boolean(rod) && !duplicate;
   document.querySelector("#rodDialog h2").textContent = editing ? "Edit Rod" : duplicate ? "Duplicate Rod" : "Add Rod";
@@ -427,6 +447,7 @@ function openLureDialog(lure = null, pendingRowId = "") {
   els.lureForm.reset();
   pendingLureImage = null;
   renderQueuedGearImage("lure");
+  renderExistingGearPhotos("lure", lure);
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#lureBladeType"), optionLabels("lureBladeTypes"), "Select blade type");
   populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
@@ -472,7 +493,7 @@ function openLureInfoDialog(lure, pendingRowId = "") {
   document.querySelector("#lureInfoTitle").textContent = lure.name || "Lure";
   els.lureInfoDialog.dataset.lureId = lure.id;
   els.lureInfoContent.innerHTML = `
-    ${lure.image ? `<div class="lure-info-media">${mediaMarkup(lure)}</div>` : ""}
+    ${lure.image ? `<div class="lure-info-media">${mediaMarkup(lure, "", { download: false })}</div>` : ""}
     <dl class="lure-info-list">
       ${details.map(([label, value]) => `
         <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>
@@ -504,6 +525,7 @@ function openFlasherDialog(flasher = null, pendingRowId = "") {
   els.flasherForm.reset();
   pendingFlasherImage = null;
   renderQueuedGearImage("flasher");
+  renderExistingGearPhotos("flasher", flasher);
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
   const editing = Boolean(flasher);
   document.querySelector("#flasherDialog h2").textContent = editing ? "Edit Flasher" : "Add Flasher";
@@ -535,7 +557,7 @@ function openFlasherInfoDialog(flasher, pendingRowId = "") {
   document.querySelector("#flasherInfoTitle").textContent = flasher.name || "Flasher";
   els.flasherInfoDialog.dataset.flasherId = flasher.id;
   els.flasherInfoContent.innerHTML = `
-    ${flasher.image ? `<div class="lure-info-media">${mediaMarkup(flasher)}</div>` : ""}
+    ${flasher.image ? `<div class="lure-info-media">${mediaMarkup(flasher, "", { download: false })}</div>` : ""}
     <dl class="lure-info-list">
       ${details.map(([label, value]) => `
         <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>
@@ -847,7 +869,7 @@ function renderInventoryTable(container, headers, rows, emptyText) {
 function inventoryThumb(item) {
   const photos = gearPhotos(item);
   if (!photos.length) return `<span class="inventory-thumb-placeholder">No image</span>`;
-  return mediaMarkup(photos[0], "inventory-thumb");
+  return mediaMarkup(photos[0], "inventory-thumb", { download: false });
 }
 
 function renderReelInventory() {

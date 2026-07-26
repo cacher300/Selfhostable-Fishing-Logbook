@@ -869,7 +869,8 @@ function renderCatchReportDetails(trip, catchItem) {
       ${trollingTrip ? catchMetaRow("Flasher", displayTitleText(flasherName(record.flasherId))) : ""}
       ${catchMetaRow("Method", trollingTrip ? presentationLabel(presentation) : displayTitleText(trip.method || ""))}
       ${catchMetaRow("Depth", depthDetails.join(" / "))}
-      ${trollingTrip ? catchMetaRow("Speed", displaySpeedValue(record.speed)) : ""}
+      ${trollingTrip ? catchMetaRow("GPS Speed", displaySpeedValue(record.gpsSpeed || record.speed)) : ""}
+      ${trollingTrip ? catchMetaRow("Ball Speed", displaySpeedValue(record.ballSpeed)) : ""}
       ${castingTrip ? catchMetaRow("Retrieve", record.retrieve) : ""}
     </dl>
   `;
@@ -899,7 +900,8 @@ function catchDetailRows(trip, catchItem) {
     ["Line Behind Board", formatDepthDetail(record.lineBehindBoard)],
     ["Dipsey Setting", record.dipseySetting],
     ["Line Out", formatDepthDetail(record.lineOut)],
-    ["Speed", displaySpeedValue(record.speed)],
+    ["GPS Speed", displaySpeedValue(record.gpsSpeed || record.speed)],
+    ["Ball Speed", displaySpeedValue(record.ballSpeed)],
     ["Retrieve", record.retrieve],
     ["Direction", record.direction],
     ["Setup", setup, "setup"],
@@ -1232,7 +1234,8 @@ function tripTimelineItems(trip) {
     const setupLabel = compactSetupDisplayLabel(record);
     const waterDepth = record.waterDepth || record.fowCaught;
     const lure = displayTitleText([lureName(record.lureId), flasherName(record.flasherId)].filter(Boolean).join(" + "));
-    const speed = displaySpeedValue(record.speed);
+    const gpsSpeed = displaySpeedValue(record.gpsSpeed || record.speed);
+    const ballSpeed = displaySpeedValue(record.ballSpeed);
     const summary = [
       catchItem.released ? "Released" : "Kept",
       setupLabel,
@@ -1241,7 +1244,8 @@ function tripTimelineItems(trip) {
     ].filter(Boolean).join(" \u00b7 ");
     const chips = [
       lure,
-      speed ? `Speed ${speed}` : "",
+      gpsSpeed ? `GPS ${gpsSpeed}` : "",
+      ballSpeed ? `Ball ${ballSpeed}` : "",
       waterDepth ? `${waterDepth} water` : "",
       record.depthDown ? `${record.depthDown} down` : "",
       setupLabel
@@ -1265,7 +1269,8 @@ function tripTimelineItems(trip) {
     const setupLabel = compactSetupDisplayLabel(record);
     const waterDepth = record.waterDepth || record.fowCaught;
     const lure = displayTitleText([lureName(record.lureId), flasherName(record.flasherId)].filter(Boolean).join(" + "));
-    const speed = displaySpeedValue(record.speed);
+    const gpsSpeed = displaySpeedValue(record.gpsSpeed || record.speed);
+    const ballSpeed = displaySpeedValue(record.ballSpeed);
     items.push({
       type: "Lost",
       title: displayTitleText(fish.possibleSpecies || fish.species || `Lost Fish ${index + 1}`),
@@ -1275,7 +1280,8 @@ function tripTimelineItems(trip) {
         record.depthDown ? `${record.depthDown} down` : "",
         waterDepth ? `${waterDepth} water` : "",
         lure,
-        speed ? `Speed ${speed}` : ""
+        gpsSpeed ? `GPS ${gpsSpeed}` : "",
+        ballSpeed ? `Ball ${ballSpeed}` : ""
       ],
       note: displaySentenceText(fish.notes || ""),
       time: fish.time,

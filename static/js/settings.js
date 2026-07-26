@@ -389,7 +389,7 @@ function syncUnitLabels(root = document) {
   root.querySelectorAll(".catch-fow").forEach((input) => {
     input.placeholder = `24 FOW (${unitSymbol("depth")})`;
   });
-  root.querySelectorAll(".catch-speed").forEach((input) => {
+  root.querySelectorAll(".catch-gps-speed, .catch-ball-speed").forEach((input) => {
     input.placeholder = unitPreference("speed") === "mph" ? "2.4 mph" : unitPreference("speed") === "kn" ? "2.1 kn" : "3.9 kph";
   });
   root.querySelectorAll(".catch-ball-depth, .catch-estimated-lure-depth, .catch-estimated-depth").forEach((input) => {

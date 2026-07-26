@@ -283,6 +283,9 @@ function normalizeState(nextState) {
       : null;
     return {
       ...trip,
+      probeTemperatureProfile: (Array.isArray(trip.probeTemperatureProfile) ? trip.probeTemperatureProfile : [])
+        .filter((entry) => entry && Number.isFinite(Number(entry.depthFeet)))
+        .map((entry) => ({ depthFeet: Number(entry.depthFeet), temperature: String(entry.temperature || "").trim() })),
       gearUsed: (trip.gearUsed || []).map((gearItem) => ({
         comboId: "",
         rodId: "",
@@ -294,11 +297,15 @@ function normalizeState(nextState) {
       catches: (trip.catches || []).map((catchItem) => ({
         rodId: "",
         ...catchItem,
+        gpsSpeed: catchItem.gpsSpeed ?? catchItem.speed ?? "",
+        ballSpeed: catchItem.ballSpeed || "",
         presentation: migrateTrollingPresentationValue(catchItem.presentation)
       })),
       lostFish: (trip.lostFish || []).map((fishItem) => ({
         rodId: "",
         ...fishItem,
+        gpsSpeed: fishItem.gpsSpeed ?? fishItem.speed ?? "",
+        ballSpeed: fishItem.ballSpeed || "",
         presentation: migrateTrollingPresentationValue(fishItem.presentation)
       })),
       location: location?.name || trip.location || "",
@@ -589,7 +596,8 @@ function convertStoredMeasurements(previousUnits, nextUnits) {
     ["waterDepth", "depth"],
     ["depthDown", "depth"],
     ["fowCaught", "depth"],
-    ["speed", "speed"],
+    ["gpsSpeed", "speed"],
+    ["ballSpeed", "speed"],
     ["ballDepth", "depth"],
     ["lineBehindBoard", "depth"],
     ["estimatedLureDepth", "depth"],
@@ -607,6 +615,12 @@ function convertStoredMeasurements(previousUnits, nextUnits) {
 
   state.trips.forEach((trip) => {
     convertRecord(trip, tripMeasurements);
+    if (previousUnits.waterTemperature !== nextUnits.waterTemperature) {
+      (Array.isArray(trip.probeTemperatureProfile) ? trip.probeTemperatureProfile : []).forEach((entry) => {
+        if (!entry || typeof entry !== "object") return;
+        entry.temperature = convertedMeasurementText(entry.temperature, previousUnits.waterTemperature, nextUnits.waterTemperature);
+      });
+    }
     if (previousUnits.windSpeed !== nextUnits.windSpeed && trip.wind) {
       trip.wind = String(trip.wind).replace(/(-?(?:\d+(?:\.\d+)?|\.\d+))\s*(kph|mph|kn)\b/gi, (match, number, sourceUnit) => {
         const converted = convertUnitValue(number, explicitMeasurementUnit(sourceUnit), nextUnits.windSpeed);
