@@ -55,6 +55,37 @@
   box-sizing: border-box;
 }
 
+/* Shared minimal scrollbar treatment for every scrollable surface. */
+* {
+  scrollbar-color: var(--muted) var(--panel-soft);
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  margin: 4px;
+  border-radius: 999px;
+  background: var(--panel-soft);
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid var(--panel-soft);
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--panel);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

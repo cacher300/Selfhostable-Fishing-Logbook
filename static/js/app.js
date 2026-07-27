@@ -424,15 +424,20 @@ document.addEventListener("click", (event) => {
     refreshReportTimeline();
   }
 
-  const reportHeroPhoto = event.target.closest("[data-report-open-photo]");
-  if (reportHeroPhoto) {
-    const trip = state.trips.find((item) => item.id === activeSummaryTripId);
-    const photo = trip?.notePhotos?.[0];
-    if (photo) openTripReportPhotoLightbox(photo);
+  const reportLureLink = event.target.closest("[data-report-lure-id]");
+  if (reportLureLink) {
+    event.stopPropagation();
+    const lure = state.lures.find((item) => item.id === reportLureLink.dataset.reportLureId);
+    if (lure) openLureInfoDialog(lure, "catch-table");
+    return;
   }
 
-  if (event.target.closest("[data-close-report-photo]") || event.target.classList.contains("report-photo-lightbox")) {
-    document.querySelector(".report-photo-lightbox")?.remove();
+  const reportFlasherLink = event.target.closest("[data-report-flasher-id]");
+  if (reportFlasherLink) {
+    event.stopPropagation();
+    const flasher = state.flashers.find((item) => item.id === reportFlasherLink.dataset.reportFlasherId);
+    if (flasher) openFlasherInfoDialog(flasher, "catch-table");
+    return;
   }
 
   const catchDetailButton = event.target.closest("[data-summary-catch-index]");
@@ -445,6 +450,13 @@ document.addEventListener("click", (event) => {
     event.stopPropagation();
     const lure = state.lures.find((item) => item.id === catchLureLink.dataset.catchLureId);
     if (lure) openLureInfoDialog(lure, "catch-detail");
+  }
+
+  const catchFlasherLink = event.target.closest("[data-catch-flasher-id]");
+  if (catchFlasherLink) {
+    event.stopPropagation();
+    const flasher = state.flashers.find((item) => item.id === catchFlasherLink.dataset.catchFlasherId);
+    if (flasher) openFlasherInfoDialog(flasher, "catch-detail");
   }
 
   const catchGalleryThumb = event.target.closest("[data-catch-gallery-thumb]");
@@ -892,18 +904,22 @@ document.addEventListener("change", (event) => {
   if (event.target.matches("#lureImage")) {
     pendingLureImage = null;
     renderQueuedGearImage("lure");
+    previewSelectedGearUploads("lure", event.target);
   }
   if (event.target.matches("#flasherImage")) {
     pendingFlasherImage = null;
     renderQueuedGearImage("flasher");
+    previewSelectedGearUploads("flasher", event.target);
   }
   if (event.target.matches("#reelImage")) {
     pendingReelImage = null;
     renderQueuedGearImage("reel");
+    previewSelectedGearUploads("reel", event.target);
   }
   if (event.target.matches("#rodImage")) {
     pendingRodImage = null;
     renderQueuedGearImage("rod");
+    previewSelectedGearUploads("rod", event.target);
   }
   if (event.target.matches("#startTime, #endTime")) {
     syncTripTimesToBlankRows();

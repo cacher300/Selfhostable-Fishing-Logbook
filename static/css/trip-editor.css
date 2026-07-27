@@ -1487,6 +1487,11 @@
   background: var(--panel-soft);
 }
 
+#tripDialog .trip-probe-temperature-section {
+  width: 100%;
+  margin: 0 0 26px;
+}
+
 .probe-temperature-heading {
   display: flex;
   align-items: start;

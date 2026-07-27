@@ -142,7 +142,7 @@ function renderQueuedGearImage(type) {
   ` : "";
 }
 
-function renderExistingGearPhotos(type, item = null) {
+function renderExistingGearPhotos(type, item = null, localFiles = []) {
   const container = document.querySelector({
     lure: "#lureExistingPhotos",
     flasher: "#flasherExistingPhotos",
@@ -150,14 +150,46 @@ function renderExistingGearPhotos(type, item = null) {
     rod: "#rodExistingPhotos"
   }[type]);
   if (!container) return;
+  (container._localPreviewUrls || []).forEach((url) => URL.revokeObjectURL(url));
+  container._localPreviewUrls = [];
+  const localPhotos = [...localFiles].map((file) => {
+    const url = URL.createObjectURL(file);
+    container._localPreviewUrls.push(url);
+    return {
+      image: url,
+      previewImage: url,
+      mediaType: file.type.startsWith("video/") ? "video" : "image",
+      mimeType: file.type,
+      name: file.name
+    };
+  });
   const photos = gearPhotos(item);
-  container.classList.toggle("hidden", !photos.length);
-  container.innerHTML = photos.length ? `
-    <div class="gear-editor-photos-heading">Current ${photos.length === 1 ? "photo" : "photos"}</div>
-    <div class="gear-editor-photo-grid">
-      ${photos.map((photo) => `<div class="gear-editor-photo">${mediaMarkup(photo, "", { download: false })}</div>`).join("")}
-    </div>
-  ` : "";
+  container.classList.toggle("hidden", !photos.length && !localPhotos.length);
+  container.innerHTML = `
+    ${photos.length ? `
+      <div class="gear-editor-photos-heading">Current ${photos.length === 1 ? "photo" : "photos"}</div>
+      <div class="gear-editor-photo-grid">
+        ${photos.map((photo) => `<div class="gear-editor-photo">${mediaMarkup(photo, "", { download: false })}</div>`).join("")}
+      </div>
+    ` : ""}
+    ${localPhotos.length ? `
+      <div class="gear-editor-photos-heading">Selected ${localPhotos.length === 1 ? "upload" : "uploads"}</div>
+      <div class="gear-editor-photo-grid">
+        ${localPhotos.map((photo) => `<div class="gear-editor-photo">${mediaMarkup(photo, "", { download: false })}</div>`).join("")}
+      </div>
+    ` : ""}
+  `;
+}
+
+function previewSelectedGearUploads(type, input) {
+  const items = { lure: state.lures, flasher: state.flashers, reel: state.reels, rod: state.rods }[type] || [];
+  const id = {
+    lure: getValue("editingLureId"),
+    flasher: getValue("editingFlasherId"),
+    reel: getValue("editingReelId") || els.reelDialog.dataset.duplicateFromId,
+    rod: getValue("editingRodId") || els.rodDialog.dataset.duplicateFromId
+  }[type];
+  renderExistingGearPhotos(type, items.find((item) => item.id === id) || null, input?.files || []);
 }
 
 function openQueuedGearImagePreview(type) {

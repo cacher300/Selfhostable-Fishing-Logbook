@@ -171,6 +171,10 @@
   background: var(--panel-soft);
 }
 
+:root[data-theme="dark"] .catch-detail-panel .featured-image-wrap {
+  background: transparent;
+}
+
 :root[data-theme="dark"] .catch-detail-panel .thumbnail-button {
   border-color: var(--line);
   background: var(--field);

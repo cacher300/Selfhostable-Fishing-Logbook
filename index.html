@@ -535,9 +535,9 @@
             <div class="gear-actions">
               <button class="button primary" id="newLibraryReelButton" type="button">New Reel</button>
               <button class="button primary" id="newLibraryRodButton" type="button">New Rod</button>
-              <button class="button primary" id="newLibraryComboButton" type="button">New Combo</button>
               <button class="button primary" id="newLibraryLureButton" type="button">New Lure</button>
               <button class="button primary" id="newLibraryFlasherButton" type="button">New Flasher</button>
+              <button class="button primary" id="newLibraryComboButton" type="button">New Combo</button>
             </div>
           </div>
           <div id="gearTabPanels" class="gear-tab-panels">
@@ -823,7 +823,7 @@
     <dialog id="shareTripDialog" class="dialog share-trip-dialog">
       <div class="share-trip-shell">
         <div class="share-trip-header">
-          <h2>Share Trip</h2>
+          <h2>Share trip</h2>
           <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
         <div class="share-trip-tabs" role="tablist" aria-label="Report format">
@@ -834,7 +834,7 @@
           <form id="shareTripForm" class="share-trip-controls">
             <div class="share-image-settings">
               <label><span>Layout</span><select id="shareTripLayout"><option value="complete">Complete Report</option><option value="timeline">Timeline Report</option></select></label>
-              <label><span>Theme</span><select id="shareTripTheme"><option value="deep-water">Deep Water Dark</option><option value="clean-light">Clean Light</option><option value="nautical">Nautical Blue</option></select></label>
+              <label><span>Theme</span><select id="shareTripTheme"><option value="deep-water">App Dark</option><option value="clean-light">Clean Light</option><option value="nautical">Slate</option></select></label>
               <label><span>Hero photo</span><select id="shareTripPhoto"></select></label>
             </div>
             <div class="share-text-settings" hidden>
@@ -844,7 +844,7 @@
             <label><span>Headline</span><input id="shareTripHeadline" maxlength="90" /></label>
             <label><span>Subtitle <small>optional</small></span><input id="shareTripSubtitle" maxlength="120" /></label>
             <div class="share-image-settings share-control-pair">
-              <label><span>Accent</span><input id="shareTripAccent" type="color" value="#18b9d6" /></label>
+              <label><span>Accent</span><input id="shareTripAccent" type="color" value="#42c98a" /></label>
               <label><span>Branding</span><select id="shareTripBranding"><option value="off">Off</option><option value="on">Show app name</option></select></label>
             </div>
             <section class="share-option-group share-content-group" aria-labelledby="shareContentHeading">
@@ -861,6 +861,7 @@
             </section>
           </form>
           <section class="share-trip-preview-panel" aria-label="Live report preview">
+            <div class="share-preview-heading"><h3>Preview</h3><span>Live trip report</span></div>
             <div id="shareTripPreviewFrame" class="share-trip-preview-frame">
               <div id="shareTripPreview" class="share-trip-preview" aria-live="polite"></div>
             </div>
@@ -975,17 +976,6 @@
                 <input id="structure" type="text" placeholder="40-60 FOW" />
               </label>
             </div>
-            <section class="probe-temperature-section" aria-labelledby="probeTemperatureHeading">
-              <div class="probe-temperature-heading">
-                <div>
-                  <h4 id="probeTemperatureHeading">Probe temperature profile</h4>
-                </div>
-                <span data-unit-label="waterTemperature" data-unit-label-text="Temperature">Temperature</span>
-              </div>
-              <div class="probe-temperature-scroll">
-                <div id="probeTemperatureGrid" class="probe-temperature-grid" aria-label="Probe temperature readings by depth"></div>
-              </div>
-            </section>
             <fieldset class="intent-control">
               <legend>Trip intent</legend>
               <label>
@@ -1041,6 +1031,18 @@
             <small class="weather-summary-updated" id="weatherSummaryUpdated"></small>
           </aside>
         </div>
+
+        <section class="probe-temperature-section trip-probe-temperature-section" aria-labelledby="probeTemperatureHeading">
+          <div class="probe-temperature-heading">
+            <div>
+              <h4 id="probeTemperatureHeading">Probe temperature profile</h4>
+            </div>
+            <span data-unit-label="waterTemperature" data-unit-label-text="Temperature">Temperature</span>
+          </div>
+          <div class="probe-temperature-scroll">
+            <div id="probeTemperatureGrid" class="probe-temperature-grid" aria-label="Probe temperature readings by depth"></div>
+          </div>
+        </section>
 
         <section class="trip-form-section people-editor" id="tripPeopleSection">
           <div class="section-heading">
