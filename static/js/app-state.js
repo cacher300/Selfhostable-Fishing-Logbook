@@ -14,10 +14,12 @@ let activeStatsMinTrips = 0;
 let activeStatsMinHours = 0;
 let activeStatsIncludeLost = false;
 const activeStatsTableSort = {};
+const activeStatsChartMetric = {};
 const activeStatsFilters = {
   species: "All species",
   person: "All people",
   location: "All locations",
+  launch: "All launches",
   lure: "All lures",
   flasher: "All flashers",
   waterClarity: "All clarity",
@@ -32,7 +34,7 @@ const activePersonalBestsFilters = {
 };
 let activeMapSpecies = "All species";
 let activeMapYear = "All years";
-let activeMapYearFilteringHidden = false;
+let activeMapYearFilteringHidden = true;
 let activeMapIncludeTripMedia = false;
 const mapNoaaChartsPreferenceKey = `${storageKey}-map-noaa-charts`;
 let activeMapShowNOAACharts = loadMapNoaaChartsPreference();
@@ -283,6 +285,11 @@ function normalizeState(nextState) {
       : null;
     return {
       ...trip,
+      launchTime: trip.launchTime || "",
+      linesSetTime: trip.linesSetTime || trip.startTime || "",
+      linesPulledTime: trip.linesPulledTime || trip.endTime || "",
+      startTime: trip.linesSetTime || trip.startTime || "",
+      endTime: trip.linesPulledTime || trip.endTime || "",
       probeTemperatureProfile: (Array.isArray(trip.probeTemperatureProfile) ? trip.probeTemperatureProfile : [])
         .filter((entry) => entry && Number.isFinite(Number(entry.depthFeet)))
         .map((entry) => ({ depthFeet: Number(entry.depthFeet), temperature: String(entry.temperature || "").trim() })),

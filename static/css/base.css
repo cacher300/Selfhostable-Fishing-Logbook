@@ -116,7 +116,7 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: clamp(284px, 22vw, 340px) minmax(0, 1fr);
+  grid-template-columns: clamp(256px, 20vw, 306px) minmax(0, 1fr);
   width: 100%;
   min-height: 100vh;
   background: var(--bg);
@@ -279,18 +279,20 @@ button {
 
 .stats-list {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px 12px;
+  grid-template-columns: 1fr;
+  gap: 14px;
   margin: 0;
 }
 
 .stats-list div {
-  display: grid;
-  gap: 3px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .stats-list dt {
-  color: var(--muted);
+  color: var(--text);
   font-size: 12px;
   font-weight: 850;
 }
@@ -298,9 +300,10 @@ button {
 .stats-list dd {
   margin: 0;
   color: var(--text);
-  font-size: 24px;
-  font-weight: 900;
-  line-height: 1.05;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.25;
+  text-align: right;
 }
 
 .bar-list {

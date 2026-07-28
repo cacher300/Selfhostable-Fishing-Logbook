@@ -667,7 +667,7 @@
 
 #tripDialog .trip-time-inputs {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) 24px minmax(0, 1fr);
   align-items: end;
   gap: 8px;
 }
@@ -1300,6 +1300,246 @@
   display: none;
 }
 
+.gear-media-picker {
+  position: relative;
+  width: 100%;
+}
+
+.gear-picker-native {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+#tripDialog .gear-picker-trigger {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 58px;
+  padding: 6px 11px 6px 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+#tripDialog .gear-picker-trigger:hover,
+#tripDialog .gear-media-picker.is-open .gear-picker-trigger {
+  border-color: var(--green);
+}
+
+#tripDialog .gear-picker-trigger:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--green) 24%, transparent);
+  outline-offset: 1px;
+}
+
+.gear-picker-trigger-media,
+.gear-picker-option > img,
+.gear-picker-option > video,
+.gear-picker-photo-placeholder {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-soft);
+  object-fit: cover;
+}
+
+.gear-picker-photo-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.gear-picker-trigger-media {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.gear-picker-trigger-media > img,
+.gear-picker-trigger-media > video,
+.gear-picker-trigger-media > .gear-picker-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.gear-picker-trigger-copy,
+.gear-picker-option > span:not(.gear-picker-check):not(.gear-picker-type-arrow) {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.gear-picker-trigger-copy strong,
+.gear-picker-trigger-copy small,
+.gear-picker-option strong,
+.gear-picker-option small {
+  display: block;
+}
+
+.gear-picker-trigger-copy strong,
+.gear-picker-option strong {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gear-picker-trigger-copy small,
+.gear-picker-option small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.gear-picker-trigger > svg {
+  width: 16px;
+  margin-left: auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  transition: transform 160ms ease;
+}
+
+.gear-media-picker.is-open .gear-picker-trigger > svg {
+  transform: rotate(180deg);
+}
+
+.gear-picker-menu {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 6px);
+  left: 0;
+  width: max(100%, 330px);
+  max-width: min(430px, calc(100vw - 42px));
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22);
+}
+
+.gear-picker-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+#tripDialog .gear-picker-search {
+  min-height: 38px;
+}
+
+.gear-picker-count {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.gear-picker-options {
+  display: grid;
+  gap: 3px;
+  max-height: 315px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+#tripDialog .gear-picker-option {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 20px;
+  align-items: center;
+  min-height: 54px;
+  padding: 5px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+#tripDialog .gear-picker-type-option {
+  grid-template-columns: minmax(0, 1fr) 20px;
+}
+
+#tripDialog .gear-picker-option:hover,
+#tripDialog .gear-picker-option:focus-visible {
+  border-color: var(--line);
+  background: var(--panel-soft);
+  outline: none;
+}
+
+#tripDialog .gear-picker-option.is-selected {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--line));
+  background: color-mix(in srgb, var(--green) 9%, var(--panel));
+}
+
+.gear-picker-check {
+  visibility: hidden;
+  color: var(--green);
+  font-weight: 900;
+}
+
+.gear-picker-option.is-selected .gear-picker-check {
+  visibility: visible;
+}
+
+.gear-picker-type-arrow {
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+}
+
+#tripDialog .gear-picker-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--green);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+#tripDialog .gear-picker-back:hover,
+#tripDialog .gear-picker-back:focus-visible {
+  background: var(--panel-soft);
+  outline: none;
+}
+
+.gear-picker-type-heading {
+  margin: 2px 7px 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.gear-picker-empty {
+  margin: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
 .gear-used-row .collapsible-row-body {
   grid-template-columns: 150px 150px minmax(220px, 1fr) 150px minmax(180px, 1fr);
 }
@@ -1444,13 +1684,30 @@
 .lure-preview-card,
 .flasher-preview-card {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 10px;
   min-height: 70px;
   padding: 6px 10px;
-  border: 1px solid #dbe2eb;
+  border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lure-preview-card:hover,
+.flasher-preview-card:hover {
+  border-color: var(--green);
+  background: var(--hover);
+}
+
+.lure-preview-card:focus-visible,
+.flasher-preview-card:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .lure-preview-card img,
@@ -1461,7 +1718,8 @@
   height: 60px;
   object-fit: cover;
   border-radius: 5px;
-  border: 1px solid #dbe2eb;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
 }
 
 .lure-preview-card strong,

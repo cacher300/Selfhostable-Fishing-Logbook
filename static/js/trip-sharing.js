@@ -2,15 +2,9 @@ let activeShareTrip = null;
 let activeShareMode = "image";
 let shareTextDirty = false;
 let shareLastPreviewFrameSize = "";
+let shareBestLurePhotoFlipped = false;
 
-const shareLayoutPresets = {
-  complete: { width: 1200, minHeight: 1800, dynamic: true },
-  timeline: { width: 1200, minHeight: 1200, dynamic: true }
-};
-
-function shareLayoutPreset(layout = shareControl("shareTripLayout")?.value || "complete") {
-  return shareLayoutPresets[layout] || shareLayoutPresets.complete;
-}
+const SHARE_REPORT_WIDTH = 1200;
 
 function shareEscape(value = "") {
   return escapeHtml(String(value));
@@ -36,6 +30,51 @@ function shareNumber(value) {
 
 function shareControl(id) {
   return document.querySelector(`#${id}`);
+}
+
+function shareColor(value, fallback) {
+  return /^#[\da-f]{6}$/i.test(String(value || "")) ? value : fallback;
+}
+
+function shareAppearancePresets() {
+  return (Array.isArray(state.settings?.shareAppearancePresets) ? state.settings.shareAppearancePresets : [])
+    .map((preset) => ({
+      id: String(preset?.id || "").trim(),
+      name: String(preset?.name || "").trim(),
+      theme: preset?.theme === "clean-light" ? "clean-light" : "deep-water",
+      accent: shareColor(preset?.accent, "#42c98a"),
+      background: shareColor(preset?.background, "#131b24"),
+      textColor: shareColor(preset?.textColor, "#edf3f8"),
+      cardBackground: shareColor(preset?.cardBackground, "#141f29")
+    }))
+    .filter((preset) => preset.id && preset.name);
+}
+
+function shareSelectedAppearancePreset() {
+  const value = shareControl("shareTripTheme")?.value || "";
+  if (!value.startsWith("preset:")) return null;
+  return shareAppearancePresets().find((preset) => preset.id === value.slice(7)) || null;
+}
+
+function shareAppearanceTheme() {
+  return shareSelectedAppearancePreset()?.theme || shareControl("shareTripTheme")?.value || "deep-water";
+}
+
+function shareRenderAppearanceOptions(selected = "deep-water") {
+  const select = shareControl("shareTripTheme");
+  if (!select) return;
+  const presets = shareAppearancePresets();
+  select.innerHTML = `<option value="deep-water">Dark mode</option><option value="clean-light">Light mode</option>${presets.length ? `<optgroup label="Saved appearances">${presets.map((preset) => `<option value="preset:${shareEscape(preset.id)}">${shareEscape(preset.name)}</option>`).join("")}</optgroup>` : ""}`;
+  select.value = [...select.options].some((option) => option.value === selected) ? selected : "deep-water";
+}
+
+function shareApplyAppearance(value = shareControl("shareTripTheme")?.value || "deep-water") {
+  const preset = value.startsWith("preset:") ? shareAppearancePresets().find((item) => item.id === value.slice(7)) : null;
+  const lightTheme = (preset?.theme || value) === "clean-light";
+  shareControl("shareTripAccent").value = preset?.accent || "#42c98a";
+  shareControl("shareTripBackground").value = preset?.background || (lightTheme ? "#f8fafb" : "#131b24");
+  shareControl("shareTripTextColor").value = preset?.textColor || (lightTheme ? "#17212b" : "#edf3f8");
+  shareControl("shareTripCardBackground").value = preset?.cardBackground || (lightTheme ? "#ffffff" : "#141f29");
 }
 
 function shareChecked(id) {
@@ -77,14 +116,14 @@ function shareSelectedPhoto() {
   return shareFishPhotoOptions(activeShareTrip)[Number(selected)]?.media || null;
 }
 
-function shareEventRecords(trip) {
+function shareEventRecords(trip, includeMisses = shareChecked("shareIncludeMisses")) {
   const landed = (trip.catches || []).map((item, index) => ({
     ...item,
     eventType: item.released ? "Released" : "Landed",
     landed: true,
     number: index + 1
   }));
-  const misses = shareChecked("shareIncludeMisses")
+  const misses = includeMisses
     ? (trip.lostFish || []).map((item, index) => ({
         ...item,
         eventType: /\blost\b/i.test(item.notes || "") ? "Lost" : "Missed",
@@ -133,16 +172,46 @@ function shareRankedValues(trip, getter) {
   return ranked.filter((item) => item.landed === best.landed && item.encounters === best.encounters && item.score === best.score);
 }
 
-function shareLureText(fish) {
-  if (!shareChecked("shareShowLures")) return "";
-  const lure = lureName(fish.lureId);
-  const flasher = flasherName(fish.flasherId);
-  const cheater = lureName(fish.cheaterLureId);
-  return [lure, flasher, cheater ? `cheater ${cheater}` : ""].filter(Boolean).join(" + ");
+function shareCatchLureName(trip, fish) {
+  const setupLineId = String(fish?.setupLineId || "").split("::")[0];
+  const setup = (trip.gearUsed || []).find((item) => item.id === setupLineId);
+  return lureName(fish?.lureId)
+    || lureName(setup?.lureId)
+    || String(fish?.lureName || fish?.lure || "").trim();
+}
+
+function shareCatchFlasherName(trip, fish) {
+  const setupLineId = String(fish?.setupLineId || "").split("::")[0];
+  const setup = (trip.gearUsed || []).find((item) => item.id === setupLineId);
+  return flasherName(fish?.flasherId)
+    || flasherName(setup?.flasherId)
+    || String(fish?.flasherName || fish?.flasher || "").trim();
 }
 
 function shareBestLures(trip) {
-  return shareRankedValues(trip, shareLureText).map((item) => item.value);
+  const counts = new Map();
+  (trip.catches || []).forEach((fish) => {
+    const lure = shareCatchLureName(trip, fish);
+    if (!lure) return;
+    counts.set(lure, (counts.get(lure) || 0) + 1);
+  });
+  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  if (!ranked.length) return [];
+  const bestCount = ranked[0][1];
+  return ranked.filter(([, count]) => count === bestCount).map(([name]) => name);
+}
+
+function shareBestFlashers(trip) {
+  const counts = new Map();
+  (trip.catches || []).forEach((fish) => {
+    const flasher = shareCatchFlasherName(trip, fish);
+    if (!flasher) return;
+    counts.set(flasher, (counts.get(flasher) || 0) + 1);
+  });
+  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  if (!ranked.length) return [];
+  const bestCount = ranked[0][1];
+  return ranked.filter(([, count]) => count === bestCount).map(([name]) => name);
 }
 
 function shareBestMethods(trip) {
@@ -151,7 +220,7 @@ function shareBestMethods(trip) {
 
 function shareLocationText(trip) {
   const pieces = [shareLaunch(trip)];
-  if (shareChecked("shareShowLocation") && trip.location) pieces.push(displayTitleText(trip.location));
+  if (trip.location) pieces.push(displayTitleText(trip.location));
   return pieces.filter(Boolean).join(" · ");
 }
 
@@ -181,19 +250,10 @@ function shareDepthText(fish) {
   return "";
 }
 
-function shareTextUnitTarget(key) {
-  const mode = shareControl("shareTextUnits")?.value || "app";
-  if (mode === "app") return unitPreference(key);
-  if (key === "fishWeight") return mode === "metric" ? "kg" : "lb";
-  if (key === "fishLength") return mode === "metric" ? "cm" : "in";
-  if (key === "depth") return mode === "metric" ? "m" : "ft";
-  return unitPreference(key);
-}
-
 function shareTextMeasurement(value, key) {
   if (value === null || value === undefined || value === "") return "";
   const fromUnit = unitPreference(key);
-  const toUnit = shareTextUnitTarget(key);
+  const toUnit = unitPreference(key);
   const converted = convertedMeasurementText(value, fromUnit, toUnit);
   return `${converted} ${toUnit}`.replace(new RegExp(`\\s+${toUnit}\\s+${toUnit}$`, "i"), ` ${toUnit}`);
 }
@@ -213,18 +273,30 @@ function shareTextDepth(fish) {
   return "";
 }
 
+function shareLinesSetTime(trip) {
+  return trip.linesSetTime
+    || trip.startTime
+    || (trip.gearUsed || []).map((item) => item.startTime).filter(Boolean).sort()[0]
+    || "";
+}
+
+function shareLinesPulledTime(trip) {
+  return trip.linesPulledTime || trip.endTime || "";
+}
+
 function shareOverviewItems(trip) {
-  const linesSet = (trip.gearUsed || []).map((item) => item.startTime).filter(Boolean).sort()[0];
   const directions = [...new Set((trip.catches || []).map((fish) => fish.direction).filter(Boolean))].join(", ");
   const fows = (trip.catches || []).map((fish) => shareNumber(fish.fowCaught || fish.waterDepth)).filter((value) => value != null);
   const items = [
-    ["Launch", trip.startTime ? formatTimelineDisplayTime(trip.startTime) : ""],
-    ["Lines set", linesSet ? formatTimelineDisplayTime(linesSet) : ""],
-    ["Off water", trip.endTime ? formatTimelineDisplayTime(trip.endTime) : ""],
     ["Direction", directions],
-    ["FOW range", fows.length ? `${Math.round(Math.min(...fows))}–${Math.round(Math.max(...fows))}` : ""]
+    ["Water depth", fows.length ? `${Math.round(Math.min(...fows))}–${Math.round(Math.max(...fows))}` : ""]
   ];
-  return items.filter(([, value]) => value || shareChecked("shareShowEmpty"));
+  return items.filter(([, value]) => value);
+}
+
+function shareStatTime(value) {
+  const formatted = formatTimelineDisplayTime(value);
+  return timeFormatPreference() === "12" ? formatted.replace(/\s(?:AM|PM)$/, "") : formatted;
 }
 
 function shareMetricData(trip) {
@@ -236,17 +308,8 @@ function shareMetricData(trip) {
     landed,
     misses,
     encounters,
-    hours,
-    species: shareSpecies(trip).length,
-    score: `${landed}/${encounters}`
+    hours
   };
-}
-
-function shareStatusLabel(type) {
-  if (type === "Landed") return "Landed";
-  if (type === "Released") return "Released";
-  if (type === "Lost") return "Lost";
-  return "Missed";
 }
 
 function shareConditionItems(trip) {
@@ -259,18 +322,19 @@ function shareConditionItems(trip) {
     ["Air temp", weather.temperatureC != null ? `${Math.round(weather.temperatureC)}°C` : ""],
     ["Clarity", trip.waterClarity]
   ];
-  return items.filter(([, value]) => value || shareChecked("shareShowEmpty"));
+  return items.filter(([, value]) => value);
 }
 
-function shareTimelineHtml(trip, layout) {
-  if (!shareChecked("shareShowTimeline") || !["complete", "timeline"].includes(layout)) return "";
+function shareTimelineHtml(trip) {
+  if (!shareChecked("shareShowTimeline")) return "";
   const events = shareEventRecords(trip);
   const rows = events.map((fish, index) => {
-    const lure = shareLureText(fish);
+    const lure = shareCatchLureName(trip, fish);
+    const flasher = shareCatchFlasherName(trip, fish);
     return `<tr class="status-${fish.eventType.toLowerCase()}">
       <td>${index + 1}</td>
       <td>${shareEscape(fish.time ? formatTimelineDisplayTime(fish.time) : "—")}</td>
-      <td class="report-timeline-result">${shareEscape(shareStatusLabel(fish.eventType))}</td>
+      <td class="report-timeline-result">${shareEscape(fish.eventType)}</td>
       <td>${shareEscape(fish.species || fish.possibleSpecies || "Fish")}</td>
       <td>${shareEscape(shareFormatSize(fish) || "—")}</td>
       <td>${shareEscape(shareFow(fish.fowCaught || fish.waterDepth) || "—")}</td>
@@ -278,20 +342,25 @@ function shareTimelineHtml(trip, layout) {
       <td>${shareEscape(shareDepthText(fish) || "—")}</td>
       <td>${shareEscape(fish.speed ? displayStoredMeasurement(fish.speed, "speed") : "—")}</td>
       <td>${shareEscape(lure || "—")}</td>
+      <td>${shareEscape(flasher || "—")}</td>
     </tr>`;
   }).join("");
-  return `<section class="report-timeline report-timeline-grid"><div class="report-section-heading"><h4>Trip Timeline</h4></div><table><colgroup><col class="timeline-number" /><col class="timeline-time" /><col class="timeline-result" /><col class="timeline-species" /><col class="timeline-size" /><col class="timeline-fow" /><col class="timeline-method" /><col class="timeline-depth" /><col class="timeline-speed" /><col class="timeline-lure" /></colgroup><thead><tr><th>#</th><th>Time</th><th>Result</th><th>Species</th><th>Size</th><th>FOW</th><th>Method</th><th>Depth</th><th>Speed</th><th>Lure</th></tr></thead><tbody>${rows || '<tr><td colspan="10" class="report-timeline-empty">No events recorded</td></tr>'}</tbody></table></section>`;
+  return `<section class="report-timeline report-timeline-grid"><div class="report-section-heading"><h4>Trip Timeline</h4></div><table><colgroup><col class="timeline-number" /><col class="timeline-time" /><col class="timeline-result" /><col class="timeline-species" /><col class="timeline-size" /><col class="timeline-fow" /><col class="timeline-method" /><col class="timeline-depth" /><col class="timeline-speed" /><col class="timeline-lure" /><col class="timeline-flasher" /></colgroup><thead><tr><th>#</th><th>Time</th><th>Result</th><th>Species</th><th>Size</th><th>Water depth</th><th>Method</th><th>Depth</th><th>Speed</th><th>Lure</th><th>Flasher</th></tr></thead><tbody>${rows || '<tr><td colspan="11" class="report-timeline-empty">No events recorded</td></tr>'}</tbody></table></section>`;
 }
 
 function shareReportHtml(trip) {
-  const layout = shareControl("shareTripLayout")?.value || "complete";
-  const theme = shareControl("shareTripTheme")?.value || "deep-water";
+  const theme = shareAppearanceTheme();
   const headline = shareControl("shareTripHeadline")?.value.trim() || `${shareLaunch(trip)} fishing report`;
   const subtitle = shareControl("shareTripSubtitle")?.value.trim() || "";
   const metrics = shareMetricData(trip);
   const biggest = shareBiggestFish(trip);
   const bestLures = shareBestLures(trip);
+  const bestFlashers = shareBestFlashers(trip);
   const bestMethods = shareBestMethods(trip);
+  const bestLurePhoto = (state.lures || []).find((lure) => bestLures.includes(lure.name) && sharePhotoUrl(lure));
+  const bestFlasherPhoto = (state.flashers || []).find((flasher) => bestFlashers.includes(flasher.name) && sharePhotoUrl(flasher));
+  const showBestLure = shareChecked("shareShowBestLure") && bestLures.length;
+  const showBestFlasher = shareChecked("shareShowBestFlasher") && bestFlashers.length;
   const selectedPhoto = shareSelectedPhoto();
   const heroUrl = sharePhotoUrl(selectedPhoto);
   const heroFallback = selectedPhoto ? previewImage(selectedPhoto) : "";
@@ -300,147 +369,132 @@ function shareReportHtml(trip) {
     : "";
   const overview = shareOverviewItems(trip);
   const conditionItems = shareChecked("shareShowConditions") ? shareConditionItems(trip) : [];
+  const showHighlights = shareChecked("shareShowHighlights");
   const species = shareSpecies(trip);
-  const speciesValue = species.length > 2
-    ? `${species.slice(0, 2).map(([name]) => name).join(" / ")} +${species.length - 2}`
-    : species.map(([name]) => name).join(" / ") || "None";
   const biggestSize = biggest ? shareFormatSize(biggest) || (biggest.shaker ? "Shaker" : "Size not logged") : "";
   const biggestLabel = biggest ? [biggestSize, biggest.species || "Fish"].filter(Boolean).join(" ") : "No landed fish";
+  const fishPerHour = metrics.hours ? trimNumber(metrics.landed / metrics.hours) : "Not logged";
+  const launchHeaderTime = trip.launchTime ? shareStatTime(trip.launchTime) : "";
+  const biggestWeight = biggest?.weight ? displayStoredMeasurement(biggest.weight, "fishWeight") : "Not logged";
+  const fowRange = overview.find(([label]) => label === "Water depth")?.[1] || "Not logged";
+  const headerMeta = [
+    formatDate(trip.date),
+    launchHeaderTime,
+    shareLocationText(trip)
+  ].filter(Boolean).join(" · ");
+  const topMetrics = [
+    ["shareStatLanded", "Landed", metrics.landed],
+    ["shareStatMissed", "Lost", metrics.misses],
+    ["shareStatBiggest", "Biggest fish", biggestWeight],
+    ["shareStatRate", "Fish / hr", fishPerHour],
+    ["shareStatHours", "Hours", trimNumber(metrics.hours)],
+    ["shareStatFow", "Water depth", fowRange]
+  ].filter(([controlId]) => shareChecked(controlId));
   const highlightItems = [
     ["Biggest fish", biggestLabel],
-    ["Best presentation", bestMethods.join(" / ")],
-    ["Best lure", bestLures.join(" / ")]
-  ].filter(([, value]) => value || shareChecked("shareShowEmpty"));
+    ["Best presentation", bestMethods.join(" / ")]
+  ].filter(([, value]) => value);
   const notesText = shareChecked("shareShowNotes") ? displaySentenceText(trip.notes || "") : "";
-  const notes = notesText || overview.length
-    ? `<section class="report-notes"><h4>${notesText ? "Trip Notes" : "Trip Summary"}</h4>${notesText ? `<p>${shareEscape(notesText)}</p>` : ""}${overview.length ? `<dl class="report-overview-list">${overview.map(([label, value]) => `<div><dt>${shareEscape(label)}</dt><dd>${shareEscape(value || "Not logged")}</dd></div>`).join("")}</dl>` : ""}</section>`
-    : "";
-  const deckText = notesText || [bestMethods[0], bestLures[0]].filter(Boolean).join(" · ");
-  const branding = shareControl("shareTripBranding")?.value === "on" ? `<footer>Fishing Logbook</footer>` : "";
-  const preset = shareLayoutPreset(layout);
-
-  return `<article class="share-report layout-${layout} theme-${theme}" data-dynamic="${preset.dynamic}" style="--report-accent:${shareEscape(shareControl("shareTripAccent")?.value || "#18b9d6")};--report-min-height:${((preset.minHeight || preset.height) / preset.width) * 100}cqw">
+  const notes = notesText ? `<section class="report-notes"><h4>Trip Notes</h4><p>${shareEscape(notesText)}</p></section>` : "";
+  const branding = `<footer>Fishing Logbook</footer>`;
+  return `<article class="share-report layout-complete theme-${theme}" data-dynamic="true" style="--report-accent:${shareEscape(shareControl("shareTripAccent")?.value || "#42c98a")};--report-bg:${shareEscape(shareControl("shareTripBackground")?.value || "#131b24")};--report-text:${shareEscape(shareControl("shareTripTextColor")?.value || "#edf3f8")};--report-surface-2:${shareEscape(shareControl("shareTripCardBackground")?.value || "#141f29")};--report-surface:color-mix(in srgb, var(--report-surface-2) 97%, #fff)">
     <header class="report-header">
-      <div class="report-title"><p class="report-meta">${shareEscape(formatDate(trip.date))} · ${shareEscape(shareLocationText(trip))}</p><h3>${shareEscape(headline)}</h3>${subtitle ? `<p class="report-subtitle">${shareEscape(subtitle)}</p>` : ""}</div>
+      <div class="report-title"><p class="report-meta">${shareEscape(headerMeta)}</p><h3>${shareEscape(headline)}</h3>${subtitle ? `<p class="report-subtitle">${shareEscape(subtitle)}</p>` : ""}</div>
       ${hero}
     </header>
-    <section class="report-metrics">
-      <div><strong>${metrics.landed}</strong><span>Landed</span></div>
-      <div><strong>${metrics.misses}</strong><span>Missed / lost</span></div>
-      <div><strong>${metrics.score}</strong><span>Final score</span></div>
-      <div><strong>${trimNumber(metrics.hours)}<small> hr</small></strong><span>On water</span></div>
-      <div class="report-species-metric"><strong>${shareEscape(speciesValue)}</strong><span>Species</span></div>
-    </section>
-    <section class="report-highlights">
-      <section class="report-highlight-group"><h4>Trip Highlights</h4><dl>${highlightItems.map(([label, value]) => `<div><dt>${shareEscape(label)}</dt><dd>${shareEscape(value || "Not logged")}</dd></div>`).join("") || "<div><dd>No highlights logged</dd></div>"}</dl></section>
-      ${conditionItems.length ? `<section class="report-highlight-group report-conditions"><h4>Conditions</h4><dl>${conditionItems.map(([label, value]) => `<div><dt>${shareEscape(label)}</dt><dd>${shareEscape(value || "Not logged")}</dd></div>`).join("")}</dl></section>` : ""}
-    </section>
-    ${deckText ? `<p class="report-deck">${shareEscape(deckText)}</p>` : ""}
+    ${topMetrics.length ? `<section class="report-metrics" style="--report-metric-count:${topMetrics.length}">${topMetrics.map(([, label, value]) => `<div${label === "Start / end" ? " class=\"report-metric-time\"" : ""}><strong>${shareEscape(String(value))}</strong><span>${shareEscape(label)}</span></div>`).join("")}</section>` : ""}
     <div class="report-body">${notes}</div>
-    ${shareTimelineHtml(trip, layout)}
+    ${shareTimelineHtml(trip)}
+    ${(conditionItems.length || showHighlights) ? `<section class="report-highlights${conditionItems.length && showHighlights ? "" : " is-single"}">
+      ${conditionItems.length ? `<section class="report-highlight-group report-conditions"><h4>Conditions</h4><dl>${conditionItems.map(([label, value]) => `<div><dt>${shareEscape(label)}</dt><dd>${shareEscape(value || "Not logged")}</dd></div>`).join("")}</dl></section>` : ""}
+      ${showHighlights ? `<section class="report-highlight-group"><h4>Trip Highlights</h4><dl>${highlightItems.map(([label, value]) => `<div><dt>${shareEscape(label)}</dt><dd>${shareEscape(value || "Not logged")}</dd></div>`).join("") || "<div><dd>No highlights logged</dd></div>"}</dl>${species.length ? `<table class="report-species-table"><thead><tr><th>Species</th><th>Count</th></tr></thead><tbody>${species.map(([name, count]) => `<tr><td>${shareEscape(name)}</td><td>${shareEscape(String(count))}</td></tr>`).join("")}</tbody></table>` : ""}</section>` : ""}
+    </section>` : ""}
+    ${(showBestLure || showBestFlasher) ? `<section class="report-best-gear-row">
+      ${showBestLure ? `<section class="report-best-gear-section"><div class="report-best-gear-copy"><h4>Best lure</h4><p>${shareEscape(bestLures.join(" / "))}</p></div>${bestLurePhoto ? `<figure class="report-best-lure-photo" style="--best-lure-rotation:${shareBestLurePhotoFlipped ? "-90deg" : "90deg"}"><img src="${shareEscape(sharePhotoUrl(bestLurePhoto))}" alt="${shareEscape(bestLurePhoto.name)}" /></figure>` : ""}</section>` : ""}
+      ${showBestFlasher ? `<section class="report-best-gear-section"><div class="report-best-gear-copy"><h4>Best flasher</h4><p>${shareEscape(bestFlashers.join(" / "))}</p></div>${bestFlasherPhoto ? `<figure class="report-best-lure-photo"><img src="${shareEscape(sharePhotoUrl(bestFlasherPhoto))}" alt="${shareEscape(bestFlasherPhoto.name)}" /></figure>` : ""}</section>` : ""}
+    </section>` : ""}
     ${branding}
   </article>`;
 }
 
-function shareFormatEventSentence(fish, index) {
+function shareFormatEventSentence(trip, fish, index) {
   const details = [];
-  if (fish.time) details.push(formatTimelineDisplayTime(fish.time));
-  if (fish.fowCaught || fish.waterDepth) details.push(`${shareTextMeasurement(shareFow(fish.fowCaught || fish.waterDepth), "depth")} FOW`);
-  if (fish.presentation) details.push(displayTitleText(fish.presentation));
+  if (shareChecked("shareTextTimelineTime") && fish.time) details.push(formatTimelineDisplayTime(fish.time));
+  if (shareChecked("shareTextTimelineWaterDepth") && (fish.fowCaught || fish.waterDepth)) {
+    details.push(`${shareTextMeasurement(shareFow(fish.fowCaught || fish.waterDepth), "depth")} water depth`);
+  }
+  if (shareChecked("shareTextTimelineMethod") && fish.presentation) details.push(displayTitleText(fish.presentation));
   const depth = shareTextDepth(fish);
-  if (depth) details.push(depth);
-  const lure = shareLureText(fish);
-  if (lure) details.push(lure);
-  const result = fish.landed
-    ? [fish.shaker ? "Shaker" : displayTitleText(fish.species || "Fish"), shareTextFishSize(fish), fish.released ? "released" : "landed"].filter(Boolean).join(", ")
-    : [fish.eventType, fish.possibleSpecies ? `possible ${displayTitleText(fish.possibleSpecies)}` : ""].filter(Boolean).join(", ");
-  const notes = fish.notes ? ` ${displaySentenceText(fish.notes)}` : "";
-  const lead = details.length ? `Fish ${index + 1} - ${details.join(", ")}.` : `Fish ${index + 1} -`;
-  return `${lead} ${result}.${notes}`.replace(/\.\./g, ".");
+  if (shareChecked("shareTextTimelineDepth") && depth) details.push(depth);
+  if (shareChecked("shareTextTimelineSpeed") && fish.speed) details.push(displayStoredMeasurement(fish.speed, "speed"));
+  const lure = shareCatchLureName(trip, fish);
+  if (shareChecked("shareTextTimelineLure") && lure) details.push(lure);
+  const flasher = shareCatchFlasherName(trip, fish);
+  if (shareChecked("shareTextTimelineFlasher") && flasher) details.push(flasher);
+
+  const result = [];
+  if (fish.landed) {
+    if (shareChecked("shareTextTimelineSpecies")) result.push(fish.shaker ? "Shaker" : displayTitleText(fish.species || "Fish"));
+    if (shareChecked("shareTextTimelineSize") && shareTextFishSize(fish)) result.push(shareTextFishSize(fish));
+    if (shareChecked("shareTextTimelineResult")) result.push(fish.released ? "released" : "landed");
+  } else {
+    if (shareChecked("shareTextTimelineResult")) result.push(fish.eventType);
+    if (shareChecked("shareTextTimelineSpecies") && fish.possibleSpecies) result.push(`possible ${displayTitleText(fish.possibleSpecies)}`);
+  }
+
+  const number = shareChecked("shareTextTimelineNumber") ? `Fish ${index + 1}` : "";
+  const lead = number
+    ? `${number}${details.length ? ` - ${details.join(", ")}.` : " -"}`
+    : (details.length ? `${details.join(", ")}.` : "");
+  const outcome = result.length ? `${result.join(", ")}.` : "";
+  const notes = shareChecked("shareTextTimelineNotes") && fish.notes ? displaySentenceText(fish.notes) : "";
+  return [lead, outcome, notes].filter(Boolean).join(" ").replace(/\.\./g, ".");
 }
 
 function shareGroupedEventParagraphs(trip) {
-  const events = shareEventRecords(trip);
-  const groups = [];
-  events.forEach((event) => {
-    const previous = groups[groups.length - 1];
-    if (previous && event.time && previous.time === event.time) previous.events.push(event);
-    else groups.push({ time: event.time || "", events: [event] });
-  });
-  let number = 0;
-  return groups.map((group) => {
-    if (group.events.length === 1) {
-      const sentence = shareFormatEventSentence(group.events[0], number);
-      number += 1;
-      return sentence;
-    }
-    const start = number + 1;
-    number += group.events.length;
-    const lines = group.events.map((event) => {
-      const method = [event.presentation, shareTextDepth(event), shareLureText(event)].filter(Boolean).join(", ");
-      const result = event.landed ? [event.species || "Fish", shareTextFishSize(event)].filter(Boolean).join(" ") : event.eventType;
-      return `${result}${method ? ` on ${method}` : ""}`;
-    });
-    return `Fish ${start} and ${number} - ${group.time ? formatTimelineDisplayTime(group.time) : "Time not logged"}, double. ${lines.join("; ")}.`;
-  });
+  return shareEventRecords(trip, shareChecked("shareTextIncludeMisses"))
+    .map((event, index) => shareFormatEventSentence(trip, event, index))
+    .filter(Boolean);
 }
 
 function shareTextReport(trip) {
-  const style = shareControl("shareTextStyle")?.value || "detailed";
   const headline = shareControl("shareTripHeadline")?.value.trim() || `${shareLaunch(trip)} fishing report`;
   const subtitle = shareControl("shareTripSubtitle")?.value.trim();
   const metrics = shareMetricData(trip);
-  const linesSet = (trip.gearUsed || []).map((item) => item.startTime).filter(Boolean).sort()[0];
+  const linesSet = shareLinesSetTime(trip);
   const location = shareLocationText(trip);
   const intro = [`${headline} - ${formatDate(trip.date)}.`, subtitle].filter(Boolean).join("\n");
   const timing = [
-    `Out of ${location}${trip.startTime ? ` at ${formatTimelineDisplayTime(trip.startTime)}` : ""}`,
+    `Out of ${location}${trip.launchTime ? ` at ${formatTimelineDisplayTime(trip.launchTime)}` : ""}`,
     linesSet ? `lines set by ${formatTimelineDisplayTime(linesSet)}` : "",
-    trip.endTime ? `off the water at ${formatTimelineDisplayTime(trip.endTime)}` : ""
+    shareLinesPulledTime(trip) ? `lines pulled at ${formatTimelineDisplayTime(shareLinesPulledTime(trip))}` : ""
   ].filter(Boolean).join(", ");
+  const timingSentence = timing ? `${timing.charAt(0).toUpperCase()}${timing.slice(1)}.` : "";
   const score = `Finished ${metrics.landed} for ${metrics.encounters}${metrics.hours ? ` over ${trimNumber(metrics.hours)} hours` : ""}.`;
-  const conditions = shareChecked("shareShowConditions") ? shareWeatherParts(trip).join(" · ") : "";
-  const notes = shareChecked("shareShowNotes") ? displaySentenceText(trip.notes || "") : "";
-  const highlights = [
+  const conditions = shareChecked("shareTextShowConditions") ? shareWeatherParts(trip).join(" · ") : "";
+  const notes = shareChecked("shareTextShowNotes") ? displaySentenceText(trip.notes || "") : "";
+  const highlights = shareChecked("shareTextShowHighlights") ? [
     shareBestLures(trip).length ? `Best lure: ${shareBestLures(trip).join(" / ")}.` : "",
     shareBestMethods(trip).length ? `Best method: ${shareBestMethods(trip).join(" / ")}.` : ""
-  ].filter(Boolean).join(" ");
-  const eventParagraphs = shareGroupedEventParagraphs(trip);
+  ].filter(Boolean).join(" ") : "";
+  const eventParagraphs = shareChecked("shareTextShowTimeline") ? shareGroupedEventParagraphs(trip) : [];
 
-  if (style === "concise") {
-    return [
-      intro,
-      `${location}. ${score}`,
-      notes,
-      highlights,
-      eventParagraphs.length ? eventParagraphs.slice(0, 4).join("\n") : ""
-    ].filter(Boolean).join("\n\n");
-  }
-  if (style === "fish-log") {
-    return [intro, score, ...eventParagraphs].filter(Boolean).join("\n\n");
-  }
   return [
     intro,
-    timing ? `${timing.charAt(0).toUpperCase()}${timing.slice(1)}.` : "",
+    timingSentence,
     score,
     notes,
     conditions ? `Conditions: ${conditions}.` : "",
     highlights,
-    ...eventParagraphs
+    eventParagraphs.join("\n\n")
   ].filter(Boolean).join("\n\n");
 }
 
 function sharePreview() {
   if (!activeShareTrip) return;
-  const layout = shareControl("shareTripLayout")?.value || "complete";
-  const preset = shareLayoutPreset(layout);
   const frame = shareControl("shareTripPreviewFrame");
   if (frame) {
-    const previewHeight = preset.height || preset.minHeight;
-    frame.style.aspectRatio = preset.dynamic ? "auto" : `${preset.width} / ${previewHeight}`;
-    frame.style.setProperty("--share-aspect", String(preset.width / previewHeight));
-    frame.classList.toggle("is-dynamic", preset.dynamic);
-    frame.dataset.layout = layout;
+    frame.classList.add("is-dynamic");
   }
   shareControl("shareTripPreview").innerHTML = shareReportHtml(activeShareTrip);
   shareFitReport();
@@ -511,22 +565,44 @@ function openTripShareStudio(trip) {
   const options = shareFishPhotoOptions(trip);
   shareControl("shareTripPhoto").innerHTML = `<option value="">No photo</option>${options.map((item, index) => `<option value="${index}">${shareEscape(item.label)}</option>`).join("")}`;
   shareControl("shareTripPhoto").value = String(defaultSharePhotoIndex(trip));
-  shareControl("shareTripLayout").value = "complete";
+  shareRenderAppearanceOptions();
   shareControl("shareTripTheme").value = "deep-water";
-  shareControl("shareTextStyle").value = "detailed";
-  shareControl("shareTextUnits").value = "app";
   shareControl("shareTripHeadline").value = `${shareLaunch(trip)} fishing report`;
   shareControl("shareTripSubtitle").value = "";
-  shareControl("shareTripAccent").value = "#18b9d6";
-  shareControl("shareTripBranding").value = "off";
+  shareApplyAppearance("deep-water");
+  shareControl("shareTripAppearanceName").value = "";
+  shareBestLurePhotoFlipped = false;
   [
+    ["shareStatLanded", true],
+    ["shareStatMissed", true],
+    ["shareStatBiggest", true],
+    ["shareStatRate", true],
+    ["shareStatHours", true],
+    ["shareStatFow", true],
     ["shareShowNotes", true],
     ["shareShowConditions", true],
+    ["shareShowHighlights", true],
     ["shareShowTimeline", true],
     ["shareIncludeMisses", true],
-    ["shareShowLures", true],
-    ["shareShowEmpty", false],
-    ["shareShowLocation", false]
+    ["shareShowBestLure", true],
+    ["shareShowBestFlasher", true],
+    ["shareTextShowNotes", true],
+    ["shareTextShowConditions", true],
+    ["shareTextShowHighlights", true],
+    ["shareTextShowTimeline", true],
+    ["shareTextIncludeMisses", true],
+    ["shareTextTimelineNumber", true],
+    ["shareTextTimelineTime", true],
+    ["shareTextTimelineResult", true],
+    ["shareTextTimelineSpecies", true],
+    ["shareTextTimelineSize", true],
+    ["shareTextTimelineWaterDepth", true],
+    ["shareTextTimelineMethod", true],
+    ["shareTextTimelineDepth", true],
+    ["shareTextTimelineSpeed", true],
+    ["shareTextTimelineLure", true],
+    ["shareTextTimelineFlasher", true],
+    ["shareTextTimelineNotes", true]
   ].forEach(([id, checked]) => {
     shareControl(id).checked = checked;
   });
@@ -572,12 +648,8 @@ async function shareReportCanvas() {
     });
   }));
   shareFitReport();
-  const layout = shareControl("shareTripLayout")?.value || "complete";
-  const preset = shareLayoutPreset(layout);
-  const scale = preset.width / report.getBoundingClientRect().width;
-  const targetHeight = preset.dynamic
-    ? Math.ceil(report.getBoundingClientRect().height * scale)
-    : preset.height;
+  const scale = SHARE_REPORT_WIDTH / report.getBoundingClientRect().width;
+  const targetHeight = Math.ceil(report.getBoundingClientRect().height * scale);
   const canvas = await window.html2canvas(report, {
     backgroundColor: null,
     scale,
@@ -587,11 +659,11 @@ async function shareReportCanvas() {
     width: report.getBoundingClientRect().width,
     height: report.getBoundingClientRect().height
   });
-  if (canvas.width === preset.width && canvas.height === targetHeight) return canvas;
+  if (canvas.width === SHARE_REPORT_WIDTH && canvas.height === targetHeight) return canvas;
   const exact = document.createElement("canvas");
-  exact.width = preset.width;
+  exact.width = SHARE_REPORT_WIDTH;
   exact.height = targetHeight;
-  exact.getContext("2d").drawImage(canvas, 0, 0, preset.width, targetHeight);
+  exact.getContext("2d").drawImage(canvas, 0, 0, SHARE_REPORT_WIDTH, targetHeight);
   return exact;
 }
 
@@ -629,6 +701,39 @@ function shareDownloadText() {
   shareDownloadBlob(blob, "txt");
 }
 
+async function saveShareAppearancePreset() {
+  const name = shareControl("shareTripAppearanceName")?.value.trim();
+  if (!name) {
+    shareSetStatus("Name the appearance before saving.", "error");
+    return;
+  }
+  const existing = shareAppearancePresets();
+  const match = existing.find((preset) => preset.name.toLowerCase() === name.toLowerCase());
+  const id = match?.id || `appearance-${Date.now()}`;
+  const preset = {
+    id,
+    name,
+    theme: shareAppearanceTheme() === "clean-light" ? "clean-light" : "deep-water",
+    accent: shareColor(shareControl("shareTripAccent")?.value, "#42c98a"),
+    background: shareColor(shareControl("shareTripBackground")?.value, "#131b24"),
+    textColor: shareColor(shareControl("shareTripTextColor")?.value, "#edf3f8"),
+    cardBackground: shareColor(shareControl("shareTripCardBackground")?.value, "#141f29")
+  };
+  state.settings = {
+    ...(state.settings || {}),
+    shareAppearancePresets: [...existing.filter((item) => item.id !== id), preset]
+  };
+  try {
+    await saveState();
+    shareRenderAppearanceOptions(`preset:${id}`);
+    shareControl("shareTripAppearanceName").value = "";
+    shareSetStatus("Appearance saved.", "success");
+    sharePreview();
+  } catch (error) {
+    shareSetStatus("Appearance could not be saved.", "error");
+  }
+}
+
 shareControl("shareTripForm")?.addEventListener("input", () => {
   shareTextDirty = false;
   sharePreview();
@@ -636,6 +741,9 @@ shareControl("shareTripForm")?.addEventListener("input", () => {
 shareControl("shareTripForm")?.addEventListener("change", () => {
   shareTextDirty = false;
   sharePreview();
+});
+shareControl("shareTripTheme")?.addEventListener("change", (event) => {
+  shareApplyAppearance(event.currentTarget.value);
 });
 shareControl("shareTripTextEditor")?.addEventListener("input", () => {
   shareTextDirty = true;
@@ -646,6 +754,11 @@ shareControl("shareTripDownloadJpg")?.addEventListener("click", (event) => share
 shareControl("shareTripCopyImage")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, shareCopyImage, "Image copied"));
 shareControl("shareTripCopyText")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, shareCopyText, "Text copied"));
 shareControl("shareTripDownloadText")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, async () => shareDownloadText(), "Text downloaded"));
+shareControl("shareSaveAppearance")?.addEventListener("click", saveShareAppearancePreset);
+shareControl("shareFlipBestLurePhoto")?.addEventListener("click", () => {
+  shareBestLurePhotoFlipped = !shareBestLurePhotoFlipped;
+  sharePreview();
+});
 
 if (window.ResizeObserver && shareControl("shareTripPreviewFrame")) {
   const sharePreviewResizeObserver = new ResizeObserver(([entry]) => {

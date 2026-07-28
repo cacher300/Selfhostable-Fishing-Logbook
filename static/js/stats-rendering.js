@@ -1,7 +1,8 @@
 function renderStatsTable(container, headers, rows) {
   const displayRows = sortedStatsRows(container, headers, rows);
-  const chartMarkup = statsChartMarkup(container, headers, displayRows);
-  ensureStatsCardControls(container, chartMarkup);
+  const metricIndexes = statsChartMetricIndexes(headers, displayRows);
+  const chartMarkup = statsChartMarkup(container, headers, displayRows, metricIndexes);
+  ensureStatsCardControls(container, chartMarkup, headers, metricIndexes);
   if (!displayRows.length) {
     container.innerHTML = `<div class="empty-state"><p>No data yet</p></div>`;
     return;
@@ -45,12 +46,14 @@ function statsHeaderMarkup(container, header, index) {
   const active = sort?.index === index;
   const direction = active && sort.direction === "asc" ? "low to high" : "high to low";
   const title = statsHeaderTitle(header);
-  const marker = active ? (sort.direction === "asc" ? "^" : "v") : "";
+  const marker = active
+    ? `<svg class="stats-sort-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3m0 0L4.5 6.5M8 3l3.5 3.5"${sort.direction === "asc" ? "" : " transform=\"rotate(180 8 8)\""}></path></svg>`
+    : "";
   return `
     <th title="${escapeHtml(title)}">
       <button class="stats-sort-heading" type="button" data-stats-sort="${index}" title="${escapeHtml(title)}" aria-label="Sort ${escapeHtml(header)} ${escapeHtml(direction)}">
         <span>${escapeHtml(header)}</span>
-        ${marker ? `<span aria-hidden="true">${marker}</span>` : ""}
+        ${marker}
       </button>
     </th>
   `;
@@ -78,7 +81,16 @@ function statsHeaderTitle(header) {
     Share: "Percent share within this table.",
     "Fish Share": "Percent of selected landed fish in this range or bucket.",
     Rate: "Percent or rate for this row, depending on the table.",
-    "Release %": "Percent of landed fish released."
+    "Release %": "Percent of landed fish released.",
+    "Avg Speed": "Average recorded speed inside this range.",
+    "Avg Length": "Average fish length for catches in this range.",
+    "Avg Delta": "Average ball speed minus GPS speed.",
+    Coverage: "Percent of eligible records with a usable value.",
+    Complete: "Records with a usable value for this field.",
+    Meaning: "What is being measured for coverage.",
+    "Avg Temp": "Average probe temperature at this depth.",
+    "Min Temp": "Lowest probe temperature at this depth.",
+    "Max Temp": "Highest probe temperature at this depth."
   };
   return titles[header] || `Sort by ${header}`;
 }
@@ -95,11 +107,11 @@ function statsCellMarkup(cell, header) {
 }
 
 function renderStatsMessage(container, message) {
-  ensureStatsCardControls(container, "");
+  ensureStatsCardControls(container, "", [], []);
   container.innerHTML = `<div class="empty-state"><p>${escapeHtml(message)}</p></div>`;
 }
 
-function ensureStatsCardControls(container, chartMarkup) {
+function ensureStatsCardControls(container, chartMarkup, headers, metricIndexes) {
   const card = container.closest(".analytics-card");
   if (!card) return;
   const heading = card.querySelector(":scope > h3, :scope > .analytics-card-header h3");
@@ -123,6 +135,28 @@ function ensureStatsCardControls(container, chartMarkup) {
   }
   const canChart = Boolean(chartMarkup);
   toggle.hidden = !canChart;
+  let metricControl = header.querySelector(".stats-chart-metric");
+  if (canChart && metricIndexes.length > 1) {
+    if (!metricControl) {
+      metricControl = document.createElement("label");
+      metricControl.className = "stats-chart-metric";
+      header.insertBefore(metricControl, toggle);
+    }
+    const config = statsChartConfig(container.id, headers);
+    const defaultIndex = config?.valueIndex ?? config?.valueIndexes?.[0] ?? metricIndexes[0];
+    const selectedIndex = metricIndexes.includes(activeStatsChartMetric[container.id])
+      ? activeStatsChartMetric[container.id]
+      : defaultIndex;
+    metricControl.innerHTML = `
+      <span>Chart by</span>
+      <select data-stats-chart-metric="${escapeHtml(container.id)}" aria-label="Chart ${escapeHtml(heading.textContent.trim())} by metric">
+        ${metricIndexes.map((index) => `<option value="${index}" ${index === selectedIndex ? "selected" : ""}>${escapeHtml(headers[index])}</option>`).join("")}
+      </select>
+    `;
+    metricControl.hidden = false;
+  } else if (metricControl) {
+    metricControl.hidden = true;
+  }
   if (!canChart) card.classList.remove("show-chart");
   if (canChart && card.dataset.defaultView === "chart" && !card.dataset.statsViewInitialized) {
     card.classList.add("show-chart");
@@ -133,15 +167,52 @@ function ensureStatsCardControls(container, chartMarkup) {
   }
 }
 
-function statsChartMarkup(container, headers, rows) {
+function statsChartMarkup(container, headers, rows, metricIndexes = statsChartMetricIndexes(headers, rows)) {
   if (!rows.length) return "";
-  const config = statsChartConfig(container.id, headers);
+  const config = selectedStatsChartConfig(container.id, headers, metricIndexes);
   if (!config) return "";
-  if (config.type === "donut") return donutChartMarkup(headers, rows, config);
-  if (config.type === "line") return lineChartMarkup(headers, rows, config);
-  if (config.type === "stacked") return stackedBarChartMarkup(headers, rows, config);
-  if (config.type === "grouped") return groupedBarChartMarkup(headers, rows, config);
-  return barChartMarkup(headers, rows, config);
+  const description = statsChartDescription(container.id);
+  const chart = config.type === "donut" ? donutChartMarkup(headers, rows, config)
+    : config.type === "line" ? lineChartMarkup(headers, rows, config)
+      : config.type === "stacked" ? stackedBarChartMarkup(headers, rows, config)
+        : config.type === "grouped" ? groupedBarChartMarkup(headers, rows, config)
+          : barChartMarkup(headers, rows, config);
+  return description ? `<p class="stats-chart-description">${escapeHtml(description)}</p>${chart}` : chart;
+}
+
+function statsChartDescription(id) {
+  if (id === "lureShareStatsTable") {
+    return "Compare time on the water with fish produced. When Fish % is higher than Time %, that lure produced more than its share of the catch.";
+  }
+  return "";
+}
+
+function statsChartMetricIndexes(headers, rows) {
+  const nonMetricHeaders = new Set([
+    "Trip", "Launch", "Lines set", "Lines pulled", "Pattern", "Species", "Outcome", "Lure", "Lure Type", "Lure Color",
+    "Flasher", "Combo", "Direction", "Line Side", "Method", "Location", "Water Clarity", "Intent", "Rating", "Person",
+    "Wind", "Trend", "Front Tag", "Moon", "Moon Window", "Window", "Relationship", "Catch Class", "Position", "Field",
+    "Meaning", "Label", "Confidence", "Time", "FOW Range", "GPS Speed", "Ball Speed", "Distance"
+  ]);
+  return headers
+    .map((header, index) => ({ header, index }))
+    .filter(({ header, index }) => index > 0 && !nonMetricHeaders.has(header)
+      && rows.some((row) => statsNumericValue(row[index]) !== null))
+    .map(({ index }) => index);
+}
+
+function selectedStatsChartConfig(id, headers, metricIndexes) {
+  const config = statsChartConfig(id, headers);
+  if (!config) return null;
+  const selectedIndex = activeStatsChartMetric[id];
+  if (!metricIndexes.includes(selectedIndex)) return config;
+  return {
+    ...config,
+    type: "bar",
+    valueIndex: selectedIndex,
+    valueIndexes: undefined,
+    seriesLabels: undefined
+  };
 }
 
 function statsChartConfig(id, headers) {
@@ -160,7 +231,6 @@ function statsChartConfig(id, headers) {
     lostFishStatsTable: { type: "donut", valueIndex: byHeader("Lost") },
     timeOfDayStatsTable: { type: "bar", valueIndex: fishIndex, limit: 8 },
     releaseStatsTable: { type: "stacked", valueIndexes: [byHeader("Released"), byHeader("Kept")], seriesLabels: ["Released", "Kept"] },
-    bestPatternStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     lureStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     lureShareStatsTable: { type: "grouped", valueIndexes: [usageShareIndex, catchShareIndex], seriesLabels: ["Time %", "Fish %"], limit: 8 },
     lureSpreadStatsTable: { type: "bar", valueIndex: byHeader("Quiet While Others Hit"), limit: 8 },
@@ -172,6 +242,7 @@ function statsChartConfig(id, headers) {
     lineSideStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     trollingSetupStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     downriggerStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
+    directionSpeedStatsTable: { type: "bar", valueIndex: byHeader("Fish at speed"), limit: 8 },
     fowRangeStatsTable: { type: "donut", valueIndex: byHeader("Fish") },
     fowStatsTable: { type: "bar", valueIndex: fishIndex, limit: 10 },
     depthDownStatsTable: { type: "bar", valueIndex: fishIndex, limit: 10 },
@@ -198,7 +269,17 @@ function statsChartConfig(id, headers) {
     frontTagStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 },
     biteWindowStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 10 },
     moonPhaseStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 },
-    moonWindowStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 }
+    moonWindowStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 },
+    tripTrendStatsTable: {
+      type: "line",
+      valueIndexes: [byHeader("Landed"), byHeader("Fish / hr")],
+      seriesLabels: ["Landed", "Fish / hr"]
+    },
+    speciesOverviewStatsTable: { type: "bar", valueIndex: fishIndex, limit: 7 },
+    gpsSpeedStatsTable: { type: "bar", valueIndex: fishIndex, limit: 10 },
+    ballSpeedStatsTable: { type: "bar", valueIndex: fishIndex, limit: 10 },
+    distanceBehindStatsTable: { type: "bar", valueIndex: rateIndex, limit: 10 },
+    thermoclineStatsTable: { type: "donut", valueIndex: fishIndex }
   };
 
   const config = configs[id];
@@ -342,19 +423,28 @@ function lineChartMarkup(headers, rows, config) {
   }
   if (chartRows.length < 2) return barChartMarkup(headers, rows, { ...config, valueIndex: valueIndexes[0] });
   const width = 320;
-  const height = 150;
-  const pad = 20;
+  const height = 180;
+  const plot = { left: 34, right: 12, top: 18, bottom: 42 };
   const max = Math.max(...chartRows.flatMap((row) => row.values), 1);
-  const xFor = (index) => pad + (index * ((width - pad * 2) / Math.max(1, chartRows.length - 1)));
-  const yFor = (value) => height - pad - ((value / max) * (height - pad * 2));
+  const xFor = (index) => plot.left + (index * ((width - plot.left - plot.right) / Math.max(1, chartRows.length - 1)));
+  const yFor = (value) => height - plot.bottom - ((value / max) * (height - plot.top - plot.bottom));
   const polylines = valueIndexes.map((_, seriesIndex) => chartRows.map((row, index) => `${xFor(index)},${yFor(row.values[seriesIndex])}`).join(" "));
+  const xLabelInterval = Math.max(1, Math.ceil(chartRows.length / 5));
+  const shortLabel = (label) => String(label).replace(/,\s*\d{4}$/, "");
   return `
     <div class="stats-chart stats-line-chart" aria-label="Line chart view">
-      <svg viewBox="0 0 ${width} ${height}" role="img">
-        <line class="stats-line-axis" x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}"></line>
-        <line class="stats-line-axis" x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}"></line>
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(`${headers[0]} by ${config.seriesLabels.join(" and ")}`)}">
+        <line class="stats-line-axis" x1="${plot.left}" y1="${height - plot.bottom}" x2="${width - plot.right}" y2="${height - plot.bottom}"></line>
+        <line class="stats-line-axis" x1="${plot.left}" y1="${plot.top}" x2="${plot.left}" y2="${height - plot.bottom}"></line>
+        <text class="stats-line-axis-label stats-line-axis-label-y" x="${plot.left - 6}" y="${plot.top + 4}" text-anchor="end">${escapeHtml(String(max))}</text>
+        <text class="stats-line-axis-label stats-line-axis-label-y" x="${plot.left - 6}" y="${height - plot.bottom + 4}" text-anchor="end">0</text>
+        <text class="stats-line-axis-title" x="${plot.left}" y="11">Fish</text>
         ${polylines.map((points, index) => `<polyline class="stats-line stats-chart-stroke-${index}" points="${points}"></polyline>`).join("")}
-        ${chartRows.map((row, rowIndex) => valueIndexes.map((_, seriesIndex) => `<circle class="stats-line-point stats-chart-fill-${seriesIndex}" cx="${xFor(rowIndex)}" cy="${yFor(row.values[seriesIndex])}" r="3"></circle>`).join("")).join("")}
+        ${chartRows.map((row, rowIndex) => valueIndexes.map((_, seriesIndex) => `<circle class="stats-line-point stats-chart-fill-${seriesIndex}" cx="${xFor(rowIndex)}" cy="${yFor(row.values[seriesIndex])}" r="3"><title>${escapeHtml(`${row.label}: ${config.seriesLabels[seriesIndex]} ${row.values[seriesIndex]}`)}</title></circle>`).join("")).join("")}
+        ${chartRows.map((row, index) => (index % xLabelInterval === 0 || index === chartRows.length - 1)
+          ? `<text class="stats-line-axis-label stats-line-axis-label-x" x="${xFor(index)}" y="${height - 18}" text-anchor="middle">${escapeHtml(shortLabel(row.label))}</text>`
+          : "").join("")}
+        <text class="stats-line-axis-title stats-line-axis-title-x" x="${(plot.left + width - plot.right) / 2}" y="${height - 3}" text-anchor="middle">${escapeHtml(headers[0])}</text>
       </svg>
       <div class="stats-chart-legend">
         ${config.seriesLabels.map((label, index) => `<span><i class="stats-chart-color-${index}"></i>${escapeHtml(label)}</span>`).join("")}

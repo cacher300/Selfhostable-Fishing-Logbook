@@ -15,7 +15,6 @@
     <div class="app-shell">
       <aside class="sidebar" aria-label="Logbook summary">
         <div class="brand-block">
-          <h1>Fishing Logbook</h1>
           <div class="brand-spotlight" id="brandSpotlight" aria-label="Recent fishing photos"></div>
         </div>
 
@@ -141,7 +140,7 @@
         <section class="stats-page hidden" id="advancedStatsPanel" aria-label="Fishing performance statistics">
           <header class="stats-page-header">
             <div>
-              <p>Compare production against exposure, then decide what to repeat.</p>
+              <p>See what produced, where it happened, and which patterns are worth repeating.</p>
             </div>
             <div class="stats-scope" id="statsActiveScope" aria-live="polite">All time · All methods</div>
             <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
@@ -157,30 +156,8 @@
               </select>
             </label>
             <label>
-              <span>Stats scope</span>
+              <span>Method</span>
               <select id="statsMethodFilter"></select>
-            </label>
-            <label>
-              <span>Sort performance</span>
-              <select id="statsSortFilter">
-                <option value="fishPerHour">Fish / hour</option>
-                <option value="fish">Fish caught</option>
-                <option value="hours">Hours used</option>
-                <option value="fishPerTrip">Fish / trip</option>
-                <option value="efficiencyIndex">Efficiency index</option>
-              </select>
-            </label>
-            <label>
-              <span>Min trips</span>
-              <input id="statsMinTripsInput" type="number" min="0" step="1" value="0" />
-            </label>
-            <label>
-              <span>Min hours</span>
-              <input id="statsMinHoursInput" type="number" min="0" step="0.25" value="0" />
-            </label>
-            <label class="inline-toggle">
-              <input id="statsIncludeLostToggle" type="checkbox" />
-              <span>Rank by strike opportunities</span>
             </label>
             <label>
               <span>Species</span>
@@ -195,31 +172,72 @@
               <select id="statsLocationFilter"></select>
             </label>
             <label>
+              <span>Launch</span>
+              <select id="statsLaunchFilter"></select>
+            </label>
+            <label>
               <span>Lure</span>
               <select id="statsLureFilter"></select>
             </label>
-            <label>
-              <span>Flasher</span>
-              <select id="statsFlasherFilter"></select>
-            </label>
-            <label>
-              <span>Water clarity</span>
-              <select id="statsWaterClarityFilter"></select>
-            </label>
-            <label>
-              <span>Weather</span>
-              <select id="statsWeatherFilter"></select>
-            </label>
-            <label>
-              <span>Month</span>
-              <select id="statsMonthFilter"></select>
-            </label>
-            <label>
-              <span>Rating</span>
-              <select id="statsRatingFilter"></select>
-            </label>
+            <details class="stats-more-filters">
+              <summary>More filters</summary>
+              <div>
+                <label>
+                  <span>Sort performance</span>
+                  <select id="statsSortFilter">
+                    <option value="fishPerHour">Fish / hour</option>
+                    <option value="fish">Fish caught</option>
+                    <option value="hours">Hours used</option>
+                    <option value="fishPerTrip">Fish / trip</option>
+                    <option value="efficiencyIndex">Efficiency index</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Min trips</span>
+                  <input id="statsMinTripsInput" type="number" min="0" step="1" value="0" />
+                </label>
+                <label>
+                  <span>Min hours</span>
+                  <input id="statsMinHoursInput" type="number" min="0" step="0.25" value="0" />
+                </label>
+                <label class="inline-toggle">
+                  <input id="statsIncludeLostToggle" type="checkbox" />
+                  <span>Rank by strike opportunities</span>
+                </label>
+                <label>
+                  <span>Flasher</span>
+                  <select id="statsFlasherFilter"></select>
+                </label>
+                <label>
+                  <span>Water clarity</span>
+                  <select id="statsWaterClarityFilter"></select>
+                </label>
+                <label>
+                  <span>Weather</span>
+                  <select id="statsWeatherFilter"></select>
+                </label>
+                <label>
+                  <span>Month</span>
+                  <select id="statsMonthFilter"></select>
+                </label>
+                <label>
+                  <span>Rating</span>
+                  <select id="statsRatingFilter"></select>
+                </label>
+              </div>
+            </details>
           </div>
           <div class="metric-grid" id="advancedMetricGrid"></div>
+          <section class="stats-overview-grid" aria-label="Stats overview">
+            <article class="analytics-card stats-overview-primary show-chart" data-default-view="chart">
+              <h3>Catch Overview</h3>
+              <div class="analytics-table" id="tripTrendStatsTable"></div>
+            </article>
+            <article class="analytics-card show-chart" data-default-view="chart">
+              <h3>Top Species</h3>
+              <div class="analytics-table" id="speciesOverviewStatsTable"></div>
+            </article>
+          </section>
           <div class="analytics-groups">
             <details class="stats-group">
               <summary>
@@ -246,10 +264,6 @@
                 <article class="analytics-card">
                   <h3>Release Patterns</h3>
                   <div class="analytics-table" id="releaseStatsTable"></div>
-                </article>
-                <article class="analytics-card wide-card">
-                  <h3>Best Pattern Combos</h3>
-                  <div class="analytics-table" id="bestPatternStatsTable"></div>
                 </article>
               </div>
             </details>
@@ -306,6 +320,10 @@
                   <div class="analytics-table" id="directionStatsTable"></div>
                 </article>
                 <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Best GPS Speed by Direction</h3>
+                  <div class="analytics-table" id="directionSpeedStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
                   <h3>Line Side Performance</h3>
                   <div class="analytics-table" id="lineSideStatsTable"></div>
                 </article>
@@ -332,10 +350,51 @@
               </div>
             </details>
 
+            <details class="stats-group stats-group-new-data" data-trolling-group open>
+              <summary>
+                <span>Speed, spread &amp; water column</span>
+                <small>New ball speed, GPS speed, shaker, spread distance, and probe temperature analytics</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>GPS Speed Performance</h3>
+                  <div class="analytics-table" id="gpsSpeedStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Ball Speed Performance</h3>
+                  <div class="analytics-table" id="ballSpeedStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Ball vs GPS Speed</h3>
+                  <div class="analytics-table" id="speedDeltaStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Shaker Rate</h3>
+                  <div class="analytics-table" id="shakerStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Distance Behind Performance</h3>
+                  <div class="analytics-table" id="distanceBehindStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card">
+                  <h3>Probe Temperature Profile</h3>
+                  <div class="analytics-table" id="probeTemperatureStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card show-chart" data-default-view="chart">
+                  <h3>Fish Position vs Thermocline</h3>
+                  <div class="analytics-table" id="thermoclineStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card">
+                  <h3>New Data Coverage</h3>
+                  <div class="analytics-table" id="newDataCoverageStatsTable"></div>
+                </article>
+              </div>
+            </details>
+
             <details class="stats-group">
               <summary>
                 <span>Trip patterns</span>
-                <small>Method, location, angler, month, intent, and rating</small>
+                <small>Method, location, angler, month, fishing confidence, and trip rating</small>
               </summary>
               <div class="analytics-grid">
                 <article class="analytics-card show-chart" data-default-view="chart">
@@ -353,6 +412,14 @@
                 <article class="analytics-card show-chart" data-default-view="chart">
                   <h3>Month Patterns</h3>
                   <div class="analytics-table" id="monthStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Fishing Confidence</h3>
+                  <div class="analytics-table" id="intentStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Trip Rating Breakdown</h3>
+                  <div class="analytics-table" id="ratingStatsTable"></div>
                 </article>
               </div>
             </details>
@@ -421,17 +488,9 @@
             <details class="stats-group">
               <summary>
                 <span>Data quality &amp; advanced tables</span>
-                <small>Missing attribution, unreliable exposure, intent, rating, and diagnostics</small>
+                <small>Missing attribution, unreliable exposure, and diagnostics</small>
               </summary>
               <div class="analytics-grid">
-                <article class="analytics-card">
-                  <h3>Trip Intent Breakdown</h3>
-                  <div class="analytics-table" id="intentStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Trip Rating Breakdown</h3>
-                  <div class="analytics-table" id="ratingStatsTable"></div>
-                </article>
                 <article class="analytics-card wide-card">
                   <h3>Stats Diagnostics</h3>
                   <div class="analytics-table" id="statsDiagnosticsTable"></div>
@@ -505,7 +564,7 @@
                 <select id="mapYearFilter"></select>
               </label>
               <label class="inline-toggle map-year-filter-toggle">
-                <input id="mapHideYearFilterToggle" type="checkbox" />
+                <input id="mapHideYearFilterToggle" type="checkbox" checked />
                 <span>Hide year filtering</span>
               </label>
               <label class="inline-toggle map-media-toggle">
@@ -674,13 +733,11 @@
                   <h4 id="appearanceSettingsHeading">Appearance</h4>
                 </div>
                 <div class="settings-field-grid">
-                  <label class="settings-control">
-                    <span>Theme</span>
-                    <select id="themeSelect">
-                      <option value="light">Light</option>
-                      <option value="dark">Dark</option>
-                    </select>
-                  </label>
+                  <fieldset class="settings-radio-group">
+                    <legend>Theme</legend>
+                    <label><input type="radio" name="themeChoice" value="dark" data-theme-option /> Dark mode</label>
+                    <label><input type="radio" name="themeChoice" value="light" data-theme-option /> Light mode</label>
+                  </fieldset>
                   <fieldset class="settings-radio-group">
                     <legend>Time Format</legend>
                     <select class="visually-hidden" id="timeFormatSelect" tabindex="-1" aria-hidden="true">
@@ -833,35 +890,68 @@
         <div class="share-trip-layout">
           <form id="shareTripForm" class="share-trip-controls">
             <div class="share-image-settings">
-              <label><span>Layout</span><select id="shareTripLayout"><option value="complete">Complete Report</option><option value="timeline">Timeline Report</option></select></label>
-              <label><span>Theme</span><select id="shareTripTheme"><option value="deep-water">App Dark</option><option value="clean-light">Clean Light</option><option value="nautical">Slate</option></select></label>
-              <label><span>Hero photo</span><select id="shareTripPhoto"></select></label>
-            </div>
-            <div class="share-text-settings" hidden>
-              <label><span>Text style</span><select id="shareTextStyle"><option value="detailed">Detailed Fishing Report</option><option value="concise">Concise Social Post</option><option value="fish-log">Fish-by-Fish Log</option></select></label>
-              <label><span>Units</span><select id="shareTextUnits"><option value="app">Use app settings</option><option value="imperial">Imperial</option><option value="metric">Metric</option></select></label>
+              <label><span>Appearance</span><select id="shareTripTheme"></select></label>
+              <label><span>Photo</span><select id="shareTripPhoto"></select></label>
             </div>
             <label><span>Headline</span><input id="shareTripHeadline" maxlength="90" /></label>
             <label><span>Subtitle <small>optional</small></span><input id="shareTripSubtitle" maxlength="120" /></label>
             <div class="share-image-settings share-control-pair">
               <label><span>Accent</span><input id="shareTripAccent" type="color" value="#42c98a" /></label>
-              <label><span>Branding</span><select id="shareTripBranding"><option value="off">Off</option><option value="on">Show app name</option></select></label>
+              <label><span>Card background</span><input id="shareTripCardBackground" type="color" value="#141f29" /></label>
             </div>
-            <section class="share-option-group share-content-group" aria-labelledby="shareContentHeading">
-              <h3 id="shareContentHeading">Content</h3>
+            <div class="share-image-settings share-control-pair">
+              <label><span>Background</span><input id="shareTripBackground" type="color" value="#131b24" /></label>
+              <label><span>Text color</span><input id="shareTripTextColor" type="color" value="#edf3f8" /></label>
+            </div>
+            <div class="share-image-settings share-control-pair">
+              <label><span>Preset name</span><input id="shareTripAppearanceName" maxlength="40" placeholder="My lake palette" /></label>
+              <button id="shareSaveAppearance" class="share-save-appearance" type="button">Save</button>
+            </div>
+            <section class="share-option-group share-content-group share-image-settings" aria-labelledby="shareImageContentHeading">
+              <h3 id="shareImageContentHeading">Content</h3>
               <div>
+                <label class="share-check share-content-card"><input id="shareStatLanded" type="checkbox" checked /><span>Landed</span></label>
+                <label class="share-check share-content-card"><input id="shareStatMissed" type="checkbox" checked /><span>Lost</span></label>
+                <label class="share-check share-content-card"><input id="shareStatBiggest" type="checkbox" checked /><span>Biggest fish</span></label>
+                <label class="share-check share-content-card"><input id="shareStatRate" type="checkbox" checked /><span>Fish / hr</span></label>
+                <label class="share-check share-content-card"><input id="shareStatHours" type="checkbox" checked /><span>Hours</span></label>
+                <label class="share-check share-content-card"><input id="shareStatFow" type="checkbox" checked /><span>Water depth</span></label>
                 <label class="share-check share-content-card"><input id="shareShowNotes" type="checkbox" checked /><span>Trip notes</span></label>
                 <label class="share-check share-content-card"><input id="shareShowConditions" type="checkbox" checked /><span>Conditions</span></label>
+                <label class="share-check share-content-card"><input id="shareShowHighlights" type="checkbox" checked /><span>Trip highlights</span></label>
                 <label class="share-check share-content-card"><input id="shareShowTimeline" type="checkbox" checked /><span>Catch timeline</span></label>
                 <label class="share-check share-content-card"><input id="shareIncludeMisses" type="checkbox" checked /><span>Missed or lost fish</span></label>
-                <label class="share-check share-content-card"><input id="shareShowLures" type="checkbox" checked /><span>Exact lure details</span></label>
-                <label class="share-check share-content-card"><input id="shareShowEmpty" type="checkbox" /><span>Empty fields</span></label>
-                <label class="share-check share-content-card"><input id="shareShowLocation" type="checkbox" /><span>Exact fishing area</span></label>
+                <label class="share-check share-content-card"><input id="shareShowBestLure" type="checkbox" checked /><span>Show best lure</span></label>
+                <label class="share-check share-content-card"><input id="shareShowBestFlasher" type="checkbox" checked /><span>Show best flasher</span></label>
+                <button class="share-lure-flip-button" id="shareFlipBestLurePhoto" type="button">Flip best lure photo</button>
+              </div>
+            </section>
+            <section class="share-option-group share-content-group share-text-settings" aria-labelledby="shareTextContentHeading" hidden>
+              <h3 id="shareTextContentHeading">Content</h3>
+              <div>
+                <label class="share-check share-content-card"><input id="shareTextShowNotes" type="checkbox" checked /><span>Trip notes</span></label>
+                <label class="share-check share-content-card"><input id="shareTextShowConditions" type="checkbox" checked /><span>Conditions</span></label>
+                <label class="share-check share-content-card"><input id="shareTextShowHighlights" type="checkbox" checked /><span>Trip highlights</span></label>
+                <label class="share-check share-content-card"><input id="shareTextShowTimeline" type="checkbox" checked /><span>Catch timeline</span></label>
+                <label class="share-check share-content-card"><input id="shareTextIncludeMisses" type="checkbox" checked /><span>Missed or lost fish</span></label>
+                <p class="share-content-subheading">Timeline fields</p>
+                <label class="share-check share-content-card"><input id="shareTextTimelineNumber" type="checkbox" checked /><span>Fish number</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineTime" type="checkbox" checked /><span>Time</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineResult" type="checkbox" checked /><span>Result</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineSpecies" type="checkbox" checked /><span>Species</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineSize" type="checkbox" checked /><span>Size</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineWaterDepth" type="checkbox" checked /><span>Water depth</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineMethod" type="checkbox" checked /><span>Method</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineDepth" type="checkbox" checked /><span>Depth down</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineSpeed" type="checkbox" checked /><span>Speed</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineLure" type="checkbox" checked /><span>Lure</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineFlasher" type="checkbox" checked /><span>Flasher</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineNotes" type="checkbox" checked /><span>Catch notes</span></label>
               </div>
             </section>
           </form>
           <section class="share-trip-preview-panel" aria-label="Live report preview">
-            <div class="share-preview-heading"><h3>Preview</h3><span>Live trip report</span></div>
+            <div class="share-preview-heading"><h3>Preview</h3></div>
             <div id="shareTripPreviewFrame" class="share-trip-preview-frame">
               <div id="shareTripPreview" class="share-trip-preview" aria-live="polite"></div>
             </div>
@@ -944,13 +1034,18 @@
               <legend>Trip Time</legend>
               <div class="trip-time-inputs">
                 <label>
-                  <span class="visually-hidden">Start time</span>
-                  <input id="startTime" type="time" />
+                  <span>Launch time</span>
+                  <input id="launchTime" type="time" />
                 </label>
                 <span class="trip-time-separator" aria-hidden="true">&#8594;</span>
                 <label>
-                  <span class="visually-hidden">End time</span>
-                  <input id="endTime" type="time" />
+                  <span>Lines set time</span>
+                  <input id="linesSetTime" type="time" />
+                </label>
+                <span class="trip-time-separator" aria-hidden="true">&#8594;</span>
+                <label>
+                  <span>Lines pulled time</span>
+                  <input id="linesPulledTime" type="time" />
                 </label>
               </div>
             </fieldset>
@@ -1284,8 +1379,12 @@
             <select id="lureSpoonSize"></select>
           </label>
           <label>
-            <span>Brand / model</span>
+            <span>Brand</span>
             <input id="lureBrand" type="text" placeholder="Acme" />
+          </label>
+          <label>
+            <span>Model</span>
+            <input id="lureModel" type="text" placeholder="Model name" />
           </label>
           <label>
             <span>Color</span>
@@ -1355,8 +1454,12 @@
             <select id="flasherType"></select>
           </label>
           <label>
-            <span>Brand / model</span>
+            <span>Brand</span>
             <input id="flasherBrand" type="text" placeholder="Dreamweaver" />
+          </label>
+          <label>
+            <span>Model</span>
+            <input id="flasherModel" type="text" placeholder="Model name" />
           </label>
           <label>
             <span>Color</span>

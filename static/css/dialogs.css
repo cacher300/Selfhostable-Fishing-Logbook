@@ -271,9 +271,10 @@
 }
 
 .lure-info-media {
+  justify-self: center;
+  width: fit-content;
+  max-width: 100%;
   overflow: hidden;
-  min-height: 240px;
-  max-height: 420px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f4f7fa;
@@ -281,10 +282,11 @@
 
 .lure-info-media img,
 .lure-info-media video {
-  width: 100%;
-  height: 100%;
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
   max-height: 420px;
-  object-fit: contain;
 }
 
 .lure-info-list {
@@ -295,8 +297,7 @@
 }
 
 .lure-info-list div {
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 9px;
+  padding-bottom: 0;
 }
 
 .lure-info-list dt {

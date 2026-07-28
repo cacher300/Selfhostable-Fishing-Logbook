@@ -207,7 +207,9 @@ async function saveDefaultTrollingSpreadSettings(options = {}) {
 
 function renderPreferenceSettings() {
   applyThemePreference();
-  if (els.themeSelect) els.themeSelect.value = themePreference();
+  document.querySelectorAll("[data-theme-option]").forEach((input) => {
+    input.checked = input.value === themePreference();
+  });
   if (els.timeFormatSelect) els.timeFormatSelect.value = timeFormatPreference();
   document.querySelectorAll("[data-time-format-option]").forEach((input) => {
     input.checked = input.value === timeFormatPreference();
@@ -245,7 +247,8 @@ function applyThemePreference(theme = themePreference()) {
 }
 
 async function saveThemePreference(options = {}) {
-  const theme = els.themeSelect?.value === "dark" ? "dark" : "light";
+  const selectedTheme = document.querySelector("[data-theme-option]:checked")?.value;
+  const theme = selectedTheme === "dark" ? "dark" : "light";
   applyThemePreference(theme);
   state.settings = {
     ...(state.settings || {}),
@@ -259,7 +262,7 @@ async function saveThemePreference(options = {}) {
     );
   } catch (error) {
     applyThemePreference();
-    if (els.themeSelect) els.themeSelect.value = themePreference();
+    renderPreferenceSettings();
   }
 }
 

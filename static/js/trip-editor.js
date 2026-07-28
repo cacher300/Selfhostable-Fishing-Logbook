@@ -107,8 +107,9 @@ function validateTripForm() {
 function tripSaveWarnings() {
   const warnings = [];
   const importantFields = [
-    { field: document.querySelector("#startTime"), label: "Trip start time" },
-    { field: document.querySelector("#endTime"), label: "Trip end time" },
+    { field: document.querySelector("#launchTime"), label: "Launch time" },
+    { field: document.querySelector("#linesSetTime"), label: "Lines set time" },
+    { field: document.querySelector("#linesPulledTime"), label: "Lines pulled time" },
     { field: document.querySelector("#method"), label: "Fishing method" }
   ];
   importantFields
@@ -215,8 +216,9 @@ function openTripDialog(trip = null) {
   populateLocationSelect(location?.id || "");
   const launch = findLaunchByIdOrName(location, trip?.launchId, trip?.launch);
   populateLaunchSelect(launch?.id || "");
-  setValue("startTime", trip?.startTime || "");
-  setValue("endTime", trip?.endTime || "");
+  setValue("launchTime", trip?.launchTime || "");
+  setValue("linesSetTime", trip?.linesSetTime || trip?.startTime || "");
+  setValue("linesPulledTime", trip?.linesPulledTime || trip?.endTime || "");
   setValue("targetSpecies", trip?.targetSpecies || "");
   setValue("method", trip?.method || "");
   setTripIntent(tripIntent(trip || {}));
@@ -483,7 +485,7 @@ function addLostFishRow(fishItem = {}) {
 }
 
 function defaultFishTime(catchItem = {}) {
-  return catchItem.timeUnknown ? "" : (catchItem.time ?? getValue("startTime"));
+  return catchItem.timeUnknown ? "" : (catchItem.time ?? (getValue("linesSetTime") || getValue("launchTime")));
 }
 
 function updateUnknownTimeField(row) {
@@ -565,16 +567,16 @@ function updateCatchDetailsUnknown(row, { clear = false } = {}) {
 }
 
 function defaultSetupStartTime(gearItem = {}) {
-  return gearItem.startTime ?? getValue("startTime");
+  return gearItem.startTime ?? (getValue("linesSetTime") || getValue("launchTime"));
 }
 
 function defaultSetupEndTime(gearItem = {}) {
-  return gearItem.endTime ?? getValue("endTime");
+  return gearItem.endTime ?? getValue("linesPulledTime");
 }
 
 function syncTripTimesToBlankRows() {
-  const startTime = getValue("startTime");
-  const endTime = getValue("endTime");
+  const startTime = getValue("linesSetTime") || getValue("launchTime");
+  const endTime = getValue("linesPulledTime");
   if (startTime) {
     document.querySelectorAll("#catchRows .catch-time, #lostFishRows .catch-time, #tripGearRows .trip-gear-start-time").forEach((field) => {
       if (field.closest(".catch-row")?.querySelector(".catch-time-unknown")?.checked) return;
@@ -1259,9 +1261,12 @@ function collectTripFromForm() {
     locationId: location?.id || "",
     launch: launch?.name || "",
     launchId: launch?.id || "",
-    startTime: getValue("startTime"),
-    endTime: getValue("endTime"),
-    hours: calculateHours(getValue("startTime"), getValue("endTime")),
+    launchTime: getValue("launchTime"),
+    linesSetTime: getValue("linesSetTime"),
+    linesPulledTime: getValue("linesPulledTime"),
+    startTime: getValue("linesSetTime"),
+    endTime: getValue("linesPulledTime"),
+    hours: calculateHours(getValue("linesSetTime"), getValue("linesPulledTime")),
     targetSpecies: getValue("targetSpecies"),
     method: getValue("method"),
     intent: getTripIntent(),

@@ -45,6 +45,7 @@ function scopedTrips() {
     tripMatchesStatsDate(trip)
     && (activeStatsMethod === "All methods" || trip.method === activeStatsMethod)
     && (activeStatsFilters.location === "All locations" || trip.location === activeStatsFilters.location)
+    && (activeStatsFilters.launch === "All launches" || trip.launch === activeStatsFilters.launch)
     && (activeStatsFilters.waterClarity === "All clarity" || trip.waterClarity === activeStatsFilters.waterClarity)
     && (activeStatsFilters.weather === "All weather" || trip.weather === activeStatsFilters.weather)
     && (activeStatsFilters.month === "All months" || tripMonthName(trip) === activeStatsFilters.month)
@@ -579,18 +580,21 @@ function summarizeTripPerformance(trips, keyFn, totalHours, totalFish) {
   }));
 }
 
-function tripPerformanceRows(items) {
-  return filterPerformanceItems(sortPerformanceItems(items)).map((item) => [
-    item.name,
-    item.trips,
-    item.hasUsableTime ? trimNumber(item.hours) : "Missing time data",
-    item.fish,
-    item.hasUsableTime ? trimNumber(item.fishPerHour) : "n/a",
-    trimNumber(item.fishPerTrip),
-    `${trimNumber((item.skunkRate || 0) * 100)}%`,
-    item.confidence,
-    item.label
-  ]);
+function tripPerformanceRows(items, { includeLabel = true } = {}) {
+  return filterPerformanceItems(sortPerformanceItems(items)).map((item) => {
+    const row = [
+      item.name,
+      item.trips,
+      item.hasUsableTime ? trimNumber(item.hours) : "Missing time data",
+      item.fish,
+      item.hasUsableTime ? trimNumber(item.fishPerHour) : "n/a",
+      trimNumber(item.fishPerTrip),
+      `${trimNumber((item.skunkRate || 0) * 100)}%`,
+      item.confidence
+    ];
+    if (includeLabel) row.push(item.label);
+    return row;
+  });
 }
 
 function fishShareRows(items) {
@@ -672,6 +676,223 @@ function diagnosticTripAction(trip, label = "Open", sectionId = "", setupId = ""
   };
 }
 
+function saneStatsNumber(value, { min = -Infinity, max = Infinity } = {}) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const parsed = parseFirstNumber(value);
+  return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
+}
+
+function numericRangeLabel(value, step, suffix = "") {
+  const start = Math.floor(value / step) * step;
+  const end = start + step;
+  return `${trimNumber(start)}–${trimNumber(end)}${suffix}`;
+}
+
+function summarizeCatchMeasurement(records, valueFn, { step, suffix = "", min = -Infinity, max = Infinity } = {}) {
+  const map = new Map();
+  records.forEach((record) => {
+    const value = saneStatsNumber(valueFn(record), { min, max });
+    if (value === null) return;
+    const label = numericRangeLabel(value, step, suffix);
+    const current = map.get(label) || { label, fish: 0, trips: new Set(), values: [], lengths: [] };
+    current.fish += fishCount(record);
+    current.trips.add(record.trip.id);
+    current.values.push(value);
+    const length = saneStatsNumber(record.length, { min: 0, max: 200 });
+    if (length !== null) current.lengths.push(length);
+    map.set(label, current);
+  });
+  return [...map.values()]
+    .sort((a, b) => (a.values[0] || 0) - (b.values[0] || 0))
+    .map((item) => [
+      item.label,
+      item.fish,
+      item.trips.size,
+      trimNumber(item.values.reduce((sum, value) => sum + value, 0) / item.values.length),
+      item.lengths.length ? trimNumber(item.lengths.reduce((sum, value) => sum + value, 0) / item.lengths.length) : "n/a"
+    ]);
+}
+
+function summarizeSpeedDelta(records) {
+  const groups = new Map([
+    ["Ball slower", { fish: 0, trips: new Set(), deltas: [] }],
+    ["Matched", { fish: 0, trips: new Set(), deltas: [] }],
+    ["Ball faster", { fish: 0, trips: new Set(), deltas: [] }]
+  ]);
+  records.forEach((record) => {
+    const gps = saneStatsNumber(record.gpsSpeed || record.speed, { min: 0.1, max: 15 });
+    const ball = saneStatsNumber(record.ballSpeed, { min: 0.1, max: 15 });
+    if (gps === null || ball === null) return;
+    const delta = ball - gps;
+    const label = delta < -0.2 ? "Ball slower" : delta > 0.2 ? "Ball faster" : "Matched";
+    const group = groups.get(label);
+    group.fish += fishCount(record);
+    group.trips.add(record.trip.id);
+    group.deltas.push(delta);
+  });
+  return [...groups.entries()].filter(([, item]) => item.deltas.length).map(([label, item]) => [
+    label,
+    item.fish,
+    item.trips.size,
+    `${item.deltas.reduce((sum, value) => sum + value, 0) / item.deltas.length >= 0 ? "+" : ""}${trimNumber(item.deltas.reduce((sum, value) => sum + value, 0) / item.deltas.length)}`,
+    `${trimNumber(Math.min(...item.deltas))} to ${trimNumber(Math.max(...item.deltas))}`
+  ]);
+}
+
+function summarizeBestSpeedByDirection(records) {
+  const directions = new Map();
+  records.forEach((record) => {
+    const direction = String(record.direction || "").trim();
+    const speed = saneStatsNumber(record.gpsSpeed || record.speed, { min: 0.1, max: 15 });
+    if (!direction || speed === null) return;
+    const roundedSpeed = Math.round(speed * 10) / 10;
+    const speeds = directions.get(direction) || new Map();
+    const entry = speeds.get(roundedSpeed) || { speed: roundedSpeed, fish: 0, trips: new Set() };
+    entry.fish += fishCount(record);
+    entry.trips.add(record.trip.id);
+    speeds.set(roundedSpeed, entry);
+    directions.set(direction, speeds);
+  });
+  return [...directions.entries()]
+    .map(([direction, speeds]) => {
+      const best = [...speeds.values()].sort((a, b) => b.fish - a.fish || b.trips.size - a.trips.size || a.speed - b.speed)[0];
+      return [direction, `${trimNumber(best.speed)} mph`, best.fish, best.trips.size];
+    })
+    .sort((a, b) => b[2] - a[2] || String(a[0]).localeCompare(String(b[0])));
+}
+
+function summarizeShakers(records) {
+  const shakers = records.filter((record) => Boolean(record.shaker));
+  const standard = records.length - shakers.length;
+  return [
+    ["Shaker", shakers.length, formatPercent(shakers.length, records.length)],
+    ["Standard size", standard, formatPercent(standard, records.length)]
+  ];
+}
+
+function summarizeDistanceBehind(gearRecords, catches) {
+  const map = new Map();
+  gearRecords.filter((record) => record.source === "trip").forEach((record) => {
+    const distance = saneStatsNumber(record.distanceBehind, { min: 0, max: 1000 });
+    if (distance === null) return;
+    const label = numericRangeLabel(distance, 25, ` ${unitSymbol("depth")}`);
+    const current = map.get(label) || { fish: 0, minutes: 0, trips: new Set(), values: [] };
+    current.minutes += setupLineMinutes(record);
+    current.trips.add(record.trip.id);
+    current.values.push(distance);
+    current.fish += catches
+      .filter((catchItem) => catchItem.trip.id === record.trip.id && catchItem.setupLineId === record.id)
+      .reduce((sum, catchItem) => sum + fishCount(catchItem), 0);
+    map.set(label, current);
+  });
+  return [...map.entries()].map(([label, item]) => {
+    const hours = item.minutes / 60;
+    return [label, item.fish, trimNumber(hours), hours ? trimNumber(item.fish / hours) : "n/a", item.trips.size];
+  });
+}
+
+function probeProfileEntries(trip) {
+  return (trip.probeTemperatureProfile || []).map((entry) => ({
+    depth: saneStatsNumber(entry.depthFeet, { min: 0, max: 1000 }),
+    temperature: saneStatsNumber(entry.temperature, { min: -5, max: 100 })
+  })).filter((entry) => entry.depth !== null && entry.temperature !== null)
+    .sort((a, b) => a.depth - b.depth);
+}
+
+function tripThermoclineDepth(trip) {
+  const profile = probeProfileEntries(trip);
+  let best = null;
+  for (let index = 1; index < profile.length; index += 1) {
+    const depthChange = profile[index].depth - profile[index - 1].depth;
+    if (depthChange <= 0) continue;
+    const coolingRate = (profile[index - 1].temperature - profile[index].temperature) / depthChange;
+    if (!best || coolingRate > best.coolingRate) {
+      best = { depth: (profile[index - 1].depth + profile[index].depth) / 2, coolingRate };
+    }
+  }
+  return best && best.coolingRate > 0 ? best.depth : null;
+}
+
+function summarizeProbeProfiles(trips) {
+  const map = new Map();
+  trips.forEach((trip) => {
+    probeProfileEntries(trip).forEach((entry) => {
+      const current = map.get(entry.depth) || { temperatures: [], trips: new Set() };
+      current.temperatures.push(entry.temperature);
+      current.trips.add(trip.id);
+      map.set(entry.depth, current);
+    });
+  });
+  return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([depth, item]) => [
+    `${trimNumber(depth)} ${unitSymbol("depth")}`,
+    `${trimNumber(item.temperatures.reduce((sum, value) => sum + value, 0) / item.temperatures.length)}°`,
+    `${trimNumber(Math.min(...item.temperatures))}°`,
+    `${trimNumber(Math.max(...item.temperatures))}°`,
+    item.trips.size
+  ]);
+}
+
+function summarizeThermoclinePosition(records) {
+  const groups = new Map([
+    ["Above thermocline", { fish: 0, trips: new Set() }],
+    ["At thermocline", { fish: 0, trips: new Set() }],
+    ["Below thermocline", { fish: 0, trips: new Set() }]
+  ]);
+  records.forEach((record) => {
+    const thermocline = tripThermoclineDepth(record.trip);
+    const fishDepth = saneStatsNumber(record.depthDown || record.estimatedDepth, { min: 0, max: 1000 });
+    if (thermocline === null || fishDepth === null) return;
+    const label = fishDepth < thermocline - 10 ? "Above thermocline" : fishDepth > thermocline + 10 ? "Below thermocline" : "At thermocline";
+    const current = groups.get(label);
+    current.fish += fishCount(record);
+    current.trips.add(record.trip.id);
+  });
+  const total = [...groups.values()].reduce((sum, item) => sum + item.fish, 0);
+  return [...groups.entries()].filter(([, item]) => item.fish).map(([label, item]) => [
+    label, item.fish, item.trips.size, formatPercent(item.fish, total)
+  ]);
+}
+
+function statsCoverageRows(trips, records, gearRecords) {
+  const coverage = (label, matching, total, note) => [
+    label,
+    matching,
+    total,
+    formatPercent(matching, total),
+    note
+  ];
+  const validGps = records.filter((record) => saneStatsNumber(record.gpsSpeed || record.speed, { min: 0.1, max: 15 }) !== null).length;
+  const validBall = records.filter((record) => saneStatsNumber(record.ballSpeed, { min: 0.1, max: 15 }) !== null).length;
+  const spreadRows = gearRecords.filter((record) => record.source === "trip");
+  const validDistance = spreadRows.filter((record) => saneStatsNumber(record.distanceBehind, { min: 0, max: 1000 }) !== null).length;
+  const probeTrips = trips.filter((trip) => probeProfileEntries(trip).length >= 2).length;
+  const shakerTagged = records.filter((record) => Object.prototype.hasOwnProperty.call(record, "shaker")).length;
+  return [
+    coverage("GPS speed", validGps, records.length, "Catch records with usable GPS speed"),
+    coverage("Ball speed", validBall, records.length, "Catch records with usable probe speed"),
+    coverage("Shaker status", shakerTagged, records.length, "Catch records explicitly carrying shaker status"),
+    coverage("Distance behind", validDistance, spreadRows.length, "Timed setup rows with spread distance"),
+    coverage("Probe profile", probeTrips, trips.length, "Trips with at least two valid depth samples")
+  ];
+}
+
+function statsTripTrendRows(trips) {
+  return [...trips].sort((a, b) => compareTripsByDateTime(a, b, "asc")).map((trip) => {
+    const landed = scopedTripFish(trip);
+    const lost = filterRecordsByStats((trip.lostFish || []).map((item) => resolveTripLineRecord({ ...item, trip }))).length;
+    const hours = tripHours(trip);
+    return [
+      formatDate(trip.date),
+      trip.linesSetTime || trip.startTime ? formatDisplayTime(trip.linesSetTime || trip.startTime) : "—",
+      trip.linesPulledTime || trip.endTime ? formatDisplayTime(trip.linesPulledTime || trip.endTime) : "—",
+      hours ? trimNumber(hours) : "n/a",
+      landed,
+      lost,
+      hours ? trimNumber(landed / hours) : "n/a"
+    ];
+  });
+}
+
 function renderAdvancedStats() {
   const trips = scopedTrips();
   const records = filterRecordsByStats(catchRecords(trips));
@@ -684,25 +905,14 @@ function renderAdvancedStats() {
   const releasedFish = records.filter((record) => record.released).length;
   const keptFish = Math.max(0, fish - releasedFish);
   const hours = trips.reduce((sum, trip) => sum + tripHours(trip), 0);
-  const pounds = records.reduce((sum, record) => sum + catchWeight(record), 0);
   const lureMinutes = gearRecords.reduce((sum, record) => sum + (record.lureId ? number(record.lureMinutes) : 0), 0);
   const flasherMinutes = gearRecords.reduce((sum, record) => sum + (record.flasherId ? number(record.flasherMinutes) : 0), 0);
   const lureHours = lureMinutes / 60;
   const flasherHours = flasherMinutes / 60;
-  const skunkTrips = trips.filter((trip) => scopedTripFish(trip) === 0).length;
   const bestTrip = [...trips].sort((a, b) => scopedTripFish(b) - scopedTripFish(a))[0];
-  const bestCatchRateTrip = [...trips].sort((a, b) => scopedCatchRate(b) - scopedCatchRate(a))[0];
-  const tripsWithHours = trips
-    .map((trip) => ({ trip, hours: tripHours(trip) }))
-    .filter((item) => item.hours > 0);
-  const averageTripLength = tripsWithHours.length
-    ? tripsWithHours.reduce((sum, item) => sum + item.hours, 0) / tripsWithHours.length
-    : 0;
-  const longestTrip = [...tripsWithHours].sort((a, b) => b.hours - a.hours || compareTripsByDateTime(a.trip, b.trip, "desc"))[0];
-  const shortestTrip = [...tripsWithHours].sort((a, b) => a.hours - b.hours || compareTripsByDateTime(a.trip, b.trip, "desc"))[0];
 
   if (els.statsActiveScope) {
-    const scopeBits = [activeStatsMethod, activeStatsFilters.species, activeStatsFilters.location]
+    const scopeBits = [activeStatsMethod, activeStatsFilters.species, activeStatsFilters.location, activeStatsFilters.launch]
       .filter((value) => value && !value.startsWith("All "));
     const dateLabel = els.statsDateFilter?.selectedOptions?.[0]?.textContent || "All time";
     els.statsActiveScope.textContent = [dateLabel, ...(scopeBits.length ? scopeBits : ["All methods"])].join(" / ");
@@ -710,15 +920,20 @@ function renderAdvancedStats() {
 
   els.advancedMetricGrid.innerHTML = [
     ["Trips", trips.length],
-    ["Fishing hours", `${trimNumber(hours)} hr`],
     ["Landed fish", fish],
     ["Fish / hour", hours ? trimNumber(fish / hours) : "0"],
-    ["Fish / trip", trips.length ? trimNumber(fish / trips.length) : "0"],
-    ["Skunk trips", `${skunkTrips} (${formatPercent(skunkTrips, trips.length)})`],
-    ["Lost fish", lostFish],
-    ["Released / kept", `${releasedFish}/${keptFish}`],
-    ["Species", new Set(records.map((record) => record.species).filter(Boolean)).size]
-  ].map(([label, value]) => `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
+    ["Landing rate", formatPercent(fish, fishInteractions)],
+    ["Fishing hours", trimNumber(hours)],
+    ["Best trip", bestTrip ? `${scopedTripFish(bestTrip)} fish` : "—"]
+  ].map(([label, value], index) => {
+    const detail = index === 0 ? `${trimNumber(hours)} hours fished`
+      : index === 1 ? `${releasedFish} released · ${keptFish} kept`
+      : index === 2 ? `${trips.length ? trimNumber(fish / trips.length) : "0"} fish / trip`
+      : index === 3 ? `${lostFish} lost fish`
+      : index === 4 ? ""
+      : (bestTrip ? formatDate(bestTrip.date) : "No trips in scope");
+    return `<article class="metric-card metric-card-${index}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${detail ? `<small>${detail}</small>` : ""}</article>`;
+  }).join("");
 
   const performanceHeaders = ["Name", "Landed", "Lost", "Strikes", "Hours", "Fish / hr", "Strikes / hr", "Landing %", "Trips", "Fish / trip", "Time %", "Fish %", "Efficiency", "Delta", "Confidence", "Label"];
   const headersForPerformance = (name, items = []) => {
@@ -758,6 +973,12 @@ function renderAdvancedStats() {
   );
   renderStatsTable(els.lureTypeStatsTable, headersForPerformance("Lure Type", lureTypeItems), performanceRows(lureTypeItems, "Lure Type"));
   renderStatsTable(els.lureColorStatsTable, headersForPerformance("Lure Color", lureColorItems), performanceRows(lureColorItems, "Lure Color"));
+
+  const tripTrendRows = statsTripTrendRows(trips);
+  const speciesOverviewRows = summarizeBy(records.filter((record) => record.species), (record) => record.species)
+    .map((item) => [item.name, item.fish, item.trips.size, fish ? `${trimNumber((item.fish / fish) * 100)}%` : "0%"]);
+  renderStatsTable(els.tripTrendStatsTable, ["Trip", "Lines set", "Lines pulled", "Hours", "Landed", "Lost", "Fish / hr"], tripTrendRows);
+  renderStatsTable(els.speciesOverviewStatsTable, ["Species", "Fish", "Trips", "Share"], speciesOverviewRows);
 
   let flasherItems = [];
   let comboItems = [];
@@ -833,29 +1054,47 @@ function renderAdvancedStats() {
     })), hours, fish);
     renderTrollingHighlights(directionItems, lineSideItems, setupItems, fowRangeItems, comboItems);
     renderStatsTable(els.directionStatsTable, headersForPerformance("Direction", directionItems), performanceRows(directionItems, "Direction"));
+    renderStatsTable(els.directionSpeedStatsTable, ["Direction", "Best GPS speed", "Fish at speed", "Trips"], summarizeBestSpeedByDirection(trollingCatches));
     renderStatsTable(els.lineSideStatsTable, headersForPerformance("Line Side", lineSideItems), performanceRows(lineSideItems, "Line Side"));
     renderStatsTable(els.trollingSetupStatsTable, headersForPerformance("Method", setupItems), performanceRows(setupItems, "Method"));
     renderStatsTable(els.downriggerStatsTable, headersForPerformance("Deepest Rigger", downriggerItems), performanceRows(downriggerItems, "Rigger"));
     renderStatsTable(els.fowRangeStatsTable, ["FOW Range", "Fish", "Trips", "Fish Share"], fishShareRows(fowRangeItems));
+
+    const gpsSpeedRows = summarizeCatchMeasurement(trollingCatches, (record) => record.gpsSpeed || record.speed, { step: 0.5, suffix: " mph", min: 0.1, max: 15 });
+    const ballSpeedRows = summarizeCatchMeasurement(trollingCatches, (record) => record.ballSpeed, { step: 0.5, suffix: " mph", min: 0.1, max: 15 });
+    const speedDeltaRows = summarizeSpeedDelta(trollingCatches);
+    const distanceRows = summarizeDistanceBehind(trollingGear, trollingCatches);
+    const probeRows = summarizeProbeProfiles(trips);
+    const thermoclineRows = summarizeThermoclinePosition(trollingCatches);
+    renderStatsTable(els.gpsSpeedStatsTable, ["GPS Speed", "Fish", "Trips", "Avg Speed", "Avg Length"], gpsSpeedRows);
+    renderStatsTable(els.ballSpeedStatsTable, ["Ball Speed", "Fish", "Trips", "Avg Speed", "Avg Length"], ballSpeedRows);
+    renderStatsTable(els.speedDeltaStatsTable, ["Relationship", "Fish", "Trips", "Avg Delta", "Range"], speedDeltaRows);
+    renderStatsTable(els.shakerStatsTable, ["Catch Class", "Fish", "Rate"], summarizeShakers(trollingCatches));
+    renderStatsTable(els.distanceBehindStatsTable, ["Distance", "Fish", "Hours", "Fish / hr", "Trips"], distanceRows);
+    renderStatsTable(els.probeTemperatureStatsTable, [`Depth (${unitSymbol("depth")})`, "Avg Temp", "Min Temp", "Max Temp", "Trips"], probeRows);
+    renderStatsTable(els.thermoclineStatsTable, ["Position", "Fish", "Trips", "Fish Share"], thermoclineRows);
+    renderStatsTable(els.newDataCoverageStatsTable, ["Field", "Complete", "Total", "Coverage", "Meaning"], statsCoverageRows(trips, trollingCatches, trollingGear));
   } else {
     renderStatsMessage(els.flasherStatsTable, "Flashers are only tracked for trolling trips.");
     renderStatsMessage(els.comboStatsTable, "Lure + flasher combos are only tracked for trolling trips.");
     renderStatsMessage(els.trollingHighlightsTable, "Trolling-only stats appear when viewing All methods or Trolling.");
     renderStatsMessage(els.directionStatsTable, "Trolling direction is only tracked for trolling trips.");
+    renderStatsMessage(els.directionSpeedStatsTable, "Direction and GPS speed are only tracked for trolling catches.");
     renderStatsMessage(els.lineSideStatsTable, "Line side is only tracked for trolling trips.");
     renderStatsMessage(els.trollingSetupStatsTable, "Trolling method is only tracked for trolling trips.");
     renderStatsMessage(els.downriggerStatsTable, "Deepest rigger is only tracked for trolling trips.");
     renderStatsMessage(els.fowRangeStatsTable, "FOW ranges are only tracked for trolling trips.");
+    [els.gpsSpeedStatsTable, els.ballSpeedStatsTable, els.speedDeltaStatsTable, els.shakerStatsTable, els.distanceBehindStatsTable, els.probeTemperatureStatsTable, els.thermoclineStatsTable, els.newDataCoverageStatsTable]
+      .forEach((container) => renderStatsMessage(container, "This metric is available for trolling trips."));
   }
 
   renderStatsTable(els.outcomeStatsTable, ["Outcome", "Fish", "Rate"], outcomeRows(fish, releasedFish, keptFish, lostFish));
-  renderStatsTable(els.speciesStatsTable, ["Species", "Fish", "Trips", "Best Row", "Share"], summarizeBy(
+  renderStatsTable(els.speciesStatsTable, ["Species", "Fish", "Trips", "Most in one catch", "Share"], summarizeBy(
     records.filter((record) => record.species),
     (record) => record.species
   ).map((item) => [item.name, item.fish, item.trips.size, item.bestFish, fish ? `${trimNumber((item.fish / fish) * 100)}%` : "0%"]));
-  renderStatsTable(els.lostFishStatsTable, ["Species", "Lost", "Trips", "Share"], summarizeLostFish(lostRecords, lostFish));
-  renderStatsTable(els.bestPatternStatsTable, ["Pattern", "Fish", "Hours", "Fish / hr", "Trips", "Confidence"], summarizeBestPatterns(records, trips));
-  renderStatsTable(els.timeOfDayStatsTable, ["Time", "Fish", "Lost", "Share"], summarizeTimeOfDay(records, lostRecords, fishInteractions));
+  renderStatsTable(els.lostFishStatsTable, ["Species", "Lost", "Trips"], summarizeLostFish(lostRecords));
+  renderStatsTable(els.timeOfDayStatsTable, ["Time", "Fish", "Lost", "Share"], summarizeTimeOfDay(records, lostRecords));
   renderStatsTable(els.releaseStatsTable, ["Species", "Landed", "Released", "Kept", "Release %"], summarizeReleasePatterns(records));
   renderStatsTable(els.fowStatsTable, [`FOW (${unitSymbol("depth")})`, "Fish", "Trips", "Fish Share"], fishShareRows(fowItems));
   renderStatsTable(els.depthDownStatsTable, [`Depth Down (${unitSymbol("depth")})`, "Fish", "Trips", "Fish Share"], fishShareRows(depthItems));
@@ -878,8 +1117,8 @@ function renderAdvancedStats() {
   renderStatsTable(els.methodStatsTable, ["Method", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(methodItems));
   renderStatsTable(els.waterClarityStatsTable, ["Water Clarity", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(clarityItems));
   renderStatsTable(els.weatherStatsTable, ["Weather", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(weatherItems));
-  renderStatsTable(els.intentStatsTable, ["Intent", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(intentItems));
-  renderStatsTable(els.ratingStatsTable, ["Rating", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(ratingItems));
+  renderStatsTable(els.intentStatsTable, ["Intent", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence"], tripPerformanceRows(intentItems, { includeLabel: false }));
+  renderStatsTable(els.ratingStatsTable, ["Rating", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence"], tripPerformanceRows(ratingItems, { includeLabel: false }));
   renderStatsTable(els.monthStatsTable, ["Month", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(monthItems));
   const personItems = makePerformanceItems(summarizePeople(records, gearRecords).map((row) => ({
     name: row[0],
@@ -924,52 +1163,20 @@ function formatPercent(value, total) {
 function outcomeRows(landed, released, kept, lost) {
   const total = landed + lost;
   return [
-    ["Landed", landed, `${formatPercent(landed, total)} of landed + lost`],
-    ["Released after landing", released, `${formatPercent(released, landed)} of landed fish`],
-    ["Kept / harvested", kept, `${formatPercent(kept, landed)} of landed fish`],
-    ["Lost fish", lost, `${formatPercent(lost, total)} of landed + lost`]
+    ["Landed", landed, formatPercent(landed, total)],
+    ["Released after landing", released, formatPercent(released, landed)],
+    ["Kept / harvested", kept, formatPercent(kept, landed)],
+    ["Lost fish", lost, formatPercent(lost, total)]
   ];
 }
 
-function summarizeLostFish(records, totalLost) {
+function summarizeLostFish(records) {
   return summarizeBy(records.filter((record) => record.species || record.possibleSpecies), (record) => record.species || record.possibleSpecies)
     .map((item) => [
       item.name,
       item.uses,
-      item.trips.size,
-      totalLost ? `${trimNumber((item.uses / totalLost) * 100)}%` : "0%"
+      item.trips.size
     ]);
-}
-
-function summarizeBestPatterns(records, trips) {
-  const tripHoursById = new Map(trips.map((trip) => [trip.id, tripHours(trip)]));
-  const map = new Map();
-  records.forEach((record) => {
-    const pattern = [
-      record.species,
-      lureName(record.lureId),
-      flasherName(record.flasherId),
-      record.trip.waterClarity,
-      record.trip.weather
-    ].filter(Boolean).join(" / ");
-    if (!pattern) return;
-    const current = map.get(pattern) || { name: pattern, fish: 0, trips: new Set() };
-    current.fish += fishCount(record);
-    current.trips.add(record.trip.id);
-    map.set(pattern, current);
-  });
-  return [...map.values()].map((item) => {
-    const hours = [...item.trips].reduce((sum, tripId) => sum + (tripHoursById.get(tripId) || 0), 0);
-    return {
-      ...item,
-      hours,
-      rate: hours ? item.fish / hours : 0,
-      confidence: confidenceFor(hours, item.trips.size)
-    };
-  })
-    .sort((a, b) => b.rate - a.rate || b.fish - a.fish || b.trips.size - a.trips.size)
-    .slice(0, 12)
-    .map((item) => [item.name, item.fish, item.hours ? trimNumber(item.hours) : "Missing time data", item.rate ? trimNumber(item.rate) : "n/a", item.trips.size, item.confidence]);
 }
 
 function timeBucket(time) {
@@ -984,7 +1191,7 @@ function timeBucket(time) {
   return "Night";
 }
 
-function summarizeTimeOfDay(catches, lostRecords, totalInteractions) {
+function summarizeTimeOfDay(catches, lostRecords) {
   const order = ["Morning", "Midday", "Afternoon", "Evening", "Night", "No time"];
   const map = new Map(order.map((name) => [name, { name, landed: 0, lost: 0 }]));
   catches.forEach((record) => {
@@ -995,9 +1202,13 @@ function summarizeTimeOfDay(catches, lostRecords, totalInteractions) {
     const current = map.get(timeBucket(record.time));
     current.lost += 1;
   });
-  return [...map.values()]
+  const buckets = [...map.values()];
+  const timedInteractions = buckets
+    .filter((item) => item.name !== "No time")
+    .reduce((sum, item) => sum + item.landed + item.lost, 0);
+  return buckets
     .filter((item) => item.landed || item.lost)
-    .map((item) => [item.name, item.landed, item.lost, formatPercent(item.landed + item.lost, totalInteractions)]);
+    .map((item) => [item.name, item.landed, item.lost, item.name === "No time" ? "—" : formatPercent(item.landed + item.lost, timedInteractions)]);
 }
 
 function summarizeReleasePatterns(records) {

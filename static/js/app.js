@@ -134,7 +134,7 @@ document.querySelector("#comboShortName").addEventListener("input", (event) => {
   event.target.dataset.autoName = "";
 });
 els.saveChopRangesButton?.addEventListener("click", saveChopRanges);
-els.themeSelect?.addEventListener("change", saveThemePreference);
+document.querySelectorAll("[data-theme-option]").forEach((input) => input.addEventListener("change", saveThemePreference));
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
 els.addDefaultTrollingSpreadRowButton?.addEventListener("click", addDefaultTrollingSpreadRow);
 els.defaultTrollingSpreadRows?.addEventListener("change", () => {
@@ -259,6 +259,7 @@ els.statsIncludeLostToggle?.addEventListener("change", () => {
   ["species", els.statsSpeciesFilter],
   ["person", els.statsPersonFilter],
   ["location", els.statsLocationFilter],
+  ["launch", els.statsLaunchFilter],
   ["lure", els.statsLureFilter],
   ["flasher", els.statsFlasherFilter],
   ["waterClarity", els.statsWaterClarityFilter],
@@ -811,6 +812,12 @@ document.addEventListener("click", (event) => {
     if (lure) openLureDialog(lure);
   }
 
+  const inventoryLurePreviewButton = event.target.closest("[data-inventory-lure-id]");
+  if (inventoryLurePreviewButton) {
+    const lure = state.lures.find((item) => item.id === inventoryLurePreviewButton.dataset.inventoryLureId);
+    if (lure) openLureInfoDialog(lure, "inventory");
+  }
+
   const spreadLureButton = event.target.closest("[data-spread-lure-id]");
   if (spreadLureButton) {
     const lure = state.lures.find((item) => item.id === spreadLureButton.dataset.spreadLureId);
@@ -821,6 +828,18 @@ document.addEventListener("click", (event) => {
   if (spreadFlasherButton) {
     const flasher = state.flashers.find((item) => item.id === spreadFlasherButton.dataset.spreadFlasherId);
     if (flasher) openFlasherInfoDialog(flasher, "spread-preview");
+  }
+
+  const previewLureButton = event.target.closest("[data-preview-lure-id]");
+  if (previewLureButton) {
+    const lure = state.lures.find((item) => item.id === previewLureButton.dataset.previewLureId);
+    if (lure) openLureInfoDialog(lure, previewLureButton.closest("[data-row-id]")?.dataset.rowId || "");
+  }
+
+  const previewFlasherButton = event.target.closest("[data-preview-flasher-id]");
+  if (previewFlasherButton) {
+    const flasher = state.flashers.find((item) => item.id === previewFlasherButton.dataset.previewFlasherId);
+    if (flasher) openFlasherInfoDialog(flasher, previewFlasherButton.closest("[data-row-id]")?.dataset.rowId || "");
   }
 
   const editFlasherButton = event.target.closest("[data-edit-flasher]");
@@ -857,6 +876,16 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  const chartMetricSelect = event.target.closest("[data-stats-chart-metric]");
+  if (chartMetricSelect) {
+    const tableId = chartMetricSelect.dataset.statsChartMetric;
+    const metricIndex = Number(chartMetricSelect.value);
+    if (tableId && Number.isInteger(metricIndex)) {
+      activeStatsChartMetric[tableId] = metricIndex;
+      renderAdvancedStats();
+    }
+    return;
+  }
   const gallerySelect = event.target.closest("[data-gallery-select]");
   if (gallerySelect) {
     toggleGallerySelection(gallerySelect.dataset.gallerySelect, gallerySelect.checked);
@@ -921,7 +950,7 @@ document.addEventListener("change", (event) => {
     renderQueuedGearImage("rod");
     previewSelectedGearUploads("rod", event.target);
   }
-  if (event.target.matches("#startTime, #endTime")) {
+  if (event.target.matches("#launchTime, #linesSetTime, #linesPulledTime")) {
     syncTripTimesToBlankRows();
     scheduleTripWeatherPreview(true);
   }
@@ -983,7 +1012,7 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("input", (event) => {
-  if (event.target.matches("#startTime, #endTime")) {
+  if (event.target.matches("#launchTime, #linesSetTime, #linesPulledTime")) {
     syncTripTimesToBlankRows();
     scheduleTripWeatherPreview(true);
   }

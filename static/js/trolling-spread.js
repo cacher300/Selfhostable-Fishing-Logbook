@@ -41,6 +41,7 @@ function resolveTripLineRecord(record) {
     reelId: line.reelId || record.reelId || "",
     side: line.side || record.side || "",
     lineLabel: line.lineLabel || record.lineLabel || "",
+    direction: line.direction || record.direction || "",
     lureId: onCheater ? (line.cheaterLureId || record.lureId || "") : (line.lureId || record.lureId || ""),
     flasherId: onCheater ? "" : (line.flasherId || record.flasherId || ""),
     presentation: line.presentation || record.presentation || "",

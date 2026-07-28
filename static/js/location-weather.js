@@ -8,8 +8,8 @@ function tripDraftForWeather() {
   return {
     id: els.tripId.value || "",
     date: getValue("tripDate"),
-    startTime: getValue("startTime"),
-    endTime: getValue("endTime"),
+    startTime: getValue("linesSetTime"),
+    endTime: getValue("linesPulledTime"),
     location: location?.name || "",
     locationId: location?.id || "",
     launch: launch?.name || "",
@@ -736,7 +736,7 @@ function weatherTagForCode(code) {
 }
 
 function weatherCardConditionsLabel() {
-  const time = formatDisplayTime(document.querySelector("#startTime")?.value || "");
+  const time = formatDisplayTime(document.querySelector("#linesSetTime")?.value || "");
   return time ? `Conditions at ${time}` : "Trip-window conditions";
 }
 

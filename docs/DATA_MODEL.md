@@ -70,14 +70,15 @@ Coordinates must be within latitude/longitude bounds and cannot be `(0,0)`. Stri
 | Group | Verified fields |
 |---|---|
 | Identity/location | `id`, `title`, `date`, `location`, `locationId`, `launch`, `launchId` |
-| Time | `startTime`, `endTime`, `hours` |
+| Time | `launchTime`, `linesSetTime`, `linesPulledTime`, `hours` (`startTime`/`endTime` remain compatibility aliases) |
 | Classification | `targetSpecies`, `method`, `intent`, `tripRating` |
 | Conditions | `waterTemp`, `waterClarity`, `weather`, `waveHeight`, `waveChop`, `wind`, `structure` |
 | Narrative/media | `notes`, `notePhotos[]` |
 | Nested records | `people[]`, `gearUsed[]`, `catches[]`, `lostFish[]` |
 | Enrichment | `weatherData` |
 
-An end time earlier than start time is treated as overnight for hours and weather date selection.
+A lines pulled time earlier than lines set time is treated as overnight for hours and weather date selection.
+For legacy trips, `startTime` migrates to `linesSetTime` and `endTime` migrates to `linesPulledTime`; `launchTime` remains blank. Fishing duration, rates, weather windows, and time-based analytics use lines set through lines pulled.
 
 ## Setup Line (`trip.gearUsed[]`)
 

@@ -222,13 +222,13 @@ function renderLurePreview(row) {
   const image = lure.image ? mediaMarkup(lure, "", { download: false }) : "";
   const details = [lure.type, lure.brand, lure.color].filter(Boolean).join(" / ");
   preview.innerHTML = `
-    <div class="lure-preview-card">
+    <button class="lure-preview-card" type="button" data-preview-lure-id="${escapeHtml(lure.id)}" aria-label="Open preview for ${escapeHtml(lure.name || "lure")}">
       ${image}
       <div>
         <strong>${escapeHtml(lure.name)}</strong>
         <span>${escapeHtml(details || "Saved lure")}</span>
       </div>
-    </div>
+    </button>
   `;
 }
 
@@ -243,13 +243,13 @@ function renderFlasherPreview(row) {
   const image = flasher.image ? mediaMarkup(flasher, "", { download: false }) : "";
   const details = [flasher.type, flasher.brand, flasher.color].filter(Boolean).join(" / ");
   preview.innerHTML = `
-    <div class="flasher-preview-card">
+    <button class="flasher-preview-card" type="button" data-preview-flasher-id="${escapeHtml(flasher.id)}" aria-label="Open preview for ${escapeHtml(flasher.name || "flasher")}">
       ${image}
       <div>
         <strong>${escapeHtml(flasher.name)}</strong>
         <span>${escapeHtml(details || "Saved flasher")}</span>
       </div>
-    </div>
+    </button>
   `;
 }
 
@@ -294,12 +294,159 @@ function lureOptionsForType(type) {
   return state.lures.filter((lure) => String(lure.type || "").trim() === type);
 }
 
+function gearPickerItems(type) {
+  return type === "lure" ? state.lures : state.flashers;
+}
+
+function gearPickerLabel(item, fallback) {
+  return [item?.name || fallback, item?.color].filter(Boolean).join(" - ");
+}
+
+function gearPickerMedia(item, type) {
+  const source = previewImage(item);
+  if (!source) {
+    return `<span class="gear-picker-photo-placeholder" aria-hidden="true">${type === "lure" ? "L" : "F"}</span>`;
+  }
+  return isVideoMedia(item)
+    ? `<video src="${escapeHtml(source)}" muted preload="metadata" playsinline aria-hidden="true"></video>`
+    : `<img src="${escapeHtml(source)}" alt="" />`;
+}
+
+function closeGearPickers(except = null) {
+  document.querySelectorAll(".gear-media-picker.is-open").forEach((picker) => {
+    if (picker === except) return;
+    picker.classList.remove("is-open");
+    picker.querySelector(".gear-picker-trigger")?.setAttribute("aria-expanded", "false");
+    picker.querySelector(".gear-picker-menu")?.classList.add("hidden");
+  });
+}
+
+function gearPickerOptionMarkup(item, type, selected) {
+  return `
+    <button
+      class="gear-picker-option ${item.id === selected?.id ? "is-selected" : ""}"
+      type="button"
+      role="option"
+      aria-selected="${String(item.id === selected?.id)}"
+      data-gear-picker-option="${escapeHtml(item.id)}"
+    >
+      ${gearPickerMedia(item, type)}
+      <span>
+        <strong>${escapeHtml(gearPickerLabel(item, type === "lure" ? "Lure" : "Flasher"))}</strong>
+        <small>${escapeHtml([item.type, item.brand].filter(Boolean).join(" / ") || "Saved gear")}</small>
+      </span>
+      <span class="gear-picker-check" aria-hidden="true">✓</span>
+    </button>
+  `;
+}
+
+function lureTypePickerMarkup(selected) {
+  return `
+    <button class="gear-picker-option gear-picker-option-empty ${selected ? "" : "is-selected"}" type="button" role="option" aria-selected="${String(!selected)}" data-gear-picker-option="">
+      <span class="gear-picker-photo-placeholder" aria-hidden="true">—</span>
+      <span><strong>Select lure</strong><small>Clear selection</small></span>
+    </button>
+    ${savedLureTypes().map((lureType) => {
+      const lures = lureOptionsForType(lureType);
+      return `
+        <button class="gear-picker-option gear-picker-type-option" type="button" role="option" aria-selected="false" data-gear-picker-type="${escapeHtml(lureType)}">
+          <span><strong>${escapeHtml(lureType)}</strong><small>${lures.length} saved lure${lures.length === 1 ? "" : "s"}</small></span>
+          <span class="gear-picker-type-arrow" aria-hidden="true">›</span>
+        </button>
+      `;
+    }).join("")}
+  `;
+}
+
+function renderGearPicker(select, type) {
+  const picker = select?.closest(".gear-media-picker");
+  if (!picker) return;
+  const items = gearPickerItems(type);
+  const selected = items.find((item) => item.id === select.value);
+  const placeholder = type === "lure" ? "Select lure" : "No flasher";
+  const trigger = picker.querySelector(".gear-picker-trigger");
+  const menu = picker.querySelector(".gear-picker-options");
+  const count = picker.querySelector(".gear-picker-count");
+  const empty = picker.querySelector(".gear-picker-empty");
+  empty?.classList.add("hidden");
+  if (trigger) {
+    trigger.innerHTML = `
+      <span class="gear-picker-trigger-media">${gearPickerMedia(selected, type)}</span>
+      <span class="gear-picker-trigger-copy">
+        <strong>${escapeHtml(selected ? gearPickerLabel(selected, placeholder) : placeholder)}</strong>
+        <small>${escapeHtml(selected ? [selected.type, selected.brand].filter(Boolean).join(" / ") || "Saved gear" : `Choose from ${items.length} saved ${type}${items.length === 1 ? "" : "s"}`)}</small>
+      </span>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+    `;
+  }
+  if (!menu) return;
+  const query = picker.dataset.gearPickerQuery || "";
+  if (type === "lure" && !query && picker.dataset.gearPickerView !== "lures") {
+    if (count) count.textContent = `${savedLureTypes().length} types`;
+    menu.innerHTML = lureTypePickerMarkup(selected);
+    return;
+  }
+
+  const lureType = picker.dataset.gearPickerActiveType || "";
+  const filteredItems = items.filter((item) => {
+    if (query) return [item.name, item.color, item.type, item.brand].filter(Boolean).join(" ").toLowerCase().includes(query);
+    return type !== "lure" || String(item.type || "").trim() === lureType;
+  });
+  if (count) count.textContent = query ? `${filteredItems.length} found` : `${filteredItems.length} saved`;
+  menu.innerHTML = `
+    ${type === "lure" && !query ? `
+      <button class="gear-picker-back" type="button" data-gear-picker-back>
+        <span aria-hidden="true">‹</span>
+        All lure types
+      </button>
+      <p class="gear-picker-type-heading">${escapeHtml(lureType)}</p>
+    ` : ""}
+    ${type === "flasher" ? `
+      <button class="gear-picker-option gear-picker-option-empty ${selected ? "" : "is-selected"}" type="button" role="option" aria-selected="${String(!selected)}" data-gear-picker-option="">
+        <span class="gear-picker-photo-placeholder" aria-hidden="true">—</span>
+        <span><strong>${escapeHtml(placeholder)}</strong><small>Clear selection</small></span>
+      </button>
+    ` : ""}
+    ${filteredItems.map((item) => gearPickerOptionMarkup(item, type, selected)).join("")}
+  `;
+  empty?.classList.toggle("hidden", filteredItems.length > 0);
+}
+
+function enhanceGearSelect(select, type) {
+  if (!select) return;
+  let picker = select.closest(".gear-media-picker");
+  if (!picker) {
+    picker = document.createElement("div");
+    picker.className = "gear-media-picker";
+    picker.dataset.gearPicker = type;
+    picker.dataset.gearPickerView = type === "lure" ? "types" : "items";
+    select.parentNode.insertBefore(picker, select);
+    picker.append(select);
+    select.classList.add("gear-picker-native");
+    select.tabIndex = -1;
+    select.setAttribute("aria-hidden", "true");
+    picker.insertAdjacentHTML("beforeend", `
+      <button class="gear-picker-trigger" type="button" aria-haspopup="listbox" aria-expanded="false"></button>
+      <div class="gear-picker-menu hidden">
+        <div class="gear-picker-search-row">
+          <input class="gear-picker-search" type="search" placeholder="Search saved ${escapeHtml(type)}s…" aria-label="Search saved ${escapeHtml(type)}s" />
+          <span class="gear-picker-count"></span>
+        </div>
+        <div class="gear-picker-options" role="listbox" aria-label="Saved ${escapeHtml(type)}s"></div>
+        <p class="gear-picker-empty hidden">No matching ${escapeHtml(type)}s.</p>
+      </div>
+    `);
+  }
+  renderGearPicker(select, type);
+}
+
 function renderLureTypeOptions(select) {
   select.dataset.lurePickerMode = "types";
   select.dataset.lurePickerType = "";
   select.innerHTML = `<option value="">Select lure</option>` + savedLureTypes().map((type) => (
     `<option value="${escapeHtml(lureTypeOptionValue(type))}">${escapeHtml(type)}</option>`
   )).join("");
+  enhanceGearSelect(select, "lure");
 }
 
 function populateLureSelect(select, selectedId = "") {
@@ -319,6 +466,7 @@ function populateLuresForType(select, type, selectedId = "") {
     const label = [lure.name, lure.color].filter(Boolean).join(" - ");
     return `<option value="${lure.id}" ${lure.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
+  enhanceGearSelect(select, "lure");
 }
 
 function reopenLurePicker(select) {
@@ -335,7 +483,93 @@ function populateFlasherSelect(select, selectedId = "") {
     const label = [flasher.name, flasher.color].filter(Boolean).join(" - ");
     return `<option value="${flasher.id}" ${flasher.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
+  enhanceGearSelect(select, "flasher");
 }
+
+document.addEventListener("click", (event) => {
+  const trigger = event.target.closest(".gear-picker-trigger");
+  if (trigger) {
+    event.preventDefault();
+    const picker = trigger.closest(".gear-media-picker");
+    const opening = !picker.classList.contains("is-open");
+    closeGearPickers(opening ? picker : null);
+    picker.classList.toggle("is-open", opening);
+    trigger.setAttribute("aria-expanded", String(opening));
+    picker.querySelector(".gear-picker-menu")?.classList.toggle("hidden", !opening);
+    if (opening) {
+      const search = picker.querySelector(".gear-picker-search");
+      search.value = "";
+      picker.dataset.gearPickerQuery = "";
+      picker.dataset.gearPickerView = picker.dataset.gearPicker === "lure" ? "types" : "items";
+      picker.dataset.gearPickerActiveType = "";
+      renderGearPicker(picker.querySelector("select"), picker.dataset.gearPicker);
+      requestAnimationFrame(() => search.focus());
+    }
+    return;
+  }
+
+  const lureTypeOption = event.target.closest("[data-gear-picker-type]");
+  if (lureTypeOption) {
+    event.preventDefault();
+    const picker = lureTypeOption.closest(".gear-media-picker");
+    picker.dataset.gearPickerView = "lures";
+    picker.dataset.gearPickerActiveType = lureTypeOption.dataset.gearPickerType;
+    renderGearPicker(picker.querySelector("select"), "lure");
+    return;
+  }
+
+  const backButton = event.target.closest("[data-gear-picker-back]");
+  if (backButton) {
+    event.preventDefault();
+    const picker = backButton.closest(".gear-media-picker");
+    picker.dataset.gearPickerView = "types";
+    picker.dataset.gearPickerActiveType = "";
+    renderGearPicker(picker.querySelector("select"), "lure");
+    return;
+  }
+
+  const option = event.target.closest("[data-gear-picker-option]");
+  if (option) {
+    event.preventDefault();
+    const picker = option.closest(".gear-media-picker");
+    const select = picker.querySelector("select");
+    const type = picker.dataset.gearPicker;
+    const selectedId = option.dataset.gearPickerOption;
+    if (type === "lure") {
+      const lure = state.lures.find((item) => item.id === selectedId);
+      if (lure) populateLuresForType(select, String(lure.type || "").trim(), selectedId);
+      else renderLureTypeOptions(select);
+    } else {
+      select.value = selectedId;
+      renderGearPicker(select, type);
+    }
+    closeGearPickers();
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    picker.querySelector(".gear-picker-trigger")?.focus();
+    return;
+  }
+
+  if (!event.target.closest(".gear-media-picker")) closeGearPickers();
+});
+
+document.addEventListener("input", (event) => {
+  if (!event.target.matches(".gear-picker-search")) return;
+  const picker = event.target.closest(".gear-media-picker");
+  const query = event.target.value.trim().toLowerCase();
+  picker.dataset.gearPickerQuery = query;
+  picker.dataset.gearPickerView = query ? "search" : (picker.dataset.gearPicker === "lure" ? "types" : "items");
+  if (!query) picker.dataset.gearPickerActiveType = "";
+  renderGearPicker(picker.querySelector("select"), picker.dataset.gearPicker);
+});
+
+document.addEventListener("keydown", (event) => {
+  const picker = event.target.closest?.(".gear-media-picker");
+  if (!picker) return;
+  if (event.key === "Escape" && picker.classList.contains("is-open")) {
+    closeGearPickers();
+    picker.querySelector(".gear-picker-trigger")?.focus();
+  }
+});
 
 function syncComboToRow(row) {
   const combo = state.rodReelCombos.find((item) => item.id === row.querySelector(".trip-gear-combo")?.value);
@@ -494,6 +728,7 @@ function openLureDialog(lure = null, pendingRowId = "") {
   setValue("lureSpoonSize", lure?.spoonSize || "");
   updateLureDivingDepthField();
   setValue("lureBrand", lure?.brand || "");
+  setValue("lureModel", lure?.model || "");
   setValue("lureColor", lure?.color || "");
   setValue("lureQuantityAvailable", lure?.quantityAvailable ?? "");
   document.querySelector("#lureGlow").checked = Boolean(lure?.glow);
@@ -514,7 +749,8 @@ function openLureInfoDialog(lure, pendingRowId = "") {
     ["Diving depth", hasDivingDepth ? lure.divingDepth : ""],
     ["Blade type", hasBladeType ? lure.bladeType : ""],
     ["Spoon size", hasSpoonSize ? lure.spoonSize : ""],
-    ["Brand / model", lure.brand],
+    ["Brand", lure.brand],
+    ["Model", lure.model],
     ["Color", lure.color],
     ["Quantity owned", lure.quantityAvailable],
     ["Glow", lure.glow ? "Yes" : "No"],
@@ -566,6 +802,7 @@ function openFlasherDialog(flasher = null, pendingRowId = "") {
   setValue("flasherName", flasher?.name || "");
   setValue("flasherType", flasher?.type || "");
   setValue("flasherBrand", flasher?.brand || "");
+  setValue("flasherModel", flasher?.model || "");
   setValue("flasherColor", flasher?.color || "");
   document.querySelector("#flasherGlow").checked = Boolean(flasher?.glow);
   setValue("flasherNotes", flasher?.notes || "");
@@ -579,7 +816,8 @@ function openFlasherInfoDialog(flasher, pendingRowId = "") {
   const stats = baitStats("flasher", flasher.id);
   const details = [
     ["Type", flasher.type],
-    ["Brand / model", flasher.brand],
+    ["Brand", flasher.brand],
+    ["Model", flasher.model],
     ["Color", flasher.color],
     ["Glow", flasher.glow ? "Yes" : "No"],
     ["Fish lost", stats.lost],
@@ -737,6 +975,7 @@ async function saveLure(event) {
       bladeType: isWormHarnessType(getValue("lureType")) ? getValue("lureBladeType") : "",
       spoonSize: isSpoonType(getValue("lureType")) ? getValue("lureSpoonSize") : "",
       brand: getValue("lureBrand"),
+      model: getValue("lureModel"),
       color: getValue("lureColor"),
       quantityAvailable: getValue("lureQuantityAvailable"),
       glow: document.querySelector("#lureGlow").checked,
@@ -782,6 +1021,7 @@ async function saveFlasher(event) {
       name: getValue("flasherName"),
       type: getValue("flasherType"),
       brand: getValue("flasherBrand"),
+      model: getValue("flasherModel"),
       color: getValue("flasherColor"),
       glow: document.querySelector("#flasherGlow").checked,
       notes: getValue("flasherNotes"),
@@ -989,9 +1229,10 @@ function renderBaitInventory() {
     const stats = baitStats("lure", lure.id);
     return [
       inventoryThumb(lure),
-      escapeHtml(lure.name || "-"),
+      `<button class="inventory-gear-preview-link" type="button" data-inventory-lure-id="${escapeHtml(lure.id)}" aria-label="Open preview for ${escapeHtml(lure.name || "lure")}">${escapeHtml(lure.name || "-")}</button>`,
       escapeHtml(lure.type || "-"),
       escapeHtml(lure.brand || "-"),
+      escapeHtml(lure.model || "-"),
       escapeHtml(lure.color || "-"),
       escapeHtml(lure.quantityAvailable === "" || lure.quantityAvailable === null || lure.quantityAvailable === undefined ? "-" : lure.quantityAvailable),
       stats.lost,
@@ -1000,7 +1241,7 @@ function renderBaitInventory() {
       `<button class="button secondary" type="button" data-edit-lure="${escapeHtml(lure.id)}">Edit</button>`
     ];
   });
-  renderInventoryTable(els.baitInventoryTable, ["Photo", "Lure", "Type", "Brand", "Color", "Owned", "Lost", "Trips", "Last Used", ""], rows, "No saved lures yet.");
+  renderInventoryTable(els.baitInventoryTable, ["Photo", "Lure", "Type", "Brand", "Model", "Color", "Owned", "Lost", "Trips", "Last Used", ""], rows, "No saved lures yet.");
 }
 
 function renderFlasherInventory() {
@@ -1011,6 +1252,7 @@ function renderFlasherInventory() {
       escapeHtml(flasher.name || "-"),
       escapeHtml(flasher.type || "-"),
       escapeHtml(flasher.brand || "-"),
+      escapeHtml(flasher.model || "-"),
       escapeHtml(flasher.color || "-"),
       stats.lost,
       stats.trips,
@@ -1018,7 +1260,7 @@ function renderFlasherInventory() {
       `<button class="button secondary" type="button" data-edit-flasher="${escapeHtml(flasher.id)}">Edit</button>`
     ];
   });
-  renderInventoryTable(els.flasherInventoryTable, ["Photo", "Flasher", "Type", "Brand", "Color", "Lost", "Trips", "Last Used", ""], rows, "No saved flashers yet.");
+  renderInventoryTable(els.flasherInventoryTable, ["Photo", "Flasher", "Type", "Brand", "Model", "Color", "Lost", "Trips", "Last Used", ""], rows, "No saved flashers yet.");
 }
 
 function setGearTab(tab) {

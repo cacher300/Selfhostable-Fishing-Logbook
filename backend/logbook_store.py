@@ -235,6 +235,13 @@ def normalize_logbook(payload: dict | None = None) -> dict:
     for trip in normalized["trips"]:
         if not isinstance(trip, dict):
             continue
+        lines_set_time = str(trip.get("linesSetTime") or trip.get("startTime") or "")
+        lines_pulled_time = str(trip.get("linesPulledTime") or trip.get("endTime") or "")
+        trip["launchTime"] = str(trip.get("launchTime") or "")
+        trip["linesSetTime"] = lines_set_time
+        trip["linesPulledTime"] = lines_pulled_time
+        trip["startTime"] = lines_set_time
+        trip["endTime"] = lines_pulled_time
         for person in trip.get("people", []):
             if (
                 isinstance(person, dict)

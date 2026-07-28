@@ -33,12 +33,12 @@ function catchRate(trip) {
 }
 
 function tripHours(trip) {
-  const calculated = calculateHours(trip.startTime, trip.endTime);
+  const calculated = calculateHours(trip.linesSetTime || trip.startTime, trip.linesPulledTime || trip.endTime);
   return calculated || number(trip.hours);
 }
 
 function tripStartMinutes(trip) {
-  const match = String(trip?.startTime || "").match(/^(\d{1,2}):(\d{2})$/);
+  const match = String(trip?.linesSetTime || trip?.startTime || "").match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   return (Number(match[1]) * 60) + Number(match[2]);
 }
@@ -300,6 +300,12 @@ function renderStatsMethodFilter() {
   if (!locations.includes(activeStatsFilters.location)) activeStatsFilters.location = "All locations";
   els.statsLocationFilter.innerHTML = locations.map((item) => (
     `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.location ? "selected" : ""}>${escapeHtml(item)}</option>`
+  )).join("");
+
+  const launches = ["All launches", ...new Set(state.trips.map((trip) => trip.launch).filter(Boolean))];
+  if (!launches.includes(activeStatsFilters.launch)) activeStatsFilters.launch = "All launches";
+  els.statsLaunchFilter.innerHTML = launches.map((item) => (
+    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.launch ? "selected" : ""}>${escapeHtml(item)}</option>`
   )).join("");
 
   const lures = ["All lures", ...state.lures.map((lure) => lure.name).filter(Boolean)];

@@ -291,6 +291,7 @@
   overflow: auto;
   max-height: calc(100vh - 32px);
   padding: clamp(32px, 4vw, 52px);
+  background: var(--panel);
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -508,7 +509,8 @@
   max-width: 1440px;
   margin: 32px auto 0;
   padding: 20px 0 0;
-  border-top: 1px solid #e4e9f0;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
 }
 
 .summary-notes-card,

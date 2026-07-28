@@ -15,6 +15,43 @@ os.environ.setdefault("SECRET_KEY", "module-import-test-secret")
 from backend import logbook_store
 
 class LogbookStoreTests(unittest.TestCase):
+    def test_legacy_trip_start_time_migrates_to_lines_set_time(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [{"id": "trip-1", "startTime": "06:15", "endTime": "12:30"}],
+                "lures": [],
+                "flashers": [],
+            }
+        )
+        trip = normalized["trips"][0]
+        self.assertEqual("", trip["launchTime"])
+        self.assertEqual("06:15", trip["linesSetTime"])
+        self.assertEqual("12:30", trip["linesPulledTime"])
+        self.assertEqual("06:15", trip["startTime"])
+        self.assertEqual("12:30", trip["endTime"])
+
+    def test_dedicated_line_times_override_compatibility_aliases(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [{
+                    "id": "trip-1",
+                    "launchTime": "05:45",
+                    "linesSetTime": "06:10",
+                    "linesPulledTime": "12:40",
+                    "startTime": "05:45",
+                    "endTime": "12:30",
+                }],
+                "lures": [],
+                "flashers": [],
+            }
+        )
+        trip = normalized["trips"][0]
+        self.assertEqual("05:45", trip["launchTime"])
+        self.assertEqual("06:10", trip["startTime"])
+        self.assertEqual("12:40", trip["endTime"])
+
     def test_rejects_future_schema_version_with_clear_error(self) -> None:
         valid, error = logbook_store.validate_logbook(
             {"schemaVersion": 2, "trips": [], "lures": [], "flashers": []}

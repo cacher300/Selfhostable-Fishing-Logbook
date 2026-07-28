@@ -494,7 +494,12 @@
   }
 
   #tripDialog .trip-time-inputs {
-    grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr);
+    grid-template-columns: 1fr;
+  }
+
+  #tripDialog .trip-time-separator {
+    height: 20px;
+    transform: rotate(90deg);
   }
 
   #tripDialog .catch-field-with-option,
@@ -971,4 +976,26 @@
 
 #tripSummaryBody .summary-metrics .metric-card strong {
   font-size: 28px;
+}
+
+@media (max-width: 760px) {
+  .stats-page .stats-toolbar,
+  .stats-page .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stats-page .stats-more-filters[open],
+  .stats-page .metric-card:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 390px) {
+  .stats-page .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-page .metric-card:last-child {
+    grid-column: auto;
+  }
 }
