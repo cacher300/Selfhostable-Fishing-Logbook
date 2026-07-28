@@ -23,9 +23,9 @@ class BathymetryServiceTests(unittest.TestCase):
         ):
             result = bathymetry_service.lookup_depth(43.0, -79.0)
 
-        self.assertEqual(52.5, result["depth_ft"])
-        self.assertAlmostEqual(16.002, result["depth_m"], places=3)
-        self.assertEqual("52.5", bathymetry_service.format_fow_value(result["depth_ft"], result["depth_m"]))
+        self.assertEqual(53, result["depth_ft"])
+        self.assertEqual(16, result["depth_m"])
+        self.assertEqual("53", bathymetry_service.format_fow_value(result["depth_ft"], result["depth_m"]))
 
     def test_lookup_depth_adds_user_offset(self) -> None:
         with patch.object(
@@ -44,9 +44,9 @@ class BathymetryServiceTests(unittest.TestCase):
                 {"Ontario": {"offshoreOffsetFeet": 7.5}},
             )
 
-        self.assertEqual(55.875, result["depth_ft"])
-        self.assertAlmostEqual(17.031, result["depth_m"], places=3)
-        self.assertEqual("55.9", bathymetry_service.format_fow_value(result["depth_ft"], result["depth_m"]))
+        self.assertEqual(56, result["depth_ft"])
+        self.assertEqual(17, result["depth_m"])
+        self.assertEqual("56", bathymetry_service.format_fow_value(result["depth_ft"], result["depth_m"]))
 
     def test_lookup_depth_uses_only_the_matching_lake_offset(self) -> None:
         with patch.object(
@@ -68,7 +68,7 @@ class BathymetryServiceTests(unittest.TestCase):
                 },
             )
 
-        self.assertEqual(51.6, result["depth_ft"])
+        self.assertEqual(52, result["depth_ft"])
 
     def test_lookup_depth_ramps_between_shallow_and_offshore_adjustments(self) -> None:
         with patch.object(
@@ -87,7 +87,7 @@ class BathymetryServiceTests(unittest.TestCase):
                 {"Erie": {"shallowOffsetFeet": 0, "offshoreOffsetFeet": 5}},
             )
 
-        self.assertEqual(57.5, result["depth_ft"])
+        self.assertEqual(58, result["depth_ft"])
 
     def test_lookup_depth_preserves_negative_depth_sign_when_offsetting(self) -> None:
         with patch.object(
@@ -102,9 +102,9 @@ class BathymetryServiceTests(unittest.TestCase):
         ):
             result = bathymetry_service.lookup_depth(43.0, -79.0)
 
-        self.assertEqual(-52.5, result["depth_ft"])
-        self.assertAlmostEqual(-16.002, result["depth_m"], places=3)
-        self.assertEqual("52.5", bathymetry_service.format_fow_value(result["depth_ft"], result["depth_m"]))
+        self.assertEqual(-53, result["depth_ft"])
+        self.assertEqual(-16, result["depth_m"])
+        self.assertEqual("53", bathymetry_service.format_fow_value(result["depth_ft"], result["depth_m"]))
 
     def test_lookup_depth_does_not_turn_zero_depth_into_offset(self) -> None:
         with patch.object(

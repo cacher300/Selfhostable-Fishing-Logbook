@@ -957,11 +957,12 @@
 }
 
 .stats-page .stats-group-new-data {
-  border-color: #91cbc5;
+  border-color: var(--stats-border);
+  overflow: hidden;
 }
 
 .stats-page .stats-group-new-data > summary {
-  background: color-mix(in srgb, var(--stats-teal) 8%, var(--stats-panel));
+  background: var(--stats-panel);
 }
 
 .stats-page .analytics-card {

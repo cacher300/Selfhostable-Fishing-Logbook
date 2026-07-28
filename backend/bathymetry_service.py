@@ -52,8 +52,8 @@ def lookup_depth(latitude: float, longitude: float, lake_calibrations_feet: obje
         ),
     )
     return {
-        "depth_m": depth_m,
-        "depth_ft": depth_ft,
+        "depth_m": rounded_depth(depth_m),
+        "depth_ft": rounded_depth(depth_ft),
         "lake_name": attributes.get("Lake"),
         "depth_source": DEPTH_SOURCE,
     }
@@ -65,6 +65,13 @@ def finite_float(value: object) -> float | None:
     except (TypeError, ValueError):
         return None
     return number if math.isfinite(number) else None
+
+
+def rounded_depth(value: object) -> int | None:
+    number = finite_float(value)
+    if number is None:
+        return None
+    return int(math.copysign(math.floor(abs(number) + 0.5), number))
 
 
 def signed_depth(value: float, magnitude: float) -> float:

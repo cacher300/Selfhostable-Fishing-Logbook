@@ -444,6 +444,10 @@ function deepestRiggerLabel(record) {
   return record.deepestRigger ? "Deepest rigger" : "Higher rigger";
 }
 
+function riggerMethodComparisonLabel(record) {
+  return deepestRiggerLabel(record) || presentationLabel(record.presentation) || "Other method";
+}
+
 function summarizeDownriggerCatchPositions(catchRecords = [], lostRecords = [], totalFish = 0) {
   const map = new Map();
   const ensure = (key) => {
@@ -452,7 +456,7 @@ function summarizeDownriggerCatchPositions(catchRecords = [], lostRecords = [], 
     return current;
   };
   catchRecords.forEach((record) => {
-    const key = deepestRiggerLabel(record);
+    const key = riggerMethodComparisonLabel(record);
     if (!key) return;
     const current = ensure(key);
     current.fish += fishCount(record);
@@ -460,7 +464,7 @@ function summarizeDownriggerCatchPositions(catchRecords = [], lostRecords = [], 
     current.trips.add(record.trip.id);
   });
   lostRecords.forEach((record) => {
-    const key = deepestRiggerLabel(record);
+    const key = riggerMethodComparisonLabel(record);
     if (!key) return;
     const current = ensure(key);
     current.lost += 1;
@@ -595,6 +599,26 @@ function tripPerformanceRows(items, { includeLabel = true } = {}) {
     if (includeLabel) row.push(item.label);
     return row;
   });
+}
+
+function catchComparisonRows(items, labelHeader = "Name") {
+  return items
+    .filter((item) => !activeStatsMinTrips || item.trips >= activeStatsMinTrips)
+    .sort((left, right) => (
+      ((activeStatsIncludeLost ? right.strikes : right.fish) - (activeStatsIncludeLost ? left.strikes : left.fish))
+      || right.fish - left.fish
+      || String(left.name).localeCompare(String(right.name))
+    ))
+    .map((item) => [
+      item.name || labelHeader,
+      item.fish,
+      item.lost || 0,
+      item.strikes || item.fish + (item.lost || 0),
+      item.landingPercentage === null ? "n/a" : `${trimNumber(item.landingPercentage * 100)}%`,
+      item.trips,
+      trimNumber(item.fishPerTrip),
+      `${trimNumber(item.catchShare)}%`
+    ]);
 }
 
 function fishShareRows(items) {
@@ -1021,15 +1045,14 @@ function renderAdvancedStats() {
 
     trollingCatches = records.filter(isTrollingRecord);
     trollingLost = lostRecords.filter(isTrollingRecord);
+    const trollingFish = trollingCatches.reduce((total, record) => total + fishCount(record), 0);
     directionItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => record.direction, setupLineMinutes, trollingLineHours, fish, trollingLost);
     lineSideItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => setupLineSideLabel(record.side), setupLineMinutes, trollingLineHours, fish, trollingLost);
     setupItems = summarizeEffortWithCatches(trollingGear, trollingCatches, (record) => presentationLabel(record.presentation), setupLineMinutes, trollingLineHours, fish, trollingLost);
-    const downriggerCatches = trollingCatches.filter((record) => ["downrigger", "Downrigger"].includes(record.presentation));
-    const downriggerLost = trollingLost.filter((record) => ["downrigger", "Downrigger"].includes(record.presentation));
     downriggerItems = summarizeDownriggerCatchPositions(
-      downriggerCatches,
-      downriggerLost,
-      fish
+      trollingCatches,
+      trollingLost,
+      trollingFish
     );
     fowRangeItems = makePerformanceItems(summarizeBy(trollingCatches, (record) => fowRange(record.fowCaught)).map((item) => ({
       name: item.name,
@@ -1057,7 +1080,7 @@ function renderAdvancedStats() {
     renderStatsTable(els.directionSpeedStatsTable, ["Direction", "Best GPS speed", "Fish at speed", "Trips"], summarizeBestSpeedByDirection(trollingCatches));
     renderStatsTable(els.lineSideStatsTable, headersForPerformance("Line Side", lineSideItems), performanceRows(lineSideItems, "Line Side"));
     renderStatsTable(els.trollingSetupStatsTable, headersForPerformance("Method", setupItems), performanceRows(setupItems, "Method"));
-    renderStatsTable(els.downriggerStatsTable, headersForPerformance("Deepest Rigger", downriggerItems), performanceRows(downriggerItems, "Rigger"));
+    renderStatsTable(els.downriggerStatsTable, ["Position / Method", "Fish", "Lost", "Strikes", "Landing %", "Trips", "Fish / trip", "Fish Share"], catchComparisonRows(downriggerItems, "Position / Method"));
     renderStatsTable(els.fowRangeStatsTable, ["FOW Range", "Fish", "Trips", "Fish Share"], fishShareRows(fowRangeItems));
 
     const gpsSpeedRows = summarizeCatchMeasurement(trollingCatches, (record) => record.gpsSpeed || record.speed, { step: 0.5, suffix: " mph", min: 0.1, max: 15 });
@@ -1073,7 +1096,6 @@ function renderAdvancedStats() {
     renderStatsTable(els.distanceBehindStatsTable, ["Distance", "Fish", "Hours", "Fish / hr", "Trips"], distanceRows);
     renderStatsTable(els.probeTemperatureStatsTable, [`Depth (${unitSymbol("depth")})`, "Avg Temp", "Min Temp", "Max Temp", "Trips"], probeRows);
     renderStatsTable(els.thermoclineStatsTable, ["Position", "Fish", "Trips", "Fish Share"], thermoclineRows);
-    renderStatsTable(els.newDataCoverageStatsTable, ["Field", "Complete", "Total", "Coverage", "Meaning"], statsCoverageRows(trips, trollingCatches, trollingGear));
   } else {
     renderStatsMessage(els.flasherStatsTable, "Flashers are only tracked for trolling trips.");
     renderStatsMessage(els.comboStatsTable, "Lure + flasher combos are only tracked for trolling trips.");
@@ -1084,7 +1106,7 @@ function renderAdvancedStats() {
     renderStatsMessage(els.trollingSetupStatsTable, "Trolling method is only tracked for trolling trips.");
     renderStatsMessage(els.downriggerStatsTable, "Deepest rigger is only tracked for trolling trips.");
     renderStatsMessage(els.fowRangeStatsTable, "FOW ranges are only tracked for trolling trips.");
-    [els.gpsSpeedStatsTable, els.ballSpeedStatsTable, els.speedDeltaStatsTable, els.shakerStatsTable, els.distanceBehindStatsTable, els.probeTemperatureStatsTable, els.thermoclineStatsTable, els.newDataCoverageStatsTable]
+    [els.gpsSpeedStatsTable, els.ballSpeedStatsTable, els.speedDeltaStatsTable, els.shakerStatsTable, els.distanceBehindStatsTable, els.probeTemperatureStatsTable, els.thermoclineStatsTable]
       .forEach((container) => renderStatsMessage(container, "This metric is available for trolling trips."));
   }
 
@@ -1140,20 +1162,6 @@ function renderAdvancedStats() {
   renderStatsTable(els.moonPhaseStatsTable, ["Moon", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => record.trip?.weatherData?.sunMoon?.phase || ""));
   renderStatsTable(els.moonWindowStatsTable, ["Moon Window", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => moonWindowForTime(record.time, record.trip?.weatherData?.sunMoon)));
 
-  renderStatsTable(els.statsDiagnosticsTable, ["Area", "Row", "Issue", "Details", "Action"], statsDiagnosticRows([
-    { label: "Lure", items: lureItems },
-    { label: "Lure type", items: lureTypeItems },
-    { label: "Lure color", items: lureColorItems },
-    { label: "Flasher", items: flasherItems },
-    { label: "Combo", items: comboItems },
-    { label: "Direction", items: directionItems },
-    { label: "Line side", items: lineSideItems },
-    { label: "Trolling method", items: setupItems },
-    { label: "Deepest rigger", items: downriggerItems },
-    { label: "FOW range", items: fowRangeItems, diagnostic: false },
-    { label: "Exact FOW", items: fowItems, diagnostic: false },
-    { label: "Depth down", items: depthItems, diagnostic: false }
-  ], trips, trollingGear, trollingCatches));
 }
 
 function formatPercent(value, total) {

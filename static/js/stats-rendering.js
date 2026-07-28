@@ -136,7 +136,8 @@ function ensureStatsCardControls(container, chartMarkup, headers, metricIndexes)
   const canChart = Boolean(chartMarkup);
   toggle.hidden = !canChart;
   let metricControl = header.querySelector(".stats-chart-metric");
-  if (canChart && metricIndexes.length > 1) {
+  const canSelectMetric = !statsChartConfig(container.id, headers)?.lockMetric;
+  if (canChart && canSelectMetric && metricIndexes.length > 1) {
     if (!metricControl) {
       metricControl = document.createElement("label");
       metricControl.className = "stats-chart-metric";
@@ -204,6 +205,7 @@ function statsChartMetricIndexes(headers, rows) {
 function selectedStatsChartConfig(id, headers, metricIndexes) {
   const config = statsChartConfig(id, headers);
   if (!config) return null;
+  if (config.lockMetric) return config;
   const selectedIndex = activeStatsChartMetric[id];
   if (!metricIndexes.includes(selectedIndex)) return config;
   return {
@@ -241,7 +243,7 @@ function statsChartConfig(id, headers) {
     directionStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     lineSideStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     trollingSetupStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
-    downriggerStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
+    downriggerStatsTable: { type: "bar", valueIndex: fishIndex, limit: 8 },
     directionSpeedStatsTable: { type: "bar", valueIndex: byHeader("Fish at speed"), limit: 8 },
     fowRangeStatsTable: { type: "donut", valueIndex: byHeader("Fish") },
     fowStatsTable: { type: "bar", valueIndex: fishIndex, limit: 10 },
@@ -279,7 +281,7 @@ function statsChartConfig(id, headers) {
     gpsSpeedStatsTable: { type: "bar", valueIndex: fishIndex, limit: 10 },
     ballSpeedStatsTable: { type: "bar", valueIndex: fishIndex, limit: 10 },
     distanceBehindStatsTable: { type: "bar", valueIndex: rateIndex, limit: 10 },
-    thermoclineStatsTable: { type: "donut", valueIndex: fishIndex }
+    thermoclineStatsTable: { type: "donut", valueIndex: fishIndex, lockMetric: true }
   };
 
   const config = configs[id];
