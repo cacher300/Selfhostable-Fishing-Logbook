@@ -994,6 +994,9 @@ document.addEventListener("change", (event) => {
   if (event.target.matches(".catch-time-unknown")) {
     updateUnknownTimeField(event.target.closest(".catch-row"));
   }
+  if (event.target.matches(".catch-time, .catch-time-unknown")) {
+    populateSetupLineSelects();
+  }
   if (event.target.matches(".catch-details-unknown")) {
     updateCatchDetailsUnknown(event.target.closest(".catch-row"), { clear: event.target.checked });
   }

@@ -872,34 +872,55 @@ function cheaterLineLabelFromRow(row, index) {
   return [identity, combo].filter(Boolean).join(": ");
 }
 
+function catchRodPickerLabelFromRow(row, index, { cheater = false } = {}) {
+  const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
+  const identity = customLabel || [
+    setupLineSideLabel(row.querySelector(".trip-gear-side")?.value),
+    choiceLabel("trollingPresentations", row.querySelector(".catch-presentation")?.value) || `Rod ${index + 1}`
+  ].filter(Boolean).join(" ");
+  const lureId = cheater
+    ? row.querySelector(".trip-gear-cheater-lure")?.value || ""
+    : row.querySelector(".trip-gear-lure")?.value || "";
+  const lure = lureId.startsWith("__type__:") ? "" : lureName(lureId);
+  return [cheater ? `${identity} — Cheater` : identity, lure].filter(Boolean).join(" / ");
+}
+
 function setupLineOptionsFromForm() {
   return [...els.tripGearRows.querySelectorAll(".gear-used-row")].flatMap((row, index) => {
     if (!row.dataset.gearId) row.dataset.gearId = createId();
-    const timeRange = formatDisplayTimeRange(
-      row.querySelector(".trip-gear-start-time")?.value,
-      row.querySelector(".trip-gear-end-time")?.value,
-      "12"
-    );
-    const mainLureId = row.querySelector(".trip-gear-lure")?.value || "";
-    const mainLure = mainLureId.startsWith("__type__:") ? "" : lureName(mainLureId);
+    const startTime = row.querySelector(".trip-gear-start-time")?.value || "";
+    const endTime = row.querySelector(".trip-gear-end-time")?.value || "";
     const mainOption = {
       id: row.dataset.gearId,
-      label: [setupLineLabelFromRow(row, index), mainLure, timeRange].filter(Boolean).join(" / ")
+      label: catchRodPickerLabelFromRow(row, index),
+      startTime,
+      endTime
     };
     if (!row.querySelector(".trip-gear-cheater")?.checked) return [mainOption];
-    const cheaterLure = selectedText(row.querySelector(".trip-gear-cheater-lure")).replace("No lure selected", "");
     return [
       mainOption,
       {
         id: `${row.dataset.gearId}::cheater`,
-        label: [`${cheaterLineLabelFromRow(row, index)} — Cheater`, cheaterLure, timeRange].filter(Boolean).join(" / ")
+        label: catchRodPickerLabelFromRow(row, index, { cheater: true }),
+        startTime,
+        endTime
       }
     ];
   });
 }
 
+function setupLineIsActiveAtTime(option, catchTime) {
+  if (!catchTime || !option.startTime || !option.endTime) return true;
+  if (option.startTime <= option.endTime) return catchTime >= option.startTime && catchTime <= option.endTime;
+  return catchTime >= option.startTime || catchTime <= option.endTime;
+}
+
 function populateSetupLineSelect(select, selectedId = "") {
-  const options = setupLineOptionsFromForm();
+  const catchRow = select.closest(".catch-row");
+  const catchTime = catchRow?.querySelector(".catch-time-unknown")?.checked
+    ? ""
+    : (catchRow?.querySelector(".catch-time")?.value || "");
+  const options = setupLineOptionsFromForm().filter((option) => setupLineIsActiveAtTime(option, catchTime));
   const selected = selectedId || select.dataset.selectedSetupLine || "";
   select.dataset.selectedSetupLine = "";
   select.innerHTML = `<option value="">Select rod</option>` + options.map((item) => (

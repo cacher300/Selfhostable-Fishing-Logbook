@@ -78,6 +78,13 @@
     grid-column: 1 / -1;
   }
 
+  .gear-used-row .gear-lure-action,
+  .gear-used-row .gear-flasher-action {
+    justify-self: stretch;
+    width: 100%;
+    min-width: 0;
+  }
+
   .metric-grid,
   .analytics-grid,
   .stats-group .analytics-grid {

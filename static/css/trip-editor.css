@@ -1069,7 +1069,7 @@
 .catch-identity-row {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: minmax(180px, 260px) minmax(180px, 1fr) 96px max-content;
+  grid-template-columns: minmax(180px, 260px) minmax(180px, 380px) max-content max-content;
   gap: 12px;
 }
 
@@ -1105,23 +1105,7 @@
 .catch-status-options {
   display: inline-flex;
   align-items: stretch;
-  gap: 0;
-}
-
-.catch-status-options .inline-field-option {
-  border-radius: 0;
-}
-
-.catch-status-options .inline-field-option + .inline-field-option {
-  margin-left: -1px;
-}
-
-.catch-status-options .inline-field-option:first-child {
-  border-radius: 6px 0 0 6px;
-}
-
-.catch-status-options .inline-field-option:last-child {
-  border-radius: 0 6px 6px 0;
+  gap: 8px;
 }
 
 .catch-location-action-row {
