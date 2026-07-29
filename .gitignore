@@ -1,6 +1,7 @@
 # Local fishing logbook data. This can contain names, locations, notes, and photos.
 data/logbook.json
 data/uploads/
+data/mobile-direct-import.zip
 
 # Python runtime/cache files.
 __pycache__/
