@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import uuid
+from io import BytesIO
 from pathlib import Path
+from zipfile import ZIP_STORED, ZipFile
 
 from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
 from werkzeug.utils import secure_filename
@@ -93,6 +95,65 @@ def create_app(config: dict | None = None) -> Flask:
         preserve_existing_depth_fields(normalized, read_logbook())
         write_logbook(normalized)
         cleanup_orphaned_uploads()
+        return jsonify({"ok": True})
+
+    @app.get("/api/archive")
+    def export_archive() -> Response:
+        """Portable desktop/mobile archive. Existing web UI is intentionally unchanged."""
+        logbook = read_logbook()
+        archive = BytesIO()
+        with ZipFile(archive, "w", ZIP_STORED) as bundle:
+            bundle.writestr("manifest.json", json.dumps({
+                "archiveVersion": 1,
+                "format": "fishing-logbook-archive",
+                "schemaVersion": logbook.get("schemaVersion", 1),
+            }, separators=(",", ":")))
+            bundle.writestr("logbook.json", json.dumps(logbook, separators=(",", ":")))
+            for category in UPLOAD_CATEGORIES:
+                directory = upload_category_path(category)
+                for item in directory.rglob("*"):
+                    if item.is_file():
+                        bundle.write(item, f"media/{category}/{item.relative_to(directory).as_posix()}")
+        archive.seek(0)
+        return Response(archive.getvalue(), mimetype="application/zip", headers={"Content-Disposition": "attachment; filename=fishing-logbook-archive.zip"})
+
+    @app.post("/api/archive")
+    def import_archive() -> tuple[Response, int] | Response:
+        upload = request.files.get("archive")
+        if upload is None:
+            return jsonify({"error": "Choose an archive file."}), 400
+        try:
+            with ZipFile(upload.stream) as bundle:
+                names = bundle.namelist()
+                if "logbook.json" not in names or "manifest.json" not in names:
+                    return jsonify({"error": "Archive is missing its manifest or logbook."}), 400
+                manifest = json.loads(bundle.read("manifest.json"))
+                if manifest.get("archiveVersion") != 1:
+                    return jsonify({"error": "This archive version is not supported."}), 400
+                payload = json.loads(bundle.read("logbook.json"))
+                is_valid, error = validate_logbook(payload)
+                if not is_valid:
+                    return jsonify({"error": error}), 400
+                for name in names:
+                    if not name.startswith("media/") or name.endswith("/"):
+                        continue
+                    parts = Path(name).parts
+                    if len(parts) < 3 or parts[1] not in UPLOAD_CATEGORIES or any(part in {".", ".."} for part in parts):
+                        return jsonify({"error": "Archive contains an invalid media path."}), 400
+                write_logbook(normalize_logbook(payload))
+                for name in names:
+                    if not name.startswith("media/") or name.endswith("/"):
+                        continue
+                    _, category, *relative = Path(name).parts
+                    target = (upload_category_path(category) / Path(*relative)).resolve()
+                    root = upload_category_path(category).resolve()
+                    if root not in target.parents:
+                        return jsonify({"error": "Archive media path escapes its category."}), 400
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(bundle.read(name))
+        except Exception:
+            app.logger.exception("Archive import failed")
+            return jsonify({"error": "Could not read the archive."}), 400
         return jsonify({"ok": True})
 
     @app.get("/api/weather/archive")

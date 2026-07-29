@@ -63,6 +63,68 @@ function scheduleSettingsAutosave(saveAction, delay = 650) {
   }, delay);
 }
 
+function setDatabaseBackupStatus(message = "") {
+  if (els.databaseBackupStatus) els.databaseBackupStatus.textContent = message;
+}
+
+async function exportDatabaseArchive() {
+  const button = els.exportDatabaseButton;
+  if (!button) return;
+  button.disabled = true;
+  setDatabaseBackupStatus("Preparing backup...");
+  try {
+    const response = await fetch("/api/archive");
+    if (!response.ok) throw new Error("Could not export the database.");
+    const archive = await response.blob();
+    const url = URL.createObjectURL(archive);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "fishing-logbook-archive.zip";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setDatabaseBackupStatus("Backup downloaded. It includes uploaded photos.");
+  } catch (error) {
+    console.error("Database export failed", error);
+    setDatabaseBackupStatus(error.message || "Database export failed.");
+    alert(error.message || "Database export failed.");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function importDatabaseArchive(event) {
+  const input = event.target;
+  const archive = input.files?.[0];
+  input.value = "";
+  if (!archive) return;
+  if (!confirm("Importing a backup replaces the current logbook data. Uploaded photos in the backup will be restored. Continue?")) return;
+
+  const button = els.importDatabaseButton;
+  if (button) button.disabled = true;
+  setDatabaseBackupStatus("Importing backup...");
+  try {
+    const formData = new FormData();
+    formData.append("archive", archive);
+    const response = await protectedFetch("/api/archive", { method: "POST", body: formData });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "Could not import the database.");
+    const refreshed = await fetch("/api/logbook");
+    if (!refreshed.ok) throw new Error("The backup was imported, but the logbook could not be refreshed.");
+    state = normalizeState(await refreshed.json());
+    localStorage.setItem(storageKey, JSON.stringify(state));
+    renderAll();
+    setDatabaseBackupStatus("Backup imported, including uploaded photos.");
+  } catch (error) {
+    console.error("Database import failed", error);
+    setDatabaseBackupStatus(error.message || "Database import failed.");
+    alert(error.message || "Database import failed.");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 function renderSettings() {
   syncSettingsTabs();
   renderPreferenceSettings();

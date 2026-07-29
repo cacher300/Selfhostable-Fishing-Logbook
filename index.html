@@ -733,6 +733,17 @@
                   </fieldset>
                 </div>
               </section>
+              <section class="settings-section" aria-labelledby="databaseSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="databaseSettingsHeading">Database Backup</h4>
+                </div>
+                <div class="settings-row database-backup-actions">
+                  <button class="button secondary" id="exportDatabaseButton" type="button">Export Database</button>
+                  <button class="button secondary" id="importDatabaseButton" type="button">Import Database</button>
+                  <input class="visually-hidden" id="importDatabaseInput" type="file" accept=".zip,application/zip" />
+                  <span class="visually-hidden" id="databaseBackupStatus" aria-live="polite"></span>
+                </div>
+              </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="trolling-spread" hidden>
               <section class="settings-section" aria-labelledby="defaultSpreadSettingsHeading">
