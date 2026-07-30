@@ -144,4 +144,45 @@ assert.match(openOrganizerMarkup, /Layer 2 of 3/);
 assert.match(openOrganizerMarkup, /data-tackle-layer-step="-1"/);
 assert.match(openOrganizerMarkup, /data-tackle-layer-step="1"/);
 
+const firstOpenCard = {
+  dataset: { tackleBoxId: "first-box" },
+  outerHTML: "first box before layer change"
+};
+const secondOpenCard = {
+  dataset: { tackleBoxId: "second-box" },
+  outerHTML: "second box must not refresh"
+};
+context.document.querySelectorAll = () => [firstOpenCard, secondOpenCard];
+context.state.settings.tackleBoxes = [
+  {
+    id: "first-box",
+    name: "First box",
+    color: "#2763a7",
+    style: "organizer",
+    layerCount: 3,
+    itemRefs: []
+  },
+  {
+    id: "second-box",
+    name: "Second box",
+    color: "#118753",
+    style: "organizer",
+    layerCount: 4,
+    itemRefs: []
+  }
+];
+vm.runInContext(`
+  openTackleBoxIds.clear();
+  activeTackleBoxLayers.clear();
+  openTackleBoxIds.add("first-box");
+  openTackleBoxIds.add("second-box");
+  activeTackleBoxLayers.set("first-box", 0);
+  activeTackleBoxLayers.set("second-box", 2);
+  showTackleBoxLayer("first-box", 1);
+`, context);
+assert.match(firstOpenCard.outerHTML, /First box/);
+assert.match(firstOpenCard.outerHTML, /Layer 2 of 3/);
+assert.equal(secondOpenCard.outerHTML, "second box must not refresh");
+assert.equal(vm.runInContext('activeTackleBoxLayers.get("second-box")', context), 2);
+
 console.log("tackle box grid tests passed");

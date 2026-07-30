@@ -297,6 +297,19 @@ function renderTackleBoxes() {
   container.innerHTML = boxes.map(tackleBoxCardMarkup).join("");
 }
 
+function tackleBoxCardElement(boxId) {
+  return [...document.querySelectorAll("[data-tackle-box-id]")]
+    .find((card) => card.dataset.tackleBoxId === boxId);
+}
+
+function renderTackleBoxCard(boxId) {
+  const box = tackleBoxes().find((item) => item.id === boxId);
+  const card = tackleBoxCardElement(boxId);
+  if (!box || !card) return null;
+  card.outerHTML = tackleBoxCardMarkup(box);
+  return tackleBoxCardElement(boxId);
+}
+
 function tackleBoxColorOptionsMarkup(selectedColor) {
   return TACKLE_BOX_COLORS.map((color) => `
     <label class="tackle-color-option" title="${escapeHtml(color.label)}">
@@ -748,8 +761,7 @@ function animateTackleBoxLayer(card, direction = "forward") {
 }
 
 function toggleTackleBox(boxId) {
-  const card = [...document.querySelectorAll("[data-tackle-box-id]")]
-    .find((item) => item.dataset.tackleBoxId === boxId);
+  const card = tackleBoxCardElement(boxId);
   if (!card) return;
   const object = card.querySelector(".tackle-box-object");
   const toggleButton = card.querySelector("[data-toggle-tackle-box]");
@@ -802,9 +814,7 @@ function showTackleBoxLayer(boxId, targetLayer) {
   if (nextLayer === currentLayer) return;
   tackleBoxLayerDirections.set(boxId, nextLayer > currentLayer ? "forward" : "backward");
   activeTackleBoxLayers.set(boxId, nextLayer);
-  renderTackleBoxes();
-  const card = [...document.querySelectorAll("[data-tackle-box-id]")]
-    .find((item) => item.dataset.tackleBoxId === boxId);
+  const card = renderTackleBoxCard(boxId);
   animateTackleBoxLayer(card, tackleBoxLayerDirections.get(boxId));
   tackleBoxLayerDirections.delete(boxId);
 }
