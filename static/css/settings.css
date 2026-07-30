@@ -172,6 +172,11 @@
   font-size: 13px;
 }
 
+.database-backup-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
 .settings-control {
   display: grid;
   gap: 8px;

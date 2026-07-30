@@ -1,6 +1,7 @@
 # Local fishing logbook data. This can contain names, locations, notes, and photos.
 data/logbook.json
 data/uploads/
+data/mobile-direct-import.zip
 
 # Python runtime/cache files.
 __pycache__/
@@ -8,6 +9,9 @@ __pycache__/
 
 # Local generated files and server logs.
 tmp/
+
+# Mobile client work is local-only for now.
+mobile/
 
 # Local editor and OS noise.
 .vscode/

@@ -314,8 +314,8 @@ function renderCheater(group) {
     yPct: (fishingLineStart.yPct + group.end.yPct) / 2
   };
   const cheaterEnd = {
-    xPct: midpoint.xPct + 14,
-    yPct: midpoint.yPct + (group.side === "port" ? -7 : 7)
+    xPct: midpoint.xPct + 18,
+    yPct: midpoint.yPct + (group.side === "port" ? -9 : 9)
   };
   const cheaterText = [
     group.cheaterSummary ? `Cheater: ${group.cheaterSummary}` : "Cheater",

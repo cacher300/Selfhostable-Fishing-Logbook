@@ -141,9 +141,6 @@
 
         <section class="stats-page hidden" id="advancedStatsPanel" aria-label="Fishing performance statistics">
           <header class="stats-page-header">
-            <div>
-              <p>See what produced, where it happened, and which patterns are worth repeating.</p>
-            </div>
             <div class="stats-scope" id="statsActiveScope" aria-live="polite">All time · All methods</div>
             <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
           </header>
@@ -904,6 +901,17 @@
                     <label><input type="radio" name="timeFormatChoice" value="24" data-time-format-option /> 24 Hour</label>
                     <label><input type="radio" name="timeFormatChoice" value="12" data-time-format-option /> 12 Hour</label>
                   </fieldset>
+                </div>
+              </section>
+              <section class="settings-section" aria-labelledby="databaseSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="databaseSettingsHeading">Database Backup</h4>
+                </div>
+                <div class="settings-row database-backup-actions">
+                  <button class="button secondary" id="exportDatabaseButton" type="button">Export Database</button>
+                  <button class="button secondary" id="importDatabaseButton" type="button">Import Database</button>
+                  <input class="visually-hidden" id="importDatabaseInput" type="file" accept=".zip,application/zip" />
+                  <span class="visually-hidden" id="databaseBackupStatus" aria-live="polite"></span>
                 </div>
               </section>
             </div>
