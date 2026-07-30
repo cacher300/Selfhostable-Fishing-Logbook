@@ -11,6 +11,7 @@ from threading import RLock
 from .backend_config import BATHYMETRY_LAKES, DATA_DIR, DATABASE_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
 
 SCHEMA_VERSION = 1
+BOAT_LAYOUT_SLOT_LIMIT = 52
 _STORE_LOCK = RLock()
 _COLLECTION_KEYS = (
     "species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes",
@@ -157,7 +158,164 @@ def normalize_logbook(payload: dict | None = None) -> dict:
                     "radiusMeters": round(radius_meters, 2),
                     "coordinates": coordinates,
                 })
-        normalized["settings"] = {**deepcopy(DEFAULT_LOGBOOK["settings"]), **normalized["settings"], "timeFormat": time_format, "bathymetryLakeCalibrationsFeet": lake_calibrations, "units": cleaned_units, "chopRanges": cleaned_ranges or default_ranges, "defaultTrollingSpread": cleaned_default_spread, "defaultTrollingSpreads": cleaned_default_spreads, "privatePhotoLocations": cleaned_private_locations}
+        raw_boat_layout = normalized["settings"].get("boatLayout")
+        boat_name = str(raw_boat_layout.get("name") or "").strip()[:50] if isinstance(raw_boat_layout, dict) else ""
+        raw_boat_equipment = raw_boat_layout.get("equipment") if isinstance(raw_boat_layout, dict) else []
+        raw_boat_items = raw_boat_layout.get("items") if isinstance(raw_boat_layout, dict) else []
+        allowed_boat_types = {
+            "rod-holder", "downrigger", "fish-finder", "live-well", "trolling-motor",
+            "chartplotter", "marine-radio", "battery", "tackle", "cooler",
+            "landing-net", "seat", "anchor", "custom",
+        }
+        boat_image_fields = (
+            "image", "previewImage", "imagePath", "imageFilename",
+            "previewPath", "previewFilename",
+        )
+        cleaned_boat_equipment = []
+        boat_equipment_by_id = {}
+        used_boat_equipment_ids = set()
+
+        def clean_boat_equipment(item: dict, equipment_id: str = "") -> dict:
+            item_type = str(item.get("type") or "custom")
+            if item_type not in allowed_boat_types:
+                item_type = "custom"
+            fallback_name = " ".join(part.capitalize() for part in item_type.split("-"))
+            name = str(item.get("name") or item.get("label") or fallback_name).strip()[:50] or fallback_name
+            cleaned = {
+                "id": equipment_id or str(item.get("id") or uuid.uuid4()),
+                "type": item_type,
+                "name": name,
+            }
+            cleaned.update({field: str(item.get(field) or "") for field in boat_image_fields})
+            if not cleaned["previewImage"]:
+                cleaned["previewImage"] = cleaned["image"]
+            return cleaned
+
+        for item in raw_boat_equipment if isinstance(raw_boat_equipment, list) else []:
+            if not isinstance(item, dict) or len(cleaned_boat_equipment) >= 100:
+                continue
+            equipment_id = str(item.get("id") or uuid.uuid4())
+            if equipment_id in used_boat_equipment_ids:
+                equipment_id = str(uuid.uuid4())
+            cleaned_equipment = clean_boat_equipment(item, equipment_id)
+            cleaned_boat_equipment.append(cleaned_equipment)
+            boat_equipment_by_id[equipment_id] = cleaned_equipment
+            used_boat_equipment_ids.add(equipment_id)
+
+        cleaned_boat_items = []
+        used_boat_slots = set()
+        used_boat_ids = set()
+        legacy_boat_equipment_by_key = {}
+        for item in raw_boat_items if isinstance(raw_boat_items, list) else []:
+            if not isinstance(item, dict) or len(cleaned_boat_items) >= BOAT_LAYOUT_SLOT_LIMIT:
+                continue
+            try:
+                slot = int(item.get("slot"))
+            except (TypeError, ValueError):
+                continue
+            if slot < 0 or slot >= BOAT_LAYOUT_SLOT_LIMIT or slot in used_boat_slots:
+                continue
+            item_id = str(item.get("id") or uuid.uuid4())
+            if item_id in used_boat_ids:
+                item_id = str(uuid.uuid4())
+            requested_equipment_id = str(item.get("equipmentId") or "")
+            equipment_id = requested_equipment_id
+            if equipment_id not in boat_equipment_by_id:
+                cleaned_equipment = clean_boat_equipment(item)
+                legacy_key = (
+                    f"{cleaned_equipment['type']}:{cleaned_equipment['name'].lower()}"
+                    if not requested_equipment_id
+                    else ""
+                )
+                shared_equipment_id = legacy_boat_equipment_by_key.get(legacy_key)
+                if shared_equipment_id:
+                    equipment_id = shared_equipment_id
+                else:
+                    equipment_id = equipment_id or f"equipment-{item_id}"
+                    if equipment_id in used_boat_equipment_ids:
+                        equipment_id = str(uuid.uuid4())
+                    cleaned_equipment["id"] = equipment_id
+                    cleaned_boat_equipment.append(cleaned_equipment)
+                    boat_equipment_by_id[equipment_id] = cleaned_equipment
+                    used_boat_equipment_ids.add(equipment_id)
+                    if legacy_key:
+                        legacy_boat_equipment_by_key[legacy_key] = equipment_id
+            cleaned_boat_items.append({"id": item_id, "equipmentId": equipment_id, "slot": slot})
+            used_boat_slots.add(slot)
+            used_boat_ids.add(item_id)
+        cleaned_boat_layout = {
+            "name": boat_name,
+            "equipment": cleaned_boat_equipment,
+            "items": cleaned_boat_items,
+        }
+
+        allowed_tackle_colors = {
+            "#118753", "#2763a7", "#d88418", "#b84848", "#7c4db2", "#4b5563",
+        }
+        allowed_tackle_item_types = {
+            "lure", "flasher", "rod", "reel", "combo",
+        }
+        allowed_tackle_styles = {"organizer", "cantilever"}
+        raw_tackle_boxes = normalized["settings"].get("tackleBoxes")
+        cleaned_tackle_boxes = []
+        used_tackle_box_ids = set()
+        for index, box in enumerate(raw_tackle_boxes if isinstance(raw_tackle_boxes, list) else []):
+            if not isinstance(box, dict):
+                continue
+            box_id = str(box.get("id") or uuid.uuid4())
+            if box_id in used_tackle_box_ids:
+                box_id = str(uuid.uuid4())
+            used_tackle_box_ids.add(box_id)
+            style = str(box.get("style") or "organizer")
+            if style not in allowed_tackle_styles:
+                style = "organizer"
+            try:
+                layer_count = max(2, min(4, round(float(box.get("layerCount") or 3))))
+            except (TypeError, ValueError):
+                layer_count = 3
+            compartment_count = 6 if style == "cantilever" else 15
+            refs = []
+            used_refs = set()
+            raw_refs = box.get("itemRefs")
+            for ref_index, ref in enumerate(raw_refs if isinstance(raw_refs, list) else []):
+                if not isinstance(ref, dict):
+                    continue
+                ref_type = str(ref.get("type") or "")
+                ref_id = str(ref.get("id") or "")
+                ref_key = (ref_type, ref_id)
+                if ref_type not in allowed_tackle_item_types or not ref_id or ref_key in used_refs:
+                    continue
+                legacy_layer = min(layer_count - 1, ref_index // compartment_count)
+                try:
+                    layer = max(0, min(layer_count - 1, round(float(ref.get("layer", legacy_layer)))))
+                except (TypeError, ValueError):
+                    layer = legacy_layer
+                used_refs.add(ref_key)
+                refs.append({"type": ref_type, "id": ref_id, "layer": layer})
+            name = str(box.get("name") or f"Tackle Box {index + 1}").strip()[:50] or f"Tackle Box {index + 1}"
+            color = str(box.get("color") or "")
+            cleaned_tackle_boxes.append({
+                "id": box_id,
+                "name": name,
+                "color": color if color in allowed_tackle_colors else "#118753",
+                "style": style,
+                "layerCount": layer_count,
+                "itemRefs": refs,
+            })
+
+        normalized["settings"] = {
+            **deepcopy(DEFAULT_LOGBOOK["settings"]),
+            **normalized["settings"],
+            "timeFormat": time_format,
+            "bathymetryLakeCalibrationsFeet": lake_calibrations,
+            "units": cleaned_units,
+            "chopRanges": cleaned_ranges or default_ranges,
+            "defaultTrollingSpread": cleaned_default_spread,
+            "defaultTrollingSpreads": cleaned_default_spreads,
+            "boatLayout": cleaned_boat_layout,
+            "tackleBoxes": cleaned_tackle_boxes,
+            "privatePhotoLocations": cleaned_private_locations,
+        }
         normalized["settings"].pop("bathymetryOffsetFeet", None)
         normalized["settings"].pop("bathymetryLakeOffsetsFeet", None)
 

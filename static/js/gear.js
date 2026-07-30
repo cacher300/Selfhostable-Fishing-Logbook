@@ -1133,7 +1133,13 @@ function renderInventoryTable(container, headers, rows, emptyText) {
   container.innerHTML = `
     <table>
       <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
-      <tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody>
+      <tbody>${rows.map((row) => {
+        const cells = Array.isArray(row) ? row : row.cells;
+        const statsAttributes = Array.isArray(row)
+          ? ""
+          : gearStatsTargetAttributes(row.statsType, row.statsId);
+        return `<tr ${statsAttributes}>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`;
+      }).join("")}</tbody>
     </table>
   `;
 }
@@ -1146,7 +1152,10 @@ function inventoryThumb(item) {
 
 function renderReelInventory() {
   const rows = state.reels.map((reel) => {
-    return [
+    return {
+      statsType: "reel",
+      statsId: reel.id,
+      cells: [
       inventoryThumb(reel),
       escapeHtml(gearDisplayName(reel, "Reel")),
       escapeHtml(lineSummary(activeLineEntry(reel)) || "-"),
@@ -1164,14 +1173,18 @@ function renderReelInventory() {
       escapeHtml(reel.dateBought || "-"),
       escapeHtml(reel.quantityAvailable === "" || reel.quantityAvailable === null || reel.quantityAvailable === undefined ? "-" : reel.quantityAvailable),
       `<div class="inventory-actions"><button class="button secondary" type="button" data-edit-reel="${escapeHtml(reel.id)}">Edit</button><button class="button secondary" type="button" data-duplicate-reel="${escapeHtml(reel.id)}">Duplicate</button></div>`
-    ];
+      ]
+    };
   });
   renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", "Retrieve", `Max Drag (${unitSymbol("fishWeight")})`, "Mono Cap", "Braid Cap", "Purchase", "Bought", "Owned", ""], rows, "No saved reels yet.");
 }
 
 function renderRodInventory() {
   const rows = state.rods.map((rod) => {
-    return [
+    return {
+      statsType: "rod",
+      statsId: rod.id,
+      cells: [
       inventoryThumb(rod),
       escapeHtml(gearDisplayName(rod, "Rod")),
       escapeHtml(rod.type || "-"),
@@ -1185,20 +1198,25 @@ function renderRodInventory() {
       escapeHtml(rod.dateBought || "-"),
       escapeHtml(rod.quantityAvailable === "" || rod.quantityAvailable === null || rod.quantityAvailable === undefined ? "-" : rod.quantityAvailable),
       `<div class="inventory-actions"><button class="button secondary" type="button" data-edit-rod="${escapeHtml(rod.id)}">Edit</button><button class="button secondary" type="button" data-duplicate-rod="${escapeHtml(rod.id)}">Duplicate</button></div>`
-    ];
+      ]
+    };
   });
   renderInventoryTable(els.rodInventoryTable, ["Photo", "Name", "Type", "Brand", "Model", "Length", "Power", "Action", "Lure Rating", "Purchase", "Bought", "Owned", ""], rows, "No saved rods yet.");
 }
 
 function renderComboInventory() {
   const rows = state.rodReelCombos.map((combo) => {
-    return [
+    return {
+      statsType: "combo",
+      statsId: combo.id,
+      cells: [
       escapeHtml(comboName(combo.id) || "Combo"),
       escapeHtml(rodName(combo.rodId) || "-"),
       escapeHtml(reelName(combo.reelId) || "-"),
       escapeHtml(combo.notes || ""),
       `<button class="button secondary" type="button" data-edit-combo="${escapeHtml(combo.id)}">Edit</button>`
-    ];
+      ]
+    };
   });
   renderInventoryTable(els.comboInventoryTable, ["Combo", "Rod", "Reel", "Notes", ""], rows, "No saved combos yet.");
 }
@@ -1227,7 +1245,10 @@ function renderLineTracker() {
 function renderBaitInventory() {
   const rows = state.lures.map((lure) => {
     const stats = baitStats("lure", lure.id);
-    return [
+    return {
+      statsType: "lure",
+      statsId: lure.id,
+      cells: [
       inventoryThumb(lure),
       `<button class="inventory-gear-preview-link" type="button" data-inventory-lure-id="${escapeHtml(lure.id)}" aria-label="Open preview for ${escapeHtml(lure.name || "lure")}">${escapeHtml(lure.name || "-")}</button>`,
       escapeHtml(lure.type || "-"),
@@ -1239,7 +1260,8 @@ function renderBaitInventory() {
       stats.trips,
       escapeHtml(stats.lastUsed || "-"),
       `<button class="button secondary" type="button" data-edit-lure="${escapeHtml(lure.id)}">Edit</button>`
-    ];
+      ]
+    };
   });
   renderInventoryTable(els.baitInventoryTable, ["Photo", "Lure", "Type", "Brand", "Model", "Color", "Owned", "Lost", "Trips", "Last Used", ""], rows, "No saved lures yet.");
 }
@@ -1247,7 +1269,10 @@ function renderBaitInventory() {
 function renderFlasherInventory() {
   const rows = state.flashers.map((flasher) => {
     const stats = baitStats("flasher", flasher.id);
-    return [
+    return {
+      statsType: "flasher",
+      statsId: flasher.id,
+      cells: [
       inventoryThumb(flasher),
       escapeHtml(flasher.name || "-"),
       escapeHtml(flasher.type || "-"),
@@ -1258,19 +1283,26 @@ function renderFlasherInventory() {
       stats.trips,
       escapeHtml(stats.lastUsed || "-"),
       `<button class="button secondary" type="button" data-edit-flasher="${escapeHtml(flasher.id)}">Edit</button>`
-    ];
+      ]
+    };
   });
   renderInventoryTable(els.flasherInventoryTable, ["Photo", "Flasher", "Type", "Brand", "Model", "Color", "Lost", "Trips", "Last Used", ""], rows, "No saved flashers yet.");
 }
 
 function setGearTab(tab) {
   activeGearTab = tab;
+  const showingTackleBoxes = tab === "tackle-boxes";
   document.querySelectorAll("[data-gear-tab]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.gearTab === tab);
   });
   document.querySelectorAll("[data-gear-panel]").forEach((panel) => {
     panel.classList.toggle("hidden", panel.dataset.gearPanel !== tab);
   });
+  document.querySelectorAll(".gear-standard-action").forEach((button) => {
+    button.classList.toggle("hidden", showingTackleBoxes);
+  });
+  document.querySelector("#newTackleBoxButton")?.classList.toggle("hidden", !showingTackleBoxes);
+  if (showingTackleBoxes && typeof renderTackleBoxes === "function") renderTackleBoxes();
 }
 
 function renderGearLibrary() {
@@ -1280,5 +1312,6 @@ function renderGearLibrary() {
   renderLineTracker();
   renderBaitInventory();
   renderFlasherInventory();
+  if (typeof renderTackleBoxes === "function") renderTackleBoxes();
   setGearTab(activeGearTab);
 }

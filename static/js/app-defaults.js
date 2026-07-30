@@ -196,6 +196,12 @@ const defaults = {
     chopRanges: structuredClone(defaultChopRanges),
     defaultTrollingSpread: [],
     defaultTrollingSpreads: [],
+    boatLayout: {
+      name: "",
+      equipment: [],
+      items: []
+    },
+    tackleBoxes: [],
     privatePhotoLocations: []
   },
   people: [],

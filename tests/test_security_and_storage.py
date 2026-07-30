@@ -184,6 +184,133 @@ class LogbookStoreTests(unittest.TestCase):
             normalized["settings"]["defaultTrollingSpreads"],
         )
 
+    def test_boat_layout_keeps_unique_valid_deck_positions(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {
+                    "boatLayout": {
+                        "name": "  Lake boat  ",
+                        "items": [
+                            {"id": "finder", "type": "fish-finder", "label": "Helm finder", "slot": 2},
+                            {"id": "collision", "type": "cooler", "label": "Ignored", "slot": 2},
+                            {"id": "bad-slot", "type": "anchor", "label": "Ignored", "slot": 52},
+                            {"id": "custom", "type": "unknown", "label": "Deck light", "slot": 7},
+                            {"id": "finder-2", "type": "fish-finder", "label": "Helm finder", "slot": 8},
+                            {"id": "stern-finder", "type": "fish-finder", "label": "Helm finder", "slot": 51},
+                        ],
+                    }
+                },
+            }
+        )
+
+        self.assertEqual("Lake boat", normalized["settings"]["boatLayout"]["name"])
+        self.assertEqual(
+            [
+                {
+                    "id": "equipment-finder",
+                    "type": "fish-finder",
+                    "name": "Helm finder",
+                    "image": "",
+                    "previewImage": "",
+                    "imagePath": "",
+                    "imageFilename": "",
+                    "previewPath": "",
+                    "previewFilename": "",
+                },
+                {
+                    "id": "equipment-custom",
+                    "type": "custom",
+                    "name": "Deck light",
+                    "image": "",
+                    "previewImage": "",
+                    "imagePath": "",
+                    "imageFilename": "",
+                    "previewPath": "",
+                    "previewFilename": "",
+                },
+            ],
+            normalized["settings"]["boatLayout"]["equipment"],
+        )
+        self.assertEqual(
+            [
+                {"id": "finder", "equipmentId": "equipment-finder", "slot": 2},
+                {"id": "custom", "equipmentId": "equipment-custom", "slot": 7},
+                {"id": "finder-2", "equipmentId": "equipment-finder", "slot": 8},
+                {"id": "stern-finder", "equipmentId": "equipment-finder", "slot": 51},
+            ],
+            normalized["settings"]["boatLayout"]["items"],
+        )
+
+    def test_tackle_boxes_normalize_colors_and_unique_item_references(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {
+                    "tackleBoxes": [
+                        {
+                            "id": "box-1",
+                            "name": "  Salmon box  ",
+                            "color": "#2763a7",
+                            "style": "cantilever",
+                            "layerCount": 4,
+                            "itemRefs": [
+                                {"type": "lure", "id": "lure-1", "layer": 2},
+                                {"type": "lure", "id": "lure-1"},
+                                {"type": "unknown", "id": "ignored"},
+                                {"type": "boat-equipment", "id": "finder-1"},
+                            ],
+                        },
+                        {"id": "box-2", "name": "", "color": "pink", "layerCount": "bad", "itemRefs": "bad"},
+                    ]
+                },
+            }
+        )
+
+        self.assertEqual(
+            [
+                {
+                    "id": "box-1",
+                    "name": "Salmon box",
+                    "color": "#2763a7",
+                    "style": "cantilever",
+                    "layerCount": 4,
+                    "itemRefs": [
+                        {"type": "lure", "id": "lure-1", "layer": 2},
+                    ],
+                },
+                {
+                    "id": "box-2",
+                    "name": "Tackle Box 2",
+                    "color": "#118753",
+                    "style": "organizer",
+                    "layerCount": 3,
+                    "itemRefs": [],
+                },
+            ],
+            normalized["settings"]["tackleBoxes"],
+        )
+
+    def test_tackle_boxes_do_not_have_an_artificial_count_limit(self) -> None:
+        boxes = [{"id": f"box-{index}", "name": f"Box {index}"} for index in range(101)]
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {"tackleBoxes": boxes},
+            }
+        )
+
+        self.assertEqual(101, len(normalized["settings"]["tackleBoxes"]))
+
     def test_write_creates_sqlite_database(self) -> None:
         payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
         with tempfile.TemporaryDirectory() as directory:
@@ -255,6 +382,28 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertEqual(locked_coordinates, raw_trip["catches"][0]["lockedLocationCoordinates"])
         self.assertEqual(locks, stored["trips"][0]["catches"][0]["metadataLocks"])
         self.assertEqual(locked_coordinates, stored["trips"][0]["catches"][0]["lockedLocationCoordinates"])
+
+    def test_trip_setup_keeps_boat_item_link(self) -> None:
+        payload = {
+            "schemaVersion": 1,
+            "trips": [
+                {
+                    "id": "trip-1",
+                    "gearUsed": [{"id": "line-1", "boatItemId": "port-rigger"}],
+                    "catches": [{"id": "catch-1", "setupLineId": "line-1"}],
+                    "lostFish": [],
+                }
+            ],
+            "lures": [],
+            "flashers": [],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            database_file = Path(directory) / "logbook.sqlite3"
+            with patch.object(logbook_store, "DATABASE_FILE", database_file):
+                logbook_store.write_logbook(payload)
+                stored = logbook_store.read_logbook()
+
+        self.assertEqual("port-rigger", stored["trips"][0]["gearUsed"][0]["boatItemId"])
 
     def test_read_returns_defaults_before_database_exists(self) -> None:
         payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}

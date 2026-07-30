@@ -1,4 +1,22 @@
 let state = structuredClone(defaults);
+const BOAT_LAYOUT_COLUMNS = 6;
+const BOAT_LAYOUT_ROWS = 10;
+const BOAT_LAYOUT_POINTS = Array.from({ length: BOAT_LAYOUT_ROWS }, (_, row) => {
+  const firstColumn = row === 0 ? 2 : row <= 2 ? 1 : 0;
+  const lastColumn = row === 0 ? 3 : row <= 2 ? 4 : BOAT_LAYOUT_COLUMNS - 1;
+  return Array.from({ length: lastColumn - firstColumn + 1 }, (_, offset) => ({
+    row,
+    column: firstColumn + offset
+  }));
+}).flat();
+const BOAT_LAYOUT_SLOT_LIMIT = BOAT_LAYOUT_POINTS.length;
+
+function boatLayoutPosition(slot) {
+  const point = BOAT_LAYOUT_POINTS[Number(slot)];
+  if (!point) return "Deck position";
+  const columnNames = ["Port rail", "Port outer", "Port inner", "Starboard inner", "Starboard outer", "Starboard rail"];
+  return `${columnNames[point.column]}, row ${point.row + 1}`;
+}
 let activeTripId = null;
 let activeSummaryTripId = null;
 let activeTripTimelineFilter = "all";
@@ -294,6 +312,7 @@ function normalizeState(nextState) {
         .filter((entry) => entry && Number.isFinite(Number(entry.depthFeet)))
         .map((entry) => ({ depthFeet: Number(entry.depthFeet), temperature: String(entry.temperature || "").trim() })),
       gearUsed: (trip.gearUsed || []).map((gearItem) => ({
+        boatItemId: "",
         comboId: "",
         rodId: "",
         reelId: "",
@@ -409,6 +428,8 @@ function normalizeSettings(settings = {}) {
     normalized.defaultTrollingSpreads,
     normalized.defaultTrollingSpread
   );
+  normalized.boatLayout = normalizeBoatLayout(normalized.boatLayout);
+  normalized.tackleBoxes = normalizeTackleBoxes(normalized.tackleBoxes);
   normalized.privatePhotoLocations = normalizePrivatePhotoLocations(normalized.privatePhotoLocations);
   return normalized;
 }
@@ -452,6 +473,139 @@ function normalizeDefaultTrollingSpreads(spreads = [], legacySpread = []) {
   const fallback = normalizeDefaultTrollingSpread(legacySpread);
   if (fallback.length && !normalized.has("")) normalized.set("", fallback);
   return [...normalized.entries()].map(([targetSpecies, spread]) => ({ targetSpecies, spread }));
+}
+
+function normalizeBoatLayout(layout = {}) {
+  const allowedTypes = new Set([
+    "rod-holder", "downrigger", "fish-finder", "live-well", "trolling-motor",
+    "chartplotter", "marine-radio", "battery", "tackle", "cooler",
+    "landing-net", "seat", "anchor", "custom"
+  ]);
+  const fallbackName = (type) => type === "custom"
+    ? "Custom gear"
+    : type.split("-").map((part) => part[0].toUpperCase() + part.slice(1)).join(" ");
+  const imageValue = (item, key) => String(item?.[key] || "");
+  const equipment = [];
+  const equipmentById = new Map();
+  const rawEquipment = Array.isArray(layout?.equipment) ? layout.equipment : [];
+  const usedEquipmentIds = new Set();
+
+  rawEquipment.forEach((item) => {
+    if (!item || typeof item !== "object" || equipment.length >= 100) return;
+    let id = String(item.id || createId());
+    if (usedEquipmentIds.has(id)) id = createId();
+    const type = allowedTypes.has(item.type) ? item.type : "custom";
+    const name = String(item.name || item.label || fallbackName(type)).trim().slice(0, 50) || fallbackName(type);
+    const normalizedItem = {
+      id,
+      type,
+      name,
+      image: imageValue(item, "image"),
+      previewImage: imageValue(item, "previewImage") || imageValue(item, "image"),
+      imagePath: imageValue(item, "imagePath"),
+      imageFilename: imageValue(item, "imageFilename"),
+      previewPath: imageValue(item, "previewPath"),
+      previewFilename: imageValue(item, "previewFilename")
+    };
+    usedEquipmentIds.add(id);
+    equipment.push(normalizedItem);
+    equipmentById.set(id, normalizedItem);
+  });
+
+  const usedSlots = new Set();
+  const usedIds = new Set();
+  const items = [];
+  const legacyEquipmentByKey = new Map();
+
+  const sourceItems = Array.isArray(layout?.items) ? layout.items : [];
+  sourceItems.forEach((item) => {
+    if (!item || typeof item !== "object" || items.length >= BOAT_LAYOUT_SLOT_LIMIT) return;
+    const slot = Number(item.slot);
+    if (!Number.isInteger(slot) || slot < 0 || slot >= BOAT_LAYOUT_SLOT_LIMIT || usedSlots.has(slot)) return;
+    let id = String(item.id || createId());
+    if (usedIds.has(id)) id = createId();
+    const requestedEquipmentId = String(item.equipmentId || "");
+    let equipmentId = requestedEquipmentId;
+
+    if (!equipmentById.has(equipmentId)) {
+      const type = allowedTypes.has(item.type) ? item.type : "custom";
+      const name = String(item.name || item.label || fallbackName(type)).trim().slice(0, 50) || fallbackName(type);
+      const legacyKey = requestedEquipmentId ? "" : `${type}:${name.toLowerCase()}`;
+      const sharedEquipmentId = legacyKey ? legacyEquipmentByKey.get(legacyKey) : "";
+
+      if (sharedEquipmentId) {
+        equipmentId = sharedEquipmentId;
+      } else {
+        const legacyId = equipmentId || `equipment-${id}`;
+        equipmentId = usedEquipmentIds.has(legacyId) ? createId() : legacyId;
+        const legacyEquipment = {
+          id: equipmentId,
+          type,
+          name,
+          image: imageValue(item, "image"),
+          previewImage: imageValue(item, "previewImage") || imageValue(item, "image"),
+          imagePath: imageValue(item, "imagePath"),
+          imageFilename: imageValue(item, "imageFilename"),
+          previewPath: imageValue(item, "previewPath"),
+          previewFilename: imageValue(item, "previewFilename")
+        };
+        usedEquipmentIds.add(equipmentId);
+        equipment.push(legacyEquipment);
+        equipmentById.set(equipmentId, legacyEquipment);
+        if (legacyKey) legacyEquipmentByKey.set(legacyKey, equipmentId);
+      }
+    }
+
+    usedSlots.add(slot);
+    usedIds.add(id);
+    items.push({ id, equipmentId, slot });
+  });
+
+  return {
+    name: String(layout?.name || "").trim().slice(0, 50),
+    equipment,
+    items
+  };
+}
+
+function normalizeTackleBoxes(boxes = []) {
+  const allowedColors = new Set(["#118753", "#2763a7", "#d88418", "#b84848", "#7c4db2", "#4b5563"]);
+  const allowedItemTypes = new Set(["lure", "flasher", "rod", "reel", "combo"]);
+  const allowedStyles = new Set(["organizer", "cantilever"]);
+  const usedBoxIds = new Set();
+  if (!Array.isArray(boxes)) return [];
+
+  return boxes.flatMap((box, index) => {
+    if (!box || typeof box !== "object") return [];
+    let id = String(box.id || createId());
+    if (usedBoxIds.has(id)) id = createId();
+    usedBoxIds.add(id);
+    const style = allowedStyles.has(box.style) ? box.style : "organizer";
+    const layerCount = Math.min(4, Math.max(2, Math.round(Number(box.layerCount) || 3)));
+    const compartmentCount = style === "cantilever" ? 6 : 15;
+    const refs = [];
+    const usedRefs = new Set();
+    const rawRefs = Array.isArray(box.itemRefs) ? box.itemRefs : [];
+    rawRefs.forEach((ref, refIndex) => {
+      const type = String(ref?.type || "");
+      const itemId = String(ref?.id || "");
+      const key = `${type}:${itemId}`;
+      if (!allowedItemTypes.has(type) || !itemId || usedRefs.has(key)) return;
+      const legacyLayer = Math.min(layerCount - 1, Math.floor(refIndex / compartmentCount));
+      const requestedLayer = ref.layer === undefined || ref.layer === null ? legacyLayer : Number(ref.layer);
+      const layer = Math.min(layerCount - 1, Math.max(0, Math.round(Number.isFinite(requestedLayer) ? requestedLayer : legacyLayer)));
+      usedRefs.add(key);
+      refs.push({ type, id: itemId, layer });
+    });
+    return [{
+      id,
+      name: String(box.name || `Tackle Box ${index + 1}`).trim().slice(0, 50) || `Tackle Box ${index + 1}`,
+      color: allowedColors.has(box.color) ? box.color : "#118753",
+      style,
+      layerCount,
+      itemRefs: refs
+    }];
+  });
 }
 
 function defaultTrollingSpreadForSpecies(

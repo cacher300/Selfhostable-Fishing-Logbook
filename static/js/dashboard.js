@@ -555,6 +555,7 @@ function renderAll() {
   renderTrips();
   renderPersonalBests();
   renderAdvancedStats();
+  renderLeaderboard();
   renderGearLibrary();
   syncUnitLabels();
   updateAllRowSummaries();

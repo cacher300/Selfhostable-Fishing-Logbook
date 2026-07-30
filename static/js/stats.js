@@ -934,6 +934,11 @@ function renderAdvancedStats() {
   const lureHours = lureMinutes / 60;
   const flasherHours = flasherMinutes / 60;
   const bestTrip = [...trips].sort((a, b) => scopedTripFish(b) - scopedTripFish(a))[0];
+  if (typeof renderStatsLeaderboard === "function") {
+    renderStatsLeaderboard(trips, (record, trip) => (
+      recordMatchesStatsFilters(resolveTripLineRecord({ ...record, trip }))
+    ));
+  }
 
   if (els.statsActiveScope) {
     const scopeBits = [activeStatsMethod, activeStatsFilters.species, activeStatsFilters.location, activeStatsFilters.launch]

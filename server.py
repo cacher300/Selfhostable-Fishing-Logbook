@@ -284,8 +284,10 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/")
     @app.get("/bests")
     @app.get("/stats")
+    @app.get("/leaderboard")
     @app.get("/map")
     @app.get("/gear")
+    @app.get("/boat")
     @app.get("/gallery")
     @app.get("/settings")
     def app_page() -> Response:

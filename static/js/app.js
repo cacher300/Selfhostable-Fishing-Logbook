@@ -3,8 +3,10 @@ const routeViews = {
   "/trips": "trips",
   "/bests": "bests",
   "/stats": "stats",
+  "/leaderboard": "leaderboard",
   "/map": "map",
   "/gear": "gear",
+  "/boat": "boat",
   "/gallery": "gallery",
   "/settings": "settings"
 };
@@ -113,8 +115,11 @@ els.deleteComboButton.addEventListener("click", deleteCombo);
 els.tripsViewButton.addEventListener("click", () => setView("trips"));
 els.bestsViewButton.addEventListener("click", () => setView("bests"));
 els.statsViewButton.addEventListener("click", () => setView("stats"));
+els.leaderboardViewButton.addEventListener("click", () => setView("leaderboard"));
+els.openFullLeaderboardButton?.addEventListener("click", () => setView("leaderboard"));
 els.mapViewButton.addEventListener("click", () => setView("map"));
 els.gearViewButton.addEventListener("click", () => setView("gear"));
+els.boatViewButton.addEventListener("click", () => setView("boat"));
 els.galleryViewButton.addEventListener("click", () => setView("gallery"));
 els.settingsViewButton.addEventListener("click", () => setView("settings"));
 els.newLibraryLureButton.addEventListener("click", () => openLureDialog());
@@ -1123,16 +1128,20 @@ els.personRows.addEventListener("change", (event) => {
 function setView(view) {
   const showingBests = view === "bests";
   const showingStats = view === "stats";
+  const showingLeaderboard = view === "leaderboard";
   const showingMap = view === "map";
   const showingGear = view === "gear";
+  const showingBoat = view === "boat";
   const showingGallery = view === "gallery";
   const showingSettings = view === "settings";
   const viewButtons = {
     trips: els.tripsViewButton,
     bests: els.bestsViewButton,
     stats: els.statsViewButton,
+    leaderboard: els.leaderboardViewButton,
     map: els.mapViewButton,
     gear: els.gearViewButton,
+    boat: els.boatViewButton,
     gallery: els.galleryViewButton,
     settings: els.settingsViewButton,
   };
@@ -1140,18 +1149,22 @@ function setView(view) {
     trips: "Trips",
     bests: "Personal Bests",
     stats: "Stats",
+    leaderboard: "Leaderboard",
     map: "Map",
     gear: "Gear",
+    boat: "Boat",
     gallery: "Gallery",
     settings: "Settings",
   };
   document.body.dataset.activeView = view;
-  els.tripControls.classList.toggle("hidden", showingBests || showingStats || showingMap || showingGear || showingGallery || showingSettings);
-  els.tripListPanel.classList.toggle("hidden", showingBests || showingStats || showingMap || showingGear || showingGallery || showingSettings);
+  els.tripControls.classList.toggle("hidden", showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingSettings);
+  els.tripListPanel.classList.toggle("hidden", showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingSettings);
   els.personalBestsPanel.classList.toggle("hidden", !showingBests);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
+  els.leaderboardPanel.classList.toggle("hidden", !showingLeaderboard);
   els.mapPanel.classList.toggle("hidden", !showingMap);
   els.gearPanel.classList.toggle("hidden", !showingGear);
+  els.boatPanel.classList.toggle("hidden", !showingBoat);
   els.galleryPanel.classList.toggle("hidden", !showingGallery);
   els.settingsPanel.classList.toggle("hidden", !showingSettings);
   Object.entries(viewButtons).forEach(([buttonView, button]) => {
@@ -1164,7 +1177,9 @@ function setView(view) {
   }
   if (showingBests) renderPersonalBests();
   renderAdvancedStats();
+  if (showingLeaderboard) renderLeaderboard();
   if (showingMap) renderFishMap();
+  if (showingBoat) renderBoatLayout();
   if (showingGallery) renderGallery();
   if (showingSettings) renderSettings();
   renderGearLibrary();

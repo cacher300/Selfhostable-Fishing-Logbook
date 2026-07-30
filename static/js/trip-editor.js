@@ -719,6 +719,7 @@ function addTripGearRow(gearItem = {}) {
   populateChoiceSelect(node.querySelector(".catch-presentation"), optionChoices("trollingPresentations"), "Select method", gearItem.presentation || "");
   node.querySelector(".trip-gear-side").value = side;
   node.querySelector(".trip-gear-line-label").value = gearItem.lineLabel || "";
+  populateBoatItemSelect(node.querySelector(".trip-gear-boat-item"), gearItem.boatItemId || "");
   const matchingCombo = (gearItem.rodId || gearItem.reelId) && state.rodReelCombos.find((combo) => (
     combo.rodId === gearItem.rodId && combo.reelId === gearItem.reelId
   ));
@@ -800,6 +801,7 @@ function syncLastTrollingSpreadImportButton() {
 
 function lastTripSpreadGearItem(gearItem) {
   return {
+    boatItemId: gearItem.boatItemId || "",
     comboId: gearItem.comboId || "",
     rodId: gearItem.rodId || "",
     reelId: gearItem.reelId || "",
@@ -840,6 +842,31 @@ function populateLureSelect(select, selectedId = "") {
     const label = [lure.name, lure.color].filter(Boolean).join(" - ");
     return `<option value="${lure.id}" ${lure.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
+}
+
+function boatItemPosition(slot) {
+  const slotNumber = Number(slot);
+  if (!Number.isInteger(slotNumber) || slotNumber < 0) return "Unplaced";
+  const position = boatLayoutPosition(slotNumber);
+  return position === "Deck position" ? "Unplaced" : position;
+}
+
+function populateBoatItemSelect(select, selectedId = "") {
+  if (!select) return;
+  const layout = normalizeBoatLayout(state.settings?.boatLayout);
+  const equipmentById = new Map(layout.equipment.map((item) => [item.id, item]));
+  const items = layout.items
+    .map((item) => ({ ...item, equipment: equipmentById.get(item.equipmentId) }))
+    .filter((item) => item.equipment)
+    .sort((first, second) => first.slot - second.slot);
+  const hasSelectedItem = items.some((item) => item.id === selectedId);
+  const unavailableOption = selectedId && !hasSelectedItem
+    ? `<option value="${escapeHtml(selectedId)}">Unavailable deck item</option>`
+    : "";
+  select.innerHTML = `<option value="">No boat equipment linked</option>${unavailableOption}${items.map((item) => (
+    `<option value="${escapeHtml(item.id)}">${escapeHtml(item.equipment.name)} · ${escapeHtml(boatItemPosition(item.slot))}</option>`
+  )).join("")}`;
+  select.value = selectedId;
 }
 
 function populateFlasherSelect(select, selectedId = "") {
@@ -1048,6 +1075,14 @@ function catchLurePreviewName(row) {
   return lure?.name || summaryOption(row.querySelector(".catch-lure"), ["No lure selected"]);
 }
 
+function setupBoatItemName(row) {
+  const itemId = row.querySelector(".trip-gear-boat-item")?.value || "";
+  if (!itemId) return "";
+  const layout = normalizeBoatLayout(state.settings?.boatLayout);
+  const item = layout.items.find((entry) => entry.id === itemId);
+  return layout.equipment.find((entry) => entry.id === item?.equipmentId)?.name || "";
+}
+
 function updateRowSummary(row) {
   const summary = row.querySelector(".collapsible-row-summary");
   if (!summary) return;
@@ -1076,7 +1111,8 @@ function updateRowSummary(row) {
   const pieces = [
     `Rod ${rowNumber(row, ".gear-used-row")}`,
     isTrollingTrip() ? setupLineSideLabel(row.querySelector(".trip-gear-side")?.value) : "",
-    summaryOption(row.querySelector(".catch-presentation"), ["Select method"])
+    summaryOption(row.querySelector(".catch-presentation"), ["Select method"]),
+    setupBoatItemName(row)
   ].filter(Boolean);
   summary.textContent = pieces.join(" / ");
 }
@@ -1125,6 +1161,7 @@ function collectTripFromForm() {
       defaultTrollingSpread: row.dataset.defaultTrollingSpread === "true",
       defaultTrollingSpreadTarget: row.dataset.defaultTrollingSpreadTarget || "",
       personId: "",
+      boatItemId: trolling ? row.querySelector(".trip-gear-boat-item").value : "",
       startTime: row.querySelector(".trip-gear-start-time").value,
       endTime: row.querySelector(".trip-gear-end-time").value,
       changeNote: row.querySelector(".trip-gear-change-note").value.trim(),
@@ -1157,6 +1194,7 @@ function collectTripFromForm() {
       || item.endTime
       || item.changeNote
       || item.lineLabel
+      || item.boatItemId
       || item.hasLeadcore
       || item.comboId
       || item.rodId

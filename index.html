@@ -60,8 +60,10 @@
             <nav class="view-nav" aria-label="Primary views">
               <button class="button secondary" id="tripsViewButton" type="button">Trips</button>
               <button class="button secondary" id="statsViewButton" type="button">Stats</button>
+              <button class="button secondary" id="leaderboardViewButton" type="button">Leaderboard</button>
               <button class="button secondary" id="mapViewButton" type="button">Map</button>
               <button class="button secondary" id="gearViewButton" type="button">Gear</button>
+              <button class="button secondary" id="boatViewButton" type="button">Boat</button>
               <button class="button secondary" id="galleryViewButton" type="button">Gallery</button>
               <button class="button secondary" id="settingsViewButton" type="button">Settings</button>
             </nav>
@@ -482,6 +484,27 @@
             </details>
 
           </div>
+          <section class="stats-leaderboard" aria-labelledby="statsLeaderboardHeading">
+            <header class="stats-leaderboard-header">
+              <div>
+                <p class="eyebrow">Leaderboard</p>
+                <h3 id="statsLeaderboardHeading">Equipment and anglers</h3>
+                <p>Top performers within the active Stats filters.</p>
+              </div>
+              <button class="button secondary" id="openFullLeaderboardButton" type="button">Open full leaderboard</button>
+            </header>
+            <div class="stats-leaderboard-grid">
+              <section class="stats-leaderboard-board" aria-labelledby="statsEquipmentLeaderboardHeading">
+                <h4 id="statsEquipmentLeaderboardHeading">Boat equipment</h4>
+                <div class="leaderboard-list" id="statsEquipmentLeaderboard"></div>
+              </section>
+              <section class="stats-leaderboard-board" aria-labelledby="statsAnglerLeaderboardHeading">
+                <h4 id="statsAnglerLeaderboardHeading">Anglers</h4>
+                <div class="leaderboard-list" id="statsAnglerLeaderboard"></div>
+              </section>
+            </div>
+          </section>
+
           <section class="stats-help" aria-label="Stats legend">
             <div class="section-heading">
               <h3>Stats Legend</h3>
@@ -535,6 +558,50 @@
           </section>
         </section>
 
+        <section class="leaderboard-page hidden" id="leaderboardPanel" aria-label="Equipment and angler leaderboard">
+          <header class="leaderboard-header">
+            <div>
+              <p class="eyebrow">Performance board</p>
+              <h2>Boat leaderboard</h2>
+              <p>See which physical boat items and anglers turn the most fish into catches.</p>
+            </div>
+            <div class="leaderboard-rate-key">
+              <strong>Landing rate</strong>
+              <span>Landed ÷ (landed + lost)</span>
+            </div>
+          </header>
+
+          <div class="leaderboard-summary-grid" id="leaderboardSummary"></div>
+
+          <div class="leaderboard-board-grid">
+            <section class="leaderboard-board" aria-labelledby="equipmentLeaderboardHeading">
+              <header class="leaderboard-board-header">
+                <div>
+                  <p class="eyebrow">Boat equipment</p>
+                  <h3 id="equipmentLeaderboardHeading">Deck performance</h3>
+                </div>
+                <span class="leaderboard-count" id="equipmentLeaderboardCount">0 items</span>
+              </header>
+              <div class="leaderboard-list" id="equipmentLeaderboard"></div>
+            </section>
+
+            <section class="leaderboard-board" aria-labelledby="anglerLeaderboardHeading">
+              <header class="leaderboard-board-header">
+                <div>
+                  <p class="eyebrow">People</p>
+                  <h3 id="anglerLeaderboardHeading">Angler performance</h3>
+                </div>
+                <span class="leaderboard-count" id="anglerLeaderboardCount">0 anglers</span>
+              </header>
+              <div class="leaderboard-list" id="anglerLeaderboard"></div>
+            </section>
+          </div>
+
+          <p class="leaderboard-footnote">
+            Catch share uses attributed landed fish only. Link a deck item to each setup line and choose an angler on catches and missed fish for complete stats.
+          </p>
+        </section>
+
         <section class="map-page hidden" id="mapPanel" aria-label="Fish catch map">
           <div class="map-header">
             <div id="mapLegend" class="map-header-legend"></div>
@@ -574,13 +641,15 @@
               <button class="gear-tab" type="button" data-gear-tab="line">Line Tracker</button>
               <button class="gear-tab" type="button" data-gear-tab="baits">Baits</button>
               <button class="gear-tab" type="button" data-gear-tab="flashers">Flashers</button>
+              <button class="gear-tab" type="button" data-gear-tab="tackle-boxes">Tackle Boxes</button>
             </div>
             <div class="gear-actions">
-              <button class="button primary" id="newLibraryReelButton" type="button">New Reel</button>
-              <button class="button primary" id="newLibraryRodButton" type="button">New Rod</button>
-              <button class="button primary" id="newLibraryLureButton" type="button">New Lure</button>
-              <button class="button primary" id="newLibraryFlasherButton" type="button">New Flasher</button>
-              <button class="button primary" id="newLibraryComboButton" type="button">New Combo</button>
+              <button class="button primary gear-standard-action" id="newLibraryReelButton" type="button">New Reel</button>
+              <button class="button primary gear-standard-action" id="newLibraryRodButton" type="button">New Rod</button>
+              <button class="button primary gear-standard-action" id="newLibraryLureButton" type="button">New Lure</button>
+              <button class="button primary gear-standard-action" id="newLibraryFlasherButton" type="button">New Flasher</button>
+              <button class="button primary gear-standard-action" id="newLibraryComboButton" type="button">New Combo</button>
+              <button class="button primary hidden" id="newTackleBoxButton" type="button">New Tackle Box</button>
             </div>
           </div>
           <div id="gearTabPanels" class="gear-tab-panels">
@@ -632,6 +701,110 @@
               </div>
               <div class="inventory-table" id="flasherInventoryTable"></div>
             </section>
+            <section class="gear-tab-panel tackle-box-panel hidden" data-gear-panel="tackle-boxes">
+              <div class="gear-header tackle-box-panel-header">
+                <div>
+                  <h3>Tackle Boxes</h3>
+                  <p>Create as many boxes as you need, assign a color, and open each one to see what is packed inside.</p>
+                </div>
+              </div>
+              <div id="tackleBoxGrid" class="tackle-box-grid"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="boat-page hidden" id="boatPanel" aria-label="Boat gear layout">
+          <header class="boat-layout-intro">
+            <div>
+              <h3>Build your deck plan</h3>
+              <p>Drag equipment onto the quick-connect dots, then move it anytime. Every point holds one item.</p>
+            </div>
+            <label class="boat-name-field">
+              <span>Boat name</span>
+              <input id="boatNameInput" type="text" maxlength="50" placeholder="My boat" autocomplete="off" />
+            </label>
+          </header>
+
+          <div class="boat-layout-workspace">
+            <div class="boat-layout-main">
+              <section class="boat-quick-add-card" aria-labelledby="boatEquipmentLibraryHeading">
+                <div class="boat-card-heading">
+                  <div>
+                    <h4 id="boatEquipmentLibraryHeading">Equipment library</h4>
+                    <p>Save equipment once, then drag it directly onto any open deck dot.</p>
+                  </div>
+                  <div class="boat-library-actions">
+                    <span id="boatItemCount" class="boat-item-count">0 of 52 on deck</span>
+                    <button class="button primary" id="newBoatEquipmentButton" type="button">Add equipment</button>
+                  </div>
+                </div>
+                <div id="boatEquipmentLibrary" class="boat-equipment-library" aria-label="Saved boat equipment"></div>
+              </section>
+
+              <section class="boat-diagram-card" aria-labelledby="boatDiagramHeading">
+                <div class="boat-diagram-toolbar">
+                  <div>
+                    <h4 id="boatDiagramHeading">Deck layout</h4>
+                    <p>Drop equipment onto a dot, or drag a placed item between quick-connect points.</p>
+                  </div>
+                  <button class="button secondary" id="clearBoatLayoutButton" type="button">Clear deck</button>
+                </div>
+
+                <div class="boat-layout-stage" id="boatLayoutStage">
+                  <span class="boat-orientation boat-orientation-bow">Bow</span>
+                  <span class="boat-orientation boat-orientation-port">Port</span>
+                  <span class="boat-orientation boat-orientation-starboard">Starboard</span>
+                  <span class="boat-orientation boat-orientation-stern">Stern</span>
+                  <svg class="boat-hull" viewBox="0 0 500 625" aria-hidden="true">
+                    <path class="boat-hull-shadow" d="M250 18C159 37 98 111 79 221L54 497c-5 58 35 104 91 110h210c56-6 96-52 91-110l-25-276C402 111 341 37 250 18Z" />
+                    <path class="boat-hull-body" d="M250 11C155 31 91 108 71 219L46 496c-6 65 39 116 101 122h206c62-6 107-57 101-122l-25-277C409 108 345 31 250 11Z" />
+                    <path class="boat-hull-rail" d="M250 30C168 48 113 118 95 224L71 494c-4 48 27 86 77 93h204c50-7 81-45 77-93l-24-270C387 118 332 48 250 30Z" />
+                    <path class="boat-windshield" d="M159 163Q250 121 341 163L324 207Q250 179 176 207Z" />
+                    <path class="boat-console" d="M176 219h148v62H176z" />
+                    <path class="boat-stern-line" d="M92 506h316" />
+                  </svg>
+                  <div id="boatSlotGrid" class="boat-slot-grid" aria-label="Boat deck positions"></div>
+                  <div id="boatLayoutEmpty" class="boat-layout-empty">
+                    <strong>Your deck is empty</strong>
+                    <span>Drag equipment from the library onto a deck dot.</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <aside class="boat-inspector-card" aria-labelledby="boatInspectorHeading">
+              <div class="boat-card-heading">
+                <div>
+                  <h4 id="boatInspectorHeading">Equipment</h4>
+                  <p>Edit or move the selected item.</p>
+                </div>
+                <span id="boatSaveStatus" class="boat-save-status" role="status" aria-live="polite">Saved</span>
+              </div>
+
+              <div id="boatInspectorEmpty" class="boat-inspector-empty">
+                Select an item on the diagram to edit it.
+              </div>
+
+              <div id="boatInspectorEditor" class="boat-inspector-editor hidden">
+                <div id="boatSelectedEquipment" class="boat-selected-equipment"></div>
+                <button class="button secondary" id="editBoatEquipmentButton" type="button">Edit equipment details</button>
+                <fieldset class="boat-move-controls">
+                  <legend>Move one position</legend>
+                  <div>
+                    <button type="button" data-boat-move="up" aria-label="Move toward bow">↑</button>
+                    <button type="button" data-boat-move="left" aria-label="Move to port">←</button>
+                    <button type="button" data-boat-move="right" aria-label="Move to starboard">→</button>
+                    <button type="button" data-boat-move="down" aria-label="Move toward stern">↓</button>
+                  </div>
+                </fieldset>
+                <button class="button danger" id="removeBoatItemButton" type="button">Remove from deck</button>
+              </div>
+
+              <div class="boat-equipment-list-wrap">
+                <h5>Items on deck</h5>
+                <div id="boatEquipmentList" class="boat-equipment-list"></div>
+              </div>
+            </aside>
           </div>
         </section>
 
@@ -1231,6 +1404,104 @@
       </div>
     </dialog>
 
+    <dialog id="boatEquipmentDialog" class="dialog small-dialog">
+      <form id="boatEquipmentForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <h2 id="boatEquipmentDialogTitle">Add Boat Equipment</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <input id="editingBoatEquipmentId" type="hidden" />
+        <div class="form-grid one-column">
+          <label>
+            <span>Equipment name</span>
+            <input id="boatEquipmentName" type="text" maxlength="50" required placeholder="Helm fish finder" />
+          </label>
+          <label>
+            <span>Equipment type</span>
+            <select id="boatEquipmentType"></select>
+          </label>
+          <label>
+            <span>Equipment photo</span>
+            <input id="boatEquipmentImage" type="file" accept="image/*" />
+          </label>
+          <div id="boatEquipmentImagePreview" class="boat-equipment-image-preview hidden"></div>
+          <label id="addBoatEquipmentToDeckRow" class="checkbox-field">
+            <input id="addBoatEquipmentToDeck" type="checkbox" checked />
+            <span>Add this equipment to the deck after saving</span>
+          </label>
+        </div>
+        <div class="dialog-actions end-only">
+          <button class="button danger hidden" id="deleteBoatEquipmentButton" type="button">Delete Equipment</button>
+          <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+          <button class="button primary" type="submit">Save Equipment</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="tackleBoxDialog" class="dialog">
+      <form id="tackleBoxForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <h2 id="tackleBoxDialogTitle">New Tackle Box</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <input id="editingTackleBoxId" type="hidden" />
+        <div class="tackle-box-editor-layout">
+          <section class="tackle-box-details" aria-labelledby="tackleBoxDetailsHeading">
+            <h3 id="tackleBoxDetailsHeading">Box details</h3>
+            <label>
+              <span>Name</span>
+              <input id="tackleBoxName" type="text" maxlength="50" required placeholder="Salmon spoons" />
+            </label>
+            <label>
+              <span>Box style</span>
+              <select id="tackleBoxStyle">
+                <option value="organizer">Tray organizer · small tackle</option>
+                <option value="cantilever">Cantilever gear box · larger tackle</option>
+              </select>
+            </label>
+            <label>
+              <span>Layers</span>
+              <select id="tackleBoxLayerCount">
+                <option value="2">2 trays · 30 compartments</option>
+                <option value="3" selected>3 trays · 45 compartments</option>
+                <option value="4">4 trays · 60 compartments</option>
+              </select>
+            </label>
+            <fieldset class="tackle-color-picker">
+              <legend>Box color</legend>
+              <div id="tackleBoxColorOptions"></div>
+            </fieldset>
+            <div class="tackle-editor-layer-tabs" id="tackleBoxEditorLayerTabs" aria-label="Preview layer"></div>
+            <div id="tackleBoxEditorPreview"></div>
+          </section>
+          <section class="tackle-box-assignment" aria-labelledby="tackleBoxContentsHeading">
+            <div class="tackle-box-assignment-heading">
+              <div>
+                <h3 id="tackleBoxContentsHeading">Pack this box</h3>
+                <p>Select saved fishing gear, then choose the layer where it belongs.</p>
+              </div>
+              <label>
+                <span class="visually-hidden">Search gear</span>
+                <input id="tackleBoxItemSearch" type="search" placeholder="Search gear" autocomplete="off" />
+              </label>
+            </div>
+            <div id="tackleBoxItemPicker" class="tackle-box-item-picker"></div>
+          </section>
+        </div>
+        <div class="dialog-actions">
+          <button class="button danger hidden" id="deleteTackleBoxButton" type="button">Delete Tackle Box</button>
+          <div>
+            <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+            <button class="button primary" type="submit">Save Tackle Box</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="reelDialog" class="dialog">
       <form id="reelForm" method="dialog">
         <div class="dialog-header">
@@ -1758,6 +2029,11 @@
             <input class="trip-gear-distance-behind" type="text" placeholder="e.g., 20 ft" />
           </label>
           <div class="row-section-title gear-title">Gear</div>
+          <label class="trolling-field boat-equipment-field">
+            <span>Boat equipment</span>
+            <select class="trip-gear-boat-item"></select>
+            <small>Physical item from your Boat page.</small>
+          </label>
           <label class="gear-combo-field">
             <span>Rod/reel combo</span>
             <select class="trip-gear-combo"></select>
@@ -1848,6 +2124,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/esri-leaflet@3.0.16/dist/esri-leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="static/vendor/anime-3.2.2.min.js"></script>
     <script src="static/js/app-config.js"></script>
     <script src="static/js/app-defaults.js"></script>
     <script src="static/js/app-state.js"></script>
@@ -1870,6 +2147,9 @@
     <script src="static/js/personal-bests.js"></script>
     <script src="static/js/form-utils.js"></script>
     <script src="static/js/gallery.js"></script>
+    <script src="static/js/boat-layout.js"></script>
+    <script src="static/js/tackle-boxes.js"></script>
+    <script src="static/js/leaderboard.js"></script>
     <script src="static/js/app.js"></script>
   </body>
 </html>
