@@ -6,6 +6,22 @@ const context = { console, fishCount: () => 1 };
 vm.createContext(context);
 vm.runInContext(fs.readFileSync("static/js/leaderboard.js", "utf8"), context);
 
+const gear = {
+  lures: [
+    { id: "silver-lure", name: "Silver Streak" },
+    { id: "green-lure", name: "Green Machine" }
+  ],
+  flashers: [{ id: "chrome-flasher", name: "Chrome Spin Doctor" }],
+  rods: [{ id: "trolling-rod", brand: "Okuma", name: "Classic Pro" }],
+  reels: [{ id: "line-counter", brand: "Daiwa", name: "SealLine" }],
+  rodReelCombos: [{
+    id: "main-combo",
+    shortName: "Main trolling combo",
+    rodId: "trolling-rod",
+    reelId: "line-counter"
+  }]
+};
+
 const layout = {
   equipment: [
     { id: "downrigger-template", name: "Cannon Optimum", type: "downrigger" },
@@ -29,8 +45,24 @@ const trips = [
     id: "trip-1",
     people: [people[0], people[1]],
     gearUsed: [
-      { id: "line-1", boatItemId: "port-rigger" },
-      { id: "line-2", boatItemId: "starboard-rigger" }
+      {
+        id: "line-1",
+        boatItemId: "port-rigger",
+        lureId: "silver-lure",
+        flasherId: "chrome-flasher",
+        rodId: "trolling-rod",
+        reelId: "line-counter",
+        comboId: "main-combo"
+      },
+      {
+        id: "line-2",
+        boatItemId: "starboard-rigger",
+        lureId: "green-lure",
+        flasherId: "chrome-flasher",
+        rodId: "trolling-rod",
+        reelId: "line-counter",
+        comboId: "main-combo"
+      }
     ],
     catches: [
       { id: "catch-1", setupLineId: "line-1", personId: "alex" },
@@ -46,36 +78,59 @@ const trips = [
   {
     id: "trip-2",
     people: [people[1]],
-    gearUsed: [{ id: "line-3", boatItemId: "starboard-rigger" }],
+    gearUsed: [{
+      id: "line-3",
+      boatItemId: "starboard-rigger",
+      lureId: "green-lure",
+      flasherId: "chrome-flasher",
+      rodId: "trolling-rod",
+      reelId: "line-counter",
+      comboId: "main-combo"
+    }],
     catches: [{ id: "catch-4", setupLineId: "line-3", personId: "sam" }],
     lostFish: []
   }
 ];
 
-const equipmentRows = vm.runInContext(
-  `equipmentLeaderboardRows(${JSON.stringify(trips)}, ${JSON.stringify(layout)})`,
+context.resolveTripLineRecord = (record) => {
+  const line = (record.trip.gearUsed || []).find((item) => item.id === record.setupLineId);
+  return line ? { ...record, ...line, setupLine: line } : record;
+};
+
+const gearRows = vm.runInContext(
+  `fishingGearLeaderboardRows(${JSON.stringify(trips)}, ${JSON.stringify(gear)})`,
   context
 );
-const equipmentResult = JSON.parse(JSON.stringify(equipmentRows));
+const gearResult = JSON.parse(JSON.stringify(gearRows));
 
-assert.equal(equipmentResult.length, 3);
-assert.equal(equipmentResult[0].id, "port-rigger");
-assert.equal(equipmentResult[0].landed, 2);
-assert.equal(equipmentResult[0].lost, 1);
-assert.equal(equipmentResult[0].trips, 1);
-assert.equal(Math.round(equipmentResult[0].landingRate), 67);
-assert.equal(Math.round(equipmentResult[0].catchShare), 50);
-assert.equal(equipmentResult[0].catchesPerTrip, 2);
+assert.equal(gearResult.length, 6);
+assert.deepEqual(
+  [...new Set(gearResult.map((row) => row.gearType))].sort(),
+  ["combo", "flasher", "lure", "reel", "rod"]
+);
+assert.equal(gearResult.some((row) => row.id === "port-rigger"), false);
+assert.equal(gearResult.some((row) => row.name === "Cisco Holder"), false);
 
-const portRigger = equipmentResult.find((row) => row.id === "port-rigger");
-assert.equal(portRigger.landed, 2);
-assert.equal(portRigger.lost, 1);
-assert.equal(portRigger.trips, 1);
-assert.equal(portRigger.catchesPerTrip, 2);
+const silverLure = gearResult.find((row) => row.id === "silver-lure");
+assert.equal(silverLure.landed, 2);
+assert.equal(silverLure.lost, 1);
+assert.equal(silverLure.trips, 1);
+assert.equal(Math.round(silverLure.landingRate), 67);
+assert.equal(Math.round(silverLure.catchShare), 50);
+assert.equal(silverLure.catchesPerTrip, 2);
 
-const unusedHolder = equipmentResult.find((row) => row.id === "center-holder");
-assert.equal(unusedHolder.landed, 0);
-assert.equal(unusedHolder.landingRate, 0);
+const greenLure = gearResult.find((row) => row.id === "green-lure");
+assert.equal(greenLure.landed, 2);
+assert.equal(greenLure.lost, 1);
+assert.equal(greenLure.trips, 2);
+assert.equal(Math.round(greenLure.catchShare), 50);
+
+const combo = gearResult.find((row) => row.id === "main-combo");
+assert.equal(combo.name, "Main trolling combo");
+assert.equal(combo.landed, 4);
+assert.equal(combo.lost, 2);
+assert.equal(combo.trips, 2);
+assert.equal(Math.round(combo.catchShare), 100);
 
 const anglerRows = vm.runInContext(
   `anglerLeaderboardRows(${JSON.stringify(trips)}, ${JSON.stringify(people)})`,
@@ -100,19 +155,12 @@ assert.equal(sam.catchesPerTrip, 1);
 context.state = {
   trips,
   settings: { boatLayout: layout },
-  lures: [{ id: "photo-lure", name: "Silver Streak" }],
-  flashers: [],
-  rods: [],
-  reels: [],
-  rodReelCombos: []
+  ...gear,
+  lures: [...gear.lures, { id: "photo-lure", name: "Photo Spoon" }]
 };
 context.normalizeBoatLayout = (value) => value;
 context.fishCount = () => 1;
 context.escapeHtml = (value) => String(value);
-context.resolveTripLineRecord = (record) => {
-  const line = (record.trip.gearUsed || []).find((item) => item.id === record.setupLineId);
-  return line ? { ...record, ...line, setupLine: line } : record;
-};
 
 const boatTemplateStats = vm.runInContext(
   `gearPerformanceStats("boat-equipment", "downrigger-template")`,
@@ -127,17 +175,22 @@ const lureTooltip = vm.runInContext(
   `gearStatsTooltipMarkup("lure", "photo-lure")`,
   context
 );
-assert.match(lureTooltip, /equipment-stats-tooltip-name">Silver Streak</);
+assert.match(lureTooltip, /equipment-stats-tooltip-name">Photo Spoon</);
 assert.match(lureTooltip, /Lure performance/);
 
-const filteredEquipmentRows = vm.runInContext(
-  `equipmentLeaderboardRows(${JSON.stringify(trips)}, ${JSON.stringify(layout)}, {
+const filteredGearRows = vm.runInContext(
+  `fishingGearLeaderboardRows(${JSON.stringify(trips)}, ${JSON.stringify(gear)}, {
     recordFilter: (record) => record.personId === "alex"
   })`,
   context
 );
-const filteredResult = JSON.parse(JSON.stringify(filteredEquipmentRows));
-assert.equal(filteredResult.find((row) => row.id === "port-rigger").landed, 2);
-assert.equal(filteredResult.find((row) => row.id === "starboard-rigger").landed, 0);
+const filteredResult = JSON.parse(JSON.stringify(filteredGearRows));
+assert.equal(filteredResult.find((row) => row.id === "silver-lure").landed, 2);
+assert.equal(filteredResult.find((row) => row.id === "green-lure").landed, 0);
+
+const indexMarkup = fs.readFileSync("index.html", "utf8");
+assert.doesNotMatch(indexMarkup, /Boat leaderboard|Deck performance|statsEquipmentLeaderboard/);
+assert.match(indexMarkup, /Fishing leaderboard/);
+assert.match(indexMarkup, /Fishing gear/);
 
 console.log("leaderboard tests passed");

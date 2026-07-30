@@ -485,15 +485,15 @@
             <header class="stats-leaderboard-header">
               <div>
                 <p class="eyebrow">Leaderboard</p>
-                <h3 id="statsLeaderboardHeading">Equipment and anglers</h3>
+                <h3 id="statsLeaderboardHeading">Fishing gear and anglers</h3>
                 <p>Top performers within the active Stats filters.</p>
               </div>
               <button class="button secondary" id="openFullLeaderboardButton" type="button">Open full leaderboard</button>
             </header>
             <div class="stats-leaderboard-grid">
-              <section class="stats-leaderboard-board" aria-labelledby="statsEquipmentLeaderboardHeading">
-                <h4 id="statsEquipmentLeaderboardHeading">Boat equipment</h4>
-                <div class="leaderboard-list" id="statsEquipmentLeaderboard"></div>
+              <section class="stats-leaderboard-board" aria-labelledby="statsGearLeaderboardHeading">
+                <h4 id="statsGearLeaderboardHeading">Fishing gear</h4>
+                <div class="leaderboard-list" id="statsGearLeaderboard"></div>
               </section>
               <section class="stats-leaderboard-board" aria-labelledby="statsAnglerLeaderboardHeading">
                 <h4 id="statsAnglerLeaderboardHeading">Anglers</h4>
@@ -555,12 +555,12 @@
           </section>
         </section>
 
-        <section class="leaderboard-page hidden" id="leaderboardPanel" aria-label="Equipment and angler leaderboard">
+        <section class="leaderboard-page hidden" id="leaderboardPanel" aria-label="Fishing gear and angler leaderboard">
           <header class="leaderboard-header">
             <div>
               <p class="eyebrow">Performance board</p>
-              <h2>Boat leaderboard</h2>
-              <p>See which physical boat items and anglers turn the most fish into catches.</p>
+              <h2>Fishing leaderboard</h2>
+              <p>See which lures, flashers, rods, reels, combos, and anglers produce the most fish.</p>
             </div>
             <div class="leaderboard-rate-key">
               <strong>Landing rate</strong>
@@ -571,15 +571,15 @@
           <div class="leaderboard-summary-grid" id="leaderboardSummary"></div>
 
           <div class="leaderboard-board-grid">
-            <section class="leaderboard-board" aria-labelledby="equipmentLeaderboardHeading">
+            <section class="leaderboard-board" aria-labelledby="gearLeaderboardHeading">
               <header class="leaderboard-board-header">
                 <div>
-                  <p class="eyebrow">Boat equipment</p>
-                  <h3 id="equipmentLeaderboardHeading">Deck performance</h3>
+                  <p class="eyebrow">Fishing gear</p>
+                  <h3 id="gearLeaderboardHeading">Gear performance</h3>
                 </div>
-                <span class="leaderboard-count" id="equipmentLeaderboardCount">0 items</span>
+                <span class="leaderboard-count" id="gearLeaderboardCount">0 items</span>
               </header>
-              <div class="leaderboard-list" id="equipmentLeaderboard"></div>
+              <div class="leaderboard-list" id="gearLeaderboard"></div>
             </section>
 
             <section class="leaderboard-board" aria-labelledby="anglerLeaderboardHeading">
@@ -595,7 +595,7 @@
           </div>
 
           <p class="leaderboard-footnote">
-            Catch share uses attributed landed fish only. Link a deck item to each setup line and choose an angler on catches and missed fish for complete stats.
+            Gear catch share is compared within the same gear type. Link fishing gear to each setup line and choose an angler on catches and missed fish for complete stats.
           </p>
         </section>
 

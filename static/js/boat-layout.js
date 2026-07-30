@@ -245,7 +245,7 @@ function firstOpenBoatSlot() {
 
 function addBoatEquipmentToDeck(equipmentId, { save = true, targetSlot = firstOpenBoatSlot() } = {}) {
   const layout = boatLayout();
-  const equipment = boatEquipmentById(equipmentId);
+  const equipment = layout.equipment.find((item) => item.id === equipmentId) || null;
   const slotInUse = layout.items.some((item) => item.slot === targetSlot);
   if (!equipment || targetSlot < 0 || targetSlot >= BOAT_SLOT_COUNT || slotInUse) {
     if (targetSlot < 0 || layout.items.length >= BOAT_SLOT_COUNT) {

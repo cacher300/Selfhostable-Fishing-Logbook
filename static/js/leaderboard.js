@@ -3,16 +3,23 @@ function leaderboardRate(landed, lost) {
   return opportunities ? (landed / opportunities) * 100 : 0;
 }
 
-function finalizeLeaderboardRows(rows) {
-  const attributedCatches = rows.reduce((total, row) => total + row.landed, 0);
+function finalizeLeaderboardRows(rows, { shareGroup = () => "all" } = {}) {
+  const attributedCatches = new Map();
+  rows.forEach((row) => {
+    const group = shareGroup(row);
+    attributedCatches.set(group, (attributedCatches.get(group) || 0) + row.landed);
+  });
   return rows
-    .map((row) => ({
-      ...row,
-      trips: row.tripIds.size,
-      landingRate: leaderboardRate(row.landed, row.lost),
-      catchShare: attributedCatches ? (row.landed / attributedCatches) * 100 : 0,
-      catchesPerTrip: row.tripIds.size ? row.landed / row.tripIds.size : 0
-    }))
+    .map((row) => {
+      const catchesInGroup = attributedCatches.get(shareGroup(row)) || 0;
+      return {
+        ...row,
+        trips: row.tripIds.size,
+        landingRate: leaderboardRate(row.landed, row.lost),
+        catchShare: catchesInGroup ? (row.landed / catchesInGroup) * 100 : 0,
+        catchesPerTrip: row.tripIds.size ? row.landed / row.tripIds.size : 0
+      };
+    })
     .map(({ tripIds, ...row }) => row)
     .sort((first, second) => (
       second.landed - first.landed
@@ -23,48 +30,90 @@ function finalizeLeaderboardRows(rows) {
     ));
 }
 
-function equipmentLeaderboardRows(trips = [], layout = {}, { recordFilter = () => true } = {}) {
-  const equipmentById = new Map((layout.equipment || []).map((item) => [String(item.id), item]));
+function leaderboardGearName(item, type, collections) {
+  const fallbackByType = {
+    lure: "Unnamed lure",
+    flasher: "Unnamed flasher",
+    rod: "Unnamed rod",
+    reel: "Unnamed reel",
+    combo: "Rod and reel combo"
+  };
+  if (type === "combo") {
+    if (item.shortName) return String(item.shortName);
+    const rod = (collections.rods || []).find((candidate) => String(candidate.id) === String(item.rodId));
+    const reel = (collections.reels || []).find((candidate) => String(candidate.id) === String(item.reelId));
+    const parts = [
+      rod ? leaderboardGearName(rod, "rod", collections) : "",
+      reel ? leaderboardGearName(reel, "reel", collections) : ""
+    ].filter(Boolean);
+    if (parts.length) return parts.join(" + ");
+  }
+  return [item.brand, item.name]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" ")
+    || String(item.shortName || fallbackByType[type] || "Fishing gear");
+}
+
+function fishingGearLeaderboardRows(trips = [], collections = {}, { recordFilter = () => true } = {}) {
+  const gearTypes = [
+    { collection: "lures", type: "lure", field: "lureId", label: "Lure" },
+    { collection: "flashers", type: "flasher", field: "flasherId", label: "Flasher" },
+    { collection: "rods", type: "rod", field: "rodId", label: "Rod" },
+    { collection: "reels", type: "reel", field: "reelId", label: "Reel" },
+    { collection: "rodReelCombos", type: "combo", field: "comboId", label: "Rod + reel combo" }
+  ];
   const rowsById = new Map();
 
-  (layout.items || []).forEach((item) => {
-    const equipment = equipmentById.get(String(item.equipmentId));
-    if (!equipment) return;
-    rowsById.set(String(item.id), {
-      id: String(item.id),
-      name: String(equipment.name || "Boat equipment"),
-      type: String(equipment.type || "custom"),
-      slot: Number(item.slot),
-      equipment,
-      landed: 0,
-      lost: 0,
-      tripIds: new Set()
+  gearTypes.forEach(({ collection, type, field, label }) => {
+    (collections[collection] || []).forEach((item) => {
+      const id = String(item.id || "");
+      if (!id) return;
+      rowsById.set(`${type}:${id}`, {
+        id,
+        gearType: type,
+        field,
+        typeLabel: label,
+        name: leaderboardGearName(item, type, collections),
+        item,
+        landed: 0,
+        lost: 0,
+        tripIds: new Set()
+      });
     });
   });
 
   trips.forEach((trip, tripIndex) => {
     const tripId = String(trip.id || `trip-${tripIndex}`);
-    const setupLines = new Map((trip.gearUsed || []).map((line) => [String(line.id), line]));
     (trip.gearUsed || []).forEach((line) => {
-      const row = rowsById.get(String(line.boatItemId || ""));
-      if (row) row.tripIds.add(tripId);
+      gearTypes.forEach(({ type, field }) => {
+        const row = rowsById.get(`${type}:${String(line[field] || "")}`);
+        if (row) row.tripIds.add(tripId);
+      });
     });
 
     const countRecords = (records, field) => {
       records.forEach((record) => {
-        const line = setupLines.get(String(record.setupLineId || ""));
-        if (!recordFilter(record, trip, line)) return;
-        const row = rowsById.get(String(line?.boatItemId || ""));
-        if (!row) return;
-        row[field] += field === "landed" && typeof fishCount === "function" ? fishCount(record) : 1;
-        row.tripIds.add(tripId);
+        const resolved = typeof resolveTripLineRecord === "function"
+          ? resolveTripLineRecord({ ...record, trip })
+          : record;
+        if (!recordFilter(record, trip, resolved.setupLine)) return;
+        gearTypes.forEach(({ type, field: gearField }) => {
+          const row = rowsById.get(`${type}:${String(resolved[gearField] || "")}`);
+          if (!row) return;
+          row[field] += field === "landed" && typeof fishCount === "function" ? fishCount(record) : 1;
+          row.tripIds.add(tripId);
+        });
       });
     };
     countRecords(trip.catches || [], "landed");
     countRecords(trip.lostFish || [], "lost");
   });
 
-  return finalizeLeaderboardRows([...rowsById.values()]);
+  return finalizeLeaderboardRows(
+    [...rowsById.values()],
+    { shareGroup: (row) => row.gearType }
+  );
 }
 
 function anglerLeaderboardRows(trips = [], people = [], { recordFilter = () => true } = {}) {
@@ -123,16 +172,10 @@ function leaderboardInitials(name) {
     .join("") || "?";
 }
 
-function leaderboardBoatPosition(slot) {
-  return Number.isInteger(slot) && slot >= 0
-    ? boatLayoutPosition(slot)
-    : "Boat deck";
-}
-
-function leaderboardEquipmentAvatar(row) {
+function leaderboardGearAvatar(row) {
   const source = typeof previewImage === "function"
-    ? previewImage(row.equipment)
-    : (row.equipment.previewImage || row.equipment.image || "");
+    ? previewImage(row.item)
+    : (row.item.previewImage || row.item.image || "");
   if (source) {
     return `<span class="leaderboard-avatar leaderboard-equipment-avatar"><img src="${escapeHtml(source)}" alt=""></span>`;
   }
@@ -149,11 +192,12 @@ function leaderboardEmpty(message, detail) {
 }
 
 function leaderboardRowMarkup(row, rank, kind) {
-  const subtitle = kind === "equipment"
-    ? leaderboardBoatPosition(row.slot)
-    : `${row.trips} trip${row.trips === 1 ? "" : "s"}`;
-  const avatar = kind === "equipment"
-    ? leaderboardEquipmentAvatar(row)
+  const tripsLabel = `${row.trips} trip${row.trips === 1 ? "" : "s"}`;
+  const subtitle = kind === "gear"
+    ? `${row.typeLabel} · ${tripsLabel}`
+    : tripsLabel;
+  const avatar = kind === "gear"
+    ? leaderboardGearAvatar(row)
     : `<span class="leaderboard-avatar">${escapeHtml(leaderboardInitials(row.name))}</span>`;
 
   return `
@@ -182,11 +226,28 @@ function leaderboardRowMarkup(row, rank, kind) {
   `;
 }
 
-function leaderboardSummaryMarkup(equipmentRows, anglerRows, trips) {
-  const landed = trips.reduce((total, trip) => total + (trip.catches || []).length, 0);
+function leaderboardLinkedGearCatches(trips) {
+  const gearFields = ["lureId", "flasherId", "rodId", "reelId", "comboId"];
+  return trips.reduce((total, trip) => total + (trip.catches || []).reduce((tripTotal, record) => {
+    const resolved = typeof resolveTripLineRecord === "function"
+      ? resolveTripLineRecord({ ...record, trip })
+      : record;
+    const hasLinkedGear = gearFields.some((field) => Boolean(resolved[field]));
+    return tripTotal + (hasLinkedGear ? (typeof fishCount === "function" ? fishCount(record) : 1) : 0);
+  }, 0), 0);
+}
+
+function leaderboardSummaryMarkup(gearRows, anglerRows, trips) {
+  const landed = trips.reduce(
+    (total, trip) => total + (trip.catches || []).reduce(
+      (tripTotal, record) => tripTotal + (typeof fishCount === "function" ? fishCount(record) : 1),
+      0
+    ),
+    0
+  );
   const lost = trips.reduce((total, trip) => total + (trip.lostFish || []).length, 0);
-  const linkedCatches = equipmentRows.reduce((total, row) => total + row.landed, 0);
-  const topEquipment = equipmentRows.find((row) => row.landed > 0);
+  const linkedCatches = leaderboardLinkedGearCatches(trips);
+  const topGear = gearRows.find((row) => row.landed > 0);
   const topAngler = anglerRows.find((row) => row.landed > 0);
   const cards = [
     {
@@ -195,14 +256,14 @@ function leaderboardSummaryMarkup(equipmentRows, anglerRows, trips) {
       detail: `${landed} landed · ${lost} lost`
     },
     {
-      label: "Equipment linked",
+      label: "Gear attributed",
       value: landed ? leaderboardPercent((linkedCatches / landed) * 100) : "0%",
       detail: `${linkedCatches} of ${landed} catches`
     },
     {
-      label: "Top equipment",
-      value: topEquipment?.name || "No leader yet",
-      detail: topEquipment ? `${topEquipment.landed} catches · ${leaderboardPercent(topEquipment.landingRate)} landed` : "Link setup lines to start"
+      label: "Top fishing gear",
+      value: topGear?.name || "No leader yet",
+      detail: topGear ? `${topGear.landed} catches · ${leaderboardPercent(topGear.landingRate)} landed` : "Link fishing gear to setup lines"
     },
     {
       label: "Top angler",
@@ -399,36 +460,34 @@ function bindEquipmentStatsTooltip() {
 }
 
 function renderStatsLeaderboard(trips = state.trips, recordFilter = () => true) {
-  const equipmentContainer = document.querySelector("#statsEquipmentLeaderboard");
+  const gearContainer = document.querySelector("#statsGearLeaderboard");
   const anglerContainer = document.querySelector("#statsAnglerLeaderboard");
-  if (!equipmentContainer || !anglerContainer) return;
-  const layout = normalizeBoatLayout(state.settings?.boatLayout);
-  const equipmentRows = equipmentLeaderboardRows(trips, layout, { recordFilter }).slice(0, 5);
+  if (!gearContainer || !anglerContainer) return;
+  const gearRows = fishingGearLeaderboardRows(trips, state, { recordFilter }).slice(0, 5);
   const anglerRows = anglerLeaderboardRows(trips, state.people, { recordFilter }).slice(0, 5);
-  equipmentContainer.innerHTML = equipmentRows.length
-    ? equipmentRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "equipment")).join("")
-    : leaderboardEmpty("No linked equipment in this scope", "Link boat items to setup lines to rank them here.");
+  gearContainer.innerHTML = gearRows.length
+    ? gearRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
+    : leaderboardEmpty("No fishing gear in this scope", "Add lures, flashers, rods, reels, or combos to rank them here.");
   anglerContainer.innerHTML = anglerRows.length
     ? anglerRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "angler")).join("")
     : leaderboardEmpty("No attributed anglers in this scope", "Choose an angler on catches and missed fish.");
 }
 
 function renderLeaderboard() {
-  const equipmentContainer = document.querySelector("#equipmentLeaderboard");
+  const gearContainer = document.querySelector("#gearLeaderboard");
   const anglerContainer = document.querySelector("#anglerLeaderboard");
-  if (!equipmentContainer || !anglerContainer) return;
+  if (!gearContainer || !anglerContainer) return;
 
-  const layout = normalizeBoatLayout(state.settings?.boatLayout);
-  const equipmentRows = equipmentLeaderboardRows(state.trips, layout);
+  const gearRows = fishingGearLeaderboardRows(state.trips, state);
   const anglerRows = anglerLeaderboardRows(state.trips, state.people);
 
-  document.querySelector("#leaderboardSummary").innerHTML = leaderboardSummaryMarkup(equipmentRows, anglerRows, state.trips);
-  document.querySelector("#equipmentLeaderboardCount").textContent = `${equipmentRows.length} item${equipmentRows.length === 1 ? "" : "s"}`;
+  document.querySelector("#leaderboardSummary").innerHTML = leaderboardSummaryMarkup(gearRows, anglerRows, state.trips);
+  document.querySelector("#gearLeaderboardCount").textContent = `${gearRows.length} item${gearRows.length === 1 ? "" : "s"}`;
   document.querySelector("#anglerLeaderboardCount").textContent = `${anglerRows.length} angler${anglerRows.length === 1 ? "" : "s"}`;
 
-  equipmentContainer.innerHTML = equipmentRows.length
-    ? equipmentRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "equipment")).join("")
-    : leaderboardEmpty("No deck equipment yet", "Place equipment on the Boat page, then link it to a trip setup line.");
+  gearContainer.innerHTML = gearRows.length
+    ? gearRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
+    : leaderboardEmpty("No fishing gear yet", "Add lures, flashers, rods, reels, or combos on the Gear page.");
   anglerContainer.innerHTML = anglerRows.length
     ? anglerRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "angler")).join("")
     : leaderboardEmpty("No anglers yet", "Add people to a trip and select who landed or lost each fish.");

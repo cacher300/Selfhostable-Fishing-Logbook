@@ -121,4 +121,34 @@ assert.equal(vm.runInContext('adjacentBoatSlot(0, "left")', context), -1);
 assert.equal(vm.runInContext('adjacentBoatSlot(0, "right")', context), 1);
 assert.equal(vm.runInContext('adjacentBoatSlot(0, "down")', context), 3);
 
+const addedPlacement = vm.runInContext(`
+  state.settings = {
+    boatLayout: {
+      name: "Test boat",
+      equipment: [{ id: "seat-template", type: "seat", name: "Captain chair" }],
+      items: []
+    }
+  };
+  renderBoatLayout = () => {};
+  queueBoatSave = () => {};
+  addBoatEquipmentToDeck("seat-template");
+  JSON.stringify(state.settings.boatLayout.items);
+`, context);
+assert.deepEqual(
+  JSON.parse(addedPlacement),
+  [{ id: "generated-1", equipmentId: "seat-template", slot: 0 }]
+);
+
+const droppedPlacement = vm.runInContext(`
+  addBoatEquipmentToDeck("seat-template", { targetSlot: 51 });
+  JSON.stringify(state.settings.boatLayout.items);
+`, context);
+assert.deepEqual(
+  JSON.parse(droppedPlacement),
+  [
+    { id: "generated-1", equipmentId: "seat-template", slot: 0 },
+    { id: "generated-2", equipmentId: "seat-template", slot: 51 }
+  ]
+);
+
 console.log("boat layout tests passed");
