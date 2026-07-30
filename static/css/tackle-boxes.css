@@ -16,10 +16,10 @@
 
 .tackle-box-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr));
   align-items: start;
   min-width: 0;
-  gap: 16px;
+  gap: 20px;
 }
 
 .tackle-box-card {
@@ -732,6 +732,70 @@
   font-weight: 800;
 }
 
+/* Display cards are intentionally larger than the dialog preview so gear photos stay recognizable. */
+.tackle-box-card .tackle-box-scene {
+  height: 330px;
+}
+
+.tackle-box-card .tackle-box-object {
+  top: 52px;
+  width: min(92%, 440px);
+  height: 220px;
+}
+
+.tackle-box-card .tackle-box-base {
+  height: 160px;
+  padding: 12px;
+}
+
+.tackle-box-card .tackle-box-lid {
+  height: 152px;
+}
+
+.tackle-box-card .tackle-box-layer-panel {
+  height: 126px;
+}
+
+.tackle-box-card .tackle-compartment-item {
+  padding: 4px;
+}
+
+.tackle-box-card .tackle-compartment-item > span:last-child {
+  font-size: 8px;
+}
+
+.tackle-box-card .tackle-compartment-photo,
+.tackle-box-card .tackle-item-placeholder.tackle-compartment-photo {
+  font-size: 13px;
+}
+
+.tackle-box-card .tackle-style-cantilever {
+  height: 430px;
+}
+
+.tackle-box-card .tackle-style-cantilever .tackle-box-object {
+  top: 126px;
+  width: min(94%, 480px);
+  height: 286px;
+}
+
+.tackle-box-card .tackle-style-cantilever .tackle-box-base {
+  height: 142px;
+}
+
+.tackle-box-card .tackle-style-cantilever .tackle-box-lid {
+  height: 140px;
+}
+
+.tackle-box-card .tackle-style-cantilever .tackle-cantilever-tray {
+  width: 46%;
+  height: 102px;
+}
+
+.tackle-box-card .tackle-style-cantilever .tackle-compartment-item > span:last-child {
+  font-size: 9px;
+}
+
 .tackle-box-empty-state {
   display: grid;
   grid-column: 1 / -1;
@@ -1124,16 +1188,36 @@
     padding: 18px;
   }
 
-  .tackle-box-scene {
-    height: 225px;
+  .tackle-box-card .tackle-box-scene {
+    height: 295px;
   }
 
-  .tackle-style-cantilever {
-    height: 310px;
+  .tackle-box-card .tackle-box-object {
+    top: 44px;
+    width: 94%;
+    height: 205px;
   }
 
-  .tackle-box-object {
-    width: 88%;
+  .tackle-box-card .tackle-box-base {
+    height: 145px;
+  }
+
+  .tackle-box-card .tackle-box-lid {
+    height: 138px;
+  }
+
+  .tackle-box-card .tackle-box-layer-panel {
+    height: 111px;
+  }
+
+  .tackle-box-card .tackle-style-cantilever {
+    height: 400px;
+  }
+
+  .tackle-box-card .tackle-style-cantilever .tackle-box-object {
+    top: 112px;
+    width: 96%;
+    height: 270px;
   }
 
   .tackle-box-card-header,

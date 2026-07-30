@@ -33,6 +33,18 @@ assert.match(
   tackleBoxCss,
   /\.tackle-box-object\.is-open \.tackle-box-layer-panel\s*\{[^}]*pointer-events:\s*auto/s
 );
+assert.match(
+  tackleBoxCss,
+  /\.tackle-box-card \.tackle-box-object\s*\{[^}]*width:\s*min\(92%, 440px\)/s
+);
+assert.match(
+  tackleBoxCss,
+  /\.tackle-box-card \.tackle-box-layer-panel\s*\{[^}]*height:\s*126px/s
+);
+assert.match(
+  tackleBoxCss,
+  /\.tackle-box-card \.tackle-style-cantilever\s*\{[^}]*height:\s*430px/s
+);
 
 const fiveItems = Array.from({ length: 5 }, (_, index) => ({
   type: "lure",
