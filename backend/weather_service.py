@@ -20,7 +20,7 @@ from .backend_config import (
     WEATHER_HOURLY_FIELDS,
     WEATHER_QUERY_KEYS,
 )
-from .logbook_store import normalize_logbook, read_logbook, write_logbook
+from .logbook_store import normalize_logbook
 
 
 def weather_archive_payload(args: dict) -> tuple[dict, int]:
@@ -297,14 +297,6 @@ def open_meteo_unit(bundle: dict, key: str, fallback: str = "") -> str:
     return value
 
 
-def open_meteo_value(bundle: dict, values: dict, key: str, index: int, target_unit: str, fallback_unit: str) -> float | None:
-    value = list_value(values, key, index)
-    source_unit = open_meteo_unit(bundle, key, fallback_unit)
-    if not source_unit:
-        return None
-    return convert_unit_value(value, source_unit, target_unit)
-
-
 def hourly_records(bundle: dict) -> list[dict]:
     hourly = bundle.get("hourly") or {}
     times = hourly.get("time") or []
@@ -448,16 +440,6 @@ def format_unit_value(value: object, units: dict | None, key: str, from_unit: st
     rounded_value = round(converted, digits)
     text = str(int(rounded_value)) if float(rounded_value).is_integer() else str(rounded_value)
     return f"{text} {unit_symbol(units, key)}"
-
-
-def meters_to_feet(value: object) -> float | None:
-    try:
-        meters = float(value)
-    except (TypeError, ValueError):
-        return None
-    if not math.isfinite(meters):
-        return None
-    return round(meters * 3.28084, 1)
 
 
 def average_number(records: list[dict], key: str) -> float | None:
@@ -794,50 +776,3 @@ def enrich_trip_weather_backend(logbook: dict, trip: dict, weather_cache: dict, 
 def now_iso() -> str:
     from datetime import datetime, timezone
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def refresh_all_trip_weather() -> dict:
-    logbook = read_logbook()
-    weather_cache: dict = {}
-    astronomy_cache: dict = {}
-    marine_cache: dict = {}
-    results = []
-    refreshed = 0
-    skipped = 0
-    failed = 0
-    updated_trips = []
-    for trip in logbook.get("trips", []):
-        if not isinstance(trip, dict):
-            updated_trips.append(trip)
-            continue
-        label = trip.get("title") or trip.get("location") or trip.get("date") or trip.get("id") or "Trip"
-        try:
-            updated_trip, status = enrich_trip_weather_backend(logbook, deepcopy(trip), weather_cache, astronomy_cache, marine_cache)
-            updated_trips.append(updated_trip)
-            if status == "refreshed":
-                refreshed += 1
-            else:
-                skipped += 1
-            results.append({"tripId": trip.get("id"), "name": label, "status": status})
-        except Exception as error:  # Keep the batch moving if one API call fails.
-            failed += 1
-            trip["weatherData"] = {
-                **(trip.get("weatherData") or {}),
-                "status": "error",
-                "message": str(error) or "Could not fetch weather.",
-                "updatedAt": now_iso(),
-            }
-            updated_trips.append(trip)
-            results.append({"tripId": trip.get("id"), "name": label, "status": "error", "message": str(error)})
-    logbook["trips"] = updated_trips
-    write_logbook(logbook)
-    return {
-        "ok": True,
-        "refreshed": refreshed,
-        "skipped": skipped,
-        "failed": failed,
-        "total": len(updated_trips),
-        "results": results,
-    }
-
-

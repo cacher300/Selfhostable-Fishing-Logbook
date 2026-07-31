@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="static/css/styles.css" />
+    <link rel="stylesheet" href="static/css/styles.css?v=20260731-gear-filter-layout-2" />
     <link rel="stylesheet" href="static/css/trip-sharing.css" />
   </head>
   <body>
@@ -60,10 +60,9 @@
             <nav class="view-nav" aria-label="Primary views">
               <button class="button secondary" id="tripsViewButton" type="button">Trips</button>
               <button class="button secondary" id="statsViewButton" type="button">Stats</button>
-              <button class="button secondary" id="leaderboardViewButton" type="button">Leaderboard</button>
               <button class="button secondary" id="mapViewButton" type="button">Map</button>
               <button class="button secondary" id="gearViewButton" type="button">Gear</button>
-              <button class="button secondary" id="boatViewButton" type="button">Boat</button>
+              <button class="button secondary hidden" id="boatViewButton" type="button">Boat</button>
               <button class="button secondary" id="galleryViewButton" type="button">Gallery</button>
               <button class="button secondary" id="settingsViewButton" type="button">Settings</button>
             </nav>
@@ -142,7 +141,10 @@
         <section class="stats-page hidden" id="advancedStatsPanel" aria-label="Fishing performance statistics">
           <header class="stats-page-header">
             <div class="stats-scope" id="statsActiveScope" aria-live="polite">All time · All methods</div>
-            <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
+            <div class="stats-page-actions">
+              <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
+              <button class="button secondary" id="leaderboardViewButton" type="button">Leaderboard</button>
+            </div>
           </header>
           <div class="stats-toolbar">
             <label>
@@ -481,27 +483,6 @@
             </details>
 
           </div>
-          <section class="stats-leaderboard" aria-labelledby="statsLeaderboardHeading">
-            <header class="stats-leaderboard-header">
-              <div>
-                <p class="eyebrow">Leaderboard</p>
-                <h3 id="statsLeaderboardHeading">Fishing gear and anglers</h3>
-                <p>Top performers within the active Stats filters.</p>
-              </div>
-              <button class="button secondary" id="openFullLeaderboardButton" type="button">Open full leaderboard</button>
-            </header>
-            <div class="stats-leaderboard-grid">
-              <section class="stats-leaderboard-board" aria-labelledby="statsGearLeaderboardHeading">
-                <h4 id="statsGearLeaderboardHeading">Fishing gear</h4>
-                <div class="leaderboard-list" id="statsGearLeaderboard"></div>
-              </section>
-              <section class="stats-leaderboard-board" aria-labelledby="statsAnglerLeaderboardHeading">
-                <h4 id="statsAnglerLeaderboardHeading">Anglers</h4>
-                <div class="leaderboard-list" id="statsAnglerLeaderboard"></div>
-              </section>
-            </div>
-          </section>
-
           <section class="stats-help" aria-label="Stats legend">
             <div class="section-heading">
               <h3>Stats Legend</h3>
@@ -555,7 +536,38 @@
           </section>
         </section>
 
-        <section class="leaderboard-page hidden" id="leaderboardPanel" aria-label="Fishing gear and angler leaderboard">
+        <section class="stats-page leaderboard-page hidden" id="leaderboardPanel" aria-label="Leaderboard">
+          <section class="stats-leaderboard" aria-label="Leaderboard rankings">
+            <div class="stats-leaderboard-grid">
+              <details class="stats-leaderboard-board" open>
+                <summary><h3 id="statsRodLeaderboardHeading">Rod Leaderboard</h3></summary>
+                <div class="leaderboard-list" id="statsRodLeaderboard"></div>
+              </details>
+              <details class="stats-leaderboard-board" open>
+                <summary><h3 id="statsReelLeaderboardHeading">Reel Leaderboard</h3></summary>
+                <div class="leaderboard-list" id="statsReelLeaderboard"></div>
+              </details>
+              <details class="stats-leaderboard-board" open>
+                <summary><h3 id="statsComboLeaderboardHeading">Combo Leaderboard</h3></summary>
+                <div class="leaderboard-list" id="statsComboLeaderboard"></div>
+              </details>
+              <details class="stats-leaderboard-board" open>
+                <summary><h3 id="statsLureLeaderboardHeading">Lure Leaderboard</h3></summary>
+                <div class="leaderboard-list" id="statsLureLeaderboard"></div>
+              </details>
+              <details class="stats-leaderboard-board" open>
+                <summary><h3 id="statsFlasherLeaderboardHeading">Flasher Leaderboard</h3></summary>
+                <div class="leaderboard-list" id="statsFlasherLeaderboard"></div>
+              </details>
+              <details class="stats-leaderboard-board" open>
+                <summary><h3 id="statsAnglerLeaderboardHeading">People Leaderboard</h3></summary>
+                <div class="leaderboard-list" id="statsAnglerLeaderboard"></div>
+              </details>
+            </div>
+          </section>
+        </section>
+
+        <!-- Previous standalone leaderboard markup retained for backwards-compatible page structure.
           <header class="leaderboard-header">
             <div>
               <p class="eyebrow">Performance board</p>
@@ -594,10 +606,7 @@
             </section>
           </div>
 
-          <p class="leaderboard-footnote">
-            Gear catch share is compared within the same gear type. Link fishing gear to each setup line and choose an angler on catches and missed fish for complete stats.
-          </p>
-        </section>
+        -->
 
         <section class="map-page hidden" id="mapPanel" aria-label="Fish catch map">
           <div class="map-header">
@@ -611,22 +620,44 @@
                 <span>Year</span>
                 <select id="mapYearFilter"></select>
               </label>
-              <label class="inline-toggle map-year-filter-toggle">
-                <input id="mapHideYearFilterToggle" type="checkbox" checked />
-                <span>Hide year filtering</span>
-              </label>
               <label class="inline-toggle map-media-toggle">
                 <input id="mapTripPhotosToggle" type="checkbox" />
-                <span>Trip photos</span>
+                <span>Show photos</span>
               </label>
-              <label class="inline-toggle map-chart-toggle">
-                <input id="mapNoaaChartsToggle" type="checkbox" checked />
-                <span>NOAA charts</span>
-              </label>
+              <details class="map-more-filters">
+                <summary>More filters</summary>
+                <div class="map-more-filters-panel">
+                  <label class="inline-toggle map-year-filter-toggle">
+                    <input id="mapHideYearFilterToggle" type="checkbox" checked />
+                    <span>Hide year filtering</span>
+                  </label>
+                </div>
+              </details>
+              <details class="map-layers-menu">
+                <summary>Layers</summary>
+                <div class="map-layers-menu-panel">
+                  <label class="map-basemap-select">
+                    <span>Basemap</span>
+                    <select id="mapBasemap">
+                      <option value="standard">Standard</option>
+                      <option value="dark">Dark</option>
+                      <option value="minimal">Minimal</option>
+                    </select>
+                  </label>
+                  <label class="inline-toggle map-chart-toggle">
+                    <input id="mapNoaaChartsToggle" type="checkbox" checked />
+                    <span>NOAA charts</span>
+                  </label>
+                  <div id="greatLakesConditions"></div>
+                </div>
+              </details>
             </div>
           </div>
           <div id="fishMap" class="fish-map"></div>
-          <div id="mapCatchList" class="map-catch-list"></div>
+          <details class="map-results-tray" open>
+            <summary>Trip results</summary>
+            <div id="mapCatchList" class="map-catch-list"></div>
+          </details>
         </section>
 
         <section class="gear-page hidden" id="gearPanel" aria-label="Gear inventory">
@@ -648,6 +679,17 @@
               <button class="button primary gear-standard-action" id="newLibraryComboButton" type="button">New Combo</button>
               <button class="button primary hidden" id="newTackleBoxButton" type="button">New Tackle Box</button>
             </div>
+          </div>
+          <div class="gear-inventory-controls" aria-label="Gear table controls">
+            <label class="settings-control">
+              <span>Filter by</span>
+              <select id="gearFilterField"></select>
+            </label>
+            <label class="settings-control gear-filter-query">
+              <input id="gearFilterQuery" type="search" placeholder="Filter gear" autocomplete="off" />
+              <div id="gearFilterSuggestions" class="gear-filter-suggestions hidden" role="listbox" aria-label="Filter suggestions"></div>
+            </label>
+            <button class="button secondary" id="clearGearFilterButton" type="button">Clear</button>
           </div>
           <div id="gearTabPanels" class="gear-tab-panels">
             <section class="gear-tab-panel" data-gear-panel="reels">
@@ -887,6 +929,17 @@
                   <h4 id="appearanceSettingsHeading">Appearance</h4>
                 </div>
                 <div class="settings-field-grid">
+                  <label class="settings-control">
+                    <span>Default home lake</span>
+                    <select id="defaultHomeLakeSelect">
+                      <option value="">All lakes</option>
+                      <option value="Superior">Lake Superior</option>
+                      <option value="Michigan">Lake Michigan</option>
+                      <option value="Huron">Lake Huron</option>
+                      <option value="Erie">Lake Erie</option>
+                      <option value="Ontario">Lake Ontario</option>
+                    </select>
+                  </label>
                   <fieldset class="settings-radio-group">
                     <legend>Theme</legend>
                     <label><input type="radio" name="themeChoice" value="dark" data-theme-option /> Dark mode</label>
@@ -900,6 +953,10 @@
                     </select>
                     <label><input type="radio" name="timeFormatChoice" value="24" data-time-format-option /> 24 Hour</label>
                     <label><input type="radio" name="timeFormatChoice" value="12" data-time-format-option /> 12 Hour</label>
+                  </fieldset>
+                  <fieldset class="settings-radio-group">
+                    <legend>Features</legend>
+                    <label><input type="checkbox" id="boatFeatureEnabled" /> Show Boat tab</label>
                   </fieldset>
                 </div>
               </section>
@@ -1768,6 +1825,17 @@
       </div>
     </dialog>
 
+    <dialog id="inventoryInfoDialog" class="dialog small-dialog">
+      <div class="dialog-content">
+        <div class="dialog-header">
+          <h2 id="inventoryInfoTitle">Gear</h2>
+          <button class="icon-button" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <div id="inventoryInfoContent" class="lure-info-content"></div>
+        <div class="dialog-actions end-only"><button class="button secondary" type="button" data-close-dialog>Close</button></div>
+      </div>
+    </dialog>
+
     <template id="catchRowTemplate">
       <article class="catch-row collapsed">
         <div class="collapsible-row-header">
@@ -2136,18 +2204,20 @@
     <script src="static/js/app-config.js"></script>
     <script src="static/js/app-defaults.js"></script>
     <script src="static/js/app-state.js"></script>
-    <script src="static/js/app-elements.js"></script>
+    <script src="static/js/app-elements.js?v=20260731-boat-tab-1"></script>
     <script src="static/js/app-media.js"></script>
     <script src="static/js/locations.js"></script>
     <script src="static/js/location-weather.js"></script>
-    <script src="static/js/settings.js"></script>
+    <script src="static/js/settings.js?v=20260731-boat-tab-1"></script>
     <script src="static/js/dashboard.js"></script>
     <script src="static/js/photos.js"></script>
     <script src="static/js/trip-editor.js"></script>
-    <script src="static/js/gear.js"></script>
+    <script src="static/js/gear.js?v=20260731-gear-filter-layout-1"></script>
     <script src="static/js/trolling-spread.js"></script>
     <script src="static/js/noaaCharts.js"></script>
-    <script src="static/js/maps-summary.js"></script>
+    <script src="static/js/noaa-api.js?v=20260731-7"></script>
+    <script src="static/js/great-lakes-conditions.js?v=20260731-48"></script>
+    <script src="static/js/maps-summary.js?v=20260731-16"></script>
     <script src="static/js/trip-sharing.js"></script>
     <script src="static/js/stats-analytics.js"></script>
     <script src="static/js/stats.js"></script>
@@ -2158,6 +2228,6 @@
     <script src="static/js/boat-layout.js"></script>
     <script src="static/js/tackle-boxes.js"></script>
     <script src="static/js/leaderboard.js"></script>
-    <script src="static/js/app.js"></script>
+    <script src="static/js/app.js?v=20260731-gear-filter-menu-1"></script>
   </body>
 </html>

@@ -163,23 +163,14 @@ function leaderboardDecimal(value) {
   return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
 }
 
-function leaderboardInitials(name) {
-  return String(name || "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join("") || "?";
-}
-
 function leaderboardGearAvatar(row) {
   const source = typeof previewImage === "function"
     ? previewImage(row.item)
     : (row.item.previewImage || row.item.image || "");
   if (source) {
-    return `<span class="leaderboard-avatar leaderboard-equipment-avatar"><img src="${escapeHtml(source)}" alt=""></span>`;
+    return `<button class="leaderboard-avatar leaderboard-equipment-avatar leaderboard-preview-button" type="button" data-leaderboard-preview-type="${escapeHtml(row.gearType)}" data-leaderboard-preview-id="${escapeHtml(row.id)}" aria-label="Open details for ${escapeHtml(row.name)}"><img src="${escapeHtml(source)}" alt=""></button>`;
   }
-  return `<span class="leaderboard-avatar leaderboard-equipment-avatar">${escapeHtml(leaderboardInitials(row.name))}</span>`;
+  return "";
 }
 
 function leaderboardEmpty(message, detail) {
@@ -191,23 +182,39 @@ function leaderboardEmpty(message, detail) {
   `;
 }
 
+function bindLeaderboardPreviews() {
+  document.addEventListener("click", (event) => {
+    const previewButton = event.target.closest("[data-leaderboard-preview-type]");
+    if (!previewButton) return;
+    const { leaderboardPreviewType: type, leaderboardPreviewId: id } = previewButton.dataset;
+    if (!type || !id) return;
+    if (type === "lure") {
+      const lure = state.lures.find((item) => String(item.id) === id);
+      if (lure) openLureInfoDialog(lure, "leaderboard");
+      return;
+    }
+    if (type === "flasher") {
+      const flasher = state.flashers.find((item) => String(item.id) === id);
+      if (flasher) openFlasherInfoDialog(flasher, "leaderboard");
+      return;
+    }
+    if (typeof openInventoryItemInfo === "function") openInventoryItemInfo(type, id);
+  });
+}
+
 function leaderboardRowMarkup(row, rank, kind) {
   const tripsLabel = `${row.trips} trip${row.trips === 1 ? "" : "s"}`;
-  const subtitle = kind === "gear"
-    ? `${row.typeLabel} · ${tripsLabel}`
-    : tripsLabel;
-  const avatar = kind === "gear"
-    ? leaderboardGearAvatar(row)
-    : `<span class="leaderboard-avatar">${escapeHtml(leaderboardInitials(row.name))}</span>`;
+  const subtitle = kind === "gear" ? "" : tripsLabel;
+  const avatar = kind === "gear" ? leaderboardGearAvatar(row) : "";
 
   return `
     <article class="leaderboard-row" style="--leaderboard-delay: ${Math.min(rank, 8) * 35}ms">
       <span class="leaderboard-rank" aria-label="Rank ${rank}">${String(rank).padStart(2, "0")}</span>
-      <div class="leaderboard-identity">
+      <div class="leaderboard-identity${avatar ? "" : " leaderboard-identity--text-only"}">
         ${avatar}
         <div>
           <strong>${escapeHtml(row.name)}</strong>
-          <span>${escapeHtml(subtitle)}</span>
+          ${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ""}
         </div>
       </div>
       <div class="leaderboard-performance">
@@ -215,11 +222,9 @@ function leaderboardRowMarkup(row, rank, kind) {
           <div><strong>${row.landed}</strong><span>Landed</span></div>
           <div><strong>${row.lost}</strong><span>Lost</span></div>
           <div><strong>${leaderboardPercent(row.landingRate)}</strong><span>Landing rate</span></div>
+          <div><strong>${row.trips}</strong><span>Trips</span></div>
           <div><strong>${leaderboardPercent(row.catchShare)}</strong><span>Catch share</span></div>
           <div><strong>${leaderboardDecimal(row.catchesPerTrip)}</strong><span>Catches / trip</span></div>
-        </div>
-        <div class="leaderboard-rate-track" aria-label="${leaderboardPercent(row.landingRate)} landing rate">
-          <span style="width: ${Math.max(0, Math.min(100, row.landingRate))}%"></span>
         </div>
       </div>
     </article>
@@ -460,37 +465,41 @@ function bindEquipmentStatsTooltip() {
 }
 
 function renderStatsLeaderboard(trips = state.trips, recordFilter = () => true) {
-  const gearContainer = document.querySelector("#statsGearLeaderboard");
+  const rodContainer = document.querySelector("#statsRodLeaderboard");
+  const reelContainer = document.querySelector("#statsReelLeaderboard");
+  const comboContainer = document.querySelector("#statsComboLeaderboard");
+  const lureContainer = document.querySelector("#statsLureLeaderboard");
+  const flasherContainer = document.querySelector("#statsFlasherLeaderboard");
   const anglerContainer = document.querySelector("#statsAnglerLeaderboard");
-  if (!gearContainer || !anglerContainer) return;
-  const gearRows = fishingGearLeaderboardRows(trips, state, { recordFilter }).slice(0, 5);
-  const anglerRows = anglerLeaderboardRows(trips, state.people, { recordFilter }).slice(0, 5);
-  gearContainer.innerHTML = gearRows.length
-    ? gearRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
-    : leaderboardEmpty("No fishing gear in this scope", "Add lures, flashers, rods, reels, or combos to rank them here.");
+  if (!rodContainer || !reelContainer || !comboContainer || !lureContainer || !flasherContainer || !anglerContainer) return;
+  const allGearRows = fishingGearLeaderboardRows(trips, state, { recordFilter });
+  const rodRows = allGearRows.filter((row) => row.gearType === "rod");
+  const reelRows = allGearRows.filter((row) => row.gearType === "reel");
+  const comboRows = allGearRows.filter((row) => row.gearType === "combo");
+  const lureRows = allGearRows.filter((row) => row.gearType === "lure");
+  const flasherRows = allGearRows.filter((row) => row.gearType === "flasher");
+  const anglerRows = anglerLeaderboardRows(trips, state.people, { recordFilter });
+  rodContainer.innerHTML = rodRows.length
+    ? rodRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
+    : leaderboardEmpty("No rods in this scope", "Add rods to your setup lines to rank them here.");
+  reelContainer.innerHTML = reelRows.length
+    ? reelRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
+    : leaderboardEmpty("No reels in this scope", "Add reels to your setup lines to rank them here.");
+  comboContainer.innerHTML = comboRows.length
+    ? comboRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
+    : leaderboardEmpty("No combos in this scope", "Add rod and reel combos to rank them here.");
+  lureContainer.innerHTML = lureRows.length
+    ? lureRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
+    : leaderboardEmpty("No lures in this scope", "Add lures to your setup lines to rank them here.");
+  flasherContainer.innerHTML = flasherRows.length
+    ? flasherRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
+    : leaderboardEmpty("No flashers in this scope", "Add flashers to your setup lines to rank them here.");
   anglerContainer.innerHTML = anglerRows.length
     ? anglerRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "angler")).join("")
     : leaderboardEmpty("No attributed anglers in this scope", "Choose an angler on catches and missed fish.");
 }
 
-function renderLeaderboard() {
-  const gearContainer = document.querySelector("#gearLeaderboard");
-  const anglerContainer = document.querySelector("#anglerLeaderboard");
-  if (!gearContainer || !anglerContainer) return;
-
-  const gearRows = fishingGearLeaderboardRows(state.trips, state);
-  const anglerRows = anglerLeaderboardRows(state.trips, state.people);
-
-  document.querySelector("#leaderboardSummary").innerHTML = leaderboardSummaryMarkup(gearRows, anglerRows, state.trips);
-  document.querySelector("#gearLeaderboardCount").textContent = `${gearRows.length} item${gearRows.length === 1 ? "" : "s"}`;
-  document.querySelector("#anglerLeaderboardCount").textContent = `${anglerRows.length} angler${anglerRows.length === 1 ? "" : "s"}`;
-
-  gearContainer.innerHTML = gearRows.length
-    ? gearRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
-    : leaderboardEmpty("No fishing gear yet", "Add lures, flashers, rods, reels, or combos on the Gear page.");
-  anglerContainer.innerHTML = anglerRows.length
-    ? anglerRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "angler")).join("")
-    : leaderboardEmpty("No anglers yet", "Add people to a trip and select who landed or lost each fish.");
+if (typeof document !== "undefined") {
+  bindEquipmentStatsTooltip();
+  bindLeaderboardPreviews();
 }
-
-if (typeof document !== "undefined") bindEquipmentStatsTooltip();

@@ -413,6 +413,7 @@ function normalizeSettings(settings = {}) {
   };
   normalized.theme = normalized.theme === "dark" ? "dark" : "light";
   normalized.timeFormat = normalized.timeFormat === "12" ? "12" : "24";
+  normalized.defaultHomeLake = ["", "Superior", "Michigan", "Huron", "Erie", "Ontario"].includes(normalized.defaultHomeLake) ? normalized.defaultHomeLake : "";
   const legacyBathymetryOffset = normalizeBathymetryOffsetFeet(settings?.bathymetryOffsetFeet);
   normalized.bathymetryLakeCalibrationsFeet = normalizeBathymetryLakeCalibrations(
     settings?.bathymetryLakeCalibrationsFeet,

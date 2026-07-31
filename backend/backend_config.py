@@ -207,6 +207,7 @@ DEFAULT_LOGBOOK = {
     "rods": [],
     "rodReelCombos": [],
     "settings": {
+        "defaultHomeLake": "",
         "timeFormat": "24",
         "bathymetryLakeCalibrationsFeet": {
             lake: {"shallowOffsetFeet": 0, "offshoreOffsetFeet": 0}

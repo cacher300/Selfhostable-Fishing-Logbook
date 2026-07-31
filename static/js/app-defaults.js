@@ -186,6 +186,7 @@ const defaults = {
   rodReelCombos: [],
   settings: {
     theme: "light",
+    defaultHomeLake: "",
     timeFormat: "24",
     bathymetryLakeCalibrationsFeet: {
       Erie: { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 }, Ontario: { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 },

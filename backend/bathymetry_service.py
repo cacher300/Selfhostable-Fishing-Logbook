@@ -13,7 +13,9 @@ from .backend_config import GREAT_LAKES_BATHYMETRY_URL
 DEPTH_SOURCE = "Great Lakes Bathymetry ArcGIS"
 BASE_DEPTH_OFFSET_FEET = 0
 FEET_PER_METER = 3.28084
-LOOKUP_DISTANCE_METERS = 100
+# Bathymetry contours are comparatively sparse in some nearshore areas. A
+# wider server-side search preserves a useful nearest-contour lookup there.
+LOOKUP_DISTANCE_METERS = 500
 SHALLOW_FOW_FEET = 30
 OFFSHORE_FOW_FEET = 80
 

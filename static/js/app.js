@@ -119,7 +119,6 @@ els.tripsViewButton.addEventListener("click", () => setView("trips"));
 els.bestsViewButton.addEventListener("click", () => setView("bests"));
 els.statsViewButton.addEventListener("click", () => setView("stats"));
 els.leaderboardViewButton.addEventListener("click", () => setView("leaderboard"));
-els.openFullLeaderboardButton?.addEventListener("click", () => setView("leaderboard"));
 els.mapViewButton.addEventListener("click", () => setView("map"));
 els.gearViewButton.addEventListener("click", () => setView("gear"));
 els.boatViewButton.addEventListener("click", () => setView("boat"));
@@ -144,6 +143,13 @@ document.querySelector("#comboShortName").addEventListener("input", (event) => {
 els.saveChopRangesButton?.addEventListener("click", saveChopRanges);
 document.querySelectorAll("[data-theme-option]").forEach((input) => input.addEventListener("change", saveThemePreference));
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
+els.defaultHomeLakeSelect?.addEventListener("change", () => saveDefaultHomeLake({ autosave: true }));
+els.boatFeatureEnabled?.addEventListener("change", () => saveBoatFeaturePreference({ autosave: true }));
+els.gearFilterField?.addEventListener("change", updateGearFilter);
+els.gearFilterQuery?.addEventListener("input", updateGearFilter);
+els.gearFilterQuery?.addEventListener("focus", openGearFilterSuggestions);
+els.gearFilterQuery?.addEventListener("blur", () => setTimeout(closeGearFilterSuggestions, 120));
+els.clearGearFilterButton?.addEventListener("click", clearGearFilter);
 els.addDefaultTrollingSpreadRowButton?.addEventListener("click", addDefaultTrollingSpreadRow);
 els.defaultTrollingSpreadRows?.addEventListener("change", () => {
   const targetSpecies = activeDefaultTrollingSpreadTargetSpecies;
@@ -784,6 +790,16 @@ document.addEventListener("click", (event) => {
     setGearTab(gearTabButton.dataset.gearTab);
   }
 
+  const inventorySortButton = event.target.closest("[data-inventory-sort-table]");
+  if (inventorySortButton) {
+    sortInventoryTable(inventorySortButton.dataset.inventorySortTable, inventorySortButton.dataset.inventorySortIndex);
+  }
+
+  const gearFilterSuggestion = event.target.closest("[data-gear-filter-suggestion]");
+  if (gearFilterSuggestion) {
+    selectGearFilterSuggestion(gearFilterSuggestion.dataset.gearFilterSuggestion);
+  }
+
   const editReelButton = event.target.closest("[data-edit-reel]");
   if (editReelButton) {
     const reel = state.reels.find((item) => item.id === editReelButton.dataset.editReel);
@@ -824,6 +840,11 @@ document.addEventListener("click", (event) => {
   if (inventoryLurePreviewButton) {
     const lure = state.lures.find((item) => item.id === inventoryLurePreviewButton.dataset.inventoryLureId);
     if (lure) openLureInfoDialog(lure, "inventory");
+  }
+
+  const inventoryRow = event.target.closest("tr[data-inventory-type]");
+  if (inventoryRow && !event.target.closest("button, a, input, select, textarea, label")) {
+    openInventoryItemInfo(inventoryRow.dataset.inventoryType, inventoryRow.dataset.inventoryId);
   }
 
   const spreadLureButton = event.target.closest("[data-spread-lure-id]");
@@ -1129,6 +1150,7 @@ els.personRows.addEventListener("change", (event) => {
 });
 
 function setView(view) {
+  if (view === "boat" && state.settings?.boatFeatureEnabled !== true) view = "trips";
   const showingBests = view === "bests";
   const showingStats = view === "stats";
   const showingLeaderboard = view === "leaderboard";
@@ -1141,7 +1163,6 @@ function setView(view) {
     trips: els.tripsViewButton,
     bests: els.bestsViewButton,
     stats: els.statsViewButton,
-    leaderboard: els.leaderboardViewButton,
     map: els.mapViewButton,
     gear: els.gearViewButton,
     boat: els.boatViewButton,
@@ -1180,12 +1201,17 @@ function setView(view) {
   }
   if (showingBests) renderPersonalBests();
   renderAdvancedStats();
-  if (showingLeaderboard) renderLeaderboard();
   if (showingMap) renderFishMap();
   if (showingBoat) renderBoatLayout();
   if (showingGallery) renderGallery();
   if (showingSettings) renderSettings();
   renderGearLibrary();
+}
+
+function syncBoatFeatureVisibility() {
+  const enabled = state.settings?.boatFeatureEnabled === true;
+  els.boatViewButton.classList.toggle("hidden", !enabled);
+  els.boatViewButton.setAttribute("aria-hidden", enabled ? "false" : "true");
 }
 
 function syncMobileSummaryPanel() {
@@ -1202,6 +1228,7 @@ async function init() {
   syncMobileSummaryPanel();
   state = await loadState();
   applyThemePreference();
+  syncBoatFeatureVisibility();
   renderAll();
   setView(viewFromCurrentRoute());
 }

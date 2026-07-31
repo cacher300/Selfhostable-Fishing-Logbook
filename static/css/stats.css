@@ -24,6 +24,10 @@
   margin-left: auto;
 }
 
+#statsActiveScope {
+  display: none;
+}
+
 .stats-page-header .button {
   flex: 0 0 auto;
 }

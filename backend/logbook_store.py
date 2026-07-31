@@ -1,18 +1,14 @@
 from __future__ import annotations
 
-import json
 import math
-import sqlite3
 import uuid
-from contextlib import closing
 from copy import deepcopy
-from threading import RLock
 
-from .backend_config import BATHYMETRY_LAKES, DATA_DIR, DATABASE_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
+from .backend_config import BATHYMETRY_LAKES, DATABASE_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
+from . import logbook_repository
 
 SCHEMA_VERSION = 1
 BOAT_LAYOUT_SLOT_LIMIT = 52
-_STORE_LOCK = RLock()
 _COLLECTION_KEYS = (
     "species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes",
     "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections",
@@ -507,84 +503,22 @@ def normalize_logbook(payload: dict | None = None) -> dict:
     return normalized
 
 
-def _connect(database_file=None) -> sqlite3.Connection:
-    database_file = database_file or DATABASE_FILE
-    connection = sqlite3.connect(database_file, timeout=10)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    connection.execute("PRAGMA busy_timeout = 10000")
-    return connection
-
-
-def _initialize_schema(connection: sqlite3.Connection) -> None:
-    connection.execute("PRAGMA journal_mode = WAL")
-    connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS logbook_metadata (
-            key TEXT PRIMARY KEY,
-            value_json TEXT NOT NULL
-        )
-        """
-    )
-    connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS logbook_entries (
-            collection_name TEXT NOT NULL,
-            position INTEGER NOT NULL,
-            record_id TEXT,
-            payload_json TEXT NOT NULL,
-            PRIMARY KEY (collection_name, position)
-        )
-        """
-    )
-    connection.execute(
-        "CREATE INDEX IF NOT EXISTS idx_logbook_entries_record_id "
-        "ON logbook_entries (collection_name, record_id)"
-    )
-
-
 def database_exists() -> bool:
-    return DATABASE_FILE.exists()
+    return logbook_repository.exists(DATABASE_FILE)
 
 
 def initialize_database() -> None:
-    with _STORE_LOCK:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        with closing(_connect()) as connection:
-            with connection:
-                _initialize_schema(connection)
+    logbook_repository.initialize(DATABASE_FILE)
 
 
 def read_logbook() -> dict:
-    with _STORE_LOCK:
-        if not DATABASE_FILE.exists():
-            return normalize_logbook()
-        with closing(_connect()) as connection:
-            with connection:
-                _initialize_schema(connection)
-                metadata = {
-                    row["key"]: json.loads(row["value_json"])
-                    for row in connection.execute("SELECT key, value_json FROM logbook_metadata")
-                }
-                if not metadata:
-                    return normalize_logbook()
-                loaded = metadata.get("extra", {})
-                loaded["schemaVersion"] = metadata.get("schemaVersion", 0)
-                loaded["settings"] = metadata.get("settings", {})
-                for collection_name in _COLLECTION_KEYS:
-                    loaded[collection_name] = [
-                        json.loads(row["payload_json"])
-                        for row in connection.execute(
-                            "SELECT payload_json FROM logbook_entries "
-                            "WHERE collection_name = ? ORDER BY position",
-                            (collection_name,),
-                        )
-                    ]
-
-        is_valid, error = validate_logbook(loaded)
-        if not is_valid:
-            raise ValueError(f"Stored logbook is invalid: {error}")
-        return normalize_logbook(loaded)
+    loaded = logbook_repository.read(DATABASE_FILE, _COLLECTION_KEYS)
+    if loaded is None:
+        return normalize_logbook()
+    is_valid, error = validate_logbook(loaded)
+    if not is_valid:
+        raise ValueError(f"Stored logbook is invalid: {error}")
+    return normalize_logbook(loaded)
 
 
 def write_logbook(payload: dict) -> None:
@@ -593,48 +527,7 @@ def write_logbook(payload: dict) -> None:
         raise ValueError(error)
 
     normalized = normalize_logbook(payload)
-    extras = {
-        key: value
-        for key, value in normalized.items()
-        if key not in {*_COLLECTION_KEYS, "schemaVersion", "settings"}
-    }
-    with _STORE_LOCK:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        with closing(_connect()) as connection:
-            _initialize_schema(connection)
-            connection.execute("BEGIN IMMEDIATE")
-            try:
-                connection.execute("DELETE FROM logbook_metadata")
-                connection.execute("DELETE FROM logbook_entries")
-                connection.executemany(
-                    "INSERT INTO logbook_metadata (key, value_json) VALUES (?, ?)",
-                    (
-                        ("schemaVersion", json.dumps(normalized["schemaVersion"], allow_nan=False)),
-                        ("settings", json.dumps(normalized["settings"], allow_nan=False)),
-                        ("extra", json.dumps(extras, allow_nan=False)),
-                    ),
-                )
-                for collection_name in _COLLECTION_KEYS:
-                    records = normalized[collection_name]
-                    connection.executemany(
-                        """
-                        INSERT INTO logbook_entries (collection_name, position, record_id, payload_json)
-                        VALUES (?, ?, ?, ?)
-                        """,
-                        (
-                            (
-                                collection_name,
-                                position,
-                                str(record.get("id")) if collection_name in _OBJECT_COLLECTION_KEYS and record.get("id") else None,
-                                json.dumps(record, allow_nan=False, separators=(",", ":")),
-                            )
-                            for position, record in enumerate(records)
-                        ),
-                    )
-                connection.commit()
-            except Exception:
-                connection.rollback()
-                raise
+    logbook_repository.write(DATABASE_FILE, normalized, _COLLECTION_KEYS, _OBJECT_COLLECTION_KEYS)
 
 
 def _error(path: str, message: str) -> tuple[bool, str]:
@@ -791,6 +684,8 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
         return True, None
     if "timeFormat" in settings and settings["timeFormat"] not in ("12", "24"):
         return _error("settings.timeFormat", 'must be "12" or "24"')
+    if "defaultHomeLake" in settings and settings["defaultHomeLake"] not in ("", "Superior", "Michigan", "Huron", "Erie", "Ontario"):
+        return _error("settings.defaultHomeLake", "has an unsupported lake")
     if "bathymetryLakeCalibrationsFeet" in settings:
         calibrations = settings["bathymetryLakeCalibrationsFeet"]
         if not isinstance(calibrations, dict):

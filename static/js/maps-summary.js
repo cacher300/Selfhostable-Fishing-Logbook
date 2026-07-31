@@ -61,6 +61,32 @@ const speciesMarkerColors = [
   "#344054"
 ];
 
+const MAP_BASEMAP_STORAGE_KEY = "logbook.mapBasemap";
+const MAP_BASEMAPS = {
+  standard: {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    options: { attribution: "&copy; OpenStreetMap contributors" }
+  },
+  dark: {
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    options: { attribution: "&copy; OpenStreetMap contributors &copy; CARTO", subdomains: "abcd", maxZoom: 20 }
+  },
+  minimal: {
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    options: { attribution: "&copy; OpenStreetMap contributors &copy; CARTO", subdomains: "abcd", maxZoom: 20 }
+  }
+};
+let fishMapBasemapLayer = null;
+
+function savedMapBasemap() {
+  try {
+    const saved = localStorage.getItem(MAP_BASEMAP_STORAGE_KEY);
+    return MAP_BASEMAPS[saved] ? saved : "standard";
+  } catch {
+    return "standard";
+  }
+}
+
 function speciesColor(species = "Fish") {
   const value = species || "Fish";
   let hash = 0;
@@ -136,13 +162,28 @@ function bindMapTilePaneSnapping(map) {
   map.on("moveend zoomend resize", () => requestAnimationFrame(() => snapMapTilePane(map)));
 }
 
-function addSeamlessTileLayer(map) {
-  const tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "&copy; OpenStreetMap contributors"
-  }).addTo(map);
+function addSeamlessTileLayer(map, basemap = "standard") {
+  const config = MAP_BASEMAPS[basemap] || MAP_BASEMAPS.standard;
+  const tileLayer = L.tileLayer(config.url, config.options).addTo(map);
   tileLayer.on("load tileload", () => requestAnimationFrame(() => snapMapTilePane(map)));
   bindMapTilePaneSnapping(map);
   return tileLayer;
+}
+
+function setFishMapBasemap(basemap) {
+  const key = MAP_BASEMAPS[basemap] ? basemap : "standard";
+  if (!fishMap) return;
+  if (fishMapBasemapLayer) fishMap.removeLayer(fishMapBasemapLayer);
+  fishMapBasemapLayer = addSeamlessTileLayer(fishMap, key);
+  try { localStorage.setItem(MAP_BASEMAP_STORAGE_KEY, key); } catch {}
+}
+
+function ensureFishMapBasemapControl() {
+  const control = document.querySelector("#mapBasemap");
+  if (!control || control.dataset.bound) return;
+  control.value = savedMapBasemap();
+  control.dataset.bound = "true";
+  control.addEventListener("change", () => setFishMapBasemap(control.value));
 }
 
 function mapDepthText(payload = {}) {
@@ -160,31 +201,32 @@ function catchFowPopupValue(catchItem = {}) {
   return "";
 }
 
-function mapDepthPopupHtml(coordinates, payload = null, status = "loading") {
+function mapDepthPopupHtml(coordinates, payload = null, status = "loading", overlayHtml = "") {
   const coordinateLine = coordinateText(coordinates);
+  const compactClass = overlayHtml ? "" : " map-depth-popup--compact";
   if (status === "loading") {
     return `
-      <div class="map-popup map-depth-popup">
+      <div class="map-popup map-depth-popup${compactClass}">
         <strong>Depth lookup</strong>
         <span>Looking up...</span>
-        <small>${escapeHtml(coordinateLine)}</small>
+        <small>${escapeHtml(coordinateLine)}</small>${overlayHtml}
       </div>
     `;
   }
   if (status === "error") {
     return `
-      <div class="map-popup map-depth-popup">
+      <div class="map-popup map-depth-popup${compactClass}">
         <strong>Depth unavailable</strong>
         <span>Could not fetch depth here.</span>
-        <small>${escapeHtml(coordinateLine)}</small>
+        <small>${escapeHtml(coordinateLine)}</small>${overlayHtml}
       </div>
     `;
   }
   const depthText = mapDepthText(payload);
   return `
-    <div class="map-popup map-depth-popup">
+    <div class="map-popup map-depth-popup${compactClass}">
       <strong>${escapeHtml(depthText || "No depth found")}</strong>
-      <small>${escapeHtml(coordinateLine)}</small>
+      <small>${escapeHtml(coordinateLine)}</small>${overlayHtml}
     </div>
   `;
 }
@@ -205,10 +247,13 @@ async function showDepthPopupForMapClick(map, event) {
       latitude: coordinates.latitude.toFixed(6),
       longitude: coordinates.longitude.toFixed(6)
     });
-    const response = await fetch(`/api/bathymetry/depth?${params}`);
+    const [response, overlayHtml] = await Promise.all([
+      fetch(`/api/bathymetry/depth?${params}`),
+      window.getGreatLakesMapInspection?.(coordinates) || Promise.resolve("")
+    ]);
     if (!response.ok) throw new Error("Depth lookup unavailable");
     const payload = await response.json();
-    popup.setContent(mapDepthPopupHtml(coordinates, payload, "ready"));
+    popup.setContent(mapDepthPopupHtml(coordinates, payload, "ready", overlayHtml));
   } catch (error) {
     console.error("Could not fetch map depth.", error);
     popup.setContent(mapDepthPopupHtml(coordinates, null, "error"));
@@ -412,9 +457,11 @@ function renderFishMap() {
 
   if (!fishMap) {
     fishMap = L.map(els.fishMap, seamlessMapOptions());
-    addSeamlessTileLayer(fishMap);
+    fishMapBasemapLayer = addSeamlessTileLayer(fishMap, savedMapBasemap());
+    ensureFishMapBasemapControl();
     bindDepthLookupPopup(fishMap);
     syncMapPageChartOverlay(fishMap);
+    window.ensureGreatLakesConditions?.(fishMap);
     ensureMapMarkerPanes(fishMap);
     fishMapMarkers = L.layerGroup().addTo(fishMap);
   }
@@ -423,7 +470,8 @@ function renderFishMap() {
 
   fishMapMarkers.clearLayers();
   if (!records.length) {
-    fishMap.setView([43.8, -79.5], 6);
+    const homeLake = window.getGreatLakesHomeView?.();
+    fishMap.setView(homeLake?.center || [43.8, -79.5], homeLake?.zoom || 6);
     settleMapLayout(fishMap);
     return;
   }

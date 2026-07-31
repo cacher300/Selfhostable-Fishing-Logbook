@@ -273,9 +273,25 @@ function renderPreferenceSettings() {
     input.checked = input.value === themePreference();
   });
   if (els.timeFormatSelect) els.timeFormatSelect.value = timeFormatPreference();
+  if (els.defaultHomeLakeSelect) els.defaultHomeLakeSelect.value = state.settings?.defaultHomeLake || "";
+  if (els.boatFeatureEnabled) els.boatFeatureEnabled.checked = state.settings?.boatFeatureEnabled === true;
   document.querySelectorAll("[data-time-format-option]").forEach((input) => {
     input.checked = input.value === timeFormatPreference();
   });
+}
+
+async function saveBoatFeaturePreference(options = {}) {
+  const boatFeatureEnabled = els.boatFeatureEnabled?.checked === true;
+  state.settings = { ...(state.settings || {}), boatFeatureEnabled };
+  syncBoatFeatureVisibility();
+  if (!boatFeatureEnabled && document.body.dataset.activeView === "boat") setView("trips");
+  await runSettingsSave(() => saveState(), "The Boat tab preference could not be saved.", options);
+}
+
+async function saveDefaultHomeLake(options = {}) {
+  const defaultHomeLake = els.defaultHomeLakeSelect?.value || "";
+  state.settings = { ...(state.settings || {}), defaultHomeLake };
+  await runSettingsSave(() => saveState(), "The default home lake could not be saved.", options);
 }
 
 function setSettingsTab(tab = "general") {

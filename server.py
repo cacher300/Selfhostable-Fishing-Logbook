@@ -57,6 +57,7 @@ from backend.weather_service import (
     weather_archive_payload,
     weather_forecast_payload,
 )
+from backend.great_lakes_service import MODELS, great_lakes_payload, great_lakes_temperature_profile, great_lakes_temperature_rasters, great_lakes_temperature_value, great_lakes_thermocline_rasters
 
 
 def create_app(config: dict | None = None) -> Flask:
@@ -189,6 +190,67 @@ def create_app(config: dict | None = None) -> Flask:
         catch = {}
         apply_depth_result(catch, result)
         return jsonify(catch)
+
+    @app.get("/api/great-lakes/temperature-value")
+    def great_lakes_temperature_value_at_point() -> Response:
+        try:
+            forecast_hour = min((0, 6, 12, 24, 48), key=lambda value: abs(value - int(request.args.get("forecastHour", 0))))
+            depth = max(0, min(500, int(request.args.get("depth", 0))))
+            resolution = max(128, min(512, int(request.args.get("resolution", 320))))
+            latitude, longitude = float(request.args["latitude"]), float(request.args["longitude"])
+        except (KeyError, ValueError):
+            abort(400, "forecastHour, depth, resolution, latitude, and longitude must be numeric")
+        models = tuple(model for model in request.args.get("models", "").split(",") if model in MODELS) or MODELS
+        return jsonify(great_lakes_temperature_value(forecast_hour, depth, resolution, latitude, longitude, models))
+
+    @app.get("/api/great-lakes/profile")
+    def great_lakes_profile() -> Response:
+        try:
+            forecast_hour = min((0, 6, 12, 24, 48), key=lambda value: abs(value - int(request.args.get("forecastHour", 0))))
+            latitude, longitude = float(request.args["latitude"]), float(request.args["longitude"])
+        except (KeyError, ValueError):
+            abort(400, "forecastHour, latitude, and longitude must be numeric")
+        models = tuple(model for model in request.args.get("models", "").split(",") if model in MODELS) or MODELS
+        return jsonify(great_lakes_temperature_profile(forecast_hour, latitude, longitude, models))
+
+    @app.get("/api/great-lakes/<layer>")
+    def great_lakes(layer: str) -> Response:
+        if layer not in {"temperature", "currents"}:
+            abort(404)
+        try:
+            forecast_hour = min((0, 6, 12, 24, 48), key=lambda value: abs(value - int(request.args.get("forecastHour", 0))))
+            depth = max(0, min(500, int(request.args.get("depth", 0))))
+        except ValueError:
+            abort(400, "forecastHour and depth must be numeric")
+        models = tuple(model for model in request.args.get("models", "").split(",") if model in MODELS) or MODELS
+        response = jsonify(great_lakes_payload(layer, forecast_hour, depth, models))
+        response.headers["Cache-Control"] = "private, max-age=600"
+        return response
+
+    @app.get("/api/great-lakes/temperature-raster")
+    def great_lakes_temperature_raster() -> Response:
+        try:
+            forecast_hour = min((0, 6, 12, 24, 48), key=lambda value: abs(value - int(request.args.get("forecastHour", 0))))
+            depth = max(0, min(500, int(request.args.get("depth", 0))))
+            resolution = max(128, min(512, int(request.args.get("resolution", 320))))
+        except ValueError:
+            abort(400, "forecastHour, depth, and resolution must be numeric")
+        models = tuple(model for model in request.args.get("models", "").split(",") if model in MODELS) or MODELS
+        response = jsonify(great_lakes_temperature_rasters(forecast_hour, depth, resolution, models))
+        response.headers["Cache-Control"] = "private, max-age=600"
+        return response
+
+    @app.get("/api/great-lakes/thermocline-raster")
+    def great_lakes_thermocline_raster() -> Response:
+        try:
+            forecast_hour = min((0, 6, 12, 24, 48), key=lambda value: abs(value - int(request.args.get("forecastHour", 0))))
+            resolution = max(128, min(512, int(request.args.get("resolution", 320))))
+        except ValueError:
+            abort(400, "forecastHour and resolution must be numeric")
+        models = tuple(model for model in request.args.get("models", "").split(",") if model in MODELS) or MODELS
+        response = jsonify(great_lakes_thermocline_rasters(forecast_hour, resolution, models))
+        response.headers["Cache-Control"] = "private, max-age=600"
+        return response
 
     @app.get("/api/astronomy")
     def astronomy() -> tuple[Response, int]:
