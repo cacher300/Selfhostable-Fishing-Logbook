@@ -783,9 +783,11 @@
 
 .catch-detail-table {
   width: 100%;
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 18px;
+  padding: 0 18px;
   color: var(--text);
   font-size: 13px;
 }
@@ -800,6 +802,7 @@
 }
 
 .catch-detail-table .catch-detail-table-wide { grid-column: 1 / -1; }
+.catch-detail-table tr.catch-detail-table-wide { grid-template-columns: minmax(150px, 190px) minmax(0, 1fr); }
 .catch-detail-table tr:last-child { border-bottom: 0; }
 
 .catch-detail-table th,

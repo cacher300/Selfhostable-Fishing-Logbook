@@ -498,7 +498,7 @@ function renderTripSummaryMapFilter(records) {
   const options = mapRecordFilterOptions(records, { allLabel: "All map items", includeTripMedia: true });
   if (!options.includes(activeTripSummaryMapFilter)) activeTripSummaryMapFilter = "All map items";
   filter.innerHTML = options.map((option) => (
-    `<option value="${escapeHtml(option)}" ${option === activeTripSummaryMapFilter ? "selected" : ""}>${escapeHtml(option)}</option>`
+    `<option value="${escapeHtml(option)}" ${option === activeTripSummaryMapFilter ? "selected" : ""}>${escapeHtml(option === "All map items" ? "All" : option)}</option>`
   )).join("");
 }
 
@@ -924,7 +924,6 @@ function renderCatchReportDetails(trip, catchItem) {
 
 function catchDetailRows(trip, catchItem) {
   const record = resolveTripLineRecord({ ...catchItem, trip });
-  const setup = compactSetupDisplayLabel(record);
   const formatWeightDetail = (value) => {
     return displayStoredMeasurement(value, "fishWeight");
   };
@@ -933,11 +932,11 @@ function catchDetailRows(trip, catchItem) {
     ["Status", record.released ? "Released" : "Kept", "status"],
     ["Time", catchItem.time ? formatDisplayTime(catchItem.time) : ""],
     ["Angler", reportPersonName(trip, catchItem.personId)],
-    ["Length", displayStoredMeasurement(record.length, "fishLength")],
-    ["Weight", formatWeightDetail(record.weight)],
     ["Water depth", reportDepthValue(record.fowCaught || record.waterDepth)],
     ["Depth Down", reportDepthDown(record, catchItem)],
-    ["Line", setup],
+    ["Length", displayStoredMeasurement(record.length, "fishLength")],
+    ["Weight", formatWeightDetail(record.weight)],
+    ["Rod", displayTitleText(rodName(record.rodId))],
     ["Lure", displayTitleText(lureName(record.lureId)), "lure", record.lureId],
     ["Flasher", displayTitleText(flasherName(record.flasherId)), "flasher", record.flasherId],
     ["Presentation", displayTitleText(presentationLabel(record.presentation))],
@@ -950,8 +949,8 @@ function catchDetailRows(trip, catchItem) {
     ["Dipsey Setting", record.dipseySetting],
     ["Line Out", reportDepthValue(record.lineOut)],
     ["Retrieve", record.retrieve],
-    ["Shaker", record.shaker ? "Yes" : "No"],
-    ["Deepest Rigger", record.deepestRigger ? "Yes" : "No"],
+    ["Shaker", trollingTrip ? (record.shaker ? "Yes" : "No") : ""],
+    ["Deepest Rigger", trollingTrip ? (record.deepestRigger ? "Yes" : "No") : ""],
     ["Catch Weather", catchWeatherSummary(catchItem.weatherData || {})],
     ["Notes", displaySentenceText(catchItem.notes), "notes"]
   ].filter(([, value]) => value !== null && value !== undefined && value !== "");
@@ -994,7 +993,7 @@ function renderCatchDetailPopout(trip, catchItem, index, selectedIndex) {
         <button class="icon-button catch-detail-close" type="button" data-close-catch-detail aria-label="Close catch details"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         <div class="catch-detail-heading">
           <h4>${escapeHtml(displayTitleText(catchItem.species || `Catch ${index + 1}`))}</h4>
-          <p>${escapeHtml([catchItem.released ? "Released" : "Kept", catchItem.time ? formatDisplayTime(catchItem.time) : ""].filter(Boolean).join(" / "))}</p>
+          ${catchItem.time ? `<p>${escapeHtml(formatDisplayTime(catchItem.time))}</p>` : ""}
         </div>
         ${renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${index + 1}`, {
           catchIndex: index,
@@ -1166,7 +1165,7 @@ function renderReportTimeline(trip) {
   const visible = definitions.filter(([key]) => columns.has(key));
   const filters = [["all", "All results"], ["kept", "Kept"], ["released", "Released"], ["lost", "Lost"]];
   return `<section class="report-timeline-section">
-    <div class="report-timeline-heading"><div><h3>Catch timeline</h3><p>${escapeHtml(`${reportTimelineRecords(trip).length} recorded encounter${reportTimelineRecords(trip).length === 1 ? "" : "s"}`)}</p></div>
+    <div class="report-timeline-heading"><div><h3>Catch timeline</h3></div>
       <div class="report-timeline-tools"><div class="report-filter-group" role="group" aria-label="Filter catches">${filters.map(([value, label]) => `<button type="button" class="report-filter ${activeReportTimelineFilter === value ? "is-active" : ""}" data-report-filter="${value}">${escapeHtml(label)}</button>`).join("")}</div>
         <details class="report-column-picker"><summary>Columns</summary>${definitions.map(([key, label]) => `<label><input type="checkbox" data-report-column="${key}" ${columns.has(key) ? "checked" : ""}> ${escapeHtml(label)}</label>`).join("")}</details></div></div>
     <div class="report-table-scroll" tabindex="0" aria-label="Catch timeline. Scroll horizontally for more columns.">
@@ -1224,12 +1223,13 @@ function renderTripReport(trip) {
   const hours = tripHours(trip);
   const fishPerHour = hours ? trimNumber(landed / hours) : "";
   const hero = null;
-  const overview = [["Date", formatDate(trip.date)], ["Location", displayTitleText(trip.location)], ["Launch / area", displayTitleText(trip.launch)], ["Launch time", trip.launchTime ? formatTimelineDisplayTime(trip.launchTime) : ""], ["Lines set time", trip.linesSetTime || trip.startTime ? formatTimelineDisplayTime(trip.linesSetTime || trip.startTime) : ""], ["Lines pulled time", trip.linesPulledTime || trip.endTime ? formatTimelineDisplayTime(trip.linesPulledTime || trip.endTime) : ""], ["Duration", tripHours(trip) ? `${trimNumber(tripHours(trip))} hours` : ""], ["People", (trip.people || []).map((person) => displayTitleText(person.name)).filter(Boolean).join(", ")], ["Target species", displayTitleText(trip.targetSpecies)], ["Method", displayTitleText(trip.method)], ["Intent", displayTitleText(trip.intent)], ["Rating", reportRatingLabel(trip.tripRating)]];
+  const reportMeta = [formatDate(trip.date), trip.launchTime ? formatTimelineDisplayTime(trip.launchTime) : ""].filter(Boolean).join(" · ");
+  const overview = [["Date", formatDate(trip.date)], ["Location", displayTitleText(trip.location)], ["Launch / area", displayTitleText(trip.launch)], ["Lines set time", trip.linesSetTime || trip.startTime ? formatTimelineDisplayTime(trip.linesSetTime || trip.startTime) : ""], ["Lines pulled time", trip.linesPulledTime || trip.endTime ? formatTimelineDisplayTime(trip.linesPulledTime || trip.endTime) : ""], ["Duration", tripHours(trip) ? `${trimNumber(tripHours(trip))} hours` : ""], ["People", (trip.people || []).map((person) => displayTitleText(person.name)).filter(Boolean).join(", ")], ["Target species", displayTitleText(trip.targetSpecies)], ["Method", displayTitleText(trip.method)], ["Intent", displayTitleText(trip.intent)], ["Rating", reportRatingLabel(trip.tripRating)]];
   const conditions = [["Weather", displayTitleText(trip.weather)], ["Water temperature", displayStoredMeasurement(trip.waterTemp, "waterTemperature")], ["Water clarity", displayTitleText(trip.waterClarity)], ["FOW range / structure", displayStoredMeasurement(trip.structure, "depth")], ["Wind", trip.wind], ["Waves / chop", formatWaveHeightChopLine(trip, trip.weatherData)], ...reportAdditionalConditionRows(trip)];
   const mapRecords = catchMapRecordsForTrip(trip);
   return `<article class="trip-report">
-    <header class="report-header"><div class="report-header-copy"><p class="report-date">${escapeHtml(formatDate(trip.date))}${trip.location ? ` · ${escapeHtml(displayTitleText(trip.location))}` : ""}</p><h3>${escapeHtml(displayTitleText(trip.title || trip.location || "Trip report"))}</h3><p class="report-subtitle">${escapeHtml([trip.targetSpecies, trip.method].filter(Boolean).map(displayTitleText).join(" · ") || "Fishing trip report")}</p><div class="report-actions"><button class="button primary" type="button" data-report-action="edit">Edit trip</button><button class="button secondary" type="button" data-report-action="share">Share trip</button><button class="button secondary" type="button" data-close-dialog>Back to logbook</button></div></div>${hero ? `<button class="report-hero-photo" type="button" data-report-open-photo aria-label="Open trip photo">${mediaMarkup(hero, "report-hero-asset", { download: false })}</button>` : ""}</header>
-    <section class="report-stat-strip">${[["Landed", landed], ["Missed / lost", lost], ["Biggest fish", biggestFishWeight ? displayStoredMeasurement(biggestFishWeight, "fishWeight") : ""], ["Fish / hr", fishPerHour], ["Lines set / pulled", [trip.linesSetTime || trip.startTime ? formatReportStatTime(trip.linesSetTime || trip.startTime) : "", trip.linesPulledTime || trip.endTime ? formatReportStatTime(trip.linesPulledTime || trip.endTime) : ""].filter(Boolean).join("–")], ["Hours", trimNumber(hours)], ["Species", species.count]].map(([label, value]) => `<div${label === "Lines set / pulled" ? " class=\"report-stat-time\"" : ""}><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value === "" || value === null || value === undefined ? "Not logged" : value))}</strong></div>`).join("")}</section>
+    <header class="report-header"><div class="report-header-copy"><p class="report-date">${escapeHtml(reportMeta)}${trip.location ? ` · ${escapeHtml(displayTitleText(trip.location))}` : ""}</p><h3>${escapeHtml(displayTitleText(trip.title || trip.location || "Trip report"))}</h3><p class="report-subtitle">${escapeHtml([trip.targetSpecies, trip.method].filter(Boolean).map(displayTitleText).join(" · ") || "Fishing trip report")}</p><div class="report-actions"><button class="button primary" type="button" data-report-action="edit">Edit trip</button><button class="button secondary" type="button" data-report-action="share">Share trip</button></div></div>${hero ? `<button class="report-hero-photo" type="button" data-report-open-photo aria-label="Open trip photo">${mediaMarkup(hero, "report-hero-asset", { download: false })}</button>` : ""}</header>
+    <section class="report-stat-strip">${[["Landed", landed], ["Missed / lost", lost], ["Biggest fish", biggestFishWeight ? displayStoredMeasurement(biggestFishWeight, "fishWeight") : ""], ["Fish / hr", fishPerHour], ["Hours", trimNumber(hours)], ["Species", species.count]].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value === "" || value === null || value === undefined ? "Not logged" : value))}</strong></div>`).join("")}</section>
     <section class="report-notes"><h3>Trip notes</h3><p>${escapeHtml(trip.notes || "Not logged")}</p></section>
     <div class="report-fact-grid report-overview-grid">${renderReportKeyValue("Trip details", overview)}${renderReportKeyValue("Conditions", conditions)}${(trip.probeTemperatureProfile || []).some((entry) => entry && Number.isFinite(Number(entry.depthFeet)) && String(entry.temperature || "").trim()) ? `<section class="report-fact-section report-probe-section"><h3>Probe temperature profile</h3>${renderProbeTemperatureProfileReport(trip.probeTemperatureProfile)}</section>` : ""}</div>
     ${isTrollingTripRecord(trip) ? `<section class="report-spread"><div class="report-section-title"><h3>Trolling spread</h3></div>${renderTrollingSpread(trip)}</section>` : ""}

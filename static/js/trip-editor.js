@@ -108,7 +108,6 @@ function tripSaveWarnings() {
   const warnings = [];
   const importantFields = [
     { field: document.querySelector("#launchTime"), label: "Launch time" },
-    { field: document.querySelector("#linesSetTime"), label: "Lines set time" },
     { field: document.querySelector("#linesPulledTime"), label: "Lines pulled time" },
     { field: document.querySelector("#method"), label: "Fishing method" }
   ];

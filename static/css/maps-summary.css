@@ -212,8 +212,10 @@
   display: grid;
   gap: 4px;
   min-width: 160px;
+  justify-items: center;
   background: var(--panel);
   color: var(--text);
+  text-align: center;
 }
 
 .fish-map .leaflet-popup-content-wrapper,
@@ -285,7 +287,9 @@
 .map-overlay-reading {
   display: grid;
   gap: 3px;
+  justify-items: center;
   padding-top: 2px;
+  text-align: center;
 }
 
 .map-overlay-reading strong {
@@ -305,7 +309,7 @@
 
 .map-water-reading { gap: 8px; padding-top: 5px; }
 .map-water-reading-heading { color: var(--muted); font-size: 11px !important; letter-spacing: .1em; text-transform: uppercase; }
-.map-water-reading-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 16px; font-size: 13px; }
+.map-water-reading-row { display: flex; align-items: baseline; justify-content: center; gap: 8px; font-size: 13px; }
 .map-water-reading-row span { color: var(--text); font-size: 13px; }
 .map-water-reading-row strong { font-size: 14px; text-align: right; }
 .map-water-reading .great-lakes-profile-button { margin-top: 3px; }
@@ -431,13 +435,14 @@
 
 .map-popup-trip-link {
   width: max-content;
+  justify-self: center;
   border: 0;
   padding: 0;
   background: transparent;
   color: var(--green-dark);
   font-size: 12px;
   font-weight: 900;
-  text-align: left;
+  text-align: center;
 }
 
 .map-popup-trip-link:hover,
@@ -785,7 +790,7 @@
 .great-lakes-control strong, .great-lakes-control label, .great-lakes-control small { display: block; }
 .great-lakes-control strong { margin-bottom: 7px; font-size: 13px; }
 .great-lakes-control label { margin-top: 5px; font-weight: 700; }
-.great-lakes-control select { width: 100%; margin-top: 2px; padding: 3px; font: inherit; }
+.great-lakes-control select { width: 100%; margin-top: 2px; padding: 8px 36px 8px 10px; font: inherit; }
 .great-lakes-control output { float: right; color: var(--muted); font-weight: 500; }.great-lakes-control input[type="range"] { display: block; width: 100%; box-sizing: border-box; margin: 5px 0 0; padding: 0; accent-color: var(--green); }
 .great-lakes-current-options { display: none; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); }
 #greatLakesConditions.has-current-layer .great-lakes-current-options { display: block; }
@@ -808,8 +813,8 @@ body.great-lakes-layer-none .great-lakes-temperature-raster { display: none !imp
 .great-lakes-profile-button { display: block; width: 100%; margin-top: 7px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--field); color: var(--text); font: 700 12px/1.2 Roboto, sans-serif; cursor: pointer; }
 .great-lakes-profile-button:hover:not(:disabled), .great-lakes-profile-button:focus-visible { border-color: var(--green); color: var(--green); outline: none; }
 .great-lakes-profile-button:disabled { cursor: wait; opacity: .72; }
-.great-lakes-profile-dialog { width: min(880px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); box-shadow: var(--shadow); }.great-lakes-profile-dialog form { float: right; }.great-lakes-profile-dialog h3 { margin: 4px 0; font-size: 26px; }.great-lakes-profile-dialog p, .great-lakes-profile-dialog small { color: var(--muted); font-size: 14px; }.great-lakes-profile-dialog svg { width: 100%; margin: 16px 0; stroke: var(--muted); fill: var(--muted); font-size: 13px; }
+.great-lakes-profile-dialog { width: min(880px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); box-shadow: var(--shadow); }.great-lakes-profile-dialog form { float: right; }.great-lakes-profile-dialog h3 { margin: 4px 0; font-size: 26px; }.great-lakes-profile-dialog p, .great-lakes-profile-dialog small { color: var(--muted); font-size: 14px; }.great-lakes-profile-dialog svg { width: 100%; margin: 8px 0 12px; stroke: var(--muted); fill: var(--muted); font-size: 13px; }
 .great-lakes-profile-scale { display: inline-flex; gap: 8px; }.great-lakes-profile-scale button { padding: 7px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--field); color: var(--muted); font: 800 12px/1 Roboto, sans-serif; cursor: pointer; }.great-lakes-profile-scale button[aria-pressed="true"] { border-color: var(--green); background: var(--green); color: #062414; }
 .great-lakes-profile-controls { display: grid; gap: 10px; margin: 8px 0; }.great-lakes-profile-depth-range { display: grid; gap: 5px; max-width: 420px; color: var(--muted); font: 800 12px/1.2 Roboto, sans-serif; }.great-lakes-profile-depth-range output { color: var(--text); }.great-lakes-profile-depth-range input { width: 100%; accent-color: var(--green); }
-.great-lakes-profile-point { cursor: pointer; }.great-lakes-profile-point:hover { fill: #facc15; }.great-lakes-profile-point-reading { margin: 0 0 12px; padding: 9px 12px; border-left: 3px solid var(--green); background: var(--panel-soft); color: var(--text) !important; font-weight: 800; }
+.great-lakes-profile-point { cursor: pointer; }.great-lakes-profile-point:hover, .great-lakes-profile-point:focus-visible { fill: #facc15; outline: none; }.great-lakes-profile-point:focus-visible { stroke: #facc15; stroke-width: 4; }.great-lakes-profile-point-reading { margin: 0 0 12px; padding: 9px 12px; border-left: 3px solid var(--green); background: var(--panel-soft); color: var(--text) !important; font-weight: 800; }
 .great-lakes-thermocline { display: grid; gap: 3px; margin: 8px 0; padding: 8px; border-left: 3px solid var(--green); background: var(--panel-soft); }.great-lakes-thermocline span { font-weight: 700; }

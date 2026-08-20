@@ -388,7 +388,7 @@ function openLocationDialog(mode = "location", locationId = "", launchId = "") {
     ? "Press the launch or area fished on the map to place the pin."
     : "Press the waterbody location on the map to place the pin.";
   els.locationName.placeholder = editingLaunch ? "North Shore Marina or Offshore Shelf" : "Lake Ontario";
-  els.locationName.value = editingLaunch ? (launch?.name || "North Shore Marina") : (location?.name || "");
+  els.locationName.value = editingLaunch ? (launch?.name || "") : (location?.name || "");
   const isEditingExisting = editingLaunch ? Boolean(launch) : Boolean(location);
   if (els.deleteLocationDialogButton) {
     els.deleteLocationDialogButton.classList.toggle("hidden", !isEditingExisting);

@@ -515,11 +515,6 @@
     grid-template-columns: 1fr;
   }
 
-  #tripDialog .trip-time-separator {
-    height: 20px;
-    transform: rotate(90deg);
-  }
-
   #tripDialog .catch-field-with-option,
   #tripDialog .catch-location-action-row {
     align-items: stretch;

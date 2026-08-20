@@ -232,7 +232,7 @@ function renderGreatLakesCurrents(points, zoom) {
   points.filter((_, index) => index % stride === 0).forEach((point) => {
     const size = Math.max(12, Math.min(28, 12 + point.speed * 55));
     const icon = L.divIcon({ className: "great-lakes-current-arrow", iconSize: [size, size], iconAnchor: [size / 2, size / 2], html: `<span style="font-size:${size}px;transform:rotate(${point.direction}deg)">➤</span>` });
-    L.marker([point.latitude, point.longitude], { icon, interactive: true, keyboard: false }).bindTooltip(`${point.speed.toFixed(2)} m/s toward ${point.direction.toFixed(0)}°<br>${point.depthMeters} m / ${point.model} modeled guidance`).addTo(greatLakesConditionsLayer);
+    L.marker([point.latitude, point.longitude], { icon, interactive: true, keyboard: false }).bindTooltip(`${point.speed.toFixed(2)} m/s toward ${point.direction.toFixed(0)}°<br>${point.depthMeters} m`).addTo(greatLakesConditionsLayer);
   });
 }
 
@@ -262,7 +262,7 @@ async function greatLakesMapInspection({ latitude, longitude }) {
     const vector = interpolateCurrentAt(greatLakesCurrentFields, latitude, longitude);
     if (!vector) return "";
     const speed = Math.hypot(vector.u, vector.v);
-    return `<section class="map-overlay-reading"><strong>Underwater current</strong><span>${currentSpeedLabel(speed)}</span><small>${greatLakesDepthLabel(Number(vector.depthMeters))} &middot; ${vector.model} modeled guidance</small></section>`;
+    return `<section class="map-overlay-reading"><strong>Underwater current</strong><span>${currentSpeedLabel(speed)}</span><small>${greatLakesDepthLabel(Number(vector.depthMeters))}</small></section>`;
   }
   try {
     if (greatLakesActiveLayer === "thermocline") {
@@ -287,22 +287,25 @@ function temperatureProfileDialog(profile, depthScale = "", depthLimitMeters = n
   const hasDepthLimit = depthLimitMeters !== null && depthLimitMeters !== undefined && Number.isFinite(requestedMaximumDepth);
   const plottedMaximumDepth = hasDepthLimit ? Math.min(Math.max(requestedMaximumDepth, 0), availableMaximumDepth) : availableMaximumDepth;
   const values = allValues.filter((item) => item.depthMeters <= plottedMaximumDepth);
-  const width = 780, height = 680, pad = 108;
+  const width = 780, height = 680;
+  const chart = { top: 12, right: 108, bottom: 72, left: 108 };
+  const plotWidth = width - chart.left - chart.right;
+  const plotHeight = height - chart.top - chart.bottom;
   const temperatureUnit = typeof unitPreference === "function" ? unitPreference("waterTemperature") : "C";
   const plotTemperature = (temperatureC) => typeof convertUnitValue === "function" ? convertUnitValue(temperatureC, "C", temperatureUnit) : temperatureC;
   const maxDepth = plottedMaximumDepth, minTemp = Math.min(...values.map((item) => plotTemperature(item.temperatureC))), maxTemp = Math.max(...values.map((item) => plotTemperature(item.temperatureC)));
   const logarithmicDepth = depthScale === "logarithmic" || (!depthScale && maxDepth >= 100);
-  const x = (temp) => pad + ((temp - minTemp) / Math.max(maxTemp - minTemp, 0.1)) * (width - pad * 2);
-  const y = (depth) => pad + (logarithmicDepth ? Math.log1p(depth) / Math.log1p(maxDepth) : depth / maxDepth) * (height - pad * 2);
+  const x = (temp) => chart.left + ((temp - minTemp) / Math.max(maxTemp - minTemp, 0.1)) * plotWidth;
+  const y = (depth) => chart.top + (logarithmicDepth ? Math.log1p(depth) / Math.log1p(maxDepth) : depth / maxDepth) * plotHeight;
   const line = values.map((item) => `${x(plotTemperature(item.temperatureC))},${y(item.depthMeters)}`).join(" ");
   const depthTicks = logarithmicDepth ? [0, 1, 2, 5, 10, 20, 50, 100, 200, 500, maxDepth].filter((value, index, list) => value <= maxDepth && list.indexOf(value) === index) : Array.from({ length: 9 }, (_, index) => maxDepth * index / 8);
-  const tickMarkup = depthTicks.map((depth) => `<line x1="${pad}" y1="${y(depth)}" x2="${width - pad}" y2="${y(depth)}" stroke-opacity=".22"/><text x="${pad - 10}" y="${y(depth) + 4}" text-anchor="end">${greatLakesDepthAxisTick(depth)}</text>`).join("");
+  const tickMarkup = depthTicks.map((depth) => `<line x1="${chart.left}" y1="${y(depth)}" x2="${width - chart.right}" y2="${y(depth)}" stroke-opacity=".22"/><text x="${chart.left - 10}" y="${y(depth) + 4}" text-anchor="end">${greatLakesDepthAxisTick(depth)}</text>`).join("");
   const temperatureTicks = Array.from({ length: 7 }, (_, index) => minTemp + (maxTemp - minTemp) * index / 6);
-  const temperatureTickMarkup = temperatureTicks.map((temp) => `<line x1="${x(temp)}" y1="${pad}" x2="${x(temp)}" y2="${height - pad}" stroke-opacity=".14"/><text x="${x(temp)}" y="${height - 22}" text-anchor="middle">${temp.toFixed(1)}°</text>`).join("");
+  const temperatureTickMarkup = temperatureTicks.map((temp) => `<line x1="${x(temp)}" y1="${chart.top}" x2="${x(temp)}" y2="${height - chart.bottom}" stroke-opacity=".14"/><text x="${x(temp)}" y="${height - 22}" text-anchor="middle">${temp.toFixed(1)}°</text>`).join("");
   const pointMarkup = values.map((item) => `<circle cx="${x(plotTemperature(item.temperatureC))}" cy="${y(item.depthMeters)}" r="4" fill="#f8fafc" stroke="#22c55e" stroke-width="2.5"/>`).join("");
   const thermo = profile.thermocline;
   const thermoText = thermo ? `<section class="great-lakes-thermocline"><strong>Estimated thermocline</strong><span>${greatLakesDepthLabel(thermo.depthMeters)} · ${thermo.gradientCPerMeter.toFixed(2)} °C/m</span><small>${thermo.temperatureAboveC.toFixed(1)} °C above → ${thermo.temperatureBelowC.toFixed(1)} °C below (${greatLakesDepthLabel(thermo.shallowerDepthMeters)}–${greatLakesDepthLabel(thermo.deeperDepthMeters)})</small></section>` : "";
-  return `<dialog class="great-lakes-profile-dialog"><form method="dialog"><button class="icon-button" aria-label="Close">×</button></form><h3>Water-column temperature</h3><p>${new Date(profile.validTime).toLocaleString()}</p><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Temperature by depth"><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}"/><line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}"/>${tickMarkup}${temperatureTickMarkup}<polyline points="${line}" fill="none" stroke="#22c55e" stroke-width="4"/>${values.map((item) => `<circle cx="${x(item.temperatureC)}" cy="${y(item.depthMeters)}" r="4" fill="#f8fafc" stroke="#22c55e" stroke-width="2.5"/>`).join("")}<text x="18" y="${height / 2}" text-anchor="middle" transform="rotate(-90 18 ${height / 2})">Depth (${greatLakesDepthAxisUnit()})</text><text x="${width / 2}" y="${height - 6}" text-anchor="middle">Temperature (°C)</text></svg>${thermoText}</dialog>`;
+  return `<dialog class="great-lakes-profile-dialog"><form method="dialog"><button class="icon-button" aria-label="Close">×</button></form><h3>Water-column temperature</h3><p>${new Date(profile.validTime).toLocaleString()}</p><svg viewBox="0 0 ${width} ${height}" data-plot-top="${chart.top}" data-plot-right="${chart.right}" data-plot-bottom="${chart.bottom}" data-plot-left="${chart.left}" role="img" aria-label="Temperature by depth"><line x1="${chart.left}" y1="${chart.top}" x2="${chart.left}" y2="${height - chart.bottom}"/><line x1="${chart.left}" y1="${height - chart.bottom}" x2="${width - chart.right}" y2="${height - chart.bottom}"/>${tickMarkup}${temperatureTickMarkup}<polyline points="${line}" fill="none" stroke="#22c55e" stroke-width="4"/>${values.map((item) => `<circle cx="${x(item.temperatureC)}" cy="${y(item.depthMeters)}" r="4" fill="#f8fafc" stroke="#22c55e" stroke-width="2.5"/>`).join("")}<text x="18" y="${height / 2}" text-anchor="middle" transform="rotate(-90 18 ${height / 2})">Depth (${greatLakesDepthAxisUnit()})</text><text x="${width / 2}" y="${height - 6}" text-anchor="middle">Temperature (°C)</text></svg>${thermoText}</dialog>`;
 }
 
 function showTemperatureProfileDialog(profile, depthScale = greatLakesProfileDepthScale, depthLimitMeters = greatLakesProfileDepthLimit) {
@@ -328,16 +331,26 @@ function showTemperatureProfileDialog(profile, depthScale = greatLakesProfileDep
   const availableMaximumDepthForPlot = Math.max(...profile.values.map((item) => item.depthMeters), 1);
   const maximumDepth = greatLakesProfileDepthLimit == null ? availableMaximumDepthForPlot : Math.min(greatLakesProfileDepthLimit, availableMaximumDepthForPlot);
   const useLogDepth = depthScale === "logarithmic" || (!depthScale && maximumDepth >= 100);
+  const svg = dialog.querySelector("svg");
+  const plotTop = Number(svg.dataset.plotTop), plotRight = Number(svg.dataset.plotRight), plotBottom = Number(svg.dataset.plotBottom), plotLeft = Number(svg.dataset.plotLeft);
+  const plotWidth = 780 - plotLeft - plotRight, plotHeight = 680 - plotTop - plotBottom;
   dialog.querySelectorAll("svg circle").forEach((circle, index) => {
     const point = plottedValues[index];
     const displayTemperature = displayTemperatures[index];
     const depthPosition = useLogDepth ? Math.log1p(point.depthMeters) / Math.log1p(maximumDepth) : point.depthMeters / maximumDepth;
-    circle.setAttribute("cx", 108 + ((displayTemperature - minimumTemperature) / Math.max(maximumTemperature - minimumTemperature, 0.1)) * 564);
-    circle.setAttribute("cy", 108 + depthPosition * 464);
+    circle.setAttribute("cx", plotLeft + ((displayTemperature - minimumTemperature) / Math.max(maximumTemperature - minimumTemperature, 0.1)) * plotWidth);
+    circle.setAttribute("cy", plotTop + depthPosition * plotHeight);
     circle.classList.add("great-lakes-profile-point");
     circle.dataset.glProfileTemperature = point.temperatureC;
     circle.dataset.glProfileDepth = point.depthMeters;
     circle.setAttribute("r", "6");
+    circle.setAttribute("tabindex", "0");
+    circle.setAttribute("role", "img");
+    const reading = `${waterTemperatureLabel(point.temperatureC)} at ${greatLakesDepthLabel(point.depthMeters)}`;
+    circle.setAttribute("aria-label", reading);
+    const tooltip = circle.querySelector("title") || document.createElementNS("http://www.w3.org/2000/svg", "title");
+    tooltip.textContent = reading;
+    if (!tooltip.parentNode) circle.append(tooltip);
   });
   dialog.querySelector("svg text:last-of-type").textContent = `Temperature (°${profileUnit})`;
   const axisLabels = dialog.querySelectorAll("svg text");

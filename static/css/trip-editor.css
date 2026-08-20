@@ -667,22 +667,13 @@
 
 #tripDialog .trip-time-inputs {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) 24px minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
   gap: 8px;
 }
 
 #tripDialog .trip-time-field label {
   max-width: none;
-}
-
-#tripDialog .trip-time-separator {
-  display: grid;
-  height: 40px;
-  place-items: center;
-  color: var(--muted);
-  font-size: 17px;
-  font-weight: 800;
 }
 
 #tripDialog .intent-control {

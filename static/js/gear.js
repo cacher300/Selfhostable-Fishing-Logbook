@@ -381,27 +381,13 @@ function renderGearPicker(select, type) {
   }
   if (!menu) return;
   const query = picker.dataset.gearPickerQuery || "";
-  if (type === "lure" && !query && picker.dataset.gearPickerView !== "lures") {
-    if (count) count.textContent = `${savedLureTypes().length} types`;
-    menu.innerHTML = lureTypePickerMarkup(selected);
-    return;
-  }
-
-  const lureType = picker.dataset.gearPickerActiveType || "";
   const filteredItems = items.filter((item) => {
     if (query) return [item.name, item.color, item.type, item.brand].filter(Boolean).join(" ").toLowerCase().includes(query);
-    return type !== "lure" || String(item.type || "").trim() === lureType;
+    return true;
   });
   if (count) count.textContent = query ? `${filteredItems.length} found` : `${filteredItems.length} saved`;
   menu.innerHTML = `
-    ${type === "lure" && !query ? `
-      <button class="gear-picker-back" type="button" data-gear-picker-back>
-        <span aria-hidden="true">‹</span>
-        All lure types
-      </button>
-      <p class="gear-picker-type-heading">${escapeHtml(lureType)}</p>
-    ` : ""}
-    ${type === "flasher" ? `
+    ${type === "flasher" || type === "lure" ? `
       <button class="gear-picker-option gear-picker-option-empty ${selected ? "" : "is-selected"}" type="button" role="option" aria-selected="${String(!selected)}" data-gear-picker-option="">
         <span class="gear-picker-photo-placeholder" aria-hidden="true">—</span>
         <span><strong>${escapeHtml(placeholder)}</strong><small>Clear selection</small></span>
@@ -419,7 +405,7 @@ function enhanceGearSelect(select, type) {
     picker = document.createElement("div");
     picker.className = "gear-media-picker";
     picker.dataset.gearPicker = type;
-    picker.dataset.gearPickerView = type === "lure" ? "types" : "items";
+    picker.dataset.gearPickerView = "items";
     select.parentNode.insertBefore(picker, select);
     picker.append(select);
     select.classList.add("gear-picker-native");
@@ -450,12 +436,18 @@ function renderLureTypeOptions(select) {
 }
 
 function populateLureSelect(select, selectedId = "") {
-  const selectedLure = state.lures.find((lure) => lure.id === selectedId);
-  if (!selectedLure) {
-    renderLureTypeOptions(select);
-    return;
+  select.dataset.lurePickerMode = "items";
+  select.dataset.lurePickerType = "";
+  const picker = select.closest(".gear-media-picker");
+  if (picker) {
+    picker.dataset.gearPickerView = "items";
+    picker.dataset.gearPickerActiveType = "";
   }
-  populateLuresForType(select, String(selectedLure.type || "").trim(), selectedId);
+  select.innerHTML = `<option value="">Select lure</option>` + state.lures.map((lure) => {
+    const label = [lure.name, lure.color].filter(Boolean).join(" - ");
+    return `<option value="${lure.id}" ${lure.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
+  }).join("");
+  enhanceGearSelect(select, "lure");
 }
 
 function populateLuresForType(select, type, selectedId = "") {
@@ -535,14 +527,8 @@ document.addEventListener("click", (event) => {
     const select = picker.querySelector("select");
     const type = picker.dataset.gearPicker;
     const selectedId = option.dataset.gearPickerOption;
-    if (type === "lure") {
-      const lure = state.lures.find((item) => item.id === selectedId);
-      if (lure) populateLuresForType(select, String(lure.type || "").trim(), selectedId);
-      else renderLureTypeOptions(select);
-    } else {
-      select.value = selectedId;
-      renderGearPicker(select, type);
-    }
+    select.value = selectedId;
+    renderGearPicker(select, type);
     closeGearPickers();
     select.dispatchEvent(new Event("change", { bubbles: true }));
     picker.querySelector(".gear-picker-trigger")?.focus();
