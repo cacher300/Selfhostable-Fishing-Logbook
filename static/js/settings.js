@@ -71,26 +71,26 @@ async function exportDatabaseArchive() {
   const button = els.exportDatabaseButton;
   if (!button) return;
   button.disabled = true;
+  button.classList.add("is-loading");
+  button.setAttribute("aria-busy", "true");
   setDatabaseBackupStatus("Preparing backup...");
   try {
-    const response = await fetch("/api/archive");
-    if (!response.ok) throw new Error("Could not export the database.");
-    const archive = await response.blob();
-    const url = URL.createObjectURL(archive);
     const link = document.createElement("a");
-    link.href = url;
+    link.href = "/api/archive";
     link.download = "fishing-logbook-archive.zip";
+    link.style.display = "none";
     document.body.append(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(url);
-    setDatabaseBackupStatus("Backup downloaded. It includes uploaded photos.");
+    setDatabaseBackupStatus("Backup download started. It includes uploaded photos.");
   } catch (error) {
     console.error("Database export failed", error);
     setDatabaseBackupStatus(error.message || "Database export failed.");
     alert(error.message || "Database export failed.");
   } finally {
     button.disabled = false;
+    button.classList.remove("is-loading");
+    button.setAttribute("aria-busy", "false");
   }
 }
 
