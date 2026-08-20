@@ -318,7 +318,6 @@ function galleryLightboxMarkup(item, index) {
           ${details.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
         </dl>
         <div class="gallery-lightbox-actions">
-          <a class="button secondary" href="${escapeHtml(item.downloadUrl || item.url)}" download="${escapeHtml(downloadName)}">Download Original</a>
           <button class="button danger" type="button" data-gallery-delete="${escapeHtml(galleryItemKey(item))}">Delete</button>
         </div>
       </aside>

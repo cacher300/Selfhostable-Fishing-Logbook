@@ -26,6 +26,7 @@ let activeSettingsTab = "general";
 let chopRangesEditing = false;
 let chopRangesEditSnapshot = null;
 let activeDefaultTrollingSpreadTargetSpecies = "";
+let databaseExportInProgress = false;
 const privateLocationFocusZoom = 16;
 
 function setSettingsSaveStatus(text = "Autosave on", status = "") {
@@ -69,10 +70,11 @@ function setDatabaseBackupStatus(message = "") {
 
 async function exportDatabaseArchive() {
   const button = els.exportDatabaseButton;
-  if (!button) return;
-  button.disabled = true;
+  if (!button || databaseExportInProgress) return;
+  databaseExportInProgress = true;
   button.classList.add("is-loading");
   button.setAttribute("aria-busy", "true");
+  button.setAttribute("aria-disabled", "true");
   setDatabaseBackupStatus("Preparing backup...");
   try {
     const link = document.createElement("a");
@@ -88,9 +90,10 @@ async function exportDatabaseArchive() {
     setDatabaseBackupStatus(error.message || "Database export failed.");
     alert(error.message || "Database export failed.");
   } finally {
-    button.disabled = false;
+    databaseExportInProgress = false;
     button.classList.remove("is-loading");
     button.setAttribute("aria-busy", "false");
+    button.setAttribute("aria-disabled", "false");
   }
 }
 
