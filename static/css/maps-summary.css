@@ -642,7 +642,11 @@
 .trip-summary-dialog {
   width: min(1480px, calc(100vw - 28px));
   max-height: calc(100vh - 24px);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
+
+body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 
 .trip-summary-dialog .dialog-header {
   position: fixed;

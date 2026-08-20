@@ -14,8 +14,21 @@ function gearPhotos(item) {
   return item?.image ? [item] : [];
 }
 
-function gearPhotoFields(uploadedPhotos = [], existing = {}) {
-  const photos = [...gearPhotos(existing), ...uploadedPhotos].filter((photo) => photo?.image);
+function gearPhotoKey(photo, index = 0) {
+  return String(photo?.imagePath || photo?.imageFilename || photo?.image || `photo-${index}`);
+}
+
+function gearDialogForType(type) {
+  return { lure: els.lureDialog, flasher: els.flasherDialog, reel: els.reelDialog, rod: els.rodDialog }[type];
+}
+
+function removedGearPhotoKeys(type) {
+  try { return new Set(JSON.parse(gearDialogForType(type)?.dataset.removedPhotoKeys || "[]")); } catch { return new Set(); }
+}
+
+function gearPhotoFields(uploadedPhotos = [], existing = {}, type = "") {
+  const removed = removedGearPhotoKeys(type);
+  const photos = [...gearPhotos(existing).filter((photo, index) => !removed.has(gearPhotoKey(photo, index))), ...uploadedPhotos].filter((photo) => photo?.image);
   return { ...imageFields(photos[0]), photos };
 }
 
@@ -163,13 +176,14 @@ function renderExistingGearPhotos(type, item = null, localFiles = []) {
       name: file.name
     };
   });
-  const photos = gearPhotos(item);
+  const removed = removedGearPhotoKeys(type);
+  const photos = gearPhotos(item).filter((photo, index) => !removed.has(gearPhotoKey(photo, index)));
   container.classList.toggle("hidden", !photos.length && !localPhotos.length);
   container.innerHTML = `
     ${photos.length ? `
       <div class="gear-editor-photos-heading">Current ${photos.length === 1 ? "photo" : "photos"}</div>
       <div class="gear-editor-photo-grid">
-        ${photos.map((photo) => `<div class="gear-editor-photo">${mediaMarkup(photo, "", { download: false })}</div>`).join("")}
+        ${photos.map((photo, index) => `<div class="gear-editor-photo">${mediaMarkup(photo, "", { download: false })}<button class="icon-button gear-editor-photo-remove" type="button" data-remove-gear-photo="${escapeHtml(gearPhotoKey(photo, index))}" data-gear-photo-type="${escapeHtml(type)}" aria-label="Remove photo">×</button></div>`).join("")}
       </div>
     ` : ""}
     ${localPhotos.length ? `
@@ -190,6 +204,16 @@ function previewSelectedGearUploads(type, input) {
     rod: getValue("editingRodId") || els.rodDialog.dataset.duplicateFromId
   }[type];
   renderExistingGearPhotos(type, items.find((item) => item.id === id) || null, input?.files || []);
+}
+
+function removeExistingGearPhoto(type, key) {
+  const dialog = gearDialogForType(type);
+  if (!dialog) return;
+  const keys = removedGearPhotoKeys(type);
+  keys.add(key);
+  dialog.dataset.removedPhotoKeys = JSON.stringify([...keys]);
+  const input = document.querySelector({ lure: "#lureImage", flasher: "#flasherImage", reel: "#reelImage", rod: "#rodImage" }[type]);
+  previewSelectedGearUploads(type, input);
 }
 
 function openQueuedGearImagePreview(type) {
@@ -625,6 +649,7 @@ function collectLineRows() {
 }
 
 function openReelDialog(reel = null, { duplicate = false } = {}) {
+  els.reelDialog.dataset.removedPhotoKeys = "[]";
   els.reelForm.reset();
   pendingReelImage = null;
   renderQueuedGearImage("reel");
@@ -655,6 +680,7 @@ function openReelDialog(reel = null, { duplicate = false } = {}) {
 }
 
 function openRodDialog(rod = null, { duplicate = false } = {}) {
+  els.rodDialog.dataset.removedPhotoKeys = "[]";
   els.rodForm.reset();
   pendingRodImage = null;
   renderQueuedGearImage("rod");
@@ -696,6 +722,7 @@ function openComboDialog(combo = null) {
 
 function openLureDialog(lure = null, pendingRowId = "") {
   prepareInlineGearDialog("lure", pendingRowId);
+  els.lureDialog.dataset.removedPhotoKeys = "[]";
   els.lureForm.reset();
   pendingLureImage = null;
   renderQueuedGearImage("lure");
@@ -776,6 +803,7 @@ function isSpoonType(type) {
 
 function openFlasherDialog(flasher = null, pendingRowId = "") {
   prepareInlineGearDialog("flasher", pendingRowId);
+  els.flasherDialog.dataset.removedPhotoKeys = "[]";
   els.flasherForm.reset();
   pendingFlasherImage = null;
   renderQueuedGearImage("flasher");
@@ -851,7 +879,7 @@ async function saveReel(event) {
       quantityAvailable: getValue("reelQuantityAvailable"),
       notes: getValue("reelNotes"),
       lineHistory: collectLineRows(),
-      ...gearPhotoFields(uploadedPhotos, existing)
+      ...gearPhotoFields(uploadedPhotos, existing, "reel")
     };
     const duplicatedUnchanged = !editingId && Boolean(els.reelDialog.dataset.duplicateFromId)
       && duplicateMatchesSource(existing, reel, [
@@ -900,7 +928,7 @@ async function saveRod(event) {
       dateBought: getValue("rodDateBought"),
       quantityAvailable: getValue("rodQuantityAvailable"),
       notes: getValue("rodNotes"),
-      ...gearPhotoFields(uploadedPhotos, existing)
+      ...gearPhotoFields(uploadedPhotos, existing, "rod")
     };
     const duplicatedUnchanged = !editingId && Boolean(els.rodDialog.dataset.duplicateFromId)
       && duplicateMatchesSource(existing, rod, [
@@ -966,7 +994,7 @@ async function saveLure(event) {
       quantityAvailable: getValue("lureQuantityAvailable"),
       glow: document.querySelector("#lureGlow").checked,
       notes: getValue("lureNotes"),
-      ...imageFields(uploadedImage, existing)
+      ...gearPhotoFields(uploadedImage ? [uploadedImage] : [], existing, "lure")
     };
     lure.name = lure.name || generatedLureName(lure) || "Unnamed Lure";
     const lureIndex = state.lures.findIndex((item) => item.id === lure.id);
@@ -1011,7 +1039,7 @@ async function saveFlasher(event) {
       color: getValue("flasherColor"),
       glow: document.querySelector("#flasherGlow").checked,
       notes: getValue("flasherNotes"),
-      ...imageFields(uploadedImage, existing)
+      ...gearPhotoFields(uploadedImage ? [uploadedImage] : [], existing, "flasher")
     };
     const flasherIndex = state.flashers.findIndex((item) => item.id === flasher.id);
     if (flasherIndex >= 0) state.flashers[flasherIndex] = flasher;

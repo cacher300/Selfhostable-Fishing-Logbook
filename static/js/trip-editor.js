@@ -1324,7 +1324,7 @@ function collectTripFromForm() {
     linesPulledTime: getValue("linesPulledTime"),
     startTime: getValue("linesSetTime"),
     endTime: getValue("linesPulledTime"),
-    hours: calculateHours(getValue("linesSetTime"), getValue("linesPulledTime")),
+    hours: calculateHours(getValue("linesSetTime") || getValue("launchTime"), getValue("linesPulledTime")),
     targetSpecies: getValue("targetSpecies"),
     method: getValue("method"),
     intent: getTripIntent(),

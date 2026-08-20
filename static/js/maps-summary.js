@@ -924,6 +924,7 @@ function renderCatchReportDetails(trip, catchItem) {
 
 function catchDetailRows(trip, catchItem) {
   const record = resolveTripLineRecord({ ...catchItem, trip });
+  const trollingTrip = isTrollingTripRecord(trip);
   const formatWeightDetail = (value) => {
     return displayStoredMeasurement(value, "fishWeight");
   };
@@ -1047,12 +1048,12 @@ const reportColumnDefinitions = [
   ["gpsSpeed", "GPS Speed"], ["ballSpeed", "Ball Speed"], ["flatlineWeight", "Flatline Weight"],
   ["lineBehindBoard", "Line Behind Board"], ["leadcoreColors", "Leadcore Colors"], ["dipseySetting", "Dipsey Setting"],
   ["lineOut", "Line Out"], ["retrieve", "Retrieve"], ["shaker", "Shaker"], ["deepestRigger", "Deepest Rigger"],
-  ["weather", "Catch Weather"], ["notes", "Notes"], ["photo", "Media"]
+  ["notes", "Notes"], ["photo", "Media"]
 ];
 const reportDefaultColumns = new Set(reportColumnDefinitions.map(([key]) => key));
 const reportColumnPreferenceKey = `${storageKey}-trip-report-columns-v4`;
 const reportTrollingColumns = new Set([
-  "setup", "direction", "gpsSpeed", "ballSpeed", "depth", "flatlineWeight", "lineBehindBoard",
+  "setup", "flasher", "direction", "gpsSpeed", "ballSpeed", "depth", "flatlineWeight", "lineBehindBoard",
   "leadcoreColors", "dipseySetting", "lineOut", "shaker", "deepestRigger"
 ]);
 
@@ -1167,7 +1168,7 @@ function renderReportTimeline(trip) {
   return `<section class="report-timeline-section">
     <div class="report-timeline-heading"><div><h3>Catch timeline</h3></div>
       <div class="report-timeline-tools"><div class="report-filter-group" role="group" aria-label="Filter catches">${filters.map(([value, label]) => `<button type="button" class="report-filter ${activeReportTimelineFilter === value ? "is-active" : ""}" data-report-filter="${value}">${escapeHtml(label)}</button>`).join("")}</div>
-        <details class="report-column-picker"><summary>Columns</summary>${definitions.map(([key, label]) => `<label><input type="checkbox" data-report-column="${key}" ${columns.has(key) ? "checked" : ""}> ${escapeHtml(label)}</label>`).join("")}</details></div></div>
+        <details class="report-column-picker"><summary>Columns</summary><div class="report-column-picker-menu">${definitions.map(([key, label]) => `<label><input type="checkbox" data-report-column="${key}" ${columns.has(key) ? "checked" : ""}> ${escapeHtml(label)}</label>`).join("")}</div></details></div></div>
     <div class="report-table-scroll" tabindex="0" aria-label="Catch timeline. Scroll horizontally for more columns.">
       <table class="report-catch-table"><thead><tr>${visible.map(([column, label]) => `<th scope="col"><button type="button" data-report-sort="${column}" aria-label="Sort by ${escapeHtml(label)}">${escapeHtml(label)}${key === column ? `<span aria-hidden="true"> ${direction === "asc" ? "↑" : "↓"}</span>` : ""}</button></th>`).join("")}</tr></thead>
       <tbody>${records.length ? records.map((row, index) => `<tr ${row.catchIndex !== null ? `data-summary-catch-index="${row.catchIndex}" tabindex="0" role="button" aria-label="Open details for ${escapeHtml(row.species)}"` : ""}>${visible.map(([column]) => {
@@ -1202,13 +1203,16 @@ function renderProbeTemperatureProfileReport(profile = []) {
 
 function renderReportSetupTable(trip) {
   const rows = trip.gearUsed || [];
-  const columns = ["#", "Start", "End", "Side", "Line", "Combo", "Rod", "Reel", "Lure", "Flasher", "Presentation", "Distance Behind", "Leadcore", "Deepest Rigger", "Cheater", "Cheater Lure", "Lure Minutes", "Flasher Minutes", "Change Note"];
+  const trolling = isTrollingTripRecord(trip);
+  const columns = ["#", "Start", "End", "Side", "Line", "Combo", "Rod", "Reel", "Lure", ...(trolling ? ["Flasher", "Presentation", "Distance Behind", "Leadcore", "Deepest Rigger", "Cheater", "Cheater Lure", "Lure Minutes", "Flasher Minutes"] : []), "Change Note"];
   const values = (gearItem, index) => [
     index + 1, gearItem.startTime ? formatTimelineDisplayTime(gearItem.startTime) : "", gearItem.endTime ? formatTimelineDisplayTime(gearItem.endTime) : "",
     setupLineSideLabel(gearItem.side), gearItem.lineLabel, comboName(gearItem.comboId), rodName(gearItem.rodId), reelName(gearItem.reelId),
-    lureName(gearItem.lureId), flasherName(gearItem.flasherId), presentationLabel(gearItem.presentation), reportDepthValue(gearItem.distanceBehind),
-    gearItem.hasLeadcore ? "Yes" : "No", gearItem.deepestRigger ? "Yes" : "No", gearItem.hasCheater ? "Yes" : "No", lureName(gearItem.cheaterLureId),
-    gearItem.lureMinutes, gearItem.flasherMinutes, displaySentenceText(gearItem.changeNote || "")
+    lureName(gearItem.lureId), ...(trolling ? [
+      flasherName(gearItem.flasherId), presentationLabel(gearItem.presentation), reportDepthValue(gearItem.distanceBehind),
+      gearItem.hasLeadcore ? "Yes" : "No", gearItem.deepestRigger ? "Yes" : "No", gearItem.hasCheater ? "Yes" : "No", lureName(gearItem.cheaterLureId),
+      gearItem.lureMinutes, gearItem.flasherMinutes
+    ] : []), displaySentenceText(gearItem.changeNote || "")
   ];
   return `<section class="report-setup-section"><div class="report-section-title"><h3>Setup details</h3></div><div class="report-table-scroll" tabindex="0" aria-label="Setup details. Scroll horizontally for more columns."><table class="report-catch-table report-setup-table"><thead><tr>${columns.map((label) => `<th scope="col"><span>${escapeHtml(label)}</span></th>`).join("")}</tr></thead><tbody>${rows.length ? rows.map((gearItem, index) => `<tr>${values(gearItem, index).map((value) => `<td>${escapeHtml(reportText(value))}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${columns.length}" class="report-empty-row">No setup lines were logged for this trip.</td></tr>`}</tbody></table></div></section>`;
 }

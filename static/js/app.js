@@ -637,6 +637,12 @@ document.addEventListener("click", (event) => {
     updateRowSummary(row);
   }
 
+  const removeGearPhoto = event.target.closest("[data-remove-gear-photo]");
+  if (removeGearPhoto) {
+    removeExistingGearPhoto(removeGearPhoto.dataset.gearPhotoType, removeGearPhoto.dataset.removeGearPhoto);
+    return;
+  }
+
   const tripQueueButton = event.target.closest("[data-use-photo-queue='trip-photos']");
   if (tripQueueButton) {
     openPhotoQueue({ type: "trip", category: "trip-photos" });

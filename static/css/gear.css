@@ -266,12 +266,26 @@
 }
 
 .gear-editor-photo {
+  position: relative;
   overflow: hidden;
   width: 150px;
   height: 112px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel-soft);
+}
+
+.gear-editor-photo-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(7, 21, 46, 0.82);
+  color: #fff;
 }
 
 .gear-editor-photo img,

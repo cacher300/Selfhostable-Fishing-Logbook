@@ -33,7 +33,7 @@ function catchRate(trip) {
 }
 
 function tripHours(trip) {
-  const calculated = calculateHours(trip.linesSetTime || trip.startTime, trip.linesPulledTime || trip.endTime);
+  const calculated = calculateHours(trip.linesSetTime || trip.startTime || trip.launchTime, trip.linesPulledTime || trip.endTime);
   return calculated || number(trip.hours);
 }
 
