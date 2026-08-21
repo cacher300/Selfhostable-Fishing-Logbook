@@ -85,6 +85,25 @@ deploy_production:
         printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
       fi
       chmod 600 ~/.ssh/id_ed25519
+      if ! ssh-keygen -lf ~/.ssh/id_ed25519 >/dev/null 2>&1; then
+        normalized_key=$(mktemp)
+        {
+          printf '%s\n' '-----BEGIN OPENSSH PRIVATE KEY-----'
+          sed -e '1s/^DEPLOY_SSH_KEY=//' \
+            -e '/^-----BEGIN OPENSSH PRIVATE KEY-----$/d' \
+            -e '/^-----END OPENSSH PRIVATE KEY-----$/d' \
+            ~/.ssh/id_ed25519 | tr -d '[:space:]'
+          printf '\n%s\n' '-----END OPENSSH PRIVATE KEY-----'
+        } > "$normalized_key"
+        if ssh-keygen -lf "$normalized_key" >/dev/null 2>&1; then
+          mv "$normalized_key" ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+        else
+          rm -f "$normalized_key"
+          echo 'DEPLOY_SSH_KEY is not a valid OpenSSH private key' >&2
+          exit 1
+        fi
+      fi
       ssh-keygen -lf ~/.ssh/id_ed25519
     - |
       : "${DEPLOY_KNOWN_HOSTS:?DEPLOY_KNOWN_HOSTS must be configured as a protected CI/CD variable}"
