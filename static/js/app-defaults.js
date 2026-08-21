@@ -156,7 +156,7 @@ const defaults = {
     "Crappie",
     "Bluegill"
   ],
-  methods: ["Trolling", "Casting", "Jigging", "Fly Fishing", "Bait Fishing", "Ice Fishing", "Shore Fishing"],
+  methods: ["Trolling", "Casting", "Jigging", "Drifting", "Fly Fishing", "Bait Fishing", "Ice Fishing", "Shore Fishing"],
   lureTypes: ["Spoon", "Crankbait", "Spinner", "Worm Harness", "Jig", "Dropshot", "Soft Plastic", "Fly", "Plug", "Swimbait", "Flasher/Fly", "Jerkbait", "Topwater", "Other"],
   flasherTypes: ["Paddle", "Dodger", "Spin Doctor", "Meat Rig", "Attractor", "Other"],
   waterClarities: structuredClone(defaultWaterClarityOptions),

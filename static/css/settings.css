@@ -177,6 +177,11 @@
   flex-wrap: wrap;
 }
 
+.database-backup-actions .button > span {
+  color: inherit;
+  font-size: inherit;
+}
+
 .settings-control {
   display: grid;
   gap: 8px;

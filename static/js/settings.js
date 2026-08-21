@@ -72,9 +72,10 @@ async function exportDatabaseArchive() {
   const button = els.exportDatabaseButton;
   if (!button || databaseExportInProgress) return;
   databaseExportInProgress = true;
+  button.disabled = false;
+  button.removeAttribute("aria-disabled");
   button.classList.add("is-loading");
   button.setAttribute("aria-busy", "true");
-  button.setAttribute("aria-disabled", "true");
   setDatabaseBackupStatus("Preparing backup...");
   try {
     const link = document.createElement("a");
@@ -93,7 +94,7 @@ async function exportDatabaseArchive() {
     databaseExportInProgress = false;
     button.classList.remove("is-loading");
     button.setAttribute("aria-busy", "false");
-    button.setAttribute("aria-disabled", "false");
+    button.removeAttribute("aria-disabled");
   }
 }
 
