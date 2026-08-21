@@ -15,11 +15,6 @@ variables:
   PORT: "8080"
   SECRET_KEY: "ci-only-session-signing-key"
 
-cache:
-  key: "$CI_COMMIT_REF_SLUG"
-  paths:
-    - .cache/pip/
-
 test_python_app:
   stage: validate
   image: python:3.12-slim
@@ -90,6 +85,7 @@ deploy_production:
         printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
       fi
       chmod 600 ~/.ssh/id_ed25519
+      ssh-keygen -lf ~/.ssh/id_ed25519
     - |
       : "${DEPLOY_KNOWN_HOSTS:?DEPLOY_KNOWN_HOSTS must be configured as a protected CI/CD variable}"
       if [ -f "$DEPLOY_KNOWN_HOSTS" ]; then
@@ -98,6 +94,8 @@ deploy_production:
         printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
       fi
       chmod 644 ~/.ssh/known_hosts
+      test -s ~/.ssh/known_hosts
+      wc -l ~/.ssh/known_hosts
   script:
     - |
       : "${DEPLOY_HOST:?DEPLOY_HOST must be configured}"
@@ -105,10 +103,15 @@ deploy_production:
       : "${DEPLOY_PATH:?DEPLOY_PATH must be configured}"
       : "${DEPLOY_DATA_PATH:?DEPLOY_DATA_PATH must be configured}"
       ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
-        "$DEPLOY_USER@$DEPLOY_HOST" \
-        "set -eu; \
-         cd '$DEPLOY_PATH'; \
-         git fetch --prune origin; \
-         git reset --hard 'origin/$CI_DEFAULT_BRANCH'; \
-         mkdir -p '$DEPLOY_DATA_PATH/uploads'; \
-         FISH_DATA_DIR='$DEPLOY_DATA_PATH' docker compose up -d --build --remove-orphans --wait"
+        "$DEPLOY_USER@$DEPLOY_HOST" /bin/sh -s -- \
+        "$DEPLOY_PATH" "$DEPLOY_DATA_PATH" "$CI_DEFAULT_BRANCH" <<'REMOTE_SCRIPT'
+      set -eu
+      DEPLOY_PATH=$1
+      DEPLOY_DATA_PATH=$2
+      CI_DEFAULT_BRANCH=$3
+      cd "$DEPLOY_PATH"
+      git fetch --prune origin
+      git reset --hard "origin/$CI_DEFAULT_BRANCH"
+      mkdir -p "$DEPLOY_DATA_PATH/uploads"
+      FISH_DATA_DIR="$DEPLOY_DATA_PATH" docker compose up -d --build --remove-orphans --wait
+      REMOTE_SCRIPT
