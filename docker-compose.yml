@@ -3,20 +3,12 @@ services:
     build: .
     container_name: selfhostable-fishing-logbook
     ports:
-      - "127.0.0.1:8081:8080"
+      - "80:8080"
     volumes:
-      # Keep the live database and uploaded media outside the Git checkout on
-      # production. Local development still defaults to ./data.
-      - ${FISH_DATA_DIR:-./data}:/app/data
+      - ./data:/app/data
     environment:
       HOST: 0.0.0.0
       PORT: 8080
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
       RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
     restart: unless-stopped
