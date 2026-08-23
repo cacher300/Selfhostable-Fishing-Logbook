@@ -40,9 +40,11 @@ from backend.media_service import (
     convert_heif_upload,
     create_upload_preview,
     delete_upload_file,
+    extract_image_metadata,
     cleanup_orphaned_uploads,
     read_upload_metadata,
     referenced_uploads,
+    scrub_private_photo_metadata,
     upload_captions,
     upload_category_path,
     upload_gallery_items,
@@ -287,6 +289,11 @@ def create_app(config: dict | None = None) -> Flask:
             metadata_payload = json.loads(metadata) if metadata else {}
         except json.JSONDecodeError:
             metadata_payload = {}
+        if media_type == "image":
+            metadata_payload = scrub_private_photo_metadata({
+                **extract_image_metadata(category, stored_name),
+                **metadata_payload,
+            })
         metadata_payload = {
             **metadata_payload,
             "name": filename,
@@ -294,6 +301,7 @@ def create_app(config: dict | None = None) -> Flask:
             "mediaType": media_type,
             "previewFilename": preview_filename,
             **({"convertedFrom": suffix.removeprefix(".").upper()} if converted_heif else {}),
+            **({"_heifMetadataVersion": 1} if converted_heif else {}),
         }
         write_upload_metadata(category, stored_name, metadata_payload)
 

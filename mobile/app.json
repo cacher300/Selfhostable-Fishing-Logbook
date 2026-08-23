@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "Fishing Logbook",
+    "slug": "fishing-logbook-mobile",
+    "scheme": "fishinglogbook",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "headers": {
+            "Cross-Origin-Embedder-Policy": "credentialless",
+            "Cross-Origin-Opener-Policy": "same-origin"
+          }
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Fishing Logbook to capture catch and trip photos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Fishing Logbook to add your current fishing location."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Fishing Logbook to attach fishing photos and videos."
+        }
+      ],
+      "expo-maps",
+      "expo-sharing"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.local.fishinglogbook"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.local.fishinglogbook"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
