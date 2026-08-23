@@ -1,4 +1,5 @@
 Flask>=3.0,<4
 Pillow>=10.0,<12
+pillow-heif>=1.0,<2
 pytest>=8.0,<9
 gunicorn>=23.0,<24

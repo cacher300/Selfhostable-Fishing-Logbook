@@ -1419,7 +1419,7 @@
               <label class="button file-button catch-media-action">
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
                 Upload Media
-                <input id="notePhotoInput" type="file" accept="image/*,video/*" multiple />
+                <input id="notePhotoInput" type="file" accept="image/*,.heic,.heif,video/*" multiple />
               </label>
               <button class="button catch-media-action" type="button" data-use-photo-queue="trip-photos">
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4h8v8H4zM6 2h4M6 14h4" /></svg>
@@ -1455,7 +1455,7 @@
         <div class="photo-queue-actions">
           <label class="button primary file-button" id="photoQueueUploadButton">
             Upload to Queue
-            <input id="photoQueueInput" type="file" accept="image/*,video/*" multiple />
+            <input id="photoQueueInput" type="file" accept="image/*,.heic,.heif,video/*" multiple />
           </label>
           <span id="photoQueueStatus" class="map-summary">No queued photos loaded</span>
         </div>
@@ -1486,7 +1486,7 @@
           </label>
           <label>
             <span>Equipment photo</span>
-            <input id="boatEquipmentImage" type="file" accept="image/*" />
+            <input id="boatEquipmentImage" type="file" accept="image/*,.heic,.heif" />
           </label>
           <div id="boatEquipmentImagePreview" class="boat-equipment-image-preview hidden"></div>
           <label id="addBoatEquipmentToDeckRow" class="checkbox-field">
@@ -1588,7 +1588,7 @@
           <label><span>Purchase amount</span><input id="reelPurchaseAmount" type="text" placeholder="89.99" /></label>
           <label><span>Date bought</span><input id="reelDateBought" type="date" /></label>
           <label><span>Quantity owned</span><input id="reelQuantityAvailable" type="number" min="0" step="1" placeholder="1" /></label>
-          <label><span>Reel photos</span><input id="reelImage" type="file" accept="image/*,video/*" multiple /></label>
+          <label><span>Reel photos</span><input id="reelImage" type="file" accept="image/*,.heic,.heif,video/*" multiple /></label>
           <button class="button secondary align-end" type="button" data-use-photo-queue="reels">Use Queue</button>
           <div id="reelQueuedImage" class="queued-gear-image hidden"></div>
           <div id="reelExistingPhotos" class="gear-editor-photos hidden"></div>
@@ -1627,7 +1627,7 @@
           <label><span>Purchase amount</span><input id="rodPurchaseAmount" type="text" placeholder="69.99" /></label>
           <label><span>Date bought</span><input id="rodDateBought" type="date" /></label>
           <label><span>Quantity owned</span><input id="rodQuantityAvailable" type="number" min="0" step="1" placeholder="1" /></label>
-          <label><span>Rod photos</span><input id="rodImage" type="file" accept="image/*,video/*" multiple /></label>
+          <label><span>Rod photos</span><input id="rodImage" type="file" accept="image/*,.heic,.heif,video/*" multiple /></label>
           <button class="button secondary" type="button" data-use-photo-queue="rods">Use Queue</button>
           <div id="rodQueuedImage" class="queued-gear-image hidden"></div>
           <div id="rodExistingPhotos" class="gear-editor-photos hidden"></div>
@@ -1717,7 +1717,7 @@
           </label>
           <label>
             <span>Lure image</span>
-            <input id="lureImage" type="file" accept="image/*,video/*" />
+            <input id="lureImage" type="file" accept="image/*,.heic,.heif,video/*" />
           </label>
           <button class="button secondary" type="button" data-use-photo-queue="lures">Use Queue</button>
           <div id="lureQueuedImage" class="queued-gear-image hidden"></div>
@@ -1788,7 +1788,7 @@
           </label>
           <label>
             <span>Flasher image</span>
-            <input id="flasherImage" type="file" accept="image/*,video/*" />
+            <input id="flasherImage" type="file" accept="image/*,.heic,.heif,video/*" />
           </label>
           <button class="button secondary" type="button" data-use-photo-queue="flashers">Use Queue</button>
           <div id="flasherQueuedImage" class="queued-gear-image hidden"></div>
@@ -2032,7 +2032,7 @@
               <label class="button file-button catch-media-action">
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
                 Upload Media
-                <input class="catch-photo-input" type="file" accept="image/*,video/*" multiple />
+                <input class="catch-photo-input" type="file" accept="image/*,.heic,.heif,video/*" multiple />
               </label>
               <button class="button use-catch-photo-queue catch-media-action" type="button">
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4h8v8H4zM6 2h4M6 14h4" /></svg>
