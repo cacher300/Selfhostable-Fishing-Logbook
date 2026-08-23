@@ -752,6 +752,15 @@ function photoQueueTimeText(photo) {
   return "No capture time";
 }
 
+function photoQueueMetadataText(photo) {
+  const metadata = [photoQueueTimeText(photo)];
+  const coordinates = photo.coordinates;
+  if (coordinates && Number.isFinite(Number(coordinates.latitude)) && Number.isFinite(Number(coordinates.longitude))) {
+    metadata.push(`${Number(coordinates.latitude).toFixed(5)}, ${Number(coordinates.longitude).toFixed(5)}`);
+  }
+  return metadata.join(" · ");
+}
+
 async function renderPhotoQueue() {
   const photos = await loadPhotoQueue();
   els.photoQueueStatus.textContent = photos.length === 1 ? "1 queued photo" : `${photos.length} queued photos`;
@@ -767,8 +776,8 @@ async function renderPhotoQueue() {
         <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${escapeHtml(photo.filename)}" aria-label="Remove queued photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       </div>
       <div>
-        <strong>${escapeHtml(isVideoMedia(photo) ? "Queued video" : "Queued photo")}</strong>
-        <span>${escapeHtml(photoQueueTimeText(photo))}</span>
+        <strong title="${escapeHtml(photo.name || photo.filename)}">${escapeHtml(photo.name || photo.filename)}</strong>
+        <span>${escapeHtml(photoQueueMetadataText(photo))}</span>
       </div>
       <div class="photo-queue-card-actions">
         ${activePhotoQueueTarget ? `<button class="button primary" type="button" data-select-queued-photo="${escapeHtml(photo.filename)}">Use Photo</button>` : ""}

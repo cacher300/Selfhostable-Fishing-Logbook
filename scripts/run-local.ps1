@@ -34,7 +34,7 @@ if ($LASTEXITCODE -ne 0) {
   }
 }
 
-& $pythonPath -c "import flask; import PIL; import pytest" 2>$null
+& $pythonPath -c "import flask; import PIL; import pillow_heif; import pytest" 2>$null
 if ($LASTEXITCODE -ne 0) {
   & $pythonPath -m pip install --disable-pip-version-check -r (Join-Path $projectRoot "requirements.txt")
   if ($LASTEXITCODE -ne 0) {

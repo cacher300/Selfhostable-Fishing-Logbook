@@ -5,6 +5,7 @@ from pathlib import Path
 
 from flask import abort
 from PIL import Image, ImageOps, UnidentifiedImageError
+from pillow_heif import register_heif_opener
 
 from .backend_config import (
     ALLOWED_IMAGE_EXTENSIONS,
@@ -15,6 +16,9 @@ from .backend_config import (
     UPLOADS_DIR,
 )
 from .logbook_store import read_logbook
+
+
+register_heif_opener()
 
 
 def upload_category_path(category: str) -> Path:
@@ -138,6 +142,34 @@ def create_upload_preview(category: str, filename: str) -> str:
     except (OSError, UnidentifiedImageError):
         return ""
     return preview.name
+
+
+def convert_heif_upload(category: str, filename: str) -> str:
+    """Convert a browser-incompatible HEIC/HEIF upload to a displayable JPEG."""
+    source = upload_category_path(category) / filename
+    if source.suffix.lower() not in {".heic", ".heif"}:
+        return filename
+
+    converted_name = f"{source.stem}.jpg"
+    converted = source.with_name(converted_name)
+    try:
+        with Image.open(source) as image:
+            image.load()
+            image = ImageOps.exif_transpose(image)
+            exif = image.getexif()
+            if image.mode != "RGB":
+                image = image.convert("RGB")
+            save_options = {"quality": 92, "optimize": True}
+            if exif:
+                save_options["exif"] = exif.tobytes()
+            image.save(converted, "JPEG", **save_options)
+    except (OSError, UnidentifiedImageError):
+        if converted.is_file():
+            converted.unlink()
+        raise ValueError("The HEIC/HEIF photo could not be converted.")
+
+    source.unlink()
+    return converted_name
 
 
 def upload_media_type(mimetype: str, suffix: str) -> str:

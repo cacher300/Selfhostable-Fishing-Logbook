@@ -37,6 +37,7 @@ from backend.bathymetry_service import (
 )
 from backend.request_security import configure_request_security, csrf_token
 from backend.media_service import (
+    convert_heif_upload,
     create_upload_preview,
     delete_upload_file,
     cleanup_orphaned_uploads,
@@ -273,6 +274,13 @@ def create_app(config: dict | None = None) -> Flask:
         stored_name = f"{uuid.uuid4().hex}{suffix}"
         destination = upload_category_path(category) / stored_name
         upload.save(destination)
+        try:
+            stored_name = convert_heif_upload(category, stored_name)
+        except ValueError as error:
+            if destination.is_file():
+                destination.unlink()
+            return jsonify({"error": str(error)}), 400
+        converted_heif = suffix in {".heic", ".heif"}
         preview_filename = create_upload_preview(category, stored_name) if media_type == "image" else ""
         metadata = request.form.get("metadata")
         try:
@@ -282,9 +290,10 @@ def create_app(config: dict | None = None) -> Flask:
         metadata_payload = {
             **metadata_payload,
             "name": filename,
-            "mimeType": upload.mimetype,
+            "mimeType": "image/jpeg" if converted_heif else upload.mimetype,
             "mediaType": media_type,
             "previewFilename": preview_filename,
+            **({"convertedFrom": suffix.removeprefix(".").upper()} if converted_heif else {}),
         }
         write_upload_metadata(category, stored_name, metadata_payload)
 
