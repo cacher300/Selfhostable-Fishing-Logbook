@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import math
+import re
 from pathlib import Path
 
 from flask import abort
@@ -48,9 +50,17 @@ def read_upload_metadata(category: str, filename: str) -> dict:
     if not metadata_path.exists():
         return {}
     try:
-        return json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return {}
+    if metadata.get("convertedFrom") in {"HEIC", "HEIF"} and metadata.get("_heifMetadataVersion") != 1:
+        metadata = scrub_private_photo_metadata({
+            **extract_image_metadata(category, filename),
+            **metadata,
+            "_heifMetadataVersion": 1,
+        })
+        write_upload_metadata(category, filename, metadata)
+    return metadata
 
 
 def delete_upload_file(category: str, filename: str, metadata: dict | None = None) -> None:
@@ -172,6 +182,99 @@ def convert_heif_upload(category: str, filename: str) -> str:
     return converted_name
 
 
+def _exif_text(value: object) -> str:
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="ignore").strip("\x00 ")
+    return str(value or "").strip()
+
+
+def _decimal_exif_coordinate(value: object, reference: object) -> float | None:
+    try:
+        degrees, minutes, seconds = (float(part) for part in value)
+    except (TypeError, ValueError):
+        return None
+    coordinate = degrees + minutes / 60 + seconds / 3600
+    if _exif_text(reference).upper() in {"S", "W"}:
+        coordinate *= -1
+    return coordinate
+
+
+def extract_image_metadata(category: str, filename: str) -> dict:
+    """Read capture time and GPS from an uploaded image's EXIF data."""
+    source = upload_category_path(category) / filename
+    try:
+        with Image.open(source) as image:
+            exif = image.getexif()
+            exif_ifd = exif.get_ifd(0x8769)
+            gps_ifd = exif.get_ifd(0x8825)
+    except (OSError, UnidentifiedImageError):
+        return {}
+
+    metadata: dict = {}
+    captured = _exif_text(
+        exif_ifd.get(0x9003)
+        or exif_ifd.get(0x9004)
+        or exif.get(0x9003)
+        or exif.get(0x9004)
+        or exif.get(0x0132)
+    )
+    match = re.match(r"^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?", captured)
+    if match:
+        year, month, day, hour, minute, second = match.groups()
+        second = second or "00"
+        metadata.update({
+            "captureDate": f"{year}-{month}-{day}",
+            "captureTime": f"{hour}:{minute}",
+            "capturedAt": f"{year}-{month}-{day}T{hour}:{minute}:{second}",
+        })
+
+    latitude = _decimal_exif_coordinate(gps_ifd.get(2), gps_ifd.get(1))
+    longitude = _decimal_exif_coordinate(gps_ifd.get(4), gps_ifd.get(3))
+    if latitude is not None and longitude is not None and -90 <= latitude <= 90 and -180 <= longitude <= 180:
+        metadata["coordinates"] = {"latitude": latitude, "longitude": longitude}
+    return metadata
+
+
+def scrub_private_photo_metadata(metadata: dict) -> dict:
+    """Apply the same private-location rule used by the browser metadata reader."""
+    coordinates = metadata.get("coordinates")
+    try:
+        latitude = float(coordinates["latitude"])
+        longitude = float(coordinates["longitude"])
+    except (KeyError, TypeError, ValueError):
+        return metadata
+
+    for location in read_logbook().get("settings", {}).get("privatePhotoLocations", []):
+        private_coordinates = location.get("coordinates") or {}
+        try:
+            private_latitude = float(private_coordinates["latitude"])
+            private_longitude = float(private_coordinates["longitude"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        radius = max(25, min(10000, float(location.get("radiusMeters") or 400)))
+        earth_radius = 6371000
+        delta_latitude = math.radians(private_latitude - latitude)
+        delta_longitude = math.radians(private_longitude - longitude)
+        value = (
+            math.sin(delta_latitude / 2) ** 2
+            + math.cos(math.radians(latitude))
+            * math.cos(math.radians(private_latitude))
+            * math.sin(delta_longitude / 2) ** 2
+        )
+        value = max(0, min(1, value))
+        distance = earth_radius * 2 * math.atan2(math.sqrt(value), math.sqrt(1 - value))
+        if distance <= radius:
+            scrubbed = {
+                key: value
+                for key, value in metadata.items()
+                if key not in {"captureDate", "captureTime", "capturedAt"}
+            }
+            scrubbed["coordinates"] = None
+            scrubbed["gpsIgnoredReason"] = "home"
+            return scrubbed
+    return metadata
+
+
 def upload_media_type(mimetype: str, suffix: str) -> str:
     if suffix in ALLOWED_IMAGE_EXTENSIONS:
         return "image"
@@ -186,9 +289,12 @@ def upload_media_type(mimetype: str, suffix: str) -> str:
 
 def upload_payload(category: str, filename: str, metadata: dict | None = None) -> dict:
     metadata = metadata or {}
+    public_metadata = {
+        key: value for key, value in metadata.items() if not key.startswith("_")
+    }
     preview_filename = metadata.get("previewFilename") or ""
     return {
-        **metadata,
+        **public_metadata,
         "filename": filename,
         "name": metadata.get("name") or filename,
         "path": f"{category}/{filename}",

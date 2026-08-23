@@ -10,9 +10,6 @@ __pycache__/
 # Local generated files and server logs.
 tmp/
 
-# Mobile client work is local-only for now.
-mobile/
-
 # Local editor and OS noise.
 .vscode/
 .idea/
