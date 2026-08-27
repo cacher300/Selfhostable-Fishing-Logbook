@@ -84,7 +84,7 @@ let pendingLureImage = null;
 let pendingFlasherImage = null;
 let pendingReelImage = null;
 let pendingRodImage = null;
-let activeGearTab = "reels";
+let activeGearTab = "combos";
 const returnToTripDialog = {
   lure: false,
   lureInfo: false,
@@ -254,10 +254,10 @@ function normalizeState(nextState) {
   delete normalized.tripTypes;
   normalized.settings = normalizeSettings(normalized.settings);
 
-  ["species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips"].forEach((key) => {
+  ["species", "methods", "riggings", "lureTypes", "flasherTypes", "waterClarities", "structureOptions", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips"].forEach((key) => {
     if (!Array.isArray(normalized[key])) normalized[key] = structuredClone(defaults[key]);
   });
-  ["species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingDirections"].forEach((key) => {
+  ["species", "methods", "riggings", "lureTypes", "flasherTypes", "waterClarities", "structureOptions", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingDirections"].forEach((key) => {
     normalized[key] = normalizeTextOptions(normalized[key], defaults[key]);
   });
   normalized.trollingPresentations = normalizeChoiceOptions(

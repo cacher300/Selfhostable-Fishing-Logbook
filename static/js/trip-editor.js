@@ -224,6 +224,7 @@ function openTripDialog(trip = null) {
   setTripRating(tripRatingValue(trip || {}));
   setValue("waterTemp", trip?.waterTemp || "");
   setValue("waterClarity", trip?.waterClarity || "");
+  setValue("structureType", trip?.structureType || "");
   setValue("weather", trip?.weather || "");
   setValue("waveHeight", trip?.waveHeight || "");
   updateMarineWaveHeightPlaceholder(trip?.weatherData || activeTripWeatherData);
@@ -476,11 +477,21 @@ function populatePersonRowSelects() {
 }
 
 function addCatchRow(catchItem = {}) {
-  addFishRow(catchItem, { container: els.catchRows, lost: false });
+  return addFishRow(catchItem, { container: els.catchRows, lost: false });
 }
 
 function addLostFishRow(fishItem = {}) {
-  addFishRow(fishItem, { container: els.lostFishRows, lost: true });
+  return addFishRow(fishItem, { container: els.lostFishRows, lost: true });
+}
+
+function expandAndRevealTripRow(row) {
+  if (!row) return;
+  row.classList.remove("collapsed");
+  row.querySelector("[data-toggle-row]")?.setAttribute("aria-expanded", "true");
+  requestAnimationFrame(() => {
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    row.querySelector("input:not([type=hidden]), select")?.focus({ preventScroll: true });
+  });
 }
 
 function defaultFishTime(catchItem = {}) {
@@ -517,6 +528,8 @@ function clearUnknownCatchDetails(row) {
     ".catch-setup-line",
     ".catch-rod",
     ".catch-lure",
+    ".catch-rigging",
+    ".catch-rigging-details",
     ".catch-retrieve",
     ".catch-presentation",
     ".catch-direction",
@@ -642,6 +655,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   populatePersonSelect(node.querySelector(".catch-person"), catchItem.personId || "");
   populateOptionSelect(node.querySelector(".catch-species"), state.species, "Select species");
   populateOptionSelect(node.querySelector(".catch-possible-species"), state.species, "Select possible species");
+  populateOptionSelect(node.querySelector(".catch-rigging"), state.riggings, "Select rigging");
   populateChoiceSelect(node.querySelector(".catch-presentation"), optionChoices("trollingPresentations"), "Select method", catchItem.presentation || "");
   populateOptionSelect(node.querySelector(".catch-direction"), optionLabels("trollingDirections"), "Select direction");
   node.querySelector(".catch-species").value = lost ? "" : (catchItem.species || "");
@@ -668,6 +682,8 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-ball-speed").value = catchItem.ballSpeed || "";
   node.querySelector(".catch-shaker").checked = Boolean(catchItem.shaker);
   node.querySelector(".catch-retrieve").value = catchItem.retrieve || "";
+  node.querySelector(".catch-rigging").value = catchItem.rigging || "";
+  node.querySelector(".catch-rigging-details").value = catchItem.riggingDetails || "";
   node.querySelector(".catch-ball-depth").value = catchItem.ballDepth || "";
   node.querySelector(".catch-deepest-rigger").checked = Boolean(catchItem.deepestRigger);
   updateCheaterDepth(node);
@@ -684,7 +700,12 @@ function addFishRow(catchItem = {}, { container, lost }) {
     : (catchItem.setupLineId || "");
   node.querySelector(".catch-rod").dataset.selectedRodId = catchItem.rodId || "";
   populateLureSelect(node.querySelector(".catch-lure"), catchItem.lureId || "");
-  populateCatchRodSelect(node.querySelector(".catch-rod"), catchItem.rodId || "");
+  populateCatchRodSelect(
+    node.querySelector(".catch-rod"),
+    catchItem.rodId || "",
+    catchItem.setupLineId || ""
+  );
+  syncCatchRiggingFromSetupLine(node);
   renderLurePreview(node);
   renderCatchPhotos(node);
   updateMetadataLockButtons(node);
@@ -698,6 +719,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   updateCatchDetailsUnknown(node);
   updateAllRowSummaries();
   renderLiveTrollingSpread();
+  return node;
 }
 
 function addTripGearRow(gearItem = {}) {
@@ -712,6 +734,7 @@ function addTripGearRow(gearItem = {}) {
 
   node.querySelector(".trip-gear-start-time").value = defaultSetupStartTime(gearItem);
   node.querySelector(".trip-gear-end-time").value = defaultSetupEndTime(gearItem);
+  node.querySelector(".trip-gear-idle-time").value = gearItem.idleMinutes || "";
   node.querySelector(".trip-gear-change-note").value = gearItem.changeNote || gearItem.notes || "";
   const side = gearItem.side || defaultSetupLineSide(gearItem, els.tripGearRows.querySelectorAll(".gear-used-row").length);
   populateChoiceSelect(node.querySelector(".trip-gear-side"), optionChoices("setupLineSides"), "Select side", side);
@@ -728,6 +751,9 @@ function addTripGearRow(gearItem = {}) {
   node.querySelector(".trip-gear-leadcore").checked = Boolean(gearItem.hasLeadcore);
   node.querySelector(".trip-gear-distance-behind").value = gearItem.distanceBehind || "";
   populateLureSelect(node.querySelector(".trip-gear-lure"), gearItem.lureId || "");
+  populateOptionSelect(node.querySelector(".trip-gear-rigging"), state.riggings, "Select rigging");
+  node.querySelector(".trip-gear-rigging").value = gearItem.rigging || "";
+  node.querySelector(".trip-gear-rigging-details").value = gearItem.riggingDetails || "";
   populateLureSelect(node.querySelector(".trip-gear-cheater-lure"), gearItem.cheaterLureId || "");
   populateFlasherSelect(node.querySelector(".trip-gear-flasher"), gearItem.flasherId || "");
   renderLurePreview(node);
@@ -741,6 +767,7 @@ function addTripGearRow(gearItem = {}) {
   populateCatchRodSelects();
   updateAllRowSummaries();
   renderLiveTrollingSpread();
+  return node;
 }
 
 function applyDefaultTrollingSpread({ force = false, replaceExisting = false } = {}) {
@@ -810,6 +837,8 @@ function lastTripSpreadGearItem(gearItem) {
     hasLeadcore: Boolean(gearItem.hasLeadcore),
     distanceBehind: gearItem.distanceBehind || "",
     lureId: gearItem.lureId || "",
+    rigging: gearItem.rigging || "",
+    riggingDetails: gearItem.riggingDetails || "",
     flasherId: gearItem.flasherId || "",
     hasCheater: Boolean(gearItem.hasCheater),
     cheaterLureId: gearItem.cheaterLureId || ""
@@ -1015,9 +1044,23 @@ function syncDirectCatchRodToLure(row) {
   if (lureId) {
     const lureSelect = row.querySelector(".catch-lure");
     populateLureSelect(lureSelect, lureId);
-    renderLurePreview(row);
   }
+  syncCatchRiggingFromSetupLine(row);
+  renderLurePreview(row);
   updateRowSummary(row);
+}
+
+function syncCatchRiggingFromSetupLine(row) {
+  if (!row) return;
+  const setupLineId = row.querySelector(".catch-rod")?.value || "";
+  const setupRow = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
+    .find((gearRow) => gearRow.dataset.gearId === setupLineId);
+  if (!setupRow) return;
+
+  const rigging = row.querySelector(".catch-rigging");
+  const riggingDetails = row.querySelector(".catch-rigging-details");
+  if (rigging) rigging.value = setupRow.querySelector(".trip-gear-rigging")?.value || "";
+  if (riggingDetails) riggingDetails.value = setupRow.querySelector(".trip-gear-rigging-details")?.value || "";
 }
 
 function syncCatchMethodToSetupLine(row) {
@@ -1163,6 +1206,7 @@ function collectTripFromForm() {
       boatItemId: trolling ? row.querySelector(".trip-gear-boat-item").value : "",
       startTime: row.querySelector(".trip-gear-start-time").value,
       endTime: row.querySelector(".trip-gear-end-time").value,
+      idleMinutes: idleMinutesFromRow(row),
       changeNote: row.querySelector(".trip-gear-change-note").value.trim(),
       side: trolling ? row.querySelector(".trip-gear-side").value : "",
       lineLabel: trolling ? row.querySelector(".trip-gear-line-label").value.trim() : "",
@@ -1173,6 +1217,8 @@ function collectTripFromForm() {
       rodId: selectedComboForRow(row)?.rodId || "",
       reelId: selectedComboForRow(row)?.reelId || "",
       lureId: row.querySelector(".trip-gear-lure").value,
+      rigging: isSoftPlasticLureRow(row) ? row.querySelector(".trip-gear-rigging").value : "",
+      riggingDetails: isSoftPlasticLureRow(row) ? row.querySelector(".trip-gear-rigging-details").value.trim() : "",
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",
       distanceBehind: trolling ? row.querySelector(".trip-gear-distance-behind").value.trim() : "",
@@ -1191,6 +1237,7 @@ function collectTripFromForm() {
     .filter((item) => (
       item.startTime
       || item.endTime
+      || item.idleMinutes
       || item.changeNote
       || item.lineLabel
       || item.boatItemId
@@ -1199,6 +1246,8 @@ function collectTripFromForm() {
       || item.rodId
       || item.reelId
       || item.lureId
+      || item.rigging
+      || item.riggingDetails
       || item.flasherId
       || item.lureMinutes
       || item.flasherMinutes
@@ -1233,6 +1282,8 @@ function collectTripFromForm() {
         ballSpeed: !detailsUnknown && trolling ? row.querySelector(".catch-ball-speed").value.trim() : "",
         shaker: !detailsUnknown && trolling ? row.querySelector(".catch-shaker").checked : false,
         retrieve: !detailsUnknown && casting ? row.querySelector(".catch-retrieve").value.trim() : "",
+        rigging: !detailsUnknown && !trolling && isSoftPlasticLureRow(row) ? row.querySelector(".catch-rigging").value : "",
+        riggingDetails: !detailsUnknown && !trolling && isSoftPlasticLureRow(row) ? row.querySelector(".catch-rigging-details").value.trim() : "",
         ballDepth: !detailsUnknown && trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
         deepestRigger: !detailsUnknown && trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
           ? row.querySelector(".catch-deepest-rigger").checked
@@ -1266,7 +1317,15 @@ function collectTripFromForm() {
             lureId: row.querySelector(".catch-lure").value,
             flasherId: ""
           }
-        : { ...base, rodId: selectedRodId, lureId: row.querySelector(".catch-lure").value, flasherId: "", presentation: "" };
+        : {
+            ...base,
+            setupLineId: row.querySelector(".catch-rod").value || "",
+            setupLineTarget: "",
+            rodId: selectedRodId,
+            lureId: row.querySelector(".catch-lure").value,
+            flasherId: "",
+            presentation: ""
+          };
     })
     .filter((item) => (
       item.species
@@ -1288,6 +1347,8 @@ function collectTripFromForm() {
       || item.ballSpeed
       || item.shaker
       || item.retrieve
+      || item.rigging
+      || item.riggingDetails
       || item.ballDepth
       || item.deepestRigger
       || item.flatlineWeightOz
@@ -1324,7 +1385,8 @@ function collectTripFromForm() {
     linesPulledTime: getValue("linesPulledTime"),
     startTime: getValue("linesSetTime"),
     endTime: getValue("linesPulledTime"),
-    hours: calculateHours(getValue("linesSetTime") || getValue("launchTime"), getValue("linesPulledTime")),
+    idleMinutes: setupIdleMinutesFromForm(),
+    hours: Math.max(0, calculateHours(getValue("linesSetTime") || getValue("launchTime"), getValue("linesPulledTime")) - (setupIdleMinutesFromForm() / 60)),
     targetSpecies: getValue("targetSpecies"),
     method: getValue("method"),
     intent: getTripIntent(),
@@ -1333,6 +1395,7 @@ function collectTripFromForm() {
     probeTemperatureProfile: collectProbeTemperatureProfile(),
     waterClarity: getValue("waterClarity"),
     weather: getValue("weather"),
+    structureType: getValue("structureType"),
     waveHeight,
     waveChop,
     wind: weatherWindText(weatherData),

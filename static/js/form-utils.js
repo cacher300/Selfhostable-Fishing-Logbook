@@ -1,8 +1,18 @@
+function idleMinutesFromRow(row) {
+  const value = Number(row.querySelector(".trip-gear-idle-time")?.value || 0);
+  return Number.isFinite(value) ? Math.max(0, value) : 0;
+}
+
 function setupMinutesFromRow(row) {
-  return calculateMinutes(
+  return Math.max(0, calculateMinutes(
     row.querySelector(".trip-gear-start-time").value,
     row.querySelector(".trip-gear-end-time").value
-  );
+  ) - idleMinutesFromRow(row));
+}
+
+function setupIdleMinutesFromForm() {
+  return [...document.querySelectorAll("#tripDialog .gear-used-row")]
+    .reduce((total, row) => total + idleMinutesFromRow(row), 0);
 }
 
 function isTrollingTrip() {
@@ -13,14 +23,34 @@ function isCastingTrip() {
   return getValue("method").toLowerCase() === "casting";
 }
 
+function populateStructureSelect(select, selectedValue = "") {
+  if (!select) return;
+  const current = selectedValue || select.value || "";
+  const options = optionLabels("structureOptions");
+  const values = options.includes(current) || !current ? options : [...options, current];
+  select.innerHTML = [
+    `<option value="">Select structure</option>`,
+    ...values.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`),
+    `<option value="__new__">Add new structure...</option>`
+  ].join("");
+  select.value = current;
+}
+
 function updateTrollingVisibility() {
   const trolling = isTrollingTrip();
   const casting = isCastingTrip();
+  document.querySelectorAll("#tripDialog .gear-used-row .gear-lure-field > span").forEach((label) => {
+    label.textContent = casting ? "Lure (optional)" : "Lure";
+  });
+  document.querySelector("#tripDialog")?.classList.toggle("is-trolling", trolling);
   document.querySelectorAll("#tripDialog .trolling-field:not(.catch-presentation-field)").forEach((element) => {
     element.classList.toggle("hidden", !trolling);
   });
   document.querySelectorAll("#tripDialog .casting-field").forEach((element) => {
     element.classList.toggle("hidden", !casting);
+  });
+  document.querySelectorAll("#tripDialog .non-trolling-field").forEach((element) => {
+    element.classList.toggle("hidden", trolling);
   });
   document.querySelectorAll("#tripDialog .trolling-catch-line-field").forEach((element) => {
     element.classList.toggle("hidden", !trolling);
@@ -37,6 +67,9 @@ function updateTrollingVisibility() {
     row.querySelector(".catch-fow-field .metadata-lock-button")?.classList.toggle("hidden", lostFish);
   });
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updatePresentationFields);
+  // Method visibility can reveal non-trolling fields; apply the lure-specific
+  // rule last so rigging is only available for Soft Plastic lures.
+  document.querySelectorAll(".catch-row, .gear-used-row").forEach(updateRiggingVisibility);
   renderLiveTrollingSpread();
   syncLastTrollingSpreadImportButton();
 }

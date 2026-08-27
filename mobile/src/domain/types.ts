@@ -146,7 +146,7 @@ export interface GearBase extends Extensible {
   previewFilename?: string;
   media?: MediaRef[];
 }
-export interface Lure extends GearBase { name: string; type?: string; color?: string; spoonSize?: string; bladeType?: string; }
+export interface Lure extends GearBase { name: string; type?: string; color?: string; weight?: string; spoonSize?: string; bladeType?: string; }
 export interface Flasher extends GearBase { name: string; type?: string; color?: string; }
 export interface Rod extends GearBase { shortName?: string; type?: string; length?: Value; power?: string; action?: string; lureRating?: string; purchaseAmount?: Value; dateBought?: string; }
 export interface LineHistoryEntry extends Extensible { id: string; spooledDate?: string; discardedDate?: string; type?: string; brand?: string; name?: string; weight?: Value; diameterIn?: Value; diameterMm?: Value; color?: string; monoBacking?: string; notes?: string; }

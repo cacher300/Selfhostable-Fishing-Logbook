@@ -27,9 +27,9 @@ els.deleteLocationDialogButton?.addEventListener("click", () => {
 });
 els.tripRating.addEventListener("input", updateTripRatingLabel);
 els.deleteTripButton.addEventListener("click", deleteActiveTrip);
-els.addCatchButton.addEventListener("click", () => addCatchRow());
+els.addCatchButton.addEventListener("click", () => expandAndRevealTripRow(addCatchRow()));
 els.addLostFishButton.addEventListener("click", () => addLostFishRow());
-els.addTripGearButton.addEventListener("click", () => addTripGearRow());
+els.addTripGearButton.addEventListener("click", () => expandAndRevealTripRow(addTripGearRow()));
 els.importLastTrollingSpreadButton?.addEventListener("click", importLastTrollingSpread);
 els.addPersonButton.addEventListener("click", () => addPersonRow());
 els.addLocationButton.addEventListener("click", () => openLocationDialog("location"));
@@ -935,6 +935,18 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches("#structureType") && event.target.value === "__new__") {
+    const value = prompt("Enter a new structure option:");
+    const trimmed = String(value || "").trim();
+    if (trimmed) {
+      upsertListValue("structureOptions", trimmed);
+      saveState().then(() => populateStructureSelect(event.target, trimmed));
+    } else {
+      populateStructureSelect(event.target, "");
+    }
+    return;
+  }
+
   if (event.target.matches(".catch-photo-hero-choice input")) {
     const row = event.target.closest(".catch-row");
     if (row) {
@@ -1043,6 +1055,15 @@ document.addEventListener("change", (event) => {
   if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-distance-behind, .trip-gear-cheater, .trip-gear-cheater-lure, .trip-gear-leadcore")) {
     populateSetupLineSelects();
     populateCatchRodSelects();
+  }
+  if (event.target.matches(".trip-gear-rigging, .trip-gear-rigging-details")) {
+    const setupRow = event.target.closest(".gear-used-row");
+    document.querySelectorAll(".catch-row").forEach((row) => {
+      if (row.querySelector(".catch-rod")?.value !== setupRow?.dataset.gearId) return;
+      syncCatchRiggingFromSetupLine(row);
+      renderLurePreview(row);
+      updateRowSummary(row);
+    });
   }
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);

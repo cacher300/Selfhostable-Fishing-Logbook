@@ -4,6 +4,7 @@ import json
 import uuid
 from io import BytesIO
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from zipfile import ZIP_STORED, ZipFile
 
 from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
@@ -42,6 +43,7 @@ from backend.media_service import (
     delete_upload_file,
     extract_image_metadata,
     cleanup_orphaned_uploads,
+    orphaned_upload_items,
     read_upload_metadata,
     referenced_uploads,
     scrub_private_photo_metadata,
@@ -98,7 +100,6 @@ def create_app(config: dict | None = None) -> Flask:
         normalized = normalize_logbook(payload)
         preserve_existing_depth_fields(normalized, read_logbook())
         write_logbook(normalized)
-        cleanup_orphaned_uploads()
         return jsonify({"ok": True})
 
     @app.get("/api/archive")
@@ -138,23 +139,52 @@ def create_app(config: dict | None = None) -> Flask:
                 is_valid, error = validate_logbook(payload)
                 if not is_valid:
                     return jsonify({"error": error}), 400
+                media_names: set[str] = set()
                 for name in names:
                     if not name.startswith("media/") or name.endswith("/"):
                         continue
                     parts = Path(name).parts
                     if len(parts) < 3 or parts[1] not in UPLOAD_CATEGORIES or any(part in {".", ".."} for part in parts):
                         return jsonify({"error": "Archive contains an invalid media path."}), 400
-                write_logbook(normalize_logbook(payload))
-                for name in names:
-                    if not name.startswith("media/") or name.endswith("/"):
-                        continue
-                    _, category, *relative = Path(name).parts
-                    target = (upload_category_path(category) / Path(*relative)).resolve()
-                    root = upload_category_path(category).resolve()
-                    if root not in target.parents:
-                        return jsonify({"error": "Archive media path escapes its category."}), 400
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_bytes(bundle.read(name))
+                    if name in media_names:
+                        return jsonify({"error": "Archive contains duplicate media paths."}), 400
+                    media_names.add(name)
+                with TemporaryDirectory(dir=DATA_DIR) as temporary_directory:
+                    temporary_root = Path(temporary_directory)
+                    staged_files: list[tuple[str, Path, Path]] = []
+                    for name in names:
+                        if not name.startswith("media/") or name.endswith("/"):
+                            continue
+                        _, category, *relative = Path(name).parts
+                        root = upload_category_path(category).resolve()
+                        target = (root / Path(*relative)).resolve()
+                        if root not in target.parents:
+                            return jsonify({"error": "Archive media path escapes its category."}), 400
+                        staged = temporary_root / "staged" / category / Path(*relative)
+                        staged.parent.mkdir(parents=True, exist_ok=True)
+                        staged.write_bytes(bundle.read(name))
+                        staged_files.append((category, staged, target))
+
+                    promoted: list[tuple[Path, Path | None]] = []
+                    try:
+                        for category, staged, target in staged_files:
+                            target.parent.mkdir(parents=True, exist_ok=True)
+                            backup = None
+                            if target.is_file():
+                                backup = temporary_root / "backup" / category / target.relative_to(upload_category_path(category).resolve())
+                                backup.parent.mkdir(parents=True, exist_ok=True)
+                                target.replace(backup)
+                            promoted.append((target, backup))
+                            staged.replace(target)
+                        write_logbook(normalize_logbook(payload))
+                    except Exception:
+                        for target, backup in reversed(promoted):
+                            if target.is_file():
+                                target.unlink()
+                            if backup and backup.is_file():
+                                backup.parent.mkdir(parents=True, exist_ok=True)
+                                backup.replace(target)
+                        raise
         except Exception:
             app.logger.exception("Archive import failed")
             return jsonify({"error": "Could not read the archive."}), 400
@@ -341,7 +371,7 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.get("/api/orphaned-media")
     def list_orphaned_media() -> Response:
-        return jsonify({"media": [], "deleted": cleanup_orphaned_uploads()})
+        return jsonify({"media": orphaned_upload_items()})
 
     @app.delete("/api/uploads/<category>/<filename>")
     def delete_upload(category: str, filename: str) -> tuple[Response, int] | Response:
@@ -371,27 +401,41 @@ def create_app(config: dict | None = None) -> Flask:
         suffix = source.suffix.lower() or ".jpg"
         target_name = f"{uuid.uuid4().hex}{suffix}"
         destination = upload_category_path(target_category) / target_name
-        source.replace(destination)
-
         metadata = read_upload_metadata("queue", filename)
         media_type = metadata.get("mediaType") or upload_media_type(metadata.get("mimeType", ""), suffix)
         preview_filename = metadata.get("previewFilename") or ""
-        if preview_filename:
-            source_preview = upload_preview_path("queue", filename)
-            target_preview = upload_preview_path(target_category, target_name)
-            if source_preview.exists():
+        source_metadata = upload_metadata_path("queue", filename)
+        source_preview = upload_category_path("queue") / PREVIEW_DIRNAME / (
+            preview_filename or upload_preview_path("queue", filename).name
+        )
+        target_preview = upload_preview_path(target_category, target_name)
+        target_metadata = upload_metadata_path(target_category, target_name)
+        preview_promoted = False
+        try:
+            source.replace(destination)
+            if preview_filename and source_preview.exists():
                 source_preview.replace(target_preview)
+                preview_promoted = True
                 preview_filename = target_preview.name
             else:
-                preview_filename = create_upload_preview(target_category, target_name)
-        else:
-            preview_filename = create_upload_preview(target_category, target_name) if media_type == "image" else ""
-        metadata["mediaType"] = media_type or "image"
-        metadata["previewFilename"] = preview_filename
-        source_metadata = upload_metadata_path("queue", filename)
-        if source_metadata.exists():
-            source_metadata.unlink()
-        write_upload_metadata(target_category, target_name, metadata)
+                preview_filename = create_upload_preview(target_category, target_name) if media_type == "image" else ""
+            metadata["mediaType"] = media_type or "image"
+            metadata["previewFilename"] = preview_filename
+            write_upload_metadata(target_category, target_name, metadata)
+            if source_metadata.exists():
+                source_metadata.unlink()
+        except Exception:
+            if target_metadata.is_file():
+                target_metadata.unlink()
+            if target_preview.is_file():
+                if preview_promoted:
+                    source_preview.parent.mkdir(parents=True, exist_ok=True)
+                    target_preview.replace(source_preview)
+                else:
+                    target_preview.unlink()
+            if destination.is_file():
+                destination.replace(source)
+            raise
         return jsonify(upload_payload(target_category, target_name, metadata))
 
     @app.delete("/api/photo-queue/<filename>")
@@ -399,7 +443,10 @@ def create_app(config: dict | None = None) -> Flask:
         safe_name = secure_filename(filename)
         photo = upload_category_path("queue") / safe_name
         metadata = upload_metadata_path("queue", safe_name)
-        preview = upload_preview_path("queue", safe_name)
+        metadata_payload = read_upload_metadata("queue", safe_name)
+        preview = upload_category_path("queue") / PREVIEW_DIRNAME / (
+            metadata_payload.get("previewFilename") or upload_preview_path("queue", safe_name).name
+        )
         if photo.exists() and photo.is_file():
             photo.unlink()
         if metadata.exists():

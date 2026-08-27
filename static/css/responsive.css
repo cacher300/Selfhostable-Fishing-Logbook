@@ -46,8 +46,28 @@
 
   .form-grid,
   .catch-row .collapsible-row-body,
-  .gear-used-row .collapsible-row-body {
+  .gear-used-row .collapsible-row-body,
+  .catch-location-section {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .catch-row .catch-location-field {
+    grid-column: span 2;
+  }
+
+  #tripDialog .catch-row .catch-field-with-option,
+  #tripDialog .catch-row .catch-water-depth-field,
+  #tripDialog .catch-row .catch-depth-down-field {
+    grid-column: auto;
+  }
+
+  #tripDialog .catch-row .catch-rod-field,
+  #tripDialog .catch-row .catch-lure-field,
+  #tripDialog .catch-row .add-lure-inline,
+  #tripDialog .catch-row .catch-rigging-field,
+  #tripDialog .catch-row .catch-rigging-details-field,
+  #tripDialog .catch-row .catch-retrieve-field {
+    grid-column: auto;
   }
 
   .gear-used-row .gear-lure-field,
@@ -55,6 +75,7 @@
   .gear-used-row .gear-combo-field,
   .gear-used-row .gear-start-field,
   .gear-used-row .gear-end-field,
+  .gear-used-row .gear-idle-field,
   .gear-used-row .gear-change-field,
   .gear-used-row .gear-side-field,
   .gear-used-row .gear-label-field,
@@ -512,6 +533,10 @@
   }
 
   #tripDialog .trip-time-inputs {
+    grid-template-columns: 1fr;
+  }
+
+  #tripDialog .catch-location-section {
     grid-template-columns: 1fr;
   }
 

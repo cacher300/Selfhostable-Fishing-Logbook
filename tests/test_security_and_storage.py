@@ -13,8 +13,30 @@ from unittest.mock import patch
 os.environ.setdefault("SECRET_KEY", "module-import-test-secret")
 
 from backend import logbook_store
+from server import create_app
 
 class LogbookStoreTests(unittest.TestCase):
+    def test_saving_logbook_does_not_run_destructive_media_cleanup(self) -> None:
+        app = create_app({"TESTING": True, "SECRET_KEY": "save-media-test"})
+        payload = logbook_store.normalize_logbook({"schemaVersion": 1, "trips": [], "lures": [], "flashers": []})
+
+        with tempfile.TemporaryDirectory() as directory:
+            database_file = Path(directory) / "logbook.sqlite3"
+            with (
+                patch.object(logbook_store, "DATABASE_FILE", database_file),
+                patch("server.cleanup_orphaned_uploads") as cleanup,
+                app.test_client() as client,
+            ):
+                csrf = client.get("/api/csrf-token").get_json()["csrfToken"]
+                response = client.put(
+                    "/api/logbook",
+                    json=payload,
+                    headers={"X-CSRF-Token": csrf},
+                )
+
+        self.assertEqual(200, response.status_code)
+        cleanup.assert_not_called()
+
     def test_legacy_trip_start_time_migrates_to_lines_set_time(self) -> None:
         normalized = logbook_store.normalize_logbook(
             {

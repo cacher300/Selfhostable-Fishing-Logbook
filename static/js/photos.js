@@ -740,7 +740,22 @@ async function loadPhotoQueue() {
   const response = await fetch("/api/photo-queue");
   if (!response.ok) throw new Error("Could not load photo queue");
   const payload = await response.json();
-  return payload.photos || [];
+  return [...(payload.photos || [])].sort((a, b) => {
+    const aTime = photoQueueTimestampValue(a);
+    const bTime = photoQueueTimestampValue(b);
+    if (aTime === null && bTime === null) return String(a.filename || "").localeCompare(String(b.filename || ""));
+    if (aTime === null) return 1;
+    if (bTime === null) return -1;
+    return aTime - bTime;
+  });
+}
+
+function photoQueueTimestampValue(photo) {
+  const timestamp = photo?.capturedAt
+    || (photo?.captureDate && photo?.captureTime ? `${photo.captureDate}T${photo.captureTime}` : "")
+    || (photo?.captureDate ? `${photo.captureDate}T00:00:00` : "");
+  const value = timestamp ? Date.parse(timestamp) : NaN;
+  return Number.isFinite(value) ? value : null;
 }
 
 function photoQueueTimeText(photo) {
@@ -752,13 +767,14 @@ function photoQueueTimeText(photo) {
   return "No capture time";
 }
 
-function photoQueueMetadataText(photo) {
-  const metadata = [photoQueueTimeText(photo)];
-  const coordinates = photo.coordinates;
-  if (coordinates && Number.isFinite(Number(coordinates.latitude)) && Number.isFinite(Number(coordinates.longitude))) {
-    metadata.push(`${Number(coordinates.latitude).toFixed(5)}, ${Number(coordinates.longitude).toFixed(5)}`);
+function photoQueueMetadataMarkup(photo) {
+  const metadata = [];
+  const time = photoQueueTimeText(photo);
+  if (time !== "No capture time") metadata.push(time);
+  if (!metadata.length) {
+    metadata.push(photo.gpsIgnoredReason === "home" ? "Location hidden for privacy" : "No capture metadata");
   }
-  return metadata.join(" · ");
+  return metadata.map((value) => `<span>${escapeHtml(value)}</span>`).join("");
 }
 
 async function renderPhotoQueue() {
@@ -775,9 +791,8 @@ async function renderPhotoQueue() {
         ${mediaMarkup(photo, "", { download: false })}
         <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${escapeHtml(photo.filename)}" aria-label="Remove queued photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       </div>
-      <div>
-        <strong title="${escapeHtml(photo.name || photo.filename)}">${escapeHtml(photo.name || photo.filename)}</strong>
-        <span>${escapeHtml(photoQueueMetadataText(photo))}</span>
+      <div class="photo-queue-metadata">
+        ${photoQueueMetadataMarkup(photo)}
       </div>
       <div class="photo-queue-card-actions">
         ${activePhotoQueueTarget ? `<button class="button primary" type="button" data-select-queued-photo="${escapeHtml(photo.filename)}">Use Photo</button>` : ""}

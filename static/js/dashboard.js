@@ -34,7 +34,8 @@ function catchRate(trip) {
 
 function tripHours(trip) {
   const calculated = calculateHours(trip.linesSetTime || trip.startTime || trip.launchTime, trip.linesPulledTime || trip.endTime);
-  return calculated || number(trip.hours);
+  if (calculated) return Math.max(0, calculated - (number(trip.idleMinutes) / 60));
+  return number(trip.hours);
 }
 
 function tripStartMinutes(trip) {
@@ -365,6 +366,7 @@ function filteredTrips() {
       trip.notes,
       trip.weather,
       trip.structure,
+      trip.structureType,
       ...(trip.catches || []).flatMap((catchItem) => {
         const record = resolveTripLineRecord({ ...catchItem, trip });
         return [record.species, record.notes, lureName(record.lureId), flasherName(record.flasherId)];
@@ -509,6 +511,7 @@ function renderSelectOptions() {
   populateOptionSelect(document.querySelector("#targetSpecies"), state.species, "Select target species");
   populateOptionSelect(document.querySelector("#method"), state.methods, "Select method");
   populateOptionSelect(document.querySelector("#waterClarity"), optionLabels("waterClarities"), "Select water clarity");
+  populateStructureSelect(document.querySelector("#structureType"));
   populateOptionSelect(document.querySelector("#weather"), optionLabels("weatherTypes"), "Select weather");
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
