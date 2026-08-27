@@ -7,6 +7,8 @@ const defaultWaterClarityOptions = [
   "Algae Bloom"
 ];
 
+const defaultStructureOptions = ["Drop-off", "Weedline", "Rocky bottom", "Sand bottom", "Vegetation", "Bait"];
+
 const defaultWeatherOptions = [
   "Sunny",
   "Partly Cloudy",
@@ -22,6 +24,7 @@ const defaultWeatherOptions = [
 const defaultReelStyleOptions = ["Baitcaster", "Spinning", "Linecounter", "Trolling", "Centerpin", "Fly"];
 const defaultRodTypeOptions = ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"];
 const defaultLineTypeOptions = ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wire", "Copper", "Other"];
+const defaultRiggingOptions = ["Wacky", "Texas", "Carolina", "Neko", "Weightless", "Drop-shot", "Jika", "Ned", "Other"];
 const defaultLureBladeTypeOptions = ["Colorado", "Willow Leaf", "Indiana", "Butterfly"];
 const defaultLureSpoonSizeOptions = ["Micro", "Small", "Standard", "Magnum"];
 const defaultTrollingPresentationOptions = [
@@ -157,9 +160,11 @@ const defaults = {
     "Bluegill"
   ],
   methods: ["Trolling", "Casting", "Jigging", "Drifting", "Fly Fishing", "Bait Fishing", "Ice Fishing", "Shore Fishing"],
+  riggings: structuredClone(defaultRiggingOptions),
   lureTypes: ["Spoon", "Crankbait", "Spinner", "Worm Harness", "Jig", "Dropshot", "Soft Plastic", "Fly", "Plug", "Swimbait", "Flasher/Fly", "Jerkbait", "Topwater", "Other"],
   flasherTypes: ["Paddle", "Dodger", "Spin Doctor", "Meat Rig", "Attractor", "Other"],
   waterClarities: structuredClone(defaultWaterClarityOptions),
+  structureOptions: structuredClone(defaultStructureOptions),
   weatherTypes: structuredClone(defaultWeatherOptions),
   reelStyles: structuredClone(defaultReelStyleOptions),
   rodTypes: structuredClone(defaultRodTypeOptions),

@@ -513,7 +513,9 @@ async function saveTimeFormatPreference(options = {}) {
 const predefinedFieldGroups = [
   { key: "species", label: "Species" },
   { key: "methods", label: "Methods" },
+  { key: "riggings", label: "Rigging options" },
   { key: "waterClarities", label: "Water clarity" },
+  { key: "structureOptions", label: "Structure" },
   { key: "weatherTypes", label: "Weather" },
   { key: "lureTypes", label: "Lure types" },
   { key: "flasherTypes", label: "Flasher types" },

@@ -914,6 +914,8 @@ function renderCatchReportDetails(trip, catchItem) {
       ${catchMetaRow("Lure", displayTitleText(lureName(record.lureId)))}
       ${trollingTrip ? catchMetaRow("Flasher", displayTitleText(flasherName(record.flasherId))) : ""}
       ${catchMetaRow("Method", trollingTrip ? presentationLabel(presentation) : displayTitleText(trip.method || ""))}
+      ${!trollingTrip ? catchMetaRow("Rigging", record.rigging) : ""}
+      ${!trollingTrip ? catchMetaRow("Rig details", record.riggingDetails) : ""}
       ${catchMetaRow("Depth", depthDetails.join(" / "))}
       ${trollingTrip ? catchMetaRow("GPS Speed", displaySpeedValue(record.gpsSpeed || record.speed)) : ""}
       ${trollingTrip ? catchMetaRow("Ball Speed", displaySpeedValue(record.ballSpeed)) : ""}
@@ -939,6 +941,8 @@ function catchDetailRows(trip, catchItem) {
     ["Weight", formatWeightDetail(record.weight)],
     ["Rod", displayTitleText(rodName(record.rodId))],
     ["Lure", displayTitleText(lureName(record.lureId)), "lure", record.lureId],
+    ["Rigging", trollingTrip ? "" : record.rigging],
+    ["Rig details", trollingTrip ? "" : record.riggingDetails],
     ["Flasher", displayTitleText(flasherName(record.flasherId)), "flasher", record.flasherId],
     ["Presentation", displayTitleText(presentationLabel(record.presentation))],
     ["Direction", displayTitleText(record.direction)],
@@ -1229,7 +1233,7 @@ function renderTripReport(trip) {
   const hero = null;
   const reportMeta = [formatDate(trip.date), trip.launchTime ? formatTimelineDisplayTime(trip.launchTime) : ""].filter(Boolean).join(" · ");
   const overview = [["Date", formatDate(trip.date)], ["Location", displayTitleText(trip.location)], ["Launch / area", displayTitleText(trip.launch)], ["Lines set time", trip.linesSetTime || trip.startTime ? formatTimelineDisplayTime(trip.linesSetTime || trip.startTime) : ""], ["Lines pulled time", trip.linesPulledTime || trip.endTime ? formatTimelineDisplayTime(trip.linesPulledTime || trip.endTime) : ""], ["Duration", tripHours(trip) ? `${trimNumber(tripHours(trip))} hours` : ""], ["People", (trip.people || []).map((person) => displayTitleText(person.name)).filter(Boolean).join(", ")], ["Target species", displayTitleText(trip.targetSpecies)], ["Method", displayTitleText(trip.method)], ["Intent", displayTitleText(trip.intent)], ["Rating", reportRatingLabel(trip.tripRating)]];
-  const conditions = [["Weather", displayTitleText(trip.weather)], ["Water temperature", displayStoredMeasurement(trip.waterTemp, "waterTemperature")], ["Water clarity", displayTitleText(trip.waterClarity)], ["FOW range / structure", displayStoredMeasurement(trip.structure, "depth")], ["Wind", trip.wind], ["Waves / chop", formatWaveHeightChopLine(trip, trip.weatherData)], ...reportAdditionalConditionRows(trip)];
+  const conditions = [["Weather", displayTitleText(trip.weather)], ["Water temperature", displayStoredMeasurement(trip.waterTemp, "waterTemperature")], ["Water clarity", displayTitleText(trip.waterClarity)], ["Structure", displayTitleText(trip.structureType)], ["FOW range", displayStoredMeasurement(trip.structure, "depth")], ["Wind", trip.wind], ["Waves / chop", formatWaveHeightChopLine(trip, trip.weatherData)], ...reportAdditionalConditionRows(trip)];
   const mapRecords = catchMapRecordsForTrip(trip);
   return `<article class="trip-report">
     <header class="report-header"><div class="report-header-copy"><p class="report-date">${escapeHtml(reportMeta)}${trip.location ? ` · ${escapeHtml(displayTitleText(trip.location))}` : ""}</p><h3>${escapeHtml(displayTitleText(trip.title || trip.location || "Trip report"))}</h3><p class="report-subtitle">${escapeHtml([trip.targetSpecies, trip.method].filter(Boolean).map(displayTitleText).join(" · ") || "Fishing trip report")}</p><div class="report-actions"><button class="button primary" type="button" data-report-action="edit">Edit trip</button><button class="button secondary" type="button" data-report-action="share">Share trip</button></div></div>${hero ? `<button class="report-hero-photo" type="button" data-report-open-photo aria-label="Open trip photo">${mediaMarkup(hero, "report-hero-asset", { download: false })}</button>` : ""}</header>

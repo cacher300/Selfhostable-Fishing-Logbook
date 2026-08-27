@@ -40,7 +40,43 @@ async function localizeLogbook(logbook: Logbook): Promise<Logbook> { const walk=
 
 export async function exportLogbook(logbook: Logbook) { const manifest = {archiveVersion:ARCHIVE_VERSION,format:"fishing-logbook-archive",schemaVersion:logbook.schemaVersion,createdAt:new Date().toISOString()}; const entries: Entry[] = [{name:"manifest.json",data:encoder.encode(JSON.stringify(manifest))},{name:"logbook.json",data:encoder.encode(JSON.stringify(portableLogbook(logbook)))},...(await collectMedia())]; const uri = `${root}fishing-logbook-${Date.now()}.zip`; await FileSystem.writeAsStringAsync(uri,bytesToBase64(createZip(entries)),{encoding:FileSystem.EncodingType.Base64}); if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri,{mimeType:"application/zip",dialogTitle:"Export Fishing Logbook"}); return uri; }
 
-export async function importLogbook(): Promise<Logbook | null> { const result = await DocumentPicker.getDocumentAsync({type:["application/zip","application/json","text/json"],copyToCacheDirectory:true}); if (result.canceled) return null; const asset = result.assets[0] as typeof result.assets[number] & { file?: File | null }; if (asset.name.toLowerCase().endsWith(".json")) { const parsed = JSON.parse(await readPickedText(asset)); return validateLogbook(await localizeLogbook(normalizeLogbook(parsed.logbook ?? parsed))); } const entries = readZip(await readPickedBytes(asset)); const manifestEntry = entries.find(entry => entry.name === "manifest.json"), logbookEntry = entries.find(entry => entry.name === "logbook.json"); if (!manifestEntry || !logbookEntry) throw new Error("Archive is missing its manifest or logbook."); const manifest = JSON.parse(decoder.decode(manifestEntry.data)); if (manifest.archiveVersion !== ARCHIVE_VERSION) throw new Error("This archive version is not supported."); for (const entry of entries.filter(item => item.name.startsWith("media/"))) { const parts = entry.name.split("/"); if (parts.length < 3 || parts.some(part => !part || part === "." || part === "..")) throw new Error("Archive contains an invalid media path."); const category = parts[1], filename = parts.slice(2).join("/"); if (Platform.OS === "web") await storeWebMedia(category,filename,entry.data); else { const directory = `${mediaRoot}${parts.slice(1,-1).join("/")}/`; await FileSystem.makeDirectoryAsync(directory,{intermediates:true}); await FileSystem.writeAsStringAsync(`${directory}${parts.at(-1)}`,bytesToBase64(entry.data),{encoding:FileSystem.EncodingType.Base64}); } } return validateLogbook(await localizeLogbook(normalizeLogbook(JSON.parse(decoder.decode(logbookEntry.data))))); }
+export async function importLogbook(): Promise<Logbook | null> {
+  const result = await DocumentPicker.getDocumentAsync({type:["application/zip","application/json","text/json"],copyToCacheDirectory:true});
+  if (result.canceled) return null;
+  const asset = result.assets[0] as typeof result.assets[number] & { file?: File | null };
+  if (asset.name.toLowerCase().endsWith(".json")) {
+    const parsed = JSON.parse(await readPickedText(asset));
+    return validateLogbook(await localizeLogbook(normalizeLogbook(parsed.logbook ?? parsed)));
+  }
+
+  const entries = readZip(await readPickedBytes(asset));
+  const manifestEntry = entries.find(entry => entry.name === "manifest.json");
+  const logbookEntry = entries.find(entry => entry.name === "logbook.json");
+  if (!manifestEntry || !logbookEntry) throw new Error("Archive is missing its manifest or logbook.");
+  const manifest = JSON.parse(decoder.decode(manifestEntry.data));
+  if (manifest.archiveVersion !== ARCHIVE_VERSION) throw new Error("This archive version is not supported.");
+
+  const imported = validateLogbook(normalizeLogbook(JSON.parse(decoder.decode(logbookEntry.data))));
+  const mediaEntries = entries.filter(item => item.name.startsWith("media/"));
+  for (const entry of mediaEntries) {
+    const parts = entry.name.split("/");
+    if (parts.length < 3 || parts.some(part => !part || part === "." || part === "..")) {
+      throw new Error("Archive contains an invalid media path.");
+    }
+  }
+  for (const entry of mediaEntries) {
+    const parts = entry.name.split("/");
+    const category = parts[1];
+    const filename = parts.slice(2).join("/");
+    if (Platform.OS === "web") await storeWebMedia(category,filename,entry.data);
+    else {
+      const directory = `${mediaRoot}${parts.slice(1,-1).join("/")}/`;
+      await FileSystem.makeDirectoryAsync(directory,{intermediates:true});
+      await FileSystem.writeAsStringAsync(`${directory}${parts.at(-1)}`,bytesToBase64(entry.data),{encoding:FileSystem.EncodingType.Base64});
+    }
+  }
+  return validateLogbook(await localizeLogbook(imported));
+}
 
 function validateLogbook(logbook:Logbook):Logbook {
   const duplicate=(items:Array<{id?:string}>,label:string)=>{const seen=new Set<string>();for(const item of items){if(!item.id)throw new Error(`${label} contains a record without an id.`);if(seen.has(item.id))throw new Error(`${label} contains duplicate id ${item.id}.`);seen.add(item.id)}};

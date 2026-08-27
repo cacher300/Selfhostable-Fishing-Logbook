@@ -232,6 +232,7 @@ function shareWeatherParts(trip) {
     trip.wind || (weather.windSpeedMph != null ? `${Math.round(weather.windSpeedMph)} mph wind` : ""),
     trip.waveHeight ? `Waves ${displayStoredMeasurement(trip.waveHeight, "waveHeight")}` : "",
     trip.waterTemp ? `Water ${displayStoredMeasurement(trip.waterTemp, "waterTemperature")}` : "",
+    trip.structureType ? `Structure ${trip.structureType}` : "",
     trip.waterClarity ? `Clarity ${trip.waterClarity}` : ""
   ].filter(Boolean);
 }
@@ -318,6 +319,7 @@ function shareConditionItems(trip) {
     ["Weather", trip.weather],
     ["Wind", trip.wind || (weather.windSpeedMph != null ? `${Math.round(weather.windSpeedMph)} mph` : "")],
     ["Water temp", trip.waterTemp ? displayStoredMeasurement(trip.waterTemp, "waterTemperature") : ""],
+    ["Structure", trip.structureType],
     ["Waves", trip.waveHeight ? displayStoredMeasurement(trip.waveHeight, "waveHeight") : ""],
     ["Air temp", weather.temperatureC != null ? `${Math.round(weather.temperatureC)}°C` : ""],
     ["Clarity", trip.waterClarity]

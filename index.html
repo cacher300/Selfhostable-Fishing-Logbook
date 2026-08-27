@@ -663,9 +663,9 @@
         <section class="gear-page hidden" id="gearPanel" aria-label="Gear inventory">
           <div class="gear-header gear-page-header">
             <div class="gear-tabs" id="gearTabs" role="tablist" aria-label="Gear inventory sections">
-              <button class="gear-tab is-active" type="button" data-gear-tab="reels">Reels</button>
+              <button class="gear-tab" type="button" data-gear-tab="reels">Reels</button>
               <button class="gear-tab" type="button" data-gear-tab="rods">Rods</button>
-              <button class="gear-tab" type="button" data-gear-tab="combos">Combos</button>
+              <button class="gear-tab is-active" type="button" data-gear-tab="combos">Combos</button>
               <button class="gear-tab" type="button" data-gear-tab="line">Line Tracker</button>
               <button class="gear-tab" type="button" data-gear-tab="baits">Baits</button>
               <button class="gear-tab" type="button" data-gear-tab="flashers">Flashers</button>
@@ -692,7 +692,7 @@
             <button class="button secondary" id="clearGearFilterButton" type="button">Clear</button>
           </div>
           <div id="gearTabPanels" class="gear-tab-panels">
-            <section class="gear-tab-panel" data-gear-panel="reels">
+            <section class="gear-tab-panel hidden" data-gear-panel="reels">
               <div class="gear-header">
                 <div>
                   <h3>Reels</h3>
@@ -708,7 +708,7 @@
               </div>
               <div class="inventory-table" id="rodInventoryTable"></div>
             </section>
-            <section class="gear-tab-panel hidden" data-gear-panel="combos">
+            <section class="gear-tab-panel" data-gear-panel="combos">
               <div class="gear-header">
                 <div>
                   <h3>Combos</h3>
@@ -1252,22 +1252,6 @@
                 <button class="icon-button" id="addLaunchButton" type="button" aria-label="Add launch or area fished">+</button>
               </div>
             </div>
-            <fieldset class="trip-time-field">
-              <div class="trip-time-inputs">
-                <label>
-                  <span>Launch time</span>
-                  <input id="launchTime" type="time" />
-                </label>
-                <label>
-                  <span>Lines set time</span>
-                  <input id="linesSetTime" type="time" />
-                </label>
-                <label>
-                  <span>Lines pulled time</span>
-                  <input id="linesPulledTime" type="time" />
-                </label>
-              </div>
-            </fieldset>
             <label>
               <span>Target species</span>
               <select id="targetSpecies" required></select>
@@ -1276,6 +1260,20 @@
               <span>Method</span>
               <select id="method"></select>
             </label>
+            <fieldset class="trip-time-field">
+              <div class="trip-time-inputs">
+                <label>
+                  <span>Launch time</span>
+                  <input id="launchTime" type="time" />
+                </label>
+                <label>
+                  <span>Lines pulled time</span>
+                  <input id="linesPulledTime" type="time" />
+                </label>
+              </div>
+            </fieldset>
+            <!-- Kept hidden for legacy trips; new trips use launch time as their start. -->
+            <input id="linesSetTime" type="hidden" />
             <div class="trip-basics-water-fields">
               <label>
                 <span data-unit-label="waterTemperature" data-unit-label-text="Water temperature">Water temperature</span>
@@ -1288,6 +1286,10 @@
               <label>
                 <span data-unit-label="depth" data-unit-label-text="FOW range">FOW range</span>
                 <input id="structure" type="text" placeholder="40-60 FOW" />
+              </label>
+              <label>
+                <span>Structure</span>
+                <select id="structureType"></select>
               </label>
             </div>
             <fieldset class="intent-control">
@@ -1708,6 +1710,10 @@
             <input id="lureColor" type="text" placeholder="Blue/Silver" />
           </label>
           <label>
+            <span>Lure weight</span>
+            <input id="lureWeight" type="text" placeholder="1/2 oz" />
+          </label>
+          <label>
             <span>Quantity owned</span>
             <input id="lureQuantityAvailable" type="number" min="0" step="1" placeholder="1" />
           </label>
@@ -1880,8 +1886,24 @@
               </div>
             </div>
           </div>
-          <div class="row-section-title catch-detail-optional">Location</div>
-          <div class="catch-field-with-option catch-detail-optional">
+          <div class="row-section-title catch-photo-title catch-detail-optional">Catch photos</div>
+          <div class="catch-photo-editor catch-detail-optional">
+            <div class="catch-media-actions">
+              <label class="button file-button catch-media-action">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+                Upload Media
+                <input class="catch-photo-input" type="file" accept="image/*,.heic,.heif,video/*" multiple />
+              </label>
+              <button class="button use-catch-photo-queue catch-media-action" type="button">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4h8v8H4zM6 2h4M6 14h4" /></svg>
+                Use Queue
+              </button>
+            </div>
+            <div class="catch-photo-grid"></div>
+          </div>
+          <div class="catch-location-section catch-detail-optional">
+          <div class="row-section-title">Location</div>
+          <div class="catch-field-with-option">
             <div class="metadata-lock-field">
               <label>
                 <span>Time</span>
@@ -1910,30 +1932,38 @@
             <input class="catch-latitude" type="hidden" />
             <input class="catch-longitude" type="hidden" />
           </div>
-          <label class="catch-water-depth-field catch-detail-optional">
+          <label class="catch-water-depth-field">
             <span data-unit-label="depth" data-unit-label-text="FOW">FOW</span>
             <input class="catch-water-depth" type="text" placeholder="80 FOW" />
           </label>
-          <label class="catch-depth-down-field catch-detail-optional">
+          <label class="catch-depth-down-field">
             <span data-unit-label="depth" data-unit-label-text="Estimated depth down">Estimated depth down</span>
             <input class="catch-depth-down" type="text" placeholder="45 ft" />
           </label>
+          </div>
           <div class="row-section-title catch-detail-optional">Equipment</div>
           <label class="trolling-catch-line-field catch-detail-optional">
             <span>Rod</span>
             <select class="catch-setup-line"></select>
           </label>
-          <label class="direct-catch-gear catch-detail-optional">
+          <label class="direct-catch-gear catch-rod-field catch-detail-optional">
             <span>Rod</span>
             <select class="catch-rod"></select>
           </label>
-          <label class="direct-catch-gear catch-detail-optional">
+          <label class="direct-catch-gear catch-lure-field catch-detail-optional">
             <span>Lure</span>
-            <select class="catch-lure"></select>
+          <select class="catch-lure"></select>
           </label>
           <button class="button secondary add-lure-inline direct-catch-gear catch-detail-optional" type="button">New Lure</button>
-          <div class="lure-preview direct-catch-gear catch-detail-optional"></div>
-          <label class="casting-field catch-detail-optional">
+          <label class="direct-catch-gear catch-rigging-field catch-detail-optional">
+            <span>Rigging</span>
+            <select class="catch-rigging"></select>
+          </label>
+          <label class="direct-catch-gear catch-rigging-details-field catch-detail-optional">
+            <span>Rig details</span>
+            <input class="catch-rigging-details" type="text" placeholder="1/0 hook, 1/8 oz weight, weedless" />
+          </label>
+          <label class="casting-field catch-retrieve-field catch-detail-optional">
             <span>Retrieve</span>
             <input class="catch-retrieve" type="text" placeholder="Slow roll, pause-twitch, burn-stop" />
           </label>
@@ -2026,21 +2056,6 @@
           <label class="catch-notes-label catch-detail-optional">
             <textarea class="catch-notes" rows="3" placeholder="Add notes about the catch: bite description, fish behavior, or weather observations"></textarea>
           </label>
-          <div class="row-section-title catch-photo-title catch-detail-optional">Catch photos</div>
-          <div class="catch-photo-editor catch-detail-optional">
-            <div class="catch-media-actions">
-              <label class="button file-button catch-media-action">
-                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
-                Upload Media
-                <input class="catch-photo-input" type="file" accept="image/*,.heic,.heif,video/*" multiple />
-              </label>
-              <button class="button use-catch-photo-queue catch-media-action" type="button">
-                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4h8v8H4zM6 2h4M6 14h4" /></svg>
-                Use Queue
-              </button>
-            </div>
-            <div class="catch-photo-grid"></div>
-          </div>
         </div>
       </article>
     </template>
@@ -2065,6 +2080,10 @@
           <label class="gear-end-field">
             <span>Stop time</span>
             <input class="trip-gear-end-time" type="time" />
+          </label>
+          <label class="gear-idle-field">
+            <span>Idle time (min)</span>
+            <input class="trip-gear-idle-time" type="number" min="0" step="1" placeholder="0" />
           </label>
           <label class="gear-change-field">
             <span>Note</span>
@@ -2113,10 +2132,17 @@
           </label>
           <label class="gear-lure-field">
             <span>Lure</span>
-            <select class="trip-gear-lure"></select>
+          <select class="trip-gear-lure"></select>
           </label>
           <button class="button secondary add-lure-inline gear-lure-action" type="button">New Lure</button>
-          <div class="lure-preview"></div>
+          <label class="non-trolling-field gear-rigging-field">
+            <span>Rigging</span>
+            <select class="trip-gear-rigging"></select>
+          </label>
+          <label class="non-trolling-field gear-rigging-details-field">
+            <span>Rig details</span>
+            <input class="trip-gear-rigging-details" type="text" placeholder="1/0 hook, 1/8 oz weight, weedless" />
+          </label>
           <label class="trolling-field gear-flasher-field">
             <span>Flasher</span>
             <select class="trip-gear-flasher"></select>

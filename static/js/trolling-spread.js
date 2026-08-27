@@ -34,6 +34,7 @@ function resolveTripLineRecord(record) {
   const line = setupLineForRecord(record);
   if (!line) return record;
   const onCheater = record.setupLineTarget === "cheater";
+  const trolling = isTrollingTripRecord(record.trip);
   return {
     ...record,
     comboId: line.comboId || record.comboId || "",
@@ -42,9 +43,11 @@ function resolveTripLineRecord(record) {
     side: line.side || record.side || "",
     lineLabel: line.lineLabel || record.lineLabel || "",
     direction: line.direction || record.direction || "",
-    lureId: onCheater ? (line.cheaterLureId || record.lureId || "") : (line.lureId || record.lureId || ""),
-    flasherId: onCheater ? "" : (line.flasherId || record.flasherId || ""),
-    presentation: line.presentation || record.presentation || "",
+    lureId: trolling
+      ? (onCheater ? (line.cheaterLureId || record.lureId || "") : (line.lureId || record.lureId || ""))
+      : (record.lureId || line.lureId || ""),
+    flasherId: trolling ? (onCheater ? "" : (line.flasherId || record.flasherId || "")) : (record.flasherId || line.flasherId || ""),
+    presentation: trolling ? (line.presentation || record.presentation || "") : (record.presentation || line.presentation || ""),
     gpsSpeed: record.gpsSpeed || record.speed || line.gpsSpeed || line.speed || "",
     ballSpeed: record.ballSpeed || line.ballSpeed || "",
     ballDepth: record.ballDepth || line.ballDepth || "",

@@ -78,18 +78,37 @@ def media_key_from_reference(value: object) -> tuple[str, str] | None:
     if not isinstance(value, dict):
         return None
 
-    path = str(value.get("path") or "")
-    if "/" in path:
-        category, stored_name = path.split("/", 1)
+    def valid_key(category: str, stored_name: str) -> tuple[str, str] | None:
+        if category not in UPLOAD_CATEGORIES or not stored_name:
+            return None
+        if Path(stored_name).name != stored_name or stored_name == PREVIEW_DIRNAME:
+            return None
         return category, stored_name
+
+    for field in ("path", "imagePath"):
+        media_path = str(value.get(field) or "")
+        if "/" not in media_path:
+            continue
+        category, stored_name = media_path.split("/", 1)
+        media_key = valid_key(category, stored_name)
+        if media_key:
+            return media_key
 
     for field in ("url", "image"):
         media_path = str(value.get(field) or "")
         if not media_path.startswith("/uploads/"):
             continue
         parts = media_path.removeprefix("/uploads/").split("/")
-        if len(parts) >= 2:
-            return parts[0], parts[1]
+        if len(parts) == 2:
+            media_key = valid_key(parts[0], parts[1])
+            if media_key:
+                return media_key
+
+    category = str(value.get("category") or "")
+    stored_name = str(value.get("filename") or value.get("imageFilename") or "")
+    media_key = valid_key(category, stored_name)
+    if media_key:
+        return media_key
 
     return None
 

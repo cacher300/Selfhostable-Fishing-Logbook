@@ -315,7 +315,21 @@ function gearPerformanceStats(type, id, trips = state.trips) {
     if (type === "boat-equipment") {
       return boatItemEquipment.get(String(resolved.boatItemId || resolved.setupLine?.boatItemId || "")) || "";
     }
-    return String(resolved[field] || "");
+    const directValue = String(resolved[field] || "");
+    if (directValue) return directValue;
+
+    // Older non-trolling catches did not store their setup-line id. Recover
+    // combo/reel attribution when the saved rod/lure combination identifies
+    // exactly one setup line, while avoiding guesses when lines are ambiguous.
+    if (!record.setupLineId && ["combo", "reel"].includes(type)) {
+      const candidates = (trip.gearUsed || []).filter((line) => (
+        (!record.rodId || String(line.rodId || "") === String(record.rodId))
+        && (!record.lureId || String(line.lureId || "") === String(record.lureId))
+        && (!record.flasherId || String(line.flasherId || "") === String(record.flasherId))
+      ));
+      if (candidates.length === 1) return String(candidates[0][field] || "");
+    }
+    return "";
   };
 
   trips.forEach((trip, tripIndex) => {
