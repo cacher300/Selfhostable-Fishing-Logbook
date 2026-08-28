@@ -1,5 +1,5 @@
-function idleMinutesFromRow(row) {
-  const value = Number(row.querySelector(".trip-gear-idle-time")?.value || 0);
+function idleHoursFromForm() {
+  const value = Number(document.querySelector("#tripIdleTime")?.value || 0);
   return Number.isFinite(value) ? Math.max(0, value) : 0;
 }
 
@@ -7,12 +7,7 @@ function setupMinutesFromRow(row) {
   return Math.max(0, calculateMinutes(
     row.querySelector(".trip-gear-start-time").value,
     row.querySelector(".trip-gear-end-time").value
-  ) - idleMinutesFromRow(row));
-}
-
-function setupIdleMinutesFromForm() {
-  return [...document.querySelectorAll("#tripDialog .gear-used-row")]
-    .reduce((total, row) => total + idleMinutesFromRow(row), 0);
+  ));
 }
 
 function isTrollingTrip() {

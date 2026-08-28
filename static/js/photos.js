@@ -631,7 +631,7 @@ function defaultCatchPhotoLocation(row) {
     .map((photo, index) => ({ photo, index, timestamp: catchPhotoTimestampValue(photo) }))
     .filter((item) => item.timestamp !== null)
     .sort((a, b) => a.timestamp - b.timestamp || a.index - b.index);
-  return timestampedPhotos[0]?.photo || taggedPhotos[0] || null;
+  return timestampedPhotos[timestampedPhotos.length - 1]?.photo || taggedPhotos[taggedPhotos.length - 1] || null;
 }
 
 function selectedCatchPhotoLocation(row) {

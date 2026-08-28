@@ -350,7 +350,8 @@ function gearPickerLabel(item, fallback) {
 function gearPickerMedia(item, type) {
   const source = previewImage(item);
   if (!source) {
-    return `<span class="gear-picker-photo-placeholder" aria-hidden="true">${type === "lure" ? "L" : "F"}</span>`;
+    if (type === "lure") return "";
+    return `<span class="gear-picker-photo-placeholder" aria-hidden="true">F</span>`;
   }
   return isVideoMedia(item)
     ? `<video src="${escapeHtml(source)}" muted preload="metadata" playsinline aria-hidden="true"></video>`
@@ -412,10 +413,11 @@ function renderGearPicker(select, type) {
   const menu = picker.querySelector(".gear-picker-options");
   const count = picker.querySelector(".gear-picker-count");
   const empty = picker.querySelector(".gear-picker-empty");
+  const pickerMedia = gearPickerMedia(selected, type);
   empty?.classList.add("hidden");
   if (trigger) {
     trigger.innerHTML = `
-      <span class="gear-picker-trigger-media">${gearPickerMedia(selected, type)}</span>
+      ${pickerMedia ? `<span class="gear-picker-trigger-media">${pickerMedia}</span>` : ""}
       <span class="gear-picker-trigger-copy">
         <strong>${escapeHtml(selected ? gearPickerLabel(selected, placeholder) : placeholder)}</strong>
         <small>${escapeHtml(selected ? [selected.type, selected.brand].filter(Boolean).join(" / ") || "Saved gear" : `Choose from ${items.length} saved ${type}${items.length === 1 ? "" : "s"}`)}</small>

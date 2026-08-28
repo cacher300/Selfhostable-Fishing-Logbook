@@ -547,7 +547,10 @@ document.addEventListener("click", (event) => {
 
   const removeCatch = event.target.closest(".remove-catch");
   if (removeCatch) {
-    removeCatch.closest(".catch-row").remove();
+    const catchRow = removeCatch.closest(".catch-row");
+    const label = catchRow?.classList.contains("lost-fish-row") ? "missed fish" : "catch";
+    if (!window.confirm(`Remove this ${label}?`)) return;
+    catchRow?.remove();
     updateAllRowSummaries();
     renderLiveTrollingSpread();
   }
@@ -687,9 +690,16 @@ document.addEventListener("click", (event) => {
     openCatchLocationDialog(pickCatchLocationButton.closest(".catch-row"));
   }
 
+  const deleteQueuedPhotoButton = event.target.closest("[data-delete-queued-photo]");
+  if (deleteQueuedPhotoButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    deleteQueuedPhoto(deleteQueuedPhotoButton.dataset.deleteQueuedPhoto);
+    return;
+  }
+
   const selectQueuedPhoto = event.target.closest("[data-select-queued-photo]");
   if (selectQueuedPhoto) {
-    if (event.target.closest("[data-delete-queued-photo]")) return;
     claimQueuedPhoto(selectQueuedPhoto.dataset.selectQueuedPhoto);
   }
 
@@ -712,11 +722,6 @@ document.addEventListener("click", (event) => {
         });
       }
     }
-  }
-
-  const deleteQueuedPhotoButton = event.target.closest("[data-delete-queued-photo]");
-  if (deleteQueuedPhotoButton) {
-    deleteQueuedPhoto(deleteQueuedPhotoButton.dataset.deleteQueuedPhoto);
   }
 
   const editManagedLocation = event.target.closest("[data-edit-managed-location]");

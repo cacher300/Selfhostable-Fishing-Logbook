@@ -1,3 +1,5 @@
+const LOCATION_FOCUS_ZOOM = 15;
+
 function coordinateText(coordinates) {
   if (!isUsableCoordinates(coordinates)) return "";
   return `${Number(coordinates.latitude).toFixed(5)}, ${Number(coordinates.longitude).toFixed(5)}`;
@@ -175,7 +177,7 @@ function setLocationFormCoordinates(coordinates) {
   } else {
     locationPickerMarker.setLatLng(point);
   }
-  locationPickerMap.setView(point, Math.max(locationPickerMap.getZoom(), 10));
+  locationPickerMap.setView(point, Math.max(locationPickerMap.getZoom(), LOCATION_FOCUS_ZOOM));
 }
 
 function ensureLocationPickerMap(coordinates) {
@@ -188,7 +190,7 @@ function ensureLocationPickerMap(coordinates) {
     });
   }
   const center = isUsableCoordinates(coordinates) ? [coordinates.latitude, coordinates.longitude] : [43.7, -79.4];
-  locationPickerMap.setView(center, isUsableCoordinates(coordinates) ? 10 : 7);
+  locationPickerMap.setView(center, isUsableCoordinates(coordinates) ? LOCATION_FOCUS_ZOOM : 7);
   setTimeout(() => locationPickerMap.invalidateSize(), 50);
   if (isUsableCoordinates(coordinates)) setLocationFormCoordinates(coordinates);
   else if (locationPickerMarker) {
@@ -324,7 +326,7 @@ function setCatchLocationPickerCoordinates(coordinates) {
   } else {
     catchLocationPickerMarker.setLatLng(point);
   }
-  catchLocationPickerMap.setView(point, Math.max(catchLocationPickerMap.getZoom(), 10));
+  catchLocationPickerMap.setView(point, Math.max(catchLocationPickerMap.getZoom(), LOCATION_FOCUS_ZOOM));
 }
 
 function ensureCatchLocationPickerMap(coordinates, options = {}) {
@@ -338,7 +340,7 @@ function ensureCatchLocationPickerMap(coordinates, options = {}) {
     });
   }
   const center = isUsableCoordinates(coordinates) ? [coordinates.latitude, coordinates.longitude] : [43.7, -79.4];
-  catchLocationPickerMap.setView(center, isUsableCoordinates(coordinates) ? 10 : 7);
+  catchLocationPickerMap.setView(center, isUsableCoordinates(coordinates) ? LOCATION_FOCUS_ZOOM : 7);
   setTimeout(() => catchLocationPickerMap.invalidateSize(), 50);
   if (isUsableCoordinates(coordinates) && placeMarker) setCatchLocationPickerCoordinates(coordinates);
   else if (catchLocationPickerMarker) {

@@ -116,6 +116,11 @@ function tripSaveWarnings() {
     .forEach(({ label }) => warnings.push(`${label} is blank.`));
 
   const trolling = isTrollingTrip();
+  const tripStartTime = getValue("linesSetTime") || getValue("launchTime");
+  const tripEndTime = getValue("linesPulledTime");
+  const tripMinutes = tripStartTime && tripEndTime
+    ? calculateMinutes(tripStartTime, tripEndTime)
+    : 0;
   const setupRows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
   if (trolling && !setupRows.length) warnings.push("No rods have been added to the setup timeline.");
 
@@ -128,8 +133,8 @@ function tripSaveWarnings() {
       return;
     }
     const deployedHours = calculateMinutes(startTime, endTime) / 60;
-    if (deployedHours > 12) {
-      warnings.push(`${label} is deployed for ${trimNumber(deployedHours)} hours.`);
+    if (tripMinutes > 0 && deployedHours * 60 > tripMinutes) {
+      warnings.push(`${label} is deployed longer than the trip (${trimNumber(deployedHours)} hours).`);
     }
   });
 
@@ -218,6 +223,7 @@ function openTripDialog(trip = null) {
   setValue("launchTime", trip?.launchTime || "");
   setValue("linesSetTime", trip?.linesSetTime || trip?.startTime || "");
   setValue("linesPulledTime", trip?.linesPulledTime || trip?.endTime || "");
+  setValue("tripIdleTime", trip?.idleHours || "");
   setValue("targetSpecies", trip?.targetSpecies || "");
   setValue("method", trip?.method || "");
   setTripIntent(tripIntent(trip || {}));
@@ -734,7 +740,6 @@ function addTripGearRow(gearItem = {}) {
 
   node.querySelector(".trip-gear-start-time").value = defaultSetupStartTime(gearItem);
   node.querySelector(".trip-gear-end-time").value = defaultSetupEndTime(gearItem);
-  node.querySelector(".trip-gear-idle-time").value = gearItem.idleMinutes || "";
   node.querySelector(".trip-gear-change-note").value = gearItem.changeNote || gearItem.notes || "";
   const side = gearItem.side || defaultSetupLineSide(gearItem, els.tripGearRows.querySelectorAll(".gear-used-row").length);
   populateChoiceSelect(node.querySelector(".trip-gear-side"), optionChoices("setupLineSides"), "Select side", side);
@@ -1206,7 +1211,6 @@ function collectTripFromForm() {
       boatItemId: trolling ? row.querySelector(".trip-gear-boat-item").value : "",
       startTime: row.querySelector(".trip-gear-start-time").value,
       endTime: row.querySelector(".trip-gear-end-time").value,
-      idleMinutes: idleMinutesFromRow(row),
       changeNote: row.querySelector(".trip-gear-change-note").value.trim(),
       side: trolling ? row.querySelector(".trip-gear-side").value : "",
       lineLabel: trolling ? row.querySelector(".trip-gear-line-label").value.trim() : "",
@@ -1237,7 +1241,6 @@ function collectTripFromForm() {
     .filter((item) => (
       item.startTime
       || item.endTime
-      || item.idleMinutes
       || item.changeNote
       || item.lineLabel
       || item.boatItemId
@@ -1385,8 +1388,8 @@ function collectTripFromForm() {
     linesPulledTime: getValue("linesPulledTime"),
     startTime: getValue("linesSetTime"),
     endTime: getValue("linesPulledTime"),
-    idleMinutes: setupIdleMinutesFromForm(),
-    hours: Math.max(0, calculateHours(getValue("linesSetTime") || getValue("launchTime"), getValue("linesPulledTime")) - (setupIdleMinutesFromForm() / 60)),
+    idleHours: idleHoursFromForm(),
+    hours: Math.max(0, calculateHours(getValue("linesSetTime") || getValue("launchTime"), getValue("linesPulledTime")) - idleHoursFromForm()),
     targetSpecies: getValue("targetSpecies"),
     method: getValue("method"),
     intent: getTripIntent(),
