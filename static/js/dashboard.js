@@ -34,7 +34,7 @@ function catchRate(trip) {
 
 function tripHours(trip) {
   const calculated = calculateHours(trip.linesSetTime || trip.startTime || trip.launchTime, trip.linesPulledTime || trip.endTime);
-  if (calculated) return Math.max(0, calculated - (number(trip.idleMinutes) / 60));
+  if (calculated) return Math.max(0, calculated - number(trip.idleHours));
   return number(trip.hours);
 }
 

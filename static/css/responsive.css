@@ -75,7 +75,6 @@
   .gear-used-row .gear-combo-field,
   .gear-used-row .gear-start-field,
   .gear-used-row .gear-end-field,
-  .gear-used-row .gear-idle-field,
   .gear-used-row .gear-change-field,
   .gear-used-row .gear-side-field,
   .gear-used-row .gear-label-field,
@@ -548,6 +547,16 @@
 
   #tripDialog .catch-identity-row {
     grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #tripDialog .catch-identity-row > label:first-child,
+  #tripDialog .catch-identity-row .catch-species-field,
+  #tripDialog .catch-identity-row .possible-species-field {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 auto;
   }
 
   #tripDialog .inline-field-option {

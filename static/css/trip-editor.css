@@ -1075,9 +1075,10 @@
 .catch-location-section {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: max-content minmax(420px, 1fr) max-content max-content;
+  grid-template-columns: max-content max-content max-content max-content;
   gap: 12px;
   align-items: end;
+  justify-content: start;
 }
 
 .catch-location-section .row-section-title {
@@ -1124,6 +1125,13 @@
 
 #tripDialog .catch-row:not(.has-soft-plastic-rigging) .catch-retrieve-field {
   grid-column: 4 / 5;
+  width: 100%;
+  min-width: 0;
+}
+
+#tripDialog .catch-row .catch-retrieve-field {
+  width: 100%;
+  min-width: 0;
 }
 
 .catch-water-depth-field,
@@ -1142,10 +1150,26 @@
 }
 
 .catch-identity-row {
-  display: grid;
+  display: flex;
   grid-column: 1 / -1;
-  grid-template-columns: minmax(180px, 260px) minmax(180px, 380px) max-content max-content;
   gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.catch-identity-row > label:first-child {
+  flex: 1 1 260px;
+  max-width: 260px;
+}
+
+.catch-identity-row .catch-species-field,
+.catch-identity-row .possible-species-field {
+  flex: 1 1 380px;
+  max-width: 380px;
+}
+
+.catch-identity-row .catch-length-field {
+  flex: 0 0 auto;
 }
 
 .catch-identity-row .catch-length,
@@ -1221,13 +1245,13 @@
 }
 
 .catch-location-field .pick-catch-location {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   box-sizing: border-box;
-  width: auto;
+  width: max-content;
   min-width: 0;
   height: 40px;
   min-height: 40px;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   padding-right: 12px;
   padding-left: 12px;
@@ -1357,8 +1381,10 @@
 
 #tripDialog .add-lure-inline {
   justify-self: start;
+  justify-content: flex-start;
   width: max-content;
   min-width: 120px;
+  margin-left: 8px;
   padding-right: 18px;
   padding-left: 18px;
 }
@@ -1647,13 +1673,8 @@
   grid-row: 2;
 }
 
-.gear-used-row .gear-idle-field {
-  grid-column: 3 / 4;
-  grid-row: 2;
-}
-
 .gear-used-row .gear-change-field {
-  grid-column: 4 / 6;
+  grid-column: 3 / 6;
   grid-row: 2;
 }
 

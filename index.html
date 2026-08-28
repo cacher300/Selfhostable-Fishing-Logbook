@@ -1270,6 +1270,10 @@
                   <span>Lines pulled time</span>
                   <input id="linesPulledTime" type="time" />
                 </label>
+                <label>
+                  <span>Idle time (hours)</span>
+                  <input id="tripIdleTime" type="number" min="0" step="0.25" placeholder="0" />
+                </label>
               </div>
             </fieldset>
             <!-- Kept hidden for legacy trips; new trips use launch time as their start. -->
@@ -2080,10 +2084,6 @@
           <label class="gear-end-field">
             <span>Stop time</span>
             <input class="trip-gear-end-time" type="time" />
-          </label>
-          <label class="gear-idle-field">
-            <span>Idle time (min)</span>
-            <input class="trip-gear-idle-time" type="number" min="0" step="1" placeholder="0" />
           </label>
           <label class="gear-change-field">
             <span>Note</span>
