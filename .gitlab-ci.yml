@@ -133,5 +133,5 @@ deploy_production:
       git fetch --prune origin
       git reset --hard "origin/$CI_DEFAULT_BRANCH"
       mkdir -p "$DEPLOY_DATA_PATH/uploads"
-      FISH_DATA_DIR="$DEPLOY_DATA_PATH" docker compose up -d --build --remove-orphans --wait
+      APP_PORT=8081 FISH_DATA_DIR="$DEPLOY_DATA_PATH" docker compose up -d --build --remove-orphans --wait
       REMOTE_SCRIPT
