@@ -43,6 +43,7 @@ async function saveStructureOption(event) {
 
 els.newTripButton.addEventListener("click", () => openTripDialog());
 els.tripForm.addEventListener("submit", saveTrip);
+els.saveTripDraftButtons.forEach((button) => button.addEventListener("click", saveTripAsDraft));
 els.tripForm.addEventListener("keydown", (event) => {
   if (event.key === "Enter") event.preventDefault();
 });

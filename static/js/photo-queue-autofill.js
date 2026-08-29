@@ -88,8 +88,6 @@ async function autofillCatchesFromPhotoQueue() {
     const queuePhotos = await loadPhotoQueue();
     const matchingDatePhotos = queuePhotos.filter((photo) => photoQueueAutofillDate(photo) === tripDate);
     const groups = photoQueueCatchGroups(queuePhotos, tripDate);
-    const timestampedCount = groups.reduce((total, group) => total + group.length, 0);
-    const skippedCount = matchingDatePhotos.length - timestampedCount;
     if (!groups.length) {
       setCatchQueueAutofillStatus(matchingDatePhotos.length
         ? `${matchingDatePhotos.length} queued photo${matchingDatePhotos.length === 1 ? " has" : "s have"} no usable capture time for ${formatDate(tripDate)}.`
@@ -97,18 +95,13 @@ async function autofillCatchesFromPhotoQueue() {
       return;
     }
 
-    let createdCount = 0;
     for (const group of groups) {
       const copiedPhotos = await Promise.all(group.map((photo) => copyQueuedPhotoForCatch(photo.filename)));
       const row = addCatchRow();
       attachPhotoGroupToCatch(row, copiedPhotos);
-      createdCount += 1;
     }
     if (typeof markTripFormChanged === "function") markTripFormChanged();
-    const catchLabel = `${createdCount} catch${createdCount === 1 ? "" : "es"}`;
-    const photoLabel = `${timestampedCount} photo${timestampedCount === 1 ? "" : "s"}`;
-    const skippedLabel = skippedCount ? ` ${skippedCount} photo${skippedCount === 1 ? " was" : "s were"} skipped because capture time was unavailable.` : "";
-    setCatchQueueAutofillStatus(`Created ${catchLabel} from ${photoLabel}. Photos within 3 minutes were grouped together. Queue originals remain available for catch or trip-photo review; remove them manually when confirmed.${skippedLabel}`);
+    setCatchQueueAutofillStatus();
   } catch (error) {
     console.error("Could not autofill catches from photo queue.", error);
     setCatchQueueAutofillStatus(error.message || "Catches could not be autofilled from the photo queue.");

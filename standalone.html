@@ -1345,6 +1345,7 @@
           </div>
           <div class="trip-dialog-header-actions">
             <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+            <button class="button secondary" type="button" data-trip-draft-save>Save Draft</button>
             <button class="button primary" type="submit" data-trip-save>Save</button>
             <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
           </div>
@@ -1551,7 +1552,6 @@
           <div class="section-heading">
             <div>
               <h3>Catches</h3>
-              <p>Autofill catch rows from queued photos grouped by a 3-minute capture-time gap. Originals stay in the queue so you can review catch and trip photos before removing anything.</p>
             </div>
             <div class="section-actions">
               <button class="button secondary" id="autofillQueueCatchesButton" type="button">Autofill from Queue</button>
@@ -1601,6 +1601,7 @@
           <button class="button danger" id="deleteTripButton" type="button">Delete</button>
           <div>
             <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+            <button class="button secondary" type="button" data-trip-draft-save>Save Draft</button>
             <button class="button primary" id="saveTripButton" type="submit" data-trip-save>Save Changes</button>
           </div>
         </div>
@@ -2089,7 +2090,7 @@
               </div>
             </div>
             <label class="catch-spot-field">
-              <span>Spot <small>Optional</small></span>
+              <span>Spot</span>
               <select class="catch-spot"></select>
             </label>
             <label class="catch-structure-field catch-detail-optional">
@@ -2440,12 +2441,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="static/vendor/anime-3.2.2.min.js"></script>
     <script src="static/js/app-config.js"></script>
-    <script src="static/js/app-defaults.js"></script>
+    <script src="static/js/app-defaults.js?v=20260829-species-1"></script>
     <script src="static/js/app-state.js"></script>
-    <script src="static/js/app-normalization.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/app-normalization.js?v=20260829-species-1"></script>
     <script src="static/js/app-units.js?v=20260829-structure-split-2"></script>
     <script src="static/js/app-persistence.js?v=20260829-structure-split-2"></script>
-    <script src="static/js/app-elements.js?v=20260829-structure-selector-1"></script>
+    <script src="static/js/app-elements.js?v=20260829-save-draft-1"></script>
     <script src="static/js/app-media.js"></script>
     <script src="static/js/locations.js"></script>
     <script src="static/js/location-weather.js"></script>
@@ -2453,14 +2454,14 @@
     <script src="static/js/settings.js?v=20260829-structure-split-2"></script>
     <script src="static/js/settings-fields.js?v=20260829-structure-split-2"></script>
     <script src="static/js/settings-locations.js?v=20260829-structure-split-2"></script>
-    <script src="static/js/dashboard.js"></script>
+    <script src="static/js/dashboard.js?v=20260829-save-draft-1"></script>
     <script src="static/js/expedition-analytics.js"></script>
     <script src="static/js/expeditions.js?v=20260829-trip-calendar-1"></script>
     <script src="static/js/photos.js"></script>
-    <script src="static/js/trip-editor.js?v=20260829-spot-label-1"></script>
+    <script src="static/js/trip-editor.js?v=20260829-save-draft-1"></script>
     <script src="static/js/trip-rows.js?v=20260829-structure-lost-field-1"></script>
-    <script src="static/js/trip-save.js?v=20260829-structure-split-2"></script>
-    <script src="static/js/photo-queue-autofill.js?v=20260829-catch-autofill-1"></script>
+    <script src="static/js/trip-save.js?v=20260829-save-draft-1"></script>
+    <script src="static/js/photo-queue-autofill.js?v=20260829-queue-copy-1"></script>
     <script src="static/js/gear-core.js?v=20260829-lure-picker-1"></script>
     <script src="static/js/gear-pickers.js?v=20260829-lure-picker-1"></script>
     <script src="static/js/gear-dialogs.js?v=20260829-lure-picker-1"></script>
@@ -2471,9 +2472,9 @@
     <script src="static/js/great-lakes-conditions.js?v=20260731-48"></script>
     <script src="static/js/maps.js?v=20260829-structure-split-1"></script>
     <script src="static/js/trip-summary.js?v=20260829-structure-split-1"></script>
-    <script src="static/js/trip-report.js?v=20260829-structure-split-1"></script>
+    <script src="static/js/trip-report.js?v=20260829-biggest-length-1"></script>
     <script src="static/js/trip-timeline.js?v=20260829-structure-split-1"></script>
-    <script src="static/js/trip-sharing.js"></script>
+    <script src="static/js/trip-sharing.js?v=20260829-biggest-length-1"></script>
     <script src="static/js/stats-analytics.js"></script>
     <script src="static/js/stats-scope.js?v=20260829-structure-split-2"></script>
     <script src="static/js/stats-performance.js?v=20260829-structure-split-2"></script>
@@ -2485,7 +2486,7 @@
     <script src="static/js/boat-layout.js"></script>
     <script src="static/js/tackle-boxes.js"></script>
     <script src="static/js/leaderboard.js"></script>
-    <script src="static/js/app-control-events.js?v=20260829-structure-selector-2"></script>
+    <script src="static/js/app-control-events.js?v=20260829-save-draft-1"></script>
     <script src="static/js/app-delegated-events.js?v=20260829-structure-selector-1"></script>
     <script src="static/js/app.js?v=20260829-structure-split-1"></script>
   </body>

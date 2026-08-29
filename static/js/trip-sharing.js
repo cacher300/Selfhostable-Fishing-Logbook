@@ -143,9 +143,11 @@ function shareSpecies(trip) {
 }
 
 function shareBiggestFish(trip) {
-  return [...(trip.catches || [])].sort((a, b) => (
-    (shareNumber(b.weight) || 0) - (shareNumber(a.weight) || 0)
-    || (shareNumber(b.length) || 0) - (shareNumber(a.length) || 0)
+  const catches = Array.isArray(trip.catches) ? trip.catches : [];
+  const weighted = catches.filter((fish) => shareNumber(fish.weight) > 0);
+  const candidates = weighted.length ? weighted : catches.filter((fish) => shareNumber(fish.length) > 0);
+  return [...candidates].sort((a, b) => (
+    (weighted.length ? shareNumber(b.weight) : shareNumber(b.length)) - (weighted.length ? shareNumber(a.weight) : shareNumber(a.length))
   ))[0] || null;
 }
 
@@ -377,7 +379,7 @@ function shareReportHtml(trip) {
   const biggestLabel = biggest ? [biggestSize, biggest.species || "Fish"].filter(Boolean).join(" ") : "No landed fish";
   const fishPerHour = metrics.hours ? trimNumber(metrics.landed / metrics.hours) : "Not logged";
   const launchHeaderTime = trip.launchTime ? shareStatTime(trip.launchTime) : "";
-  const biggestWeight = biggest?.weight ? displayStoredMeasurement(biggest.weight, "fishWeight") : "Not logged";
+  const biggestWeight = biggest ? shareFormatSize(biggest) : "Not logged";
   const fowRange = overview.find(([label]) => label === "Water depth")?.[1] || "Not logged";
   const headerMeta = [
     formatDate(trip.date),

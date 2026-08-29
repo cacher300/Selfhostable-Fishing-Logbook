@@ -154,6 +154,7 @@ const els = {
   tripForm: document.querySelector("#tripForm"),
   tripFormMessage: document.querySelector("#tripFormMessage"),
   saveTripButton: document.querySelector("#saveTripButton"),
+  saveTripDraftButtons: document.querySelectorAll("[data-trip-draft-save]"),
   tripDialogTitle: document.querySelector("#tripDialogTitle"),
   tripDialogMeta: document.querySelector("#tripDialogMeta"),
   tripSaveBar: document.querySelector("#tripSaveBar"),

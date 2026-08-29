@@ -158,6 +158,17 @@ function renderProbeTemperatureProfileReport(profile = []) {
   return `<div class="report-probe-scroll"><div class="report-probe-profile">${readings.map((entry) => `<span><b>${escapeHtml(formatUnitValue(Number(entry.depthFeet), "depth", "ft", { decimals: 0 }))}</b><em>${escapeHtml(displayStoredMeasurement(entry.temperature, "waterTemperature"))}</em></span>`).join("")}</div></div>`;
 }
 
+function biggestCatchMeasurement(catches = []) {
+  const records = Array.isArray(catches) ? catches : [];
+  const largest = (field) => records
+    .map((catchItem) => Number(String(catchItem?.[field] || "").match(/[\d.]+/)?.[0]) || 0)
+    .reduce((value, measurement) => Math.max(value, measurement), 0);
+  const weight = largest("weight");
+  if (weight) return { value: weight, unit: "fishWeight" };
+  const length = largest("length");
+  return length ? { value: length, unit: "fishLength" } : null;
+}
+
 function renderReportSetupTable(trip) {
   const rows = trip.gearUsed || [];
   const trolling = isTrollingTripRecord(trip);
@@ -178,9 +189,7 @@ function renderTripReport(trip) {
   const species = tripSpeciesSummary(trip);
   const landed = (trip.catches || []).reduce((total, item) => total + fishCount(item), 0);
   const lost = (trip.lostFish || []).length;
-  const biggestFishWeight = [...(trip.catches || [])]
-    .map((catchItem) => Number(String(catchItem.weight || "").match(/[\d.]+/)?.[0]) || 0)
-    .reduce((largest, weight) => Math.max(largest, weight), 0);
+  const biggestFish = biggestCatchMeasurement(trip.catches);
   const hours = tripHours(trip);
   const fishPerHour = hours ? trimNumber(landed / hours) : "";
   const hero = null;
@@ -190,7 +199,7 @@ function renderTripReport(trip) {
   const mapRecords = catchMapRecordsForTrip(trip);
   return `<article class="trip-report">
     <header class="report-header"><div class="report-header-copy"><p class="report-date">${escapeHtml(reportMeta)}${trip.location ? ` · ${escapeHtml(displayTitleText(trip.location))}` : ""}</p><h3>${escapeHtml(displayTitleText(trip.title || trip.location || "Trip report"))}</h3><p class="report-subtitle">${escapeHtml([trip.targetSpecies, trip.method].filter(Boolean).map(displayTitleText).join(" · ") || "Fishing trip report")}</p><div class="report-actions"><button class="button primary" type="button" data-report-action="edit">Edit trip</button><button class="button secondary" type="button" data-report-action="share">Share trip</button></div></div>${hero ? `<button class="report-hero-photo" type="button" data-report-open-photo aria-label="Open trip photo">${mediaMarkup(hero, "report-hero-asset", { download: false })}</button>` : ""}</header>
-    <section class="report-stat-strip">${[["Landed", landed], ["Missed / lost", lost], ["Biggest fish", biggestFishWeight ? displayStoredMeasurement(biggestFishWeight, "fishWeight") : ""], ["Fish / hr", fishPerHour], ["Hours", trimNumber(hours)], ["Species", species.count]].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value === "" || value === null || value === undefined ? "Not logged" : value))}</strong></div>`).join("")}</section>
+    <section class="report-stat-strip">${[["Landed", landed], ["Missed / lost", lost], ["Biggest fish", biggestFish ? displayStoredMeasurement(biggestFish.value, biggestFish.unit) : ""], ["Fish / hr", fishPerHour], ["Hours", trimNumber(hours)], ["Species", species.count]].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value === "" || value === null || value === undefined ? "Not logged" : value))}</strong></div>`).join("")}</section>
     <section class="report-notes"><h3>Trip notes</h3><p>${escapeHtml(trip.notes || "Not logged")}</p></section>
     <div class="report-fact-grid report-overview-grid">${renderReportKeyValue("Trip details", overview)}${renderReportKeyValue("Conditions", conditions)}${(trip.probeTemperatureProfile || []).some((entry) => entry && Number.isFinite(Number(entry.depthFeet)) && String(entry.temperature || "").trim()) ? `<section class="report-fact-section report-probe-section"><h3>Probe temperature profile</h3>${renderProbeTemperatureProfileReport(trip.probeTemperatureProfile)}</section>` : ""}</div>
     ${isTrollingTripRecord(trip) ? `<section class="report-spread"><div class="report-section-title"><h3>Trolling spread</h3></div>${renderTrollingSpread(trip)}</section>` : ""}
