@@ -27,6 +27,7 @@ let chopRangesEditing = false;
 let chopRangesEditSnapshot = null;
 let activeDefaultTrollingSpreadTargetSpecies = "";
 let databaseExportInProgress = false;
+let databaseImportInProgress = false;
 
 function setSettingsSaveStatus(text = "Autosave on", status = "") {
   if (!els.settingsSaveStatus) return;
@@ -105,7 +106,13 @@ async function importDatabaseArchive(event) {
   if (!confirm("Importing a backup replaces the current logbook data. Uploaded photos in the backup will be restored. Continue?")) return;
 
   const button = els.importDatabaseButton;
+  if (databaseImportInProgress) return;
+  databaseImportInProgress = true;
   if (button) button.disabled = true;
+  if (button) {
+    button.classList.add("is-loading");
+    button.setAttribute("aria-busy", "true");
+  }
   setDatabaseBackupStatus("Importing backup...");
   try {
     const formData = new FormData();
@@ -124,6 +131,11 @@ async function importDatabaseArchive(event) {
     setDatabaseBackupStatus(error.message || "Database import failed.");
     alert(error.message || "Database import failed.");
   } finally {
-    if (button) button.disabled = false;
+    databaseImportInProgress = false;
+    if (button) {
+      button.disabled = false;
+      button.classList.remove("is-loading");
+      button.setAttribute("aria-busy", "false");
+    }
   }
 }

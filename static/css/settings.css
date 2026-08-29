@@ -182,6 +182,10 @@
   font-size: inherit;
 }
 
+.database-backup-status {
+  flex-basis: 100%;
+}
+
 .settings-control {
   display: grid;
   gap: 8px;

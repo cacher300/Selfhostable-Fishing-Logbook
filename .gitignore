@@ -2,6 +2,7 @@
 data/logbook.json
 data/uploads/
 data/mobile-direct-import.zip
+data/.secret_key
 
 # Python runtime/cache files.
 __pycache__/

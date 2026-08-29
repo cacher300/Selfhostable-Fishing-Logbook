@@ -40,8 +40,6 @@ function mediaMarkup(item, className = "", options = {}) {
         class="media-download-link"
         href="${escapeHtml(originalSource)}"
         download="${escapeHtml(mediaDownloadName(item))}"
-        target="_blank"
-        rel="noreferrer"
         aria-label="Download original image"
         title="Download original"
       >

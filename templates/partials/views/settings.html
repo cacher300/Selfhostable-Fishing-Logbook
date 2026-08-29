@@ -66,9 +66,9 @@
                 </div>
                 <div class="settings-row database-backup-actions">
                   <button class="button secondary" id="exportDatabaseButton" type="button"><span class="button-loading-icon" aria-hidden="true"></span><span>Export Database</span></button>
-                  <button class="button secondary" id="importDatabaseButton" type="button">Import Database</button>
+                  <button class="button secondary" id="importDatabaseButton" type="button"><span class="button-loading-icon" aria-hidden="true"></span><span>Import Database</span></button>
                   <input class="visually-hidden" id="importDatabaseInput" type="file" accept=".zip,application/zip" />
-                  <span class="visually-hidden" id="databaseBackupStatus" aria-live="polite"></span>
+                  <span class="database-backup-status" id="databaseBackupStatus" role="status" aria-live="polite"></span>
                 </div>
               </section>
             </div>

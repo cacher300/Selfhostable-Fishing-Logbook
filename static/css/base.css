@@ -497,7 +497,18 @@ button {
   display: none;
 }
 
+#importDatabaseButton.is-loading::before {
+  display: none;
+}
+
 #exportDatabaseButton.is-loading {
+  background: #8a9199;
+  border-color: #8a9199;
+  color: #fff;
+  opacity: 1;
+}
+
+#importDatabaseButton.is-loading {
   background: #8a9199;
   border-color: #8a9199;
   color: #fff;
