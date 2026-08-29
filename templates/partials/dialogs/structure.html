@@ -1,0 +1,21 @@
+<dialog id="structureDialog" class="dialog small-dialog structure-dialog">
+      <form id="structureForm" method="dialog" novalidate>
+        <div class="dialog-header">
+          <div>
+            <h2>Add structure</h2>
+            <p class="dialog-supporting-text">Create a reusable label for this catch.</p>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <div class="structure-form-body">
+          <label for="structureName">Structure name</label>
+          <input id="structureName" type="text" autocomplete="off" placeholder="e.g. Drop-off" aria-describedby="structureNameHint structureFormMessage" />
+          <p class="structure-field-hint" id="structureNameHint">This option will be available in future catch forms.</p>
+          <div class="form-message hidden" id="structureFormMessage" role="alert"></div>
+        </div>
+        <div class="dialog-actions">
+          <button class="button secondary" value="cancel" type="button" data-close-dialog>Cancel</button>
+          <button class="button primary" type="submit">Add structure</button>
+        </div>
+      </form>
+    </dialog>

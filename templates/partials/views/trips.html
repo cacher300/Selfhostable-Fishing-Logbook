@@ -1,0 +1,37 @@
+<section class="controls" id="tripControls" aria-label="Trip filters">
+          <label class="search-box">
+            <span>Search</span>
+            <input id="searchInput" type="search" placeholder="Location, species, lure, notes" />
+          </label>
+          <label>
+            <span>Target</span>
+            <select id="targetFilter"></select>
+          </label>
+          <label>
+            <span>Method</span>
+            <select id="methodFilter"></select>
+          </label>
+          <label>
+            <span>Year</span>
+            <select id="yearFilter"></select>
+          </label>
+          <label>
+            <span>Sort</span>
+            <select id="sortSelect">
+              <option value="custom" hidden>Column sort</option>
+              <option value="date-desc">Newest first</option>
+              <option value="date-asc">Oldest first</option>
+              <option value="catch-rate-desc">Best catch rate</option>
+              <option value="caught-desc">Most fish</option>
+              <option value="hours-desc">Most hours</option>
+            </select>
+          </label>
+        </section>
+
+<section class="table-card" id="tripListPanel" aria-label="Trip list">
+          <div class="trip-table" id="tripTable"></div>
+          <div class="empty-state hidden" id="emptyState">
+            <h3>No trips match your filters</h3>
+            <p>Add a trip or adjust your filters to see your logbook here.</p>
+          </div>
+        </section>

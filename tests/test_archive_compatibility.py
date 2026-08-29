@@ -187,6 +187,49 @@ def test_queue_claim_rolls_back_when_target_metadata_write_fails() -> None:
             assert not [path for path in (uploads / "catch-photos").rglob("*") if path.is_file()]
 
 
+def test_queue_copy_keeps_source_and_preview_for_review() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        database = root / "logbook.sqlite3"
+        uploads = root / "uploads"
+        queue = uploads / "queue"
+        previews = queue / "_previews"
+        previews.mkdir(parents=True)
+        source = queue / "queued.jpg"
+        source.write_bytes(b"queued-original")
+        source_metadata = queue / "queued.jpg.json"
+        source_metadata.write_text(json.dumps({"mediaType": "image", "previewFilename": "custom-preview.jpg"}))
+        source_preview = previews / "custom-preview.jpg"
+        source_preview.write_bytes(b"queued-preview")
+
+        with (
+            patch.object(logbook_store, "DATABASE_FILE", database),
+            patch.object(media_service, "UPLOADS_DIR", uploads),
+            patch("server.DATA_DIR", root),
+        ):
+            logbook_store.write_logbook({"schemaVersion": 1, "trips": [], "lures": [], "flashers": []})
+            app = create_app({"TESTING": True, "SECRET_KEY": "queue-copy-test"})
+            with app.test_client() as client:
+                csrf = client.get("/api/csrf-token").get_json()["csrfToken"]
+                response = client.post(
+                    "/api/photo-queue/copy",
+                    json={"filename": "queued.jpg", "targetCategory": "catch-photos"},
+                    headers={"X-CSRF-Token": csrf},
+                )
+
+            assert response.status_code == 200
+            copied = response.get_json()
+            target = uploads / "catch-photos" / copied["filename"]
+            target_metadata = target.with_name(f"{target.name}.json")
+            target_preview = uploads / "catch-photos" / "_previews" / copied["previewFilename"]
+            assert source.read_bytes() == b"queued-original"
+            assert source_metadata.is_file()
+            assert source_preview.read_bytes() == b"queued-preview"
+            assert target.read_bytes() == b"queued-original"
+            assert target_metadata.is_file()
+            assert target_preview.read_bytes() == b"queued-preview"
+
+
 def test_queue_delete_removes_metadata_named_preview() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)

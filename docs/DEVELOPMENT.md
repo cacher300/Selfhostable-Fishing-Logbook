@@ -27,7 +27,8 @@ docker compose down
 - `backend/logbook_store.py`: normalization, validation, SQLite I/O.
 - `backend/media_service.py`: uploads, previews, gallery, reference/orphan handling.
 - `backend/weather_service.py`: proxy and weather reduction helpers.
-- `index.html`: all screens, dialogs, and templates.
+- `templates/index.html` and `templates/partials/`: server-rendered shell, screens, dialogs, and row templates.
+- `index.html` and `standalone.html`: direct-file bootstrap and generated localStorage fallback.
 - `static/js/`: global browser scripts by concern.
 - `static/css/styles.css`: all styling and responsive rules.
 - `scripts/backup-logbook.sh`: portable, opt-in backup and cron installation.
@@ -70,8 +71,11 @@ Useful static checks:
 
 ```powershell
 py -m compileall server.py backend
+py scripts/build-standalone.py --check
 rg -n "TODO|FIXME|deprecated|tripTypes|patterns" . -g "!.venv/**" -g "!data/**"
 ```
+
+After changing frontend templates, regenerate the optional direct-file fallback with `py scripts/build-standalone.py`. Flask development does not require this generation step.
 
 The Flask URL map can be inspected with:
 

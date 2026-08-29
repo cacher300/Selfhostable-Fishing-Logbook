@@ -17,6 +17,7 @@ const context = {
 
 vm.createContext(context);
 vm.runInContext(fs.readFileSync("static/js/app-state.js", "utf8"), context);
+vm.runInContext(fs.readFileSync("static/js/app-normalization.js", "utf8"), context);
 
 const normalized = vm.runInContext(`normalizeBoatLayout({
   name: "  Lake boat  ",

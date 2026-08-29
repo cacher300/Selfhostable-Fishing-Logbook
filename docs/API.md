@@ -100,7 +100,7 @@ Files are served from their category paths. Category validation occurs through t
 ## SPA and Static Routes
 
 - `/` redirects to `/trips`.
-- `/trips`, `/expeditions`, `/stats`, `/map`, `/gear`, `/gallery`, `/settings` return `index.html`.
+- `/trips`, `/expeditions`, `/stats`, `/map`, `/gear`, `/gallery`, `/settings` render `templates/index.html` and its feature partials.
 - `/static/<path:filename>` serves only `.css` and `.js` files beneath `static/`.
 - `/favicon.ico` returns 204.
 

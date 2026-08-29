@@ -22,6 +22,8 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync("static/js/app-config.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/app-defaults.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/app-state.js", "utf8"), context);
+vm.runInContext(fs.readFileSync("static/js/app-normalization.js", "utf8"), context);
+vm.runInContext(fs.readFileSync("static/js/app-units.js", "utf8"), context);
 
 const center = { latitude: 43, longitude: -79 };
 const north = { latitude: 43.001, longitude: -79 };

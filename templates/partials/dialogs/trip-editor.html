@@ -1,0 +1,270 @@
+<dialog id="tripDialog" class="dialog">
+      <form id="tripForm" method="dialog" novalidate>
+        <div class="dialog-header">
+          <div>
+            <h2 id="tripDialogTitle">New Trip</h2>
+            <p class="trip-dialog-meta" id="tripDialogMeta">Today's trip</p>
+          </div>
+          <div class="trip-dialog-header-actions">
+            <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+            <button class="button primary" type="submit" data-trip-save>Save</button>
+            <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+          </div>
+        </div>
+
+        <input type="hidden" id="tripId" />
+        <div class="form-message hidden" id="tripFormMessage" role="alert"></div>
+        <nav class="trip-section-nav" aria-label="Trip form sections">
+          <a href="#tripBasicsSection" class="is-active">Basics</a>
+          <a href="#tripPeopleSection">People</a>
+          <a href="#tripSetupSection">Setup</a>
+          <a href="#tripCatchesSection">Catches</a>
+          <a href="#tripLostFishSection">Lost</a>
+          <a href="#tripNotesSection">Photos</a>
+        </nav>
+
+        <div class="trip-overview-layout">
+          <div class="trip-overview-main">
+        <section class="trip-form-section" id="tripBasicsSection">
+          <div class="section-heading">
+            <div>
+              <h3>Trip Basics</h3>
+              <p>General information about this fishing trip.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span>Trip title</span>
+              <input id="tripTitle" type="text" placeholder="Evening troll" />
+            </label>
+            <label>
+              <span>Date</span>
+              <div class="styled-date-field" data-calendar-field="tripDateValue">
+                <input id="tripDate" class="styled-date-display" type="text" inputmode="numeric" autocomplete="off" required placeholder="mm/dd/yyyy" aria-label="Trip date" />
+                <input id="tripDateValue" class="styled-date-value" type="date" tabindex="-1" aria-hidden="true" />
+                <button class="calendar-trigger" type="button" data-calendar-trigger="tripDateValue" aria-label="Open trip date calendar">▾</button>
+                <div class="calendar-popover hidden" data-calendar-popover="tripDateValue"></div>
+              </div>
+            </label>
+            <label class="trip-expedition-field">
+              <span>Expedition</span>
+              <div class="inline-control-row">
+                <select id="tripExpedition">
+                  <option value="">No expedition</option>
+                </select>
+                <button class="button secondary compact-action" id="addExpeditionFromTripButton" type="button" aria-label="Create new expedition">New</button>
+              </div>
+            </label>
+            <div class="location-field">
+              <span>Location / waterbody</span>
+              <div class="inline-control-row">
+                <select id="tripLocation" required></select>
+                <button class="icon-button" id="addLocationButton" type="button" aria-label="Add location">+</button>
+              </div>
+              <datalist id="personOptions"></datalist>
+            </div>
+            <div class="location-field">
+              <span>Launch / Area Fished</span>
+              <div class="inline-control-row">
+                <select id="tripLaunch"></select>
+                <button class="icon-button" id="addLaunchButton" type="button" aria-label="Add launch or area fished">+</button>
+              </div>
+            </div>
+            <label>
+              <span>Target species</span>
+              <select id="targetSpecies" required></select>
+            </label>
+            <label>
+              <span>Method</span>
+              <select id="method"></select>
+            </label>
+            <fieldset class="trip-time-field">
+              <div class="trip-time-inputs">
+                <label>
+                  <span>Launch time</span>
+                  <input id="launchTime" type="time" />
+                </label>
+                <label>
+                  <span>Lines pulled time</span>
+                  <input id="linesPulledTime" type="time" />
+                </label>
+                <label>
+                  <span>Idle time (hours)</span>
+                  <input id="tripIdleTime" type="number" min="0" step="0.25" placeholder="0" />
+                </label>
+              </div>
+            </fieldset>
+            <!-- Kept hidden for legacy trips; new trips use launch time as their start. -->
+            <input id="linesSetTime" type="hidden" />
+            <div class="trip-basics-water-fields">
+              <label>
+                <span data-unit-label="waterTemperature" data-unit-label-text="Water temperature">Water temperature</span>
+                <input id="waterTemp" type="text" placeholder="54 F" />
+              </label>
+              <label>
+                <span>Water clarity</span>
+                <select id="waterClarity"></select>
+              </label>
+              <label>
+                <span data-unit-label="depth" data-unit-label-text="FOW range">FOW range</span>
+                <input id="structure" type="text" placeholder="40-60 FOW" />
+              </label>
+            </div>
+            <fieldset class="intent-control">
+              <legend>Trip intent</legend>
+              <label>
+                <input type="radio" name="tripIntent" value="serious" checked />
+                <span>Serious</span>
+              </label>
+              <label>
+                <input type="radio" name="tripIntent" value="experimental" />
+                <span>Experimental</span>
+              </label>
+            </fieldset>
+            <div class="trip-rating-control">
+              <div class="rating-heading">
+                <span>Trip rating</span>
+                <strong id="tripRatingLabel">Bad</strong>
+              </div>
+              <input id="tripRating" type="range" min="1" max="4" step="1" value="1" />
+              <div class="rating-scale" aria-hidden="true">
+                <span>Bad</span>
+                <span>Mediocre</span>
+                <span>Good</span>
+                <span>Outstanding</span>
+              </div>
+            </div>
+          </div>
+        </section>
+          </div>
+          <aside class="weather-fetch-panel" aria-label="Weather conditions">
+            <header class="weather-card-header">
+              <div class="weather-card-title">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H7a4 4 0 0 1-.5-7.97A6 6 0 0 1 18 10a4.5 4.5 0 0 1-.5 9Z"/><path d="M8 4V2m8 3 1.5-1.5M4.5 8 3 6.5"/></svg>
+                <h4>Weather</h4>
+              </div>
+              <div class="weather-card-source">
+                <span id="weatherSummaryLocation">Select location</span>
+                <button id="resyncWeatherButton" type="button">Resync <span aria-hidden="true">&#8635;</span></button>
+              </div>
+            </header>
+            <p class="weather-card-status" id="weatherFetchStatus">Choose a mapped location and date</p>
+            <div class="weather-summary" id="weatherSummary" aria-live="polite">
+              <div class="weather-data-row"><span>Temperature</span><b id="weatherSummaryTemperature">-</b></div>
+              <label class="weather-data-row weather-control-row"><span>Weather</span><select id="weather"></select></label>
+              <div class="weather-data-row"><span>Wind</span><b id="weatherSummaryWind">-</b></div>
+              <div class="weather-data-row"><span>Gusts</span><b id="weatherSummaryGusts">-</b></div>
+              <div class="weather-data-row"><span>Cloud Cover</span><b id="weatherSummaryCloudCover">-</b></div>
+              <div class="weather-data-row"><span>Precipitation</span><b id="weatherSummaryPrecipitation">-</b></div>
+              <div class="weather-data-row"><span>Pressure</span><b id="weatherSummaryPressure">-</b></div>
+              <label class="weather-data-row weather-control-row">
+                <span data-unit-label="waveHeight" data-unit-label-text="Wave height">Wave Height</span>
+                <input id="waveHeight" type="text" placeholder="Not available" />
+              </label>
+            </div>
+            <small class="weather-summary-updated" id="weatherSummaryUpdated"></small>
+          </aside>
+        </div>
+
+        <section class="probe-temperature-section trip-probe-temperature-section trolling-field" aria-labelledby="probeTemperatureHeading">
+          <div class="probe-temperature-heading">
+            <div>
+              <h4 id="probeTemperatureHeading">Probe temperature profile</h4>
+            </div>
+            <span data-unit-label="waterTemperature" data-unit-label-text="Temperature">Temperature</span>
+          </div>
+          <div class="probe-temperature-scroll">
+            <div id="probeTemperatureGrid" class="probe-temperature-grid" aria-label="Probe temperature readings by depth"></div>
+          </div>
+        </section>
+
+        <section class="trip-form-section people-editor" id="tripPeopleSection">
+          <div class="section-heading">
+            <div>
+              <h3>People</h3>
+              <p>Everyone who fished on this trip.</p>
+            </div>
+          </div>
+          <button class="button secondary" id="addPersonButton" type="button">Add Person</button>
+          <div id="personRows" class="person-rows"></div>
+        </section>
+
+        <section class="trip-form-section gear-used-editor" id="tripSetupSection">
+          <div class="section-heading">
+            <div>
+              <h3>Setup Timeline</h3>
+              <p>Rods and gear used throughout the trip.</p>
+            </div>
+            <div class="section-actions">
+              <button class="button secondary trolling-field" id="importLastTrollingSpreadButton" type="button">Import Last Spread</button>
+              <button class="button secondary" id="addTripGearButton" type="button">Add Rod</button>
+            </div>
+          </div>
+          <div id="tripGearRows" class="gear-used-rows"></div>
+          <div id="tripTrollingSpreadPreview" class="trolling-spread-editor trolling-field">
+            <div class="trolling-spread-editor-heading">
+              <h4>Trolling Spread</h4>
+            </div>
+            <div id="tripTrollingSpreadCanvas"></div>
+          </div>
+        </section>
+
+        <section class="trip-form-section catch-editor" id="tripCatchesSection">
+          <div class="section-heading">
+            <div>
+              <h3>Catches</h3>
+              <p>Autofill catch rows from queued photos grouped by a 3-minute capture-time gap. Originals stay in the queue so you can review catch and trip photos before removing anything.</p>
+            </div>
+            <div class="section-actions">
+              <button class="button secondary" id="autofillQueueCatchesButton" type="button">Autofill from Queue</button>
+              <button class="button secondary" id="addCatchButton" type="button">Add Catch</button>
+            </div>
+          </div>
+          <p class="catch-queue-autofill-status" id="catchQueueAutofillStatus" role="status" aria-live="polite"></p>
+          <div id="catchRows" class="catch-rows"></div>
+        </section>
+
+        <section class="trip-form-section catch-editor" id="tripLostFishSection">
+          <div class="section-heading">
+            <div>
+              <h3>Missed Fish</h3>
+            </div>
+            <button class="button secondary" id="addLostFishButton" type="button">Add Missed Fish</button>
+          </div>
+          <div id="lostFishRows" class="catch-rows"></div>
+        </section>
+
+        <section class="trip-form-section note-attachments" id="tripNotesSection">
+          <div class="section-heading">
+            <div>
+              <h3>Photos And Notes</h3>
+              <p>Trip media and the details you want to remember.</p>
+            </div>
+            <div class="section-actions">
+              <label class="button file-button catch-media-action">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+                Upload Media
+                <input id="notePhotoInput" type="file" accept="image/*,.heic,.heif,video/*" multiple />
+              </label>
+              <button class="button catch-media-action" type="button" data-use-photo-queue="trip-photos">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4h8v8H4zM6 2h4M6 14h4" /></svg>
+                Use Queue
+              </button>
+            </div>
+          </div>
+          <label class="wide-label">
+            <span>Trip notes</span>
+            <textarea id="tripNotes" rows="4" placeholder="Pattern, timing, launch notes, what you would change next time"></textarea>
+          </label>
+          <div id="notePhotoGrid" class="note-photo-grid"></div>
+        </section>
+
+        <div class="dialog-actions trip-save-bar" id="tripSaveBar" aria-live="polite">
+          <button class="button danger" id="deleteTripButton" type="button">Delete</button>
+          <div>
+            <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+            <button class="button primary" id="saveTripButton" type="submit" data-trip-save>Save Changes</button>
+          </div>
+        </div>
+      </form>
+    </dialog>

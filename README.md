@@ -18,10 +18,10 @@ The complete audited feature list is in [docs/FEATURE_INVENTORY.md](docs/FEATURE
 ## Technology and Storage
 
 - Backend: Flask/Python.
-- Frontend: plain HTML, CSS, and JavaScript; no build step.
+- Frontend: Flask/Jinja HTML partials with plain CSS and JavaScript; no build step for normal server use.
 - Persistence: `data/logbook.sqlite3`.
 - Uploads: `data/uploads/<category>/` with JSON metadata sidecars and image previews.
-- Direct-file fallback: opening `index.html` uses browser localStorage, but uploads and external-data proxies require Flask.
+- Direct-file fallback: opening `index.html` redirects to the generated `standalone.html` and uses browser localStorage, but uploads and external-data proxies require Flask.
 
 SQLite stores the normalized logbook in transactionally updated collections. The API and JSON export format remain unchanged; compatibility normalization runs whenever it is read or written.
 

@@ -553,7 +553,8 @@
   #tripDialog .catch-identity-row > label:first-child,
   #tripDialog .catch-identity-row .catch-species-field,
   #tripDialog .catch-identity-row .possible-species-field,
-  #tripDialog .catch-identity-row .catch-spot-field {
+  #tripDialog .catch-identity-row .catch-spot-field,
+  #tripDialog .catch-identity-row .catch-structure-field {
     width: 100%;
     max-width: none;
     flex: 1 1 auto;

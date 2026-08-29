@@ -1,0 +1,35 @@
+<dialog id="boatEquipmentDialog" class="dialog small-dialog">
+      <form id="boatEquipmentForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <h2 id="boatEquipmentDialogTitle">Add Boat Equipment</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <input id="editingBoatEquipmentId" type="hidden" />
+        <div class="form-grid one-column">
+          <label>
+            <span>Equipment name</span>
+            <input id="boatEquipmentName" type="text" maxlength="50" required placeholder="Helm fish finder" />
+          </label>
+          <label>
+            <span>Equipment type</span>
+            <select id="boatEquipmentType"></select>
+          </label>
+          <label>
+            <span>Equipment photo</span>
+            <input id="boatEquipmentImage" type="file" accept="image/*,.heic,.heif" />
+          </label>
+          <div id="boatEquipmentImagePreview" class="boat-equipment-image-preview hidden"></div>
+          <label id="addBoatEquipmentToDeckRow" class="checkbox-field">
+            <input id="addBoatEquipmentToDeck" type="checkbox" checked />
+            <span>Add this equipment to the deck after saving</span>
+          </label>
+        </div>
+        <div class="dialog-actions end-only">
+          <button class="button danger hidden" id="deleteBoatEquipmentButton" type="button">Delete Equipment</button>
+          <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+          <button class="button primary" type="submit">Save Equipment</button>
+        </div>
+      </form>
+    </dialog>

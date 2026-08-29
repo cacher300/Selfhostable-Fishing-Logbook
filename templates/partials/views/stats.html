@@ -1,0 +1,397 @@
+<section class="stats-page hidden" id="advancedStatsPanel" aria-label="Fishing performance statistics">
+          <header class="stats-page-header">
+            <div class="stats-scope" id="statsActiveScope" aria-live="polite">All time · All methods</div>
+            <div class="stats-page-actions">
+              <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
+              <button class="button secondary" id="leaderboardViewButton" type="button">Leaderboard</button>
+            </div>
+          </header>
+          <div class="stats-toolbar">
+            <label>
+              <span>Date range</span>
+              <select id="statsDateFilter">
+                <option value="all">All time</option>
+                <option value="season">This season</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+            </label>
+            <label>
+              <span>Method</span>
+              <select id="statsMethodFilter"></select>
+            </label>
+            <label>
+              <span>Species</span>
+              <select id="statsSpeciesFilter"></select>
+            </label>
+            <label>
+              <span>Person</span>
+              <select id="statsPersonFilter"></select>
+            </label>
+            <label>
+              <span>Location</span>
+              <select id="statsLocationFilter"></select>
+            </label>
+            <label>
+              <span>Launch</span>
+              <select id="statsLaunchFilter"></select>
+            </label>
+            <label>
+              <span>Lure</span>
+              <select id="statsLureFilter"></select>
+            </label>
+            <details class="stats-more-filters">
+              <summary>More filters</summary>
+              <div>
+                <label>
+                  <span>Sort performance</span>
+                  <select id="statsSortFilter">
+                    <option value="fishPerHour">Fish / hour</option>
+                    <option value="fish">Fish caught</option>
+                    <option value="hours">Hours used</option>
+                    <option value="fishPerTrip">Fish / trip</option>
+                    <option value="efficiencyIndex">Efficiency index</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Min trips</span>
+                  <input id="statsMinTripsInput" type="number" min="0" step="1" value="0" />
+                </label>
+                <label>
+                  <span>Min hours</span>
+                  <input id="statsMinHoursInput" type="number" min="0" step="0.25" value="0" />
+                </label>
+                <label class="inline-toggle">
+                  <input id="statsIncludeLostToggle" type="checkbox" />
+                  <span>Rank by strike opportunities</span>
+                </label>
+                <label>
+                  <span>Flasher</span>
+                  <select id="statsFlasherFilter"></select>
+                </label>
+                <label>
+                  <span>Water clarity</span>
+                  <select id="statsWaterClarityFilter"></select>
+                </label>
+                <label>
+                  <span>Weather</span>
+                  <select id="statsWeatherFilter"></select>
+                </label>
+                <label>
+                  <span>Month</span>
+                  <select id="statsMonthFilter"></select>
+                </label>
+                <label>
+                  <span>Rating</span>
+                  <select id="statsRatingFilter"></select>
+                </label>
+              </div>
+            </details>
+          </div>
+          <div class="metric-grid" id="advancedMetricGrid"></div>
+          <section class="stats-overview-grid" aria-label="Stats overview">
+            <article class="analytics-card stats-overview-primary show-chart" data-default-view="chart">
+              <h3>Catch Overview</h3>
+              <div class="analytics-table" id="tripTrendStatsTable"></div>
+            </article>
+            <article class="analytics-card show-chart" data-default-view="chart">
+              <h3>Top Species</h3>
+              <div class="analytics-table" id="speciesOverviewStatsTable"></div>
+            </article>
+          </section>
+          <div class="analytics-groups">
+            <details class="stats-group">
+              <summary>
+                <span>Catch results &amp; patterns</span>
+                <small>Outcome, species mix, release rate, target success, and bite timing</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card wide-card">
+                  <h3>Outcome Breakdown</h3>
+                  <div class="analytics-table" id="outcomeStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Species Breakdown</h3>
+                  <div class="analytics-table" id="speciesStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Lost Fish</h3>
+                  <div class="analytics-table" id="lostFishStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Time Of Day</h3>
+                  <div class="analytics-table" id="timeOfDayStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Release Patterns</h3>
+                  <div class="analytics-table" id="releaseStatsTable"></div>
+                </article>
+              </div>
+            </details>
+
+            <details class="stats-group">
+              <summary>
+                <span>Lure performance</span>
+                <small>Time-adjusted lure return, plus trolling flashers and combinations when trolling is selected</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Performance</h3>
+                  <div class="analytics-table" id="lureStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Usage Vs Fish Share</h3>
+                  <div class="analytics-table" id="lureShareStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card">
+                  <h3>Lure Spread Context</h3>
+                  <div class="analytics-table" id="lureSpreadStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Type Performance</h3>
+                  <div class="analytics-table" id="lureTypeStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Color Performance</h3>
+                  <div class="analytics-table" id="lureColorStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
+                  <h3>Flasher Performance</h3>
+                  <div class="analytics-table" id="flasherStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card show-chart" data-default-view="chart" data-trolling-card>
+                  <h3>Lure + Flasher Combos</h3>
+                  <div class="analytics-table" id="comboStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card" data-trolling-card>
+                  <h3>Trolling Highlights</h3>
+                  <div class="analytics-table" id="trollingHighlightsTable"></div>
+                </article>
+              </div>
+            </details>
+
+            <details class="stats-group" data-trolling-group>
+              <summary>
+                <span>Trolling stats</span>
+                <small>Port vs starboard, method, direction, flasher, combination, FOW, and depth</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Trolling Direction Performance</h3>
+                  <div class="analytics-table" id="directionStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Best GPS Speed by Direction</h3>
+                  <div class="analytics-table" id="directionSpeedStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Line Side Performance</h3>
+                  <div class="analytics-table" id="lineSideStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Trolling Method Performance</h3>
+                  <div class="analytics-table" id="trollingSetupStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Deepest Rigger Performance</h3>
+                  <div class="analytics-table" id="downriggerStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>FOW Fish Distribution</h3>
+                  <div class="analytics-table" id="fowRangeStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Exact FOW Caught</h3>
+                  <div class="analytics-table" id="fowStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Depth Down</h3>
+                  <div class="analytics-table" id="depthDownStatsTable"></div>
+                </article>
+              </div>
+            </details>
+
+            <details class="stats-group stats-group-new-data" data-trolling-group>
+              <summary>
+                <span>Speed, spread &amp; water column</span>
+                <small>Ball speed, GPS speed, shaker, spread distance, and probe temperature analytics</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>GPS Speed Performance</h3>
+                  <div class="analytics-table" id="gpsSpeedStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Ball Speed Performance</h3>
+                  <div class="analytics-table" id="ballSpeedStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Ball vs GPS Speed</h3>
+                  <div class="analytics-table" id="speedDeltaStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Shaker Rate</h3>
+                  <div class="analytics-table" id="shakerStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Distance Behind Performance</h3>
+                  <div class="analytics-table" id="distanceBehindStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card">
+                  <h3>Probe Temperature Profile</h3>
+                  <div class="analytics-table" id="probeTemperatureStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card show-chart" data-default-view="chart">
+                  <h3>Fish Position vs Thermocline</h3>
+                  <div class="analytics-table" id="thermoclineStatsTable"></div>
+                </article>
+              </div>
+            </details>
+
+            <details class="stats-group">
+              <summary>
+                <span>Trip patterns</span>
+                <small>Method, location, angler, month, fishing confidence, and trip rating</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Location Breakdown</h3>
+                  <div class="analytics-table" id="locationStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Method Breakdown</h3>
+                  <div class="analytics-table" id="methodStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Person Breakdown</h3>
+                  <div class="analytics-table" id="personStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Month Patterns</h3>
+                  <div class="analytics-table" id="monthStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Fishing Confidence</h3>
+                  <div class="analytics-table" id="intentStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Trip Rating Breakdown</h3>
+                  <div class="analytics-table" id="ratingStatsTable"></div>
+                </article>
+              </div>
+            </details>
+
+            <details class="stats-group">
+              <summary>
+                <span>Conditions</span>
+                <small>Water clarity, weather tag, wind, pressure, cloud cover, fronts, and moon windows</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Water Clarity Breakdown</h3>
+                  <div class="analytics-table" id="waterClarityStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Weather Breakdown</h3>
+                  <div class="analytics-table" id="weatherStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Wind Direction</h3>
+                  <div class="analytics-table" id="windDirectionStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Wind Speed</h3>
+                  <div class="analytics-table" id="windSpeedStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Pressure</h3>
+                  <div class="analytics-table" id="pressureStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Cloud Cover</h3>
+                  <div class="analytics-table" id="cloudCoverStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Air Temperature</h3>
+                  <div class="analytics-table" id="airTempStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Sunshine</h3>
+                  <div class="analytics-table" id="sunshineStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Weather Trend</h3>
+                  <div class="analytics-table" id="weatherTrendStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Front Tag</h3>
+                  <div class="analytics-table" id="frontTagStatsTable"></div>
+                </article>
+                <article class="analytics-card wide-card">
+                  <h3>Best Bite Windows</h3>
+                  <div class="analytics-table" id="biteWindowStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Moon Phase</h3>
+                  <div class="analytics-table" id="moonPhaseStatsTable"></div>
+                </article>
+                <article class="analytics-card">
+                  <h3>Moon Window</h3>
+                  <div class="analytics-table" id="moonWindowStatsTable"></div>
+                </article>
+              </div>
+            </details>
+
+          </div>
+          <section class="stats-help" aria-label="Stats legend">
+            <div class="section-heading">
+              <h3>Stats Legend</h3>
+            </div>
+            <div class="stats-help-grid">
+              <article>
+                <h4>Performance Columns</h4>
+                <dl>
+                  <div><dt>Fish</dt><dd>Landed fish counted in the current stats scope.</dd></div>
+                  <div><dt>Hours</dt><dd>Logged fishing time, lure time, flasher time, or setup time when that data exists.</dd></div>
+                  <div><dt>Missing time data</dt><dd>Fish or trips exist, but no usable category hours were logged. Fish/hr, Time %, Efficiency, and Over are intentionally hidden.</dd></div>
+                  <div><dt>Fish / hr</dt><dd>Fish divided by hours. This is the main efficiency metric when time is available.</dd></div>
+                  <div><dt>Fish / trip</dt><dd>Fish divided by trips where that item or category appeared.</dd></div>
+                  <div><dt>Time %</dt><dd>Percent of selected fishing time spent using that item or category.</dd></div>
+                  <div><dt>Fish %</dt><dd>Percent of selected landed fish produced by that item or category.</dd></div>
+                  <div><dt>Quiet while others hit</dt><dd>Trips where the lure was used, caught nothing, and another lure caught fish.</dd></div>
+                  <div><dt>Only producer trips</dt><dd>Trips where that lure caught fish and no other lure caught fish.</dd></div>
+                </dl>
+              </article>
+              <article>
+                <h4>Efficiency Signals</h4>
+                <dl>
+                  <div><dt>Efficiency</dt><dd>Fish % divided by Time %. Above 1 means it produced more fish than its share of time.</dd></div>
+                  <div><dt>Over</dt><dd>Fish % minus Time %. Positive means overperforming; negative means underperforming.</dd></div>
+                  <div><dt>Skunk</dt><dd>Percent of trips in that category with zero landed fish.</dd></div>
+                  <div><dt>Lost</dt><dd>Lost fish count shown only when you turn on Include lost fish or a row has meaningful lost-fish data.</dd></div>
+                </dl>
+              </article>
+              <article>
+                <h4>Confidence</h4>
+                <dl>
+                  <div><dt>Low</dt><dd>Fewer than 3 trips, or fewer than 5 hours.</dd></div>
+                  <div><dt>Medium</dt><dd>3 to 5 trips and 5 to 15 hours.</dd></div>
+                  <div><dt>High</dt><dd>6+ trips and 15+ hours.</dd></div>
+                  <div><dt>Min sample</dt><dd>The Min trips and Min hours controls hide rows below your chosen sample size.</dd></div>
+                </dl>
+              </article>
+              <article>
+                <h4>Labels</h4>
+                <dl>
+                  <div><dt>High efficiency</dt><dd>Strong return for the time spent.</dd></div>
+                  <div><dt>Overused / low return</dt><dd>Gets a lot of time but produces a smaller share of fish.</dd></div>
+                  <div><dt>Needs more data</dt><dd>Promising or weak result, but the sample is still small.</dd></div>
+                  <div><dt>Consistent producer</dt><dd>Good fish count with a rate near or above average.</dd></div>
+                  <div><dt>Watch list</dt><dd>Enough to track, but not clearly high efficiency, low return, or consistent yet.</dd></div>
+                  <div><dt>Best observed rate</dt><dd>The highest fish/hour seen so far, even if confidence is still low.</dd></div>
+                  <div><dt>Best reliable performer</dt><dd>The best fish/hour among rows with Medium or High confidence.</dd></div>
+                </dl>
+              </article>
+            </div>
+          </section>
+        </section>

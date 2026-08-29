@@ -1,0 +1,94 @@
+<section class="boat-page hidden" id="boatPanel" aria-label="Boat gear layout">
+          <header class="boat-layout-intro">
+            <div>
+              <h3>Build your deck plan</h3>
+              <p>Drag equipment onto the quick-connect dots, then move it anytime. Every point holds one item.</p>
+            </div>
+            <label class="boat-name-field">
+              <span>Boat name</span>
+              <input id="boatNameInput" type="text" maxlength="50" placeholder="My boat" autocomplete="off" />
+            </label>
+          </header>
+
+          <div class="boat-layout-workspace">
+            <div class="boat-layout-main">
+              <section class="boat-quick-add-card" aria-labelledby="boatEquipmentLibraryHeading">
+                <div class="boat-card-heading">
+                  <div>
+                    <h4 id="boatEquipmentLibraryHeading">Equipment library</h4>
+                    <p>Save equipment once, then drag it directly onto any open deck dot.</p>
+                  </div>
+                  <div class="boat-library-actions">
+                    <span id="boatItemCount" class="boat-item-count">0 of 52 on deck</span>
+                    <button class="button primary" id="newBoatEquipmentButton" type="button">Add equipment</button>
+                  </div>
+                </div>
+                <div id="boatEquipmentLibrary" class="boat-equipment-library" aria-label="Saved boat equipment"></div>
+              </section>
+
+              <section class="boat-diagram-card" aria-labelledby="boatDiagramHeading">
+                <div class="boat-diagram-toolbar">
+                  <div>
+                    <h4 id="boatDiagramHeading">Deck layout</h4>
+                    <p>Drop equipment onto a dot, or drag a placed item between quick-connect points.</p>
+                  </div>
+                  <button class="button secondary" id="clearBoatLayoutButton" type="button">Clear deck</button>
+                </div>
+
+                <div class="boat-layout-stage" id="boatLayoutStage">
+                  <span class="boat-orientation boat-orientation-bow">Bow</span>
+                  <span class="boat-orientation boat-orientation-port">Port</span>
+                  <span class="boat-orientation boat-orientation-starboard">Starboard</span>
+                  <span class="boat-orientation boat-orientation-stern">Stern</span>
+                  <svg class="boat-hull" viewBox="0 0 500 625" aria-hidden="true">
+                    <path class="boat-hull-shadow" d="M250 18C159 37 98 111 79 221L54 497c-5 58 35 104 91 110h210c56-6 96-52 91-110l-25-276C402 111 341 37 250 18Z" />
+                    <path class="boat-hull-body" d="M250 11C155 31 91 108 71 219L46 496c-6 65 39 116 101 122h206c62-6 107-57 101-122l-25-277C409 108 345 31 250 11Z" />
+                    <path class="boat-hull-rail" d="M250 30C168 48 113 118 95 224L71 494c-4 48 27 86 77 93h204c50-7 81-45 77-93l-24-270C387 118 332 48 250 30Z" />
+                    <path class="boat-windshield" d="M159 163Q250 121 341 163L324 207Q250 179 176 207Z" />
+                    <path class="boat-console" d="M176 219h148v62H176z" />
+                    <path class="boat-stern-line" d="M92 506h316" />
+                  </svg>
+                  <div id="boatSlotGrid" class="boat-slot-grid" aria-label="Boat deck positions"></div>
+                  <div id="boatLayoutEmpty" class="boat-layout-empty">
+                    <strong>Your deck is empty</strong>
+                    <span>Drag equipment from the library onto a deck dot.</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <aside class="boat-inspector-card" aria-labelledby="boatInspectorHeading">
+              <div class="boat-card-heading">
+                <div>
+                  <h4 id="boatInspectorHeading">Equipment</h4>
+                  <p>Edit or move the selected item.</p>
+                </div>
+                <span id="boatSaveStatus" class="boat-save-status" role="status" aria-live="polite">Saved</span>
+              </div>
+
+              <div id="boatInspectorEmpty" class="boat-inspector-empty">
+                Select an item on the diagram to edit it.
+              </div>
+
+              <div id="boatInspectorEditor" class="boat-inspector-editor hidden">
+                <div id="boatSelectedEquipment" class="boat-selected-equipment"></div>
+                <button class="button secondary" id="editBoatEquipmentButton" type="button">Edit equipment details</button>
+                <fieldset class="boat-move-controls">
+                  <legend>Move one position</legend>
+                  <div>
+                    <button type="button" data-boat-move="up" aria-label="Move toward bow">↑</button>
+                    <button type="button" data-boat-move="left" aria-label="Move to port">←</button>
+                    <button type="button" data-boat-move="right" aria-label="Move to starboard">→</button>
+                    <button type="button" data-boat-move="down" aria-label="Move toward stern">↓</button>
+                  </div>
+                </fieldset>
+                <button class="button danger" id="removeBoatItemButton" type="button">Remove from deck</button>
+              </div>
+
+              <div class="boat-equipment-list-wrap">
+                <h5>Items on deck</h5>
+                <div id="boatEquipmentList" class="boat-equipment-list"></div>
+              </div>
+            </aside>
+          </div>
+        </section>

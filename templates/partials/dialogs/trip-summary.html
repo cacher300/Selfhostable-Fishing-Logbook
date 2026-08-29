@@ -1,0 +1,20 @@
+<dialog id="tripSummaryDialog" class="dialog trip-summary-dialog">
+      <div class="trip-summary-shell">
+        <div class="dialog-header">
+          <div class="trip-summary-header-title">
+            <p class="eyebrow">Trip summary</p>
+            <h2 id="tripSummaryTitle">Trip Summary</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <div id="tripSummaryBody" class="trip-summary-body"></div>
+        <div class="dialog-actions">
+          <button class="button danger" id="summaryDeleteTripButton" type="button">Delete</button>
+          <div>
+            <button class="button secondary" id="summaryShareTripButton" type="button">Share Trip</button>
+            <button class="button secondary" type="button" data-close-dialog>Close</button>
+            <button class="button primary" id="summaryEditTripButton" type="button">Edit Trip</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
