@@ -29,11 +29,6 @@ done
 mkdir -p data
 
 echo "Building and starting Selfhostable Fishing Logbook..."
-if ! $COMPOSE up --build -d --wait; then
-  echo "The container did not become healthy. Recent container status and logs:" >&2
-  $COMPOSE ps >&2 || true
-  $COMPOSE logs --tail=100 >&2 || true
-  exit 1
-fi
+$COMPOSE up --build -d
 
 echo "Selfhostable Fishing Logbook is running at $APP_URL"
