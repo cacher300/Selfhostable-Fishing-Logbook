@@ -131,7 +131,9 @@ function personalBestItems() {
     const current = bySpecies.get(species);
     if (!current || comparePersonalBestCatches(record, current) > 0) bySpecies.set(species, record);
   });
-  return [...bySpecies.values()].sort((a, b) => String(a.species).localeCompare(String(b.species)));
+  return [...bySpecies.values()].sort((a, b) => (
+    comparePersonalBestCatches(b, a) || String(a.species).localeCompare(String(b.species))
+  ));
 }
 
 function comparePersonalBestTimeline(a, b) {

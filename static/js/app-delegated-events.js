@@ -413,7 +413,7 @@ document.addEventListener("click", (event) => {
   const deletePrivateLocationButton = event.target.closest("[data-delete-private-location]");
   if (deletePrivateLocationButton) {
     const next = collectPrivatePhotoLocationSettings().filter((location) => location.id !== deletePrivateLocationButton.dataset.deletePrivateLocation);
-    activePrivatePhotoLocationId = next[0]?.id || "";
+    activePrivatePhotoLocationId = "";
     if (privateLocationNameEditId === deletePrivateLocationButton.dataset.deletePrivateLocation) privateLocationNameEditId = "";
     savePrivatePhotoLocations(next);
   }
@@ -427,7 +427,7 @@ document.addEventListener("click", (event) => {
     const impact = [automaticCount ? `${automaticCount} automatic ${automaticCount === 1 ? "catch will be re-matched" : "catches will be re-matched"}` : "", manualCount ? `${manualCount} manual ${manualCount === 1 ? "catch will become unassigned" : "catches will become unassigned"}` : ""].filter(Boolean).join(". ");
     if (confirm(`Delete “${spot?.name || "this spot"}”?${impact ? ` ${impact}.` : ""}`)) {
       const next = collectFishingSpotSettings().filter((item) => item.id !== spotId);
-      activeFishingSpotId = next[0]?.id || "";
+      activeFishingSpotId = "";
       if (fishingSpotNameEditId === spotId) fishingSpotNameEditId = "";
       saveFishingSpots(next);
     }

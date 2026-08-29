@@ -79,8 +79,9 @@
 
 .personal-best-body {
   display: grid;
+  align-content: start;
   gap: 14px;
-  padding: 16px;
+  padding: 16px 18px 14px;
 }
 
 .personal-best-title-row {
@@ -141,7 +142,17 @@
 
 .personal-best-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.personal-best-actions .compact-action {
+  width: auto;
+  min-width: 0;
+  border-radius: 8px;
 }
 
 .personal-best-progression {

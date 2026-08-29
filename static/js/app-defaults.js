@@ -165,7 +165,7 @@ const defaults = {
   ],
   methods: ["Trolling", "Casting", "Jigging", "Drifting", "Fly Fishing", "Bait Fishing", "Ice Fishing", "Shore Fishing"],
   riggings: structuredClone(defaultRiggingOptions),
-  lureTypes: ["Blade Bait", "Crankbait", "Dropshot", "Flasher/Fly", "Fly", "Jig", "Jerkbait", "Meat Rig", "Other", "Plug", "Soft Plastic", "Spoon", "Spinner", "Swimbait", "Topwater", "Worm Harness"],
+  lureTypes: ["Blade Bait", "Crankbait", "Dropshot", "Flasher/Fly", "Fly", "Jerkbait", "Jig", "Meat Rig", "Other", "Plug", "Soft Plastic", "Spinner", "Spoon", "Swimbait", "Topwater", "Worm Harness"],
   flasherTypes: ["Paddle", "Dodger", "Spin Doctor", "Meat Rig", "Attractor", "Other"],
   waterClarities: structuredClone(defaultWaterClarityOptions),
   structureOptions: structuredClone(defaultStructureOptions),

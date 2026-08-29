@@ -12,7 +12,7 @@ function ensureActiveFishingSpot(spots = fishingSpots()) {
     activeFishingSpotId = "";
     return "";
   }
-  if (!spots.some((spot) => spot.id === activeFishingSpotId)) activeFishingSpotId = spots[0].id;
+  if (!spots.some((spot) => spot.id === activeFishingSpotId)) activeFishingSpotId = "";
   return activeFishingSpotId;
 }
 
@@ -85,9 +85,12 @@ function renderFishingSpotSettings() {
   if (!els.fishingSpotList) return;
   const spots = fishingSpots();
   const activeId = ensureActiveFishingSpot(spots);
+  const orderedSpots = activeId
+    ? [spots.find((spot) => spot.id === activeId), ...spots.filter((spot) => spot.id !== activeId)].filter(Boolean)
+    : spots;
   state.spots = spots;
   const radiusConfig = fishingSpotRadiusSliderConfig();
-  els.fishingSpotList.innerHTML = spots.length ? spots.map((spot) => {
+  els.fishingSpotList.innerHTML = orderedSpots.length ? orderedSpots.map((spot) => {
     const count = fishingSpotCatchCount(spot.id);
     return `
       <article class="private-location-card${spot.id === activeId ? " is-selected" : ""}" data-fishing-spot-id="${escapeHtml(spot.id)}" aria-current="${spot.id === activeId ? "true" : "false"}">
@@ -266,7 +269,7 @@ function ensureActivePrivatePhotoLocation(locations = privatePhotoLocations()) {
     return "";
   }
   if (!locations.some((location) => location.id === activePrivatePhotoLocationId)) {
-    activePrivatePhotoLocationId = locations[0].id;
+    activePrivatePhotoLocationId = "";
   }
   return activePrivatePhotoLocationId;
 }
@@ -275,12 +278,15 @@ function renderPrivatePhotoLocationSettings() {
   if (!els.privatePhotoLocationList) return;
   const locations = privatePhotoLocations();
   const activeLocationId = ensureActivePrivatePhotoLocation(locations);
+  const orderedLocations = activeLocationId
+    ? [locations.find((location) => location.id === activeLocationId), ...locations.filter((location) => location.id !== activeLocationId)].filter(Boolean)
+    : locations;
   state.settings = {
     ...(state.settings || {}),
     privatePhotoLocations: locations
   };
   const radiusConfig = privateLocationRadiusSliderConfig();
-  els.privatePhotoLocationList.innerHTML = locations.length ? locations.map((location) => `
+  els.privatePhotoLocationList.innerHTML = orderedLocations.length ? orderedLocations.map((location) => `
     <article class="private-location-card${location.id === activeLocationId ? " is-selected" : ""}" data-private-location-id="${escapeHtml(location.id)}" aria-current="${location.id === activeLocationId ? "true" : "false"}">
       <div class="private-location-card-head">
           <div class="private-location-name-row">
@@ -403,8 +409,8 @@ function renderPrivatePhotoLocationMap() {
       await savePrivatePhotoLocations(next);
     });
   });
-  if (locations.length) {
-    const activeLocation = locations.find((location) => location.id === activePrivatePhotoLocationId) || locations[0];
+  const activeLocation = locations.find((location) => location.id === activePrivatePhotoLocationId);
+  if (activeLocation) {
     privatePhotoLocationMap.setView(
       [activeLocation.coordinates.latitude, activeLocation.coordinates.longitude],
       privatePhotoLocationMap.getZoom()
