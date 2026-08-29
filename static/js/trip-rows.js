@@ -73,6 +73,7 @@ function clearUnknownCatchDetails(row) {
     ".catch-time",
     ".catch-time-unknown",
     ".catch-released",
+    ".catch-structure",
     ".catch-water-depth",
     ".catch-depth-down",
     ".catch-latitude",
@@ -204,7 +205,6 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-photo-title").classList.toggle("hidden", lost);
   node.querySelector(".catch-photo-editor").classList.toggle("hidden", lost);
   node.querySelector(".catch-spot-field").classList.toggle("hidden", lost);
-  node.querySelector(".catch-structure-field").classList.toggle("hidden", lost);
 
   populatePersonSelect(node.querySelector(".catch-person"), catchItem.personId || "");
   populateOptionSelect(node.querySelector(".catch-species"), state.species, "Select species");

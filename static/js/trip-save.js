@@ -76,7 +76,7 @@ function collectTripFromForm() {
         weight: lost ? "" : row.querySelector(".catch-weight").value.trim(),
         spotAssignmentMode: lost ? "automatic" : (spotSelection === "__automatic__" ? "automatic" : "manual"),
         spotId: lost || spotSelection.startsWith("__") ? "" : spotSelection,
-        structureType: lost || detailsUnknown ? "" : row.querySelector(".catch-structure").value,
+        structureType: detailsUnknown ? "" : row.querySelector(".catch-structure").value,
         time: detailsUnknown ? "" : row.querySelector(".catch-time").value,
         timeUnknown: detailsUnknown ? false : row.querySelector(".catch-time-unknown").checked,
         waterDepth: detailsUnknown ? "" : row.querySelector(".catch-water-depth").value.trim(),
