@@ -26,6 +26,7 @@ test_python_app:
     - test -f server.py
     - test -f requirements.txt
     - test -f index.html
+    - test -f templates/index.html
 
 test_javascript:
   stage: validate
