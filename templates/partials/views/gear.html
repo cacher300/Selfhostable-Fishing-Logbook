@@ -1,0 +1,91 @@
+<section class="gear-page hidden" id="gearPanel" aria-label="Gear inventory">
+          <div class="gear-header gear-page-header">
+            <div class="gear-tabs" id="gearTabs" role="tablist" aria-label="Gear inventory sections">
+              <button class="gear-tab" type="button" data-gear-tab="reels">Reels</button>
+              <button class="gear-tab" type="button" data-gear-tab="rods">Rods</button>
+              <button class="gear-tab is-active" type="button" data-gear-tab="combos">Combos</button>
+              <button class="gear-tab" type="button" data-gear-tab="line">Line Tracker</button>
+              <button class="gear-tab" type="button" data-gear-tab="baits">Baits</button>
+              <button class="gear-tab" type="button" data-gear-tab="flashers">Flashers</button>
+              <button class="gear-tab" type="button" data-gear-tab="tackle-boxes">Tackle Boxes</button>
+            </div>
+            <div class="gear-actions">
+              <button class="button primary gear-standard-action" id="newLibraryReelButton" type="button">New Reel</button>
+              <button class="button primary gear-standard-action" id="newLibraryRodButton" type="button">New Rod</button>
+              <button class="button primary gear-standard-action" id="newLibraryLureButton" type="button">New Lure</button>
+              <button class="button primary gear-standard-action" id="newLibraryFlasherButton" type="button">New Flasher</button>
+              <button class="button primary gear-standard-action" id="newLibraryComboButton" type="button">New Combo</button>
+              <button class="button primary hidden" id="newTackleBoxButton" type="button">New Tackle Box</button>
+            </div>
+          </div>
+          <div class="gear-inventory-controls" aria-label="Gear table controls">
+            <label class="settings-control">
+              <span>Filter by</span>
+              <select id="gearFilterField"></select>
+            </label>
+            <label class="settings-control gear-filter-query">
+              <input id="gearFilterQuery" type="search" placeholder="Filter gear" autocomplete="off" />
+              <div id="gearFilterSuggestions" class="gear-filter-suggestions hidden" role="listbox" aria-label="Filter suggestions"></div>
+            </label>
+            <button class="button secondary" id="clearGearFilterButton" type="button">Clear</button>
+          </div>
+          <div id="gearTabPanels" class="gear-tab-panels">
+            <section class="gear-tab-panel hidden" data-gear-panel="reels">
+              <div class="gear-header">
+                <div>
+                  <h3>Reels</h3>
+                </div>
+              </div>
+              <div class="inventory-table" id="reelInventoryTable"></div>
+            </section>
+            <section class="gear-tab-panel hidden" data-gear-panel="rods">
+              <div class="gear-header">
+                <div>
+                  <h3>Rods</h3>
+                </div>
+              </div>
+              <div class="inventory-table" id="rodInventoryTable"></div>
+            </section>
+            <section class="gear-tab-panel" data-gear-panel="combos">
+              <div class="gear-header">
+                <div>
+                  <h3>Combos</h3>
+                </div>
+              </div>
+              <div class="inventory-table" id="comboInventoryTable"></div>
+            </section>
+            <section class="gear-tab-panel hidden" data-gear-panel="line">
+              <div class="gear-header">
+                <div>
+                  <h3>Line Tracker</h3>
+                </div>
+              </div>
+              <div class="inventory-table" id="lineTrackerTable"></div>
+            </section>
+            <section class="gear-tab-panel hidden" data-gear-panel="baits">
+              <div class="gear-header">
+                <div>
+                  <h3>Lures</h3>
+                </div>
+              </div>
+              <div class="inventory-table" id="baitInventoryTable"></div>
+            </section>
+            <section class="gear-tab-panel hidden" data-gear-panel="flashers">
+              <div class="gear-header">
+                <div>
+                  <h3>Flashers</h3>
+                </div>
+              </div>
+              <div class="inventory-table" id="flasherInventoryTable"></div>
+            </section>
+            <section class="gear-tab-panel tackle-box-panel hidden" data-gear-panel="tackle-boxes">
+              <div class="gear-header tackle-box-panel-header">
+                <div>
+                  <h3>Tackle Boxes</h3>
+                  <p>Create as many boxes as you need, assign a color, and open each one to see what is packed inside.</p>
+                </div>
+              </div>
+              <div id="tackleBoxGrid" class="tackle-box-grid"></div>
+            </section>
+          </div>
+        </section>

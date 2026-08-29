@@ -1,0 +1,51 @@
+<section class="map-page hidden" id="mapPanel" aria-label="Fish catch map">
+          <div class="map-header">
+            <div id="mapLegend" class="map-header-legend"></div>
+            <div class="map-tools">
+              <label>
+                <span>Species</span>
+                <select id="mapSpeciesFilter"></select>
+              </label>
+              <label id="mapYearFilterControl">
+                <span>Year</span>
+                <select id="mapYearFilter"></select>
+              </label>
+              <label class="inline-toggle map-media-toggle">
+                <input id="mapTripPhotosToggle" type="checkbox" />
+                <span>Show photos</span>
+              </label>
+              <details class="map-more-filters">
+                <summary>More filters</summary>
+                <div class="map-more-filters-panel">
+                  <label class="inline-toggle map-year-filter-toggle">
+                    <input id="mapHideYearFilterToggle" type="checkbox" checked />
+                    <span>Hide year filtering</span>
+                  </label>
+                </div>
+              </details>
+              <details class="map-layers-menu">
+                <summary>Layers</summary>
+                <div class="map-layers-menu-panel">
+                  <label class="map-basemap-select">
+                    <span>Basemap</span>
+                    <select id="mapBasemap">
+                      <option value="standard">Standard</option>
+                      <option value="dark">Dark</option>
+                      <option value="minimal">Minimal</option>
+                    </select>
+                  </label>
+                  <label class="inline-toggle map-chart-toggle">
+                    <input id="mapNoaaChartsToggle" type="checkbox" checked />
+                    <span>NOAA charts</span>
+                  </label>
+                  <div id="greatLakesConditions"></div>
+                </div>
+              </details>
+            </div>
+          </div>
+          <div id="fishMap" class="fish-map"></div>
+          <details class="map-results-tray" open>
+            <summary>Trip results</summary>
+            <div id="mapCatchList" class="map-catch-list"></div>
+          </details>
+        </section>

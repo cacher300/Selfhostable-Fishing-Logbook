@@ -22,7 +22,7 @@ const context = {
 vm.createContext(context);
 vm.runInContext(fs.readFileSync("static/js/tackle-boxes.js", "utf8"), context);
 assert.ok(fs.existsSync("static/vendor/anime-3.2.2.min.js"));
-assert.match(fs.readFileSync("index.html", "utf8"), /static\/vendor\/anime-3\.2\.2\.min\.js/);
+assert.match(fs.readFileSync("standalone.html", "utf8"), /static\/vendor\/anime-3\.2\.2\.min\.js/);
 assert.equal(vm.runInContext("typeof animateTackleBoxState", context), "function");
 const tackleBoxCss = fs.readFileSync("static/css/tackle-boxes.css", "utf8");
 assert.match(

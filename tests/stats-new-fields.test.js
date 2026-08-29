@@ -13,6 +13,8 @@ const context = {
 };
 
 vm.createContext(context);
+vm.runInContext(fs.readFileSync("static/js/stats-scope.js", "utf8"), context);
+vm.runInContext(fs.readFileSync("static/js/stats-performance.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/stats.js", "utf8"), context);
 
 assert.equal(context.saneStatsNumber("", { min: 0 }), null);

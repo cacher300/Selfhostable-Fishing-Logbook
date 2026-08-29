@@ -1,6 +1,7 @@
 @import url("base.css");
 @import url("locations.css");
 @import url("dialogs.css");
+@import url("trip-media.css");
 @import url("trip-editor.css");
 @import url("expeditions.css");
 @import url("personal-bests-patterns.css");
@@ -8,6 +9,7 @@
 @import url("trolling-spread.css");
 @import url("timeline-detail.css");
 @import url("trip-report.css");
+@import url("share-report.css");
 @import url("stats.css");
 @import url("gear.css");
 @import url("boat-layout.css");

@@ -1,0 +1,52 @@
+<dialog id="expeditionDialog" class="dialog expedition-dialog">
+      <form id="expeditionForm" method="dialog" novalidate>
+        <div class="dialog-header">
+          <div>
+            <h2 id="expeditionDialogTitle">New Expedition</h2>
+            <p class="trip-dialog-meta">Group the trips from a multi-day fishing vacation.</p>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <input id="expeditionId" type="hidden" />
+        <div class="form-message hidden" id="expeditionFormMessage" role="alert"></div>
+        <div class="form-grid expedition-form-grid">
+          <label class="expedition-name-field">
+            <span>Name</span>
+            <input id="expeditionName" type="text" required maxlength="120" placeholder="Lake Erie Summer Week" />
+          </label>
+          <label>
+            <span>Start date</span>
+            <div class="styled-date-field" data-calendar-field="expeditionStartDateValue">
+              <input id="expeditionStartDate" class="styled-date-display" type="text" inputmode="numeric" autocomplete="off" required placeholder="mm/dd/yyyy" aria-label="Start date" />
+              <input id="expeditionStartDateValue" class="styled-date-value" type="date" tabindex="-1" aria-hidden="true" />
+              <button class="calendar-trigger" type="button" data-calendar-trigger="expeditionStartDateValue" aria-label="Open start date calendar">▾</button>
+              <div class="calendar-popover hidden" data-calendar-popover="expeditionStartDateValue"></div>
+            </div>
+          </label>
+          <label>
+            <span>End date</span>
+            <div class="styled-date-field" data-calendar-field="expeditionEndDateValue">
+              <input id="expeditionEndDate" class="styled-date-display" type="text" inputmode="numeric" autocomplete="off" required placeholder="mm/dd/yyyy" aria-label="End date" />
+              <input id="expeditionEndDateValue" class="styled-date-value" type="date" tabindex="-1" aria-hidden="true" />
+              <button class="calendar-trigger" type="button" data-calendar-trigger="expeditionEndDateValue" aria-label="Open end date calendar">▾</button>
+              <div class="calendar-popover hidden" data-calendar-popover="expeditionEndDateValue"></div>
+            </div>
+          </label>
+          <label class="expedition-destination-field">
+            <span>Destination</span>
+            <input id="expeditionDestination" type="text" maxlength="160" placeholder="Lake Erie · Barcelona, NY" />
+          </label>
+          <label class="expedition-notes-field">
+            <span>Notes</span>
+            <textarea id="expeditionNotes" rows="5" placeholder="Who came, what you targeted, and what made the week memorable"></textarea>
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button class="button danger hidden" id="deleteExpeditionButton" type="button">Delete</button>
+          <div>
+            <button class="button secondary" value="cancel" type="button" data-close-dialog>Cancel</button>
+            <button class="button primary" type="submit">Save Expedition</button>
+          </div>
+        </div>
+      </form>
+    </dialog>

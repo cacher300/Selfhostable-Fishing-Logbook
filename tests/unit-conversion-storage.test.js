@@ -14,6 +14,7 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync("static/js/app-config.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/app-defaults.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/app-state.js", "utf8"), context);
+vm.runInContext(fs.readFileSync("static/js/app-units.js", "utf8"), context);
 
 const previousUnits = {
   depth: "ft", speed: "mph", windSpeed: "mph", waterTemperature: "F",

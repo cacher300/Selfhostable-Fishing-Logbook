@@ -188,7 +188,7 @@ const filteredResult = JSON.parse(JSON.stringify(filteredGearRows));
 assert.equal(filteredResult.find((row) => row.id === "silver-lure").landed, 2);
 assert.equal(filteredResult.find((row) => row.id === "green-lure").landed, 0);
 
-const indexMarkup = fs.readFileSync("index.html", "utf8");
+const indexMarkup = fs.readFileSync("standalone.html", "utf8");
 assert.doesNotMatch(indexMarkup, /Boat leaderboard|Deck performance|statsEquipmentLeaderboard/);
 assert.match(indexMarkup, /Fishing leaderboard/);
 assert.match(indexMarkup, /Fishing gear/);

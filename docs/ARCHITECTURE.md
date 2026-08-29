@@ -23,16 +23,17 @@ flowchart LR
 
 ### Frontend
 
-`index.html` contains all six routed screens, dialogs, and row templates. Scripts are loaded as classic global scripts in dependency order; there are no modules, package manager, compilation, or bundling.
+`templates/index.html` composes routed screens, dialogs, and row templates from feature partials under `templates/partials/`. Flask renders the composition at request time. `standalone.html` is a generated copy for direct-file fallback, reached through the small root `index.html` bootstrap. Scripts are loaded as classic global scripts in dependency order; there are no modules, package manager, compilation, or bundling.
 
-- `app-state.js`: defaults, shared state, DOM handles, normalization, units, load/save, media rendering.
-- `app.js`: route/view switching and event delegation.
-- `trip-editor.js`, `form-utils.js`, `trolling-spread.js`: trip lifecycle and method-specific fishing behavior.
+- `app-state.js`, `app-normalization.js`, `app-units.js`, `app-persistence.js`: shared state, normalization, measurement display, and load/save behavior.
+- `app.js`, `app-control-events.js`, `app-delegated-events.js`: route/view startup plus direct and delegated event wiring.
+- `trip-editor.js`, `trip-rows.js`, `trip-save.js`, `form-utils.js`, `trolling-spread.js`: trip lifecycle, repeated catch/setup rows, persistence, and method-specific fishing behavior.
 - `locations.js`, `location-weather.js`: mapped locations and environmental enrichment.
 - `photos.js`, `gallery.js`: metadata extraction, upload assignment, gallery, cleanup.
-- `gear.js`: lure, flasher, rod, reel, combo, and line-history workflows.
-- `dashboard.js`, `stats.js`, `maps-summary.js`: lists, analytics, maps, summary reports, spread, timeline.
-- `settings.js`, `data-transfer.js`: preferences and import/export.
+- `gear-core.js`, `gear-pickers.js`, `gear-dialogs.js`, `gear-inventory.js`: gear media/naming, custom selectors, editor workflows, and inventory rendering.
+- `dashboard.js`, `stats-scope.js`, `stats-performance.js`, `stats.js`, `stats-rendering.js`: trip lists, analytics scoping/calculation, page composition, and reusable chart/table rendering.
+- `maps.js`, `trip-summary.js`, `trip-report.js`, `trip-timeline.js`: global/trip maps, summary details, reports, and event timelines.
+- `settings-core.js`, `settings.js`, `settings-fields.js`, `settings-locations.js`: preference orchestration, import/export, editable option groups, and mapped private locations/spots.
 
 Shared mutable globals couple these files. HTML IDs/classes are effectively internal APIs.
 

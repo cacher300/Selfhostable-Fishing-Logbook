@@ -1,0 +1,61 @@
+<dialog id="tackleBoxDialog" class="dialog">
+      <form id="tackleBoxForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <h2 id="tackleBoxDialogTitle">New Tackle Box</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <input id="editingTackleBoxId" type="hidden" />
+        <div class="tackle-box-editor-layout">
+          <section class="tackle-box-details" aria-labelledby="tackleBoxDetailsHeading">
+            <h3 id="tackleBoxDetailsHeading">Box details</h3>
+            <label>
+              <span>Name</span>
+              <input id="tackleBoxName" type="text" maxlength="50" required placeholder="Salmon spoons" />
+            </label>
+            <label>
+              <span>Box style</span>
+              <select id="tackleBoxStyle">
+                <option value="organizer">Tray organizer · small tackle</option>
+                <option value="cantilever">Cantilever gear box · larger tackle</option>
+              </select>
+            </label>
+            <label>
+              <span>Layers</span>
+              <select id="tackleBoxLayerCount">
+                <option value="2">2 trays · 30 compartments</option>
+                <option value="3" selected>3 trays · 45 compartments</option>
+                <option value="4">4 trays · 60 compartments</option>
+              </select>
+            </label>
+            <fieldset class="tackle-color-picker">
+              <legend>Box color</legend>
+              <div id="tackleBoxColorOptions"></div>
+            </fieldset>
+            <div class="tackle-editor-layer-tabs" id="tackleBoxEditorLayerTabs" aria-label="Preview layer"></div>
+            <div id="tackleBoxEditorPreview"></div>
+          </section>
+          <section class="tackle-box-assignment" aria-labelledby="tackleBoxContentsHeading">
+            <div class="tackle-box-assignment-heading">
+              <div>
+                <h3 id="tackleBoxContentsHeading">Pack this box</h3>
+                <p>Select saved fishing gear, then choose the layer where it belongs.</p>
+              </div>
+              <label>
+                <span class="visually-hidden">Search gear</span>
+                <input id="tackleBoxItemSearch" type="search" placeholder="Search gear" autocomplete="off" />
+              </label>
+            </div>
+            <div id="tackleBoxItemPicker" class="tackle-box-item-picker"></div>
+          </section>
+        </div>
+        <div class="dialog-actions">
+          <button class="button danger hidden" id="deleteTackleBoxButton" type="button">Delete Tackle Box</button>
+          <div>
+            <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+            <button class="button primary" type="submit">Save Tackle Box</button>
+          </div>
+        </div>
+      </form>
+    </dialog>

@@ -226,6 +226,61 @@
   width: min(520px, calc(100vw - 32px));
 }
 
+.structure-dialog {
+  width: min(480px, calc(100vw - 32px));
+}
+
+.structure-dialog form {
+  display: grid;
+  gap: 0;
+}
+
+.structure-dialog .dialog-header {
+  margin-bottom: 20px;
+}
+
+.dialog-supporting-text {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.structure-form-body {
+  display: grid;
+  gap: 8px;
+}
+
+.structure-form-body > label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.structure-form-body > input {
+  width: 100%;
+}
+
+.structure-field-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.structure-form-body .form-message {
+  margin: 4px 0 0;
+}
+
+.structure-dialog .dialog-actions {
+  justify-content: flex-end;
+  margin-top: 24px;
+  margin-right: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+  padding: 0;
+  border-top: 0;
+}
+
 .location-dialog {
   width: min(900px, calc(100vw - 32px));
 }

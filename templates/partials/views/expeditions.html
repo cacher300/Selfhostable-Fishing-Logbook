@@ -1,0 +1,31 @@
+<section class="expeditions-page hidden" id="expeditionsPanel" aria-label="Expeditions">
+          <aside class="expedition-rail" aria-label="Expedition list">
+            <div class="expedition-rail-tools">
+              <label class="expedition-search">
+                <span class="visually-hidden">Search expeditions</span>
+                <input id="expeditionSearchInput" type="search" placeholder="Search expeditions..." />
+              </label>
+              <label class="expedition-sort-control">
+                <span>Sort by</span>
+                <select id="expeditionSortSelect">
+                  <option value="start-desc">Start date (newest)</option>
+                  <option value="start-asc">Start date (oldest)</option>
+                  <option value="name-asc">Name (A–Z)</option>
+                </select>
+              </label>
+            </div>
+            <div class="expedition-list" id="expeditionList"></div>
+            <div class="expedition-list-empty hidden" id="expeditionListEmpty">
+              <h3>No expeditions yet</h3>
+              <p>Create one to group the trips from your next fishing vacation.</p>
+              <button class="button primary" type="button" data-new-expedition>Create Expedition</button>
+            </div>
+          </aside>
+
+          <div class="expedition-detail" id="expeditionDetail">
+            <div class="expedition-detail-empty">
+              <h3>Select an expedition</h3>
+              <p>Choose a fishing vacation to review its trips and totals.</p>
+            </div>
+          </div>
+        </section>

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en"{% if initial_theme %} data-theme="{{ initial_theme }}"{% endif %}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fishing Logbook</title>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        if (root.dataset.theme === "dark" || root.dataset.theme === "light") {
+          root.style.colorScheme = root.dataset.theme;
+          return;
+        }
+        try {
+          const saved = JSON.parse(localStorage.getItem("fishing-logbook-v1") || "null");
+          const theme = saved?.settings?.theme;
+          if (theme === "dark" || theme === "light") {
+            root.dataset.theme = theme;
+            root.style.colorScheme = theme;
+          }
+        } catch {
+          // The app can still apply its saved theme after loading state.
+        }
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="static/css/styles.css?v=20260731-gear-filter-layout-2" />
+    <link rel="stylesheet" href="static/css/trip-sharing.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      {% include 'partials/layout/sidebar.html' %}
+
+      <main class="main-panel">
+        {% include 'partials/layout/topbar.html' %}
+
+        {% include 'partials/views/trips.html' %}
+
+        
+
+        {% include 'partials/views/expeditions.html' %}
+
+        {% include 'partials/views/personal-bests.html' %}
+
+        {% include 'partials/views/stats.html' %}
+
+        {% include 'partials/views/leaderboard.html' %}
+
+        <!-- Previous standalone leaderboard markup retained for backwards-compatible page structure.
+          <header class="leaderboard-header">
+            <div>
+              <p class="eyebrow">Performance board</p>
+              <h2>Fishing leaderboard</h2>
+              <p>See which lures, flashers, rods, reels, combos, and anglers produce the most fish.</p>
+            </div>
+            <div class="leaderboard-rate-key">
+              <strong>Landing rate</strong>
+              <span>Landed ÷ (landed + lost)</span>
+            </div>
+          </header>
+
+          <div class="leaderboard-summary-grid" id="leaderboardSummary"></div>
+
+          <div class="leaderboard-board-grid">
+            <section class="leaderboard-board" aria-labelledby="gearLeaderboardHeading">
+              <header class="leaderboard-board-header">
+                <div>
+                  <p class="eyebrow">Fishing gear</p>
+                  <h3 id="gearLeaderboardHeading">Gear performance</h3>
+                </div>
+                <span class="leaderboard-count" id="gearLeaderboardCount">0 items</span>
+              </header>
+              <div class="leaderboard-list" id="gearLeaderboard"></div>
+            </section>
+
+            <section class="leaderboard-board" aria-labelledby="anglerLeaderboardHeading">
+              <header class="leaderboard-board-header">
+                <div>
+                  <p class="eyebrow">People</p>
+                  <h3 id="anglerLeaderboardHeading">Angler performance</h3>
+                </div>
+                <span class="leaderboard-count" id="anglerLeaderboardCount">0 anglers</span>
+              </header>
+              <div class="leaderboard-list" id="anglerLeaderboard"></div>
+            </section>
+          </div>
+
+        -->
+
+        {% include 'partials/views/map.html' %}
+
+        {% include 'partials/views/gear.html' %}
+
+        {% include 'partials/views/boat.html' %}
+
+        {% include 'partials/views/gallery.html' %}
+
+        {% include 'partials/views/settings.html' %}
+      </main>
+    </div>
+
+    {% include 'partials/dialogs/trip-summary.html' %}
+
+    {% include 'partials/dialogs/trip-sharing.html' %}
+
+    {% include 'partials/dialogs/expedition.html' %}
+
+    {% include 'partials/dialogs/trip-editor.html' %}
+
+    {% include 'partials/dialogs/structure.html' %}
+
+    {% include 'partials/dialogs/photo-queue.html' %}
+
+    {% include 'partials/dialogs/boat-equipment.html' %}
+
+    {% include 'partials/dialogs/tackle-box.html' %}
+
+    {% include 'partials/dialogs/gear.html' %}
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    {% include 'partials/templates/row-templates.html' %}
+
+    
+
+    
+
+    {% include 'partials/dialogs/locations.html' %}
+
+    
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/esri-leaflet@3.0.16/dist/esri-leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="static/vendor/anime-3.2.2.min.js"></script>
+    <script src="static/js/app-config.js"></script>
+    <script src="static/js/app-defaults.js"></script>
+    <script src="static/js/app-state.js"></script>
+    <script src="static/js/app-normalization.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/app-units.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/app-persistence.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/app-elements.js?v=20260829-structure-selector-1"></script>
+    <script src="static/js/app-media.js"></script>
+    <script src="static/js/locations.js"></script>
+    <script src="static/js/location-weather.js"></script>
+    <script src="static/js/settings-core.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/settings.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/settings-fields.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/settings-locations.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/dashboard.js"></script>
+    <script src="static/js/expedition-analytics.js"></script>
+    <script src="static/js/expeditions.js?v=20260829-trip-calendar-1"></script>
+    <script src="static/js/photos.js"></script>
+    <script src="static/js/trip-editor.js?v=20260829-spot-label-1"></script>
+    <script src="static/js/trip-rows.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/trip-save.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/photo-queue-autofill.js?v=20260829-catch-autofill-1"></script>
+    <script src="static/js/gear-core.js?v=20260829-lure-picker-1"></script>
+    <script src="static/js/gear-pickers.js?v=20260829-lure-picker-1"></script>
+    <script src="static/js/gear-dialogs.js?v=20260829-lure-picker-1"></script>
+    <script src="static/js/gear-inventory.js?v=20260829-lure-picker-1"></script>
+    <script src="static/js/trolling-spread.js"></script>
+    <script src="static/js/noaaCharts.js"></script>
+    <script src="static/js/noaa-api.js?v=20260731-7"></script>
+    <script src="static/js/great-lakes-conditions.js?v=20260731-48"></script>
+    <script src="static/js/maps.js?v=20260829-structure-split-1"></script>
+    <script src="static/js/trip-summary.js?v=20260829-structure-split-1"></script>
+    <script src="static/js/trip-report.js?v=20260829-structure-split-1"></script>
+    <script src="static/js/trip-timeline.js?v=20260829-structure-split-1"></script>
+    <script src="static/js/trip-sharing.js"></script>
+    <script src="static/js/stats-analytics.js"></script>
+    <script src="static/js/stats-scope.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/stats-performance.js?v=20260829-structure-split-2"></script>
+    <script src="static/js/stats.js"></script>
+    <script src="static/js/stats-rendering.js"></script>
+    <script src="static/js/personal-bests.js"></script>
+    <script src="static/js/form-utils.js"></script>
+    <script src="static/js/gallery.js"></script>
+    <script src="static/js/boat-layout.js"></script>
+    <script src="static/js/tackle-boxes.js"></script>
+    <script src="static/js/leaderboard.js"></script>
+    <script src="static/js/app-control-events.js?v=20260829-structure-selector-2"></script>
+    <script src="static/js/app-delegated-events.js?v=20260829-structure-selector-1"></script>
+    <script src="static/js/app.js?v=20260829-structure-split-1"></script>
+  </body>
+</html>

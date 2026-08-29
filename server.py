@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import shutil
 import uuid
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZIP_STORED, ZipFile
 
-from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
+from flask import Flask, Response, abort, jsonify, render_template, request, send_file, send_from_directory
 from werkzeug.utils import secure_filename
 
 from backend.backend_config import (
@@ -438,6 +439,46 @@ def create_app(config: dict | None = None) -> Flask:
             raise
         return jsonify(upload_payload(target_category, target_name, metadata))
 
+    @app.post("/api/photo-queue/copy")
+    def copy_photo_queue_item() -> tuple[Response, int] | Response:
+        """Copy a queued photo for autofill while keeping the queue original for review."""
+        payload = request.get_json(silent=True) or {}
+        filename = secure_filename(str(payload.get("filename", "")))
+        target_category = str(payload.get("targetCategory", ""))
+        if target_category not in UPLOAD_CATEGORIES or target_category == "queue":
+            return jsonify({"error": "Invalid target category"}), 400
+        source = upload_category_path("queue") / filename
+        if not filename or not source.exists() or not source.is_file():
+            return jsonify({"error": "Queued photo not found"}), 404
+
+        suffix = source.suffix.lower() or ".jpg"
+        target_name = f"{uuid.uuid4().hex}{suffix}"
+        destination = upload_category_path(target_category) / target_name
+        metadata = read_upload_metadata("queue", filename)
+        media_type = metadata.get("mediaType") or upload_media_type(metadata.get("mimeType", ""), suffix)
+        preview_filename = metadata.get("previewFilename") or ""
+        source_preview = upload_category_path("queue") / PREVIEW_DIRNAME / (
+            preview_filename or upload_preview_path("queue", filename).name
+        )
+        target_preview = upload_preview_path(target_category, target_name)
+        target_metadata = upload_metadata_path(target_category, target_name)
+        try:
+            shutil.copy2(source, destination)
+            if source_preview.exists():
+                shutil.copy2(source_preview, target_preview)
+                preview_filename = target_preview.name
+            else:
+                preview_filename = create_upload_preview(target_category, target_name) if media_type == "image" else ""
+            metadata["mediaType"] = media_type or "image"
+            metadata["previewFilename"] = preview_filename
+            write_upload_metadata(target_category, target_name, metadata)
+        except Exception:
+            for path in (target_metadata, target_preview, destination):
+                if path.is_file():
+                    path.unlink()
+            raise
+        return jsonify(upload_payload(target_category, target_name, metadata))
+
     @app.delete("/api/photo-queue/<filename>")
     def delete_photo_queue_item(filename: str) -> Response:
         safe_name = secure_filename(filename)
@@ -481,13 +522,7 @@ def create_app(config: dict | None = None) -> Flask:
     def app_page() -> Response:
         theme = read_logbook().get("settings", {}).get("theme")
         initial_theme = "dark" if theme == "dark" else "light"
-        document = (ROOT / "index.html").read_text(encoding="utf-8")
-        document = document.replace(
-            '<html lang="en">',
-            f'<html lang="en" data-theme="{initial_theme}">',
-            1,
-        )
-        return Response(document, mimetype="text/html")
+        return Response(render_template("index.html", initial_theme=initial_theme), mimetype="text/html")
 
     @app.get("/static/<path:filename>")
     def static_files(filename: str) -> Response:

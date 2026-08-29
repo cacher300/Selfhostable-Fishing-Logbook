@@ -511,7 +511,6 @@ function renderSelectOptions() {
   populateOptionSelect(document.querySelector("#targetSpecies"), state.species, "Select target species");
   populateOptionSelect(document.querySelector("#method"), state.methods, "Select method");
   populateOptionSelect(document.querySelector("#waterClarity"), optionLabels("waterClarities"), "Select water clarity");
-  populateStructureSelect(document.querySelector("#structureType"));
   populateOptionSelect(document.querySelector("#weather"), optionLabels("weatherTypes"), "Select weather");
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");

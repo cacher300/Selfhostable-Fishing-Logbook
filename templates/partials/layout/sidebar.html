@@ -1,0 +1,37 @@
+<aside class="sidebar" aria-label="Logbook summary">
+        <div class="brand-block">
+          <div class="brand-spotlight" id="brandSpotlight" aria-label="Recent fishing photos"></div>
+        </div>
+
+        <details class="mobile-summary-panel" open>
+          <summary>Logbook Stats</summary>
+          <section class="side-section">
+            <div class="section-heading">
+              <h2>Logbook Stats</h2>
+            </div>
+            <dl class="stats-list">
+              <div><dt>Trips</dt><dd id="statTrips">0</dd></div>
+              <div><dt>Fish Caught</dt><dd id="statFish">0</dd></div>
+              <div><dt>Hours Fished</dt><dd id="statHours">0</dd></div>
+              <div><dt>Waterbodies</dt><dd id="statWaterbodies">0</dd></div>
+              <div><dt>Catch Rate</dt><dd id="statCatchRate">0</dd></div>
+              <div><dt id="statWeightPerHourLabel">Lbs / Hour</dt><dd id="statPoundsPerHour">0</dd></div>
+              <div><dt>Days Since</dt><dd id="statDaysSinceTrip">-</dd></div>
+            </dl>
+          </section>
+
+          <section class="side-section">
+            <div class="section-heading">
+              <h2>Species</h2>
+            </div>
+            <div id="speciesBars" class="bar-list"></div>
+          </section>
+
+          <section class="side-section">
+            <div class="section-heading">
+              <h2>Top Lures</h2>
+            </div>
+            <div id="lureBars" class="bar-list"></div>
+          </section>
+        </details>
+      </aside>

@@ -1,0 +1,50 @@
+<dialog class="dialog location-dialog" id="locationDialog">
+      <form id="locationForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <h2 id="locationDialogTitle">Add Location</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <div class="form-grid">
+          <label id="locationParentRow" class="hidden">
+            <span>Waterbody</span>
+            <input id="locationParentName" type="text" readonly />
+          </label>
+          <label>
+            <span>Name</span>
+            <input id="locationName" type="text" required placeholder="Lake Ontario" />
+          </label>
+          <input id="locationLatitude" type="hidden" required />
+          <input id="locationLongitude" type="hidden" required />
+        </div>
+        <p class="map-pin-instruction" id="locationPickerInstruction">Press the launch or area fished on the map to place the pin.</p>
+        <div id="locationPickerMap" class="fish-map location-picker-map"></div>
+        <div class="dialog-actions">
+          <button class="button danger hidden" id="deleteLocationDialogButton" type="button">Delete</button>
+          <div>
+            <button class="button secondary" value="cancel" type="button" data-close-dialog>Cancel</button>
+            <button class="button primary" value="default" type="submit">Save Pin</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+<dialog class="dialog location-dialog" id="catchLocationDialog">
+      <div class="dialog-content">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Catch GPS</p>
+            <h2>Pick Catch Location</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <p class="map-pin-instruction">Press the map where the fish was caught.</p>
+        <div id="catchLocationPickerMap" class="fish-map location-picker-map"></div>
+        <div class="dialog-actions">
+          <button class="button primary" id="saveCatchLocationButton" type="button">Use Location</button>
+          <button class="button secondary" id="clearCatchLocationButton" type="button">Clear Location</button>
+          <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+        </div>
+      </div>
+    </dialog>

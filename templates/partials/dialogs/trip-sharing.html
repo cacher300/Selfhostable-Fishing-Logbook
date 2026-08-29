@@ -1,0 +1,94 @@
+<dialog id="shareTripDialog" class="dialog share-trip-dialog">
+      <div class="share-trip-shell">
+        <div class="share-trip-header">
+          <h2>Share trip</h2>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <div class="share-trip-tabs" role="tablist" aria-label="Report format">
+          <button id="shareImageTab" class="share-tab is-active" type="button" role="tab" aria-selected="true" data-share-mode="image">Image Report</button>
+          <button id="shareTextTab" class="share-tab" type="button" role="tab" aria-selected="false" data-share-mode="text">Text Report</button>
+        </div>
+        <div class="share-trip-layout">
+          <form id="shareTripForm" class="share-trip-controls">
+            <div class="share-image-settings">
+              <label><span>Appearance</span><select id="shareTripTheme"></select></label>
+              <label><span>Photo</span><select id="shareTripPhoto"></select></label>
+            </div>
+            <label><span>Headline</span><input id="shareTripHeadline" maxlength="90" /></label>
+            <label><span>Subtitle <small>optional</small></span><input id="shareTripSubtitle" maxlength="120" /></label>
+            <div class="share-image-settings share-control-pair">
+              <label><span>Accent</span><input id="shareTripAccent" type="color" value="#42c98a" /></label>
+              <label><span>Card background</span><input id="shareTripCardBackground" type="color" value="#141f29" /></label>
+            </div>
+            <div class="share-image-settings share-control-pair">
+              <label><span>Background</span><input id="shareTripBackground" type="color" value="#131b24" /></label>
+              <label><span>Text color</span><input id="shareTripTextColor" type="color" value="#edf3f8" /></label>
+            </div>
+            <div class="share-image-settings share-control-pair">
+              <label><span>Preset name</span><input id="shareTripAppearanceName" maxlength="40" placeholder="My lake palette" /></label>
+              <button id="shareSaveAppearance" class="share-save-appearance" type="button">Save</button>
+            </div>
+            <section class="share-option-group share-content-group share-image-settings" aria-labelledby="shareImageContentHeading">
+              <h3 id="shareImageContentHeading">Content</h3>
+              <div>
+                <label class="share-check share-content-card"><input id="shareStatLanded" type="checkbox" checked /><span>Landed</span></label>
+                <label class="share-check share-content-card"><input id="shareStatMissed" type="checkbox" checked /><span>Lost</span></label>
+                <label class="share-check share-content-card"><input id="shareStatBiggest" type="checkbox" checked /><span>Biggest fish</span></label>
+                <label class="share-check share-content-card"><input id="shareStatRate" type="checkbox" checked /><span>Fish / hr</span></label>
+                <label class="share-check share-content-card"><input id="shareStatHours" type="checkbox" checked /><span>Hours</span></label>
+                <label class="share-check share-content-card"><input id="shareStatFow" type="checkbox" checked /><span>Water depth</span></label>
+                <label class="share-check share-content-card"><input id="shareShowNotes" type="checkbox" checked /><span>Trip notes</span></label>
+                <label class="share-check share-content-card"><input id="shareShowConditions" type="checkbox" checked /><span>Conditions</span></label>
+                <label class="share-check share-content-card"><input id="shareShowHighlights" type="checkbox" checked /><span>Trip highlights</span></label>
+                <label class="share-check share-content-card"><input id="shareShowTimeline" type="checkbox" checked /><span>Catch timeline</span></label>
+                <label class="share-check share-content-card"><input id="shareIncludeMisses" type="checkbox" checked /><span>Missed or lost fish</span></label>
+                <label class="share-check share-content-card"><input id="shareShowBestLure" type="checkbox" checked /><span>Show best lure</span></label>
+                <label class="share-check share-content-card"><input id="shareShowBestFlasher" type="checkbox" checked /><span>Show best flasher</span></label>
+                <button class="share-lure-flip-button" id="shareFlipBestLurePhoto" type="button">Flip best lure photo</button>
+              </div>
+            </section>
+            <section class="share-option-group share-content-group share-text-settings" aria-labelledby="shareTextContentHeading" hidden>
+              <h3 id="shareTextContentHeading">Content</h3>
+              <div>
+                <label class="share-check share-content-card"><input id="shareTextShowNotes" type="checkbox" checked /><span>Trip notes</span></label>
+                <label class="share-check share-content-card"><input id="shareTextShowConditions" type="checkbox" checked /><span>Conditions</span></label>
+                <label class="share-check share-content-card"><input id="shareTextShowHighlights" type="checkbox" checked /><span>Trip highlights</span></label>
+                <label class="share-check share-content-card"><input id="shareTextShowTimeline" type="checkbox" checked /><span>Catch timeline</span></label>
+                <label class="share-check share-content-card"><input id="shareTextIncludeMisses" type="checkbox" checked /><span>Missed or lost fish</span></label>
+                <p class="share-content-subheading">Timeline fields</p>
+                <label class="share-check share-content-card"><input id="shareTextTimelineNumber" type="checkbox" checked /><span>Fish number</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineTime" type="checkbox" checked /><span>Time</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineResult" type="checkbox" checked /><span>Result</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineSpecies" type="checkbox" checked /><span>Species</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineSize" type="checkbox" checked /><span>Size</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineWaterDepth" type="checkbox" checked /><span>Water depth</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineMethod" type="checkbox" checked /><span>Method</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineDepth" type="checkbox" checked /><span>Depth down</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineSpeed" type="checkbox" checked /><span>Speed</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineLure" type="checkbox" checked /><span>Lure</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineFlasher" type="checkbox" checked /><span>Flasher</span></label>
+                <label class="share-check share-content-card"><input id="shareTextTimelineNotes" type="checkbox" checked /><span>Catch notes</span></label>
+              </div>
+            </section>
+          </form>
+          <section class="share-trip-preview-panel" aria-label="Live report preview">
+            <div class="share-preview-heading"><h3>Preview</h3></div>
+            <div id="shareTripPreviewFrame" class="share-trip-preview-frame">
+              <div id="shareTripPreview" class="share-trip-preview" aria-live="polite"></div>
+            </div>
+            <textarea id="shareTripTextEditor" class="share-trip-text-editor" aria-label="Editable text report" spellcheck="true" hidden></textarea>
+          </section>
+        </div>
+        <div class="share-trip-actions">
+          <button class="button secondary" type="button" data-close-dialog>Close</button>
+          <span id="shareTripStatus" class="share-trip-status" role="status" aria-live="polite"></span>
+          <div>
+            <button class="button secondary share-text-action" id="shareTripCopyText" type="button" hidden>Copy Text</button>
+            <button class="button secondary share-text-action" id="shareTripDownloadText" type="button" hidden>Download TXT</button>
+            <button class="button secondary share-image-action" id="shareTripCopyImage" type="button">Copy Image</button>
+            <button class="button secondary share-image-action" id="shareTripDownloadJpg" type="button">Download JPG</button>
+            <button class="button primary share-image-action" id="shareTripDownloadPng" type="button">Download PNG</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
