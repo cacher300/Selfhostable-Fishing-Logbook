@@ -3,7 +3,7 @@ services:
     build: .
     container_name: selfhostable-fishing-logbook
     ports:
-      - "127.0.0.1:${APP_PORT:-80}:8080"
+      - "${APP_PORT:-80}:8080"
     volumes:
       # Keep the live database and uploaded media outside the Git checkout on
       # production. Local development still defaults to ./data.

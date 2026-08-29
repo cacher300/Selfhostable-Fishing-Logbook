@@ -94,4 +94,4 @@ Current protections are limited to path resolution, `secure_filename`, upload-ca
 
 ## Deployment and Automation
 
-Local Python defaults to `127.0.0.1:8080`. Docker uses `0.0.0.0:8080`, publishes host port 80 by default (production overrides this to 8081), mounts `./data`, and restarts unless stopped. Host scripts can install a nightly cron job and mirror JSON/media to local and optional NAS storage. No in-process background worker or scheduler exists.
+Local Python defaults to `127.0.0.1:8080`. Docker uses `0.0.0.0:8080`, publishes port 80, mounts `./data`, and restarts unless stopped. Host scripts can install a nightly cron job and mirror JSON/media to local and optional NAS storage. No in-process background worker or scheduler exists.
