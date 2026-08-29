@@ -45,11 +45,13 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync("static/js/personal-bests.js", "utf8"), context);
 
 const records = context.filteredPersonalBestRecords();
+const bestItems = context.personalBestItems();
 const progressions = context.personalBestProgressions(records);
 const lakeTrout = progressions.find((item) => item.species === "Lake Trout");
 const walleye = progressions.find((item) => item.species === "Walleye");
 
 assert.equal(records.length, 5);
+assert.deepEqual(bestItems.map((item) => item.species), ["Lake Trout", "Walleye"]);
 assert.equal(lakeTrout.milestones.length, 2);
 assert.deepEqual(lakeTrout.milestones.map((item) => item.record.weight), ["8", "10.5"]);
 assert.equal(walleye.milestones.length, 2);
