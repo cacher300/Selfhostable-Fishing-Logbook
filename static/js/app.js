@@ -1,6 +1,7 @@
 const routeViews = {
   "/": "trips",
   "/trips": "trips",
+  "/expeditions": "expeditions",
   "/bests": "bests",
   "/stats": "stats",
   "/leaderboard": "leaderboard",
@@ -116,6 +117,7 @@ els.deleteReelButton.addEventListener("click", deleteReel);
 els.deleteRodButton.addEventListener("click", deleteRod);
 els.deleteComboButton.addEventListener("click", deleteCombo);
 els.tripsViewButton.addEventListener("click", () => setView("trips"));
+els.expeditionsViewButton.addEventListener("click", () => setView("expeditions"));
 els.bestsViewButton.addEventListener("click", () => setView("bests"));
 els.statsViewButton.addEventListener("click", () => setView("stats"));
 els.leaderboardViewButton.addEventListener("click", () => setView("leaderboard"));
@@ -211,6 +213,17 @@ els.privatePhotoLocationList?.addEventListener("input", (event) => {
   }
   scheduleSettingsAutosave((options) => savePrivatePhotoLocations(collectPrivatePhotoLocationSettings(), { ...options, rerender: false }));
 });
+els.fishingSpotList?.addEventListener("input", (event) => {
+  if (!event.target.matches(".fishing-spot-name, .fishing-spot-radius")) return;
+  const card = event.target.closest("[data-fishing-spot-id]");
+  if (card) activeFishingSpotId = card.dataset.fishingSpotId;
+  if (event.target.matches(".fishing-spot-radius")) {
+    updateFishingSpotRadiusControl(event.target);
+    const output = card?.querySelector(".fishing-spot-radius-value");
+    if (output) output.textContent = fishingSpotRadiusText(fishingSpotRadiusMeters(event.target.value));
+  }
+  scheduleSettingsAutosave((options) => saveFishingSpots(collectFishingSpotSettings(), { ...options, rerender: false }));
+});
 els.settingsAddLocationButton.addEventListener("click", () => openLocationDialog("location"));
 els.addPrivatePhotoLocationButton?.addEventListener("click", async () => {
   const coordinates = privateLocationDefaultCoordinates();
@@ -224,6 +237,14 @@ els.addPrivatePhotoLocationButton?.addEventListener("click", async () => {
       radiusMeters: 400,
       coordinates
     }
+  ]);
+});
+els.addFishingSpotButton?.addEventListener("click", async () => {
+  const id = createId();
+  activeFishingSpotId = id;
+  await saveFishingSpots([
+    ...collectFishingSpotSettings(),
+    { id, name: nextFishingSpotName(), radiusMeters: 100, coordinates: fishingSpotDefaultCoordinates() }
   ]);
 });
 els.statsMethodFilter.addEventListener("change", () => {
@@ -752,6 +773,22 @@ document.addEventListener("click", (event) => {
     openLocationDialog("launch", editManagedLaunch.dataset.locationId, editManagedLaunch.dataset.editManagedLaunch);
   }
 
+  const editPrivateLocationPin = event.target.closest("[data-edit-private-location-pin]");
+  if (editPrivateLocationPin) {
+    event.preventDefault();
+    event.stopPropagation();
+    activePrivatePhotoLocationId = editPrivateLocationPin.dataset.editPrivateLocationPin;
+    renderPrivatePhotoLocationSettings();
+  }
+
+  const editFishingSpotPin = event.target.closest("[data-edit-fishing-spot-pin]");
+  if (editFishingSpotPin) {
+    event.preventDefault();
+    event.stopPropagation();
+    activeFishingSpotId = editFishingSpotPin.dataset.editFishingSpotPin;
+    renderFishingSpotSettings();
+  }
+
   const deleteManagedLaunchButton = event.target.closest("[data-delete-managed-launch]");
   if (deleteManagedLaunchButton) {
     event.preventDefault();
@@ -766,6 +803,37 @@ document.addEventListener("click", (event) => {
     activePrivatePhotoLocationId = next[0]?.id || "";
     if (privateLocationNameEditId === deletePrivateLocationButton.dataset.deletePrivateLocation) privateLocationNameEditId = "";
     savePrivatePhotoLocations(next);
+  }
+
+  const deleteFishingSpotButton = event.target.closest("[data-delete-fishing-spot]");
+  if (deleteFishingSpotButton) {
+    const spotId = deleteFishingSpotButton.dataset.deleteFishingSpot;
+    const spot = state.spots.find((item) => item.id === spotId);
+    const automaticCount = state.trips.reduce((total, trip) => total + (trip.catches || []).filter((item) => item.spotId === spotId && item.spotAssignmentMode !== "manual").length, 0);
+    const manualCount = state.trips.reduce((total, trip) => total + (trip.catches || []).filter((item) => item.spotId === spotId && item.spotAssignmentMode === "manual").length, 0);
+    const impact = [automaticCount ? `${automaticCount} automatic ${automaticCount === 1 ? "catch will be re-matched" : "catches will be re-matched"}` : "", manualCount ? `${manualCount} manual ${manualCount === 1 ? "catch will become unassigned" : "catches will become unassigned"}` : ""].filter(Boolean).join(". ");
+    if (confirm(`Delete “${spot?.name || "this spot"}”?${impact ? ` ${impact}.` : ""}`)) {
+      const next = collectFishingSpotSettings().filter((item) => item.id !== spotId);
+      activeFishingSpotId = next[0]?.id || "";
+      if (fishingSpotNameEditId === spotId) fishingSpotNameEditId = "";
+      saveFishingSpots(next);
+    }
+  }
+
+  const editFishingSpotName = event.target.closest("[data-edit-fishing-spot-name]");
+  if (editFishingSpotName) {
+    activeFishingSpotId = editFishingSpotName.dataset.editFishingSpotName;
+    fishingSpotNameEditId = activeFishingSpotId;
+    renderFishingSpotSettings();
+    const input = els.fishingSpotList?.querySelector(`[data-fishing-spot-id="${CSS.escape(fishingSpotNameEditId)}"] .fishing-spot-name`);
+    input?.focus();
+    input?.select();
+  }
+
+  const fishingSpotCard = event.target.closest("[data-fishing-spot-id]");
+  if (fishingSpotCard && !event.target.closest("[data-edit-fishing-spot-name], button, input, select, textarea")) {
+    activeFishingSpotId = fishingSpotCard.dataset.fishingSpotId;
+    renderFishingSpotSettings();
   }
 
   const editPrivateLocationName = event.target.closest("[data-edit-private-location-name]");
@@ -1183,6 +1251,7 @@ els.personRows.addEventListener("change", (event) => {
 
 function setView(view) {
   if (view === "boat" && state.settings?.boatFeatureEnabled !== true) view = "trips";
+  const showingExpeditions = view === "expeditions";
   const showingBests = view === "bests";
   const showingStats = view === "stats";
   const showingLeaderboard = view === "leaderboard";
@@ -1193,6 +1262,7 @@ function setView(view) {
   const showingSettings = view === "settings";
   const viewButtons = {
     trips: els.tripsViewButton,
+    expeditions: els.expeditionsViewButton,
     bests: els.bestsViewButton,
     stats: els.statsViewButton,
     map: els.mapViewButton,
@@ -1203,6 +1273,7 @@ function setView(view) {
   };
   const viewTitles = {
     trips: "Trips",
+    expeditions: "Expeditions",
     bests: "Personal Bests",
     stats: "Stats",
     leaderboard: "Leaderboard",
@@ -1213,8 +1284,9 @@ function setView(view) {
     settings: "Settings",
   };
   document.body.dataset.activeView = view;
-  els.tripControls.classList.toggle("hidden", showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingSettings);
-  els.tripListPanel.classList.toggle("hidden", showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingSettings);
+  els.tripControls.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingSettings);
+  els.tripListPanel.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingSettings);
+  els.expeditionsPanel.classList.toggle("hidden", !showingExpeditions);
   els.personalBestsPanel.classList.toggle("hidden", !showingBests);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
   els.leaderboardPanel.classList.toggle("hidden", !showingLeaderboard);
@@ -1228,10 +1300,13 @@ function setView(view) {
     button.setAttribute("aria-current", buttonView === view ? "page" : "false");
   });
   document.querySelector(".topbar h2").textContent = viewTitles[view] || "Trips";
+  els.newTripButton.classList.toggle("hidden", showingExpeditions);
+  els.newExpeditionButton.classList.toggle("hidden", !showingExpeditions);
   if (window.matchMedia("(max-width: 640px)").matches) {
     viewButtons[view]?.scrollIntoView({ block: "nearest", inline: "center" });
   }
   if (showingBests) renderPersonalBests();
+  if (showingExpeditions) renderExpeditions();
   renderAdvancedStats();
   if (showingMap) renderFishMap();
   if (showingBoat) renderBoatLayout();

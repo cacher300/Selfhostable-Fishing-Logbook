@@ -36,11 +36,10 @@
     grid-template-columns: 1fr 0.9fr 1fr 70px;
   }
 
+  .table-row > :nth-child(3),
   .table-row > :nth-child(4),
   .table-row > :nth-child(5),
-  .table-row > :nth-child(6),
-  .table-row > :nth-child(7),
-  .table-row > :nth-child(9) {
+  .table-row > :nth-child(6) {
     display: none;
   }
 
@@ -553,7 +552,8 @@
 
   #tripDialog .catch-identity-row > label:first-child,
   #tripDialog .catch-identity-row .catch-species-field,
-  #tripDialog .catch-identity-row .possible-species-field {
+  #tripDialog .catch-identity-row .possible-species-field,
+  #tripDialog .catch-identity-row .catch-spot-field {
     width: 100%;
     max-width: none;
     flex: 1 1 auto;
@@ -660,8 +660,7 @@
   .table-row > :nth-child(5),
   .table-row > :nth-child(6),
   .table-row > :nth-child(7),
-  .table-row > :nth-child(8),
-  .table-row > :nth-child(9) {
+  .table-row > :nth-child(8) {
     display: none;
   }
 

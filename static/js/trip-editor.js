@@ -60,7 +60,7 @@ function tripDateLabel(value) {
 
 function updateTripDialogHeader() {
   const title = getValue("tripTitle") || (activeTripId ? "Untitled Trip" : "New Trip");
-  const date = tripDateLabel(document.querySelector("#tripDate")?.value);
+  const date = tripDateLabel(document.querySelector("#tripDateValue")?.value || document.querySelector("#tripDate")?.value);
   const location = selectedText(els.tripLocation);
   els.tripDialogTitle.textContent = title;
   if (els.tripDialogMeta) {
@@ -91,12 +91,19 @@ function closeTripDialog({ force = false } = {}) {
 
 function validateTripForm() {
   clearTripFormMessage();
+  const tripDateDisplay = document.querySelector("#tripDate");
+  if (tripDateDisplay && typeof syncCalendarDate === "function") syncCalendarDate("tripDateValue");
   const requiredFields = [
-    { field: document.querySelector("#tripDate"), label: "Date" },
+    { field: tripDateDisplay, label: "Date" },
     { field: document.querySelector("#tripLocation"), label: "Location / waterbody" },
     { field: document.querySelector("#targetSpecies"), label: "Target species" }
   ];
   const missing = requiredFields.filter(({ field }) => !field.value.trim());
+  const tripDateValue = document.querySelector("#tripDateValue")?.value || "";
+  if (tripDateDisplay?.value.trim() && !tripDateValue) {
+    showTripFormMessage("Enter a valid date as mm/dd/yyyy.", [tripDateDisplay]);
+    return false;
+  }
   if (!missing.length) return true;
 
   const labels = missing.map((item) => item.label).join(", ");
@@ -114,6 +121,11 @@ function tripSaveWarnings() {
   importantFields
     .filter(({ field }) => !field?.value.trim())
     .forEach(({ label }) => warnings.push(`${label} is blank.`));
+
+  const expedition = state.expeditions.find((item) => item.id === getValue("tripExpedition"));
+  if (expedition && ExpeditionAnalytics.tripOutsideRange({ date: getValue("tripDate") }, expedition)) {
+    warnings.push(`Trip date is outside ${expedition.name} (${expeditionDateRange(expedition)}).`);
+  }
 
   const trolling = isTrollingTrip();
   const tripStartTime = getValue("linesSetTime") || getValue("launchTime");
@@ -215,7 +227,9 @@ function openTripDialog(trip = null) {
   const today = localDateInputValue();
   setValue("tripId", trip?.id || "");
   setValue("tripTitle", trip?.title || "");
-  setValue("tripDate", trip?.date || today);
+  setValue("tripDateValue", trip?.date || today);
+  setValue("tripDate", displayDateForCalendar(trip?.date || today));
+  populateTripExpeditionSelect(trip?.expeditionId || "");
   const location = findLocationByIdOrName(trip?.locationId, trip?.location);
   populateLocationSelect(location?.id || "");
   const launch = findLaunchByIdOrName(location, trip?.launchId, trip?.launch);
@@ -274,7 +288,8 @@ function setValue(id, value) {
 }
 
 function getValue(id) {
-  return document.querySelector(`#${id}`).value.trim();
+  const valueId = id === "tripDate" && document.querySelector("#tripDateValue") ? "tripDateValue" : id;
+  return document.querySelector(`#${valueId}`).value.trim();
 }
 
 const probeProfileDepthsFeet = Array.from({ length: 17 }, (_, index) => index * 10);
@@ -504,6 +519,35 @@ function defaultFishTime(catchItem = {}) {
   return catchItem.timeUnknown ? "" : (catchItem.time ?? (getValue("linesSetTime") || getValue("launchTime")));
 }
 
+function populateCatchSpotSelect(row, catchItem = {}) {
+  const select = row?.querySelector(".catch-spot");
+  if (!select) return;
+  const mode = catchItem.spotAssignmentMode === "manual" ? "manual" : "automatic";
+  const requestedSpotId = String(catchItem.spotId || "");
+  const automaticId = automaticSpotId({
+    ...catchItem,
+    manualCoordinates: manualCoordinatesFromRow(row),
+    coordinates: fishCoordinatesFromRow(row)
+  });
+  const automaticName = spotName(automaticId);
+  select.innerHTML = [
+    `<option value="__automatic__">Automatic from GPS${automaticName ? ` — ${escapeHtml(automaticName)}` : " — No match"}</option>`,
+    `<option value="__none__">No spot</option>`,
+    ...state.spots.map((spot) => `<option value="${escapeHtml(spot.id)}">${escapeHtml(spot.name)}</option>`)
+  ].join("");
+  select.value = mode === "automatic" ? "__automatic__" : (state.spots.some((spot) => spot.id === requestedSpotId) ? requestedSpotId : "__none__");
+}
+
+function refreshCatchSpotSelect(row) {
+  const select = row?.querySelector(".catch-spot");
+  if (!select || row.classList.contains("lost-fish-row")) return;
+  const value = select.value || "__automatic__";
+  populateCatchSpotSelect(row, {
+    spotAssignmentMode: value === "__automatic__" ? "automatic" : "manual",
+    spotId: value.startsWith("__") ? "" : value
+  });
+}
+
 function updateUnknownTimeField(row) {
   const unknown = row.querySelector(".catch-time-unknown")?.checked;
   const timeInput = row.querySelector(".catch-time");
@@ -657,6 +701,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-depth-down-field").classList.toggle("hidden", lost);
   node.querySelector(".catch-photo-title").classList.toggle("hidden", lost);
   node.querySelector(".catch-photo-editor").classList.toggle("hidden", lost);
+  node.querySelector(".catch-spot-field").classList.toggle("hidden", lost);
 
   populatePersonSelect(node.querySelector(".catch-person"), catchItem.personId || "");
   populateOptionSelect(node.querySelector(".catch-species"), state.species, "Select species");
@@ -680,6 +725,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
     : (catchItem.coordinates?.manual && isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : null);
   node.querySelector(".catch-latitude").value = manualCoordinates?.latitude ?? "";
   node.querySelector(".catch-longitude").value = manualCoordinates?.longitude ?? "";
+  if (!lost) populateCatchSpotSelect(node, catchItem);
   updateCatchLocationSummary(node);
   node.querySelector(".catch-presentation").value = catchItem.presentation || "";
   node.querySelector(".catch-direction").value = catchItem.direction || "";
@@ -1265,6 +1311,7 @@ function collectTripFromForm() {
     .map((row) => {
       const casting = isCastingTrip();
       const detailsUnknown = !lost && Boolean(row.querySelector(".catch-details-unknown")?.checked);
+      const spotSelection = row.querySelector(".catch-spot")?.value || "__automatic__";
       const base = {
         id: row.dataset.catchId || createId(),
         detailsUnknown,
@@ -1274,6 +1321,8 @@ function collectTripFromForm() {
         released: detailsUnknown || lost ? false : row.querySelector(".catch-released").checked,
         length: lost ? "" : row.querySelector(".catch-length").value.trim(),
         weight: lost ? "" : row.querySelector(".catch-weight").value.trim(),
+        spotAssignmentMode: lost ? "automatic" : (spotSelection === "__automatic__" ? "automatic" : "manual"),
+        spotId: lost || spotSelection.startsWith("__") ? "" : spotSelection,
         time: detailsUnknown ? "" : row.querySelector(".catch-time").value,
         timeUnknown: detailsUnknown ? false : row.querySelector(".catch-time-unknown").checked,
         waterDepth: detailsUnknown ? "" : row.querySelector(".catch-water-depth").value.trim(),
@@ -1379,6 +1428,7 @@ function collectTripFromForm() {
     id: getValue("tripId") || createId(),
     title: getValue("tripTitle"),
     date: getValue("tripDate"),
+    expeditionId: getValue("tripExpedition"),
     location: location?.name || "",
     locationId: location?.id || "",
     launch: launch?.name || "",

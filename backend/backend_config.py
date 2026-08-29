@@ -229,5 +229,7 @@ DEFAULT_LOGBOOK = {
     },
     "people": [],
     "locations": [],
+    "spots": [],
+    "expeditions": [],
     "trips": [],
 }

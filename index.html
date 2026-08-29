@@ -4,6 +4,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Fishing Logbook</title>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        if (root.dataset.theme === "dark" || root.dataset.theme === "light") {
+          root.style.colorScheme = root.dataset.theme;
+          return;
+        }
+        try {
+          const saved = JSON.parse(localStorage.getItem("fishing-logbook-v1") || "null");
+          const theme = saved?.settings?.theme;
+          if (theme === "dark" || theme === "light") {
+            root.dataset.theme = theme;
+            root.style.colorScheme = theme;
+          }
+        } catch {
+          // The app can still apply its saved theme after loading state.
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
@@ -59,6 +78,7 @@
           <div class="topbar-actions">
             <nav class="view-nav" aria-label="Primary views">
               <button class="button secondary" id="tripsViewButton" type="button">Trips</button>
+              <button class="button secondary" id="expeditionsViewButton" type="button">Expeditions</button>
               <button class="button secondary" id="statsViewButton" type="button">Stats</button>
               <button class="button secondary" id="mapViewButton" type="button">Map</button>
               <button class="button secondary" id="gearViewButton" type="button">Gear</button>
@@ -68,6 +88,7 @@
             </nav>
             <div class="utility-actions">
               <button class="button primary" id="newTripButton" type="button">New Trip</button>
+              <button class="button primary hidden" id="newExpeditionButton" type="button">New Expedition</button>
             </div>
           </div>
         </header>
@@ -107,6 +128,38 @@
           <div class="empty-state hidden" id="emptyState">
             <h3>No trips match your filters</h3>
             <p>Add a trip or adjust your filters to see your logbook here.</p>
+          </div>
+        </section>
+
+        <section class="expeditions-page hidden" id="expeditionsPanel" aria-label="Expeditions">
+          <aside class="expedition-rail" aria-label="Expedition list">
+            <div class="expedition-rail-tools">
+              <label class="expedition-search">
+                <span class="visually-hidden">Search expeditions</span>
+                <input id="expeditionSearchInput" type="search" placeholder="Search expeditions..." />
+              </label>
+              <label class="expedition-sort-control">
+                <span>Sort by</span>
+                <select id="expeditionSortSelect">
+                  <option value="start-desc">Start date (newest)</option>
+                  <option value="start-asc">Start date (oldest)</option>
+                  <option value="name-asc">Name (A–Z)</option>
+                </select>
+              </label>
+            </div>
+            <div class="expedition-list" id="expeditionList"></div>
+            <div class="expedition-list-empty hidden" id="expeditionListEmpty">
+              <h3>No expeditions yet</h3>
+              <p>Create one to group the trips from your next fishing vacation.</p>
+              <button class="button primary" type="button" data-new-expedition>Create Expedition</button>
+            </div>
+          </aside>
+
+          <div class="expedition-detail" id="expeditionDetail">
+            <div class="expedition-detail-empty">
+              <h3>Select an expedition</h3>
+              <p>Choose a fishing vacation to review its trips and totals.</p>
+            </div>
           </div>
         </section>
 
@@ -1053,11 +1106,29 @@
                 </div>
                 <div class="location-manager-list" id="locationManagerList"></div>
               </section>
+              <section class="settings-section settings-section--fishing-spots" aria-labelledby="fishingSpotSettingsHeading">
+                <div class="settings-section-header">
+                  <div class="settings-section-copy">
+                    <h4 id="fishingSpotSettingsHeading">Fishing Spots</h4>
+                    <p>Add fishing spots to see statistics directly related to each spot. Click a card or its Edit pin button to move the marker on the map.</p>
+                  </div>
+                  <button class="button primary settings-button-with-icon" id="addFishingSpotButton" type="button">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg>
+                    Add Spot
+                  </button>
+                </div>
+                <div class="private-location-layout fishing-spot-layout">
+                  <div class="private-location-list" id="fishingSpotList"></div>
+                  <div class="private-location-map-panel">
+                    <div id="fishingSpotMap" class="fish-map location-picker-map private-location-map"></div>
+                  </div>
+                </div>
+              </section>
               <section class="settings-section settings-section--home-location" aria-labelledby="homeLocationSettingsHeading">
                 <div class="settings-section-header">
                   <div class="settings-section-copy">
                     <h4 id="homeLocationSettingsHeading">Home Location</h4>
-                    <p>By setting a home location, any photos taken at home will not be mapped to home on the fish map.</p>
+                    <p>By setting a home location, any photos taken at home will not be mapped to home on the fish map. Click a card or its Edit pin button to move the marker on the map.</p>
                   </div>
                   <button class="button primary settings-button-with-icon" id="addPrivatePhotoLocationButton" type="button">
                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg>
@@ -1194,6 +1265,59 @@
       </div>
     </dialog>
 
+    <dialog id="expeditionDialog" class="dialog expedition-dialog">
+      <form id="expeditionForm" method="dialog" novalidate>
+        <div class="dialog-header">
+          <div>
+            <h2 id="expeditionDialogTitle">New Expedition</h2>
+            <p class="trip-dialog-meta">Group the trips from a multi-day fishing vacation.</p>
+          </div>
+          <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <input id="expeditionId" type="hidden" />
+        <div class="form-message hidden" id="expeditionFormMessage" role="alert"></div>
+        <div class="form-grid expedition-form-grid">
+          <label class="expedition-name-field">
+            <span>Name</span>
+            <input id="expeditionName" type="text" required maxlength="120" placeholder="Lake Erie Summer Week" />
+          </label>
+          <label>
+            <span>Start date</span>
+            <div class="styled-date-field" data-calendar-field="expeditionStartDateValue">
+              <input id="expeditionStartDate" class="styled-date-display" type="text" inputmode="numeric" autocomplete="off" required placeholder="mm/dd/yyyy" aria-label="Start date" />
+              <input id="expeditionStartDateValue" class="styled-date-value" type="date" tabindex="-1" aria-hidden="true" />
+              <button class="calendar-trigger" type="button" data-calendar-trigger="expeditionStartDateValue" aria-label="Open start date calendar">▾</button>
+              <div class="calendar-popover hidden" data-calendar-popover="expeditionStartDateValue"></div>
+            </div>
+          </label>
+          <label>
+            <span>End date</span>
+            <div class="styled-date-field" data-calendar-field="expeditionEndDateValue">
+              <input id="expeditionEndDate" class="styled-date-display" type="text" inputmode="numeric" autocomplete="off" required placeholder="mm/dd/yyyy" aria-label="End date" />
+              <input id="expeditionEndDateValue" class="styled-date-value" type="date" tabindex="-1" aria-hidden="true" />
+              <button class="calendar-trigger" type="button" data-calendar-trigger="expeditionEndDateValue" aria-label="Open end date calendar">▾</button>
+              <div class="calendar-popover hidden" data-calendar-popover="expeditionEndDateValue"></div>
+            </div>
+          </label>
+          <label class="expedition-destination-field">
+            <span>Destination</span>
+            <input id="expeditionDestination" type="text" maxlength="160" placeholder="Lake Erie · Barcelona, NY" />
+          </label>
+          <label class="expedition-notes-field">
+            <span>Notes</span>
+            <textarea id="expeditionNotes" rows="5" placeholder="Who came, what you targeted, and what made the week memorable"></textarea>
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button class="button danger hidden" id="deleteExpeditionButton" type="button">Delete</button>
+          <div>
+            <button class="button secondary" value="cancel" type="button" data-close-dialog>Cancel</button>
+            <button class="button primary" type="submit">Save Expedition</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="tripDialog" class="dialog">
       <form id="tripForm" method="dialog" novalidate>
         <div class="dialog-header">
@@ -1235,7 +1359,21 @@
             </label>
             <label>
               <span>Date</span>
-              <input id="tripDate" type="date" required />
+              <div class="styled-date-field" data-calendar-field="tripDateValue">
+                <input id="tripDate" class="styled-date-display" type="text" inputmode="numeric" autocomplete="off" required placeholder="mm/dd/yyyy" aria-label="Trip date" />
+                <input id="tripDateValue" class="styled-date-value" type="date" tabindex="-1" aria-hidden="true" />
+                <button class="calendar-trigger" type="button" data-calendar-trigger="tripDateValue" aria-label="Open trip date calendar">▾</button>
+                <div class="calendar-popover hidden" data-calendar-popover="tripDateValue"></div>
+              </div>
+            </label>
+            <label class="trip-expedition-field">
+              <span>Expedition</span>
+              <div class="inline-control-row">
+                <select id="tripExpedition">
+                  <option value="">No expedition</option>
+                </select>
+                <button class="button secondary compact-action" id="addExpeditionFromTripButton" type="button" aria-label="Create new expedition">New</button>
+              </div>
             </label>
             <div class="location-field">
               <span>Location / waterbody</span>
@@ -1889,6 +2027,10 @@
                 </label>
               </div>
             </div>
+            <label class="catch-spot-field">
+              <span>Spot <small>Optional</small></span>
+              <select class="catch-spot"></select>
+            </label>
           </div>
           <div class="row-section-title catch-photo-title catch-detail-optional">Catch photos</div>
           <div class="catch-photo-editor catch-detail-optional">
@@ -2233,8 +2375,10 @@
     <script src="static/js/location-weather.js"></script>
     <script src="static/js/settings.js?v=20260731-boat-tab-1"></script>
     <script src="static/js/dashboard.js"></script>
+    <script src="static/js/expedition-analytics.js"></script>
+    <script src="static/js/expeditions.js?v=20260829-trip-calendar-1"></script>
     <script src="static/js/photos.js"></script>
-    <script src="static/js/trip-editor.js"></script>
+    <script src="static/js/trip-editor.js?v=20260829-trip-calendar-1"></script>
     <script src="static/js/gear.js?v=20260731-gear-filter-layout-1"></script>
     <script src="static/js/trolling-spread.js"></script>
     <script src="static/js/noaaCharts.js"></script>

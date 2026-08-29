@@ -68,10 +68,11 @@ label > small,
 
 .location-manager-card {
   display: grid;
-  gap: 8px;
-  padding: 14px 16px;
-  border: 1px solid rgba(216, 222, 232, 0.78);
-  border-radius: 12px;
+  gap: 6px;
+  align-self: start;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
   background: var(--panel);
   box-shadow: 0 1px 2px rgba(7, 21, 46, 0.04), 0 10px 26px rgba(7, 21, 46, 0.04);
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
@@ -96,7 +97,7 @@ label > small,
 }
 
 .location-manager-heading {
-  min-height: 42px;
+  min-height: 34px;
   padding: 0;
   list-style: none;
   cursor: pointer;
@@ -143,8 +144,13 @@ label > small,
   border-top: 0;
 }
 
+.location-manager-launches.empty-launch-list {
+  padding-top: 8px;
+  padding-bottom: 4px;
+}
+
 .location-manager-launches > div {
-  min-height: 30px;
+  min-height: 26px;
   border-bottom: 0;
 }
 
@@ -159,19 +165,20 @@ label > small,
 .location-manager-launch-row > span {
   display: flex;
   align-items: center;
-  gap: 8px;
   color: var(--text);
   font-weight: 800;
 }
 
-.location-manager-launch-row i {
-  color: var(--green);
-  font-style: normal;
+.location-manager-launch-row > span:first-child::before {
+  content: "•";
+  flex: 0 0 auto;
+  margin-right: 8px;
+  color: var(--muted);
 }
 
 .location-manager-add-launch {
   justify-self: start;
-  min-height: 32px;
+  min-height: 30px;
   margin-left: 29px;
   padding: 0 10px;
   border-radius: 8px;
@@ -305,9 +312,16 @@ label > small,
 }
 
 .private-location-card.is-selected {
-  border-color: rgba(17, 135, 83, 0.48);
+  border-color: var(--line);
   background: var(--field);
-  box-shadow: 0 10px 24px rgba(7, 21, 46, 0.07);
+  box-shadow: none;
+}
+
+.fishing-spot-assignment-count {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .private-location-card-head {
@@ -315,6 +329,15 @@ label > small,
   align-items: start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.private-location-edit-pin {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .private-location-name-row {

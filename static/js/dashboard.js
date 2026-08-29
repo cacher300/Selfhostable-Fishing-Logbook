@@ -468,7 +468,6 @@ function renderTrips() {
     <div class="table-row header">
       ${tripHeaderSortButton("date", "Date")}
       ${tripHeaderSortButton("location", "Location")}
-      ${tripHeaderSortButton("launch", "Launch / Area Fished")}
       ${tripHeaderSortButton("title", "Title")}
       ${tripHeaderSortButton("target", "Target")}
       ${tripHeaderSortButton("method", "Method")}
@@ -484,10 +483,10 @@ function renderTrips() {
     row.dataset.viewTrip = trip.id;
     row.innerHTML = `
       <span>${formatDate(trip.date)}</span>
-      <button class="location-link" type="button">
-        ${escapeHtml(trip.location)}
-      </button>
-      <span>${escapeHtml(trip.launch || "")}</span>
+      <span class="trip-location-cell">
+        <button class="location-link" type="button">${escapeHtml(trip.location)}</button>
+        ${trip.launch ? `<small>${escapeHtml(trip.launch)}</small>` : ""}
+      </span>
       <span>${escapeHtml(trip.title || "")}</span>
       <span class="trip-pill-stack">
         <span class="target-pill">${escapeHtml(trip.targetSpecies)}</span>
@@ -507,6 +506,7 @@ function renderTrips() {
 
 function renderSelectOptions() {
   populateLocationSelect();
+  populateTripExpeditionSelect();
   populateDatalist(els.personOptions, state.people.map((person) => person.name).filter(Boolean));
   populateOptionSelect(document.querySelector("#targetSpecies"), state.species, "Select target species");
   populateOptionSelect(document.querySelector("#method"), state.methods, "Select method");
@@ -556,6 +556,7 @@ function renderAll() {
   renderBrandSpotlight();
   renderStats();
   renderTrips();
+  renderExpeditions();
   renderPersonalBests();
   renderAdvancedStats();
   renderGearLibrary();

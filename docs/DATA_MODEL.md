@@ -7,8 +7,11 @@
 ```mermaid
 erDiagram
   LOGBOOK ||--o{ TRIP : contains
+  LOGBOOK ||--o{ EXPEDITION : contains
+  EXPEDITION ||--o{ TRIP : groups
   LOGBOOK ||--o{ LOCATION : contains
   LOCATION ||--o{ LAUNCH : contains
+  LOGBOOK ||--o{ SPOT : contains
   LOGBOOK ||--o{ PERSON : contains
   LOGBOOK ||--o{ LURE : contains
   LOGBOOK ||--o{ FLASHER : contains
@@ -18,6 +21,7 @@ erDiagram
   REEL ||--o{ LINE_HISTORY : owns
   TRIP ||--o{ SETUP_LINE : owns
   TRIP ||--o{ CATCH : owns
+  SPOT ||--o{ CATCH : assigned_to
   TRIP ||--o{ LOST_FISH : owns
   SETUP_LINE ||--o{ CATCH : referenced_by
   SETUP_LINE ||--o{ LOST_FISH : referenced_by
@@ -38,7 +42,7 @@ Relationships are string IDs enforced primarily by UI behavior, not backend refe
 | `setupLineSides` | `{value,label}[]` | Port/center/starboard choices. |
 | `lures`, `flashers`, `reels`, `rods`, `rodReelCombos` | arrays | Reusable gear libraries. |
 | `settings` | object | Time, unit, and chop preferences. |
-| `people`, `locations`, `trips` | arrays | Core records. |
+| `people`, `locations`, `spots`, `expeditions`, `trips` | arrays | Core records. |
 
 Legacy top-level `tripTypes` is removed during normalization.
 
@@ -65,11 +69,21 @@ Typed fishing measurements such as `waterTemp`, `weight`, and `fowCaught` are st
 
 Coordinates must be within latitude/longitude bounds and cannot be `(0,0)`. String locations from older/imported data are migrated to records without coordinates. A person is `{ id, name }`; people found inside trips are merged into the top-level library.
 
+## Fishing Spot
+
+A spot is `{ id, name, coordinates, radiusMeters }`. Names and IDs are unique, coordinates are required, and radius is stored in meters from 25 through 10,000. Spots are global geographic circles rather than children of waterbodies.
+
+Landed catches use `spotId` plus `spotAssignmentMode` (`automatic` or `manual`). Automatic assignment uses manual catch coordinates before resolved/photo coordinates, matches the nearest spot whose radius contains the catch, and uses spot ID to break equal-distance ties. Manual assignment can select any existing spot regardless of distance or explicitly store no spot. Lost fish are not assigned.
+
+## Expedition
+
+An expedition represents one multi-day fishing vacation and contains `id`, required `name`, required ISO `startDate` and `endDate`, plus optional `destination` and `notes`. The end date must be on or after the start date. Trips join an expedition through optional `trip.expeditionId`; invalid references normalize to an empty string. Deleting an expedition in the UI keeps its trips and clears their references.
+
 ## Trip
 
 | Group | Verified fields |
 |---|---|
-| Identity/location | `id`, `title`, `date`, `location`, `locationId`, `launch`, `launchId` |
+| Identity/location | `id`, `title`, `date`, `expeditionId`, `location`, `locationId`, `launch`, `launchId` |
 | Time | `launchTime`, `linesSetTime`, `linesPulledTime`, `hours` (`startTime`/`endTime` remain compatibility aliases) |
 | Classification | `targetSpecies`, `method`, `intent`, `tripRating` |
 | Conditions | `waterTemp`, `waterClarity`, `weather`, `waveHeight`, `waveChop`, `wind`, `structure` |
@@ -90,7 +104,7 @@ Setup rows intentionally do not collect fish-specific speed/depth parameters. Re
 
 Common fields include `id`, `personId`, `time`, `waterDepth`, `depthDown`, `presentation`, `direction`, `fowCaught`, `speed`, `retrieve`, `ballDepth`, `lineBehindBoard`, `estimatedLureDepth`, `dipseySetting`, `lineOut`, `estimatedDepth`, `notes`, `setupLineId`, `lureId`, and `flasherId`.
 
-Landed catches additionally use `species`, `released`, `length`, `weight`, `manualCoordinates`, `coordinates`, `photos[]`, and optional `weatherData`. Lost fish use `possibleSpecies`, force `released: false`, and currently save no photos or coordinates.
+Landed catches additionally use `species`, `released`, `length`, `weight`, `manualCoordinates`, `coordinates`, `spotId`, `spotAssignmentMode`, `photos[]`, and optional `weatherData`. Lost fish use `possibleSpecies`, force `released: false`, and currently save no photos, coordinates, or spot assignment.
 
 An imported numeric `quantity` is honored by analytics, but the form has no quantity input. Current UI-created records therefore represent one fish each.
 
@@ -128,6 +142,6 @@ Catch `weatherData` contains source/fetch/timezone/units and one nearest normali
 
 ## Normalization and Validation
 
-Backend validation recursively checks JSON value types, schema compatibility, collection and nested-record shapes, duplicate top-level record IDs, settings, units, locations, coordinates, people, and trip child collections. Errors include the failing JSON path.
+Backend validation recursively checks JSON value types, schema compatibility, collection and nested-record shapes, duplicate top-level record IDs, expedition dates, settings, units, locations, coordinates, people, and trip child collections. Errors include the failing JSON path.
 
 Normalization supplies defaults, validates unit/time/chop preferences, cleans choice lists, merges people and locations, and reconnects trip location/launch names and IDs. There is no explicit schema-version migration history.

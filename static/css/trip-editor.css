@@ -1,3 +1,16 @@
+.trip-expedition-field {
+  min-width: 0;
+}
+
+.trip-expedition-field .inline-control-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.trip-expedition-field .compact-action {
+  min-height: 42px;
+  padding-inline: 12px;
+}
+
 .wide-label,
 .catch-editor,
 .gear-used-editor,
@@ -1179,6 +1192,17 @@
 
 .catch-identity-row .catch-weight-field {
   width: max-content;
+}
+
+.catch-identity-row .catch-spot-field {
+  flex: 1 1 260px;
+  max-width: 340px;
+}
+
+.catch-spot-field small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .catch-identity-row .catch-weight-field > label:not(.checkbox-label) {

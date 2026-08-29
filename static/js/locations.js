@@ -117,7 +117,6 @@ function renderLocationManager() {
     <details class="location-manager-card" data-managed-location-id="${escapeHtml(location.id)}" draggable="true" open>
       <summary class="location-manager-heading">
         <div class="location-manager-title-row">
-          <span class="location-manager-drag-handle" aria-hidden="true">☰</span>
           <div>
             <strong>${escapeHtml(location.name)}</strong>
             <span>${launches.length} saved ${launches.length === 1 ? "location" : "locations"}</span>
@@ -136,7 +135,7 @@ function renderLocationManager() {
         <div class="location-manager-launches">
           ${launches.map((launch) => `
             <div class="location-manager-launch-row">
-              <span><i aria-hidden="true">•</i>${escapeHtml(launch.name)}</span>
+              <span>${escapeHtml(launch.name)}</span>
               <details class="overflow-menu location-manager-menu">
                 <summary aria-label="${escapeHtml(`Actions for ${launch.name}`)}">⋮</summary>
                 <div>
@@ -312,6 +311,7 @@ function updateCatchLocationSummary(row) {
   const coordinates = fishCoordinatesFromRow(row);
   if (button) button.textContent = coordinates ? "Selected Location" : "Select Location";
   if (summary) summary.textContent = "";
+  if (typeof refreshCatchSpotSelect === "function") refreshCatchSpotSelect(row);
 }
 
 function setCatchLocationPickerCoordinates(coordinates) {
@@ -449,6 +449,7 @@ async function saveLocationPin(event) {
     populateLocationSelect(location.id);
   }
 
+  renderLocationManager();
   els.locationDialog.close();
   try {
     await saveState();
