@@ -469,6 +469,7 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.get("/trips")
     @app.get("/")
+    @app.get("/expeditions")
     @app.get("/bests")
     @app.get("/stats")
     @app.get("/leaderboard")
@@ -478,7 +479,15 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/gallery")
     @app.get("/settings")
     def app_page() -> Response:
-        return send_file(ROOT / "index.html")
+        theme = read_logbook().get("settings", {}).get("theme")
+        initial_theme = "dark" if theme == "dark" else "light"
+        document = (ROOT / "index.html").read_text(encoding="utf-8")
+        document = document.replace(
+            '<html lang="en">',
+            f'<html lang="en" data-theme="{initial_theme}">',
+            1,
+        )
+        return Response(document, mimetype="text/html")
 
     @app.get("/static/<path:filename>")
     def static_files(filename: str) -> Response:

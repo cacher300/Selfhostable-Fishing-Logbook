@@ -68,6 +68,10 @@ let locationPickerMarker = null;
 let privatePhotoLocationMap = null;
 let privatePhotoLocationLayer = null;
 let activePrivatePhotoLocationId = "";
+let fishingSpotMap = null;
+let fishingSpotLayer = null;
+let activeFishingSpotId = "";
+let fishingSpotNameEditId = "";
 let catchLocationPickerMap = null;
 let catchLocationPickerMarker = null;
 let activeCatchLocationRow = null;
@@ -140,6 +144,64 @@ function normalizeCoordinates(coordinates) {
     longitude: Number(coordinates.longitude)
   };
   return isUsableCoordinates(normalized) ? normalized : null;
+}
+
+function coordinateDistanceMeters(first, second) {
+  if (!isUsableCoordinates(first) || !isUsableCoordinates(second)) return Number.POSITIVE_INFINITY;
+  const earthRadius = 6371000;
+  const toRadians = (value) => (Number(value) * Math.PI) / 180;
+  const deltaLatitude = toRadians(second.latitude - first.latitude);
+  const deltaLongitude = toRadians(second.longitude - first.longitude);
+  const latitudeOne = toRadians(first.latitude);
+  const latitudeTwo = toRadians(second.latitude);
+  const haversine = Math.sin(deltaLatitude / 2) ** 2
+    + Math.cos(latitudeOne) * Math.cos(latitudeTwo) * Math.sin(deltaLongitude / 2) ** 2;
+  return earthRadius * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function normalizeSpots(spots = []) {
+  const ids = new Set();
+  const names = new Set();
+  return (Array.isArray(spots) ? spots : []).flatMap((spot) => {
+    if (!spot || typeof spot !== "object") return [];
+    const id = String(spot.id || "").trim();
+    const name = String(spot.name || "").trim();
+    const nameKey = name.toLowerCase();
+    const coordinates = normalizeCoordinates(spot.coordinates);
+    const radiusMeters = Number(spot.radiusMeters);
+    if (!id || ids.has(id) || !name || names.has(nameKey) || !coordinates || !Number.isFinite(radiusMeters) || radiusMeters < 25 || radiusMeters > 500) return [];
+    ids.add(id);
+    names.add(nameKey);
+    return [{ id, name, coordinates, radiusMeters: Math.round(radiusMeters * 100) / 100 }];
+  });
+}
+
+function automaticSpotId(catchItem, spots = state.spots || []) {
+  const coordinates = normalizeCoordinates(catchItem?.manualCoordinates) || normalizeCoordinates(catchItem?.coordinates);
+  if (!coordinates) return "";
+  const matches = spots.flatMap((spot) => {
+    const distance = coordinateDistanceMeters(coordinates, spot.coordinates);
+    return distance <= Number(spot.radiusMeters) ? [{ id: spot.id, distance }] : [];
+  });
+  matches.sort((first, second) => first.distance - second.distance || first.id.localeCompare(second.id));
+  return matches[0]?.id || "";
+}
+
+function normalizeCatchSpotAssignment(catchItem, spots = state.spots || []) {
+  const mode = catchItem?.spotAssignmentMode === "manual" ? "manual" : "automatic";
+  const spotIds = new Set(spots.map((spot) => spot.id));
+  const requestedId = String(catchItem?.spotId || "").trim();
+  return {
+    ...catchItem,
+    spotAssignmentMode: mode,
+    spotId: mode === "manual"
+      ? (spotIds.has(requestedId) ? requestedId : "")
+      : automaticSpotId(catchItem, spots)
+  };
+}
+
+function spotName(spotId) {
+  return state.spots.find((spot) => spot.id === spotId)?.name || "";
 }
 
 function slugId(prefix, value) {
@@ -254,7 +316,7 @@ function normalizeState(nextState) {
   delete normalized.tripTypes;
   normalized.settings = normalizeSettings(normalized.settings);
 
-  ["species", "methods", "riggings", "lureTypes", "flasherTypes", "waterClarities", "structureOptions", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips"].forEach((key) => {
+  ["species", "methods", "riggings", "lureTypes", "flasherTypes", "waterClarities", "structureOptions", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips"].forEach((key) => {
     if (!Array.isArray(normalized[key])) normalized[key] = structuredClone(defaults[key]);
   });
   ["species", "methods", "riggings", "lureTypes", "flasherTypes", "waterClarities", "structureOptions", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingDirections"].forEach((key) => {
@@ -281,6 +343,19 @@ function normalizeState(nextState) {
   }));
   normalized.rods = normalized.rods.map((rod) => ({ ...rod }));
   normalized.rodReelCombos = normalized.rodReelCombos.map((combo) => ({ ...combo }));
+  normalized.spots = normalizeSpots(normalized.spots);
+  normalized.expeditions = normalized.expeditions
+    .filter((expedition) => expedition && typeof expedition === "object")
+    .map((expedition) => ({
+      id: String(expedition.id || createId()),
+      name: String(expedition.name || "").trim(),
+      startDate: String(expedition.startDate || "").trim(),
+      endDate: String(expedition.endDate || "").trim(),
+      destination: String(expedition.destination || "").trim(),
+      notes: String(expedition.notes || "").trim()
+    }))
+    .filter((expedition) => expedition.name && expedition.startDate && expedition.endDate);
+  const expeditionIds = new Set(normalized.expeditions.map((expedition) => expedition.id));
   normalized.trips = normalized.trips.map((trip) => ({
     catches: [],
     lostFish: [],
@@ -320,13 +395,13 @@ function normalizeState(nextState) {
         side: migrateSetupLineSideValue(gearItem.side),
         presentation: migrateTrollingPresentationValue(gearItem.presentation)
       })),
-      catches: (trip.catches || []).map((catchItem) => ({
+      catches: (trip.catches || []).map((catchItem) => normalizeCatchSpotAssignment({
         rodId: "",
         ...catchItem,
         gpsSpeed: catchItem.gpsSpeed ?? catchItem.speed ?? "",
         ballSpeed: catchItem.ballSpeed || "",
         presentation: migrateTrollingPresentationValue(catchItem.presentation)
-      })),
+      }, normalized.spots)),
       lostFish: (trip.lostFish || []).map((fishItem) => ({
         rodId: "",
         ...fishItem,
@@ -337,7 +412,8 @@ function normalizeState(nextState) {
       location: location?.name || trip.location || "",
       locationId: location?.id || trip.locationId || "",
       launch: launch?.name || trip.launch || "",
-      launchId: launch?.id || trip.launchId || ""
+      launchId: launch?.id || trip.launchId || "",
+      expeditionId: expeditionIds.has(String(trip.expeditionId || "")) ? String(trip.expeditionId) : ""
     };
   });
 

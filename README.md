@@ -4,7 +4,7 @@ A private, self-hosted fishing journal built to answer one practical question: *
 
 ## What It Does
 
-- Logs trips, people, waterbodies, launches, conditions, notes, catches, and lost fish.
+- Logs trips, people, waterbodies, launches, radius-based fishing spots, conditions, notes, catches, and lost fish.
 - Records timed trolling setup changes and ties fish back to the producing setup line.
 - Manages lures, flashers, rods, reels, rod/reel combos, and reel line history.
 - Stores photos and videos locally, including a phone-first Photo Queue.

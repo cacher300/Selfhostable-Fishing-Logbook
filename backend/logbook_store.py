@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import uuid
 from copy import deepcopy
+from datetime import date
 
 from .backend_config import BATHYMETRY_LAKES, DATABASE_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
 from . import logbook_repository
@@ -13,9 +14,9 @@ _COLLECTION_KEYS = (
     "species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes",
     "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections",
     "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people",
-    "locations", "trips",
+    "locations", "spots", "expeditions", "trips",
 )
-_OBJECT_COLLECTION_KEYS = {"lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips"}
+_OBJECT_COLLECTION_KEYS = {"lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips"}
 
 
 def normalize_logbook(payload: dict | None = None) -> dict:
@@ -315,7 +316,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         normalized["settings"].pop("bathymetryOffsetFeet", None)
         normalized["settings"].pop("bathymetryLakeOffsetsFeet", None)
 
-    list_keys = ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
+    list_keys = ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips")
     for key in list_keys:
         if not isinstance(normalized.get(key), list):
             normalized[key] = deepcopy(DEFAULT_LOGBOOK[key])
@@ -361,6 +362,82 @@ def normalize_logbook(payload: dict | None = None) -> dict:
     for key in ("trollingPresentations", "setupLineSides"):
         clean_choice_options(key)
 
+    normalized_spots = []
+    spot_ids = set()
+    spot_names = set()
+    for spot in normalized["spots"]:
+        if not isinstance(spot, dict):
+            continue
+        spot_id = str(spot.get("id") or "").strip()
+        name = str(spot.get("name") or "").strip()
+        coordinates = usable_coordinates(spot.get("coordinates"))
+        try:
+            radius_meters = float(spot.get("radiusMeters"))
+        except (TypeError, ValueError):
+            radius_meters = 0
+        name_key = name.lower()
+        if (
+            not spot_id or spot_id in spot_ids or not name or name_key in spot_names
+            or not coordinates or not 25 <= radius_meters <= 500
+        ):
+            continue
+        spot_ids.add(spot_id)
+        spot_names.add(name_key)
+        normalized_spots.append({
+            "id": spot_id,
+            "name": name,
+            "coordinates": coordinates,
+            "radiusMeters": round(radius_meters, 2),
+        })
+    normalized["spots"] = normalized_spots
+
+    def distance_meters(first: dict, second: dict) -> float:
+        radius = 6371000
+        latitude_delta = math.radians(second["latitude"] - first["latitude"])
+        longitude_delta = math.radians(second["longitude"] - first["longitude"])
+        latitude_one = math.radians(first["latitude"])
+        latitude_two = math.radians(second["latitude"])
+        haversine = (
+            math.sin(latitude_delta / 2) ** 2
+            + math.cos(latitude_one) * math.cos(latitude_two) * math.sin(longitude_delta / 2) ** 2
+        )
+        return radius * 2 * math.atan2(math.sqrt(haversine), math.sqrt(1 - haversine))
+
+    def automatic_spot_id(catch: dict) -> str:
+        coordinates = usable_coordinates(catch.get("manualCoordinates")) or usable_coordinates(catch.get("coordinates"))
+        if not coordinates:
+            return ""
+        matches = []
+        for spot in normalized_spots:
+            distance = distance_meters(coordinates, spot["coordinates"])
+            if distance <= spot["radiusMeters"]:
+                matches.append((distance, spot["id"]))
+        return min(matches, default=(0, ""), key=lambda item: (item[0], item[1]))[1]
+
+    normalized_expeditions = []
+    expedition_ids = set()
+    for expedition in normalized["expeditions"]:
+        if not isinstance(expedition, dict):
+            continue
+        expedition_id = str(expedition.get("id") or uuid.uuid4())
+        if expedition_id in expedition_ids:
+            continue
+        name = str(expedition.get("name") or "").strip()
+        start_date = str(expedition.get("startDate") or "").strip()
+        end_date = str(expedition.get("endDate") or "").strip()
+        if not name or not start_date or not end_date:
+            continue
+        expedition_ids.add(expedition_id)
+        normalized_expeditions.append({
+            "id": expedition_id,
+            "name": name,
+            "startDate": start_date,
+            "endDate": end_date,
+            "destination": str(expedition.get("destination") or "").strip(),
+            "notes": str(expedition.get("notes") or "").strip(),
+        })
+    normalized["expeditions"] = normalized_expeditions
+
     for lure in normalized["lures"]:
         if not isinstance(lure, dict):
             continue
@@ -396,6 +473,19 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         trip["linesPulledTime"] = lines_pulled_time
         trip["startTime"] = lines_set_time
         trip["endTime"] = lines_pulled_time
+        expedition_id = str(trip.get("expeditionId") or "").strip()
+        trip["expeditionId"] = expedition_id if expedition_id in expedition_ids else ""
+        for catch in trip.get("catches", []):
+            if not isinstance(catch, dict):
+                continue
+            mode = "manual" if catch.get("spotAssignmentMode") == "manual" else "automatic"
+            selected_spot_id = str(catch.get("spotId") or "").strip()
+            catch["spotAssignmentMode"] = mode
+            catch["spotId"] = (
+                selected_spot_id if mode == "manual" and selected_spot_id in spot_ids
+                else "" if mode == "manual"
+                else automatic_spot_id(catch)
+            )
         for person in trip.get("people", []):
             if (
                 isinstance(person, dict)
@@ -654,7 +744,7 @@ def _validate_choice_lists(payload: dict) -> tuple[bool, str | None]:
 
 
 def _validate_object_lists(payload: dict) -> tuple[bool, str | None]:
-    keys = ("lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "trips")
+    keys = ("lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips")
     for key in keys:
         valid, error = _validate_object_list(payload, key)
         if not valid:
@@ -732,8 +822,8 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
                     radius = float(item["radiusMeters"])
                 except (TypeError, ValueError):
                     return _error(f"{path}.radiusMeters", "must be a number")
-                if radius < 25 or radius > 10000:
-                    return _error(f"{path}.radiusMeters", "must be between 25 and 10000")
+                if radius < 25 or radius > 500:
+                    return _error(f"{path}.radiusMeters", "must be between 25 and 500")
     return True, None
 
 
@@ -755,6 +845,53 @@ def _validate_people(payload: dict) -> tuple[bool, str | None]:
     for index, person in enumerate(payload.get("people", [])):
         if not isinstance(person.get("name"), str) or not person["name"].strip():
             return _error(f"people[{index}].name", "must be a non-empty string")
+    return True, None
+
+
+def _validate_spots(payload: dict) -> tuple[bool, str | None]:
+    names = set()
+    for index, spot in enumerate(payload.get("spots", [])):
+        path = f"spots[{index}]"
+        if not isinstance(spot.get("id"), str) or not spot["id"].strip():
+            return _error(f"{path}.id", "must be a non-empty string")
+        if not isinstance(spot.get("name"), str) or not spot["name"].strip():
+            return _error(f"{path}.name", "must be a non-empty string")
+        name_key = spot["name"].strip().lower()
+        if name_key in names:
+            return _error(f"{path}.name", "must be unique ignoring case")
+        names.add(name_key)
+        valid, error = _validate_coordinates(spot.get("coordinates"), f"{path}.coordinates")
+        if not valid:
+            return valid, error
+        if spot.get("coordinates") is None:
+            return _error(f"{path}.coordinates", "is required")
+        radius = spot.get("radiusMeters")
+        if not isinstance(radius, (int, float)) or isinstance(radius, bool) or not math.isfinite(radius):
+            return _error(f"{path}.radiusMeters", "must be a finite number")
+        if not 25 <= radius <= 500:
+            return _error(f"{path}.radiusMeters", "must be between 25 and 500")
+    return True, None
+
+
+def _validate_expeditions(payload: dict) -> tuple[bool, str | None]:
+    for index, expedition in enumerate(payload.get("expeditions", [])):
+        path = f"expeditions[{index}]"
+        if not isinstance(expedition.get("name"), str) or not expedition["name"].strip():
+            return _error(f"{path}.name", "must be a non-empty string")
+        parsed_dates = []
+        for field in ("startDate", "endDate"):
+            value = expedition.get(field)
+            if not isinstance(value, str) or not value.strip():
+                return _error(f"{path}.{field}", "must be a non-empty ISO date")
+            try:
+                parsed_dates.append(date.fromisoformat(value))
+            except ValueError:
+                return _error(f"{path}.{field}", "must be a valid ISO date")
+        if parsed_dates[1] < parsed_dates[0]:
+            return _error(f"{path}.endDate", "must be on or after startDate")
+        for field in ("destination", "notes"):
+            if field in expedition and not isinstance(expedition[field], str):
+                return _error(f"{path}.{field}", "must be a string")
     return True, None
 
 
@@ -781,6 +918,10 @@ def _validate_trips(payload: dict) -> tuple[bool, str | None]:
                 )
                 if not valid:
                     return valid, error
+            if "spotId" in catch and not isinstance(catch["spotId"], str):
+                return _error(f"{path}.catches[{catch_index}].spotId", "must be a string")
+            if "spotAssignmentMode" in catch and catch["spotAssignmentMode"] not in ("automatic", "manual"):
+                return _error(f"{path}.catches[{catch_index}].spotAssignmentMode", 'must be "automatic" or "manual"')
     return True, None
 
 
@@ -797,6 +938,8 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
         _validate_settings,
         _validate_locations,
         _validate_people,
+        _validate_spots,
+        _validate_expeditions,
         _validate_reels,
         _validate_trips,
     )

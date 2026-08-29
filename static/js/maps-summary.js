@@ -391,12 +391,14 @@ function mapPopupHtml(record) {
   const { trip, media, coordinates } = record;
   const title = [mapRecordTitle(record), trip.location].filter(Boolean).join(" at ");
   const fowValue = record.type === "catch" ? catchFowPopupValue(record.catchItem) : "";
+  const assignedSpot = record.type === "catch" ? spotName(record.catchItem?.spotId) : "";
   return `
     <div class="map-popup" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
       ${media?.image ? mediaMarkup(media) : ""}
       <strong>${escapeHtml(title)}</strong>
       <span>${escapeHtml(formatDate(trip.date))}</span>
       ${fowValue ? `<span><strong>FOW</strong>${escapeHtml(fowValue)}</span>` : ""}
+      ${assignedSpot ? `<span><strong>Spot</strong>${escapeHtml(assignedSpot)}</span>` : ""}
       <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
     </div>
   `;
@@ -423,6 +425,7 @@ function renderMapList(records) {
   els.mapCatchList.innerHTML = records.map((record) => {
     const { trip, media } = record;
     const fowValue = record.type === "catch" ? catchFowPopupValue(record.catchItem) : "";
+    const assignedSpot = record.type === "catch" ? spotName(record.catchItem?.spotId) : "";
     return `
       <article class="map-catch-card" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
         ${media?.image ? mediaMarkup(media) : ""}
@@ -430,6 +433,7 @@ function renderMapList(records) {
           <strong>${escapeHtml(mapRecordTitle(record))}</strong>
           <span>${escapeHtml([formatDate(trip.date), trip.location].filter(Boolean).join(" / "))}</span>
           ${fowValue ? `<span><strong>FOW</strong> ${escapeHtml(fowValue)}</span>` : ""}
+          ${assignedSpot ? `<span><strong>Spot</strong> ${escapeHtml(assignedSpot)}</span>` : ""}
           <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
         </div>
       </article>
@@ -917,6 +921,7 @@ function renderCatchReportDetails(trip, catchItem) {
       ${!trollingTrip ? catchMetaRow("Rigging", record.rigging) : ""}
       ${!trollingTrip ? catchMetaRow("Rig details", record.riggingDetails) : ""}
       ${catchMetaRow("Depth", depthDetails.join(" / "))}
+      ${catchMetaRow("Spot", spotName(catchItem.spotId))}
       ${trollingTrip ? catchMetaRow("GPS Speed", displaySpeedValue(record.gpsSpeed || record.speed)) : ""}
       ${trollingTrip ? catchMetaRow("Ball Speed", displaySpeedValue(record.ballSpeed)) : ""}
       ${castingTrip ? catchMetaRow("Retrieve", record.retrieve) : ""}
@@ -935,6 +940,7 @@ function catchDetailRows(trip, catchItem) {
     ["Status", record.released ? "Released" : "Kept", "status"],
     ["Time", catchItem.time ? formatDisplayTime(catchItem.time) : ""],
     ["Angler", reportPersonName(trip, catchItem.personId)],
+    ["Spot", spotName(catchItem.spotId)],
     ["Water depth", reportDepthValue(record.fowCaught || record.waterDepth)],
     ["Depth Down", reportDepthDown(record, catchItem)],
     ["Length", displayStoredMeasurement(record.length, "fishLength")],
@@ -1047,7 +1053,7 @@ function renderTripSummaryCatches(trip) {
 }
 
 const reportColumnDefinitions = [
-  ["number", "#"], ["type", "Record"], ["time", "Time"], ["angler", "Angler"], ["result", "Result"], ["species", "Species"], ["size", "Size"],
+  ["number", "#"], ["type", "Record"], ["time", "Time"], ["angler", "Angler"], ["result", "Result"], ["species", "Species"], ["spot", "Spot"], ["size", "Size"],
   ["waterDepth", "Water depth"], ["depth", "Depth Down"], ["method", "Method"], ["setup", "Line"], ["lure", "Lure"], ["flasher", "Flasher"], ["direction", "Direction"],
   ["gpsSpeed", "GPS Speed"], ["ballSpeed", "Ball Speed"], ["flatlineWeight", "Flatline Weight"],
   ["lineBehindBoard", "Line Behind Board"], ["leadcoreColors", "Leadcore Colors"], ["dipseySetting", "Dipsey Setting"],
@@ -1055,7 +1061,7 @@ const reportColumnDefinitions = [
   ["notes", "Notes"], ["photo", "Media"]
 ];
 const reportDefaultColumns = new Set(reportColumnDefinitions.map(([key]) => key));
-const reportColumnPreferenceKey = `${storageKey}-trip-report-columns-v4`;
+const reportColumnPreferenceKey = `${storageKey}-trip-report-columns-v5`;
 const reportTrollingColumns = new Set([
   "setup", "flasher", "direction", "gpsSpeed", "ballSpeed", "depth", "flatlineWeight", "lineBehindBoard",
   "leadcoreColors", "dipseySetting", "lineOut", "shaker", "deepestRigger"
@@ -1135,6 +1141,7 @@ function reportTimelineRecords(trip) {
     return {
       index, catchIndex: type === "catch" ? index : null, type, time: item.time || "", result: status,
       species: displayTitleText(item.species || item.possibleSpecies || "Unknown"),
+      spot: type === "catch" ? spotName(item.spotId) : "",
       size: [displayStoredMeasurement(record.length, "fishLength"), displayStoredMeasurement(record.weight, "fishWeight")].filter(Boolean).join(" / "),
       method: displayTitleText(presentationLabel(record.presentation) || trip.method || ""),
       type: type === "lost" ? "Lost fish" : "Catch", angler: reportPersonName(trip, item.personId), setup: compactSetupDisplayLabel(record),
@@ -1409,6 +1416,7 @@ function tripTimelineItems(trip) {
       waterDepth ? `${waterDepth} water` : ""
     ].filter(Boolean).join(" \u00b7 ");
     const chips = [
+      spotName(catchItem.spotId),
       lure,
       gpsSpeed ? `GPS ${gpsSpeed}` : "",
       ballSpeed ? `Ball ${ballSpeed}` : "",

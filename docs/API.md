@@ -20,6 +20,8 @@ Required top-level JSON types:
 - `trips`, `lures`, and `flashers` must be arrays.
 - `reels`, `rods`, and `rodReelCombos`, when present, must be arrays.
 - `people`, when present, must be an array.
+- `spots`, when present, must be an array of uniquely identified/named records with valid coordinates and a radius from 25 through 10,000 meters.
+- `expeditions`, when present, must be an array of uniquely identified records with a name and ordered ISO start/end dates.
 
 Success: `200 {"ok": true}`. Shape failure: `400 {"error": "..."}`. Validation is not recursive; see `DATA_MODEL.md`.
 
@@ -98,7 +100,7 @@ Files are served from their category paths. Category validation occurs through t
 ## SPA and Static Routes
 
 - `/` redirects to `/trips`.
-- `/trips`, `/stats`, `/map`, `/gear`, `/gallery`, `/settings` return `index.html`.
+- `/trips`, `/expeditions`, `/stats`, `/map`, `/gear`, `/gallery`, `/settings` return `index.html`.
 - `/static/<path:filename>` serves only `.css` and `.js` files beneath `static/`.
 - `/favicon.ico` returns 204.
 

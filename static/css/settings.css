@@ -449,7 +449,8 @@
 }
 
 #settingsAddLocationButton,
-#addPrivatePhotoLocationButton {
+#addPrivatePhotoLocationButton,
+#addFishingSpotButton {
   justify-self: end;
 }
 

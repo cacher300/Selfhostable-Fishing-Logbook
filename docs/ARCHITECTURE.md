@@ -83,7 +83,7 @@ When opened via `file:`, step 5 stops after localStorage. This is fallback persi
 
 ## Routing
 
-Flask serves the same SPA at `/trips`, `/stats`, `/map`, `/gear`, `/gallery`, and `/settings`; `/` redirects to `/trips`. The initial view is selected from `window.location.pathname`. In-page navigation only toggles panels: it does not update the URL or handle back/forward navigation. A catch-all serves repository static files after resolving and checking the requested path beneath the project root.
+Flask serves the same SPA at `/trips`, `/expeditions`, `/stats`, `/map`, `/gear`, `/gallery`, and `/settings`; `/` redirects to `/trips`. The initial view is selected from `window.location.pathname`. In-page navigation only toggles panels: it does not update the URL or handle back/forward navigation. A catch-all serves repository static files after resolving and checking the requested path beneath the project root.
 
 ## Security and Trust Boundary
 

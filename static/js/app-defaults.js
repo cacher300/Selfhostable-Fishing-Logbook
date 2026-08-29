@@ -212,6 +212,8 @@ const defaults = {
   },
   people: [],
   locations: [],
+  spots: [],
+  expeditions: [],
   trips: [
     {
       id: createId(),

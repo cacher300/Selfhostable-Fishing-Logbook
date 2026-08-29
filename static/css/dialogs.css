@@ -35,7 +35,7 @@
 
 .table-row {
   display: grid;
-  grid-template-columns: minmax(96px, 0.8fr) minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(88px, 0.78fr) minmax(58px, 0.52fr) minmax(66px, 0.58fr) minmax(78px, 0.7fr);
+  grid-template-columns: minmax(96px, 0.8fr) minmax(0, 1.35fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(88px, 0.78fr) minmax(58px, 0.52fr) minmax(66px, 0.58fr) minmax(78px, 0.7fr);
   align-items: center;
   gap: 14px;
   min-height: 64px;
@@ -162,6 +162,20 @@
 
 .icon-button:hover {
   background: var(--hover);
+}
+
+.trip-location-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.trip-location-cell small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .empty-state {

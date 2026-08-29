@@ -16,6 +16,58 @@ from backend import logbook_store
 from server import create_app
 
 class LogbookStoreTests(unittest.TestCase):
+    def test_spots_assign_nearest_catch_and_preserve_manual_choices(self) -> None:
+        payload = {
+            "schemaVersion": 1,
+            "lures": [],
+            "flashers": [],
+            "spots": [
+                {"id": "z-west", "name": "West", "coordinates": {"latitude": 43, "longitude": -79.001}, "radiusMeters": 500},
+                {"id": "a-east", "name": "East", "coordinates": {"latitude": 43, "longitude": -78.999}, "radiusMeters": 500},
+            ],
+            "trips": [{
+                "id": "trip",
+                "catches": [
+                    {"id": "auto", "coordinates": {"latitude": 43, "longitude": -79}},
+                    {"id": "manual", "coordinates": {"latitude": 43, "longitude": -79}, "spotAssignmentMode": "manual", "spotId": "z-west"},
+                    {"id": "none", "coordinates": {"latitude": 43, "longitude": -79}, "spotAssignmentMode": "manual", "spotId": ""},
+                ],
+                "lostFish": [], "gearUsed": [], "people": [], "notePhotos": [],
+            }],
+        }
+        catches = logbook_store.normalize_logbook(payload)["trips"][0]["catches"]
+        self.assertEqual("a-east", catches[0]["spotId"])
+        self.assertEqual("automatic", catches[0]["spotAssignmentMode"])
+        self.assertEqual("z-west", catches[1]["spotId"])
+        self.assertEqual("", catches[2]["spotId"])
+
+        payload["spots"] = [payload["spots"][1]]
+        catches = logbook_store.normalize_logbook(payload)["trips"][0]["catches"]
+        self.assertEqual("a-east", catches[0]["spotId"])
+        self.assertEqual("", catches[1]["spotId"])
+        self.assertEqual("manual", catches[1]["spotAssignmentMode"])
+
+    def test_spot_validation_rejects_duplicate_names_and_invalid_radius(self) -> None:
+        base = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
+        duplicate_names = {
+            **base,
+            "spots": [
+                {"id": "one", "name": "The Bar", "coordinates": {"latitude": 43, "longitude": -79}, "radiusMeters": 100},
+                {"id": "two", "name": "the bar", "coordinates": {"latitude": 44, "longitude": -78}, "radiusMeters": 200},
+            ],
+        }
+        valid, error = logbook_store.validate_logbook(duplicate_names)
+        self.assertFalse(valid)
+        self.assertEqual("spots[1].name: must be unique ignoring case", error)
+
+        invalid_radius = {
+            **base,
+            "spots": [{"id": "one", "name": "Tiny", "coordinates": {"latitude": 43, "longitude": -79}, "radiusMeters": 24}],
+        }
+        valid, error = logbook_store.validate_logbook(invalid_radius)
+        self.assertFalse(valid)
+        self.assertEqual("spots[0].radiusMeters: must be between 25 and 500", error)
+
     def test_saving_logbook_does_not_run_destructive_media_cleanup(self) -> None:
         app = create_app({"TESTING": True, "SECRET_KEY": "save-media-test"})
         payload = logbook_store.normalize_logbook({"schemaVersion": 1, "trips": [], "lures": [], "flashers": []})
