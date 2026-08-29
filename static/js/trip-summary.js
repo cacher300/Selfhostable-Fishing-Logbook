@@ -91,8 +91,6 @@ function catchMediaPreview(photo, speciesOrTitle, index, options = {}) {
         class="media-download-link"
         href="${escapeHtml(originalSource)}"
         download="${escapeHtml(mediaDownloadName(photo))}"
-        target="_blank"
-        rel="noreferrer"
         aria-label="Download original image"
         title="Download original"
       >
@@ -445,10 +443,6 @@ function renderCatchDetailPopout(trip, catchItem, index, selectedIndex) {
     <div class="catch-detail-popout" id="catchDetailPopout" role="dialog" aria-modal="true" aria-label="Catch details">
       <div class="catch-detail-panel">
         <button class="icon-button catch-detail-close" type="button" data-close-catch-detail aria-label="Close catch details"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
-        <div class="catch-detail-heading">
-          <h4>${escapeHtml(displayTitleText(catchItem.species || `Catch ${index + 1}`))}</h4>
-          ${catchItem.time ? `<p>${escapeHtml(formatDisplayTime(catchItem.time))}</p>` : ""}
-        </div>
         ${renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${index + 1}`, {
           catchIndex: index,
           selectedIndex,

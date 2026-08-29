@@ -15,6 +15,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY server.py index.html ./
+COPY docker-entrypoint.sh ./
 COPY templates ./templates
 COPY backend ./backend
 COPY static ./static
@@ -22,4 +23,5 @@ RUN mkdir -p data/uploads
 
 EXPOSE 8080
 
+ENTRYPOINT ["sh", "/app/docker-entrypoint.sh"]
 CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "120", "server:app"]

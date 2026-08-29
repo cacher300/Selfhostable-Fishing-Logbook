@@ -40,8 +40,10 @@ The launcher creates `.venv` when needed, installs missing dependencies, and sta
 ```
 
 Open `http://127.0.0.1`. Docker Compose publishes host port 80 to container port 8080 and mounts `./data:/app/data`.
-The app generates a secure runtime secret automatically. Set `SECRET_KEY` only if you want
-sessions to remain valid across application restarts.
+The container generates one secure secret at first startup and stores it in
+`data/.secret_key`, so all workers share it and sessions remain valid across
+restarts. To manage the secret yourself, set `SECRET_KEY` in the environment
+before starting the container.
 
 ## Data and Export
 
