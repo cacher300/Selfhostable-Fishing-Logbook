@@ -1,12 +1,39 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import sys
 import uuid
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZIP_STORED, ZipFile
+
+
+def _relaunch_in_project_venv() -> None:
+    """Keep direct server launches on the same dependency set as the launcher."""
+    if __name__ != "__main__":
+        return
+
+    project_root = Path(__file__).resolve().parent
+    venv_dir = "Scripts" if os.name == "nt" else "bin"
+    python_name = "python.exe" if os.name == "nt" else "python"
+    venv_python = project_root / ".venv" / venv_dir / python_name
+    if not venv_python.is_file():
+        return
+
+    try:
+        current_python = Path(sys.executable).resolve()
+    except OSError:
+        current_python = Path(sys.executable)
+    if current_python == venv_python.resolve():
+        return
+
+    os.execv(str(venv_python), [str(venv_python), *sys.argv])
+
+
+_relaunch_in_project_venv()
 
 from flask import Flask, Response, abort, jsonify, render_template, request, send_file, send_from_directory
 from werkzeug.utils import secure_filename

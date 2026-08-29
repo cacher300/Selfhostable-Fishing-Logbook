@@ -15,7 +15,7 @@ function showTripFormMessage(message, fields = []) {
 }
 
 function setTripSaveLoading(saving) {
-  document.querySelectorAll("[data-trip-save]").forEach((button) => {
+  document.querySelectorAll("[data-trip-save], [data-trip-draft-save]").forEach((button) => {
     button.disabled = saving;
     button.classList.toggle("is-loading", saving);
     button.setAttribute("aria-busy", String(saving));

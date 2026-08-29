@@ -89,6 +89,10 @@
   cursor: pointer;
 }
 
+.table-row.is-draft:not(.header) {
+  opacity: 0.55;
+}
+
 .location-link {
   overflow: hidden;
   border: 0;

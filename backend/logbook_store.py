@@ -321,6 +321,17 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         if not isinstance(normalized.get(key), list):
             normalized[key] = deepcopy(DEFAULT_LOGBOOK[key])
 
+    if isinstance(normalized.get("species"), list):
+        normalized["species"] = [
+            replacement
+            for item in normalized["species"]
+            for replacement in (
+                ("Black Crappie", "White Crappie")
+                if str((item.get("label") or item.get("value")) if isinstance(item, dict) else item).strip().lower() == "crappie"
+                else (item,)
+            )
+        ]
+
     def clean_text_options(key: str) -> None:
         seen = set()
         cleaned = []
@@ -359,6 +370,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
 
     for key in ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingDirections"):
         clean_text_options(key)
+    normalized["lureTypes"].sort(key=str.casefold)
     for key in ("trollingPresentations", "setupLineSides"):
         clean_choice_options(key)
 

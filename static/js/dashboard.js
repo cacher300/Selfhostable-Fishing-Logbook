@@ -479,7 +479,7 @@ function renderTrips() {
 
   trips.forEach((trip) => {
     const row = document.createElement("div");
-    row.className = "table-row";
+    row.className = `table-row${trip.isDraft ? " is-draft" : ""}`;
     row.dataset.viewTrip = trip.id;
     row.innerHTML = `
       <span>${formatDate(trip.date)}</span>

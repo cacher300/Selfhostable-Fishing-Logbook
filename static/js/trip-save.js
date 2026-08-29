@@ -222,13 +222,22 @@ function upsertListValue(listName, value) {
 }
 
 async function saveTrip(event) {
+  return persistTrip(event, { draft: false });
+}
+
+async function saveTripAsDraft(event) {
+  return persistTrip(event, { draft: true });
+}
+
+async function persistTrip(event, { draft = false } = {}) {
   event.preventDefault();
-  if (!validateTripForm()) return;
-  if (!confirmTripSaveWarnings()) return;
+  if (!draft && !validateTripForm()) return;
+  if (!draft && !confirmTripSaveWarnings()) return;
   setTripSaveLoading(true);
 
   try {
     let trip = collectTripFromForm();
+    trip.isDraft = draft;
     trip.title = trip.title || generatedTripTitle(trip);
     state.people = mergePeople(state.people, trip.people);
     state.locations = mergeLocations(state.locations, [trip.location]);

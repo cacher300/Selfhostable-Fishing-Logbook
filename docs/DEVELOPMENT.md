@@ -2,14 +2,19 @@
 
 ## Prerequisites and Run Commands
 
-Python 3.12 is used by the container. Runtime dependencies are Flask and Pillow.
+Python 3.12 is used by the container. Runtime dependencies include Flask,
+Pillow, and `pillow-heif` for HEIC/HEIF image handling.
 
 ```powershell
-py -m pip install -r requirements.txt
-py server.py
+.\scripts\run-local.ps1
 ```
 
 Open `http://127.0.0.1:8080`. The server creates `data/logbook.sqlite3` from defaults when started through `main()` and the database is missing.
+
+The launcher creates or repairs `.venv`, installs all requirements (including
+`pillow-heif` for HEIC/HEIF uploads), and starts the server with that
+environment. If the server is invoked directly, `server.py` also hands off to
+the existing project virtual environment before loading its dependencies.
 
 Docker:
 

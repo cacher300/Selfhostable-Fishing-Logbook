@@ -181,7 +181,16 @@ function normalizeState(nextState) {
     if (!Array.isArray(normalized[key])) normalized[key] = structuredClone(defaults[key]);
   });
   ["species", "methods", "riggings", "lureTypes", "flasherTypes", "waterClarities", "structureOptions", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingDirections"].forEach((key) => {
-    normalized[key] = normalizeTextOptions(normalized[key], defaults[key]);
+    const values = key === "species"
+      ? normalized[key].flatMap((item) => {
+          const value = typeof item === "object" ? item?.label || item?.value : item;
+          return String(value || "").trim().toLowerCase() === "crappie"
+            ? ["Black Crappie", "White Crappie"]
+            : [item];
+        })
+      : normalized[key];
+    normalized[key] = normalizeTextOptions(values, defaults[key]);
+    if (key === "lureTypes") normalized[key].sort((a, b) => a.localeCompare(b));
   });
   normalized.trollingPresentations = normalizeChoiceOptions(
     defaults.trollingPresentations,
@@ -239,6 +248,7 @@ function normalizeState(nextState) {
       : null;
     return {
       ...trip,
+      isDraft: Boolean(trip.isDraft),
       launchTime: trip.launchTime || "",
       linesSetTime: trip.linesSetTime || trip.startTime || "",
       linesPulledTime: trip.linesPulledTime || trip.endTime || "",

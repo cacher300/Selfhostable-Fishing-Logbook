@@ -10,6 +10,8 @@ export function usableCoordinates(value: unknown): Coordinates | null {
 export function normalizeLogbook(input: Partial<Logbook> | null | undefined): Logbook {
   const logbook = structuredClone(defaultLogbook); Object.assign(logbook, input ?? {}); logbook.schemaVersion = 1;
   for (const key of ["species","methods","lureTypes","flasherTypes","waterClarities","weatherTypes","reelStyles","rodTypes","lineTypes","lureBladeTypes","lureSpoonSizes","trollingDirections","lures","flashers","reels","rods","rodReelCombos","people","locations","trips"] as const) if (!Array.isArray(logbook[key])) (logbook[key] as unknown) = structuredClone(defaultLogbook[key]);
+  logbook.species = logbook.species.flatMap(value => String(value).trim().toLowerCase() === "crappie" ? ["Black Crappie", "White Crappie"] : [value]);
+  logbook.lureTypes = logbook.lureTypes.slice().sort((a, b) => a.localeCompare(b));
   logbook.mediaInbox = Array.isArray(logbook.mediaInbox) ? logbook.mediaInbox : [];
   logbook.settings = { ...defaultLogbook.settings, ...(input?.settings ?? {}) }; logbook.trips = logbook.trips.filter(Boolean).map(normalizeTrip); return logbook;
 }
