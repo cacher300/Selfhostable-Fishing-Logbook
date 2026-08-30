@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="static/css/styles.css?v=20260829-personal-best-card-1" />
+    <link rel="stylesheet" href="static/css/styles.css?v=20260829-duplicate-catch-1" />
     <link rel="stylesheet" href="static/css/trip-sharing.css" />
   </head>
   <body>
@@ -2053,7 +2053,10 @@
             <span class="collapsible-row-summary">Catch</span>
             <span class="collapsible-row-detail"></span>
           </button>
-          <button class="icon-button remove-catch" type="button" aria-label="Remove catch"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+          <div class="collapsible-row-actions">
+            <button class="button secondary compact-action duplicate-catch" type="button">Duplicate</button>
+            <button class="icon-button remove-catch" type="button" aria-label="Remove catch"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+          </div>
         </div>
         <div class="collapsible-row-body">
           <div class="catch-identity-row">
@@ -2149,7 +2152,7 @@
             <input class="catch-water-depth" type="text" placeholder="80 FOW" />
           </label>
           <label class="catch-depth-down-field">
-            <span data-unit-label="depth" data-unit-label-text="Estimated depth down">Estimated depth down</span>
+            <span data-unit-label="depth" data-unit-label-text="Depth down">Depth down</span>
             <input class="catch-depth-down" type="text" placeholder="45 ft" />
           </label>
           </div>
@@ -2441,7 +2444,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="static/vendor/anime-3.2.2.min.js"></script>
     <script src="static/js/app-config.js"></script>
-    <script src="static/js/app-defaults.js?v=20260829-species-2"></script>
+    <script src="static/js/app-defaults.js?v=20260829-rigging-default-1"></script>
     <script src="static/js/app-state.js"></script>
     <script src="static/js/app-normalization.js?v=20260829-species-2"></script>
     <script src="static/js/app-units.js?v=20260829-structure-split-2"></script>
@@ -2458,9 +2461,9 @@
     <script src="static/js/expedition-analytics.js"></script>
     <script src="static/js/expeditions.js?v=20260829-trip-calendar-1"></script>
     <script src="static/js/photos.js"></script>
-    <script src="static/js/trip-editor.js?v=20260829-save-draft-1"></script>
-    <script src="static/js/trip-rows.js?v=20260829-structure-lost-field-1"></script>
-    <script src="static/js/trip-save.js?v=20260829-save-draft-1"></script>
+    <script src="static/js/trip-editor.js?v=20260829-save-loading-2"></script>
+    <script src="static/js/trip-rows.js?v=20260829-duplicate-catch-1"></script>
+    <script src="static/js/trip-save.js?v=20260829-save-loading-2"></script>
     <script src="static/js/photo-queue-autofill.js?v=20260829-queue-copy-1"></script>
     <script src="static/js/gear-core.js?v=20260829-lure-picker-1"></script>
     <script src="static/js/gear-pickers.js?v=20260829-lure-picker-1"></script>
@@ -2481,13 +2484,13 @@
     <script src="static/js/stats.js"></script>
     <script src="static/js/stats-rendering.js"></script>
     <script src="static/js/personal-bests.js?v=20260829-size-order-1"></script>
-    <script src="static/js/form-utils.js"></script>
+    <script src="static/js/form-utils.js?v=20260829-depth-label-1"></script>
     <script src="static/js/gallery.js"></script>
     <script src="static/js/boat-layout.js"></script>
     <script src="static/js/tackle-boxes.js"></script>
     <script src="static/js/leaderboard.js"></script>
     <script src="static/js/app-control-events.js?v=20260829-save-draft-1"></script>
-    <script src="static/js/app-delegated-events.js?v=20260829-home-location-selection-1"></script>
+    <script src="static/js/app-delegated-events.js?v=20260829-duplicate-catch-1"></script>
     <script src="static/js/app.js?v=20260829-structure-split-1"></script>
   </body>
 </html>

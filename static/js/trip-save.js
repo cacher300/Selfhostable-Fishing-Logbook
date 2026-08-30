@@ -233,7 +233,7 @@ async function persistTrip(event, { draft = false } = {}) {
   event.preventDefault();
   if (!draft && !validateTripForm()) return;
   if (!draft && !confirmTripSaveWarnings()) return;
-  setTripSaveLoading(true);
+  setTripSaveLoading(true, draft ? "draft" : "save");
 
   try {
     let trip = collectTripFromForm();

@@ -14,10 +14,15 @@ function showTripFormMessage(message, fields = []) {
   fields[0]?.focus({ preventScroll: true });
 }
 
-function setTripSaveLoading(saving) {
+function setTripSaveLoading(saving, action = "") {
+  const loadingSelector = action === "draft"
+    ? "[data-trip-draft-save]"
+    : action === "save"
+      ? "[data-trip-save]"
+      : "";
   document.querySelectorAll("[data-trip-save], [data-trip-draft-save]").forEach((button) => {
     button.disabled = saving;
-    button.classList.toggle("is-loading", saving);
+    button.classList.toggle("is-loading", Boolean(saving && loadingSelector && button.matches(loadingSelector)));
     button.setAttribute("aria-busy", String(saving));
   });
 }

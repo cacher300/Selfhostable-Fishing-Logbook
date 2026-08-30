@@ -281,6 +281,63 @@ function addFishRow(catchItem = {}, { container, lost }) {
   return node;
 }
 
+function duplicateCatchRow(sourceRow) {
+  if (!sourceRow || sourceRow.classList.contains("lost-fish-row")) return null;
+
+  const sourceCoordinates = fishCoordinatesFromRow(sourceRow);
+  const duplicate = sourceRow.cloneNode(true);
+  const sourceControls = sourceRow.querySelectorAll("input, select, textarea");
+  const duplicateControls = duplicate.querySelectorAll("input, select, textarea");
+  sourceControls.forEach((control, index) => {
+    const copy = duplicateControls[index];
+    if (!copy || control.type === "file") return;
+    if (control.type === "checkbox" || control.type === "radio") copy.checked = control.checked;
+    else copy.value = control.value;
+  });
+  duplicate.dataset.rowId = createId();
+  duplicate.dataset.catchId = "";
+  duplicate.dataset.photoLocationId = "";
+  duplicate.dataset.heroPhotoId = "";
+  duplicate.catchPhotos = [];
+  duplicate.catchWeatherData = sourceRow.catchWeatherData ? structuredClone(sourceRow.catchWeatherData) : null;
+  duplicate.catchDepthData = sourceRow.catchDepthData ? structuredClone(sourceRow.catchDepthData) : {
+    depth_m: null,
+    depth_ft: null,
+    lake_name: null,
+    depth_source: null
+  };
+  duplicate.catchMetadataLocks = sourceRow.catchMetadataLocks
+    ? structuredClone(sourceRow.catchMetadataLocks)
+    : { time: false, location: false, fow: false };
+  duplicate.catchMetadataLocks.time = false;
+  duplicate.dataset.metadataLockTime = "false";
+
+  const sourceManualCoordinates = manualCoordinatesFromRow(sourceRow);
+  if (!sourceManualCoordinates && sourceCoordinates) {
+    duplicate.querySelector(".catch-latitude").value = sourceCoordinates.latitude;
+    duplicate.querySelector(".catch-longitude").value = sourceCoordinates.longitude;
+  }
+
+  duplicate.querySelector(".catch-time").value = "";
+  duplicate.querySelector(".catch-time-unknown").checked = false;
+  duplicate.querySelector(".catch-photo-grid").innerHTML = "";
+  duplicate.classList.add("collapsed");
+  duplicate.querySelector("[data-toggle-row]")?.setAttribute("aria-expanded", "false");
+  sourceRow.after(duplicate);
+
+  renderCatchPhotos(duplicate);
+  updateMetadataLockButtons(duplicate);
+  updateCatchLocationSummary(duplicate);
+  updatePresentationFields(duplicate);
+  populateSetupLineSelects();
+  updateTrollingVisibility();
+  populateCatchRodSelects();
+  updateCatchDetailsUnknown(duplicate);
+  updateAllRowSummaries();
+  renderLiveTrollingSpread();
+  return duplicate;
+}
+
 function addTripGearRow(gearItem = {}) {
   const template = document.querySelector("#tripGearRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);

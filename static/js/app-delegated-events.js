@@ -179,6 +179,12 @@ document.addEventListener("click", (event) => {
     if (trip) openTripSummary(trip);
   }
 
+  const duplicateCatch = event.target.closest(".duplicate-catch");
+  if (duplicateCatch) {
+    duplicateCatchRow(duplicateCatch.closest(".catch-row"));
+    return;
+  }
+
   const removeCatch = event.target.closest(".remove-catch");
   if (removeCatch) {
     const catchRow = removeCatch.closest(".catch-row");

@@ -86,8 +86,8 @@ function updatePresentationFields(row) {
     catchPresentationField.classList.toggle("hidden", !isTrollingTrip() || !hasSelectedRod || row.classList.contains("lost-fish-row"));
   }
   if (estimatedDepthLabel) {
-    estimatedDepthLabel.dataset.unitLabelText = presentation === "flatline" ? "Estimated depth down" : "Estimated depth";
-    estimatedDepthLabel.textContent = presentation === "flatline" ? "Estimated depth down" : "Estimated depth";
+    estimatedDepthLabel.dataset.unitLabelText = presentation === "flatline" ? "Depth down" : "Estimated depth";
+    estimatedDepthLabel.textContent = presentation === "flatline" ? "Depth down" : "Estimated depth";
   }
   if (!isTrollingTrip()) return;
 
