@@ -478,6 +478,13 @@
   gap: 12px;
 }
 
+.collapsible-row-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
 .row-collapse-button {
   display: flex;
   align-items: center;
