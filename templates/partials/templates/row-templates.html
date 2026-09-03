@@ -139,11 +139,10 @@
           </label>
           <div class="row-section-title trolling-field catch-detail-optional">Details</div>
           <label class="trolling-field direct-catch-gear catch-presentation-field catch-detail-optional hidden">
-            <span>Trolling method</span>
+            <span>Method</span>
             <select class="catch-presentation">
               <option value="">Select method</option>
               <option value="downrigger">Downrigger</option>
-              <option value="cheater">Cheater</option>
               <option value="flatline">Flatline</option>
               <option value="flatline-leadcore">Planer Board / Leadcore</option>
               <option value="dipsey-diver">Dipsey Diver</option>
@@ -267,12 +266,11 @@
             <span>Rod</span>
             <input class="trip-gear-line-label" type="text" placeholder="Auto number, or name this rod" />
           </label>
-          <div class="row-section-title trolling-field gear-trolling-title">Trolling Method</div>
+          <div class="row-section-title trolling-field gear-trolling-title">Method</div>
           <label class="trolling-field gear-trolling-field">
-            <select class="catch-presentation" aria-label="Trolling method">
+            <select class="catch-presentation" aria-label="Method">
               <option value="">Select method</option>
               <option value="downrigger">Downrigger</option>
-              <option value="cheater">Cheater</option>
               <option value="flatline">Flatline</option>
               <option value="flatline-leadcore">Planer Board / Leadcore</option>
               <option value="dipsey-diver">Dipsey Diver</option>
@@ -287,11 +285,6 @@
             <input class="trip-gear-distance-behind" type="text" placeholder="e.g., 20 ft" />
           </label>
           <div class="row-section-title gear-title">Gear</div>
-          <label class="trolling-field boat-equipment-field">
-            <span>Boat equipment</span>
-            <select class="trip-gear-boat-item"></select>
-            <small>Physical item from your Boat page.</small>
-          </label>
           <label class="gear-combo-field">
             <span>Rod/reel combo</span>
             <select class="trip-gear-combo"></select>
@@ -314,7 +307,6 @@
             <select class="trip-gear-flasher"></select>
           </label>
           <button class="button secondary add-flasher-inline trolling-field gear-flasher-action" type="button">New Flasher</button>
-          <div class="flasher-preview trolling-field"></div>
           <label class="checkbox-label trolling-param param-cheater">
             <input class="trip-gear-cheater" type="checkbox" />
             <span>Add cheater line</span>
@@ -323,6 +315,7 @@
             <span>Cheater lure</span>
             <select class="trip-gear-cheater-lure"></select>
           </label>
+          <button class="button secondary add-lure-inline cheater-lure-action trolling-param" data-lure-target="cheater" type="button">New Lure</button>
         </div>
       </article>
     </template>

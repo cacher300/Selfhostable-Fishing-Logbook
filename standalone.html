@@ -729,9 +729,9 @@
             <div class="gear-tabs" id="gearTabs" role="tablist" aria-label="Gear inventory sections">
               <button class="gear-tab" type="button" data-gear-tab="reels">Reels</button>
               <button class="gear-tab" type="button" data-gear-tab="rods">Rods</button>
-              <button class="gear-tab is-active" type="button" data-gear-tab="combos">Combos</button>
+              <button class="gear-tab" type="button" data-gear-tab="combos">Combos</button>
               <button class="gear-tab" type="button" data-gear-tab="line">Line Tracker</button>
-              <button class="gear-tab" type="button" data-gear-tab="baits">Baits</button>
+              <button class="gear-tab is-active" type="button" data-gear-tab="baits">Baits</button>
               <button class="gear-tab" type="button" data-gear-tab="flashers">Flashers</button>
               <button class="gear-tab" type="button" data-gear-tab="tackle-boxes">Tackle Boxes</button>
             </div>
@@ -772,7 +772,7 @@
               </div>
               <div class="inventory-table" id="rodInventoryTable"></div>
             </section>
-            <section class="gear-tab-panel" data-gear-panel="combos">
+            <section class="gear-tab-panel hidden" data-gear-panel="combos">
               <div class="gear-header">
                 <div>
                   <h3>Combos</h3>
@@ -788,7 +788,7 @@
               </div>
               <div class="inventory-table" id="lineTrackerTable"></div>
             </section>
-            <section class="gear-tab-panel hidden" data-gear-panel="baits">
+            <section class="gear-tab-panel" data-gear-panel="baits">
               <div class="gear-header">
                 <div>
                   <h3>Lures</h3>
@@ -2184,11 +2184,10 @@
           </label>
           <div class="row-section-title trolling-field catch-detail-optional">Details</div>
           <label class="trolling-field direct-catch-gear catch-presentation-field catch-detail-optional hidden">
-            <span>Trolling method</span>
+            <span>Method</span>
             <select class="catch-presentation">
               <option value="">Select method</option>
               <option value="downrigger">Downrigger</option>
-              <option value="cheater">Cheater</option>
               <option value="flatline">Flatline</option>
               <option value="flatline-leadcore">Planer Board / Leadcore</option>
               <option value="dipsey-diver">Dipsey Diver</option>
@@ -2312,12 +2311,11 @@
             <span>Rod</span>
             <input class="trip-gear-line-label" type="text" placeholder="Auto number, or name this rod" />
           </label>
-          <div class="row-section-title trolling-field gear-trolling-title">Trolling Method</div>
+          <div class="row-section-title trolling-field gear-trolling-title">Method</div>
           <label class="trolling-field gear-trolling-field">
-            <select class="catch-presentation" aria-label="Trolling method">
+            <select class="catch-presentation" aria-label="Method">
               <option value="">Select method</option>
               <option value="downrigger">Downrigger</option>
-              <option value="cheater">Cheater</option>
               <option value="flatline">Flatline</option>
               <option value="flatline-leadcore">Planer Board / Leadcore</option>
               <option value="dipsey-diver">Dipsey Diver</option>
@@ -2332,11 +2330,6 @@
             <input class="trip-gear-distance-behind" type="text" placeholder="e.g., 20 ft" />
           </label>
           <div class="row-section-title gear-title">Gear</div>
-          <label class="trolling-field boat-equipment-field">
-            <span>Boat equipment</span>
-            <select class="trip-gear-boat-item"></select>
-            <small>Physical item from your Boat page.</small>
-          </label>
           <label class="gear-combo-field">
             <span>Rod/reel combo</span>
             <select class="trip-gear-combo"></select>
@@ -2359,7 +2352,6 @@
             <select class="trip-gear-flasher"></select>
           </label>
           <button class="button secondary add-flasher-inline trolling-field gear-flasher-action" type="button">New Flasher</button>
-          <div class="flasher-preview trolling-field"></div>
           <label class="checkbox-label trolling-param param-cheater">
             <input class="trip-gear-cheater" type="checkbox" />
             <span>Add cheater line</span>
@@ -2368,6 +2360,7 @@
             <span>Cheater lure</span>
             <select class="trip-gear-cheater-lure"></select>
           </label>
+          <button class="button secondary add-lure-inline cheater-lure-action trolling-param" data-lure-target="cheater" type="button">New Lure</button>
         </div>
       </article>
     </template>
@@ -2461,12 +2454,12 @@
     <script src="static/js/expedition-analytics.js"></script>
     <script src="static/js/expeditions.js?v=20260829-trip-calendar-1"></script>
     <script src="static/js/photos.js"></script>
-    <script src="static/js/trip-editor.js?v=20260829-save-loading-2"></script>
+    <script src="static/js/trip-editor.js?v=20260829-unknown-time-warning-1"></script>
     <script src="static/js/trip-rows.js?v=20260829-duplicate-catch-1"></script>
     <script src="static/js/trip-save.js?v=20260829-save-loading-2"></script>
     <script src="static/js/photo-queue-autofill.js?v=20260829-queue-copy-1"></script>
     <script src="static/js/gear-core.js?v=20260829-lure-picker-1"></script>
-    <script src="static/js/gear-pickers.js?v=20260829-lure-picker-1"></script>
+    <script src="static/js/gear-pickers.js?v=20260903-cheater-spoon-1"></script>
     <script src="static/js/gear-dialogs.js?v=20260829-lure-picker-1"></script>
     <script src="static/js/gear-inventory.js?v=20260829-lure-picker-1"></script>
     <script src="static/js/trolling-spread.js"></script>

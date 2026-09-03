@@ -70,7 +70,6 @@
   }
 
   .gear-used-row .gear-lure-field,
-  .gear-used-row .boat-equipment-field,
   .gear-used-row .gear-combo-field,
   .gear-used-row .gear-start-field,
   .gear-used-row .gear-end-field,
@@ -88,6 +87,7 @@
   .gear-used-row .param-cheater,
   .gear-used-row .param-leadcore,
   .gear-used-row .param-cheater-lure,
+  .gear-used-row .cheater-lure-action,
   .gear-used-row .param-distance-behind {
     grid-column: auto;
     grid-row: auto;

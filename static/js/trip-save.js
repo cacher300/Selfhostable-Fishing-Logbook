@@ -7,7 +7,7 @@ function collectTripFromForm() {
       defaultTrollingSpread: row.dataset.defaultTrollingSpread === "true",
       defaultTrollingSpreadTarget: row.dataset.defaultTrollingSpreadTarget || "",
       personId: "",
-      boatItemId: trolling ? row.querySelector(".trip-gear-boat-item").value : "",
+      boatItemId: trolling ? row.dataset.boatItemId || "" : "",
       startTime: row.querySelector(".trip-gear-start-time").value,
       endTime: row.querySelector(".trip-gear-end-time").value,
       changeNote: row.querySelector(".trip-gear-change-note").value.trim(),

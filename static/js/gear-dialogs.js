@@ -128,9 +128,10 @@ function openComboDialog(combo = null) {
   els.comboDialog.showModal();
 }
 
-function openLureDialog(lure = null, pendingRowId = "") {
+function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "") {
   prepareInlineGearDialog("lure", pendingRowId);
   els.lureDialog.dataset.removedPhotoKeys = "[]";
+  els.lureDialog.dataset.pendingLureTarget = pendingLureTarget;
   els.lureForm.reset();
   pendingLureImage = null;
   renderQueuedGearImage("lure");
@@ -417,9 +418,14 @@ async function saveLure(event) {
     const rowId = getValue("pendingCatchRow");
     const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
     if (row) {
-      const select = row.querySelector(".catch-lure, .trip-gear-lure");
-      populateLuresForType(select, lure.type, lure.id);
-      select.value = lure.id;
+      const targetSelector = els.lureDialog.dataset.pendingLureTarget === "cheater"
+        ? ".trip-gear-cheater-lure"
+        : ".catch-lure, .trip-gear-lure";
+      const select = row.querySelector(targetSelector);
+      if (select) {
+        populateLuresForType(select, lure.type, lure.id);
+        select.value = lure.id;
+      }
       renderLurePreview(row);
       updateRowSummary(row);
     }

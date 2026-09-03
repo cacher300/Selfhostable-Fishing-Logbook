@@ -88,7 +88,7 @@ let pendingLureImage = null;
 let pendingFlasherImage = null;
 let pendingReelImage = null;
 let pendingRodImage = null;
-let activeGearTab = "combos";
+let activeGearTab = "baits";
 const returnToTripDialog = {
   lure: false,
   lureInfo: false,

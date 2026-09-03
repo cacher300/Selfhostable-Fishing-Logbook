@@ -93,6 +93,11 @@ function savedLureTypes() {
     .sort((a, b) => a.localeCompare(b));
 }
 
+function preferredLurePickerType(select) {
+  if (!select?.matches(".trip-gear-cheater-lure")) return "";
+  return savedLureTypes().find((type) => type.toLowerCase() === "spoon") || "";
+}
+
 function lureTypeOptionValue(type) {
   return `__type__:${type}`;
 }
@@ -314,10 +319,11 @@ document.addEventListener("click", (event) => {
     picker.querySelector(".gear-picker-menu")?.classList.toggle("hidden", !opening);
     if (opening) {
       const search = picker.querySelector(".gear-picker-search");
+      const preferredType = preferredLurePickerType(picker.querySelector("select"));
       search.value = "";
       picker.dataset.gearPickerQuery = "";
-      picker.dataset.gearPickerView = picker.dataset.gearPicker === "lure" ? "types" : "items";
-      picker.dataset.gearPickerActiveType = "";
+      picker.dataset.gearPickerView = preferredType ? "lures" : picker.dataset.gearPicker === "lure" ? "types" : "items";
+      picker.dataset.gearPickerActiveType = preferredType;
       renderGearPicker(picker.querySelector("select"), picker.dataset.gearPicker);
       requestAnimationFrame(() => search.focus());
     }

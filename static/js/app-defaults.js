@@ -33,7 +33,6 @@ const defaultTrollingPresentationOptions = [
   { value: "High Diver", label: "High Diver" },
   { value: "Low Diver", label: "Low Diver" },
   { value: "Downrigger", label: "Downrigger" },
-  { value: "Cheater", label: "Cheater" },
   { value: "Chute Rod", label: "Chute Rod" }
 ];
 const defaultTrollingDirectionOptions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
