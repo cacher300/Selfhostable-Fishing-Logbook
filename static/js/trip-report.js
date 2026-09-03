@@ -1,5 +1,5 @@
 const reportColumnDefinitions = [
-  ["number", "#"], ["type", "Record"], ["time", "Time"], ["angler", "Angler"], ["result", "Result"], ["species", "Species"], ["spot", "Spot"], ["size", "Size"],
+  ["number", "#"], ["type", "Record"], ["time", "Time"], ["angler", "Angler"], ["result", "Result"], ["species", "Species"], ["spot", "Spot"], ["structure", "Structure"], ["size", "Size"],
   ["waterDepth", "Water depth"], ["depth", "Depth Down"], ["method", "Method"], ["setup", "Line"], ["lure", "Lure"], ["flasher", "Flasher"], ["direction", "Direction"],
   ["gpsSpeed", "GPS Speed"], ["ballSpeed", "Ball Speed"], ["flatlineWeight", "Flatline Weight"],
   ["lineBehindBoard", "Line Behind Board"], ["leadcoreColors", "Leadcore Colors"], ["dipseySetting", "Dipsey Setting"],
@@ -7,7 +7,8 @@ const reportColumnDefinitions = [
   ["notes", "Notes"], ["photo", "Media"]
 ];
 const reportDefaultColumns = new Set(reportColumnDefinitions.map(([key]) => key));
-const reportColumnPreferenceKey = `${storageKey}-trip-report-columns-v5`;
+const reportColumnPreferenceKey = `${storageKey}-trip-report-columns-v6`;
+const reportLegacyColumnPreferenceKey = `${storageKey}-trip-report-columns-v5`;
 const reportTrollingColumns = new Set([
   "setup", "flasher", "direction", "gpsSpeed", "ballSpeed", "depth", "flatlineWeight", "lineBehindBoard",
   "leadcoreColors", "dipseySetting", "lineOut", "shaker", "deepestRigger"
@@ -23,8 +24,13 @@ function reportColumnDefinitionsForTrip(trip) {
 function reportColumns() {
   if (activeReportTimelineColumns) return activeReportTimelineColumns;
   try {
-    const saved = JSON.parse(localStorage.getItem(reportColumnPreferenceKey) || "null");
+    const current = localStorage.getItem(reportColumnPreferenceKey);
+    const saved = JSON.parse(current ?? localStorage.getItem(reportLegacyColumnPreferenceKey) ?? "null");
     activeReportTimelineColumns = Array.isArray(saved) ? new Set(saved) : new Set(reportDefaultColumns);
+    if (!current && Array.isArray(saved)) {
+      activeReportTimelineColumns.add("structure");
+      localStorage.setItem(reportColumnPreferenceKey, JSON.stringify([...activeReportTimelineColumns]));
+    }
   } catch {
     activeReportTimelineColumns = new Set(reportDefaultColumns);
   }
@@ -88,6 +94,7 @@ function reportTimelineRecords(trip) {
       index, catchIndex: type === "catch" ? index : null, type, time: item.time || "", result: status,
       species: displayTitleText(item.species || item.possibleSpecies || "Unknown"),
       spot: type === "catch" ? spotName(item.spotId) : "",
+      structure: displayTitleText(item.structureType || item.structure || ""),
       size: [displayStoredMeasurement(record.length, "fishLength"), displayStoredMeasurement(record.weight, "fishWeight")].filter(Boolean).join(" / "),
       method: displayTitleText(presentationLabel(record.presentation) || trip.method || ""),
       type: type === "lost" ? "Lost fish" : "Catch", angler: reportPersonName(trip, item.personId), setup: compactSetupDisplayLabel(record),
