@@ -147,9 +147,9 @@ function renderExpeditionTripTable(trips) {
   return `
     <div class="expedition-trip-table-wrap">
       <table class="expedition-trip-table">
-        <thead><tr><th>Date</th><th>Location</th><th>Title</th><th>Target</th><th>Method</th><th>Hours</th><th>Fish</th><th>Rate</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+        <thead><tr><th>Date</th><th>Location</th><th>Title</th><th>Target</th><th>Method</th><th>Hours</th><th>Fish</th><th>Rate</th></tr></thead>
         <tbody>${trips.map((trip) => `
-          <tr>
+          <tr data-expedition-open-trip="${escapeHtml(trip.id)}" tabindex="0">
             <td data-label="Date">${escapeHtml(formatDate(trip.date))}</td>
             <td data-label="Location">${escapeHtml(trip.location || "—")}</td>
             <td data-label="Title"><strong>${escapeHtml(trip.title || "Untitled trip")}</strong></td>
@@ -158,7 +158,6 @@ function renderExpeditionTripTable(trips) {
             <td data-label="Hours">${escapeHtml(trimNumber(tripHours(trip)))}</td>
             <td data-label="Fish">${escapeHtml(totalCaught(trip))}</td>
             <td data-label="Rate">${escapeHtml(trimNumber(catchRate(trip)))}</td>
-            <td><button class="button secondary compact-action" type="button" data-expedition-open-trip="${escapeHtml(trip.id)}">Open Trip</button></td>
           </tr>`).join("")}</tbody>
       </table>
     </div>`;
@@ -360,12 +359,20 @@ document.addEventListener("click", (event) => {
   }
   const editButton = event.target.closest("[data-edit-expedition]");
   if (editButton) openExpeditionDialog(state.expeditions.find((item) => item.id === editButton.dataset.editExpedition));
-  const tripButton = event.target.closest("[data-expedition-open-trip]");
-  if (tripButton) {
-    const trip = state.trips.find((item) => item.id === tripButton.dataset.expeditionOpenTrip);
+  const tripRow = event.target.closest("[data-expedition-open-trip]");
+  if (tripRow) {
+    const trip = state.trips.find((item) => item.id === tripRow.dataset.expeditionOpenTrip);
     if (trip) openTripSummary(trip);
   }
   if (event.target.closest("[data-go-to-trips]")) setView("trips");
+});
+
+document.addEventListener("keydown", (event) => {
+  if (!event.target.closest("[data-expedition-open-trip]") || !["Enter", " "].includes(event.key)) return;
+  event.preventDefault();
+  const tripRow = event.target.closest("[data-expedition-open-trip]");
+  const trip = state.trips.find((item) => item.id === tripRow.dataset.expeditionOpenTrip);
+  if (trip) openTripSummary(trip);
 });
 
 document.querySelectorAll(".styled-date-display").forEach((input) => {

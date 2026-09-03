@@ -417,6 +417,7 @@ function renderMapYearLegend(records, options = {}) {
 }
 
 function renderMapList(records) {
+  if (!els.mapCatchList) return;
   if (!records.length) {
     els.mapCatchList.innerHTML = `<div class="empty-state"><p>No geotagged map items match this filter.</p></div>`;
     return;

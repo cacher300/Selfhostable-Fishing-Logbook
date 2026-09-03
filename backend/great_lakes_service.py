@@ -29,10 +29,10 @@ _catalog_cache: dict[str, object] = {"expires": 0.0, "runs": {}}
 _raster_cache: dict[tuple, dict] = {}
 _thermocline_raster_cache: dict[tuple, dict] = {}
 TEMPERATURE_RASTER_RENDER_VERSION = 2
-THERMOCLINE_RASTER_RENDER_VERSION = 13
+THERMOCLINE_RASTER_RENDER_VERSION = 14
 THERMOCLINE_MIN_DEPTH_METERS = 3.048  # 10 ft below the surface
 THERMOCLINE_BOTTOM_CLEARANCE_METERS = 3.048  # Never classify the final 10 ft as a thermocline.
-THERMOCLINE_WINDOW_METERS = 15.0
+THERMOCLINE_MIN_GRADIENT_C_PER_METER = 0.1
 THERMOCLINE_SPATIAL_OUTLIER_METERS = 12.0
 _temperature_field_cache: dict[tuple, list[dict]] = {}
 _current_payload_cache: dict[tuple, dict] = {}
@@ -251,83 +251,38 @@ def _thermocline_rgba(depth: float, minimum: float = 0, maximum: float = 100) ->
 
 
 def _sustained_thermocline_pair(profile: list[tuple[float, float]]) -> tuple[tuple[float, float], tuple[float, float]] | None:
-    """Find the strongest cooling trend that persists over a useful depth span."""
-    candidates: list[tuple[tuple[float, float], tuple[float, float]]] = []
-    bottom_depth = profile[-1][0]
-    for index, shallow in enumerate(profile[:-1]):
-        if shallow[0] < THERMOCLINE_MIN_DEPTH_METERS:
+    """Find the strongest physically plausible cooling gradient in a profile.
+
+    A thermocline is a *negative* temperature gradient with increasing depth.
+    The former detector used the absolute change over an arbitrary 15 m window,
+    so inversions and nearly mixed profiles could both be reported as a
+    thermocline. Adjacent-level gradients preserve the model's vertical
+    resolution and place the estimate at the actual maximum cooling rate.
+    """
+    ordered = sorted(profile, key=lambda point: point[0])
+    if len(ordered) < 2:
+        return None
+    bottom_depth = ordered[-1][0]
+    candidates = []
+    for shallow, deep in zip(ordered, ordered[1:]):
+        span = deep[0] - shallow[0]
+        midpoint = (shallow[0] + deep[0]) / 2
+        if span <= 0 or midpoint < THERMOCLINE_MIN_DEPTH_METERS:
             continue
-        for deep in profile[index + 1:]:
-            if deep[0] - shallow[0] < THERMOCLINE_WINDOW_METERS:
-                continue
-            if deep[0] <= bottom_depth - THERMOCLINE_BOTTOM_CLEARANCE_METERS:
-                candidates.append((shallow, deep))
-            break
+        if midpoint > bottom_depth - THERMOCLINE_BOTTOM_CLEARANCE_METERS:
+            continue
+        cooling_gradient = (shallow[1] - deep[1]) / span
+        if cooling_gradient >= THERMOCLINE_MIN_GRADIENT_C_PER_METER:
+            candidates.append((cooling_gradient, shallow, deep))
     if not candidates:
         return None
-    return max(candidates, key=lambda pair: abs(pair[1][1] - pair[0][1]) / (pair[1][0] - pair[0][0]))
+    _, shallow, deep = max(candidates, key=lambda candidate: candidate[0])
+    return shallow, deep
 
 
 def _continuous_thermocline_depth(profile: list[tuple[float, float]], pair: tuple[tuple[float, float], tuple[float, float]]) -> float:
-    """Locate the cooling transition within the selected sustained window."""
-    shallow_depth, deep_depth = pair[0][0], pair[1][0]
-    segments = [
-        ((upper[0] + lower[0]) / 2, abs(lower[1] - upper[1]))
-        for upper, lower in zip(profile, profile[1:])
-        if upper[0] >= shallow_depth and lower[0] <= deep_depth and lower[0] > upper[0]
-    ]
-    total_cooling = sum(cooling for _, cooling in segments)
-    if total_cooling <= 0:
-        return (shallow_depth + deep_depth) / 2
-    return sum(midpoint * cooling for midpoint, cooling in segments) / total_cooling
-
-
-def _solve_linear_system(matrix: list[list[float]], vector: list[float]) -> list[float] | None:
-    """Solve a small dense system with partial pivoting."""
-    size = len(vector)
-    augmented = [row[:] + [value] for row, value in zip(matrix, vector)]
-    for column in range(size):
-        pivot = max(range(column, size), key=lambda row: abs(augmented[row][column]))
-        if abs(augmented[pivot][column]) < 1e-10:
-            return None
-        augmented[column], augmented[pivot] = augmented[pivot], augmented[column]
-        divisor = augmented[column][column]
-        augmented[column] = [value / divisor for value in augmented[column]]
-        for row in range(size):
-            if row == column:
-                continue
-            factor = augmented[row][column]
-            augmented[row] = [value - factor * reference for value, reference in zip(augmented[row], augmented[column])]
-    return [augmented[row][-1] for row in range(size)]
-
-
-def _polynomial_thermocline_fit(profile: list[tuple[float, float]], pair: tuple[tuple[float, float], tuple[float, float]]) -> dict | None:
-    """Fit the selected transition and return its normalized cubic details."""
-    shallow_depth, deep_depth = pair[0][0], pair[1][0]
-    span = deep_depth - shallow_depth
-    points = [(depth, temperature) for depth, temperature in profile if shallow_depth <= depth <= deep_depth]
-    degree = min(3, len(points) - 1)
-    if degree < 2 or span <= 0:
-        return None
-    normalized = [((depth - shallow_depth) / span, temperature) for depth, temperature in points]
-    powers = range(degree + 1)
-    matrix = [[sum(x ** (row + column) for x, _ in normalized) for column in powers] for row in powers]
-    vector = [sum(temperature * x ** row for x, temperature in normalized) for row in powers]
-    coefficients = _solve_linear_system(matrix, vector)
-    if not coefficients:
-        return None
-    # Evaluate only the interior of the window so the fitted derivative cannot
-    # simply choose either discrete model-layer endpoint.
-    candidates = [0.1 + index * 0.8 / 160 for index in range(161)]
-    derivative = lambda x: sum(order * coefficients[order] * x ** (order - 1) for order in range(1, len(coefficients))) / span
-    best = max(candidates, key=lambda x: -derivative(x))
-    return {"depthMeters": shallow_depth + best * span, "shallowDepthMeters": shallow_depth, "deepDepthMeters": deep_depth, "coefficients": coefficients}
-
-
-def _polynomial_thermocline_depth(profile: list[tuple[float, float]], pair: tuple[tuple[float, float], tuple[float, float]]) -> float:
-    """Use the steepest interior derivative of a cubic fitted to the transition."""
-    fit = _polynomial_thermocline_fit(profile, pair)
-    return float(fit["depthMeters"]) if fit else _continuous_thermocline_depth(profile, pair)
+    """Place a discrete maximum-gradient estimate halfway between its levels."""
+    return (pair[0][0] + pair[1][0]) / 2
 
 
 def _filter_spatial_thermocline_outliers(values: list[float | None], rows: int, cols: int) -> list[float | None]:
@@ -485,7 +440,7 @@ def _regular_thermocline_raster(model: str, forecast_hour: int, resolution: int)
         if not pair:
             thermoclines.append(None)
             continue
-        thermoclines.append(_polynomial_thermocline_depth(profile, pair))
+        thermoclines.append(_continuous_thermocline_depth(profile, pair))
     thermoclines = _filter_spatial_thermocline_outliers(thermoclines, rows, cols)
     valid = [value is not None for value in thermoclines]
     if not any(valid):
@@ -597,6 +552,11 @@ def great_lakes_temperature_profile(forecast_hour: int, latitude: float, longitu
         longitudes = [_great_lakes_longitude(item) for item in _numbers(raw_axes, "Longitude")]
         if len(latitudes) != ny or len(longitudes) != nx:
             continue
+        # Do not let a nearest-edge cell from the first model answer a click
+        # in a different Great Lake. Each model is queried only when the
+        # requested point is inside its regular-grid extent.
+        if not (min(latitudes) <= latitude <= max(latitudes) and min(longitudes) <= longitude <= max(longitudes)):
+            continue
         row = min(range(ny), key=lambda index: abs(latitudes[index] - latitude))
         column = min(range(nx), key=lambda index: abs(longitudes[index] - longitude))
         raw = _ascii(path, f"mask[{row}][{column}],{variables['temperature']}[0][0:1:{len(depths) - 1}][{row}][{column}]")
@@ -610,13 +570,12 @@ def great_lakes_temperature_profile(forecast_hour: int, latitude: float, longitu
         values.sort(key=lambda value: value["depthMeters"])
         profile_values = [(value["depthMeters"], value["temperatureC"]) for value in values]
         pair = _sustained_thermocline_pair(profile_values)
-        fit = _polynomial_thermocline_fit(profile_values, pair) if pair else None
         thermocline = None if not pair else {
-            "depthMeters": float(fit["depthMeters"]) if fit else _continuous_thermocline_depth(profile_values, pair),
-            "gradientCPerMeter": abs(pair[1][1] - pair[0][1]) / (pair[1][0] - pair[0][0]),
+            "depthMeters": _continuous_thermocline_depth(profile_values, pair),
+            "gradientCPerMeter": (pair[0][1] - pair[1][1]) / (pair[1][0] - pair[0][0]),
             "shallowerDepthMeters": pair[0][0], "deeperDepthMeters": pair[1][0],
             "temperatureAboveC": pair[0][1], "temperatureBelowC": pair[1][1],
-            "fit": fit
+            "method": "maximumCoolingGradient"
         }
         valid_time = datetime.strptime(f"{run['date']}{run['cycle']:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp() + available_hour * 3600
         return {"available": True, "model": model, "validTime": datetime.fromtimestamp(valid_time, timezone.utc).isoformat().replace("+00:00", "Z"), "requested": {"latitude": latitude, "longitude": longitude}, "modelLocation": {"latitude": latitudes[row], "longitude": longitudes[column]}, "values": values, "thermocline": thermocline}
