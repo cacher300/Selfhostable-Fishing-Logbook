@@ -163,6 +163,20 @@ function renderExpeditionTripTable(trips) {
     </div>`;
 }
 
+function bindExpeditionTripRows() {
+  document.querySelectorAll(".expedition-trip-table tbody tr[data-expedition-open-trip]").forEach((row) => {
+    const openTrip = (event) => {
+      if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const trip = state.trips.find((item) => item.id === row.dataset.expeditionOpenTrip);
+      if (trip) openTripSummary(trip);
+    };
+    row.addEventListener("click", openTrip);
+    row.addEventListener("keydown", openTrip);
+  });
+}
+
 function renderExpeditionDetail(expedition) {
   if (!expedition) {
     els.expeditionDetail.innerHTML = `
@@ -195,6 +209,7 @@ function renderExpeditionDetail(expedition) {
       <h4>Member Trips</h4>
       ${renderExpeditionTripTable(summary.trips)}
     </section>`;
+  bindExpeditionTripRows();
 }
 
 function renderExpeditions() {
@@ -359,20 +374,7 @@ document.addEventListener("click", (event) => {
   }
   const editButton = event.target.closest("[data-edit-expedition]");
   if (editButton) openExpeditionDialog(state.expeditions.find((item) => item.id === editButton.dataset.editExpedition));
-  const tripRow = event.target.closest("[data-expedition-open-trip]");
-  if (tripRow) {
-    const trip = state.trips.find((item) => item.id === tripRow.dataset.expeditionOpenTrip);
-    if (trip) openTripSummary(trip);
-  }
   if (event.target.closest("[data-go-to-trips]")) setView("trips");
-});
-
-document.addEventListener("keydown", (event) => {
-  if (!event.target.closest("[data-expedition-open-trip]") || !["Enter", " "].includes(event.key)) return;
-  event.preventDefault();
-  const tripRow = event.target.closest("[data-expedition-open-trip]");
-  const trip = state.trips.find((item) => item.id === tripRow.dataset.expeditionOpenTrip);
-  if (trip) openTripSummary(trip);
 });
 
 document.querySelectorAll(".styled-date-display").forEach((input) => {

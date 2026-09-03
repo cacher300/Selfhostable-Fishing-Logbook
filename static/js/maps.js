@@ -62,17 +62,18 @@ const speciesMarkerColors = [
 ];
 
 const MAP_BASEMAP_STORAGE_KEY = "logbook.mapBasemap";
+const CARTO_BASEMAP_KEY = "cb1_2u01_1_caca99a3ff372698283bdfb0";
 const MAP_BASEMAPS = {
   standard: {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     options: { attribution: "&copy; OpenStreetMap contributors" }
   },
   dark: {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${CARTO_BASEMAP_KEY}`,
     options: { attribution: "&copy; OpenStreetMap contributors &copy; CARTO", subdomains: "abcd", maxZoom: 20 }
   },
   minimal: {
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${CARTO_BASEMAP_KEY}`,
     options: { attribution: "&copy; OpenStreetMap contributors &copy; CARTO", subdomains: "abcd", maxZoom: 20 }
   }
 };
