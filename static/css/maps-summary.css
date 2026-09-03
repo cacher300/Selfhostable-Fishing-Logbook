@@ -328,9 +328,6 @@
   gap: 12px;
 }
 
-.map-results-tray { margin-top: 14px; }
-.map-results-tray summary { cursor: pointer; color: var(--text); font-size: 15px; font-weight: 800; }
-.map-results-tray[open] summary { margin-bottom: 12px; }
 
 .map-legend {
   display: flex;

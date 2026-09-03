@@ -280,6 +280,15 @@
   background: var(--hover);
 }
 
+.expedition-trip-table tbody tr {
+  cursor: pointer;
+}
+
+.expedition-trip-table tbody tr:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--green) 30%, transparent);
+  outline-offset: -3px;
+}
+
 .expedition-trip-table td:nth-child(3) strong {
   color: var(--active-text);
 }
@@ -607,10 +616,6 @@
     text-transform: uppercase;
   }
 
-  .expedition-trip-table td:last-child {
-    display: block;
-    padding-top: 10px;
-  }
 }
 
 @media (max-width: 480px) {
