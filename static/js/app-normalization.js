@@ -341,7 +341,11 @@ function normalizeChoiceOptions(options = [], fallback = []) {
 }
 
 function optionChoices(key) {
-  return normalizeChoiceOptions(state[key], defaults[key]);
+  const choices = normalizeChoiceOptions(state[key], defaults[key]);
+  if (key !== "trollingPresentations") return choices;
+  return choices.filter((item) => (
+    item.value.toLowerCase() !== "cheater" && item.label.toLowerCase() !== "cheater"
+  ));
 }
 
 function optionLabels(key) {

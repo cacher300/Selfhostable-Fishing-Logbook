@@ -932,6 +932,7 @@
 .gear-media-picker {
   position: relative;
   width: 100%;
+  min-width: 0;
 }
 
 .gear-picker-native {
@@ -1240,6 +1241,17 @@
   width: 100%;
 }
 
+.gear-used-row .cheater-lure-action {
+  grid-column: 5 / 6;
+  grid-row: 6;
+  align-self: start;
+  justify-self: start;
+  width: max-content;
+  min-width: 120px;
+  padding-right: 18px;
+  padding-left: 18px;
+}
+
 .gear-used-row .param-distance-behind {
   grid-column: 1 / 3;
   grid-row: 6;
@@ -1263,6 +1275,7 @@
 .gear-used-row .gear-lure-field {
   grid-column: 1 / 3;
   grid-row: 9;
+  min-width: 0;
 }
 
 .gear-used-row .gear-lure-action {
@@ -1271,6 +1284,8 @@
   justify-self: start;
   width: max-content;
   min-width: 120px;
+  max-width: 100%;
+  overflow: hidden;
   padding-right: 18px;
   padding-left: 18px;
 }
@@ -1283,6 +1298,7 @@
 .gear-used-row .gear-flasher-field {
   grid-column: 1 / 3;
   grid-row: 10;
+  min-width: 0;
 }
 
 .gear-used-row .gear-flasher-action {
@@ -1290,26 +1306,10 @@
   grid-row: 10;
 }
 
-.gear-used-row .flasher-preview {
-  grid-column: 4 / 6;
-  grid-row: 10;
-}
-
 .gear-used-row .gear-combo-field {
   grid-column: 3 / 5;
   grid-row: 8;
-}
-
-.gear-used-row .boat-equipment-field {
-  grid-column: 1 / 3;
-  grid-row: 8;
-}
-
-.gear-used-row .boat-equipment-field small {
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
+  min-width: 0;
 }
 
 /* Non-trolling rods do not render the trolling sections, so pack the remaining

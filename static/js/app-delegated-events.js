@@ -474,7 +474,7 @@ document.addEventListener("click", (event) => {
   const newLureButton = event.target.closest(".add-lure-inline");
   if (newLureButton) {
     const row = newLureButton.closest(".catch-row, .gear-used-row");
-    openLureDialog(null, row.dataset.rowId);
+    openLureDialog(null, row.dataset.rowId, newLureButton.dataset.lureTarget || "");
   }
 
   const newFlasherButton = event.target.closest(".add-flasher-inline");

@@ -158,12 +158,13 @@ function tripSaveWarnings() {
   document.querySelectorAll(".catch-row").forEach((row) => {
     const label = fishRowLabel(row);
     const detailsUnknown = row.querySelector(".catch-details-unknown")?.checked && !row.classList.contains("lost-fish-row");
+    const unknownTime = Boolean(row.querySelector(".catch-time-unknown")?.checked);
     const speciesField = row.classList.contains("lost-fish-row")
       ? row.querySelector(".catch-possible-species")
       : row.querySelector(".catch-species");
     if (!detailsUnknown && !row.querySelector(".catch-person")?.value) warnings.push(`${label} has no person selected.`);
     if (!speciesField?.value.trim()) warnings.push(`${label} has no species selected.`);
-    if (!detailsUnknown && !row.querySelector(".catch-time")?.value && !row.querySelector(".catch-time-unknown")?.checked) warnings.push(`${label} has no time.`);
+    if (!detailsUnknown && !unknownTime && !row.querySelector(".catch-time")?.value.trim()) warnings.push(`${label} has no time.`);
     if (!detailsUnknown && trolling && !row.querySelector(".catch-setup-line")?.value) warnings.push(`${label} has no rod selected.`);
   });
   return warnings;

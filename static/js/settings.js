@@ -38,7 +38,7 @@ function defaultTrollingSpreadRowMarkup(item = {}) {
         <select class="default-spread-side">${choiceOptions("setupLineSides", side, "Select side")}</select>
       </label>
       <label>
-        <span>Trolling method</span>
+        <span>Method</span>
         <select class="default-spread-presentation">${choiceOptions("trollingPresentations", presentation, "Select method")}</select>
       </label>
       <button class="button danger remove-default-trolling-spread-row" type="button">Remove</button>

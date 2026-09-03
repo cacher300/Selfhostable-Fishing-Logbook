@@ -110,6 +110,7 @@ function updatePresentationFields(row) {
       row.querySelector(".param-cheater")?.classList.add("visible");
       if (row.querySelector(".trip-gear-cheater")?.checked) {
         row.querySelector(".param-cheater-lure")?.classList.add("visible");
+        row.querySelector(".cheater-lure-action")?.classList.add("visible");
         row.querySelector(".param-cheater-lure-select")?.classList.add("visible");
       }
     }
