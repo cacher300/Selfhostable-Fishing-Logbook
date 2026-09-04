@@ -18,7 +18,7 @@ Use a dedicated deployment directory, for example:
 ```
 
 Do not use a working directory containing manual code edits. The deploy job
-resets that checkout to the commit on the default branch before rebuilding the
+resets that checkout to the exact commit tested by the pipeline before rebuilding the
 container.
 
 Configure these protected GitLab CI/CD variables:
@@ -49,6 +49,13 @@ path to Docker Compose as `FISH_DATA_DIR`, so rebuilding the image or resetting
 the Git checkout does not remove the database or uploaded photos. The pipeline
 serializes production deployments so two pushes cannot rebuild the site at the
 same time, and waits for the container health check before succeeding.
+The deploy job also waits for the Flask smoke test. It builds the image before
+replacing the running container, then allows up to 180 seconds for Compose's
+startup wait (a container marked unhealthy can fail sooner). If startup fails,
+the job prints container status, the last 200 log lines per service, and Docker's
+container state including health-check output, and keeps the job failed. These
+diagnostics distinguish application crashes and database errors from failed HTTP
+health probes; an unhealthy container is not treated as a successful deployment.
 
 ## Database and photos
 
