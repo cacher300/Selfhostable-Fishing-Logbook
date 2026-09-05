@@ -31,7 +31,12 @@ export interface Person extends Extensible { id: string; name: string; }
 export interface Launch extends Extensible { id: string; name: string; coordinates?: Coordinates | null; }
 export interface Location extends Extensible { id: string; name: string; coordinates?: Coordinates | null; launches: Launch[]; }
 
+export interface Expedition extends Extensible { id: string; name: string; startDate: string; endDate: string; destination?: string; notes?: string; }
+export interface Spot extends Extensible { id: string; name: string; coordinates: Coordinates; radiusMeters: number; }
+
 export interface SetupLine extends Extensible {
+  rigging?: string;
+  riggingDetails?: string;
   id: string;
   personId?: string;
   startTime: string;
@@ -57,6 +62,11 @@ export interface SetupLine extends Extensible {
 
 /** Shared trolling/casting context. Landed fish add biological and media fields below. */
 export interface FishEvent extends Extensible {
+  rigging?: string;
+  riggingDetails?: string;
+  structureType?: string;
+  spotId?: string;
+  spotAssignmentMode?: "automatic" | "manual";
   id: string;
   personId?: string;
   time?: string;
@@ -133,6 +143,10 @@ export interface LostFish extends FishEvent {
 }
 
 export interface GearBase extends Extensible {
+  model?: string;
+  divingDepth?: Value;
+  quantityAvailable?: Value;
+  glow?: boolean;
   id: string;
   name?: string;
   shortName?: string;
@@ -170,6 +184,9 @@ export interface WeatherSnapshot extends Extensible {
 }
 
 export interface Trip extends Extensible {
+  expeditionId?: string;
+  idleHours?: Value;
+  structureType?: string;
   id: string;
   title: string;
   date: string;
@@ -226,6 +243,10 @@ export interface Settings extends Extensible {
 }
 
 export interface Logbook extends Extensible {
+  riggings: string[];
+  structureOptions: string[];
+  expeditions: Expedition[];
+  spots: Spot[];
   schemaVersion: number;
   settings: Settings;
   species: string[];

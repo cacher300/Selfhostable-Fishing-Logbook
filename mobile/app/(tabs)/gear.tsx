@@ -1,2 +1,2 @@
-import { Redirect } from "expo-router";
-export default function GearTab(){return <Redirect href="/gear/lures"/>}
+import { GearScreen } from "../../src/features/gear/GearScreen";
+export default GearScreen;

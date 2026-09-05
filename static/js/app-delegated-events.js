@@ -185,6 +185,17 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const reportPhotoButton = event.target.closest("[data-report-photo-index]");
+  if (reportPhotoButton) {
+    const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+    const photo = trip?.notePhotos?.[Number(reportPhotoButton.dataset.reportPhotoIndex)];
+    if (photo) openTripReportPhotoLightbox(photo);
+  }
+
+  if (event.target.closest("[data-close-report-photo]") || event.target.classList.contains("report-photo-lightbox")) {
+    closeTripReportPhotoLightbox();
+  }
+
   const removeCatch = event.target.closest(".remove-catch");
   if (removeCatch) {
     const catchRow = removeCatch.closest(".catch-row");
@@ -620,6 +631,10 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && document.querySelector(".report-photo-lightbox")) {
+    closeTripReportPhotoLightbox();
+    return;
+  }
   if (!document.querySelector(".gallery-lightbox")) return;
   if (event.key === "Escape") closeGalleryLightbox();
   if (event.key === "ArrowLeft") stepGalleryLightbox(-1);

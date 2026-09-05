@@ -10,43 +10,14 @@ function originalMediaUrl(item) {
   return item?.url || item?.image || previewImage(item);
 }
 
-function mediaDownloadName(item) {
-  const base = String(item?.name || item?.filename || item?.caption || "original-photo")
-    .trim()
-    .replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-")
-    .replace(/\s+/g, " ");
-  const normalized = base || "original-photo";
-  const url = String(originalMediaUrl(item) || "");
-  const extensionMatch = url.match(/\.([a-zA-Z0-9]{2,5})(?:[?#]|$)/);
-  const extension = extensionMatch ? `.${extensionMatch[1].toLowerCase()}` : ".jpg";
-  return /\.[a-zA-Z0-9]{2,5}$/.test(normalized) ? normalized : `${normalized}${extension}`;
-}
-
-function mediaMarkup(item, className = "", options = {}) {
+function mediaMarkup(item, className = "") {
   const source = previewImage(item);
   if (!source) return "";
   if (isVideoMedia(item)) {
     const videoSource = originalMediaUrl(item) || source;
     return `<video class="${escapeHtml(className)}" src="${escapeHtml(videoSource)}" controls preload="metadata"></video>`;
   }
-  const originalSource = originalMediaUrl(item) || source;
-  if (options.download === false) {
-    return `<img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">`;
-  }
-  return `
-    <span class="media-download-frame">
-      <img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">
-      <a
-        class="media-download-link"
-        href="${escapeHtml(originalSource)}"
-        download="${escapeHtml(mediaDownloadName(item))}"
-        aria-label="Download original image"
-        title="Download original"
-      >
-        Download original
-      </a>
-    </span>
-  `;
+  return `<img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">`;
 }
 
 function isUsableCoordinates(coordinates) {

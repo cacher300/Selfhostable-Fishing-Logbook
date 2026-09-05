@@ -85,7 +85,7 @@ async function exportDatabaseArchive() {
     document.body.append(link);
     link.click();
     link.remove();
-    setDatabaseBackupStatus("Backup download started. It includes uploaded photos.");
+    setDatabaseBackupStatus("Backup download started.");
   } catch (error) {
     console.error("Database export failed", error);
     setDatabaseBackupStatus(error.message || "Database export failed.");
