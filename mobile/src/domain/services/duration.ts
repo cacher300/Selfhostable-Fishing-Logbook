@@ -37,8 +37,10 @@ export function fishCount(record: Record<string, unknown> | null | undefined): n
 }
 
 export function tripHours(trip: Trip): number {
-  const measured = durationHours(trip.linesSetTime || trip.startTime, trip.linesPulledTime || trip.endTime);
-  return measured || Math.max(0, numericValue(trip.hours));
+  const start = trip.linesSetTime || trip.startTime || trip.launchTime;
+  const end = trip.linesPulledTime || trip.endTime;
+  if (timeToMinutes(start) === null || timeToMinutes(end) === null) return Math.max(0, numericValue(trip.hours));
+  return Math.max(0, durationHours(start, end) - Math.max(0, numericValue(trip.idleHours)));
 }
 
 export function setupMinutes(line: Record<string, unknown>): number {

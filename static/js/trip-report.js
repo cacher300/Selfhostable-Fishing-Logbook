@@ -176,6 +176,26 @@ function biggestCatchMeasurement(catches = []) {
   return length ? { value: length, unit: "fishLength" } : null;
 }
 
+function biggestCatchRecord(catches = []) {
+  const records = Array.isArray(catches) ? catches : [];
+  const field = records.some((catchItem) => Number(String(catchItem?.weight || "").match(/[\d.]+/)?.[0]) > 0) ? "weight" : "length";
+  return records.reduce((biggest, catchItem) => {
+    const currentValue = Number(String(catchItem?.[field] || "").match(/[\d.]+/)?.[0]) || 0;
+    const biggestValue = Number(String(biggest?.[field] || "").match(/[\d.]+/)?.[0]) || 0;
+    return currentValue > biggestValue ? catchItem : biggest;
+  }, null);
+}
+
+function catchPhotosByPriority(trip) {
+  const catches = trip.catches || [];
+  const biggest = biggestCatchRecord(catches);
+  return [
+    ...(biggest?.photos || []),
+    ...catches.filter((catchItem) => catchItem !== biggest).flatMap((catchItem) => catchItem.photos || []),
+    ...(trip.lostFish || []).flatMap((catchItem) => catchItem.photos || []),
+  ];
+}
+
 function renderReportSetupTable(trip) {
   const rows = trip.gearUsed || [];
   const trolling = isTrollingTripRecord(trip);
@@ -199,13 +219,15 @@ function renderTripReport(trip) {
   const biggestFish = biggestCatchMeasurement(trip.catches);
   const hours = tripHours(trip);
   const fishPerHour = hours ? trimNumber(landed / hours) : "";
-  const hero = null;
+  const tripPhotos = trip.notePhotos || [];
+  const catchPhotos = catchPhotosByPriority(trip);
+  const hero = [...tripPhotos, ...catchPhotos].find((photo) => !isVideoMedia(photo) && previewImage(photo));
   const reportMeta = [formatDate(trip.date), trip.launchTime ? formatTimelineDisplayTime(trip.launchTime) : ""].filter(Boolean).join(" · ");
   const overview = [["Date", formatDate(trip.date)], ["Location", displayTitleText(trip.location)], ["Launch / area", displayTitleText(trip.launch)], ["Lines set time", trip.linesSetTime || trip.startTime ? formatTimelineDisplayTime(trip.linesSetTime || trip.startTime) : ""], ["Lines pulled time", trip.linesPulledTime || trip.endTime ? formatTimelineDisplayTime(trip.linesPulledTime || trip.endTime) : ""], ["Duration", tripHours(trip) ? `${trimNumber(tripHours(trip))} hours` : ""], ["People", (trip.people || []).map((person) => displayTitleText(person.name)).filter(Boolean).join(", ")], ["Target species", displayTitleText(trip.targetSpecies)], ["Method", displayTitleText(trip.method)], ["Intent", displayTitleText(trip.intent)], ["Rating", reportRatingLabel(trip.tripRating)]];
   const conditions = [["Weather", displayTitleText(trip.weather)], ["Water temperature", displayStoredMeasurement(trip.waterTemp, "waterTemperature")], ["Water clarity", displayTitleText(trip.waterClarity)], ["Structure", displayTitleText(trip.structureType)], ["FOW range", displayStoredMeasurement(trip.structure, "depth")], ["Wind", trip.wind], ["Waves / chop", formatWaveHeightChopLine(trip, trip.weatherData)], ...reportAdditionalConditionRows(trip)];
   const mapRecords = catchMapRecordsForTrip(trip);
   return `<article class="trip-report">
-    <header class="report-header"><div class="report-header-copy"><p class="report-date">${escapeHtml(reportMeta)}${trip.location ? ` · ${escapeHtml(displayTitleText(trip.location))}` : ""}</p><h3>${escapeHtml(displayTitleText(trip.title || trip.location || "Trip report"))}</h3><p class="report-subtitle">${escapeHtml([trip.targetSpecies, trip.method].filter(Boolean).map(displayTitleText).join(" · ") || "Fishing trip report")}</p><div class="report-actions"><button class="button primary" type="button" data-report-action="edit">Edit trip</button><button class="button secondary" type="button" data-report-action="share">Share trip</button></div></div>${hero ? `<button class="report-hero-photo" type="button" data-report-open-photo aria-label="Open trip photo">${mediaMarkup(hero, "report-hero-asset", { download: false })}</button>` : ""}</header>
+    <header class="report-header${hero ? " has-hero" : ""}">${hero ? `<div class="report-header-media" aria-hidden="true">${mediaMarkup(hero, "report-hero-asset", { download: false })}</div>` : ""}<div class="report-header-copy"><p class="report-date">${escapeHtml(reportMeta)}${trip.location ? ` · ${escapeHtml(displayTitleText(trip.location))}` : ""}</p><h3>${escapeHtml(displayTitleText(trip.title || trip.location || "Trip report"))}</h3><p class="report-subtitle">${escapeHtml([trip.targetSpecies, trip.method].filter(Boolean).map(displayTitleText).join(" · ") || "Fishing trip report")}</p><div class="report-actions"><button class="button primary" type="button" data-report-action="edit">Edit trip</button><button class="button secondary" type="button" data-report-action="share">Share trip</button></div></div></header>
     <section class="report-stat-strip">${[["Landed", landed], ["Missed / lost", lost], ["Biggest fish", biggestFish ? displayStoredMeasurement(biggestFish.value, biggestFish.unit) : ""], ["Fish / hr", fishPerHour], ["Hours", trimNumber(hours)], ["Species", species.count]].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value === "" || value === null || value === undefined ? "Not logged" : value))}</strong></div>`).join("")}</section>
     <section class="report-notes"><h3>Trip notes</h3><p>${escapeHtml(trip.notes || "Not logged")}</p></section>
     <div class="report-fact-grid report-overview-grid">${renderReportKeyValue("Trip details", overview)}${renderReportKeyValue("Conditions", conditions)}${(trip.probeTemperatureProfile || []).some((entry) => entry && Number.isFinite(Number(entry.depthFeet)) && String(entry.temperature || "").trim()) ? `<section class="report-fact-section report-probe-section"><h3>Probe temperature profile</h3>${renderProbeTemperatureProfileReport(trip.probeTemperatureProfile)}</section>` : ""}</div>
@@ -213,7 +235,7 @@ function renderTripReport(trip) {
     ${renderReportSetupTable(trip)}
     ${renderReportTimeline(trip)}
     ${mapRecords.length ? `<section class="report-map-section"><div class="report-section-title"><h3>Fish map</h3></div><div class="summary-map-tools"><label><span>Species</span><select id="tripSummaryMapFilter"></select></label></div><div id="tripSummaryMap" class="fish-map trip-summary-map"></div></section>` : ""}
-    <section class="report-photos"><div><h3>Photos</h3><p>${escapeHtml(`${(trip.notePhotos || []).length} saved`)}</p></div>${summaryPhotoGrid(trip.notePhotos || [], "No trip photos", { compact: true })}</section>
+    <section class="report-photos"><div><h3>Photos</h3><p>${escapeHtml(`${(trip.notePhotos || []).length} saved`)}</p></div>${summaryPhotoGrid(trip.notePhotos || [], "No trip photos", { compact: true, openable: true })}</section>
     <div id="catchDetailHost"></div>
   </article>`;
 }
@@ -223,5 +245,11 @@ function openTripReportPhotoLightbox(photo) {
   if (!source) return;
   document.querySelector(".report-photo-lightbox")?.remove();
   document.body.insertAdjacentHTML("beforeend", `<div class="report-photo-lightbox" role="dialog" aria-modal="true" aria-label="Trip photo"><button type="button" class="report-photo-lightbox-close" data-close-report-photo aria-label="Close photo">×</button><img src="${escapeHtml(source)}" alt="${escapeHtml(displayPhotoTitle(photo))}"></div>`);
+  document.body.classList.add("report-photo-lightbox-open");
   document.querySelector("[data-close-report-photo]")?.focus();
+}
+
+function closeTripReportPhotoLightbox() {
+  document.querySelector(".report-photo-lightbox")?.remove();
+  document.body.classList.remove("report-photo-lightbox-open");
 }

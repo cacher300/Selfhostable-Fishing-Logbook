@@ -51,9 +51,9 @@ function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
   const className = ["summary-photo-grid", options.compact ? "compact-photo-grid" : "", options.hero ? "hero-photo-grid" : ""].filter(Boolean).join(" ");
   return `
     <div class="${className}">
-      ${photos.map((photo) => `
+      ${photos.map((photo, index) => `
         <figure class="summary-photo-card">
-          ${mediaMarkup(photo, "summary-photo-asset")}
+          ${options.openable && !isVideoMedia(photo) ? `<button class="summary-photo-open" type="button" data-report-photo-index="${index}" aria-label="Enlarge ${escapeHtml(displayPhotoTitle(photo))}">${mediaMarkup(photo, "summary-photo-asset")}</button>` : mediaMarkup(photo, "summary-photo-asset")}
           ${!options.hideCaptions && photo.caption ? `<figcaption>${escapeHtml(displayPhotoTitle(photo))}</figcaption>` : ""}
         </figure>
       `).join("")}
@@ -82,22 +82,7 @@ function catchMediaPreview(photo, speciesOrTitle, index, options = {}) {
     return `<video class="${escapeHtml(options.className || "")}" src="${escapeHtml(videoSource)}" controls preload="metadata" playsinline aria-label="${escapeHtml(catchMediaAltText(speciesOrTitle, index, { video: true }))}"></video>`;
   }
   const imageMarkup = `<img class="${escapeHtml(options.className || "")}" src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" ${options.loading ? `loading="${escapeHtml(options.loading)}"` : ""}>`;
-  if (!options.enableDownload) return imageMarkup;
-  const originalSource = originalMediaUrl(photo) || source;
-  return `
-    <span class="media-download-frame">
-      ${imageMarkup}
-      <a
-        class="media-download-link"
-        href="${escapeHtml(originalSource)}"
-        download="${escapeHtml(mediaDownloadName(photo))}"
-        aria-label="Download original image"
-        title="Download original"
-      >
-        Download original
-      </a>
-    </span>
-  `;
+  return imageMarkup;
 }
 
 function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {}) {

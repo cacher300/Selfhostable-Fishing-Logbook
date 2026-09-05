@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren, ReactNode, Ref } from "react";
 import { useWindowDimensions } from "react-native";
 import {
   ActivityIndicator,
@@ -24,6 +24,7 @@ type Children = { children?: ReactNode };
 export type ScreenProps = PropsWithChildren<
   ViewProps & {
     scroll?: boolean;
+    scrollRef?: Ref<ScrollView>;
     edges?: Edge[];
     contentContainerStyle?: StyleProp<ViewStyle>;
     scrollProps?: Omit<ScrollViewProps, "contentContainerStyle" | "children">;
@@ -31,11 +32,11 @@ export type ScreenProps = PropsWithChildren<
 >;
 
 /** Page shell matching the desktop main panel's dark background and gutter. */
-export function Screen({ children, scroll = true, edges = ["top", "left", "right"], style, contentContainerStyle, scrollProps, ...viewProps }: ScreenProps) {
+export function Screen({ children, scroll = true, scrollRef, edges = ["top", "left", "right"], style, contentContainerStyle, scrollProps, ...viewProps }: ScreenProps) {
   const contents = <View {...viewProps} style={[styles.screenContent, contentContainerStyle]}>{children}</View>;
   return (
     <SafeAreaView edges={edges} style={[styles.screen, style]}>
-      {scroll ? <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" {...scrollProps}>{contents}</ScrollView> : contents}
+      {scroll ? <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" {...scrollProps}>{contents}</ScrollView> : contents}
     </SafeAreaView>
   );
 }
