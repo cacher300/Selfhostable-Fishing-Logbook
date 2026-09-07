@@ -10,6 +10,8 @@ from . import logbook_repository
 
 SCHEMA_VERSION = 1
 BOAT_LAYOUT_SLOT_LIMIT = 52
+PRIVATE_PHOTO_LOCATION_RADIUS_MIN_METERS = 25
+PRIVATE_PHOTO_LOCATION_RADIUS_MAX_METERS = 10000
 _COLLECTION_KEYS = (
     "species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes",
     "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections",
@@ -145,7 +147,10 @@ def normalize_logbook(payload: dict | None = None) -> dict:
                 if not coordinates:
                     continue
                 try:
-                    radius_meters = max(25, min(10000, float(item.get("radiusMeters") or 400)))
+                    radius_meters = max(
+                        PRIVATE_PHOTO_LOCATION_RADIUS_MIN_METERS,
+                        min(PRIVATE_PHOTO_LOCATION_RADIUS_MAX_METERS, float(item.get("radiusMeters") or 400)),
+                    )
                 except (TypeError, ValueError):
                     radius_meters = 400
                 name = str(item.get("name") or f"Home {index + 1}").strip() or f"Home {index + 1}"
@@ -834,8 +839,14 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
                     radius = float(item["radiusMeters"])
                 except (TypeError, ValueError):
                     return _error(f"{path}.radiusMeters", "must be a number")
-                if radius < 25 or radius > 500:
-                    return _error(f"{path}.radiusMeters", "must be between 25 and 500")
+                if (
+                    radius < PRIVATE_PHOTO_LOCATION_RADIUS_MIN_METERS
+                    or radius > PRIVATE_PHOTO_LOCATION_RADIUS_MAX_METERS
+                ):
+                    return _error(
+                        f"{path}.radiusMeters",
+                        "must be between 25 and 10000",
+                    )
     return True, None
 
 

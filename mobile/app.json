@@ -36,7 +36,6 @@
           "photosPermission": "Allow Fishing Logbook to attach fishing photos and videos."
         }
       ],
-      "expo-maps",
       "expo-sharing"
     ],
     "ios": {

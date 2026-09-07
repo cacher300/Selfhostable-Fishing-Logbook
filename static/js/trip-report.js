@@ -244,7 +244,8 @@ function openTripReportPhotoLightbox(photo) {
   const source = originalMediaUrl(photo) || previewImage(photo);
   if (!source) return;
   document.querySelector(".report-photo-lightbox")?.remove();
-  document.body.insertAdjacentHTML("beforeend", `<div class="report-photo-lightbox" role="dialog" aria-modal="true" aria-label="Trip photo"><button type="button" class="report-photo-lightbox-close" data-close-report-photo aria-label="Close photo">×</button><img src="${escapeHtml(source)}" alt="${escapeHtml(displayPhotoTitle(photo))}"></div>`);
+  const lightboxHost = els.tripSummaryDialog?.open ? els.tripSummaryDialog : document.body;
+  lightboxHost.insertAdjacentHTML("beforeend", `<div class="report-photo-lightbox" role="dialog" aria-modal="true" aria-label="Trip photo"><button type="button" class="report-photo-lightbox-close" data-close-report-photo aria-label="Close photo">×</button><img src="${escapeHtml(source)}" alt="${escapeHtml(displayPhotoTitle(photo))}"></div>`);
   document.body.classList.add("report-photo-lightbox-open");
   document.querySelector("[data-close-report-photo]")?.focus();
 }

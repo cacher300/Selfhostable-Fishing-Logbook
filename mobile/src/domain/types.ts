@@ -237,7 +237,7 @@ export interface Settings extends Extensible {
   units?: UnitPreferences;
   chopRanges?: ChopRange[];
   defaultTrollingSpread?: SetupLine[];
-  defaultTrollingSpreads?: Array<Extensible>;
+  defaultTrollingSpreads?: Array<{ targetSpecies: string; spread: SetupLine[] } & Extensible>;
   privatePhotoLocations?: PrivatePhotoLocation[];
   bathymetryLakeCalibrationsFeet?: Record<string, number>;
 }

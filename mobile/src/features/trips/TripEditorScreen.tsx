@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Badge, DangerButton, Field, MetricStrip, Panel, PrimaryButton, Screen, SecondaryButton, TopBar } from "../../components/ui";
-import { addCatch, id, normalizeTrip, tripDurationHours } from "../../domain/logbook";
+import { addCatch, defaultTrollingSpreadForSpecies, id, normalizeTrip, prepareTrollingSpread, previousTrollingTripForSpecies, tripDurationHours } from "../../domain/logbook";
 import type { Catch, Expedition, Logbook, MediaRef, Person, SetupLine, Trip } from "../../domain/types";
 import { useLogbook } from "../../state/logbook-context";
 import { tokens } from "../../theme/tokens";
 import { captureMedia, chooseMediaMultiple } from "../../storage/media";
 import { currentCoordinates } from "../../services/location";
 import { ExpeditionEditor } from "../expeditions/ExpeditionsScreen";
+import { TrollingSpreadDiagram } from "./TrollingSpreadDiagram";
 
 type Section = "Basics" | "People" | "Setup" | "Catches" | "Lost" | "Photos";
 type DraftSetter = React.Dispatch<React.SetStateAction<Trip>>;
@@ -26,10 +27,9 @@ const gearName = (items: Array<{ id: string; name?: string; shortName?: string }
 function makeDraft(source: Trip | undefined, logbook: Logbook, live = true): Trip {
   if (source) return normalizeTrip(structuredClone(source));
   const time = nowTime();
-  const spread = Array.isArray(logbook.settings.defaultTrollingSpread)
-    ? structuredClone(logbook.settings.defaultTrollingSpread).map((line, index) => ({ ...line, id: id(), startTime: time, endTime: "", lineLabel: line.lineLabel || `Rod ${index + 1}` }))
-    : [];
-  return normalizeTrip({ id: id(), title: "", date: nowDate(), method: "Trolling", targetSpecies: logbook.species[0] || "", intent: "serious", tripRating: 1, linesSetTime: time, startTime: time, linesPulledTime: live ? "" : time, endTime: live ? "" : time, liveStatus: live ? "active" : "completed", liveEvents: live ? [{id:id(),kind:"trip-started",time,title:"Trip started"}] : [], catches: [], lostFish: [], gearUsed: spread, people: [], notePhotos: [], probeTemperatureProfile: [] });
+  const targetSpecies = logbook.species[0] || "";
+  const spread = prepareTrollingSpread(defaultTrollingSpreadForSpecies(logbook, targetSpecies), time);
+  return normalizeTrip({ id: id(), title: "", date: nowDate(), method: "Trolling", targetSpecies, intent: "serious", tripRating: 1, linesSetTime: time, startTime: time, linesPulledTime: live ? "" : time, endTime: live ? "" : time, liveStatus: live ? "active" : "completed", liveEvents: live ? [{id:id(),kind:"trip-started",time,title:"Trip started"}] : [], catches: [], lostFish: [], gearUsed: spread, people: [], notePhotos: [], probeTemperatureProfile: [] });
 }
 
 export function TripEditorScreen({ creating = false }: { creating?: boolean }) {
@@ -117,8 +117,16 @@ function People({ draft, setDraft, logbook }: { draft: Trip; setDraft: DraftSett
 
 function Setup({ draft, setDraft, addSetup, updateLine, removeLine, logbook }: { draft: Trip; setDraft: DraftSetter; addSetup: () => void; updateLine: (id: string, patch: Partial<SetupLine>) => void; removeLine: (id: string) => void; logbook: Logbook }) {
   const trolling = isTrolling(draft);
-  const importLast = () => { const previous = [...logbook.trips].reverse().find(trip => trip.id !== draft.id && trip.method?.toLowerCase() === "trolling" && trip.gearUsed.length); const source = previous?.gearUsed || logbook.settings.defaultTrollingSpread || []; if (!source.length) { Alert.alert("No spread found", "Add a default spread in Settings or save a trolling trip with setup lines first."); return; } const time = draft.linesSetTime || draft.startTime || draft.launchTime || nowTime(); setDraft(trip => ({ ...trip, gearUsed: source.map((line, index) => ({ ...structuredClone(line), id: id(), startTime: time, endTime: "", lineLabel: line.lineLabel || `Rod ${index + 1}` })) })); };
-  return <View style={s.stack}>{trolling ? <Panel title="Trolling spread"><View style={s.lanes}>{["port", "center", "starboard"].map(side => <View key={side} style={s.lane}><Text style={s.laneTitle}>{side.toUpperCase()}</Text>{draft.gearUsed.filter(line => line.side === side && !line.endTime).map(line => <View key={line.id} style={s.laneBadge}><Text style={s.laneBadgeText}>{line.lineLabel || "Rod"}</Text><Text style={s.laneDetail}>{gearName(logbook.lures, line.lureId)}</Text></View>)}{!draft.gearUsed.some(line => line.side === side && !line.endTime) ? <Text style={s.muted}>No active line</Text> : null}</View>)}</View></Panel> : null}<Panel title="Setup timeline" subtitle="Rods and gear used throughout the trip." action={<View style={s.actions}>{trolling ? <SecondaryButton label="Import Last Spread" compact onPress={importLast}/> : null}<PrimaryButton label="Add Rod" compact onPress={addSetup}/></View>}>{draft.gearUsed.length ? draft.gearUsed.map((line, index) => <SetupCard key={line.id} line={line} index={index} trolling={trolling} update={patch => updateLine(line.id, patch)} remove={() => removeLine(line.id)} logbook={logbook}/>) : <Text style={s.emptyText}>No rods or setup changes recorded.</Text>}</Panel></View>;
+  const defaultSpread = defaultTrollingSpreadForSpecies(logbook, draft.targetSpecies || "");
+  const previous = previousTrollingTripForSpecies(logbook, draft);
+  const replaceWith = (source: SetupLine[], label: string) => {
+    if (!source.length) { Alert.alert("No spread found", label); return; }
+    const apply = () => { const time = draft.linesSetTime || draft.startTime || draft.launchTime || nowTime(); setDraft(trip => ({ ...trip, gearUsed: prepareTrollingSpread(source, time), catches: trip.catches.map(fish => ({ ...fish, setupLineId: "", setupLineTarget: "" })), lostFish: trip.lostFish.map(fish => ({ ...fish, setupLineId: "", setupLineTarget: "" })) })); };
+    if (draft.gearUsed.length) Alert.alert("Replace current spread?", "This replaces the current setup lines. Catch assignments to those lines will be cleared.", [{ text: "Cancel", style: "cancel" }, { text: "Replace", style: "destructive", onPress: apply }]); else apply();
+  };
+  const importDefault = () => replaceWith(defaultSpread, `No default spread is saved for ${draft.targetSpecies || "this target species"}.`);
+  const importLast = () => replaceWith(previous?.gearUsed || [], `No earlier trolling trip for ${draft.targetSpecies || "this target species"} has a spread.`);
+  return <View style={s.stack}>{trolling ? <Panel title="Trolling spread" subtitle="Boat, line paths, presentations, gear, and results match the desktop view in a phone-first vertical layout."><TrollingSpreadDiagram trip={draft} logbook={logbook}/></Panel> : null}<Panel title="Setup timeline" subtitle="Rods and gear used throughout the trip."><View style={s.actions}>{trolling ? <><SecondaryButton label="Import Default" compact onPress={importDefault}/><SecondaryButton label="Import Last Trip" compact onPress={importLast}/></> : null}<PrimaryButton label="Add Rod" compact onPress={addSetup}/></View>{draft.gearUsed.length ? draft.gearUsed.map((line, index) => <SetupCard key={line.id} line={line} index={index} trolling={trolling} update={patch => updateLine(line.id, patch)} remove={() => removeLine(line.id)} logbook={logbook}/>) : <Text style={s.emptyText}>No rods or setup changes recorded.</Text>}</Panel></View>;
 }
 
 function SetupCard({ line, index, trolling, update, remove, logbook }: { line: SetupLine; index: number; trolling: boolean; update: (patch: Partial<SetupLine>) => void; remove: () => void; logbook: Logbook }) {

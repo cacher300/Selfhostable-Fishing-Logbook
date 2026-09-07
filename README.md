@@ -89,6 +89,20 @@ npm run web
 
 Native maps, camera, media-library access, location, and SQLite behavior should be verified with an Expo development build or a physical device. Platform SDK requirements still apply for local iOS and Android builds.
 
+The mobile client uses Apple Maps on iOS and Google Maps on Android through one
+`react-native-maps` implementation. Before creating an Android development or
+store build, enable the Google Maps SDK for Android and expose a restricted key
+to the Expo build process:
+
+```powershell
+$env:GOOGLE_MAPS_ANDROID_API_KEY = "your_restricted_key"
+npx expo run:android
+```
+
+Restrict the key to the Android package `com.local.fishinglogbook` and the
+signing certificate used by the build. iOS Apple Maps does not require a map
+API key.
+
 ## Data, Backups, and Portability
 
 The web app stores private runtime data under:

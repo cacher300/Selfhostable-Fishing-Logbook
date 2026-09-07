@@ -68,6 +68,43 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertFalse(valid)
         self.assertEqual("spots[0].radiusMeters: must be between 25 and 500", error)
 
+    def test_private_photo_location_validation_matches_supported_radius(self) -> None:
+        base = {
+            "schemaVersion": 1,
+            "trips": [],
+            "lures": [],
+            "flashers": [],
+        }
+        location = {
+            "id": "home",
+            "name": "Home",
+            "coordinates": {"latitude": 43, "longitude": -79},
+        }
+
+        valid, error = logbook_store.validate_logbook({
+            **base,
+            "settings": {
+                "privatePhotoLocations": [
+                    {**location, "radiusMeters": 10000},
+                ],
+            },
+        })
+        self.assertTrue(valid, error)
+
+        valid, error = logbook_store.validate_logbook({
+            **base,
+            "settings": {
+                "privatePhotoLocations": [
+                    {**location, "radiusMeters": 10001},
+                ],
+            },
+        })
+        self.assertFalse(valid)
+        self.assertEqual(
+            "settings.privatePhotoLocations[0].radiusMeters: must be between 25 and 10000",
+            error,
+        )
+
     def test_saving_logbook_does_not_run_destructive_media_cleanup(self) -> None:
         app = create_app({"TESTING": True, "SECRET_KEY": "save-media-test"})
         payload = logbook_store.normalize_logbook({"schemaVersion": 1, "trips": [], "lures": [], "flashers": []})
