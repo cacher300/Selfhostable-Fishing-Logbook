@@ -3,8 +3,7 @@ const defaultWaterClarityOptions = [
   "Clear",
   "Slightly Stained",
   "Stained",
-  "Muddy",
-  "Algae Bloom"
+  "Muddy"
 ];
 
 const defaultStructureOptions = ["Drop-off", "Weedline", "Rocky bottom", "Sand bottom", "Vegetation", "Bait"];

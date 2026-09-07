@@ -172,7 +172,6 @@ DEFAULT_LOGBOOK = {
         "Slightly Stained",
         "Stained",
         "Muddy",
-        "Algae Bloom",
     ],
     "weatherTypes": [
         "Sunny",
