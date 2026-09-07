@@ -25,7 +25,7 @@ Use this client for the complete desktop experience, server-backed media, detail
 
 ### Expo mobile app
 
-The `mobile/` project is a React Native, Expo Router, and TypeScript client with local SQLite storage. It supports field-oriented trip capture, an active-trip workflow, catches and lost fish, trolling setup changes, camera/library media, GPS, maps, analytics, gear, settings, and archive import/export.
+The Expo mobile app is maintained in its own repository. It is a React Native, Expo Router, and TypeScript client with local SQLite storage. It supports field-oriented trip capture, an active-trip workflow, catches and lost fish, trolling setup changes, camera/library media, GPS, maps, analytics, gear, settings, and archive import/export.
 
 The mobile app is currently standalone: it does not continuously sync with the Flask server. Move data between clients with a Fishing Logbook archive. Importing an archive replaces local data only when you choose that action.
 
@@ -68,40 +68,6 @@ APP_PORT=8081 FISH_DATA_DIR=/srv/fishing-logbook-data docker compose up --build 
 ```
 
 At first container startup, a session secret is generated in `data/.secret_key`. Set `SECRET_KEY` yourself if you manage secrets externally.
-
-## Run the Mobile App
-
-Install Node.js, then:
-
-```sh
-cd mobile
-npm install
-npm start
-```
-
-Expo will offer targets for Android, iOS, and the browser. You can also start a target directly:
-
-```sh
-npm run android
-npm run ios
-npm run web
-```
-
-Native maps, camera, media-library access, location, and SQLite behavior should be verified with an Expo development build or a physical device. Platform SDK requirements still apply for local iOS and Android builds.
-
-The mobile client uses Apple Maps on iOS and Google Maps on Android through one
-`react-native-maps` implementation. Before creating an Android development or
-store build, enable the Google Maps SDK for Android and expose a restricted key
-to the Expo build process:
-
-```powershell
-$env:GOOGLE_MAPS_ANDROID_API_KEY = "your_restricted_key"
-npx expo run:android
-```
-
-Restrict the key to the Android package `com.local.fishinglogbook` and the
-signing certificate used by the build. iOS Apple Maps does not require a map
-API key.
 
 ## Data, Backups, and Portability
 
@@ -157,13 +123,6 @@ node --test tests/*.test.js
 python scripts/build-standalone.py --check
 ```
 
-Check the mobile TypeScript project separately:
-
-```sh
-cd mobile
-npm run typecheck
-```
-
 The GitLab pipeline also compiles the Python sources, smoke-tests the Flask server, validates Docker Compose, and can deploy the default branch after all checks pass.
 
 ## Project Layout
@@ -172,7 +131,6 @@ The GitLab pipeline also compiles the Python sources, smoke-tests the Flask serv
 backend/             Storage, media, security, weather, and lake services
 data/                Local database and uploaded media (not committed)
 docs/                Architecture, API, data model, deployment, and planning docs
-mobile/              Expo/React Native mobile client
 scripts/             Local launcher and standalone build tools
 static/              Web JavaScript, CSS, vendor assets, and images
 templates/           Jinja application shell, views, and dialogs
