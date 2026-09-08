@@ -200,7 +200,6 @@ function renderReelInventory() {
       escapeHtml(reel.size || "-"),
       escapeHtml(reel.weight || "-"),
       escapeHtml(reel.gearRatio || "-"),
-      escapeHtml(reel.retrieveRate || "-"),
       escapeHtml(displayStoredMeasurement(reel.maxDrag, "fishWeight") || "-"),
       escapeHtml(reel.monoCapacity || "-"),
       escapeHtml(reel.braidCapacity || "-"),
@@ -210,7 +209,7 @@ function renderReelInventory() {
       `<div class="inventory-actions"><button class="button secondary inventory-edit-action" type="button" data-edit-reel="${escapeHtml(reel.id)}">Edit</button><button class="button secondary" type="button" data-duplicate-reel="${escapeHtml(reel.id)}">Duplicate</button></div>`
     ]);
   });
-  renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Fish caught", "Last used", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", "Retrieve", `Max Drag (${unitSymbol("fishWeight")})`, "Mono Cap", "Braid Cap", "Purchase", "Bought", "Owned", ""], rows, "No saved reels yet.");
+  renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Fish caught", "Last used", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", `Max Drag (${unitSymbol("fishWeight")})`, "Mono Cap", "Braid Cap", "Purchase", "Bought", "Owned", ""], rows, "No saved reels yet.");
 }
 
 function renderRodInventory() {

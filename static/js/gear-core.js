@@ -62,6 +62,29 @@ function gearDisplayName(item, fallback = "Gear") {
     || fallback;
 }
 
+function nextReelCopyShortName(reel) {
+  const currentName = String(reel?.shortName || gearDisplayName(reel, "Reel")).trim();
+  const baseName = currentName.replace(/\s+#\d+$/i, "") || "Reel";
+  const usedNames = new Set(state.reels.map((item) => String(item.shortName || "").trim().toLowerCase()));
+  let copyNumber = 2;
+  while (usedNames.has(`${baseName} #${copyNumber}`.toLowerCase())) copyNumber += 1;
+  return `${baseName} #${copyNumber}`;
+}
+
+function reelModelGroupId(reel) {
+  return String(reel?.modelGroupId || reel?.id || "");
+}
+
+function syncReelGroupQuantity(groupId, quantity) {
+  if (!groupId) return;
+  state.reels.forEach((item) => {
+    if (item.id === groupId || reelModelGroupId(item) === groupId) {
+      item.modelGroupId = groupId;
+      item.quantityAvailable = String(quantity ?? "");
+    }
+  });
+}
+
 function generatedLureName(lure) {
   return [lure?.color, lure?.spoonSize, lure?.bladeType, lure?.brand, lure?.type].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
 }

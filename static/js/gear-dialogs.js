@@ -64,23 +64,22 @@ function openReelDialog(reel = null, { duplicate = false } = {}) {
   renderExistingGearPhotos("reel", reel);
   populateOptionSelect(document.querySelector("#reelStyle"), optionLabels("reelStyles"), "Select style");
   const editing = Boolean(reel) && !duplicate;
-  document.querySelector("#reelDialog h2").textContent = editing ? "Edit Reel" : duplicate ? "Duplicate Reel" : "Add Reel";
+  document.querySelector("#reelDialog h2").textContent = editing ? "Edit Reel" : duplicate ? "Add Separate Reel" : "Add Reel";
   els.reelDialog.dataset.duplicateFromId = duplicate ? reel?.id || "" : "";
   setValue("editingReelId", editing ? reel?.id || "" : "");
-  setValue("reelShortName", reel?.shortName || "");
+  setValue("reelShortName", duplicate ? nextReelCopyShortName(reel) : reel?.shortName || "");
   setValue("reelStyle", reel?.style || "");
   setValue("reelBrand", reel?.brand || "");
   setValue("reelName", reel?.name || "");
   setValue("reelSize", reel?.size || "");
   setValue("reelWeight", reel?.weight || "");
   setValue("reelGearRatio", reel?.gearRatio || "");
-  setValue("reelRetrieveRate", reel?.retrieveRate || "");
   setValue("reelMaxDrag", reel?.maxDrag || "");
   setValue("reelMonoCapacity", reel?.monoCapacity || "");
   setValue("reelBraidCapacity", reel?.braidCapacity || "");
   setValue("reelPurchaseAmount", reel?.purchaseAmount || "");
   setValue("reelDateBought", reel?.dateBought || "");
-  setValue("reelQuantityAvailable", reel?.quantityAvailable ?? "");
+  setValue("reelQuantityAvailable", duplicate ? increasedQuantity(reel?.quantityAvailable) : reel?.quantityAvailable ?? "");
   setValue("reelNotes", reel?.notes || "");
   renderLineRows(reel?.lineHistory || []);
   els.deleteReelButton.classList.toggle("hidden", !editing);
@@ -267,7 +266,9 @@ async function saveReel(event) {
   event.preventDefault();
   try {
     const editingId = getValue("editingReelId");
-    const existing = state.reels.find((item) => item.id === editingId || item.id === els.reelDialog.dataset.duplicateFromId);
+    const duplicateSourceId = els.reelDialog.dataset.duplicateFromId;
+    const existing = state.reels.find((item) => item.id === editingId || item.id === duplicateSourceId);
+    const modelGroupId = existing?.modelGroupId || (duplicateSourceId ? existing?.id || "" : "");
     const imageFiles = [...document.querySelector("#reelImage").files];
     const uploadedPhotos = imageFiles.length
       ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "reels")))
@@ -281,27 +282,21 @@ async function saveReel(event) {
       size: getValue("reelSize"),
       weight: getValue("reelWeight"),
       gearRatio: getValue("reelGearRatio"),
-      retrieveRate: getValue("reelRetrieveRate"),
       maxDrag: getValue("reelMaxDrag"),
       monoCapacity: getValue("reelMonoCapacity"),
       braidCapacity: getValue("reelBraidCapacity"),
       purchaseAmount: getValue("reelPurchaseAmount"),
       dateBought: getValue("reelDateBought"),
       quantityAvailable: getValue("reelQuantityAvailable"),
+      modelGroupId,
       notes: getValue("reelNotes"),
       lineHistory: collectLineRows(),
       ...gearPhotoFields(uploadedPhotos, existing, "reel")
     };
-    const duplicatedUnchanged = !editingId && Boolean(els.reelDialog.dataset.duplicateFromId)
-      && duplicateMatchesSource(existing, reel, [
-        "shortName", "style", "brand", "name", "size", "weight", "gearRatio", "retrieveRate",
-        "maxDrag", "monoCapacity", "braidCapacity", "purchaseAmount", "dateBought", "quantityAvailable",
-        "notes", "lineHistory"
-      ]);
     const index = state.reels.findIndex((item) => item.id === reel.id);
-    if (duplicatedUnchanged) existing.quantityAvailable = increasedQuantity(existing.quantityAvailable);
-    else if (index >= 0) state.reels[index] = reel;
+    if (index >= 0) state.reels[index] = reel;
     else state.reels.push(reel);
+    if (modelGroupId) syncReelGroupQuantity(modelGroupId, reel.quantityAvailable);
     upsertListValue("reelStyles", reel.style);
     reel.lineHistory.forEach((line) => upsertListValue("lineTypes", line.type));
     await saveState();
@@ -484,7 +479,10 @@ async function deleteReel() {
   const reelId = getValue("editingReelId");
   const reel = state.reels.find((item) => item.id === reelId);
   if (!reel || !confirm(`Delete ${gearDisplayName(reel, "this reel")}? This clears it from combos and trips.`)) return;
+  const modelGroupId = reel.modelGroupId || "";
+  const nextGroupQuantity = Math.max(0, (Number(reel.quantityAvailable) || 1) - 1);
   state.reels = state.reels.filter((item) => item.id !== reelId);
+  if (modelGroupId) syncReelGroupQuantity(modelGroupId, nextGroupQuantity);
   state.rodReelCombos.forEach((combo) => {
     if (combo.reelId === reelId) combo.reelId = "";
   });
