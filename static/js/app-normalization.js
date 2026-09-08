@@ -263,7 +263,10 @@ function normalizeState(nextState) {
         rodId: "",
         reelId: "",
         ...gearItem,
-        side: migrateSetupLineSideValue(gearItem.side),
+        // Line sides are meaningful only for trolling setups.
+        side: String(trip.method || "").toLowerCase() === "trolling"
+          ? migrateSetupLineSideValue(gearItem.side)
+          : "",
         presentation: migrateTrollingPresentationValue(gearItem.presentation)
       })),
       catches: (trip.catches || []).map((catchItem) => normalizeCatchSpotAssignment({
@@ -365,6 +368,9 @@ function normalizeSettings(settings = {}) {
   normalized.theme = normalized.theme === "dark" ? "dark" : "light";
   normalized.timeFormat = normalized.timeFormat === "12" ? "12" : "24";
   normalized.defaultHomeLake = ["", "Superior", "Michigan", "Huron", "Erie", "Ontario"].includes(normalized.defaultHomeLake) ? normalized.defaultHomeLake : "";
+  normalized.defaultPeople = Array.isArray(normalized.defaultPeople)
+    ? [...new Set(normalized.defaultPeople.map((personId) => String(personId || "").trim()).filter(Boolean))]
+    : [];
   const legacyBathymetryOffset = normalizeBathymetryOffsetFeet(settings?.bathymetryOffsetFeet);
   normalized.bathymetryLakeCalibrationsFeet = normalizeBathymetryLakeCalibrations(
     settings?.bathymetryLakeCalibrationsFeet,

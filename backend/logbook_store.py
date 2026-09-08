@@ -137,6 +137,13 @@ def normalize_logbook(payload: dict | None = None) -> dict:
                     })
         if cleaned_default_spread and not any(not item["targetSpecies"] for item in cleaned_default_spreads):
             cleaned_default_spreads.append({"targetSpecies": "", "spread": cleaned_default_spread})
+        raw_default_people = normalized["settings"].get("defaultPeople")
+        cleaned_default_people = []
+        if isinstance(raw_default_people, list):
+            for person_id in raw_default_people:
+                person_id = str(person_id or "").strip()
+                if person_id and person_id not in cleaned_default_people:
+                    cleaned_default_people.append(person_id)
         cleaned_private_locations = []
         private_locations = normalized["settings"].get("privatePhotoLocations")
         if isinstance(private_locations, list):
@@ -314,6 +321,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             "chopRanges": cleaned_ranges or default_ranges,
             "defaultTrollingSpread": cleaned_default_spread,
             "defaultTrollingSpreads": cleaned_default_spreads,
+            "defaultPeople": cleaned_default_people,
             "boatLayout": cleaned_boat_layout,
             "tackleBoxes": cleaned_tackle_boxes,
             "privatePhotoLocations": cleaned_private_locations,
@@ -822,6 +830,9 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
         valid, error = _validate_nested_records(settings["defaultTrollingSpreads"], "settings.defaultTrollingSpreads")
         if not valid:
             return valid, error
+    if "defaultPeople" in settings:
+        if not isinstance(settings["defaultPeople"], list) or any(not isinstance(person_id, str) for person_id in settings["defaultPeople"]):
+            return _error("settings.defaultPeople", "must be a list of person IDs")
     if "privatePhotoLocations" in settings:
         private_locations = settings["privatePhotoLocations"]
         if not isinstance(private_locations, list):

@@ -102,6 +102,39 @@
   grid-column: 2;
 }
 
+.default-people-setting {
+  min-width: 0;
+}
+
+.default-people-setting > p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.default-people-options {
+  display: grid;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.default-people-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.default-people-empty {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .default-trolling-spread-list {
   display: grid;
   gap: 10px;

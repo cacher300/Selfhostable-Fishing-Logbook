@@ -240,9 +240,9 @@ function openTripDialog(trip = null) {
   populateLocationSelect(location?.id || "");
   const launch = findLaunchByIdOrName(location, trip?.launchId, trip?.launch);
   populateLaunchSelect(launch?.id || "");
-  setValue("launchTime", trip?.launchTime || "");
+  setValue("launchTime", trip ? (trip.launchTime || "") : defaultTimeValue);
   setValue("linesSetTime", trip?.linesSetTime || trip?.startTime || "");
-  setValue("linesPulledTime", trip?.linesPulledTime || trip?.endTime || "");
+  setValue("linesPulledTime", trip ? (trip.linesPulledTime || trip.endTime || "") : defaultTimeValue);
   setValue("tripIdleTime", trip?.idleHours || "");
   setValue("targetSpecies", trip?.targetSpecies || "");
   setValue("method", trip?.method || "");
@@ -266,8 +266,10 @@ function openTripDialog(trip = null) {
   if (tripPeople.length) {
     tripPeople.forEach(addPersonRow);
   } else {
-    const savedPeople = (state.people || []).filter((person) => person.name?.trim());
-    addPersonRow(savedPeople.length === 1 ? savedPeople[0] : {}, { editNew: savedPeople.length !== 1 });
+    const defaultPeople = new Set(state.settings?.defaultPeople || []);
+    const savedPeople = (state.people || []).filter((person) => person.name?.trim() && defaultPeople.has(person.id));
+    if (savedPeople.length) savedPeople.forEach(addPersonRow);
+    else addPersonRow({}, { editNew: true });
   }
   (trip?.gearUsed || []).forEach(addTripGearRow);
   (trip?.catches || []).forEach(addCatchRow);

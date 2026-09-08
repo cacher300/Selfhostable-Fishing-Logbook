@@ -195,7 +195,7 @@ function renderBrandSpotlight() {
       const catchPhotos = (trip.catches || []).flatMap((catchItem) => (catchItem.photos || []).map((photo) => ({
         ...photo,
         tripTitle,
-        spotlightTitle: catchItem.species || "Fish photo",
+        spotlightTitle: photo.caption || "",
         date: trip.date
       })));
       return [...notePhotos, ...catchPhotos];

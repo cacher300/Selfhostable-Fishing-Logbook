@@ -94,7 +94,7 @@
   z-index: 1200;
   top: 100%;
   right: 0;
-  min-width: 220px;
+  min-width: 250px;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 0 0 8px 8px;
@@ -102,7 +102,33 @@
   box-shadow: var(--shadow);
 }
 
-.map-more-filters-panel .map-year-filter-toggle { width: 100%; }
+.map-more-filters-panel > label:not(.inline-toggle) { display: block; min-width: 0; margin-bottom: 9px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.map-more-filters-panel > label:not(.inline-toggle) span { display: block; margin-bottom: 3px; }
+.map-more-filters-panel > label:not(.inline-toggle) select { width: 100%; }
+.map-more-filters-panel .map-year-filter-toggle { width: 100%; margin-top: 2px; }
+
+.map-clear-filters {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--field);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.map-clear-filters:hover, .map-clear-filters:focus-visible { border-color: var(--green); color: var(--green-dark); outline: none; }
+
+.map-filter-summary {
+  align-self: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
 
 .map-layers-menu-panel .map-chart-toggle {
   display: flex;
@@ -193,6 +219,21 @@
 .fish-map img.leaflet-tile {
   will-change: auto !important;
 }
+
+.map-catch-direction-icon { background: transparent; border: 0; }
+.map-catch-direction-dot {
+  display: grid;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 2px solid var(--marker-color);
+  border-radius: 50%;
+  background: var(--marker-fill);
+  box-shadow: 0 1px 4px rgb(15 23 42 / 35%);
+}
+.map-catch-direction-dot svg { display: block; width: 14px; height: 14px; transform-origin: center; }
+.map-catch-direction-dot path { fill: #fff; stroke: rgb(15 23 42 / 35%); stroke-width: .7; stroke-linejoin: round; }
 
 .location-picker-map {
   min-height: 420px;
@@ -368,6 +409,8 @@
   border: 3px solid var(--pin-color);
   background: transparent;
 }
+
+.map-dual-legend .map-direction-key i { display: grid; width: 14px; height: 14px; place-items: center; border-radius: 50%; background: var(--green); color: #fff; font-size: 12px; font-style: normal; line-height: 1; }
 
 .map-catch-card {
   display: grid;

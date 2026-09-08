@@ -17,7 +17,7 @@ function expandAndRevealTripRow(row) {
 }
 
 function defaultFishTime(catchItem = {}) {
-  return catchItem.timeUnknown ? "" : (catchItem.time ?? (getValue("linesSetTime") || getValue("launchTime")));
+  return catchItem.timeUnknown ? "" : (catchItem.time ?? (getValue("linesSetTime") || getValue("launchTime") || defaultTimeValue));
 }
 
 function populateCatchSpotSelect(row, catchItem = {}) {
@@ -132,11 +132,11 @@ function updateCatchDetailsUnknown(row, { clear = false } = {}) {
 }
 
 function defaultSetupStartTime(gearItem = {}) {
-  return gearItem.startTime ?? (getValue("linesSetTime") || getValue("launchTime"));
+  return gearItem.startTime ?? (getValue("linesSetTime") || getValue("launchTime") || defaultTimeValue);
 }
 
 function defaultSetupEndTime(gearItem = {}) {
-  return gearItem.endTime ?? getValue("linesPulledTime");
+  return gearItem.endTime ?? (getValue("linesPulledTime") || defaultTimeValue);
 }
 
 function syncTripTimesToBlankRows() {
@@ -352,7 +352,9 @@ function addTripGearRow(gearItem = {}) {
   node.querySelector(".trip-gear-start-time").value = defaultSetupStartTime(gearItem);
   node.querySelector(".trip-gear-end-time").value = defaultSetupEndTime(gearItem);
   node.querySelector(".trip-gear-change-note").value = gearItem.changeNote || gearItem.notes || "";
-  const side = gearItem.side || defaultSetupLineSide(gearItem, els.tripGearRows.querySelectorAll(".gear-used-row").length);
+  const side = isTrollingTrip()
+    ? (gearItem.side || defaultSetupLineSide(gearItem, els.tripGearRows.querySelectorAll(".gear-used-row").length))
+    : "";
   populateChoiceSelect(node.querySelector(".trip-gear-side"), optionChoices("setupLineSides"), "Select side", side);
   populateChoiceSelect(node.querySelector(".catch-presentation"), optionChoices("trollingPresentations"), "Select method", gearItem.presentation || "");
   node.querySelector(".trip-gear-side").value = side;
@@ -498,8 +500,8 @@ function setupLineLabelFromRow(row, index) {
   const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
   if (customLabel) return customLabel;
   return setupLineAutoLabel({
-    side: row.querySelector(".trip-gear-side")?.value || "",
-    presentation: row.querySelector(".catch-presentation")?.value || "",
+    side: isTrollingTrip() ? row.querySelector(".trip-gear-side")?.value || "" : "",
+    presentation: isTrollingTrip() ? row.querySelector(".catch-presentation")?.value || "" : "",
     comboId: row.querySelector(".trip-gear-combo")?.value || "",
     lureId: row.querySelector(".trip-gear-lure")?.value || "",
     flasherId: row.querySelector(".trip-gear-flasher")?.value || ""
@@ -510,8 +512,8 @@ function cheaterLineLabelFromRow(row, index) {
   const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
   if (customLabel) return customLabel;
   const identity = [
-    setupLineSideLabel(row.querySelector(".trip-gear-side")?.value),
-    choiceLabel("trollingPresentations", row.querySelector(".catch-presentation")?.value) || `Rod ${index + 1}`
+    isTrollingTrip() ? setupLineSideLabel(row.querySelector(".trip-gear-side")?.value) : "",
+    isTrollingTrip() ? choiceLabel("trollingPresentations", row.querySelector(".catch-presentation")?.value) : `Rod ${index + 1}`
   ].filter(Boolean).join(" ");
   const combo = selectedText(row.querySelector(".trip-gear-combo")).replace("No combo selected", "");
   return [identity, combo].filter(Boolean).join(": ");
@@ -520,8 +522,8 @@ function cheaterLineLabelFromRow(row, index) {
 function catchRodPickerLabelFromRow(row, index, { cheater = false } = {}) {
   const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
   const identity = customLabel || [
-    setupLineSideLabel(row.querySelector(".trip-gear-side")?.value),
-    choiceLabel("trollingPresentations", row.querySelector(".catch-presentation")?.value) || `Rod ${index + 1}`
+    isTrollingTrip() ? setupLineSideLabel(row.querySelector(".trip-gear-side")?.value) : "",
+    isTrollingTrip() ? choiceLabel("trollingPresentations", row.querySelector(".catch-presentation")?.value) : `Rod ${index + 1}`
   ].filter(Boolean).join(" ");
   const lureId = cheater
     ? row.querySelector(".trip-gear-cheater-lure")?.value || ""

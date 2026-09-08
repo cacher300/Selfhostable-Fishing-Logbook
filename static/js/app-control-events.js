@@ -35,7 +35,12 @@ async function saveStructureOption(event) {
 
   const select = activeStructureSelect;
   upsertListValue("structureOptions", value);
-  if (select) populateStructureSelect(select, value);
+  // The trip dialog can already contain multiple catch rows. Refresh every
+  // structure selector so the newly-added option is immediately available to
+  // the other catches in this trip as well, while keeping their selections.
+  document.querySelectorAll(".catch-structure").forEach((structureSelect) => {
+    populateStructureSelect(structureSelect, structureSelect === select ? value : structureSelect.value);
+  });
   activeStructureSelect = null;
   els.structureDialog.close();
   saveState().catch((error) => console.error("Could not save structure option.", error));
@@ -174,6 +179,7 @@ els.saveChopRangesButton?.addEventListener("click", saveChopRanges);
 document.querySelectorAll("[data-theme-option]").forEach((input) => input.addEventListener("change", saveThemePreference));
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
 els.defaultHomeLakeSelect?.addEventListener("change", () => saveDefaultHomeLake({ autosave: true }));
+els.defaultPeopleOptions?.addEventListener("change", () => saveDefaultPeople({ autosave: true }));
 els.boatFeatureEnabled?.addEventListener("change", () => saveBoatFeaturePreference({ autosave: true }));
 els.gearFilterField?.addEventListener("change", updateGearFilter);
 els.gearFilterQuery?.addEventListener("input", updateGearFilter);
@@ -354,6 +360,36 @@ function syncStatsUrl() {
 }
 els.mapSpeciesFilter.addEventListener("change", () => {
   activeMapSpecies = els.mapSpeciesFilter.value;
+  renderFishMap();
+});
+els.mapLakeFilter?.addEventListener("change", () => {
+  activeMapLake = els.mapLakeFilter.value;
+  renderFishMap();
+});
+els.mapMethodFilter?.addEventListener("change", () => {
+  activeMapMethod = els.mapMethodFilter.value;
+  renderFishMap();
+});
+els.mapDirectionFilter?.addEventListener("change", () => {
+  activeMapDirection = els.mapDirectionFilter.value;
+  renderFishMap();
+});
+els.mapAnglerFilter?.addEventListener("change", () => {
+  activeMapAngler = els.mapAnglerFilter.value;
+  renderFishMap();
+});
+els.mapDispositionFilter?.addEventListener("change", () => {
+  activeMapDisposition = els.mapDispositionFilter.value;
+  renderFishMap();
+});
+els.mapClearFilters?.addEventListener("click", () => {
+  activeMapSpecies = "All species";
+  activeMapLake = "All lakes";
+  activeMapMethod = "All methods";
+  activeMapDirection = "All directions";
+  activeMapAngler = "All anglers";
+  activeMapDisposition = "All dispositions";
+  activeMapYear = "All years";
   renderFishMap();
 });
 els.mapYearFilter.addEventListener("change", () => {

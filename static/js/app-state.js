@@ -51,6 +51,11 @@ const activePersonalBestsFilters = {
   rankBy: "weight"
 };
 let activeMapSpecies = "All species";
+let activeMapLake = "All lakes";
+let activeMapMethod = "All methods";
+let activeMapDirection = "All directions";
+let activeMapAngler = "All anglers";
+let activeMapDisposition = "All dispositions";
 let activeMapYear = "All years";
 let activeMapYearFilteringHidden = true;
 let activeMapIncludeTripMedia = false;

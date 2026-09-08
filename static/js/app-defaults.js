@@ -1,3 +1,5 @@
+const defaultTimeValue = "12:00";
+
 const defaultWaterClarityOptions = [
   "Crystal Clear",
   "Clear",
@@ -194,6 +196,7 @@ const defaults = {
   settings: {
     theme: "light",
     defaultHomeLake: "",
+    defaultPeople: [],
     timeFormat: "24",
     bathymetryLakeCalibrationsFeet: {
       Erie: { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 }, Ontario: { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 },

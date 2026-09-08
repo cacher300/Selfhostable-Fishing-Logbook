@@ -6,6 +6,14 @@
                 <span>Species</span>
                 <select id="mapSpeciesFilter"></select>
               </label>
+              <label>
+                <span>Lake</span>
+                <select id="mapLakeFilter"></select>
+              </label>
+              <label>
+                <span>Method</span>
+                <select id="mapMethodFilter"></select>
+              </label>
               <label id="mapYearFilterControl">
                 <span>Year</span>
                 <select id="mapYearFilter"></select>
@@ -17,10 +25,27 @@
               <details class="map-more-filters">
                 <summary>More filters</summary>
                 <div class="map-more-filters-panel">
+                  <label>
+                    <span>Direction</span>
+                    <select id="mapDirectionFilter"></select>
+                  </label>
+                  <label>
+                    <span>Angler</span>
+                    <select id="mapAnglerFilter"></select>
+                  </label>
+                  <label>
+                    <span>Disposition</span>
+                    <select id="mapDispositionFilter">
+                      <option>All dispositions</option>
+                      <option>Released</option>
+                      <option>Kept</option>
+                    </select>
+                  </label>
                   <label class="inline-toggle map-year-filter-toggle">
                     <input id="mapHideYearFilterToggle" type="checkbox" checked />
                     <span>Hide year filtering</span>
                   </label>
+                  <button id="mapClearFilters" class="map-clear-filters" type="button">Clear filters</button>
                 </div>
               </details>
               <details class="map-layers-menu">
@@ -41,6 +66,7 @@
                   <div id="greatLakesConditions"></div>
                 </div>
               </details>
+              <output id="mapFilterSummary" class="map-filter-summary" aria-live="polite"></output>
             </div>
           </div>
           <div id="fishMap" class="fish-map"></div>

@@ -111,9 +111,49 @@ function mapRecordColor(record) {
   return speciesColor(record.catchItem?.species);
 }
 
+const trollingDirectionDegrees = {
+  N: 0,
+  NE: 45,
+  E: 90,
+  SE: 135,
+  S: 180,
+  SW: 225,
+  W: 270,
+  NW: 315
+};
+
+function mapRecordTrollingDirection(record) {
+  if (record.type !== "catch" || String(record.trip?.method || "").toLowerCase() !== "trolling") return null;
+  const raw = String(record.catchItem?.direction || "").trim().toUpperCase();
+  if (!raw) return null;
+  if (Object.hasOwn(trollingDirectionDegrees, raw)) return { label: raw, degrees: trollingDirectionDegrees[raw] };
+  const numeric = Number(raw.replace("°", ""));
+  return Number.isFinite(numeric) ? { label: `${Math.round(numeric)}°`, degrees: ((numeric % 360) + 360) % 360 } : null;
+}
+
+function mapDirectionMarker(record, color, fillColor, popupHtml) {
+  const direction = mapRecordTrollingDirection(record);
+  const icon = L.divIcon({
+    className: "map-catch-direction-icon",
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    html: `<span class="map-catch-direction-dot" style="--marker-color:${color};--marker-fill:${fillColor}" aria-hidden="true"><svg viewBox="0 0 16 16" style="transform:rotate(${direction.degrees}deg)"><path d="M8 2.25 12.4 9 8.95 8.1 8.95 13.75 7.05 13.75 7.05 8.1 3.6 9Z" /></svg></span>`
+  });
+  return L.marker([record.coordinates.latitude, record.coordinates.longitude], {
+    icon,
+    bubblingMouseEvents: false,
+    pane: "fishMarkers",
+    title: `${mapRecordTitle(record)} — trolling ${direction.label}`
+  }).bindPopup(popupHtml);
+}
+
 function addMapMarker(layerGroup, record, options = {}) {
   const fillColor = mapRecordColor(record);
   const color = options.colorByYear ? mapYearColor(mapRecordYear(record)) : fillColor;
+  const popupHtml = mapPopupHtml(record);
+  if (mapRecordTrollingDirection(record)) {
+    return mapDirectionMarker(record, color, fillColor, popupHtml).addTo(layerGroup);
+  }
   return L.circleMarker([record.coordinates.latitude, record.coordinates.longitude], {
     radius: record.type === "catch" ? 8 : 7,
     color,
@@ -122,7 +162,7 @@ function addMapMarker(layerGroup, record, options = {}) {
     weight: options.colorByYear ? 3 : 2,
     bubblingMouseEvents: false,
     pane: record.type === "catch" ? "fishMarkers" : "tripMediaMarkers"
-  }).bindPopup(mapPopupHtml(record)).addTo(layerGroup);
+  }).bindPopup(popupHtml).addTo(layerGroup);
 }
 
 function ensureMapMarkerPanes(map) {
@@ -332,6 +372,53 @@ function renderMapSpeciesFilter(records) {
   if (els.mapTripPhotosToggle) els.mapTripPhotosToggle.checked = activeMapIncludeTripMedia;
 }
 
+function mapRecordLake(record) {
+  const catchLake = String(record.catchItem?.lake_name || "").trim();
+  const tripLake = String(record.trip?.location || "").trim();
+  if (catchLake && tripLake.toLowerCase().includes(catchLake.toLowerCase())) return tripLake;
+  const greatLake = ["Ontario", "Erie", "Huron", "Michigan", "Superior"].find((name) => name.toLowerCase() === catchLake.toLowerCase());
+  if (greatLake) return `Lake ${greatLake}`;
+  return catchLake || tripLake || "Unknown lake";
+}
+
+function mapRecordMethod(record) {
+  return String(record.trip?.method || "Unknown method").trim() || "Unknown method";
+}
+
+function mapRecordAngler(record) {
+  if (record.type !== "catch") return "";
+  const personId = record.catchItem?.personId;
+  if (!personId) return "Unknown angler";
+  return (state.people || []).find((person) => person.id === personId)?.name
+    || (record.trip?.people || []).find((person) => person.id === personId)?.name
+    || "Unknown angler";
+}
+
+function sortedMapValues(records, getValue) {
+  return [...new Set(records.map(getValue).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+function renderMapSelect(select, records, getValue, allLabel, activeValue, options = {}) {
+  if (!select) return activeValue;
+  const values = sortedMapValues(records, getValue);
+  const nextValue = [allLabel, ...values].includes(activeValue) ? activeValue : allLabel;
+  select.innerHTML = [allLabel, ...values].map((value) => (
+    `<option value="${escapeHtml(value)}" ${value === nextValue ? "selected" : ""}>${escapeHtml(value)}</option>`
+  )).join("");
+  select.closest("label")?.classList.toggle("hidden", Boolean(options.hideWhenEmpty && !values.length));
+  return nextValue;
+}
+
+function renderAdditionalMapFilters(records) {
+  const catches = records.filter((record) => record.type === "catch");
+  const filterableRecords = activeMapIncludeTripMedia ? records : catches;
+  activeMapLake = renderMapSelect(els.mapLakeFilter, filterableRecords, mapRecordLake, "All lakes", activeMapLake);
+  activeMapMethod = renderMapSelect(els.mapMethodFilter, filterableRecords, mapRecordMethod, "All methods", activeMapMethod);
+  activeMapDirection = renderMapSelect(els.mapDirectionFilter, catches, (record) => mapRecordTrollingDirection(record)?.label, "All directions", activeMapDirection);
+  activeMapAngler = renderMapSelect(els.mapAnglerFilter, catches, mapRecordAngler, "All anglers", activeMapAngler);
+  if (els.mapDispositionFilter) els.mapDispositionFilter.value = activeMapDisposition;
+}
+
 function mapYearFilterOptions(records) {
   const years = [...new Set(records.map(mapRecordYear))];
   return ["All years", ...years.sort((a, b) => {
@@ -372,6 +459,25 @@ function filteredMapRecordsByYear(records, year = activeMapYear) {
   return records.filter((record) => mapRecordYear(record) === year);
 }
 
+function filteredMapRecordsByDetails(records, filters = {}) {
+  const lake = filters.lake || activeMapLake;
+  const method = filters.method || activeMapMethod;
+  const direction = filters.direction || activeMapDirection;
+  const angler = filters.angler || activeMapAngler;
+  const disposition = filters.disposition || activeMapDisposition;
+  return records.filter((record) => {
+    if (lake !== "All lakes" && mapRecordLake(record) !== lake) return false;
+    if (method !== "All methods" && mapRecordMethod(record) !== method) return false;
+    if (direction !== "All directions" && mapRecordTrollingDirection(record)?.label !== direction) return false;
+    if (angler !== "All anglers" && mapRecordAngler(record) !== angler) return false;
+    if (disposition !== "All dispositions") {
+      if (record.type !== "catch") return false;
+      if ((disposition === "Released") !== Boolean(record.catchItem?.released)) return false;
+    }
+    return true;
+  });
+}
+
 function renderMapLegend(records, options = {}) {
   const species = mapRecordFilterOptions(records, { allLabel: "All species" }).slice(1);
   const mediaTypes = options.includeTripMedia
@@ -393,12 +499,16 @@ function mapPopupHtml(record) {
   const title = [mapRecordTitle(record), trip.location].filter(Boolean).join(" at ");
   const fowValue = record.type === "catch" ? catchFowPopupValue(record.catchItem) : "";
   const assignedSpot = record.type === "catch" ? spotName(record.catchItem?.spotId) : "";
+  const direction = mapRecordTrollingDirection(record)?.label || "";
+  const method = record.type === "catch" ? mapRecordMethod(record) : "";
   return `
     <div class="map-popup" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
       ${media?.image ? mediaMarkup(media) : ""}
       <strong>${escapeHtml(title)}</strong>
       <span>${escapeHtml(formatDate(trip.date))}</span>
       ${fowValue ? `<span><strong>FOW</strong>${escapeHtml(fowValue)}</span>` : ""}
+      ${method ? `<span><strong>Method</strong>${escapeHtml(method)}</span>` : ""}
+      ${direction ? `<span><strong>Direction</strong>${escapeHtml(direction)}</span>` : ""}
       ${assignedSpot ? `<span><strong>Spot</strong>${escapeHtml(assignedSpot)}</span>` : ""}
       <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
     </div>
@@ -413,6 +523,7 @@ function renderMapYearLegend(records, options = {}) {
     <div class="map-legend map-dual-legend">
       ${legendItems.length ? `<strong>Species</strong>${legendItems.map((name) => `<span><i style="--pin-color:${name === "Trip Photos" ? "#2763a7" : name === "Trip Videos" ? "#9a5b00" : speciesColor(name)}"></i>${escapeHtml(name)}</span>`).join("")}` : ""}
       ${years.length ? `<strong>Year outline</strong>${years.map((year) => `<span><i class="map-year-key" style="--pin-color:${mapYearColor(year)}"></i>${escapeHtml(year)}</span>`).join("")}` : ""}
+      ${records.some(mapRecordTrollingDirection) ? `<span class="map-direction-key"><i>↑</i>Trolling direction</span>` : ""}
     </div>
   `;
 }
@@ -446,10 +557,16 @@ function renderMapList(records) {
 function renderFishMap() {
   const allRecords = catchMapRecords();
   renderMapSpeciesFilter(allRecords);
+  renderAdditionalMapFilters(allRecords);
   renderMapYearFilter(allRecords);
-  const records = filteredMapRecordsByYear(
+  const records = filteredMapRecordsByYear(filteredMapRecordsByDetails(
     filteredMapRecords(allRecords, activeMapSpecies, { includeTripMedia: activeMapIncludeTripMedia })
-  );
+  ));
+  if (els.mapFilterSummary) {
+    const catchCount = records.filter((record) => record.type === "catch").length;
+    const mediaCount = records.length - catchCount;
+    els.mapFilterSummary.textContent = `${catchCount} ${catchCount === 1 ? "catch" : "catches"}${mediaCount ? ` · ${mediaCount} media` : ""}`;
+  }
   els.mapLegend.innerHTML = renderMapYearLegend(allRecords, {
     includeTripMedia: activeMapIncludeTripMedia,
     showYearOutlines: !activeMapYearFilteringHidden

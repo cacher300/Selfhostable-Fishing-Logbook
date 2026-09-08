@@ -702,6 +702,10 @@
     width: max-content;
   }
 
+  .map-more-filters, .map-layers-menu, .map-more-filters summary, .map-layers-menu summary { width: 100%; }
+  .map-more-filters-panel, .map-layers-menu-panel { right: auto; left: 0; width: 100%; box-sizing: border-box; }
+  .map-filter-summary { align-self: flex-start; }
+
   .fish-map {
     min-height: 360px;
   }

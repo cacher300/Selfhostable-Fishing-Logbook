@@ -34,6 +34,11 @@ function populateStructureSelect(select, selectedValue = "") {
 function updateTrollingVisibility() {
   const trolling = isTrollingTrip();
   const casting = isCastingTrip();
+  if (!trolling) {
+    document.querySelectorAll(".trip-gear-side").forEach((select) => {
+      select.value = "";
+    });
+  }
   document.querySelectorAll("#tripDialog .gear-used-row .gear-lure-field > span").forEach((label) => {
     label.textContent = casting ? "Lure (optional)" : "Lure";
   });

@@ -148,10 +148,34 @@ function renderPreferenceSettings() {
   });
   if (els.timeFormatSelect) els.timeFormatSelect.value = timeFormatPreference();
   if (els.defaultHomeLakeSelect) els.defaultHomeLakeSelect.value = state.settings?.defaultHomeLake || "";
+  renderDefaultPeopleSettings();
   if (els.boatFeatureEnabled) els.boatFeatureEnabled.checked = state.settings?.boatFeatureEnabled === true;
   document.querySelectorAll("[data-time-format-option]").forEach((input) => {
     input.checked = input.value === timeFormatPreference();
   });
+}
+
+function renderDefaultPeopleSettings() {
+  if (!els.defaultPeopleOptions) return;
+  const selectedIds = new Set(Array.isArray(state.settings?.defaultPeople) ? state.settings.defaultPeople : []);
+  const people = mergePeople(state.people || []);
+  els.defaultPeopleOptions.innerHTML = people.length
+    ? people.map((person) => `
+        <label>
+          <input type="checkbox" value="${escapeHtml(person.id)}" ${selectedIds.has(person.id) ? "checked" : ""} />
+          <span>${escapeHtml(person.name)}</span>
+        </label>
+      `).join("")
+    : '<span class="default-people-empty">Add people from a trip to choose defaults.</span>';
+}
+
+async function saveDefaultPeople(options = {}) {
+  const availableIds = new Set((state.people || []).map((person) => person.id));
+  const defaultPeople = [...els.defaultPeopleOptions?.querySelectorAll('input[type="checkbox"]:checked') || []]
+    .map((input) => input.value)
+    .filter((id) => availableIds.has(id));
+  state.settings = { ...(state.settings || {}), defaultPeople };
+  await runSettingsSave(() => saveState(), "The default people could not be saved.", options);
 }
 
 async function saveBoatFeaturePreference(options = {}) {
