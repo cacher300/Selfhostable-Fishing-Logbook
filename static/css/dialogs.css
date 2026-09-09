@@ -11,8 +11,7 @@
 
 .table-card,
 .analytics-card,
-.metric-card,
-.gear-card {
+.metric-card {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;

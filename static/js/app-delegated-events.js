@@ -43,13 +43,6 @@ document.addEventListener("click", (event) => {
     else dialog.close();
   }
 
-  const timelineFilterButton = event.target.closest("[data-timeline-filter]");
-  if (timelineFilterButton) {
-    activeTripTimelineFilter = timelineFilterButton.dataset.timelineFilter || "all";
-    closeSummaryCatchDetail();
-    refreshTripTimelinePanel();
-  }
-
   const reportAction = event.target.closest("[data-report-action]");
   if (reportAction) {
     const trip = state.trips.find((item) => item.id === activeSummaryTripId);

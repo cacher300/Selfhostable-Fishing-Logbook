@@ -218,8 +218,7 @@
   outline-offset: 3px;
 }
 
-.inventory-thumb,
-.inventory-thumb-placeholder {
+.inventory-thumb {
   display: block;
   width: 64px;
   height: 64px;
@@ -227,14 +226,6 @@
   border-radius: 6px;
   object-fit: cover;
   background: #edf2f5;
-}
-
-.inventory-thumb-placeholder {
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 800;
 }
 
 .inventory-edit-action {

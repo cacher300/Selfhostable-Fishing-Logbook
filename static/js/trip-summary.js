@@ -1,7 +1,3 @@
-function summaryMetric(label, value) {
-  return `<article class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "0")}</strong></article>`;
-}
-
 function tripSpeciesSummary(trip) {
   const speciesCounts = new Map();
   (trip.catches || []).forEach((catchItem) => {
@@ -15,7 +11,6 @@ function tripSpeciesSummary(trip) {
     top: topSpecies ? `${displayTitleText(topSpecies[0])} (${topSpecies[1]})` : "None"
   };
 }
-
 const displayLowercaseTokens = new Set(["mph", "hPa", "kph", "km", "mm", "cm", "lb", "lbs", "ft", "in"]);
 
 function displayTitleText(value = "") {
@@ -31,13 +26,11 @@ function displayTitleText(value = "") {
     return `${word.slice(0, firstLetterIndex)}${word[firstLetterIndex].toUpperCase()}${word.slice(firstLetterIndex + 1)}`;
   });
 }
-
 function displaySentenceText(value = "") {
   const text = String(value || "").trim();
   if (!text) return "";
   return text.replace(/(^|[.!?]\s+)([a-z])/g, (match, prefix, letter) => `${prefix}${letter.toUpperCase()}`);
 }
-
 function displayPhotoTitle(photo) {
   return displaySentenceText(photo.caption || "Trip photo");
 }
@@ -60,7 +53,6 @@ function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
     </div>
   `;
 }
-
 function catchMediaAltText(speciesOrTitle = "", index = 0, options = {}) {
   const label = displayTitleText(speciesOrTitle || "Catch");
   const mediaType = options.video ? "video" : "photo";
@@ -163,15 +155,6 @@ function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {})
   `;
 }
 
-function summaryValueItem(label, value, options = {}) {
-  return `
-    <span class="${options.muted ? "summary-value muted-value" : "summary-value"}">
-      <strong>${escapeHtml(label)}</strong>
-      ${escapeHtml(value || "Not logged")}
-    </span>
-  `;
-}
-
 function displaySpeedValue(value) {
   return displayStoredMeasurement(value, "speed");
 }
@@ -239,120 +222,6 @@ function tripWeatherSummaryData(trip) {
     moonText,
     sunriseSunset
   };
-}
-
-function renderTripKeyConditions(trip) {
-  const {
-    weatherData,
-    window,
-    noApiWeather,
-    primaryWindText
-  } = tripWeatherSummaryData(trip);
-  if (noApiWeather && !trip.weather && !trip.waterTemp && !trip.wind && !trip.structure) {
-    return `
-      <section class="summary-weather-empty">
-        ${summaryValueItem("API Weather", weatherData.message || "Add a mapped location pin to fetch weather.")}
-      </section>
-    `;
-  }
-  return `
-    <section class="summary-section summary-key-conditions" aria-label="Key conditions">
-      <div class="metric-grid summary-condition-metrics">
-        ${summaryMetric("Weather", trip.weather || catchWeatherSummary(weatherData) || "Not logged")}
-        ${summaryMetric("Water Temp", displayStoredMeasurement(trip.waterTemp, "waterTemperature") || "Not logged")}
-        ${summaryMetric("Wind", primaryWindText || "Not logged")}
-        ${summaryMetric("FOW Range", displayStoredMeasurement(trip.structure, "depth") || "Not logged")}
-      </div>
-    </section>
-  `;
-}
-
-function renderTripWeatherDetailsSection(trip) {
-  const {
-    weatherData,
-    window,
-    daily,
-    trend,
-    noApiWeather,
-    barometricTrend,
-    moonText,
-    sunriseSunset
-  } = tripWeatherSummaryData(trip);
-  if (noApiWeather) {
-    return weatherData.message ? `
-      <section class="summary-section summary-weather-details-section">
-        <h3>Weather Details</h3>
-        <div class="summary-weather-empty">
-          ${summaryValueItem("API Weather", weatherData.message)}
-        </div>
-      </section>
-    ` : "";
-  }
-  return `
-    <section class="summary-section summary-weather-details-section">
-      <h3>Weather Details</h3>
-      <div class="weather-secondary-grid">
-        ${summaryValueItem("Pressure", weatherValueWithTrend(formatUnitValue(window.pressureHpa, "pressure", "hPa", { decimals: 1 }), trend.pressureTrend), { muted: true })}
-        ${summaryValueItem("Front Tag", weatherData.frontTag || "", { muted: true })}
-        ${summaryValueItem("Moon", moonText, { muted: true })}
-        ${summaryValueItem("Humidity", weatherValue(window.humidityPercent, "%"), { muted: true })}
-        ${summaryValueItem("Cloud Cover", weatherValue(window.cloudCoverPercent, "%"), { muted: true })}
-        ${summaryValueItem("Sunrise / Sunset", sunriseSunset, { muted: true })}
-        ${summaryValueItem("Precipitation", formatUnitValue(window.precipitationIn ?? daily.precipitationIn, "precipitation", "in", { decimals: 1 }), { muted: true })}
-        ${summaryValueItem("Barometric Trend", barometricTrend, { muted: true })}
-        ${summaryValueItem("Wave / Chop", formatWaveHeightChopLine(trip, weatherData), { muted: true })}
-        ${summaryValueItem("Air Temp", formatUnitValue(window.temperatureC, "airTemperature", "C"), { muted: true })}
-      </div>
-    </section>
-  `;
-}
-
-function catchMetaRow(label, value) {
-  if (!value) return "";
-  return `
-    <div class="catch-meta-row">
-      <dt>${escapeHtml(label)}</dt>
-      <dd>${escapeHtml(value)}</dd>
-    </div>
-  `;
-}
-
-function renderCatchReportDetails(trip, catchItem) {
-  const record = resolveTripLineRecord({ ...catchItem, trip });
-  const presentation = record.presentation || "";
-  const trollingTrip = isTrollingTripRecord(trip);
-  const castingTrip = String(trip?.method || "").toLowerCase() === "casting";
-  const depthDetails = [];
-  if (record.fowCaught) depthDetails.push(displayFowValue(record.fowCaught));
-  if (record.depthDown) depthDetails.push(`${displayStoredMeasurement(record.depthDown, "depth")} down`);
-  if (presentation === "flatline") {
-    if (record.flatlineWeightOz) depthDetails.push(`${record.flatlineWeightOz} oz`);
-    if (record.estimatedDepth) depthDetails.push(`${displayStoredMeasurement(record.estimatedDepth, "depth")} down`);
-  } else if (presentation === "flatline-leadcore") {
-    if (record.lineBehindBoard) depthDetails.push(`${displayStoredMeasurement(record.lineBehindBoard, "depth")} behind board`);
-    if (record.estimatedLureDepth) depthDetails.push(`${displayStoredMeasurement(record.estimatedLureDepth, "depth")} lure depth`);
-  } else if (presentation === "dipsey-diver") {
-    if (record.dipseySetting) depthDetails.push(`${record.dipseySetting} setting`);
-    if (record.lineOut) depthDetails.push(`${displayStoredMeasurement(record.lineOut, "depth")} out`);
-  } else if (record.ballDepth) {
-    depthDetails.push(`${displayStoredMeasurement(record.ballDepth, "depth")} ball`);
-  }
-  if (record.estimatedDepth && presentation !== "flatline") depthDetails.push(`${displayStoredMeasurement(record.estimatedDepth, "depth")} est.`);
-  const setupLabel = record.setupLine ? setupLineDisplayLabel(trip, record.setupLine) : "";
-  return `
-    <dl class="catch-meta-list">
-      ${catchMetaRow("Lure", displayTitleText(lureName(record.lureId)))}
-      ${trollingTrip ? catchMetaRow("Flasher", displayTitleText(flasherName(record.flasherId))) : ""}
-      ${catchMetaRow("Method", trollingTrip ? presentationLabel(presentation) : displayTitleText(trip.method || ""))}
-      ${!trollingTrip ? catchMetaRow("Rigging", record.rigging) : ""}
-      ${!trollingTrip ? catchMetaRow("Rig details", record.riggingDetails) : ""}
-      ${catchMetaRow("Depth", depthDetails.join(" / "))}
-      ${catchMetaRow("Spot", spotName(catchItem.spotId))}
-      ${trollingTrip ? catchMetaRow("GPS Speed", displaySpeedValue(record.gpsSpeed || record.speed)) : ""}
-      ${trollingTrip ? catchMetaRow("Ball Speed", displaySpeedValue(record.ballSpeed)) : ""}
-      ${castingTrip ? catchMetaRow("Retrieve", record.retrieve) : ""}
-    </dl>
-  `;
 }
 
 function catchDetailRows(trip, catchItem) {
@@ -439,37 +308,4 @@ function renderCatchDetailPopout(trip, catchItem, index, selectedIndex) {
       </div>
     </div>
   `;
-}
-
-function renderTripSummaryCatches(trip) {
-  const catches = trip.catches || [];
-  if (!catches.length) return `<div class="empty-state compact-empty"><p>No catches logged.</p></div>`;
-  return catches.map((catchItem, index) => {
-    const status = catchItem.released ? "Released" : "Kept";
-    return `
-      <article
-        class="summary-catch-card"
-        data-summary-catch-index="${index}"
-        role="button"
-        tabindex="0"
-        aria-label="${escapeHtml(`Open details for ${displayTitleText(catchItem.species || `Catch ${index + 1}`)}`)}"
-      >
-        <div class="catch-info">
-          <div class="catch-report-heading">
-            <div>
-              <strong class="catch-title">${escapeHtml(displayTitleText(catchItem.species || `Catch ${index + 1}`))}</strong>
-              <span class="catch-subtitle">${escapeHtml(status)}${catchItem.time ? " &middot; " : ""}${catchItem.time ? escapeHtml(formatDisplayTime(catchItem.time)) : ""}</span>
-            </div>
-          </div>
-          ${renderCatchReportDetails(trip, catchItem)}
-          ${catchItem.notes ? `<p>${escapeHtml(displaySentenceText(catchItem.notes))}</p>` : ""}
-        </div>
-        ${renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${index + 1}`, {
-          catchIndex: index,
-          heroPhotoId: catchItem.heroPhotoId,
-          context: "summary"
-        })}
-      </article>
-    `;
-  }).join("");
 }

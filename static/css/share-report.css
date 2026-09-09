@@ -164,83 +164,6 @@
   text-transform: uppercase;
 }
 
-.report-biggest,
-.report-best {
-  display: flex;
-  flex-direction: column;
-}
-
-.report-biggest strong {
-  font-size: 2cqw;
-}
-
-.report-biggest span {
-  margin-top: .35cqw;
-  font-size: 1.35cqw;
-}
-
-.report-biggest small {
-  margin-top: auto;
-  padding-top: .8cqw;
-  color: var(--report-muted);
-  font-size: 1.05cqw;
-}
-
-.report-best span {
-  display: grid;
-  grid-template-columns: 7.4cqw 1fr;
-  gap: .7cqw;
-  margin-top: .45cqw;
-  overflow-wrap: anywhere;
-}
-
-.report-best span b {
-  color: var(--report-muted);
-}
-
-.report-species p {
-  font-size: 1.3cqw;
-}
-
-.report-body {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr;
-  gap: 1.4cqw;
-  margin-top: 1.4cqw;
-}
-
-.report-body:has(> :only-child) {
-  grid-template-columns: 1fr;
-}
-
-.report-body:has(> :nth-child(2):last-child) {
-  grid-template-columns: 1.3fr 1fr;
-}
-
-.report-body p {
-  color: var(--report-text);
-  overflow-wrap: anywhere;
-}
-
-.report-overview dl {
-  display: grid;
-  gap: .38cqw;
-}
-
-.report-overview dl > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 1cqw;
-}
-
-.report-overview dt {
-  color: var(--report-muted);
-}
-
-.report-overview dd {
-  text-align: right;
-}
-
 .report-timeline {
   margin-top: 1.8cqw;
   overflow: hidden;
@@ -315,26 +238,6 @@
   display: block;
   margin-top: .25cqw;
   color: var(--report-muted);
-}
-
-.report-status-mark {
-  display: inline-block;
-  width: .72cqw;
-  height: .72cqw;
-  margin-right: .45cqw;
-  border: .16cqw solid currentColor;
-  border-radius: 50%;
-  vertical-align: .02em;
-}
-
-.status-landed td:nth-child(3),
-.status-released td:nth-child(3) {
-  color: #83df9c;
-}
-
-.status-missed td:nth-child(3),
-.status-lost td:nth-child(3) {
-  color: #ff8d90;
 }
 
 .share-report > footer {
@@ -729,109 +632,6 @@
   margin: 0;
 }
 
-.share-report .report-timeline ol {
-  display: grid;
-  gap: .8cqw;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.share-report .report-event {
-  display: grid;
-  grid-template-columns: 17cqw 20cqw minmax(0, 1fr);
-  gap: 2.5cqw;
-  align-items: center;
-  padding: 2.4cqw 2.8cqw;
-  background: var(--report-surface-2);
-}
-
-.share-report .report-event:nth-child(even) {
-  background: var(--report-surface);
-}
-
-.share-report .report-event-time,
-.share-report .report-event-catch {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: .45cqw;
-}
-
-.share-report .report-event-time {
-  padding-right: 2cqw;
-  border-right: .1cqw solid var(--report-line);
-}
-
-.share-report .report-event-time strong {
-  font-size: 2.45cqw;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.share-report .report-event-time span {
-  color: var(--report-muted);
-  font-size: 1.12cqw;
-  font-weight: 900;
-  letter-spacing: .07em;
-  text-transform: uppercase;
-}
-
-.share-report .status-landed .report-event-time span,
-.share-report .status-released .report-event-time span {
-  color: var(--report-muted);
-}
-
-.share-report .status-missed .report-event-time span,
-.share-report .status-lost .report-event-time span {
-  color: var(--report-muted);
-}
-
-.share-report .report-event-catch strong {
-  font-size: 1.95cqw;
-  line-height: 1.1;
-  overflow-wrap: anywhere;
-}
-
-.share-report .report-event-catch span {
-  color: var(--report-muted);
-  font-size: 1.45cqw;
-}
-
-.share-report .report-event dl {
-  display: grid;
-  grid-template-columns: .72fr 1.25fr .95fr 1.5fr;
-  gap: 1.2cqw;
-  margin: 0;
-}
-
-.share-report .report-event dl > div {
-  min-width: 0;
-}
-
-.share-report .report-event dt {
-  margin-bottom: .35cqw;
-  color: var(--report-muted);
-  font-size: 1cqw;
-  font-weight: 900;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-}
-
-.share-report .report-event dd {
-  color: var(--report-text);
-  font-size: 1.55cqw;
-  font-weight: 700;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-
-.share-report .report-event-empty {
-  display: block;
-  color: var(--report-muted);
-  font-size: 1.7cqw;
-}
-
 /* Compact grid timeline: designed for quick fish-by-fish scanning. */
 .share-report .report-timeline-grid {
   margin-top: 2cqw;
@@ -900,18 +700,6 @@
 .share-report .report-timeline-grid td:nth-child(8),
 .share-report .report-timeline-grid td:nth-child(9) {
   white-space: nowrap;
-}
-
-.share-report .report-timeline-grid .status-landed .report-timeline-result,
-.share-report .report-timeline-grid .status-released .report-timeline-result {
-  color: var(--report-text);
-  font-weight: 800;
-}
-
-.share-report .report-timeline-grid .status-missed .report-timeline-result,
-.share-report .report-timeline-grid .status-lost .report-timeline-result {
-  color: var(--report-text);
-  font-weight: 800;
 }
 
 .share-report .report-timeline-empty {

@@ -527,32 +527,6 @@ function renderMapYearLegend(records, options = {}) {
   `;
 }
 
-function renderMapList(records) {
-  if (!els.mapCatchList) return;
-  if (!records.length) {
-    els.mapCatchList.innerHTML = `<div class="empty-state"><p>No geotagged map items match this filter.</p></div>`;
-    return;
-  }
-
-  els.mapCatchList.innerHTML = records.map((record) => {
-    const { trip, media } = record;
-    const fowValue = record.type === "catch" ? catchFowPopupValue(record.catchItem) : "";
-    const assignedSpot = record.type === "catch" ? spotName(record.catchItem?.spotId) : "";
-    return `
-      <article class="map-catch-card" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
-        ${media?.image ? mediaMarkup(media) : ""}
-        <div>
-          <strong>${escapeHtml(mapRecordTitle(record))}</strong>
-          <span>${escapeHtml([formatDate(trip.date), trip.location].filter(Boolean).join(" / "))}</span>
-          ${fowValue ? `<span><strong>FOW</strong> ${escapeHtml(fowValue)}</span>` : ""}
-          ${assignedSpot ? `<span><strong>Spot</strong> ${escapeHtml(assignedSpot)}</span>` : ""}
-          <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
-        </div>
-      </article>
-    `;
-  }).join("");
-}
-
 function renderFishMap() {
   const allRecords = catchMapRecords();
   renderMapSpeciesFilter(allRecords);
@@ -570,10 +544,8 @@ function renderFishMap() {
     includeTripMedia: activeMapIncludeTripMedia,
     showYearOutlines: !activeMapYearFilteringHidden
   });
-  renderMapList(records);
-
   if (!window.L) {
-    els.fishMap.innerHTML = `<div class="empty-state"><p>Map tiles are unavailable, but saved GPS coordinates are listed below.</p></div>`;
+    els.fishMap.innerHTML = `<div class="empty-state"><p>Map tiles are unavailable; saved coordinates can still be inspected from trip details.</p></div>`;
     return;
   }
 

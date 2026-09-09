@@ -32,7 +32,6 @@ const els = {
   mapPanel: document.querySelector("#mapPanel"),
   fishMap: document.querySelector("#fishMap"),
   mapLegend: document.querySelector("#mapLegend"),
-  mapCatchList: document.querySelector("#mapCatchList"),
   mapSpeciesFilter: document.querySelector("#mapSpeciesFilter"),
   mapLakeFilter: document.querySelector("#mapLakeFilter"),
   mapMethodFilter: document.querySelector("#mapMethodFilter"),

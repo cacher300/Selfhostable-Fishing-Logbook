@@ -3,124 +3,6 @@
   gap: 22px;
 }
 
-.leaderboard-header {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 4px 2px 0;
-}
-
-.leaderboard-header h2 {
-  margin: 2px 0 0;
-  font-size: clamp(30px, 4vw, 42px);
-  letter-spacing: -0.045em;
-}
-
-.leaderboard-header > div > p:last-child {
-  max-width: 680px;
-  margin: 7px 0 0;
-  color: var(--muted);
-}
-
-.leaderboard-rate-key {
-  display: grid;
-  flex: 0 0 auto;
-  gap: 3px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  text-align: right;
-}
-
-.leaderboard-rate-key strong {
-  font-size: 13px;
-}
-
-.leaderboard-rate-key span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 750;
-}
-
-.leaderboard-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-}
-
-.leaderboard-summary-card {
-  display: grid;
-  min-width: 0;
-  gap: 6px;
-  padding: 18px;
-  border-right: 1px solid var(--line);
-}
-
-.leaderboard-summary-card:last-child {
-  border-right: 0;
-}
-
-.leaderboard-summary-card > span,
-.leaderboard-summary-card small {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.leaderboard-summary-card strong {
-  overflow: hidden;
-  font-size: clamp(20px, 2.2vw, 28px);
-  letter-spacing: -0.035em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.leaderboard-board-grid {
-  display: grid;
-  gap: 18px;
-}
-
-.leaderboard-board {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-}
-
-.leaderboard-board-header {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px 22px 16px;
-  border-bottom: 1px solid var(--line);
-}
-
-.leaderboard-board-header h3 {
-  margin: 2px 0 0;
-  font-size: 22px;
-}
-
-.leaderboard-count {
-  flex: 0 0 auto;
-  padding: 6px 9px;
-  border-radius: 999px;
-  background: var(--panel-soft);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 850;
-}
-
 .leaderboard-list {
   display: grid;
 }
@@ -275,15 +157,9 @@
   text-align: center;
 }
 
-.leaderboard-empty span,
-.leaderboard-footnote {
+.leaderboard-empty span {
   color: var(--muted);
   font-size: 12px;
-}
-
-.leaderboard-footnote {
-  margin: -4px 2px 0;
-  line-height: 1.5;
 }
 
 .stats-leaderboard {
@@ -294,24 +170,6 @@
   border-radius: 10px;
   background: var(--panel);
   box-shadow: var(--shadow);
-}
-
-.stats-leaderboard-header {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.stats-leaderboard-header h3 {
-  margin: 2px 0 0;
-  font-size: 22px;
-}
-
-.stats-leaderboard-header p:last-child {
-  margin: 5px 0 0;
-  color: var(--muted);
-  font-size: 12px;
 }
 
 .stats-leaderboard-grid {
@@ -400,18 +258,6 @@
 }
 
 @media (max-width: 1050px) {
-  .leaderboard-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .leaderboard-summary-card:nth-child(2) {
-    border-right: 0;
-  }
-
-  .leaderboard-summary-card:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--line);
-  }
-
   .leaderboard-row {
     grid-template-columns: 38px minmax(0, 1fr);
   }
@@ -426,28 +272,6 @@
 }
 
 @media (max-width: 620px) {
-  .leaderboard-header {
-    display: grid;
-  }
-
-  .leaderboard-rate-key {
-    text-align: left;
-  }
-
-  .leaderboard-summary-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .leaderboard-summary-card {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .leaderboard-summary-card:last-child {
-    border-bottom: 0;
-  }
-
-  .leaderboard-board-header,
   .leaderboard-row {
     padding-right: 14px;
     padding-left: 14px;
@@ -469,14 +293,6 @@
 
   .stats-leaderboard {
     padding: 14px;
-  }
-
-  .stats-leaderboard-header {
-    display: grid;
-  }
-
-  .stats-leaderboard-header .button {
-    width: 100%;
   }
 
   .stats-leaderboard-board .leaderboard-metrics {

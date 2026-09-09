@@ -508,17 +508,6 @@ function setupLineLabelFromRow(row, index) {
   }, index);
 }
 
-function cheaterLineLabelFromRow(row, index) {
-  const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
-  if (customLabel) return customLabel;
-  const identity = [
-    isTrollingTrip() ? setupLineSideLabel(row.querySelector(".trip-gear-side")?.value) : "",
-    isTrollingTrip() ? choiceLabel("trollingPresentations", row.querySelector(".catch-presentation")?.value) : `Rod ${index + 1}`
-  ].filter(Boolean).join(" ");
-  const combo = selectedText(row.querySelector(".trip-gear-combo")).replace("No combo selected", "");
-  return [identity, combo].filter(Boolean).join(": ");
-}
-
 function catchRodPickerLabelFromRow(row, index, { cheater = false } = {}) {
   const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
   const identity = customLabel || [

@@ -711,10 +711,6 @@
     min-height: 360px;
   }
 
-  .map-catch-list {
-    grid-template-columns: 1fr;
-  }
-
   .trip-summary-shell {
     max-height: 100dvh;
     padding: 16px;
@@ -741,16 +737,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .summary-hero h3 {
-    font-size: 22px;
-  }
-
-  .summary-metrics {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .report-header { grid-template-columns: 1fr; gap: 18px; }
-  .report-hero-photo { width: min(260px, 100%); }
   .report-stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .report-stat-strip div:nth-child(2n) { border-right: 0; }
   .report-fact-grid { grid-template-columns: 1fr; }
@@ -758,20 +745,8 @@
   .report-fact-section:last-child { border-bottom: 0; }
   .report-timeline-heading { align-items: start; flex-direction: column; }
   .report-timeline-tools { justify-content: flex-start; }
-  .weather-secondary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
   .trip-summary-map {
     min-height: 320px;
-  }
-
-  .timeline-item {
-    grid-template-columns: 64px 18px minmax(0, 1fr);
-    gap: 12px;
-  }
-
-  .timeline-time {
-    font-size: 12px;
-    padding-top: 16px;
   }
 
   .compact-photo-grid {
@@ -782,18 +757,8 @@
     min-height: 0;
   }
 
-  .summary-section-heading {
-    align-items: start;
-    flex-direction: column;
-  }
-
   .summary-photo-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .summary-catch-card {
-    grid-template-columns: 1fr;
-    gap: 20px;
   }
 
   .catch-detail-panel {
@@ -808,7 +773,6 @@
   }
 
   .catch-detail-panel .featured-image-wrap,
-  .catch-detail-panel .featured-image-wrap .media-download-frame,
   .catch-detail-panel .featured-image,
   .catch-detail-panel .catch-media-gallery .featured-image-wrap video,
   .catch-detail-panel .catch-media-gallery.is-scrollable .thumbnail-column {
@@ -852,10 +816,6 @@
     text-align: left;
   }
 
-  .stats-help-grid {
-    grid-template-columns: 1fr;
-  }
-
   .personal-best-title-row {
     display: grid;
   }
@@ -889,20 +849,6 @@
     right: 20px;
   }
 
-  .catch-detail-heading {
-    padding-right: 44px;
-  }
-
-  .catch-detail-heading h4 {
-    font-size: 22px;
-  }
-
-  .catch-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .weather-secondary-grid { grid-template-columns: 1fr; }
-
   .catch-detail-panel .catch-media-gallery {
     display: block;
   }
@@ -913,7 +859,6 @@
     border-radius: 16px;
   }
 
-  .catch-detail-panel .featured-image-wrap .media-download-frame,
   .catch-detail-panel .featured-image,
   .catch-detail-panel .catch-media-gallery .featured-image-wrap video {
     max-height: 60vh;
@@ -935,11 +880,6 @@
 
   .catch-detail-panel .thumbnail-button {
     border-radius: 14px;
-  }
-
-  .summary-catch-card {
-    padding: 16px;
-    border-radius: 16px;
   }
 
   .catch-media-gallery {
@@ -973,11 +913,6 @@
     border-radius: 10px;
   }
 
-  .catch-meta-row {
-    grid-template-columns: 82px minmax(0, 1fr);
-    gap: 10px;
-  }
-
   .trip-timeline {
     width: 100%;
     padding: 0 12px;
@@ -987,47 +922,11 @@
     content: none;
   }
 
-  .timeline-filter {
-    justify-content: flex-start;
-  }
-
-  .timeline-item {
-    display: block;
-  }
-
-  .timeline-time,
-  .timeline-dot {
-    display: none;
-  }
-
-  .event-card {
-    padding: 16px;
-    border-radius: 16px;
-  }
-
-  .event-photo {
-    aspect-ratio: 4 / 5;
-    height: auto;
-  }
-
-  .setup-row-topline {
-    flex-direction: column;
-  }
 }
 
-#tripSummaryBody .summary-metrics .metric-card span,
 #tripSummaryBody .summary-map-tools label,
 #tripSummaryBody .summary-map-tools select {
   font-size: 15px;
-}
-
-#tripSummaryBody .event-kicker {
-  font-size: 15px;
-  letter-spacing: 0.04em;
-}
-
-#tripSummaryBody .summary-metrics .metric-card strong {
-  font-size: 28px;
 }
 
 @media (max-width: 760px) {

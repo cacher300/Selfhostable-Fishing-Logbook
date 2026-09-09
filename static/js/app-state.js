@@ -1,7 +1,6 @@
 let state = structuredClone(defaults);
 let activeTripId = null;
 let activeSummaryTripId = null;
-let activeTripTimelineFilter = "all";
 let activeReportTimelineFilter = "all";
 let activeReportTimelineSort = { key: "time", direction: "asc" };
 let activeReportTimelineColumns = null;

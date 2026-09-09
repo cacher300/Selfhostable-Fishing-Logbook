@@ -100,31 +100,6 @@
   font-size: 24px;
 }
 
-.trip-summary-body .summary-metrics,
-.trip-summary-body .summary-condition-metrics {
-  overflow: visible;
-  border: 0;
-  background: transparent;
-}
-
-.trip-summary-body .summary-metrics {
-  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-  gap: 16px;
-}
-
-.trip-summary-body .summary-condition-metrics {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 14px;
-}
-
-.trip-summary-body .summary-metrics .metric-card,
-.trip-summary-body .summary-condition-metrics .metric-card {
-  min-width: 0;
-  border: 0;
-  border-radius: 8px;
-  background: var(--panel);
-}
-
 .analytics-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -134,62 +109,6 @@
 .analytics-groups {
   display: grid;
   gap: 16px;
-}
-
-.stats-help {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: var(--shadow);
-}
-
-.stats-help .section-heading {
-  margin-bottom: 0;
-}
-
-.stats-help-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.stats-help article {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 13px;
-  background: #f8fafc;
-}
-
-.stats-help h4 {
-  margin: 0 0 10px;
-  font-size: 14px;
-}
-
-.stats-help dl,
-.stats-help dd {
-  margin: 0;
-}
-
-.stats-help dl {
-  display: grid;
-  gap: 9px;
-}
-
-.stats-help dt {
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.stats-help dd {
-  margin-top: 2px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.35;
 }
 
 .stats-group {
@@ -861,67 +780,6 @@
   font-weight: 650;
 }
 
-.stats-insight-rail {
-  display: grid;
-  grid-template-columns: 1.15fr repeat(4, minmax(0, 1fr));
-  min-height: 76px;
-  overflow: hidden;
-  border: 1px solid var(--stats-teal);
-  border-radius: 7px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--stats-teal) 10%, var(--stats-panel)) 0%, var(--stats-panel) 54%);
-}
-
-.stats-insight-intro,
-.stats-insight {
-  display: flex;
-  min-width: 0;
-  justify-content: center;
-  flex-direction: column;
-  padding: 14px 18px;
-}
-
-.stats-insight-intro {
-  display: grid;
-  grid-template-columns: 32px 1fr;
-  align-items: center;
-  gap: 10px;
-}
-
-.stats-insight-intro > span {
-  color: var(--stats-teal);
-  font-size: 27px;
-}
-
-.stats-insight-intro strong,
-.stats-insight-intro small {
-  display: block;
-}
-
-.stats-insight {
-  border-left: 1px solid #cde9e5;
-}
-
-.stats-insight span,
-.stats-insight small,
-.stats-insight-intro small {
-  color: var(--stats-muted);
-  font-size: 11px;
-}
-
-.stats-insight strong,
-.stats-insight-intro strong {
-  overflow: hidden;
-  color: var(--stats-heading);
-  font-size: 13px;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.stats-insight small {
-  margin-top: 3px;
-}
-
 .stats-overview-grid {
   display: grid;
   grid-template-columns: minmax(0, 2.2fr) minmax(300px, 0.9fr);
@@ -929,8 +787,7 @@
 }
 
 .stats-overview-grid .analytics-card,
-.stats-page .stats-group,
-.stats-page .stats-help {
+.stats-page .stats-group {
   border-color: var(--stats-border);
   box-shadow: 0 1px 3px rgba(10, 39, 80, 0.05);
 }
@@ -1009,17 +866,6 @@
     grid-template-columns: repeat(4, minmax(125px, 1fr));
   }
 
-  .stats-insight-rail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .stats-insight-intro {
-    grid-column: 1 / -1;
-  }
-
-  .stats-insight:nth-child(2n) {
-    border-left: 0;
-  }
 }
 
 @media (max-width: 820px) {
@@ -1062,8 +908,7 @@
 
 @media (max-width: 520px) {
   .stats-toolbar,
-  .stats-page .metric-grid,
-  .stats-insight-rail {
+  .stats-page .metric-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1071,14 +916,9 @@
     grid-template-columns: 1fr;
   }
 
-  .stats-page .metric-card:last-child,
-  .stats-insight-intro {
+  .stats-page .metric-card:last-child {
     grid-column: auto;
   }
 
-  .stats-insight {
-    border-top: 1px solid #cde9e5;
-    border-left: 0;
-  }
 }
 

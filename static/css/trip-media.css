@@ -71,50 +71,6 @@
   background: #fff;
 }
 
-.media-download-frame {
-  position: relative;
-  display: block;
-  overflow: hidden;
-}
-
-.media-download-link {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 30px;
-  padding: 0 10px;
-  border: 1px solid rgba(15, 23, 42, 0.16);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.94);
-  color: #0f172a;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1;
-  text-decoration: none;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
-  opacity: 0;
-  transform: translate(-50%, -4px);
-  transition: opacity 140ms ease, transform 140ms ease, background-color 140ms ease, border-color 140ms ease;
-}
-
-.media-download-frame:hover .media-download-link,
-.media-download-frame:focus-within .media-download-link {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-.media-download-link:hover,
-.media-download-link:focus-visible {
-  border-color: rgba(37, 99, 235, 0.35);
-  background: #fff;
-  color: #0f172a;
-  outline: none;
-}
-
 .note-photo-card img,
 .note-photo-card video {
   display: block;
@@ -122,14 +78,6 @@
   height: 128px;
   object-fit: cover;
   border-bottom: 1px solid var(--line);
-}
-
-.note-photo-card .media-download-frame {
-  border-bottom: 1px solid var(--line);
-}
-
-.note-photo-card .media-download-frame img {
-  border-bottom: 0;
 }
 
 .note-photo-card .remove-note-photo {
@@ -250,14 +198,6 @@
   height: 128px;
   object-fit: cover;
   border-bottom: 1px solid var(--line);
-}
-
-.catch-photo-card .media-download-frame {
-  border-bottom: 1px solid var(--line);
-}
-
-.catch-photo-card .media-download-frame img {
-  border-bottom: 0;
 }
 
 .catch-photo-card .remove-catch-photo {
@@ -422,18 +362,6 @@
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border-bottom: 1px solid var(--line);
-}
-
-.photo-queue-image-wrap .media-download-frame {
-  border-bottom: 1px solid var(--line);
-}
-
-.photo-queue-image-wrap .media-download-frame img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  border-bottom: 0;
 }
 
 .photo-queue-remove {

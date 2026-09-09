@@ -8,10 +8,10 @@ Status vocabulary:
 - **Partial**: usable, but materially incomplete or narrower than the feature name suggests.
 - **Hidden**: implemented or callable without primary navigation, or present only as an operational/code capability.
 - **Deprecated**: residue or documentation for a removed feature.
-- **Not implemented**: explicitly audited and absent. These rows are not included in the 72-feature count.
+- **Not implemented**: explicitly audited and absent. These rows are retained for completeness but excluded from the verified capability count.
 - **Verification Required**: code suggests behavior that was not exercised against its external dependency.
 
-“Database” refers to collections or nested records in `data/logbook.json`; there are no database tables.
+The logbook is stored in SQLite at `data/logbook.sqlite3`; collections are reconstructed as JSON at the API boundary. There is one current schema version and no formal migration framework.
 
 ## Core Fishing Features
 
@@ -94,7 +94,7 @@ Status vocabulary:
 | A16 | Seasonal analysis | Month patterns provide aggregate seasonal comparison. No year-over-year report exists. | Partial | Month Patterns | Trip dates | `stats.js` | Trips | None | Stats |
 | A17 | Condition analytics | Compare clarity, manual weather, wind, pressure, cloud, air temperature, sunshine, trends, fronts, moon phase/window. | Implemented | Conditions group | API coverage varies | `stats.js` | Trip/catch weather | None | Stats |
 | A18 | Sortable tables and charts | Sort analytics columns and switch supported cards among table, bar, stacked, grouped, donut, or line charts. | Implemented | Card controls/headers | Rendered stats rows | `stats.js`, `app.js` | Derived only | None | Stats |
-| A19 | Confidence/efficiency labels | Label observed performance and distinguish reliable samples, overuse, watch lists, and insufficient data. | Implemented | Stats cards and legend | Hours/trip thresholds | `stats.js`, `index.html` | Derived only | None | Stats |
+| A19 | Confidence/efficiency labels | Label observed performance and distinguish reliable samples, overuse, watch lists, and insufficient data. | Implemented | Stats cards and legend | Hours/trip thresholds | `stats.js`, `stats-performance.js`, `stats-rendering.js` | Derived only | None | Stats |
 | A20 | Stats diagnostics | Detect missing setup time/details and provide deep links to affected trip/setup sections. | Not implemented | None | — | — | — | — | — |
 | A21 | Personal bests | Track and compare largest, heaviest, and longest landed fish with unit-aware filters and progressions. | Implemented | Personal Bests view | Trip catches and unit preferences | `personal-bests.js`, `app.js` | `trips[].catches[]` | GET `/api/logbook` | Personal Bests |
 | A22 | Historical/year-over-year comparisons | Year filtering exists on Trips, but there is no comparative historical report. | Not implemented | None | — | — | — | — | — |
@@ -146,17 +146,6 @@ Status vocabulary:
 | T17 | Feature flags | No feature-flag framework or environment-controlled product toggles. | Not implemented | None | — | — | — | — | — |
 | T18 | Database migrations | SQLite is the relational database, but no formal migration framework exists; compatibility changes are performed during document normalization. | Not implemented | None | — | — | — | — | — |
 
-## Inventory Totals
-
-- Verified implemented, partial, hidden, or deprecated capabilities: **91**.
-- Core fishing workflow capabilities: **34**.
-- Media, map, and environmental capabilities: **15**.
-- Analytics capabilities counted: **20** (excluding two explicitly absent reports).
-- User/preferences capabilities counted: **5**.
-- Administrative/data-management capabilities counted: **4**.
-- Technical capabilities counted: **13**.
-
-These six mutually exclusive sections contain 103 rows. “Not implemented” rows are retained for audit completeness but excluded from the verified capability count.
 ## Inventory Totals
 
 - Verified implemented, partial, hidden, or deprecated capabilities: **91**.

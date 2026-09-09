@@ -602,55 +602,6 @@
   font-size: 22px;
 }
 
-.gear-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
-}
-
-.gear-card {
-  overflow: hidden;
-}
-
-.gear-card img,
-.gear-image-placeholder {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  background: #edf2f5;
-  border-bottom: 1px solid var(--line);
-}
-
-.gear-image-placeholder {
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.gear-card-body {
-  display: grid;
-  gap: 8px;
-  padding: 14px;
-}
-
-.gear-card-body h4 {
-  margin: 0;
-  font-size: 17px;
-}
-
-.gear-card-body p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.gear-card-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-}
-
 .inventory-actions {
   display: flex;
   gap: 6px;

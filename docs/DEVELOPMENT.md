@@ -52,7 +52,7 @@ Keep landed and lost fish separate. Setup rows describe timed gear configuration
 
 ## Data Safety
 
-Do not commit `data/logbook.json`, `data/logbook.sqlite3`, uploads, backups, or personal media. Before testing destructive workflows, copy the database and upload tree. A JSON export alone is not a complete media backup.
+Do not commit `data/logbook.sqlite3`, uploads, backups, or personal media. Before testing destructive workflows, copy the database and upload tree. A portable archive is the complete backup because its JSON member alone does not include uploaded media.
 
 The server performs whole-document writes inside SQLite transactions. A failed server PUT can leave localStorage ahead of server state because the browser writes localStorage first.
 

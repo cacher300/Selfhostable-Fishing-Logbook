@@ -361,18 +361,6 @@
 .map-water-reading-row strong { font-size: 14px; text-align: right; }
 .map-water-reading .great-lakes-profile-button { margin-top: 3px; }
 
-.map-popup .media-download-link,
-.map-catch-card .media-download-link {
-  display: none;
-}
-
-.map-catch-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 12px;
-}
-
-
 .map-legend {
   display: flex;
   flex-wrap: wrap;
@@ -415,66 +403,14 @@
 
 .map-dual-legend .map-direction-key i { display: grid; width: 14px; height: 14px; place-items: center; border-radius: 50%; background: var(--green); color: #fff; font-size: 12px; font-style: normal; line-height: 1; }
 
-.map-catch-card {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
-}
-
-.map-catch-card:hover,
-.map-catch-card:focus-visible {
-  border-color: rgba(17, 135, 83, 0.35);
-  background: var(--hover);
-  outline: none;
-}
-
-.map-catch-card img,
-.map-catch-card video {
-  width: 76px;
-  height: 76px;
-  object-fit: cover;
-  border-radius: 6px;
-}
-
-.map-catch-card .media-download-frame {
-  width: 76px;
-  height: 76px;
-  border-radius: 6px;
-}
-
-.map-catch-card .media-download-frame img {
-  display: block;
-  width: 76px;
-  height: 76px;
-  object-fit: cover;
-  border-radius: 6px;
-}
-
-.map-catch-card div {
-  display: grid;
-  gap: 3px;
-}
-
-.map-catch-card span {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.map-popup a,
-.map-catch-card a {
+.map-popup a {
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
   text-decoration: none;
 }
 
-.map-popup a:hover,
-.map-catch-card a:hover {
+.map-popup a:hover {
   color: var(--text);
   text-decoration: underline;
 }
@@ -515,155 +451,6 @@
   gap: 28px;
   max-width: 1280px;
   margin: 0 auto;
-}
-
-.summary-hero {
-  padding: 0 0 8px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.summary-hero h3 {
-  margin: 0 0 6px;
-  font-size: clamp(34px, 3.1vw, 46px);
-  line-height: 1.05;
-}
-
-.summary-hero p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.summary-metrics {
-  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-  gap: 16px;
-  overflow: visible;
-  border: 0;
-  background: transparent;
-}
-
-.summary-metrics .metric-card {
-  min-width: 0;
-  padding: 18px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--panel);
-  box-shadow: 0 10px 26px rgba(7, 21, 46, 0.06);
-}
-
-.summary-metrics .metric-card span {
-  font-size: 15px;
-}
-
-.summary-metrics .metric-card strong {
-  font-size: 28px;
-  line-height: 1.1;
-  overflow-wrap: anywhere;
-}
-
-.summary-section {
-  display: grid;
-  gap: 16px;
-}
-
-.summary-section h3 {
-  margin: 0;
-  font-size: clamp(22px, 2vw, 26px);
-  line-height: 1.15;
-}
-
-.trip-photos-disclosure > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  min-height: 58px;
-  cursor: pointer;
-  list-style: none;
-  border-radius: 8px;
-  padding: 16px 18px;
-  background: #fff;
-  box-shadow: 0 10px 28px rgba(7, 21, 46, 0.055);
-}
-
-.trip-photos-disclosure > summary::-webkit-details-marker {
-  display: none;
-}
-
-.trip-photos-disclosure > summary::after {
-  content: "+";
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: #eef2f6;
-  color: var(--text);
-  font-size: 20px;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.trip-photos-disclosure[open] > summary::after {
-  content: "-";
-}
-
-.trip-photos-disclosure > summary span {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 15px;
-  font-weight: 850;
-}
-
-.summary-section > p {
-  margin: 0;
-  color: var(--text);
-  line-height: 1.5;
-  font-size: 17px;
-}
-
-.summary-section-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.timeline-heading {
-  align-items: center;
-}
-
-.timeline-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.timeline-filter-button {
-  min-height: 38px;
-  border: 0;
-  border-radius: 999px;
-  padding: 0 14px;
-  background: #eef2f6;
-  color: #4f5d72;
-  font-weight: 900;
-}
-
-.timeline-filter-button:hover,
-.timeline-filter-button.is-active {
-  background: #ecf7f1;
-  color: var(--green-dark);
-}
-
-.summary-section-heading span {
-  color: var(--muted);
-  font-size: 15px;
-  font-weight: 800;
 }
 
 .summary-map-tools {
@@ -725,108 +512,6 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
   padding: 20px 0 0;
   border-top: 1px solid var(--line);
   background: var(--panel);
-}
-
-.summary-notes-card,
-.summary-map-section {
-  padding: 24px;
-  border: 0;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 12px 34px rgba(7, 21, 46, 0.07);
-}
-
-.summary-notes-card {
-  align-content: start;
-}
-
-.summary-notes-card p {
-  color: #253044;
-  font-size: 18px;
-  line-height: 1.55;
-}
-
-.summary-condition-metrics {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 14px;
-  overflow: visible;
-  border: 0;
-  background: transparent;
-}
-
-.summary-condition-metrics .metric-card {
-  min-width: 0;
-  padding: 16px 18px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel-soft);
-  box-shadow: none;
-}
-
-.summary-condition-metrics .metric-card span {
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.summary-condition-metrics .metric-card strong {
-  font-size: 20px;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.weather-secondary-grid {
-  display: grid;
-  gap: 12px;
-}
-
-.weather-secondary-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.summary-value {
-  display: grid;
-  min-width: 0;
-  gap: 5px;
-  padding: 0;
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.3;
-}
-
-.summary-value strong {
-  color: var(--muted);
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.weather-secondary-grid .summary-value {
-  min-height: 86px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel-soft);
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 750;
-}
-
-.summary-weather-details-section .summary-value strong {
-  color: var(--muted);
-}
-
-.summary-weather-empty {
-  padding: 18px;
-  border-radius: 8px;
-  background: #f8fafb;
-}
-
-.summary-weather-details-section {
-  padding: 24px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
-  box-shadow: none;
 }
 
 .great-lakes-control {

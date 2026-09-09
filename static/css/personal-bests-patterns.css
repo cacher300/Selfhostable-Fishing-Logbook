@@ -53,9 +53,7 @@
 }
 
 .personal-best-photo,
-.personal-best-photo-placeholder,
-.personal-best-media .media-download-frame,
-.personal-best-media .media-download-frame img {
+.personal-best-photo-placeholder {
   display: block;
   width: 100%;
   height: 100%;

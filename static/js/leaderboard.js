@@ -231,17 +231,6 @@ function leaderboardRowMarkup(row, rank, kind) {
   `;
 }
 
-function leaderboardLinkedGearCatches(trips) {
-  const gearFields = ["lureId", "flasherId", "rodId", "reelId", "comboId"];
-  return trips.reduce((total, trip) => total + (trip.catches || []).reduce((tripTotal, record) => {
-    const resolved = typeof resolveTripLineRecord === "function"
-      ? resolveTripLineRecord({ ...record, trip })
-      : record;
-    const hasLinkedGear = gearFields.some((field) => Boolean(resolved[field]));
-    return tripTotal + (hasLinkedGear ? (typeof fishCount === "function" ? fishCount(record) : 1) : 0);
-  }, 0), 0);
-}
-
 function gearPerformanceStats(type, id, trips = state.trips) {
   const fieldByType = {
     lure: "lureId",
