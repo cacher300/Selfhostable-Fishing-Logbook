@@ -543,7 +543,6 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/leaderboard")
     @app.get("/map")
     @app.get("/gear")
-    @app.get("/boat")
     @app.get("/gallery")
     @app.get("/checklists")
     @app.get("/settings")

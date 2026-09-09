@@ -149,7 +149,6 @@ function renderPreferenceSettings() {
   if (els.timeFormatSelect) els.timeFormatSelect.value = timeFormatPreference();
   if (els.defaultHomeLakeSelect) els.defaultHomeLakeSelect.value = state.settings?.defaultHomeLake || "";
   renderDefaultPeopleSettings();
-  if (els.boatFeatureEnabled) els.boatFeatureEnabled.checked = state.settings?.boatFeatureEnabled === true;
   document.querySelectorAll("[data-time-format-option]").forEach((input) => {
     input.checked = input.value === timeFormatPreference();
   });
@@ -176,14 +175,6 @@ async function saveDefaultPeople(options = {}) {
     .filter((id) => availableIds.has(id));
   state.settings = { ...(state.settings || {}), defaultPeople };
   await runSettingsSave(() => saveState(), "The default people could not be saved.", options);
-}
-
-async function saveBoatFeaturePreference(options = {}) {
-  const boatFeatureEnabled = els.boatFeatureEnabled?.checked === true;
-  state.settings = { ...(state.settings || {}), boatFeatureEnabled };
-  syncBoatFeatureVisibility();
-  if (!boatFeatureEnabled && document.body.dataset.activeView === "boat") setView("trips");
-  await runSettingsSave(() => saveState(), "The Boat tab preference could not be saved.", options);
 }
 
 async function saveDefaultHomeLake(options = {}) {

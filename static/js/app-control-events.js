@@ -160,7 +160,6 @@ els.statsViewButton.addEventListener("click", () => setView("stats"));
 els.leaderboardViewButton.addEventListener("click", () => setView("leaderboard"));
 els.mapViewButton.addEventListener("click", () => setView("map"));
 els.gearViewButton.addEventListener("click", () => setView("gear"));
-els.boatViewButton.addEventListener("click", () => setView("boat"));
 els.galleryViewButton.addEventListener("click", () => setView("gallery"));
 els.checklistsViewButton.addEventListener("click", () => setView("checklists"));
 els.settingsViewButton.addEventListener("click", () => setView("settings"));
@@ -185,7 +184,6 @@ document.querySelectorAll("[data-theme-option]").forEach((input) => input.addEve
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
 els.defaultHomeLakeSelect?.addEventListener("change", () => saveDefaultHomeLake({ autosave: true }));
 els.defaultPeopleOptions?.addEventListener("change", () => saveDefaultPeople({ autosave: true }));
-els.boatFeatureEnabled?.addEventListener("change", () => saveBoatFeaturePreference({ autosave: true }));
 els.gearFilterField?.addEventListener("change", updateGearFilter);
 els.gearFilterQuery?.addEventListener("input", updateGearFilter);
 els.gearFilterQuery?.addEventListener("focus", openGearFilterSuggestions);

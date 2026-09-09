@@ -304,24 +304,18 @@ function renderFlasherInventory() {
 
 function setGearTab(tab) {
   activeGearTab = tab;
-  const showingTackleBoxes = tab === "tackle-boxes";
   document.querySelectorAll("[data-gear-tab]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.gearTab === tab);
   });
   document.querySelectorAll("[data-gear-panel]").forEach((panel) => {
     panel.classList.toggle("hidden", panel.dataset.gearPanel !== tab);
   });
-  document.querySelectorAll(".gear-standard-action").forEach((button) => {
-    button.classList.toggle("hidden", showingTackleBoxes);
-  });
-  document.querySelector("#newTackleBoxButton")?.classList.toggle("hidden", !showingTackleBoxes);
   const controls = document.querySelector(".gear-inventory-controls");
   const activePanel = document.querySelector(`[data-gear-panel="${tab}"]`);
-  if (controls && activePanel && !showingTackleBoxes) activePanel.querySelector(".gear-header")?.append(controls);
-  controls?.classList.toggle("hidden", showingTackleBoxes);
+  if (controls && activePanel) activePanel.querySelector(".gear-header")?.append(controls);
+  controls?.classList.remove("hidden");
   syncGearFilterFields();
   applyInventoryTableControls();
-  if (showingTackleBoxes && typeof renderTackleBoxes === "function") renderTackleBoxes();
 }
 
 function renderGearLibrary() {
@@ -331,6 +325,5 @@ function renderGearLibrary() {
   renderLineTracker();
   renderBaitInventory();
   renderFlasherInventory();
-  if (typeof renderTackleBoxes === "function") renderTackleBoxes();
   setGearTab(activeGearTab);
 }

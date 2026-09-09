@@ -7,7 +7,6 @@ const routeViews = {
   "/leaderboard": "leaderboard",
   "/map": "map",
   "/gear": "gear",
-  "/boat": "boat",
   "/gallery": "gallery",
   "/checklists": "checklists",
   "/settings": "settings"
@@ -51,14 +50,12 @@ els.personRows.addEventListener("change", (event) => {
 });
 
 function setView(view) {
-  if (view === "boat" && state.settings?.boatFeatureEnabled !== true) view = "trips";
   const showingExpeditions = view === "expeditions";
   const showingBests = view === "bests";
   const showingStats = view === "stats";
   const showingLeaderboard = view === "leaderboard";
   const showingMap = view === "map";
   const showingGear = view === "gear";
-  const showingBoat = view === "boat";
   const showingGallery = view === "gallery";
   const showingChecklists = view === "checklists";
   const showingSettings = view === "settings";
@@ -69,7 +66,6 @@ function setView(view) {
     stats: els.statsViewButton,
     map: els.mapViewButton,
     gear: els.gearViewButton,
-    boat: els.boatViewButton,
     gallery: els.galleryViewButton,
     checklists: els.checklistsViewButton,
     settings: els.settingsViewButton,
@@ -82,21 +78,19 @@ function setView(view) {
     leaderboard: "Leaderboard",
     map: "Map",
     gear: "Gear",
-    boat: "Boat",
     gallery: "Gallery",
     checklists: "Checklists",
     settings: "Settings",
   };
   document.body.dataset.activeView = view;
-  els.tripControls.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingChecklists || showingSettings);
-  els.tripListPanel.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingChecklists || showingSettings);
+  els.tripControls.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingGallery || showingChecklists || showingSettings);
+  els.tripListPanel.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingGallery || showingChecklists || showingSettings);
   els.expeditionsPanel.classList.toggle("hidden", !showingExpeditions);
   els.personalBestsPanel.classList.toggle("hidden", !showingBests);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
   els.leaderboardPanel.classList.toggle("hidden", !showingLeaderboard);
   els.mapPanel.classList.toggle("hidden", !showingMap);
   els.gearPanel.classList.toggle("hidden", !showingGear);
-  els.boatPanel.classList.toggle("hidden", !showingBoat);
   els.galleryPanel.classList.toggle("hidden", !showingGallery);
   els.checklistsPanel.classList.toggle("hidden", !showingChecklists);
   els.settingsPanel.classList.toggle("hidden", !showingSettings);
@@ -121,17 +115,10 @@ function setView(view) {
   if (showingExpeditions) renderExpeditions();
   renderAdvancedStats();
   if (showingMap) renderFishMap();
-  if (showingBoat) renderBoatLayout();
   if (showingGallery) renderGallery();
   if (showingChecklists) renderChecklists();
   if (showingSettings) renderSettings();
   renderGearLibrary();
-}
-
-function syncBoatFeatureVisibility() {
-  const enabled = state.settings?.boatFeatureEnabled === true;
-  els.boatViewButton.classList.toggle("hidden", !enabled);
-  els.boatViewButton.setAttribute("aria-hidden", enabled ? "false" : "true");
 }
 
 function syncMobileSummaryPanel() {
@@ -148,7 +135,6 @@ async function init() {
   syncMobileSummaryPanel();
   state = await loadState();
   applyThemePreference();
-  syncBoatFeatureVisibility();
   renderAll();
   setView(viewFromCurrentRoute());
 }
