@@ -30,6 +30,7 @@
 }
 
 .map-tools .map-media-toggle,
+.map-tools .map-direction-toggle,
 .map-tools .map-chart-toggle,
 .map-tools .map-year-filter-toggle {
   display: inline-flex;
@@ -144,6 +145,7 @@
 .map-basemap-select select { width: 100%; }
 
 .map-tools .map-media-toggle input,
+.map-tools .map-direction-toggle input,
 .map-tools .map-chart-toggle input,
 .map-tools .map-year-filter-toggle input {
   width: 16px;
@@ -154,6 +156,7 @@
 
 .map-tools .map-chart-toggle:has(input:focus-visible),
 .map-tools .map-media-toggle:has(input:focus-visible),
+.map-tools .map-direction-toggle:has(input:focus-visible),
 .map-tools .map-year-filter-toggle:has(input:focus-visible) {
   outline: 3px solid var(--focus);
   outline-offset: 2px;

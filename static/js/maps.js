@@ -147,11 +147,15 @@ function mapDirectionMarker(record, color, fillColor, popupHtml) {
   }).bindPopup(popupHtml);
 }
 
+function shouldShowMapDirectionArrow(record, options = {}) {
+  return Boolean(mapRecordTrollingDirection(record)) && options.showDirectionArrows !== false;
+}
+
 function addMapMarker(layerGroup, record, options = {}) {
   const fillColor = mapRecordColor(record);
   const color = options.colorByYear ? mapYearColor(mapRecordYear(record)) : fillColor;
   const popupHtml = mapPopupHtml(record);
-  if (mapRecordTrollingDirection(record)) {
+  if (shouldShowMapDirectionArrow(record, options)) {
     return mapDirectionMarker(record, color, fillColor, popupHtml).addTo(layerGroup);
   }
   return L.circleMarker([record.coordinates.latitude, record.coordinates.longitude], {
@@ -416,7 +420,7 @@ function renderAdditionalMapFilters(records) {
   activeMapMethod = renderMapSelect(els.mapMethodFilter, filterableRecords, mapRecordMethod, "All methods", activeMapMethod);
   activeMapDirection = renderMapSelect(els.mapDirectionFilter, catches, (record) => mapRecordTrollingDirection(record)?.label, "All directions", activeMapDirection);
   activeMapAngler = renderMapSelect(els.mapAnglerFilter, catches, mapRecordAngler, "All anglers", activeMapAngler);
-  if (els.mapDispositionFilter) els.mapDispositionFilter.value = activeMapDisposition;
+  if (els.mapDirectionArrowsToggle) els.mapDirectionArrowsToggle.checked = activeMapShowDirectionArrows;
 }
 
 function mapYearFilterOptions(records) {
@@ -464,16 +468,11 @@ function filteredMapRecordsByDetails(records, filters = {}) {
   const method = filters.method || activeMapMethod;
   const direction = filters.direction || activeMapDirection;
   const angler = filters.angler || activeMapAngler;
-  const disposition = filters.disposition || activeMapDisposition;
   return records.filter((record) => {
     if (lake !== "All lakes" && mapRecordLake(record) !== lake) return false;
     if (method !== "All methods" && mapRecordMethod(record) !== method) return false;
     if (direction !== "All directions" && mapRecordTrollingDirection(record)?.label !== direction) return false;
     if (angler !== "All anglers" && mapRecordAngler(record) !== angler) return false;
-    if (disposition !== "All dispositions") {
-      if (record.type !== "catch") return false;
-      if ((disposition === "Released") !== Boolean(record.catchItem?.released)) return false;
-    }
     return true;
   });
 }
@@ -603,7 +602,10 @@ function renderFishMap() {
   records.forEach((record) => {
     const point = [record.coordinates.latitude, record.coordinates.longitude];
     bounds.push(point);
-    addMapMarker(fishMapMarkers, record, { colorByYear: !activeMapYearFilteringHidden });
+    addMapMarker(fishMapMarkers, record, {
+      colorByYear: !activeMapYearFilteringHidden,
+      showDirectionArrows: activeMapShowDirectionArrows
+    });
   });
 
   if (bounds.length === 1) fishMap.setView(bounds[0], 13);

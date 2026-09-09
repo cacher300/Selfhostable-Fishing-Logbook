@@ -382,17 +382,12 @@ els.mapAnglerFilter?.addEventListener("change", () => {
   activeMapAngler = els.mapAnglerFilter.value;
   renderFishMap();
 });
-els.mapDispositionFilter?.addEventListener("change", () => {
-  activeMapDisposition = els.mapDispositionFilter.value;
-  renderFishMap();
-});
 els.mapClearFilters?.addEventListener("click", () => {
   activeMapSpecies = "All species";
   activeMapLake = "All lakes";
   activeMapMethod = "All methods";
   activeMapDirection = "All directions";
   activeMapAngler = "All anglers";
-  activeMapDisposition = "All dispositions";
   activeMapYear = "All years";
   renderFishMap();
 });
@@ -406,6 +401,10 @@ els.mapHideYearFilterToggle?.addEventListener("change", () => {
 });
 els.mapTripPhotosToggle?.addEventListener("change", () => {
   activeMapIncludeTripMedia = Boolean(els.mapTripPhotosToggle.checked);
+  renderFishMap();
+});
+els.mapDirectionArrowsToggle?.addEventListener("change", () => {
+  activeMapShowDirectionArrows = Boolean(els.mapDirectionArrowsToggle.checked);
   renderFishMap();
 });
 els.mapNoaaChartsToggle?.addEventListener("change", () => {

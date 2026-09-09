@@ -47,8 +47,11 @@ assert.equal(vm.runInContext(`mapRecordTrollingDirection(testRecords[1])`, conte
 assert.equal(vm.runInContext(`mapRecordLake(testRecords[0])`, context), "Lake Ontario");
 assert.equal(vm.runInContext(`mapRecordLake(testRecords[1])`, context), "Lake Erie");
 assert.equal(vm.runInContext(`mapRecordAngler(testRecords[0])`, context), "Alex");
-assert.equal(vm.runInContext(`filteredMapRecordsByDetails(testRecords, { lake: "Lake Ontario", method: "All methods", direction: "All directions", angler: "All anglers", disposition: "All dispositions" }).length`, context), 2);
-assert.equal(vm.runInContext(`filteredMapRecordsByDetails(testRecords, { lake: "All lakes", method: "Trolling", direction: "NE", angler: "Alex", disposition: "Released" }).length`, context), 1);
-assert.equal(vm.runInContext(`filteredMapRecordsByDetails(testRecords, { lake: "All lakes", method: "Casting", direction: "All directions", angler: "All anglers", disposition: "Kept" }).length`, context), 1);
+assert.equal(vm.runInContext(`shouldShowMapDirectionArrow(testRecords[0])`, context), true);
+assert.equal(vm.runInContext(`shouldShowMapDirectionArrow(testRecords[0], { showDirectionArrows: false })`, context), false);
+assert.equal(vm.runInContext(`shouldShowMapDirectionArrow(testRecords[1])`, context), false);
+assert.equal(vm.runInContext(`filteredMapRecordsByDetails(testRecords, { lake: "Lake Ontario", method: "All methods", direction: "All directions", angler: "All anglers" }).length`, context), 2);
+assert.equal(vm.runInContext(`filteredMapRecordsByDetails(testRecords, { lake: "All lakes", method: "Trolling", direction: "NE", angler: "Alex", disposition: "Kept" }).length`, context), 1);
+assert.equal(vm.runInContext(`filteredMapRecordsByDetails(testRecords, { lake: "All lakes", method: "All methods", direction: "All directions", angler: "All anglers", disposition: "Released" }).length`, context), 3);
 
 console.log("map filter tests passed");
