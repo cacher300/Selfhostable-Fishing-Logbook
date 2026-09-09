@@ -6,7 +6,6 @@ function collectTripFromForm() {
       id: row.dataset.gearId || createId(),
       defaultTrollingSpread: row.dataset.defaultTrollingSpread === "true",
       defaultTrollingSpreadTarget: row.dataset.defaultTrollingSpreadTarget || "",
-      boatItemId: trolling ? row.dataset.boatItemId || "" : "",
       startTime: row.querySelector(".trip-gear-start-time").value,
       endTime: row.querySelector(".trip-gear-end-time").value,
       changeNote: row.querySelector(".trip-gear-change-note").value.trim(),
@@ -40,7 +39,6 @@ function collectTripFromForm() {
       || item.endTime
       || item.changeNote
       || item.lineLabel
-      || item.boatItemId
       || item.hasLeadcore
       || item.comboId
       || item.rodId

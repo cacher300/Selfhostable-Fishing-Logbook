@@ -208,12 +208,6 @@ const defaults = {
     defaultTrollingSpread: [],
     defaultTrollingSpreads: [],
     checklists: [],
-    boatLayout: {
-      name: "",
-      equipment: [],
-      items: []
-    },
-    tackleBoxes: [],
     privatePhotoLocations: []
   },
   people: [],

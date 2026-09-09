@@ -8,14 +8,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
-DATA_FILE = DATA_DIR / "logbook.json"
 DATABASE_FILE = DATA_DIR / "logbook.sqlite3"
 UPLOADS_DIR = DATA_DIR / "uploads"
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8080"))
 SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 UPLOAD_CATEGORIES = {
-    "boat-equipment", "catch-photos", "trip-photos", "lures",
+    "catch-photos", "trip-photos", "lures",
     "flashers", "reels", "rods", "queue",
 }
 ALLOWED_IMAGE_EXTENSIONS = {".avif", ".gif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".webp"}
@@ -226,8 +225,6 @@ DEFAULT_LOGBOOK = {
         ],
         "defaultTrollingSpread": [],
         "defaultTrollingSpreads": [],
-        "boatLayout": {"name": "", "equipment": [], "items": []},
-        "tackleBoxes": [],
         "privatePhotoLocations": [],
     },
     "people": [],

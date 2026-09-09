@@ -343,7 +343,6 @@ function addTripGearRow(gearItem = {}) {
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.rowId = createId();
   node.dataset.gearId = gearItem.id || "";
-  node.dataset.boatItemId = gearItem.boatItemId || "";
   if (gearItem.defaultTrollingSpread) {
     node.dataset.defaultTrollingSpread = "true";
     node.dataset.defaultTrollingSpreadTarget = gearItem.defaultTrollingSpreadTarget || "__all__";
@@ -446,7 +445,6 @@ function syncLastTrollingSpreadImportButton() {
 
 function lastTripSpreadGearItem(gearItem) {
   return {
-    boatItemId: gearItem.boatItemId || "",
     comboId: gearItem.comboId || "",
     rodId: gearItem.rodId || "",
     reelId: gearItem.reelId || "",

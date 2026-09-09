@@ -302,8 +302,6 @@ function gearPerformanceStats(type, id, trips = state.trips) {
     combo: "comboId"
   };
   const field = fieldByType[type] || "";
-  const layout = normalizeBoatLayout(state.settings?.boatLayout);
-  const boatItemEquipment = new Map(layout.items.map((item) => [String(item.id), String(item.equipmentId)]));
   let landed = 0;
   let lost = 0;
   let allAttributedLanded = 0;
@@ -312,9 +310,6 @@ function gearPerformanceStats(type, id, trips = state.trips) {
 
   const recordValue = (record, trip) => {
     const resolved = resolveTripLineRecord({ ...record, trip });
-    if (type === "boat-equipment") {
-      return boatItemEquipment.get(String(resolved.boatItemId || resolved.setupLine?.boatItemId || "")) || "";
-    }
     const directValue = String(resolved[field] || "");
     if (directValue) return directValue;
 
@@ -335,9 +330,7 @@ function gearPerformanceStats(type, id, trips = state.trips) {
   trips.forEach((trip, tripIndex) => {
     const tripId = String(trip.id || `trip-${tripIndex}`);
     (trip.gearUsed || []).forEach((line) => {
-      const value = type === "boat-equipment"
-        ? boatItemEquipment.get(String(line.boatItemId || "")) || ""
-        : String(line[field] || "");
+      const value = String(line[field] || "");
       if (value !== String(id)) return;
       usedTrips.add(tripId);
       if (trip.date && (!lastUsed || trip.date > lastUsed)) lastUsed = trip.date;
@@ -387,10 +380,6 @@ function gearStatsItemName(type, id) {
   if (item) {
     return String(item.name || item.shortName || item.model || item.brand || "").trim();
   }
-  if (type === "boat-equipment") {
-    const layout = normalizeBoatLayout(state.settings?.boatLayout);
-    return String(layout.equipment.find((entry) => String(entry.id) === itemId)?.name || "").trim();
-  }
   return "";
 }
 
@@ -402,8 +391,7 @@ function gearStatsTooltipMarkup(type, id) {
     flasher: "Flasher performance",
     rod: "Rod performance",
     reel: "Reel performance",
-    combo: "Combo performance",
-    "boat-equipment": "Boat equipment performance"
+    combo: "Combo performance"
   }[type] || "Equipment performance";
   return `
     ${itemName ? `<strong class="equipment-stats-tooltip-name">${escapeHtml(itemName)}</strong>` : ""}

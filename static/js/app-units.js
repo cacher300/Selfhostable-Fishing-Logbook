@@ -181,12 +181,6 @@ function formatDisplayTime(value, format = timeFormatPreference()) {
   return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
-function formatDisplayTimeRange(startTime, endTime, format = timeFormatPreference()) {
-  const start = formatDisplayTime(startTime, format);
-  const end = formatDisplayTime(endTime, format);
-  return [start, end].filter(Boolean).join("-");
-}
-
 function normalizeChopRanges(ranges = []) {
   const source = Array.isArray(ranges) && ranges.length ? ranges : defaultChopRanges;
   const normalized = source

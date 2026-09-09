@@ -368,14 +368,6 @@
   outline-offset: -3px;
 }
 
-.tackle-compartment-item[data-gear-stats-type]:hover,
-.tackle-compartment-item[data-gear-stats-type]:focus-visible {
-  z-index: 2;
-  outline: 2px solid var(--green);
-  outline-offset: -2px;
-  transform: translateY(-2px);
-}
-
 .stats-leaderboard {
   display: grid;
   gap: 14px;

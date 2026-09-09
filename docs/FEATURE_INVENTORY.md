@@ -83,7 +83,7 @@ Status vocabulary:
 | A05 | Analytics scoping and filters | Scope by method, thresholds, lost-fish inclusion, species, person, location, gear, clarity, weather, month, and rating. | Implemented | Stats toolbar | Global state only; not persisted | `stats.js`, `app.js` | All analytics inputs | None | Stats |
 | A06 | Outcome analytics | Landed, released, kept, lost, percentages, species mix, and release patterns. | Implemented | Overview group | Landed/lost separation | `stats.js` | Catches/lost fish | None | Stats |
 | A07 | Time-of-day and bite windows | Bucket interactions by time and relative sunrise/sunset windows. | Implemented | Overview/Conditions | Catch times and sun/moon data | `stats.js`, `location-weather.js` | Catch times, sunMoon | None | Stats |
-| A08 | Best pattern combinations | Rank observed lure/flasher, presentation, FOW, depth, speed, and related combinations. This is a table, not the removed Pattern Finder screen. | Implemented | Overview > Best Pattern Combos | Resolved catch context | `stats.js` | Catches/setup/gear | None | Stats |
+| A08 | Best pattern combinations | Rank observed lure/flasher, presentation, FOW, depth, speed, and related combinations. | Implemented | Overview > Best Pattern Combos | Resolved catch context | `stats.js` | Catches/setup/gear | None | Stats |
 | A09 | Lure efficiency | Fish, hours, rates, trip counts, time/fish share, efficiency, confidence, and labels. | Implemented | Lure and Gear Performance | Setup timing quality | `stats.js` | Gear timeline and catches | None | Stats |
 | A10 | Lure spread context | Identify producing, quiet, and sole-producer lure behavior within trip spreads. | Implemented | Lure Spread Context | Multiple setup lines/trips | `stats.js` | Gear/catches | None | Stats |
 | A11 | Lure dimensions | Compare lure type and lure color performance. | Implemented | Lure Type/Color cards | Lure library metadata | `stats.js` | `lures`, gear usage | None | Stats |
@@ -117,7 +117,7 @@ Status vocabulary:
 
 | ID | Feature | Description / purpose | Status | Entry point and role | Data and dependencies | Related files | Database | API endpoints | Screens |
 |---|---|---|---|---|---|---|---|---|---|
-| D01 | JSON export | Download normalized logbook data; uploaded binaries are excluded. | Implemented | Settings > Export JSON | Server data file | `data-transfer.js`, `server.py` | Entire logbook | GET `/api/export` | Settings |
+| D01 | Archive export/import | Transfer normalized logbook data and uploaded media in a portable ZIP archive. | Implemented | Settings > Backup/Import | SQLite and upload tree | `settings-core.js`, `server.py` | Entire logbook and media | GET/POST `/api/archive` | Settings |
 | D02 | JSON import | Parse, minimally shape-check, normalize, persist, and rerender imported data. | Implemented / Partial | Settings > Import JSON | Browser file reader; weak deep validation | `data-transfer.js`, `app-state.js` | Entire logbook | PUT `/api/logbook` | Settings |
 | D03 | Docker launch lifecycle | Stop old/current containers, rebuild, and launch Compose. | Implemented; host verification required | `launch-container.sh` | Docker Compose | Launcher/Compose files | Mounted `./data` | Port 80→8080 | None |
 | D04 | Location referential deletion guard | Refuse to delete locations/launches still used by trips. | Implemented | Settings manager delete buttons | Name/ID matching | `locations.js` | Trips/locations | PUT `/api/logbook` | Settings |
@@ -129,7 +129,7 @@ Status vocabulary:
 
 | ID | Feature | Description / purpose | Status | Entry point and role | Data and dependencies | Related files | Database | API endpoints | Screens |
 |---|---|---|---|---|---|---|---|---|---|
-| T01 | JSON persistence API | Read and replace the normalized logbook document. | Implemented | SPA load/save; unauthenticated | Flask and filesystem | `server.py`, `logbook_store.py` | `data/logbook.json` | GET/PUT `/api/logbook` | All |
+| T01 | SQLite persistence API | Read and replace the normalized logbook document. | Implemented | SPA load/save; unauthenticated | Flask and SQLite | `server.py`, `logbook_store.py` | `data/logbook.sqlite3` | GET/PUT `/api/logbook` | All |
 | T02 | JSON normalization | Merge defaults, sanitize settings/options/coordinates, migrate string locations, and merge people/locations from trips. | Implemented | Every read/write/import | No schema version | `logbook_store.py`, `app-state.js` | Entire document | GET/PUT logbook | All |
 | T03 | UUID/slug identity | Create browser UUIDs for records and deterministic slugs for migrated locations/options. | Implemented | Automatic | Web Crypto or fallback | `app-state.js`, `logbook_store.py` | IDs throughout | None | All edit workflows |
 | T04 | Weather proxy APIs | Allowlisted proxies for Open-Meteo archive and forecast requests. | Implemented | Browser weather workflow | Internet access | `server.py`, `weather_service.py` | None directly | GET archive/forecast | Trip workflow |
@@ -142,7 +142,6 @@ Status vocabulary:
 | T11 | No-store responses | Add `Cache-Control: no-store` to every Flask response. | Implemented | Automatic | Flask response hook | `server.py` | None | All server routes | All |
 | T12 | Environment configuration | Configure bind host/port through environment variables. | Implemented | Process/shell environment | Host process | `backend_config.py`, scripts, Compose | None | None | None |
 | T13 | Backend bulk weather refresh | Refresh every trip with request caching and per-trip error continuation. No route, CLI, schedule, or caller exposes it. | Hidden / Incomplete | Code only | External weather APIs | `weather_service.py` | Mutates all trip weather | None | None |
-| T14 | Removed Pattern Finder residue | Pattern Finder JS/view was removed, but README claims it and `.patterns-*` CSS remains. | Deprecated | No entry point | Git history confirms removal | `README.md`, `styles.css` | None | None | None |
 | T15 | Deprecated `tripTypes` cleanup | Both normalizers delete a legacy `tripTypes` property. | Hidden / Deprecated | Automatic normalization | Legacy imported JSON | `app-state.js`, `logbook_store.py` | Removes top-level field | GET/PUT logbook | None |
 | T16 | Offline/PWA | No service worker, web manifest, cache strategy, IndexedDB, or background sync. Local-file fallback is not full offline parity. | Not implemented | None | — | — | — | — | — |
 | T17 | Feature flags | No feature-flag framework or environment-controlled product toggles. | Not implemented | None | — | — | — | — | — |

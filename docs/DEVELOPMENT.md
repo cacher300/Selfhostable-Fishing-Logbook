@@ -36,7 +36,6 @@ docker compose down
 - `index.html` and `standalone.html`: direct-file bootstrap and generated localStorage fallback.
 - `static/js/`: global browser scripts by concern.
 - `static/css/styles.css`: all styling and responsive rules.
-- `scripts/backup-logbook.sh`: portable, opt-in backup and cron installation.
 
 ## Change Discipline
 
@@ -53,15 +52,15 @@ Keep landed and lost fish separate. Setup rows describe timed gear configuration
 
 ## Data Safety
 
-Do not commit `data/logbook.json`, `data/logbook.sqlite3`, uploads, backups, or personal media. Before testing destructive workflows, copy the database and upload tree. JSON export alone is not a complete media backup.
+Do not commit `data/logbook.json`, `data/logbook.sqlite3`, uploads, backups, or personal media. Before testing destructive workflows, copy the database and upload tree. A JSON export alone is not a complete media backup.
 
 The server performs whole-document writes inside SQLite transactions. A failed server PUT can leave localStorage ahead of server state because the browser writes localStorage first.
 
 ## Manual Verification Checklist
 
-There is no formal test suite. For a behavior change, verify proportionally:
+Automated Python and Node test suites cover the core behavior. For a behavior change, verify proportionally:
 
-- Start the Flask app and load all six routes directly.
+- Start the Flask app and load all routed views directly.
 - Create/edit/delete a normal trip and a trolling trip.
 - Change setup lines and confirm catch selectors, summaries, spread, timeline, and stats.
 - Verify landed totals do not count lost fish.
@@ -95,8 +94,6 @@ Weather, marine, astronomy, Leaflet CDN, and map tiles require network access. U
 ## Environment Variables
 
 Application: `HOST` (default `127.0.0.1`), `PORT` (default `8080`).
-
-Backup script: `LOGBOOK_DIR`, `DATA_FILE`, `UPLOADS_DIR`, `LOCAL_BACKUP_DIR`, `NAS_BACKUP_TARGET`, `SSH_KEY_PATH`, `KEEP_MONTHLY_BACKUPS`, `BACKUP_LOG_FILE`, and `BACKUP_CRON_SCHEDULE`. The backup script is independent of the application lifecycle.
 
 Launcher: `APP_URL`, `CONTAINER_NAME`, and `LEGACY_CONTAINER_NAME`.
 

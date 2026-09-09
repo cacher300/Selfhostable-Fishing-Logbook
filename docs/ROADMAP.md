@@ -21,11 +21,11 @@ This roadmap is derived from verified code gaps, not from assumed product commit
 2. Add a dedicated natural/live bait model if “Baits” is intended to cover more than lures.
 3. Add personal-best reports for length and weight with unit-aware comparisons.
 4. Add year-over-year/season comparison reports and explicit success-rate definitions.
-5. Decide whether to restore a Pattern Finder product surface; otherwise remove stale CSS and keep documentation aligned with existing pattern tables.
+5. Keep the existing pattern-combination tables aligned with the current personal-best and analytics screens.
 
 ## Priority 3: Operational Reliability
 
-1. Expose `refresh_all_trip_weather()` through an authenticated admin command or remove it; do not leave two enrichment implementations drifting.
+1. Keep browser weather enrichment and backend proxy behavior covered by focused tests as either implementation changes.
 2. Add backup status/restore documentation and non-destructive restore tooling.
 3. Add health/readiness endpoints and structured logs for container operation.
 4. Pin third-party frontend assets or self-host Leaflet to reduce CDN dependency.

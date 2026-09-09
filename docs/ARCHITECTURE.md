@@ -43,10 +43,10 @@ Shared mutable globals couple these files. HTML IDs/classes are effectively inte
 
 - `logbook_store.py`: whole-document normalization, validation, and SQLite I/O.
 - `media_service.py`: upload paths, metadata sidecars, preview generation, references, gallery, orphans.
-- `weather_service.py`: allowlisted external proxies and an unexposed bulk-enrichment implementation.
+- `weather_service.py`: allowlisted external weather, marine, and astronomy proxies.
 - `backend_config.py`: paths, defaults, units, media categories, external URLs, allowlists.
 
-The Flask development server runs threaded. There is no application-level lock around the read-modify-write JSON workflow.
+The Flask development server runs threaded. SQLite writes are transactional, but concurrent whole-logbook saves remain last-write-wins.
 
 ### Persistence
 

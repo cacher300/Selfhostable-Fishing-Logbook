@@ -11,8 +11,6 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8080
-      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
-      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/"]
       interval: 10s

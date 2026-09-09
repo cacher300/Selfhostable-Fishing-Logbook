@@ -1,22 +1,4 @@
 let state = structuredClone(defaults);
-const BOAT_LAYOUT_COLUMNS = 6;
-const BOAT_LAYOUT_ROWS = 10;
-const BOAT_LAYOUT_POINTS = Array.from({ length: BOAT_LAYOUT_ROWS }, (_, row) => {
-  const firstColumn = row === 0 ? 2 : row <= 2 ? 1 : 0;
-  const lastColumn = row === 0 ? 3 : row <= 2 ? 4 : BOAT_LAYOUT_COLUMNS - 1;
-  return Array.from({ length: lastColumn - firstColumn + 1 }, (_, offset) => ({
-    row,
-    column: firstColumn + offset
-  }));
-}).flat();
-const BOAT_LAYOUT_SLOT_LIMIT = BOAT_LAYOUT_POINTS.length;
-
-function boatLayoutPosition(slot) {
-  const point = BOAT_LAYOUT_POINTS[Number(slot)];
-  if (!point) return "Deck position";
-  const columnNames = ["Port rail", "Port outer", "Port inner", "Starboard inner", "Starboard outer", "Starboard rail"];
-  return `${columnNames[point.column]}, row ${point.row + 1}`;
-}
 let activeTripId = null;
 let activeSummaryTripId = null;
 let activeTripTimelineFilter = "all";

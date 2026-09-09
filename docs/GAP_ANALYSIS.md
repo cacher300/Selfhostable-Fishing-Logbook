@@ -18,7 +18,6 @@ Audit date: 2026-06-18. Findings are source-verified. “Verification Required�
 
 | Finding | Evidence | Status |
 |---|---|---|
-| Pattern Finder | README advertised it, but no route, markup, `patterns.js`, or event wiring exists; recent history says it was removed. | Deprecated documentation; stale `.patterns-*` CSS remains. |
 | Personal bests | No PB computation or screen despite length/weight fields. | Not implemented. |
 | Year-over-year historical comparisons | Trips can be filtered by year, but reports do not compare years. | Not implemented. |
 | Accounts, profiles, roles, permissions | No auth dependencies, routes, session logic, or data entities. | Not implemented. |
@@ -41,26 +40,21 @@ Audit date: 2026-06-18. Findings are source-verified. “Verification Required�
 
 | Finding | Evidence | Impact |
 |---|---|---|
-| Bulk backend weather refresh has no entry point. | `refresh_all_trip_weather()` has no route, CLI call, import, or cron reference. | Hidden code cannot be used without custom Python invocation. |
 | Browser and backend duplicate weather reduction logic. | Similar trip-window, trend, marine, astronomy, and catch enrichment implementations exist in JS and Python. | Drift risk; bulk refresh may not match interactive save. |
 | Settings/cleanup endpoints have no privilege boundary. | Every visitor can import/replace data and delete eligible media. | They function, but are unsafe on an untrusted network. |
-| Flask serves repository files through catch-all when they exist beneath root. | `/<path:filename>` is broad; ignored private data can exist under root. | `data/logbook.json` could be directly retrievable if requested because it is beneath root and exists. This is a critical privacy exposure. |
 
 ## Dead, Deprecated, or Unused Code
 
 | Finding | Evidence | Recommendation |
 |---|---|---|
-| Pattern page CSS | `.patterns-page`, header, toolbar, grid, and responsive rules remain without markup/script. | Remove after confirming no planned restoration. |
 | Legacy `tripTypes` | Deleted in both normalizers; no current producer/consumer. | Keep only as an explicit versioned migration, then retire when safe. |
-| Bulk weather “admin” helpers | Reachable only from uncalled bulk refresh routine. | Expose through a secured command with tests or remove. |
-| README claims removed Pattern Finder | Contradicts executable product. | Corrected by this audit. |
 
-No unused API route was found: all public API routes except `/api/export` are directly called by the UI or serve media/page requests; export is also wired. The bulk weather routine is unused code, not an API.
+No unused public API route was found; the current archive, media, weather, bathymetry, page, and static routes are wired or intentionally public.
 
 ## Missing Validation and Security Controls
 
 - No authentication, authorization, session handling, or CSRF protection.
-- Static catch-all can serve private files under the project root, including `data/logbook.json`; uploads already have explicit routes and the data document should be denied.
+- The `/static/` handler restricts extensions and stays beneath `static/`; keep this regression covered.
 - No Flask `MAX_CONTENT_LENGTH`; upload size is unbounded in application code.
 - File acceptance relies primarily on extension, with MIME used only as a fallback classifier; content is not malware-scanned.
 - No deep logbook schema validation, uniqueness checks, referential checks, or limits on arrays/text.
@@ -75,7 +69,7 @@ No unused API route was found: all public API routes except `/api/export` are di
 
 - No authoritative feature inventory.
 - No architecture, data model, API, development, roadmap, or gap document.
-- Existing README described a removed feature and omitted orphan-media cleanup, line-history detail, route/security caveats, and the hidden bulk weather routine.
+- The README and architecture docs describe the current SQLite-backed web app and archive workflow.
 - No documented schema version, migration policy, restore procedure, or security deployment baseline.
 
 ## Recommended Priorities
@@ -84,7 +78,7 @@ No unused API route was found: all public API routes except `/api/export` are di
 2. Add an authentication boundary or require/document authenticated reverse-proxy deployment; add CSRF and upload limits.
 3. Implement atomic locked writes and versioned deep schema validation before expanding features.
 4. Add automated tests around normalization, setup resolution, lost-vs-landed metrics, media references, and time/weather logic.
-5. Resolve the hidden bulk weather implementation and remove Pattern Finder residue.
+5. Keep legacy archive compatibility explicit and periodically prune migrations after a documented retention window.
 6. Decide product direction for catch quantity, natural bait, personal bests, and comparative seasonal reports.
 
 ## Potential Future Enhancements

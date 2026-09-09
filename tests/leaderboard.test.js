@@ -22,18 +22,6 @@ const gear = {
   }]
 };
 
-const layout = {
-  equipment: [
-    { id: "downrigger-template", name: "Cannon Optimum", type: "downrigger" },
-    { id: "holder-template", name: "Cisco Holder", type: "rod-holder" }
-  ],
-  items: [
-    { id: "port-rigger", equipmentId: "downrigger-template", slot: 4 },
-    { id: "starboard-rigger", equipmentId: "downrigger-template", slot: 7 },
-    { id: "center-holder", equipmentId: "holder-template", slot: 9 }
-  ]
-};
-
 const people = [
   { id: "alex", name: "Alex" },
   { id: "sam", name: "Sam" },
@@ -47,7 +35,6 @@ const trips = [
     gearUsed: [
       {
         id: "line-1",
-        boatItemId: "port-rigger",
         lureId: "silver-lure",
         flasherId: "chrome-flasher",
         rodId: "trolling-rod",
@@ -56,7 +43,6 @@ const trips = [
       },
       {
         id: "line-2",
-        boatItemId: "starboard-rigger",
         lureId: "green-lure",
         flasherId: "chrome-flasher",
         rodId: "trolling-rod",
@@ -80,7 +66,6 @@ const trips = [
     people: [people[1]],
     gearUsed: [{
       id: "line-3",
-      boatItemId: "starboard-rigger",
       lureId: "green-lure",
       flasherId: "chrome-flasher",
       rodId: "trolling-rod",
@@ -154,22 +139,12 @@ assert.equal(sam.catchesPerTrip, 1);
 
 context.state = {
   trips,
-  settings: { boatLayout: layout },
+  settings: {},
   ...gear,
   lures: [...gear.lures, { id: "photo-lure", name: "Photo Spoon" }]
 };
-context.normalizeBoatLayout = (value) => value;
 context.fishCount = () => 1;
 context.escapeHtml = (value) => String(value);
-
-const boatTemplateStats = vm.runInContext(
-  `gearPerformanceStats("boat-equipment", "downrigger-template")`,
-  context
-);
-assert.equal(boatTemplateStats.landed, 4);
-assert.equal(boatTemplateStats.lost, 2);
-assert.equal(boatTemplateStats.trips, 2);
-assert.equal(Math.round(boatTemplateStats.landingRate), 67);
 
 const lureTooltip = vm.runInContext(
   `gearStatsTooltipMarkup("lure", "photo-lure")`,

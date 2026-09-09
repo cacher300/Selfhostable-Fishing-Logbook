@@ -25,9 +25,13 @@ Required top-level JSON types:
 
 Success: `200 {"ok": true}`. Shape failure: `400 {"error": "..."}`. Validation is not recursive; see `DATA_MODEL.md`.
 
-### `GET /api/export`
+### `GET /api/archive`
 
-Returns normalized JSON as attachment `fishing-logbook.json`. Uploaded files are not embedded.
+Returns a portable ZIP archive containing the normalized logbook, manifest, and uploaded media.
+
+### `POST /api/archive`
+
+Imports a portable archive and replaces the current logbook and media after validation.
 
 ## Environmental Proxies
 
@@ -103,7 +107,3 @@ Files are served from their category paths. Category validation occurs through t
 - `/trips`, `/expeditions`, `/stats`, `/map`, `/gear`, `/gallery`, `/checklists`, `/settings` render `templates/index.html` and its feature partials.
 - `/static/<path:filename>` serves only `.css` and `.js` files beneath `static/`.
 - `/favicon.ico` returns 204.
-
-## Code-Only Service
-
-`refresh_all_trip_weather()` in `backend/weather_service.py` reads the logbook, refreshes every trip with request caches, records per-trip errors, and writes the result. It is not connected to HTTP, CLI, cron, or app startup and therefore is not a public API.
