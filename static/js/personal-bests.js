@@ -180,7 +180,7 @@ function personalBestMeasurementSummary(record) {
 }
 
 function personalBestImprovementText(record, previous) {
-  if (!previous) return "First measured best";
+  if (!previous) return "First personal best";
   const current = personalBestScore(record);
   const last = personalBestScore(previous);
   const weightDelta = current.weight !== null && last.weight !== null ? current.weight - last.weight : null;
@@ -210,16 +210,11 @@ function personalBestImprovementText(record, previous) {
 }
 
 function renderPersonalBestMetrics(items, records) {
-  const topFish = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best) > 0 ? item : best), null);
   const heaviest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best, "weight") > 0 ? item : best), null);
   const longest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best, "length") > 0 ? item : best), null);
   const newest = items.reduce((best, item) => (!best || personalBestDateValue(item) > personalBestDateValue(best) ? item : best), null);
-  const topMeasurement = activePersonalBestsFilters.rankBy === "length"
-    ? catchMeasurementText(topFish, "length") || catchMeasurementText(topFish, "weight")
-    : catchMeasurementText(topFish, "weight") || catchMeasurementText(topFish, "length");
   els.personalBestsMetricGrid.innerHTML = [
     ["Species With PBs", items.length],
-    ["Top PB", topFish ? `${topFish.species} ${topMeasurement}` : "-"],
     ["Heaviest PB", heaviest ? `${heaviest.species} ${catchMeasurementText(heaviest, "weight") || catchMeasurementText(heaviest, "length")}` : "-"],
     ["Longest PB", longest ? `${longest.species} ${catchMeasurementText(longest, "length") || catchMeasurementText(longest, "weight")}` : "-"],
     ["Newest PB", newest ? `${newest.species} ${formatDate(newest.trip?.date) || "Date not logged"}` : "-"]

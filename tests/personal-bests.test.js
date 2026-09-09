@@ -56,6 +56,7 @@ assert.equal(lakeTrout.milestones.length, 2);
 assert.deepEqual(lakeTrout.milestones.map((item) => item.record.weight), ["8", "10.5"]);
 assert.equal(walleye.milestones.length, 2);
 assert.deepEqual(walleye.milestones.map((item) => item.record.length || ""), ["", "23"]);
+assert.equal(context.personalBestImprovementText(lakeTrout.milestones[0].record, null), "First personal best");
 assert.equal(context.personalBestImprovementText(lakeTrout.milestones[1].record, lakeTrout.milestones[1].previous), "+2.5 lb");
 
 console.log("personal best progression tests passed");

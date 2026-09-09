@@ -157,7 +157,7 @@
 
 .personal-best-progression {
   display: grid;
-  gap: 14px;
+  gap: 18px;
 }
 
 .personal-best-progression-header {
@@ -169,7 +169,7 @@
 
 .personal-best-progression-header h4 {
   margin: 0;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1.2;
 }
 
@@ -184,17 +184,22 @@
 
 .personal-best-progression-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 360px));
+  align-items: start;
+  justify-content: start;
+  gap: 16px;
 }
 
 .personal-best-progression-card {
   display: grid;
-  gap: 14px;
+  align-self: start;
+  align-content: start;
+  gap: 16px;
   min-width: 0;
-  padding: 16px;
+  padding: 18px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-top: 3px solid var(--green);
+  border-radius: 12px;
   background: #fff;
   box-shadow: var(--shadow);
 }
@@ -204,6 +209,8 @@
   align-items: start;
   justify-content: space-between;
   gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
 }
 
 .personal-best-progression-card-head h5 {
@@ -261,7 +268,8 @@
 
 .personal-best-timeline-body {
   display: grid;
-  gap: 8px;
+  align-content: start;
+  gap: 6px;
   min-width: 0;
 }
 
