@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import math
 import subprocess
-from copy import deepcopy
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen

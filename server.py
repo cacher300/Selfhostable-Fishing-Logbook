@@ -35,7 +35,7 @@ def _relaunch_in_project_venv() -> None:
 
 _relaunch_in_project_venv()
 
-from flask import Flask, Response, abort, jsonify, render_template, request, send_file, send_from_directory
+from flask import Flask, Response, abort, jsonify, render_template, request, send_from_directory
 from werkzeug.utils import secure_filename
 
 from backend.backend_config import (
@@ -70,7 +70,6 @@ from backend.media_service import (
     create_upload_preview,
     delete_upload_file,
     extract_image_metadata,
-    cleanup_orphaned_uploads,
     orphaned_upload_items,
     read_upload_metadata,
     referenced_uploads,

@@ -1,6 +1,6 @@
 # Gap Analysis
 
-Audit date: 2026-06-18. Findings are source-verified. “Verification Required” means the code path exists but depends on runtime/external behavior not proven by static inspection.
+Audit date: 2026-09-09. Findings are source-verified. “Verification Required” means the code path exists but depends on runtime/external behavior not proven by static inspection.
 
 ## Partially Implemented Features
 
@@ -11,14 +11,12 @@ Audit date: 2026-06-18. Findings are source-verified. “Verification Required�
 | Seasonal analysis is month aggregation only. | Month Patterns exists; no season/year comparison engine. | Historical trend questions require manual filtering. | Add year/season comparison after measurement normalization. |
 | Local-file fallback is not offline feature parity. | localStorage works on `file:`, but upload/weather/gallery APIs do not. | Users may mistake it for a complete offline mode. | Label it fallback mode or implement a service worker and deferred sync. |
 | Routed navigation is one-way. | Direct URLs select a view, but nav buttons do not update history and there is no `popstate` listener. | Refresh/share/back behavior can disagree with the visible panel. | Synchronize panel changes with `pushState` and handle back/forward. |
-| JSON import validation is shallow. | Only several top-level arrays are type-checked. | Malformed nested data can enter persistence and break screens later. | Add versioned recursive validation and actionable errors. |
 | External environmental integrations are code-complete but environment-dependent. | Open-Meteo, SunriseSunset.io, CDN, and tile calls require network/provider behavior. | Weather/maps may fail outside tested networks or provider limits. | Add integration smoke tests and graceful-status monitoring. Verification Required. |
 
 ## Referenced but Not Implemented
 
 | Finding | Evidence | Status |
 |---|---|---|
-| Personal bests | No PB computation or screen despite length/weight fields. | Not implemented. |
 | Year-over-year historical comparisons | Trips can be filtered by year, but reports do not compare years. | Not implemented. |
 | Accounts, profiles, roles, permissions | No auth dependencies, routes, session logic, or data entities. | Not implemented. |
 | Notifications | No browser Notification API, email/SMS integration, notification entity, or scheduler. | Not implemented. |
@@ -40,7 +38,7 @@ Audit date: 2026-06-18. Findings are source-verified. “Verification Required�
 
 | Finding | Evidence | Impact |
 |---|---|---|
-| Browser and backend duplicate weather reduction logic. | Similar trip-window, trend, marine, astronomy, and catch enrichment implementations exist in JS and Python. | Drift risk; bulk refresh may not match interactive save. |
+| Browser and backend weather responsibilities are split. | The browser reduces weather data while Flask provides allowlisted upstream proxies. | Keep the proxy contract and browser reducer covered together. |
 | Settings/cleanup endpoints have no privilege boundary. | Every visitor can import/replace data and delete eligible media. | They function, but are unsafe on an untrusted network. |
 
 ## Dead, Deprecated, or Unused Code
@@ -53,33 +51,31 @@ No unused public API route was found; the current archive, media, weather, bathy
 
 ## Missing Validation and Security Controls
 
-- No authentication, authorization, session handling, or CSRF protection.
+- No authentication or authorization model; Flask sessions are used only for CSRF tokens.
 - The `/static/` handler restricts extensions and stays beneath `static/`; keep this regression covered.
 - No Flask `MAX_CONTENT_LENGTH`; upload size is unbounded in application code.
 - File acceptance relies primarily on extension, with MIME used only as a fallback classifier; content is not malware-scanned.
-- No deep logbook schema validation, uniqueness checks, referential checks, or limits on arrays/text.
-- JSON writes are not atomic, locked, or conflict-checked; concurrent saves can lose data.
-- Invalid JSON on disk silently falls back to defaults, which can hide corruption until a later write.
+- Recursive logbook validation, uniqueness checks, and coordinate/reference checks exist; array/text size limits and some field-level constraints remain limited.
+- SQLite writes are serialized and atomic within a transaction, but concurrent browser saves remain whole-document last-write-wins.
+- Missing or empty SQLite storage falls back to defaults; invalid stored data raises an error rather than silently resetting it.
 - Browser localStorage is updated before server persistence; a failed PUT creates divergent copies.
 - Queue delete is idempotent but does not report “not found,” reducing auditability.
 - Upstream proxy routes have no rate limiting or caching across HTTP requests.
 - Backup scripts and Docker deployment require host-specific verification; restore is not scripted.
 
-## Missing Documentation Before This Audit
+## Documentation Status
 
-- No authoritative feature inventory.
-- No architecture, data model, API, development, roadmap, or gap document.
-- The README and architecture docs describe the current SQLite-backed web app and archive workflow.
-- No documented schema version, migration policy, restore procedure, or security deployment baseline.
+- The repository now has feature inventory, architecture, data model, API, development, deployment, roadmap, and gap documents.
+- Schema version 1 and normalization-based compatibility handling are documented; there is no formal migration framework.
+- Backup and restore boundaries are documented, but a non-destructive restore workflow is not yet scripted.
 
 ## Recommended Priorities
 
-1. Block static serving of `data/`, `backups/`, dotfiles, and server source; add a regression test immediately.
-2. Add an authentication boundary or require/document authenticated reverse-proxy deployment; add CSRF and upload limits.
-3. Implement atomic locked writes and versioned deep schema validation before expanding features.
-4. Add automated tests around normalization, setup resolution, lost-vs-landed metrics, media references, and time/weather logic.
-5. Keep legacy archive compatibility explicit and periodically prune migrations after a documented retention window.
-6. Decide product direction for catch quantity, natural bait, personal bests, and comparative seasonal reports.
+1. Add an authentication boundary or require/document authenticated reverse-proxy deployment; add upload limits and rate limiting.
+2. Expand field-level limits and referential validation while preserving the atomic SQLite write path.
+3. Add automated tests around normalization, setup resolution, lost-vs-landed metrics, media references, and time/weather logic.
+4. Keep legacy archive compatibility explicit and periodically prune migrations after a documented retention window.
+5. Decide product direction for catch quantity, natural bait, and comparative seasonal reports.
 
 ## Potential Future Enhancements
 
@@ -87,7 +83,6 @@ No unused public API route was found; the current archive, media, weather, bathy
 - Year/season comparison with comparable effort and condition coverage.
 - Natural/live bait inventory and bait-specific presentation fields.
 - Restore workflow with backup integrity checks.
-- Secured maintenance command for all-trip weather refresh.
 - PWA/offline capture with conflict-aware synchronization.
 - Import preview/diff and dry-run validation.
 - Accessibility and large-dataset performance improvements.

@@ -140,18 +140,10 @@ assert.equal(sam.catchesPerTrip, 1);
 context.state = {
   trips,
   settings: {},
-  ...gear,
-  lures: [...gear.lures, { id: "photo-lure", name: "Photo Spoon" }]
+  ...gear
 };
 context.fishCount = () => 1;
 context.escapeHtml = (value) => String(value);
-
-const lureTooltip = vm.runInContext(
-  `gearStatsTooltipMarkup("lure", "photo-lure")`,
-  context
-);
-assert.match(lureTooltip, /equipment-stats-tooltip-name">Photo Spoon</);
-assert.match(lureTooltip, /Lure performance/);
 
 const filteredGearRows = vm.runInContext(
   `fishingGearLeaderboardRows(${JSON.stringify(trips)}, ${JSON.stringify(gear)}, {

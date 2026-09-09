@@ -90,7 +90,7 @@ logbook.json
 media/<category>/...
 ```
 
-Legacy JSON imports remain supported. A plain JSON export or database copy does not include uploaded media.
+Legacy JSON documents remain supported when they are included in a Fishing Logbook archive. A plain JSON export or database copy does not include uploaded media.
 
 The root `index.html` opens the generated `standalone.html` fallback when used directly from disk. That mode persists to browser storage and does not provide server uploads or server proxy features. Edit files under `templates/` and regenerate the fallback with `python scripts/build-standalone.py`; do not edit `standalone.html` by hand.
 
@@ -132,7 +132,7 @@ The GitLab pipeline also compiles the Python sources, smoke-tests the Flask serv
 backend/             Storage, media, security, weather, and lake services
 data/                Local database and uploaded media (not committed)
 docs/                Architecture, API, data model, deployment, and planning docs
-scripts/             Local launcher and standalone build tools
+scripts/             Backup, local launcher, and standalone build tools
 static/              Web JavaScript, CSS, vendor assets, and images
 templates/           Jinja application shell, views, and dialogs
 tests/               Python and Node test suites

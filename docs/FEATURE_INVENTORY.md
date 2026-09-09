@@ -1,6 +1,6 @@
 # Feature Inventory
 
-Audit date: 2026-06-18. This inventory is based only on executable code, markup, configuration, and scripts in this repository. The application has one effective role: **trusted logbook operator**. There are no accounts, roles, or permission checks.
+Audit date: 2026-09-09. This inventory is based only on executable code, markup, configuration, and scripts in this repository. The application has one effective role: **trusted logbook operator**. There are no accounts, roles, or permission checks.
 
 Status vocabulary:
 
@@ -95,8 +95,8 @@ Status vocabulary:
 | A17 | Condition analytics | Compare clarity, manual weather, wind, pressure, cloud, air temperature, sunshine, trends, fronts, moon phase/window. | Implemented | Conditions group | API coverage varies | `stats.js` | Trip/catch weather | None | Stats |
 | A18 | Sortable tables and charts | Sort analytics columns and switch supported cards among table, bar, stacked, grouped, donut, or line charts. | Implemented | Card controls/headers | Rendered stats rows | `stats.js`, `app.js` | Derived only | None | Stats |
 | A19 | Confidence/efficiency labels | Label observed performance and distinguish reliable samples, overuse, watch lists, and insufficient data. | Implemented | Stats cards and legend | Hours/trip thresholds | `stats.js`, `index.html` | Derived only | None | Stats |
-| A20 | Stats diagnostics | Detect missing setup time/details and provide deep links to affected trip/setup sections. | Implemented | Advanced Tables | Trip editor deep-link events | `stats.js`, `app.js` | Trips/gear/catches | None | Stats, Trip dialog |
-| A21 | Personal bests | No dedicated largest/heaviest/longest fish or PB report exists. | Not implemented | None | — | — | — | — | — |
+| A20 | Stats diagnostics | Detect missing setup time/details and provide deep links to affected trip/setup sections. | Not implemented | None | — | — | — | — | — |
+| A21 | Personal bests | Track and compare largest, heaviest, and longest landed fish with unit-aware filters and progressions. | Implemented | Personal Bests view | Trip catches and unit preferences | `personal-bests.js`, `app.js` | `trips[].catches[]` | GET `/api/logbook` | Personal Bests |
 | A22 | Historical/year-over-year comparisons | Year filtering exists on Trips, but there is no comparative historical report. | Not implemented | None | — | — | — | — | — |
 
 ## User Features and Preferences
@@ -118,7 +118,7 @@ Status vocabulary:
 | ID | Feature | Description / purpose | Status | Entry point and role | Data and dependencies | Related files | Database | API endpoints | Screens |
 |---|---|---|---|---|---|---|---|---|---|
 | D01 | Archive export/import | Transfer normalized logbook data and uploaded media in a portable ZIP archive. | Implemented | Settings > Backup/Import | SQLite and upload tree | `settings-core.js`, `server.py` | Entire logbook and media | GET/POST `/api/archive` | Settings |
-| D02 | JSON import | Parse, minimally shape-check, normalize, persist, and rerender imported data. | Implemented / Partial | Settings > Import JSON | Browser file reader; weak deep validation | `data-transfer.js`, `app-state.js` | Entire logbook | PUT `/api/logbook` | Settings |
+| D02 | Direct JSON import | Import a standalone JSON file directly from Settings. | Not implemented | None | JSON is accepted only as the logbook member inside a portable ZIP archive. | — | — | — | — |
 | D03 | Docker launch lifecycle | Stop old/current containers, rebuild, and launch Compose. | Implemented; host verification required | `launch-container.sh` | Docker Compose | Launcher/Compose files | Mounted `./data` | Port 80→8080 | None |
 | D04 | Location referential deletion guard | Refuse to delete locations/launches still used by trips. | Implemented | Settings manager delete buttons | Name/ID matching | `locations.js` | Trips/locations | PUT `/api/logbook` | Settings |
 | D05 | Gear referential cleanup | Deleting gear clears references from combos/trips/catches where coded. | Implemented | Gear delete actions | Client-side cascading updates | `gear-dialogs.js` | Gear and nested IDs | PUT `/api/logbook` | Gear |
@@ -130,42 +130,41 @@ Status vocabulary:
 | ID | Feature | Description / purpose | Status | Entry point and role | Data and dependencies | Related files | Database | API endpoints | Screens |
 |---|---|---|---|---|---|---|---|---|---|
 | T01 | SQLite persistence API | Read and replace the normalized logbook document. | Implemented | SPA load/save; unauthenticated | Flask and SQLite | `server.py`, `logbook_store.py` | `data/logbook.sqlite3` | GET/PUT `/api/logbook` | All |
-| T02 | JSON normalization | Merge defaults, sanitize settings/options/coordinates, migrate string locations, and merge people/locations from trips. | Implemented | Every read/write/import | No schema version | `logbook_store.py`, `app-state.js` | Entire document | GET/PUT logbook | All |
+| T02 | JSON normalization | Merge defaults, sanitize settings/options/coordinates, migrate string locations, and merge people/locations from trips. | Implemented | Every read/write/import | Schema version 1 | `logbook_store.py`, `app-state.js` | Entire document | GET/PUT logbook | All |
 | T03 | UUID/slug identity | Create browser UUIDs for records and deterministic slugs for migrated locations/options. | Implemented | Automatic | Web Crypto or fallback | `app-state.js`, `logbook_store.py` | IDs throughout | None | All edit workflows |
 | T04 | Weather proxy APIs | Allowlisted proxies for Open-Meteo archive and forecast requests. | Implemented | Browser weather workflow | Internet access | `server.py`, `weather_service.py` | None directly | GET archive/forecast | Trip workflow |
 | T05 | Marine proxy API | Allowlisted Open-Meteo Marine proxy. | Implemented | Browser weather workflow | Internet access | Same | None directly | GET `/api/weather/marine` | Trip workflow |
 | T06 | Astronomy proxy API | Allowlisted SunriseSunset.io proxy. | Implemented | Browser weather workflow | Internet access | Same | None directly | GET `/api/astronomy` | Trip workflow |
 | T07 | Media API | Validate categories/extensions, store UUID filenames/metadata, list, claim, serve, and delete files. | Implemented | Upload/gallery workflows | Flask, Pillow, filesystem | `server.py`, `media_service.py` | Upload tree | Upload/gallery/media routes | Media workflows |
 | T08 | SPA route serving | Render the same composed Jinja template at `/trips`, `/expeditions`, `/stats`, `/map`, `/gear`, `/gallery`, `/checklists`, and `/settings`; `/` selects the Trips view. | Implemented | Browser URL/nav | Flask template rendering | `server.py`, `templates/index.html`, `app.js` | None | Page routes | Routed screens |
-| T09 | Route-based initial view | Direct SPA routes select the matching initial view. In-page navigation does not update the URL and no `popstate` handler exists. | Partial | Direct URL or primary nav | `window.location.pathname` | `app.js` | None | Page routes | Six screens |
+| T09 | Route-based initial view | Direct SPA routes select the matching initial view. In-page navigation does not update the URL and no `popstate` handler exists. | Partial | Direct URL or primary nav | `window.location.pathname` | `app.js` | None | Page routes | All routed views |
 | T10 | Responsive/mobile layout | Reflow navigation, tables, dialogs, sidebar summary, maps, and settings for narrower screens. No native/PWA install exists. | Implemented | CSS media queries | Browser viewport | `styles.css`, `app.js` | None | None | All |
 | T11 | No-store responses | Add `Cache-Control: no-store` to every Flask response. | Implemented | Automatic | Flask response hook | `server.py` | None | All server routes | All |
 | T12 | Environment configuration | Configure bind host/port through environment variables. | Implemented | Process/shell environment | Host process | `backend_config.py`, scripts, Compose | None | None | None |
-| T13 | Backend bulk weather refresh | Refresh every trip with request caching and per-trip error continuation. No route, CLI, schedule, or caller exposes it. | Hidden / Incomplete | Code only | External weather APIs | `weather_service.py` | Mutates all trip weather | None | None |
 | T15 | Deprecated `tripTypes` cleanup | Both normalizers delete a legacy `tripTypes` property. | Hidden / Deprecated | Automatic normalization | Legacy imported JSON | `app-state.js`, `logbook_store.py` | Removes top-level field | GET/PUT logbook | None |
 | T16 | Offline/PWA | No service worker, web manifest, cache strategy, IndexedDB, or background sync. Local-file fallback is not full offline parity. | Not implemented | None | — | — | — | — | — |
 | T17 | Feature flags | No feature-flag framework or environment-controlled product toggles. | Not implemented | None | — | — | — | — | — |
-| T18 | Database migrations | No relational database or migration framework. Compatibility changes are performed during JSON normalization. | Not implemented | None | — | — | — | — | — |
+| T18 | Database migrations | SQLite is the relational database, but no formal migration framework exists; compatibility changes are performed during document normalization. | Not implemented | None | — | — | — | — | — |
 
 ## Inventory Totals
 
-- Verified implemented, partial, hidden, or deprecated capabilities: **92**.
-- Core fishing workflow capabilities: **32**.
+- Verified implemented, partial, hidden, or deprecated capabilities: **91**.
+- Core fishing workflow capabilities: **34**.
 - Media, map, and environmental capabilities: **15**.
 - Analytics capabilities counted: **20** (excluding two explicitly absent reports).
 - User/preferences capabilities counted: **5**.
-- Administrative/data-management capabilities counted: **7**.
-- Technical capabilities counted: **15**.
+- Administrative/data-management capabilities counted: **4**.
+- Technical capabilities counted: **13**.
 
-These six mutually exclusive sections total 92. ?Not implemented? rows are retained for audit completeness but excluded from the feature count.
+These six mutually exclusive sections contain 103 rows. “Not implemented” rows are retained for audit completeness but excluded from the verified capability count.
 ## Inventory Totals
 
-- Verified implemented, partial, hidden, or deprecated capabilities: **92**.
-- Core fishing workflow capabilities: **32**.
+- Verified implemented, partial, hidden, or deprecated capabilities: **91**.
+- Core fishing workflow capabilities: **34**.
 - Media, map, and environmental capabilities: **15**.
 - Analytics capabilities counted: **20** (excluding two explicitly absent reports).
 - User/preferences capabilities counted: **5**.
-- Administrative/data-management capabilities counted: **7**.
-- Technical capabilities counted: **15**.
+- Administrative/data-management capabilities counted: **4**.
+- Technical capabilities counted: **13**.
 
-These six mutually exclusive sections total 94. “Not implemented” rows are retained for audit completeness but excluded from the feature count.
+These six mutually exclusive sections contain 103 rows. “Not implemented” rows are retained for audit completeness but excluded from the verified capability count.

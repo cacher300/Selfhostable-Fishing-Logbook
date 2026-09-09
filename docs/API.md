@@ -6,7 +6,7 @@ Base URL defaults to `http://127.0.0.1:8080`. Application, API, and upload route
 
 ### `GET /api/logbook`
 
-Returns the complete normalized logbook JSON document. A missing or malformed data file returns normalized defaults rather than an HTTP error.
+Returns the complete normalized logbook JSON document reconstructed from SQLite. A missing or empty database returns normalized defaults; invalid stored data returns a server error.
 
 ### `PUT /api/logbook`
 
@@ -23,7 +23,7 @@ Required top-level JSON types:
 - `spots`, when present, must be an array of uniquely identified/named records with valid coordinates and a radius from 25 through 10,000 meters.
 - `expeditions`, when present, must be an array of uniquely identified records with a name and ordered ISO start/end dates.
 
-Success: `200 {"ok": true}`. Shape failure: `400 {"error": "..."}`. Validation is not recursive; see `DATA_MODEL.md`.
+Success: `200 {"ok": true}`. Shape failure: `400 {"error": "..."}`. Validation recursively checks JSON values and known nested record structures; see `DATA_MODEL.md`.
 
 ### `GET /api/archive`
 
@@ -103,7 +103,6 @@ Files are served from their category paths. Category validation occurs through t
 
 ## SPA and Static Routes
 
-- `/` redirects to `/trips`.
-- `/trips`, `/expeditions`, `/stats`, `/map`, `/gear`, `/gallery`, `/checklists`, `/settings` render `templates/index.html` and its feature partials.
+- `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, and `/settings` render `templates/index.html` and its feature partials. `/` selects the Trips view.
 - `/static/<path:filename>` serves only `.css` and `.js` files beneath `static/`.
 - `/favicon.ico` returns 204.

@@ -14,7 +14,7 @@ flowchart LR
   Flask --> OM["Open-Meteo APIs"]
   Flask --> SS["SunriseSunset.io"]
   Browser --> Tiles["Leaflet/OpenStreetMap tiles"]
-  Backup["Host cron backup"] --> JSON
+  Backup["Host cron backup"] --> SQLite
   Backup --> Media
   Backup --> NAS["Optional NAS target"]
 ```
@@ -52,7 +52,7 @@ The Flask development server runs threaded. SQLite writes are transactional, but
 
 The application stores its logbook in `data/logbook.sqlite3`. Top-level collections such as `lures`, `locations`, and `trips` are individual SQLite rows with ordered JSON payloads, preserving their nested setup, catches, people references, weather snapshots, and media references.
 
-Media files are stored separately by category. Each file may have `<filename>.json` metadata and `_previews/<stem>.jpg`. JSON export does not include the binaries.
+Media files are stored separately by category. Each file may have `<filename>.json` metadata and `_previews/<stem>.jpg`. Archive export includes the normalized logbook and media binaries in one ZIP.
 
 ## Request and State Flows
 
@@ -84,14 +84,14 @@ When opened via `file:`, step 5 stops after localStorage. This is fallback persi
 
 ## Routing
 
-Flask serves the same SPA at `/trips`, `/expeditions`, `/stats`, `/map`, `/gear`, `/gallery`, and `/settings`; `/` redirects to `/trips`. The initial view is selected from `window.location.pathname`. In-page navigation only toggles panels: it does not update the URL or handle back/forward navigation. A catch-all serves repository static files after resolving and checking the requested path beneath the project root.
+Flask serves the same SPA at `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, and `/settings`. The initial view is selected from `window.location.pathname`; `/` selects Trips. In-page navigation only toggles panels: it does not update the URL or handle back/forward navigation. Static files are served only through the restricted `/static/<path>` route.
 
 ## Security and Trust Boundary
 
 All routes are unauthenticated. Any network client that can reach the process can read/replace the complete logbook, upload files, enumerate media, and delete eligible files. The intended boundary is the host or a trusted network/reverse proxy.
 
-Current protections are limited to path resolution, `secure_filename`, upload-category and extension allowlists, coordinate/date checks on proxies, and a referenced-media deletion guard. There is no account/session model, CSRF protection, rate limiting, content-size cap, or per-record authorization.
+Current protections include session-backed CSRF tokens for mutations, path resolution, `secure_filename`, upload-category and extension allowlists, coordinate/date checks on proxies, and a referenced-media deletion guard. There is no account/authorization model, rate limiting, or application-level content-size cap.
 
 ## Deployment and Automation
 
-Local Python defaults to `127.0.0.1:8080`. Docker uses `0.0.0.0:8080`, publishes port 80, mounts `./data`, and restarts unless stopped. Host scripts can install a nightly cron job and mirror JSON/media to local and optional NAS storage. No in-process background worker or scheduler exists.
+Local Python defaults to `127.0.0.1:8080`. Docker uses `0.0.0.0:8080`, publishes port 80, mounts `./data`, and restarts unless stopped. The optional host backup script can install a nightly cron job and mirror SQLite/media to local and optional NAS storage. No in-process background worker or scheduler exists.

@@ -5,13 +5,13 @@ This roadmap is derived from verified code gaps, not from assumed product commit
 ## Priority 0: Protect Private Data
 
 1. Add authentication or document a supported reverse-proxy authentication configuration; bind Docker safely by default.
-2. Add CSRF protection for mutations, upload-size limits, rate limiting, and stronger upload content validation.
-3. Make JSON writes atomic and serialized; add backup/restore verification before considering concurrent users.
+2. Add upload-size limits, rate limiting, and stronger upload content validation.
+3. Add backup/restore verification; SQLite writes are already atomic and serialized, but concurrent browser saves remain last-write-wins.
 
 ## Priority 1: Establish Schema and Quality Guardrails
 
-1. Introduce a schema version and explicit migrations for the JSON document.
-2. Add recursive server validation for trips, nested records, IDs, coordinates, units, and references.
+1. Define an explicit migration policy for the existing schema version and compatibility fields.
+2. Expand server validation limits and referential checks for trips, nested records, IDs, coordinates, and units.
 3. Add automated tests for normalization, overnight time logic, setup resolution, landed-vs-lost totals, media references, and proxy validation.
 4. Add a browser smoke suite for trip CRUD, trolling setup/catches, queue assignment, and settings.
 
@@ -19,13 +19,12 @@ This roadmap is derived from verified code gaps, not from assumed product commit
 
 1. Decide whether imported catch `quantity` should gain a UI control or be rejected/normalized away.
 2. Add a dedicated natural/live bait model if “Baits” is intended to cover more than lures.
-3. Add personal-best reports for length and weight with unit-aware comparisons.
-4. Add year-over-year/season comparison reports and explicit success-rate definitions.
-5. Keep the existing pattern-combination tables aligned with the current personal-best and analytics screens.
+3. Add year-over-year/season comparison reports and explicit success-rate definitions.
+4. Keep the existing pattern-combination tables aligned with the current personal-best and analytics screens.
 
 ## Priority 3: Operational Reliability
 
-1. Keep browser weather enrichment and backend proxy behavior covered by focused tests as either implementation changes.
+1. Keep browser weather enrichment and backend proxy behavior covered by focused tests as either side changes.
 2. Add backup status/restore documentation and non-destructive restore tooling.
 3. Add health/readiness endpoints and structured logs for container operation.
 4. Pin third-party frontend assets or self-host Leaflet to reduce CDN dependency.

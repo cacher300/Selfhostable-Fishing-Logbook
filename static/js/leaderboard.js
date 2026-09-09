@@ -242,57 +242,6 @@ function leaderboardLinkedGearCatches(trips) {
   }, 0), 0);
 }
 
-function leaderboardSummaryMarkup(gearRows, anglerRows, trips) {
-  const landed = trips.reduce(
-    (total, trip) => total + (trip.catches || []).reduce(
-      (tripTotal, record) => tripTotal + (typeof fishCount === "function" ? fishCount(record) : 1),
-      0
-    ),
-    0
-  );
-  const lost = trips.reduce((total, trip) => total + (trip.lostFish || []).length, 0);
-  const linkedCatches = leaderboardLinkedGearCatches(trips);
-  const topGear = gearRows.find((row) => row.landed > 0);
-  const topAngler = anglerRows.find((row) => row.landed > 0);
-  const cards = [
-    {
-      label: "Landing rate",
-      value: leaderboardPercent(leaderboardRate(landed, lost)),
-      detail: `${landed} landed · ${lost} lost`
-    },
-    {
-      label: "Gear attributed",
-      value: landed ? leaderboardPercent((linkedCatches / landed) * 100) : "0%",
-      detail: `${linkedCatches} of ${landed} catches`
-    },
-    {
-      label: "Top fishing gear",
-      value: topGear?.name || "No leader yet",
-      detail: topGear ? `${topGear.landed} catches · ${leaderboardPercent(topGear.landingRate)} landed` : "Link fishing gear to setup lines"
-    },
-    {
-      label: "Top angler",
-      value: topAngler?.name || "No leader yet",
-      detail: topAngler ? `${topAngler.landed} catches · ${leaderboardPercent(topAngler.landingRate)} landed` : "Assign catches to start"
-    }
-  ];
-  return cards.map((card) => `
-    <article class="leaderboard-summary-card">
-      <span>${escapeHtml(card.label)}</span>
-      <strong>${escapeHtml(card.value)}</strong>
-      <small>${escapeHtml(card.detail)}</small>
-    </article>
-  `).join("");
-}
-
-function gearStatsTargetAttributes(type, id, { focusable = true } = {}) {
-  return [
-    `data-gear-stats-type="${escapeHtml(type)}"`,
-    `data-gear-stats-id="${escapeHtml(id)}"`,
-    focusable ? 'tabindex="0"' : ""
-  ].filter(Boolean).join(" ");
-}
-
 function gearPerformanceStats(type, id, trips = state.trips) {
   const fieldByType = {
     lure: "lureId",
@@ -362,110 +311,6 @@ function gearPerformanceStats(type, id, trips = state.trips) {
   };
 }
 
-function gearStatsItemName(type, id) {
-  const itemId = String(id || "");
-  const collections = {
-    lure: state.lures,
-    flasher: state.flashers,
-    rod: state.rods,
-    reel: state.reels,
-    combo: state.rodReelCombos
-  };
-  const item = (collections[type] || []).find((entry) => String(entry.id) === itemId);
-  if (type === "combo" && item) {
-    return typeof comboName === "function"
-      ? comboName(item.id)
-      : String(item.shortName || "Rod and reel combo");
-  }
-  if (item) {
-    return String(item.name || item.shortName || item.model || item.brand || "").trim();
-  }
-  return "";
-}
-
-function gearStatsTooltipMarkup(type, id) {
-  const stats = gearPerformanceStats(type, id);
-  const itemName = gearStatsItemName(type, id);
-  const typeLabel = {
-    lure: "Lure performance",
-    flasher: "Flasher performance",
-    rod: "Rod performance",
-    reel: "Reel performance",
-    combo: "Combo performance"
-  }[type] || "Equipment performance";
-  return `
-    ${itemName ? `<strong class="equipment-stats-tooltip-name">${escapeHtml(itemName)}</strong>` : ""}
-    <span class="equipment-stats-tooltip-kicker">${escapeHtml(typeLabel)}</span>
-    <div class="equipment-stats-tooltip-grid">
-      <div><strong>${stats.landed}</strong><span>Landed</span></div>
-      <div><strong>${stats.lost}</strong><span>Lost</span></div>
-      <div><strong>${leaderboardPercent(stats.landingRate)}</strong><span>Landing rate</span></div>
-      <div><strong>${leaderboardPercent(stats.catchShare)}</strong><span>Catch share</span></div>
-      <div><strong>${leaderboardDecimal(stats.catchesPerTrip)}</strong><span>Catches / trip</span></div>
-      <div><strong>${stats.trips}</strong><span>Trips</span></div>
-    </div>
-    <span class="equipment-stats-tooltip-foot">${stats.lastUsed ? `Last used ${escapeHtml(formatDate(stats.lastUsed))}` : "No recorded use yet"}</span>
-  `;
-}
-
-function equipmentStatsTooltip() {
-  let tooltip = document.querySelector("#equipmentStatsTooltip");
-  if (tooltip) return tooltip;
-  document.body.insertAdjacentHTML("beforeend", '<div class="equipment-stats-tooltip" id="equipmentStatsTooltip" role="tooltip" hidden></div>');
-  return document.querySelector("#equipmentStatsTooltip");
-}
-
-function positionEquipmentStatsTooltip(tooltip, target, event) {
-  const targetRect = target.getBoundingClientRect();
-  const tooltipRect = tooltip.getBoundingClientRect();
-  const preferredX = event?.clientX || targetRect.left + targetRect.width / 2;
-  const preferredY = event?.clientY || targetRect.bottom;
-  const left = Math.max(10, Math.min(window.innerWidth - tooltipRect.width - 10, preferredX + 14));
-  const below = preferredY + 14;
-  const top = below + tooltipRect.height <= window.innerHeight - 10
-    ? below
-    : Math.max(10, preferredY - tooltipRect.height - 14);
-  tooltip.style.left = `${left}px`;
-  tooltip.style.top = `${top}px`;
-}
-
-function showEquipmentStatsTooltip(target, event) {
-  const tooltip = equipmentStatsTooltip();
-  tooltip.innerHTML = gearStatsTooltipMarkup(target.dataset.gearStatsType, target.dataset.gearStatsId);
-  tooltip.hidden = false;
-  target.setAttribute("aria-describedby", tooltip.id);
-  positionEquipmentStatsTooltip(tooltip, target, event);
-}
-
-function hideEquipmentStatsTooltip(target) {
-  const tooltip = document.querySelector("#equipmentStatsTooltip");
-  if (tooltip) tooltip.hidden = true;
-  target?.removeAttribute("aria-describedby");
-}
-
-function bindEquipmentStatsTooltip() {
-  document.addEventListener("pointerover", (event) => {
-    const target = event.target.closest("[data-gear-stats-type]");
-    if (!target || target.contains(event.relatedTarget)) return;
-    showEquipmentStatsTooltip(target, event);
-  });
-  document.addEventListener("pointerout", (event) => {
-    const target = event.target.closest("[data-gear-stats-type]");
-    if (!target || target.contains(event.relatedTarget)) return;
-    hideEquipmentStatsTooltip(target);
-  });
-  document.addEventListener("focusin", (event) => {
-    const target = event.target.closest("[data-gear-stats-type]");
-    if (target) showEquipmentStatsTooltip(target);
-  });
-  document.addEventListener("focusout", (event) => {
-    const target = event.target.closest("[data-gear-stats-type]");
-    if (target && !target.contains(event.relatedTarget)) hideEquipmentStatsTooltip(target);
-  });
-  window.addEventListener("scroll", () => hideEquipmentStatsTooltip(), true);
-  window.addEventListener("resize", () => hideEquipmentStatsTooltip());
-}
-
 function renderStatsLeaderboard(trips = state.trips, recordFilter = () => true) {
   const rodContainer = document.querySelector("#statsRodLeaderboard");
   const reelContainer = document.querySelector("#statsReelLeaderboard");
@@ -502,6 +347,5 @@ function renderStatsLeaderboard(trips = state.trips, recordFilter = () => true) 
 }
 
 if (typeof document !== "undefined") {
-  bindEquipmentStatsTooltip();
   bindLeaderboardPreviews();
 }

@@ -502,73 +502,6 @@ function fishShareRows(items) {
   ]);
 }
 
-function statsDiagnosticRows(groups, trips, trollingGear, trollingCatches) {
-  const rows = [];
-  groups.forEach((group) => {
-    if (group.diagnostic === false) return;
-    (group.items || []).forEach((item) => {
-      if (item.fish > 0 && !item.hasUsableTime) {
-        rows.push([group.label, item.name, "Fish with no usable category time", `${item.fish} fish / ${item.trips} trips`, ""]);
-      } else if (item.trips > 0 && item.hasTimeSample && !item.hasUsableTime) {
-        rows.push([group.label, item.name, "Trips logged but hours are 0", `${item.trips} trips`, ""]);
-      }
-    });
-  });
-
-  trips.forEach((trip) => {
-    const tripTime = tripHours(trip);
-    const tripAction = diagnosticTripAction(trip, "Edit setup", "tripSetupSection");
-    const setupRows = trip.gearUsed || [];
-    const lineMinutes = setupRows.reduce((sum, record) => sum + setupLineMinutes(record), 0);
-    if (tripTime > 0 && (trip.gearUsed || []).length && lineMinutes === 0) {
-      rows.push(["Trip setup time", trip.title || formatDate(trip.date) || trip.id, "Trip has hours but setup rows have no time", `${trimNumber(tripTime)} trip hr`, tripAction]);
-    }
-    const longSetupRows = setupRows.filter((record) => setupLineMinutes(record) > tripTime * 60 * 1.25);
-    longSetupRows.forEach((record) => {
-      const label = setupLineDisplayLabel(trip, record) || presentationLabel(record.presentation) || "Setup row";
-      rows.push([
-        "Trip setup time",
-        trip.title || formatDate(trip.date) || trip.id,
-        "Setup row is longer than trip",
-        `${label}: ${minutesToHours(setupLineMinutes(record))} setup / ${trimNumber(tripTime)} trip hr`,
-        diagnosticTripAction(trip, "Edit setup", "tripSetupSection", record.id)
-      ]);
-    });
-    const maxExpected = tripTime * 60 * Math.max(1, setupRows.length);
-    if (tripTime > 0 && !longSetupRows.length && lineMinutes > maxExpected * 1.25) {
-      rows.push(["Trip setup time", trip.title || formatDate(trip.date) || trip.id, "Setup line-hours exceed trip time by more than expected", `${minutesToHours(lineMinutes)} setup / ${trimNumber(tripTime)} trip hr`, tripAction]);
-    }
-  });
-
-  trollingCatches.forEach((record) => {
-    const line = record.setupLineId ? trollingGear.find((item) => item.id === record.setupLineId) : null;
-    if (!line) return;
-    const tripAction = diagnosticTripAction(record.trip, "Edit setup", "tripSetupSection");
-    [["Trolling method", (item) => presentationLabel(item.presentation)]].forEach(([label, keyFn]) => {
-      const catchKey = keyFn(record);
-      const lineKey = keyFn(line);
-      if (catchKey && lineKey && catchKey !== lineKey) {
-        rows.push([label, catchKey, "Catch value disagrees with setup row", `Setup row says ${lineKey}`, tripAction]);
-      }
-      if (catchKey && !lineKey && setupLineMinutes(line) > 0) {
-        rows.push([label, catchKey, "Catch has category but setup row is missing it", `${minutesToHours(setupLineMinutes(line))} available on setup row`, tripAction]);
-      }
-    });
-  });
-
-  return rows;
-}
-
-function diagnosticTripAction(trip, label = "Open", sectionId = "", setupId = "") {
-  if (!trip?.id) return "";
-  const sectionAttr = sectionId ? ` data-trip-section="${escapeHtml(sectionId)}"` : "";
-  const setupAttr = setupId ? ` data-setup-id="${escapeHtml(setupId)}"` : "";
-  return {
-    text: label,
-    html: `<button class="button secondary compact-action" type="button" data-edit-trip="${escapeHtml(trip.id)}"${sectionAttr}${setupAttr}>${escapeHtml(label)}</button>`
-  };
-}
-
 function saneStatsNumber(value, { min = -Infinity, max = Infinity } = {}) {
   if (value === null || value === undefined || String(value).trim() === "") return null;
   const parsed = parseFirstNumber(value);
@@ -744,29 +677,6 @@ function summarizeThermoclinePosition(records) {
   return [...groups.entries()].filter(([, item]) => item.fish).map(([label, item]) => [
     label, item.fish, item.trips.size, formatPercent(item.fish, total)
   ]);
-}
-
-function statsCoverageRows(trips, records, gearRecords) {
-  const coverage = (label, matching, total, note) => [
-    label,
-    matching,
-    total,
-    formatPercent(matching, total),
-    note
-  ];
-  const validGps = records.filter((record) => saneStatsNumber(record.gpsSpeed || record.speed, { min: 0.1, max: 15 }) !== null).length;
-  const validBall = records.filter((record) => saneStatsNumber(record.ballSpeed, { min: 0.1, max: 15 }) !== null).length;
-  const spreadRows = gearRecords.filter((record) => record.source === "trip");
-  const validDistance = spreadRows.filter((record) => saneStatsNumber(record.distanceBehind, { min: 0, max: 1000 }) !== null).length;
-  const probeTrips = trips.filter((trip) => probeProfileEntries(trip).length >= 2).length;
-  const shakerTagged = records.filter((record) => Object.prototype.hasOwnProperty.call(record, "shaker")).length;
-  return [
-    coverage("GPS speed", validGps, records.length, "Catch records with usable GPS speed"),
-    coverage("Ball speed", validBall, records.length, "Catch records with usable probe speed"),
-    coverage("Shaker status", shakerTagged, records.length, "Catch records explicitly carrying shaker status"),
-    coverage("Distance behind", validDistance, spreadRows.length, "Timed setup rows with spread distance"),
-    coverage("Probe profile", probeTrips, trips.length, "Trips with at least two valid depth samples")
-  ];
 }
 
 function statsTripTrendRows(trips) {

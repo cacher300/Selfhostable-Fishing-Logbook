@@ -2,22 +2,18 @@ from __future__ import annotations
 
 import json
 import math
-from copy import deepcopy
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .backend_config import (
     ASTRONOMY_QUERY_KEYS,
-    DEFAULT_UNITS,
     MARINE_HOURLY_FIELDS,
     MARINE_QUERY_KEYS,
     OPEN_METEO_ARCHIVE_URL,
     OPEN_METEO_FORECAST_URL,
     OPEN_METEO_MARINE_URL,
     SUNRISE_SUNSET_URL,
-    WEATHER_DAILY_FIELDS,
-    WEATHER_HOURLY_FIELDS,
     WEATHER_QUERY_KEYS,
 )
 

@@ -31,7 +31,7 @@ docker compose down
 - `backend/backend_config.py`: paths, defaults, units, media and proxy constants.
 - `backend/logbook_store.py`: normalization, validation, SQLite I/O.
 - `backend/media_service.py`: uploads, previews, gallery, reference/orphan handling.
-- `backend/weather_service.py`: proxy and weather reduction helpers.
+- `backend/weather_service.py`: allowlisted weather, marine, and astronomy proxy helpers.
 - `templates/index.html` and `templates/partials/`: server-rendered shell, screens, dialogs, and row templates.
 - `index.html` and `standalone.html`: direct-file bootstrap and generated localStorage fallback.
 - `static/js/`: global browser scripts by concern.

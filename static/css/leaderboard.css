@@ -286,88 +286,6 @@
   line-height: 1.5;
 }
 
-.equipment-stats-tooltip {
-  position: fixed;
-  z-index: 1200;
-  width: min(330px, calc(100vw - 20px));
-  padding: 13px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--panel);
-  box-shadow: 0 18px 44px rgba(7, 21, 46, 0.2);
-  pointer-events: none;
-  animation: equipment-tooltip-in 140ms ease-out both;
-}
-
-.equipment-stats-tooltip-kicker,
-.equipment-stats-tooltip-foot {
-  display: block;
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.equipment-stats-tooltip-name {
-  display: block;
-  margin-bottom: 3px;
-  overflow: hidden;
-  color: var(--text);
-  font-size: 14px;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.equipment-stats-tooltip-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 9px;
-  margin: 11px 0;
-}
-
-.equipment-stats-tooltip-grid > div {
-  min-width: 0;
-  padding: 8px;
-  border-radius: 6px;
-  background: var(--panel-soft);
-}
-
-.equipment-stats-tooltip-grid strong,
-.equipment-stats-tooltip-grid span {
-  display: block;
-}
-
-.equipment-stats-tooltip-grid strong {
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-}
-
-.equipment-stats-tooltip-grid span {
-  margin-top: 2px;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 9px;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-[data-gear-stats-type] {
-  cursor: help;
-}
-
-.inventory-table tr[data-gear-stats-type]:hover td,
-.inventory-table tr[data-gear-stats-type]:focus-visible td {
-  background: var(--panel-soft);
-}
-
-.inventory-table tr[data-gear-stats-type]:focus-visible {
-  outline: 3px solid var(--green);
-  outline-offset: -3px;
-}
-
 .stats-leaderboard {
   display: grid;
   gap: 14px;
@@ -468,17 +386,6 @@
 
 .stats-leaderboard-board .leaderboard-empty {
   min-height: 150px;
-}
-
-@keyframes equipment-tooltip-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
 }
 
 @keyframes leaderboard-row-in {
@@ -587,7 +494,4 @@
     transition: none;
   }
 
-  .equipment-stats-tooltip {
-    animation: none;
-  }
 }
