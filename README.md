@@ -8,6 +8,7 @@ Fishing Logbook works for general trip records and has deeper support for trolli
 
 - Record trips, catches, lost fish, anglers, notes, launches, fishing spots, structures, and media.
 - Group trips into expeditions and review trip summaries, timelines, maps, reports, and shareable views.
+- Maintain reusable preparation checklists.
 - Manage lures, flashers, rods, reels, combos, line history, tackle boxes, and an optional boat layout.
 - Track trolling setups over time and connect each fish to the line and presentation that produced it.
 - Compare performance through filters, charts, personal bests, leaderboards, and data-quality diagnostics.

@@ -14,6 +14,7 @@ const context = {
 
 vm.createContext(context);
 vm.runInContext(fs.readFileSync("static/js/stats-scope.js", "utf8"), context);
+vm.runInContext(fs.readFileSync("static/js/stats-analytics.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/stats-performance.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/stats.js", "utf8"), context);
 
@@ -38,5 +39,12 @@ const thermocline = context.tripThermoclineDepth({
   ]
 });
 assert.equal(thermocline, 30);
+
+const riggerPositions = context.summarizeDownriggerCatchPositions([
+  { presentation: "Downrigger", deepestRigger: true, trip: { id: "rigger" } },
+  { presentation: "Cheater", deepestRigger: false, trip: { id: "cheater" } }
+], [], 2);
+assert.deepEqual(riggerPositions.map((item) => item.name), ["Deepest rigger"]);
+assert.equal(riggerPositions[0].fish, 1);
 
 console.log("new stats field tests passed");

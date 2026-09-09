@@ -246,8 +246,9 @@ function normalizeState(nextState) {
       ? (location.launches || []).find((item) => item.id === trip.launchId)
         || (location.launches || []).find((item) => item.name.toLowerCase() === String(trip.launch || "").trim().toLowerCase())
       : null;
+    const { checklist: deprecatedChecklist, ...cleanTrip } = trip;
     return {
-      ...trip,
+      ...cleanTrip,
       isDraft: Boolean(trip.isDraft),
       launchTime: trip.launchTime || "",
       linesSetTime: trip.linesSetTime || trip.startTime || "",
@@ -386,10 +387,61 @@ function normalizeSettings(settings = {}) {
     normalized.defaultTrollingSpreads,
     normalized.defaultTrollingSpread
   );
+  delete normalized.spreadTemplates;
+  normalized.checklists = normalizeChecklists(normalized.checklists);
+  delete normalized.tripTemplates;
   normalized.boatLayout = normalizeBoatLayout(normalized.boatLayout);
   normalized.tackleBoxes = normalizeTackleBoxes(normalized.tackleBoxes);
   normalized.privatePhotoLocations = normalizePrivatePhotoLocations(normalized.privatePhotoLocations);
   return normalized;
+}
+
+function uniqueNormalizedName(baseName, usedNames, maxLength = 60) {
+  const safeBase = String(baseName || "").slice(0, maxLength);
+  let name = safeBase;
+  let suffix = 2;
+  while (usedNames.has(name.toLowerCase())) {
+    const suffixText = ` (${suffix++})`;
+    name = `${safeBase.slice(0, Math.max(1, maxLength - suffixText.length))}${suffixText}`;
+  }
+  usedNames.add(name.toLowerCase());
+  return name;
+}
+
+function normalizeChecklistItems(items = []) {
+  const usedIds = new Set();
+  return (Array.isArray(items) ? items : [])
+    .map((item) => typeof item === "string" ? { label: item } : item)
+    .filter((item) => item && typeof item === "object")
+    .map((item) => {
+      let id = String(item.id || createId()).trim() || createId();
+      if (usedIds.has(id)) id = createId();
+      usedIds.add(id);
+      return {
+        id,
+        label: String(item.label || "").trim().slice(0, 120),
+        done: Boolean(item.done)
+      };
+    })
+    .filter((item) => item.label);
+}
+
+function normalizeChecklists(checklists = []) {
+  const usedIds = new Set();
+  const usedNames = new Set();
+  return (Array.isArray(checklists) ? checklists : [])
+    .filter((checklist) => checklist && typeof checklist === "object")
+    .map((checklist, index) => {
+      let id = String(checklist.id || createId()).trim() || createId();
+      if (usedIds.has(id)) id = createId();
+      usedIds.add(id);
+
+      const fallback = `Checklist ${index + 1}`;
+      const baseName = String(checklist.name || fallback).trim().slice(0, 60) || fallback;
+      const name = uniqueNormalizedName(baseName, usedNames);
+
+      return { id, name, items: normalizeChecklistItems(checklist.items) };
+    });
 }
 
 function normalizeBathymetryOffsetFeet(value) {

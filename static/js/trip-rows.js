@@ -92,6 +92,7 @@ function clearUnknownCatchDetails(row) {
     ".catch-shaker",
     ".catch-ball-depth",
     ".catch-cheater-depth",
+    ".catch-deepest-rigger",
     ".catch-flatline-weight-oz",
     ".catch-line-behind-board",
     ".catch-leadcore-colors",
@@ -243,6 +244,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-rigging").value = catchItem.rigging || "";
   node.querySelector(".catch-rigging-details").value = catchItem.riggingDetails || "";
   node.querySelector(".catch-ball-depth").value = catchItem.ballDepth || "";
+  node.querySelector(".catch-deepest-rigger").checked = Boolean(catchItem.deepestRigger);
   updateCheaterDepth(node);
   node.querySelector(".catch-flatline-weight-oz").value = catchItem.flatlineWeightOz || "";
   node.querySelector(".catch-line-behind-board").value = catchItem.lineBehindBoard || "";
@@ -363,7 +365,6 @@ function addTripGearRow(gearItem = {}) {
   populateComboSelect(node.querySelector(".trip-gear-combo"), gearItem.comboId || matchingCombo?.id || "");
   node.querySelector(".catch-presentation").value = gearItem.presentation || "";
   node.querySelector(".trip-gear-cheater").checked = Boolean(gearItem.hasCheater);
-  node.querySelector(".trip-gear-deepest-rigger").checked = Boolean(gearItem.deepestRigger);
   node.querySelector(".trip-gear-leadcore").checked = Boolean(gearItem.hasLeadcore);
   node.querySelector(".trip-gear-distance-behind").value = gearItem.distanceBehind || "";
   populateLureSelect(node.querySelector(".trip-gear-lure"), gearItem.lureId || "");

@@ -9,6 +9,7 @@ const routeViews = {
   "/gear": "gear",
   "/boat": "boat",
   "/gallery": "gallery",
+  "/checklists": "checklists",
   "/settings": "settings"
 };
 
@@ -59,6 +60,7 @@ function setView(view) {
   const showingGear = view === "gear";
   const showingBoat = view === "boat";
   const showingGallery = view === "gallery";
+  const showingChecklists = view === "checklists";
   const showingSettings = view === "settings";
   const viewButtons = {
     trips: els.tripsViewButton,
@@ -69,6 +71,7 @@ function setView(view) {
     gear: els.gearViewButton,
     boat: els.boatViewButton,
     gallery: els.galleryViewButton,
+    checklists: els.checklistsViewButton,
     settings: els.settingsViewButton,
   };
   const viewTitles = {
@@ -81,11 +84,12 @@ function setView(view) {
     gear: "Gear",
     boat: "Boat",
     gallery: "Gallery",
+    checklists: "Checklists",
     settings: "Settings",
   };
   document.body.dataset.activeView = view;
-  els.tripControls.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingSettings);
-  els.tripListPanel.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingSettings);
+  els.tripControls.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingChecklists || showingSettings);
+  els.tripListPanel.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingBoat || showingGallery || showingChecklists || showingSettings);
   els.expeditionsPanel.classList.toggle("hidden", !showingExpeditions);
   els.personalBestsPanel.classList.toggle("hidden", !showingBests);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
@@ -94,16 +98,24 @@ function setView(view) {
   els.gearPanel.classList.toggle("hidden", !showingGear);
   els.boatPanel.classList.toggle("hidden", !showingBoat);
   els.galleryPanel.classList.toggle("hidden", !showingGallery);
+  els.checklistsPanel.classList.toggle("hidden", !showingChecklists);
   els.settingsPanel.classList.toggle("hidden", !showingSettings);
   Object.entries(viewButtons).forEach(([buttonView, button]) => {
     button.classList.toggle("is-active", buttonView === view);
     button.setAttribute("aria-current", buttonView === view ? "page" : "false");
   });
   document.querySelector(".topbar h2").textContent = viewTitles[view] || "Trips";
-  els.newTripButton.classList.toggle("hidden", showingExpeditions);
+  els.newTripButton.classList.toggle("hidden", showingExpeditions || showingChecklists);
   els.newExpeditionButton.classList.toggle("hidden", !showingExpeditions);
   if (window.matchMedia("(max-width: 640px)").matches) {
-    viewButtons[view]?.scrollIntoView({ block: "nearest", inline: "center" });
+    const activeButton = viewButtons[view];
+    const navigation = activeButton?.closest(".view-nav");
+    if (activeButton && navigation) {
+      navigation.scrollTo({
+        left: Math.max(0, activeButton.offsetLeft - ((navigation.clientWidth - activeButton.offsetWidth) / 2)),
+        behavior: "smooth"
+      });
+    }
   }
   if (showingBests) renderPersonalBests();
   if (showingExpeditions) renderExpeditions();
@@ -111,6 +123,7 @@ function setView(view) {
   if (showingMap) renderFishMap();
   if (showingBoat) renderBoatLayout();
   if (showingGallery) renderGallery();
+  if (showingChecklists) renderChecklists();
   if (showingSettings) renderSettings();
   renderGearLibrary();
 }

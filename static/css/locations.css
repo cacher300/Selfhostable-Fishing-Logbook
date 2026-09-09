@@ -516,11 +516,11 @@ textarea {
   resize: vertical;
 }
 
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: var(--green);
-  box-shadow: 0 0 0 3px rgba(17, 135, 83, 0.14);
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(39, 99, 167, 0.16);
 }
 
 input[aria-invalid="true"],

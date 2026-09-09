@@ -529,7 +529,10 @@ async function deleteLure() {
   if (!lure || !confirm(`Delete ${lure.name}? This removes it from saved lures and clears it from catches.`)) return;
   state.lures = state.lures.filter((item) => item.id !== lureId);
   state.trips.forEach((trip) => {
-    (trip.gearUsed || []).forEach((gearItem) => { if (gearItem.lureId === lureId) gearItem.lureId = ""; });
+    (trip.gearUsed || []).forEach((gearItem) => {
+      if (gearItem.lureId === lureId) gearItem.lureId = "";
+      if (gearItem.cheaterLureId === lureId) gearItem.cheaterLureId = "";
+    });
     (trip.catches || []).forEach((catchItem) => { if (catchItem.lureId === lureId) catchItem.lureId = ""; });
     (trip.lostFish || []).forEach((fish) => { if (fish.lureId === lureId) fish.lureId = ""; });
   });

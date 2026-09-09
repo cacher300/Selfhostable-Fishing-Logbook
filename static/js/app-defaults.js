@@ -207,6 +207,7 @@ const defaults = {
     chopRanges: structuredClone(defaultChopRanges),
     defaultTrollingSpread: [],
     defaultTrollingSpreads: [],
+    checklists: [],
     boatLayout: {
       name: "",
       equipment: [],

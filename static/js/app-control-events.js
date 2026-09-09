@@ -162,6 +162,7 @@ els.mapViewButton.addEventListener("click", () => setView("map"));
 els.gearViewButton.addEventListener("click", () => setView("gear"));
 els.boatViewButton.addEventListener("click", () => setView("boat"));
 els.galleryViewButton.addEventListener("click", () => setView("gallery"));
+els.checklistsViewButton.addEventListener("click", () => setView("checklists"));
 els.settingsViewButton.addEventListener("click", () => setView("settings"));
 els.newLibraryLureButton.addEventListener("click", () => openLureDialog());
 els.newLibraryFlasherButton.addEventListener("click", () => openFlasherDialog());
@@ -451,3 +452,5 @@ els.sortSelect.addEventListener("input", () => {
   activeTripSort = tripSortFromSelect(els.sortSelect.value);
   renderTrips();
 });
+
+bindChecklistEvents();

@@ -545,6 +545,7 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/gear")
     @app.get("/boat")
     @app.get("/gallery")
+    @app.get("/checklists")
     @app.get("/settings")
     def app_page() -> Response:
         theme = read_logbook().get("settings", {}).get("theme")

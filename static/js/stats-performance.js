@@ -322,7 +322,7 @@ function deepestRiggerLabel(record) {
 }
 
 function riggerMethodComparisonLabel(record) {
-  return deepestRiggerLabel(record) || presentationLabel(record.presentation) || "Other method";
+  return deepestRiggerLabel(record);
 }
 
 function summarizeDownriggerCatchPositions(catchRecords = [], lostRecords = [], totalFish = 0) {
@@ -349,11 +349,6 @@ function summarizeDownriggerCatchPositions(catchRecords = [], lostRecords = [], 
     current.trips.add(record.trip.id);
   });
   return makePerformanceItems([...map.values()], 0, totalFish);
-}
-
-function setupDetailDiagnosticLabel(record) {
-  if (["downrigger", "Downrigger"].includes(record.presentation)) return deepestRiggerLabel(record);
-  return "";
 }
 
 function lureRecord(id) {
@@ -549,10 +544,7 @@ function statsDiagnosticRows(groups, trips, trollingGear, trollingCatches) {
     const line = record.setupLineId ? trollingGear.find((item) => item.id === record.setupLineId) : null;
     if (!line) return;
     const tripAction = diagnosticTripAction(record.trip, "Edit setup", "tripSetupSection");
-    [
-      ["Trolling method", (item) => presentationLabel(item.presentation)],
-      ["Deepest rigger", setupDetailDiagnosticLabel]
-    ].forEach(([label, keyFn]) => {
+    [["Trolling method", (item) => presentationLabel(item.presentation)]].forEach(([label, keyFn]) => {
       const catchKey = keyFn(record);
       const lineKey = keyFn(line);
       if (catchKey && lineKey && catchKey !== lineKey) {

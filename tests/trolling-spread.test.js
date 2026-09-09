@@ -26,4 +26,16 @@ const legacy = vm.runInContext(`resolveTripLineRecord({
 })`, context);
 assert.equal(legacy.deepestRigger, true);
 
+const cheater = vm.runInContext(`resolveTripLineRecord({
+  setupLineId: "line-1",
+  setupLineTarget: "cheater",
+  deepestRigger: true,
+  trip: {
+    method: "Trolling",
+    gearUsed: [{ id: "line-1", presentation: "Downrigger", deepestRigger: true }]
+  }
+})`, context);
+assert.equal(cheater.presentation, "Cheater");
+assert.equal(cheater.deepestRigger, false);
+
 console.log("trolling spread inheritance tests passed");

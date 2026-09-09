@@ -24,10 +24,6 @@ function collectTripFromForm() {
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",
       distanceBehind: trolling ? row.querySelector(".trip-gear-distance-behind").value.trim() : "",
-      deepestRigger: trolling
-        && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
-        ? row.querySelector(".trip-gear-deepest-rigger").checked
-        : false,
       hasCheater: trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
         ? row.querySelector(".trip-gear-cheater").checked
         : false,
@@ -57,7 +53,6 @@ function collectTripFromForm() {
       || item.flasherMinutes
       || item.presentation
       || item.distanceBehind
-      || item.deepestRigger
       || item.hasCheater
       || item.cheaterLureId
     ));
@@ -93,8 +88,10 @@ function collectTripFromForm() {
         rigging: !detailsUnknown && !trolling && isSoftPlasticLureRow(row) ? row.querySelector(".catch-rigging").value : "",
         riggingDetails: !detailsUnknown && !trolling && isSoftPlasticLureRow(row) ? row.querySelector(".catch-rigging-details").value.trim() : "",
         ballDepth: !detailsUnknown && trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
-        deepestRigger: !detailsUnknown && trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
-          ? Boolean(setupRowForCatchRow(row)?.querySelector(".trip-gear-deepest-rigger")?.checked)
+        deepestRigger: !detailsUnknown && trolling
+          && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
+          && !row.querySelector(".catch-setup-line").value.endsWith("::cheater")
+          ? row.querySelector(".catch-deepest-rigger").checked
           : false,
         flatlineWeightOz: !detailsUnknown && trolling ? row.querySelector(".catch-flatline-weight-oz").value.trim() : "",
         lineBehindBoard: !detailsUnknown && trolling ? row.querySelector(".catch-line-behind-board").value.trim() : "",

@@ -1,0 +1,229 @@
+.checklist-card-actions,
+.checklist-card-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.checklists-header,
+.checklist-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.checklists-header h3,
+.checklists-header p {
+  margin: 0;
+}
+
+.checklists-header p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.checklists-page {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  width: min(100%, 1040px);
+}
+
+.checklists-header {
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.checklists-header > div {
+  display: grid;
+  gap: 6px;
+}
+
+.checklist-list {
+  display: grid;
+  gap: 16px;
+}
+
+.checklists-page > .empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.checklists-page > .empty-state h3,
+.checklists-page > .empty-state p {
+  margin: 0;
+}
+
+.checklist-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  cursor: grab;
+}
+
+.checklist-card.is-dragging,
+.checklist-item.is-dragging {
+  opacity: 0.55;
+}
+
+.checklist-card.is-drag-over,
+.checklist-item.is-drag-over {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(39, 99, 167, 0.18);
+}
+
+.checklist-drag-handle {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+}
+
+.checklist-drag-handle:hover {
+  color: var(--text);
+}
+
+.checklist-title-block {
+  display: grid;
+  flex: 1 1 260px;
+  gap: 5px;
+}
+
+.checklist-name {
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.checklist-name:focus-visible {
+  border-bottom-color: var(--blue);
+  outline: 0;
+}
+
+.checklist-progress-label,
+.checklist-save-status {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.checklist-save-status {
+  margin-left: auto;
+}
+
+.checklist-save-status.is-saving {
+  color: var(--blue);
+}
+
+.checklist-save-status.is-error {
+  color: var(--red);
+}
+
+.checklist-progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--hover);
+}
+
+.checklist-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+  transition: width 180ms ease;
+}
+
+.checklist-items {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checklist-item {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 7px 8px 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  cursor: grab;
+}
+
+.checklist-card:active,
+.checklist-item:active {
+  cursor: grabbing;
+}
+
+.checklist-item-done {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green);
+}
+
+.checklist-item-label {
+  min-width: 0;
+  border: 0;
+  padding: 8px;
+  background: transparent;
+}
+
+.checklist-item:has(.checklist-item-done:checked) .checklist-item-label {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+@media (max-width: 760px) {
+  .checklists-header,
+  .checklist-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .checklist-card-actions .button,
+  .checklists-header > .button {
+    flex: 1 1 auto;
+  }
+
+  .checklist-title-block {
+    flex: none;
+  }
+
+  .checklist-item {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+  }
+
+  .checklist-item [data-delete-checklist-item] {
+    grid-column: 4;
+  }
+
+  .checklist-save-status {
+    width: 100%;
+    margin-left: 0;
+  }
+}

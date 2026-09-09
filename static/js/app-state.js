@@ -126,11 +126,13 @@ function saveMapNoaaChartsPreference(showCharts) {
 }
 
 async function loadState() {
-  try {
-    const response = await fetch("/api/logbook");
-    if (response.ok) return normalizeState({ ...structuredClone(defaults), ...(await response.json()) });
-  } catch {
-    // Opening index.html directly still works as a local fallback.
+  if (location.protocol !== "file:") {
+    try {
+      const response = await fetch("/api/logbook");
+      if (response.ok) return normalizeState({ ...structuredClone(defaults), ...(await response.json()) });
+    } catch {
+      // Fall through to browser storage when the server is unavailable.
+    }
   }
 
   try {

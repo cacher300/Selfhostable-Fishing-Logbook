@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="static/css/styles.css?v=20260907-map-filters-1" />
+    <link rel="stylesheet" href="static/css/styles.css?v=20260909-default-spread-restore-1" />
     <link rel="stylesheet" href="static/css/trip-sharing.css" />
   </head>
   <body>
@@ -86,6 +86,7 @@
               <button class="button secondary" id="gearViewButton" type="button">Gear</button>
               <button class="button secondary hidden" id="boatViewButton" type="button">Boat</button>
               <button class="button secondary" id="galleryViewButton" type="button">Gallery</button>
+              <button class="button secondary" id="checklistsViewButton" type="button">Checklists</button>
               <button class="button secondary" id="settingsViewButton" type="button">Settings</button>
             </nav>
             <div class="utility-actions">
@@ -889,6 +890,22 @@
             <button class="button secondary" id="galleryNextPageButton" type="button">Next</button>
           </div>
         </section>
+
+
+        <section class="checklists-page hidden" id="checklistsPanel" aria-label="Preparation checklists">
+  <header class="checklists-header">
+    <div>
+      <h3>Checklists</h3>
+      <p>Create reusable lists for launch day, safety gear, tackle, and anything else you want to remember.</p>
+    </div>
+    <button class="button primary" id="newChecklistButton" type="button">New Checklist</button>
+  </header>
+  <div class="checklist-list" id="checklistList"></div>
+  <div class="empty-state hidden" id="checklistsEmpty">
+    <h3>No checklists yet</h3>
+    <button class="button primary" id="emptyNewChecklistButton" type="button">Create Checklist</button>
+  </div>
+</section>
 
 
         <section class="settings-page hidden" id="settingsPanel" aria-label="Settings">
@@ -2115,6 +2132,10 @@
             <span>Rod</span>
             <select class="catch-setup-line"></select>
           </label>
+          <label class="checkbox-label trolling-param param-deepest-rigger catch-detail-optional">
+            <input class="catch-deepest-rigger" type="checkbox" />
+            <span>Deepest rigger</span>
+          </label>
           <label class="direct-catch-gear catch-rod-field catch-detail-optional">
             <span>Rod</span>
             <select class="catch-rod"></select>
@@ -2263,10 +2284,6 @@
               <option value="dipsey-diver">Dipsey Diver</option>
             </select>
           </label>
-          <label class="checkbox-label trolling-param param-deepest-rigger">
-            <input class="trip-gear-deepest-rigger" type="checkbox" />
-            <span>Deepest rigger</span>
-          </label>
           <label class="checkbox-label trolling-param param-leadcore">
             <input class="trip-gear-leadcore" type="checkbox" />
             <span>Leadcore</span>
@@ -2284,7 +2301,7 @@
             <span>Lure</span>
           <select class="trip-gear-lure"></select>
           </label>
-          <button class="button secondary add-lure-inline gear-lure-action" type="button">New Lure</button>
+          <button class="button secondary add-lure-inline gear-inline-action gear-lure-action" type="button">New Lure</button>
           <label class="non-trolling-field gear-rigging-field">
             <span>Rigging</span>
             <select class="trip-gear-rigging"></select>
@@ -2297,7 +2314,7 @@
             <span>Flasher</span>
             <select class="trip-gear-flasher"></select>
           </label>
-          <button class="button secondary add-flasher-inline trolling-field gear-flasher-action" type="button">New Flasher</button>
+          <button class="button secondary add-flasher-inline gear-inline-action trolling-field gear-flasher-action" type="button">New Flasher</button>
           <label class="checkbox-label trolling-param param-cheater">
             <input class="trip-gear-cheater" type="checkbox" />
             <span>Add cheater line</span>
@@ -2383,30 +2400,30 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="static/vendor/anime-3.2.2.min.js"></script>
     <script src="static/js/app-config.js"></script>
-    <script src="static/js/app-defaults.js?v=20260907-default-time-1"></script>
-    <script src="static/js/app-state.js?v=20260907-map-filters-1"></script>
-    <script src="static/js/app-normalization.js?v=20260907-default-people-1"></script>
+    <script src="static/js/app-defaults.js?v=20260909-default-spread-restore-1"></script>
+    <script src="static/js/app-state.js?v=20260909-standalone-1"></script>
+    <script src="static/js/app-normalization.js?v=20260909-default-spread-restore-1"></script>
     <script src="static/js/app-units.js?v=20260829-structure-split-2"></script>
     <script src="static/js/app-persistence.js?v=20260829-structure-split-2"></script>
-    <script src="static/js/app-elements.js?v=20260907-default-people-1"></script>
+    <script src="static/js/app-elements.js?v=20260909-default-spread-restore-1"></script>
     <script src="static/js/app-media.js"></script>
     <script src="static/js/locations.js"></script>
     <script src="static/js/location-weather.js"></script>
-    <script src="static/js/settings-core.js?v=20260829-structure-split-2"></script>
-    <script src="static/js/settings.js?v=20260907-default-people-1"></script>
+    <script src="static/js/settings-core.js?v=20260909-default-spread-restore-1"></script>
+    <script src="static/js/settings.js?v=20260909-default-spread-restore-1"></script>
     <script src="static/js/settings-fields.js?v=20260829-structure-split-2"></script>
     <script src="static/js/settings-locations.js?v=20260829-home-location-selection-1"></script>
     <script src="static/js/dashboard.js?v=20260829-save-draft-1"></script>
     <script src="static/js/expedition-analytics.js"></script>
     <script src="static/js/expeditions.js?v=20260903-row-opens-trip-2"></script>
     <script src="static/js/photos.js"></script>
-    <script src="static/js/trip-editor.js?v=20260907-default-time-1"></script>
+    <script src="static/js/trip-editor.js?v=20260909-default-spread-restore-1"></script>
     <script src="static/js/trip-rows.js?v=20260907-default-time-1"></script>
     <script src="static/js/trip-save.js?v=20260829-save-loading-2"></script>
     <script src="static/js/photo-queue-autofill.js?v=20260829-queue-copy-1"></script>
     <script src="static/js/gear-core.js?v=20260829-lure-picker-1"></script>
     <script src="static/js/gear-pickers.js?v=20260903-cheater-spoon-1"></script>
-    <script src="static/js/gear-dialogs.js?v=20260829-lure-picker-1"></script>
+    <script src="static/js/gear-dialogs.js?v=20260909-spread-cleanup-1"></script>
     <script src="static/js/gear-inventory.js?v=20260829-lure-picker-1"></script>
     <script src="static/js/trolling-spread.js"></script>
     <script src="static/js/noaaCharts.js"></script>
@@ -2425,11 +2442,12 @@
     <script src="static/js/personal-bests.js?v=20260829-size-order-1"></script>
     <script src="static/js/form-utils.js?v=20260829-depth-label-1"></script>
     <script src="static/js/gallery.js"></script>
-    <script src="static/js/boat-layout.js"></script>
+    <script src="static/js/boat-layout.js?v=20260909-spread-cleanup-1"></script>
     <script src="static/js/tackle-boxes.js"></script>
     <script src="static/js/leaderboard.js"></script>
-    <script src="static/js/app-control-events.js?v=20260907-map-filters-1"></script>
+    <script src="static/js/checklists.js?v=20260909-checklists-1"></script>
+    <script src="static/js/app-control-events.js?v=20260909-default-spread-restore-1"></script>
     <script src="static/js/app-delegated-events.js?v=20260829-duplicate-catch-1"></script>
-    <script src="static/js/app.js?v=20260829-structure-split-1"></script>
+    <script src="static/js/app.js?v=20260909-spreads-checklists-1"></script>
   </body>
 </html>

@@ -93,17 +93,12 @@ function updatePresentationFields(row) {
 
   if (row.classList.contains("gear-used-row")) {
     const distanceBehindLabel = row.querySelector(".trip-gear-distance-behind-label");
-    const deepestRiggerToggle = row.querySelector(".trip-gear-deepest-rigger");
     if (presentation === "downrigger" || presentation === "Downrigger") {
       row.querySelector(".param-distance-behind")?.classList.add("visible");
-      row.querySelector(".param-deepest-rigger")?.classList.add("visible");
       if (distanceBehindLabel) distanceBehindLabel.textContent = "Distance behind ball";
     } else if (["dipsey-diver", "High Diver", "Low Diver"].includes(presentation)) {
       row.querySelector(".param-distance-behind")?.classList.add("visible");
       if (distanceBehindLabel) distanceBehindLabel.textContent = "Distance behind Dipsy";
-    }
-    if (!["downrigger", "Downrigger"].includes(presentation) && deepestRiggerToggle) {
-      deepestRiggerToggle.checked = false;
     }
     if (isLeadcoreCapablePresentation(presentation)) {
       row.querySelector(".param-leadcore")?.classList.add("visible");
@@ -122,11 +117,19 @@ function updatePresentationFields(row) {
     return;
   }
 
-  if (["downrigger", "cheater", "Downrigger", "Cheater"].includes(presentation)) {
+  const isMainDownrigger = ["downrigger", "Downrigger"].includes(presentation);
+  const isCheater = ["cheater", "Cheater"].includes(presentation);
+  const deepestRiggerToggle = row.querySelector(".catch-deepest-rigger");
+  if (isMainDownrigger || isCheater) {
     row.querySelector(".param-ball-depth")?.classList.add("visible");
-    if (["cheater", "Cheater"].includes(presentation)) {
+    if (isCheater) {
       row.querySelector(".param-cheater-depth")?.classList.add("visible");
     }
+  }
+  if (isMainDownrigger) {
+    row.querySelector(".param-deepest-rigger")?.classList.add("visible");
+  } else if (deepestRiggerToggle) {
+    deepestRiggerToggle.checked = false;
   }
   if (presentation === "flatline") {
     row.querySelector(".param-flatline-weight")?.classList.add("visible");

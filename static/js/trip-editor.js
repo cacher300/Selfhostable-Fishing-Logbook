@@ -304,16 +304,20 @@ function openTripDialog(trip = null) {
     if (savedPeople.length) savedPeople.forEach(addPersonRow);
     else addPersonRow({}, { editNew: true });
   }
-  const legacyDeepestRiggerSetupIds = new Set([
-    ...(trip?.catches || []),
-    ...(trip?.lostFish || [])
-  ].filter((item) => item.deepestRigger && item.setupLineId).map((item) => item.setupLineId));
-  (trip?.gearUsed || []).forEach((gearItem) => addTripGearRow({
-    ...gearItem,
-    deepestRigger: Boolean(gearItem.deepestRigger || legacyDeepestRiggerSetupIds.has(gearItem.id))
-  }));
-  (trip?.catches || []).forEach(addCatchRow);
-  (trip?.lostFish || []).forEach(addLostFishRow);
+  (trip?.gearUsed || []).forEach(addTripGearRow);
+  const legacyDeepestRiggerBySetupLine = new Map((trip?.gearUsed || [])
+    .filter((item) => Boolean(item.deepestRigger))
+    .map((item) => [item.id, true]));
+  const migrateLegacyDeepestRigger = (item) => {
+    const setupLineIsDeepest = legacyDeepestRiggerBySetupLine.get(item.setupLineId);
+    const onCheater = item.setupLineTarget === "cheater";
+    return {
+      ...item,
+      deepestRigger: !onCheater && Boolean(item.deepestRigger || setupLineIsDeepest)
+    };
+  };
+  (trip?.catches || []).map(migrateLegacyDeepestRigger).forEach(addCatchRow);
+  (trip?.lostFish || []).map(migrateLegacyDeepestRigger).forEach(addLostFishRow);
   populateSetupLineSelects();
   updateTrollingVisibility();
   renderLiveTrollingSpread();

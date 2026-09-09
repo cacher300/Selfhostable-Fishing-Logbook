@@ -47,7 +47,7 @@ function resolveTripLineRecord(record) {
       ? (onCheater ? (line.cheaterLureId || record.lureId || "") : (line.lureId || record.lureId || ""))
       : (record.lureId || line.lureId || ""),
     flasherId: trolling ? (onCheater ? "" : (line.flasherId || record.flasherId || "")) : (record.flasherId || line.flasherId || ""),
-    presentation: trolling ? (line.presentation || record.presentation || "") : (record.presentation || line.presentation || ""),
+    presentation: trolling ? (onCheater ? "Cheater" : (line.presentation || record.presentation || "")) : (record.presentation || line.presentation || ""),
     gpsSpeed: record.gpsSpeed || record.speed || line.gpsSpeed || line.speed || "",
     ballSpeed: record.ballSpeed || line.ballSpeed || "",
     ballDepth: record.ballDepth || line.ballDepth || "",
@@ -56,7 +56,11 @@ function resolveTripLineRecord(record) {
     dipseySetting: record.dipseySetting || line.dipseySetting || "",
     lineOut: record.lineOut || line.lineOut || "",
     estimatedDepth: record.estimatedDepth || line.estimatedDepth || "",
-    deepestRigger: Boolean(line.deepestRigger || record.deepestRigger),
+    // Setup-level markers are read only for older records. New records keep
+    // this on the individual main downrigger catch.
+    deepestRigger: !onCheater && ["downrigger", "Downrigger"].includes(line.presentation || record.presentation)
+      ? Boolean(record.deepestRigger || line.deepestRigger)
+      : false,
     setupLine: line
   };
 }
