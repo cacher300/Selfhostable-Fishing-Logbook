@@ -14,6 +14,34 @@ function showTripFormMessage(message, fields = []) {
   fields[0]?.focus({ preventScroll: true });
 }
 
+function showTripValidationDialog({ intro, items }) {
+  clearTripFormMessage();
+  items.forEach((item) => item.field?.setAttribute("aria-invalid", "true"));
+  if (!els.tripValidationDialog || !els.tripValidationList) return;
+
+  els.tripValidationDialogIntro.textContent = intro;
+  els.tripValidationList.innerHTML = items.map((item) => `
+    <button class="trip-validation-field" type="button" data-validation-field="${escapeHtml(item.field.id)}">
+      <span class="trip-validation-field-copy">
+        <strong>${escapeHtml(item.label)}</strong>
+        <small>${escapeHtml(item.detail || "Required")}</small>
+      </span>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
+    </button>
+  `).join("");
+  els.tripValidationDialog.showModal();
+}
+
+function focusTripValidationField(fieldId) {
+  const field = document.getElementById(fieldId);
+  els.tripValidationDialog?.close();
+  if (!field) return;
+  requestAnimationFrame(() => {
+    field.scrollIntoView({ behavior: "smooth", block: "center" });
+    field.focus({ preventScroll: true });
+  });
+}
+
 function setTripSaveLoading(saving, action = "") {
   const loadingSelector = action === "draft"
     ? "[data-trip-draft-save]"
@@ -106,13 +134,18 @@ function validateTripForm() {
   const missing = requiredFields.filter(({ field }) => !field.value.trim());
   const tripDateValue = document.querySelector("#tripDateValue")?.value || "";
   if (tripDateDisplay?.value.trim() && !tripDateValue) {
-    showTripFormMessage("Enter a valid date as mm/dd/yyyy.", [tripDateDisplay]);
+    showTripValidationDialog({
+      intro: "The date format needs a quick correction before this trip can be saved.",
+      items: [{ field: tripDateDisplay, label: "Date", detail: "Use mm/dd/yyyy" }]
+    });
     return false;
   }
   if (!missing.length) return true;
 
-  const labels = missing.map((item) => item.label).join(", ");
-  showTripFormMessage(`Please fill out: ${labels}.`, missing.map((item) => item.field));
+  showTripValidationDialog({
+    intro: "A few essentials are still missing. Choose a field below to jump right to it.",
+    items: missing.map(({ field, label }) => ({ field, label, detail: "Required to save" }))
+  });
   return false;
 }
 
@@ -271,7 +304,14 @@ function openTripDialog(trip = null) {
     if (savedPeople.length) savedPeople.forEach(addPersonRow);
     else addPersonRow({}, { editNew: true });
   }
-  (trip?.gearUsed || []).forEach(addTripGearRow);
+  const legacyDeepestRiggerSetupIds = new Set([
+    ...(trip?.catches || []),
+    ...(trip?.lostFish || [])
+  ].filter((item) => item.deepestRigger && item.setupLineId).map((item) => item.setupLineId));
+  (trip?.gearUsed || []).forEach((gearItem) => addTripGearRow({
+    ...gearItem,
+    deepestRigger: Boolean(gearItem.deepestRigger || legacyDeepestRiggerSetupIds.has(gearItem.id))
+  }));
   (trip?.catches || []).forEach(addCatchRow);
   (trip?.lostFish || []).forEach(addLostFishRow);
   populateSetupLineSelects();

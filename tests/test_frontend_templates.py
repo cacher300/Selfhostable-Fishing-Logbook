@@ -24,6 +24,9 @@ def test_frontend_template_renders_all_partials_once() -> None:
     assert 'id="tripListPanel"' in markup
     assert 'id="tripDialog"' in markup
     assert 'id="catchRowTemplate"' in markup
+    assert 'class="trip-gear-deepest-rigger"' in markup
+    assert 'class="catch-deepest-rigger"' not in markup
+    assert "Previous standalone leaderboard markup" not in markup
     assert "{% include" not in markup
 
     ids = re.findall(r'\bid="([^"]+)"', markup)

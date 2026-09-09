@@ -138,16 +138,10 @@
             <input class="catch-retrieve" type="text" placeholder="Slow roll, pause-twitch, burn-stop" />
           </label>
           <div class="row-section-title trolling-field catch-detail-optional">Details</div>
-          <label class="trolling-field direct-catch-gear catch-presentation-field catch-detail-optional hidden">
-            <span>Method</span>
-            <select class="catch-presentation">
-              <option value="">Select method</option>
-              <option value="downrigger">Downrigger</option>
-              <option value="flatline">Flatline</option>
-              <option value="flatline-leadcore">Planer Board / Leadcore</option>
-              <option value="dipsey-diver">Dipsey Diver</option>
-            </select>
-          </label>
+          <!-- The setup-line method is the source of truth for catches. Keep a
+               synced value for existing form logic, but do not render a second
+               disabled method selector in the catch details grid. -->
+          <select class="catch-presentation hidden" aria-label="Method"></select>
           <label class="trolling-field catch-detail-optional">
             <span>Trolling direction</span>
             <select class="catch-direction">
@@ -179,16 +173,10 @@
             <span data-unit-label="speed" data-unit-label-text="Ball speed">Ball speed</span>
             <input class="catch-ball-speed" type="text" placeholder="2.2 mph" />
           </label>
-          <div class="catch-field-with-option trolling-param param-ball-depth catch-detail-optional">
-            <label>
-              <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
-              <input class="catch-ball-depth" type="text" placeholder="55 ft" />
-            </label>
-            <label class="checkbox-label inline-field-option trolling-param param-deepest-rigger">
-              <input class="catch-deepest-rigger" type="checkbox" />
-              <span>Deepest rigger</span>
-            </label>
-          </div>
+          <label class="trolling-param param-ball-depth catch-detail-optional">
+            <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
+            <input class="catch-ball-depth" type="text" placeholder="55 ft" />
+          </label>
           <label class="trolling-param param-cheater-depth catch-detail-optional">
             <span data-unit-label="depth" data-unit-label-text="Cheater depth">Cheater depth</span>
             <input class="catch-cheater-depth" type="text" readonly aria-readonly="true" />
@@ -275,6 +263,10 @@
               <option value="flatline-leadcore">Planer Board / Leadcore</option>
               <option value="dipsey-diver">Dipsey Diver</option>
             </select>
+          </label>
+          <label class="checkbox-label trolling-param param-deepest-rigger">
+            <input class="trip-gear-deepest-rigger" type="checkbox" />
+            <span>Deepest rigger</span>
           </label>
           <label class="checkbox-label trolling-param param-leadcore">
             <input class="trip-gear-leadcore" type="checkbox" />

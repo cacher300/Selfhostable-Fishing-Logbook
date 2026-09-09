@@ -190,7 +190,8 @@ assert.equal(filteredResult.find((row) => row.id === "green-lure").landed, 0);
 
 const indexMarkup = fs.readFileSync("standalone.html", "utf8");
 assert.doesNotMatch(indexMarkup, /Boat leaderboard|Deck performance|statsEquipmentLeaderboard/);
-assert.match(indexMarkup, /Fishing leaderboard/);
-assert.match(indexMarkup, /Fishing gear/);
+assert.match(indexMarkup, /id="leaderboardPanel"/);
+assert.match(indexMarkup, /id="statsLureLeaderboard"/);
+assert.match(indexMarkup, /People Leaderboard/);
 
 console.log("leaderboard tests passed");

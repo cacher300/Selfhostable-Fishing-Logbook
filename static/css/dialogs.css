@@ -1,9 +1,3 @@
-.catch-row .catch-presentation:disabled {
-  color: var(--ink);
-  opacity: 1;
-  cursor: default;
-}
-
 .form-message {
   margin-bottom: 14px;
   padding: 12px 14px;

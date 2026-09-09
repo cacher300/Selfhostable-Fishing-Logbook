@@ -43,7 +43,7 @@ function updateTrollingVisibility() {
     label.textContent = casting ? "Lure (optional)" : "Lure";
   });
   document.querySelector("#tripDialog")?.classList.toggle("is-trolling", trolling);
-  document.querySelectorAll("#tripDialog .trolling-field:not(.catch-presentation-field)").forEach((element) => {
+  document.querySelectorAll("#tripDialog .trolling-field").forEach((element) => {
     element.classList.toggle("hidden", !trolling);
   });
   document.querySelectorAll("#tripDialog .casting-field").forEach((element) => {
@@ -77,18 +77,13 @@ function updateTrollingVisibility() {
 function updatePresentationFields(row) {
   const presentationSelect = row.querySelector(".catch-presentation");
   const presentation = presentationSelect?.value || "";
-  const catchPresentationField = row.querySelector(".catch-presentation-field");
   const isCatchRow = row.classList.contains("catch-row");
-  const hasSelectedRod = Boolean(row.querySelector(".catch-setup-line")?.value);
   const estimatedDepthLabel = row.querySelector(".estimated-depth-label");
   const isLeadcoreCatch = isCatchRow && catchRowUsesLeadcore(row);
   row.querySelectorAll(".trolling-param").forEach((field) => field.classList.remove("visible"));
   if (isCatchRow && presentationSelect) {
     presentationSelect.disabled = true;
     presentationSelect.setAttribute("aria-disabled", "true");
-  }
-  if (catchPresentationField) {
-    catchPresentationField.classList.toggle("hidden", !isTrollingTrip() || !hasSelectedRod || row.classList.contains("lost-fish-row"));
   }
   if (estimatedDepthLabel) {
     estimatedDepthLabel.dataset.unitLabelText = presentation === "flatline" ? "Depth down" : "Estimated depth";
@@ -98,12 +93,17 @@ function updatePresentationFields(row) {
 
   if (row.classList.contains("gear-used-row")) {
     const distanceBehindLabel = row.querySelector(".trip-gear-distance-behind-label");
+    const deepestRiggerToggle = row.querySelector(".trip-gear-deepest-rigger");
     if (presentation === "downrigger" || presentation === "Downrigger") {
       row.querySelector(".param-distance-behind")?.classList.add("visible");
+      row.querySelector(".param-deepest-rigger")?.classList.add("visible");
       if (distanceBehindLabel) distanceBehindLabel.textContent = "Distance behind ball";
     } else if (["dipsey-diver", "High Diver", "Low Diver"].includes(presentation)) {
       row.querySelector(".param-distance-behind")?.classList.add("visible");
       if (distanceBehindLabel) distanceBehindLabel.textContent = "Distance behind Dipsy";
+    }
+    if (!["downrigger", "Downrigger"].includes(presentation) && deepestRiggerToggle) {
+      deepestRiggerToggle.checked = false;
     }
     if (isLeadcoreCapablePresentation(presentation)) {
       row.querySelector(".param-leadcore")?.classList.add("visible");
@@ -124,18 +124,9 @@ function updatePresentationFields(row) {
 
   if (["downrigger", "cheater", "Downrigger", "Cheater"].includes(presentation)) {
     row.querySelector(".param-ball-depth")?.classList.add("visible");
-    if (["downrigger", "Downrigger"].includes(presentation)) {
-      row.querySelector(".param-deepest-rigger")?.classList.add("visible");
-    } else {
-      const deepestRiggerToggle = row.querySelector(".catch-deepest-rigger");
-      if (deepestRiggerToggle) deepestRiggerToggle.checked = false;
-    }
     if (["cheater", "Cheater"].includes(presentation)) {
       row.querySelector(".param-cheater-depth")?.classList.add("visible");
     }
-  } else {
-    const deepestRiggerToggle = row.querySelector(".catch-deepest-rigger");
-    if (deepestRiggerToggle) deepestRiggerToggle.checked = false;
   }
   if (presentation === "flatline") {
     row.querySelector(".param-flatline-weight")?.classList.add("visible");

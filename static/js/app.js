@@ -20,8 +20,7 @@ function viewFromCurrentRoute() {
 function updateMethodVisibility({ refreshDefaultSpread = false } = {}) {
   updateTrollingVisibility();
   applyDefaultTrollingSpread({
-    force: refreshDefaultSpread,
-    replaceExisting: refreshDefaultSpread && Boolean(activeTripId)
+    force: refreshDefaultSpread
   });
   document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
 }

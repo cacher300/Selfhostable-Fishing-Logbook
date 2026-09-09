@@ -84,6 +84,7 @@
   .gear-used-row .gear-flasher-field,
   .gear-used-row .gear-flasher-action,
   .gear-used-row .flasher-preview,
+  .gear-used-row .param-deepest-rigger,
   .gear-used-row .param-cheater,
   .gear-used-row .param-leadcore,
   .gear-used-row .param-cheater-lure,
@@ -1048,5 +1049,19 @@
 
   .stats-page .metric-card:last-child {
     grid-column: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  #tripValidationDialog {
+    width: min(470px, calc(100vw - 24px));
+    height: auto;
+    max-height: calc(100dvh - 24px);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+  }
+
+  #tripValidationDialog form {
+    max-height: calc(100dvh - 24px);
   }
 }

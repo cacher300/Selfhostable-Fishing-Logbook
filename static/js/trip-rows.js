@@ -91,7 +91,6 @@ function clearUnknownCatchDetails(row) {
     ".catch-ball-speed",
     ".catch-shaker",
     ".catch-ball-depth",
-    ".catch-deepest-rigger",
     ".catch-cheater-depth",
     ".catch-flatline-weight-oz",
     ".catch-line-behind-board",
@@ -244,7 +243,6 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-rigging").value = catchItem.rigging || "";
   node.querySelector(".catch-rigging-details").value = catchItem.riggingDetails || "";
   node.querySelector(".catch-ball-depth").value = catchItem.ballDepth || "";
-  node.querySelector(".catch-deepest-rigger").checked = Boolean(catchItem.deepestRigger);
   updateCheaterDepth(node);
   node.querySelector(".catch-flatline-weight-oz").value = catchItem.flatlineWeightOz || "";
   node.querySelector(".catch-line-behind-board").value = catchItem.lineBehindBoard || "";
@@ -365,6 +363,7 @@ function addTripGearRow(gearItem = {}) {
   populateComboSelect(node.querySelector(".trip-gear-combo"), gearItem.comboId || matchingCombo?.id || "");
   node.querySelector(".catch-presentation").value = gearItem.presentation || "";
   node.querySelector(".trip-gear-cheater").checked = Boolean(gearItem.hasCheater);
+  node.querySelector(".trip-gear-deepest-rigger").checked = Boolean(gearItem.deepestRigger);
   node.querySelector(".trip-gear-leadcore").checked = Boolean(gearItem.hasLeadcore);
   node.querySelector(".trip-gear-distance-behind").value = gearItem.distanceBehind || "";
   populateLureSelect(node.querySelector(".trip-gear-lure"), gearItem.lureId || "");
@@ -387,14 +386,16 @@ function addTripGearRow(gearItem = {}) {
   return node;
 }
 
-function applyDefaultTrollingSpread({ force = false, replaceExisting = false } = {}) {
+function applyDefaultTrollingSpread({ force = false } = {}) {
   if (!isTrollingTrip()) return false;
   const targetSpecies = getValue("targetSpecies");
   const targetKey = targetSpecies || "__all__";
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
   const existingDefaultRows = rows.filter((row) => row.dataset.defaultTrollingSpread === "true");
   const onlyDefaultRows = rows.length > 0 && existingDefaultRows.length === rows.length;
-  const canReplaceRows = onlyDefaultRows || replaceExisting;
+  // Preserve saved/manual setup rows when a target species changes. Generated
+  // default rows are the only rows that may be replaced automatically.
+  const canReplaceRows = onlyDefaultRows;
   const defaultRowsMatchTarget = existingDefaultRows.every((row) => row.dataset.defaultTrollingSpreadTarget === targetKey);
   if (rows.length && (!canReplaceRows || (!force && defaultRowsMatchTarget))) return false;
   const spread = defaultTrollingSpreadForSpecies(targetSpecies);

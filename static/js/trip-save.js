@@ -6,7 +6,6 @@ function collectTripFromForm() {
       id: row.dataset.gearId || createId(),
       defaultTrollingSpread: row.dataset.defaultTrollingSpread === "true",
       defaultTrollingSpreadTarget: row.dataset.defaultTrollingSpreadTarget || "",
-      personId: "",
       boatItemId: trolling ? row.dataset.boatItemId || "" : "",
       startTime: row.querySelector(".trip-gear-start-time").value,
       endTime: row.querySelector(".trip-gear-end-time").value,
@@ -25,7 +24,10 @@ function collectTripFromForm() {
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",
       distanceBehind: trolling ? row.querySelector(".trip-gear-distance-behind").value.trim() : "",
-      deepestRigger: false,
+      deepestRigger: trolling
+        && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
+        ? row.querySelector(".trip-gear-deepest-rigger").checked
+        : false,
       hasCheater: trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
         ? row.querySelector(".trip-gear-cheater").checked
         : false,
@@ -92,7 +94,7 @@ function collectTripFromForm() {
         riggingDetails: !detailsUnknown && !trolling && isSoftPlasticLureRow(row) ? row.querySelector(".catch-rigging-details").value.trim() : "",
         ballDepth: !detailsUnknown && trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
         deepestRigger: !detailsUnknown && trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
-          ? row.querySelector(".catch-deepest-rigger").checked
+          ? Boolean(setupRowForCatchRow(row)?.querySelector(".trip-gear-deepest-rigger")?.checked)
           : false,
         flatlineWeightOz: !detailsUnknown && trolling ? row.querySelector(".catch-flatline-weight-oz").value.trim() : "",
         lineBehindBoard: !detailsUnknown && trolling ? row.querySelector(".catch-line-behind-board").value.trim() : "",
@@ -120,8 +122,7 @@ function collectTripFromForm() {
             ...base,
             setupLineId: row.querySelector(".catch-setup-line").value.split("::")[0],
             setupLineTarget: row.querySelector(".catch-setup-line").value.endsWith("::cheater") ? "cheater" : "",
-            lureId: row.querySelector(".catch-lure").value,
-            flasherId: ""
+            lureId: row.querySelector(".catch-lure").value
           }
         : {
             ...base,
@@ -129,13 +130,13 @@ function collectTripFromForm() {
             setupLineTarget: "",
             rodId: selectedRodId,
             lureId: row.querySelector(".catch-lure").value,
-            flasherId: "",
             presentation: ""
           };
     })
     .filter((item) => (
       item.species
       || item.possibleSpecies
+      || item.time
       || item.length
       || item.weight
       || item.detailsUnknown
@@ -146,7 +147,6 @@ function collectTripFromForm() {
       || item.rodId
       || item.setupLineId
       || item.lureId
-      || item.flasherId
       || item.presentation
       || item.direction
       || item.fowCaught
@@ -237,6 +237,9 @@ async function persistTrip(event, { draft = false } = {}) {
 
   try {
     let trip = collectTripFromForm();
+    // Keep a stable id in the form so a retry after a failed request updates
+    // the same in-memory trip instead of creating a duplicate.
+    setValue("tripId", trip.id);
     trip.isDraft = draft;
     trip.title = trip.title || generatedTripTitle(trip);
     state.people = mergePeople(state.people, trip.people);

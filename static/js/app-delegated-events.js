@@ -747,12 +747,12 @@ document.addEventListener("change", (event) => {
   if (event.target.matches(".catch-details-unknown")) {
     updateCatchDetailsUnknown(event.target.closest(".catch-row"), { clear: event.target.checked });
   }
-  if (event.target.matches(".catch-presentation, .trip-gear-cheater, .trip-gear-leadcore, .catch-deepest-rigger")) {
+  if (event.target.matches(".catch-presentation, .trip-gear-cheater, .trip-gear-leadcore, .trip-gear-deepest-rigger")) {
     updatePresentationFields(event.target.closest(".catch-row, .gear-used-row"));
     document.querySelectorAll(".catch-row").forEach(updatePresentationFields);
     document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
   }
-  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-distance-behind, .trip-gear-cheater, .trip-gear-cheater-lure, .trip-gear-leadcore")) {
+  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-distance-behind, .trip-gear-cheater, .trip-gear-cheater-lure, .trip-gear-leadcore, .trip-gear-deepest-rigger")) {
     populateSetupLineSelects();
     populateCatchRodSelects();
   }

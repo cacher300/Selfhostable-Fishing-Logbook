@@ -579,47 +579,6 @@
         </section>
 
 
-        <!-- Previous standalone leaderboard markup retained for backwards-compatible page structure.
-          <header class="leaderboard-header">
-            <div>
-              <p class="eyebrow">Performance board</p>
-              <h2>Fishing leaderboard</h2>
-              <p>See which lures, flashers, rods, reels, combos, and anglers produce the most fish.</p>
-            </div>
-            <div class="leaderboard-rate-key">
-              <strong>Landing rate</strong>
-              <span>Landed ÷ (landed + lost)</span>
-            </div>
-          </header>
-
-          <div class="leaderboard-summary-grid" id="leaderboardSummary"></div>
-
-          <div class="leaderboard-board-grid">
-            <section class="leaderboard-board" aria-labelledby="gearLeaderboardHeading">
-              <header class="leaderboard-board-header">
-                <div>
-                  <p class="eyebrow">Fishing gear</p>
-                  <h3 id="gearLeaderboardHeading">Gear performance</h3>
-                </div>
-                <span class="leaderboard-count" id="gearLeaderboardCount">0 items</span>
-              </header>
-              <div class="leaderboard-list" id="gearLeaderboard"></div>
-            </section>
-
-            <section class="leaderboard-board" aria-labelledby="anglerLeaderboardHeading">
-              <header class="leaderboard-board-header">
-                <div>
-                  <p class="eyebrow">People</p>
-                  <h3 id="anglerLeaderboardHeading">Angler performance</h3>
-                </div>
-                <span class="leaderboard-count" id="anglerLeaderboardCount">0 anglers</span>
-              </header>
-              <div class="leaderboard-list" id="anglerLeaderboard"></div>
-            </section>
-          </div>
-
-        -->
-
         <section class="map-page hidden" id="mapPanel" aria-label="Fish catch map">
           <div class="map-header">
             <div id="mapLegend" class="map-header-legend"></div>
@@ -1584,6 +1543,30 @@
       </form>
     </dialog>
 
+    <dialog id="tripValidationDialog" class="dialog trip-validation-dialog" aria-labelledby="tripValidationDialogTitle" aria-describedby="tripValidationDialogDescription">
+      <form method="dialog">
+        <div class="trip-validation-heading">
+          <div class="trip-validation-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3 2.8 19a1.5 1.5 0 0 0 1.3 2.2h15.8a1.5 1.5 0 0 0 1.3-2.2L12 3Z" /><path d="M12 9v5M12 17.5h.01" /></svg>
+          </div>
+          <div>
+            <h2 id="tripValidationDialogTitle">Complete your trip details</h2>
+            <p id="tripValidationDialogDescription">Add the required details below before saving this trip.</p>
+          </div>
+          <button class="icon-button" type="submit" aria-label="Close validation message">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+          </button>
+        </div>
+        <div class="trip-validation-body">
+          <p class="trip-validation-intro" id="tripValidationDialogIntro"></p>
+          <div class="trip-validation-list" id="tripValidationList"></div>
+        </div>
+        <div class="trip-validation-actions">
+          <button class="button primary" type="submit">Back to trip</button>
+        </div>
+      </form>
+    </dialog>
+
 
     <dialog id="structureDialog" class="dialog small-dialog structure-dialog">
       <form id="structureForm" method="dialog" novalidate>
@@ -2158,16 +2141,10 @@
             <input class="catch-retrieve" type="text" placeholder="Slow roll, pause-twitch, burn-stop" />
           </label>
           <div class="row-section-title trolling-field catch-detail-optional">Details</div>
-          <label class="trolling-field direct-catch-gear catch-presentation-field catch-detail-optional hidden">
-            <span>Method</span>
-            <select class="catch-presentation">
-              <option value="">Select method</option>
-              <option value="downrigger">Downrigger</option>
-              <option value="flatline">Flatline</option>
-              <option value="flatline-leadcore">Planer Board / Leadcore</option>
-              <option value="dipsey-diver">Dipsey Diver</option>
-            </select>
-          </label>
+          <!-- The setup-line method is the source of truth for catches. Keep a
+               synced value for existing form logic, but do not render a second
+               disabled method selector in the catch details grid. -->
+          <select class="catch-presentation hidden" aria-label="Method"></select>
           <label class="trolling-field catch-detail-optional">
             <span>Trolling direction</span>
             <select class="catch-direction">
@@ -2199,16 +2176,10 @@
             <span data-unit-label="speed" data-unit-label-text="Ball speed">Ball speed</span>
             <input class="catch-ball-speed" type="text" placeholder="2.2 mph" />
           </label>
-          <div class="catch-field-with-option trolling-param param-ball-depth catch-detail-optional">
-            <label>
-              <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
-              <input class="catch-ball-depth" type="text" placeholder="55 ft" />
-            </label>
-            <label class="checkbox-label inline-field-option trolling-param param-deepest-rigger">
-              <input class="catch-deepest-rigger" type="checkbox" />
-              <span>Deepest rigger</span>
-            </label>
-          </div>
+          <label class="trolling-param param-ball-depth catch-detail-optional">
+            <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
+            <input class="catch-ball-depth" type="text" placeholder="55 ft" />
+          </label>
           <label class="trolling-param param-cheater-depth catch-detail-optional">
             <span data-unit-label="depth" data-unit-label-text="Cheater depth">Cheater depth</span>
             <input class="catch-cheater-depth" type="text" readonly aria-readonly="true" />
@@ -2295,6 +2266,10 @@
               <option value="flatline-leadcore">Planer Board / Leadcore</option>
               <option value="dipsey-diver">Dipsey Diver</option>
             </select>
+          </label>
+          <label class="checkbox-label trolling-param param-deepest-rigger">
+            <input class="trip-gear-deepest-rigger" type="checkbox" />
+            <span>Deepest rigger</span>
           </label>
           <label class="checkbox-label trolling-param param-leadcore">
             <input class="trip-gear-leadcore" type="checkbox" />

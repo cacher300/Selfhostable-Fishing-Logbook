@@ -96,13 +96,13 @@ For legacy trips, `startTime` migrates to `linesSetTime` and `endTime` migrates 
 
 ## Setup Line (`trip.gearUsed[]`)
 
-`id`, `personId` (currently written as empty), `startTime`, `endTime`, `changeNote`, `side`, `lineLabel`, `comboId`, `rodId`, `reelId`, `lureId`, `flasherId`, `presentation`, `deepestRigger`, `lureMinutes`, and `flasherMinutes`.
+`id`, `startTime`, `endTime`, `changeNote`, `side`, `lineLabel`, `comboId`, `rodId`, `reelId`, `lureId`, `flasherId`, `presentation`, `deepestRigger`, `lureMinutes`, and `flasherMinutes`. `deepestRigger` is editable on downrigger setup rows and inherited by catches assigned to that line.
 
 Setup rows intentionally do not collect fish-specific speed/depth parameters. Resolver code can read legacy setup-level speed/depth properties if imported, but the current UI does not write them.
 
 ## Catch and Lost Fish
 
-Common fields include `id`, `personId`, `time`, `waterDepth`, `depthDown`, `presentation`, `direction`, `fowCaught`, `speed`, `retrieve`, `ballDepth`, `lineBehindBoard`, `estimatedLureDepth`, `dipseySetting`, `lineOut`, `estimatedDepth`, `notes`, `setupLineId`, `lureId`, and `flasherId`.
+Common fields include `id`, `personId`, `time`, `waterDepth`, `depthDown`, `presentation`, `direction`, `fowCaught`, `speed`, `retrieve`, `ballDepth`, `deepestRigger`, `lineBehindBoard`, `estimatedLureDepth`, `dipseySetting`, `lineOut`, `estimatedDepth`, `notes`, `setupLineId`, and `lureId`. Legacy catch-level `flasherId` values remain readable; current trolling catches inherit the flasher from their setup line.
 
 Landed catches additionally use `species`, `released`, `length`, `weight`, `manualCoordinates`, `coordinates`, `spotId`, `spotAssignmentMode`, `photos[]`, and optional `weatherData`. Lost fish use `possibleSpecies`, force `released: false`, and currently save no photos, coordinates, or spot assignment.
 

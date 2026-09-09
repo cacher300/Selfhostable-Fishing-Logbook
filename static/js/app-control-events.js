@@ -52,6 +52,10 @@ els.saveTripDraftButtons.forEach((button) => button.addEventListener("click", sa
 els.tripForm.addEventListener("keydown", (event) => {
   if (event.key === "Enter") event.preventDefault();
 });
+els.tripValidationList?.addEventListener("click", (event) => {
+  const fieldButton = event.target.closest("[data-validation-field]");
+  if (fieldButton) focusTripValidationField(fieldButton.dataset.validationField);
+});
 els.locationForm.addEventListener("submit", saveLocationPin);
 els.structureForm.addEventListener("submit", saveStructureOption);
 els.structureDialog.addEventListener("close", resetStructureDialog);
