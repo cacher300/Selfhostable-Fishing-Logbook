@@ -257,7 +257,6 @@ function renderGalleryItems() {
   const endIndex = Number.isFinite(limit) ? startIndex + limit : matchedItems.length;
   galleryVisibleItems = matchedItems.slice(startIndex, endIndex);
   selectedGalleryItems = new Set([...selectedGalleryItems].filter((key) => galleryItems.some((item) => galleryItemKey(item) === key)));
-  if (els.galleryCount) els.galleryCount.textContent = galleryItems.length === 1 ? "1 upload" : `${galleryItems.length} uploads`;
   els.galleryStatus.textContent = `Showing ${galleryVisibleItems.length} of ${matchedItems.length} ${matchedItems.length === 1 ? "photo" : "photos"} available`;
   els.galleryPagination?.classList.toggle("hidden", pageCount <= 1);
   els.galleryPreviousPageButton?.toggleAttribute("disabled", activeGalleryPage <= 1);
@@ -273,7 +272,6 @@ function renderGalleryItems() {
 
 async function renderGallery() {
   renderGalleryFilters();
-  if (els.galleryCount) els.galleryCount.textContent = "Loading...";
   els.galleryStatus.textContent = "Loading gallery...";
   els.galleryPagination?.classList.add("hidden");
   els.galleryGrid.innerHTML = "";
@@ -282,7 +280,6 @@ async function renderGallery() {
     renderGalleryItems();
   } catch (error) {
     console.error("Could not render gallery.", error);
-    if (els.galleryCount) els.galleryCount.textContent = "Unavailable";
     els.galleryStatus.textContent = error.message || "Could not load gallery.";
     els.galleryPagination?.classList.add("hidden");
     els.galleryGrid.innerHTML = `<div class="empty-state"><p>The gallery could not be loaded.</p></div>`;

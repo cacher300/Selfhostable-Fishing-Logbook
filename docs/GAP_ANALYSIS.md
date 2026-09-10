@@ -61,7 +61,7 @@ No unused public API route was found; the current archive, media, weather, bathy
 - Browser localStorage is updated before server persistence; a failed PUT creates divergent copies.
 - Queue delete is idempotent but does not report “not found,” reducing auditability.
 - Upstream proxy routes have no rate limiting or caching across HTTP requests.
-- Backup scripts and Docker deployment require host-specific verification; restore is not scripted.
+- Host-managed backups and Docker deployment require host-specific verification; restore is not scripted.
 
 ## Documentation Status
 

@@ -699,7 +699,6 @@ document.addEventListener("change", (event) => {
     updateLocationControls();
   }
   if (event.target.matches("#waveHeight")) {
-    updateAutoWaveChopDisplay();
     scheduleTripWeatherPreview(true);
   }
   if (event.target.closest("#tripForm")) {
@@ -770,9 +769,6 @@ document.addEventListener("input", (event) => {
   }
   if (event.target.matches("#tripDate, #tripLocation, #tripLaunch")) {
     updateLocationControls();
-  }
-  if (event.target.matches("#waveHeight")) {
-    updateAutoWaveChopDisplay();
   }
   if (event.target.matches("#locationLatitude, #locationLongitude")) {
     const coordinates = locationFormCoordinates();

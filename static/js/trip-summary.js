@@ -35,10 +35,6 @@ function displayPhotoTitle(photo) {
   return displaySentenceText(photo.caption || "Trip photo");
 }
 
-function timelinePhotoTitle(photo) {
-  return displaySentenceText(photo.caption || "Trip photo");
-}
-
 function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
   if (!photos.length) return `<div class="empty-state compact-empty"><p>${escapeHtml(emptyText)}</p></div>`;
   const className = ["summary-photo-grid", options.compact ? "compact-photo-grid" : "", options.hero ? "hero-photo-grid" : ""].filter(Boolean).join(" ");
@@ -162,26 +158,6 @@ function displaySpeedValue(value) {
 function displayFowValue(value) {
   const text = displayStoredMeasurement(value, "depth");
   return /\bFOW\b/i.test(text) ? text : `${text} FOW`;
-}
-
-function setupTimelineRecord(trip, gearItem, index) {
-  const rodReel = comboName(gearItem.comboId) || [rodName(gearItem.rodId), reelName(gearItem.reelId)].filter(Boolean).join(" + ");
-  const rod = rodReel || [setupLineSideLabel(gearItem.side), gearItem.lineLabel].filter(Boolean).join(" ") || `Rod ${index + 1}`;
-  const lure = [lureName(gearItem.lureId), flasherName(gearItem.flasherId)].filter(Boolean).join(" + ");
-  const position = [
-    setupLineSideLabel(gearItem.side),
-    gearItem.lineLabel
-  ].filter(Boolean).join(" \u00b7 ");
-  return {
-    rod: displayTitleText(rod),
-    rodReel: displayTitleText(rodReel),
-    presentation: presentationLabel(gearItem.presentation),
-    lure: displayTitleText(lure),
-    position: displayTitleText(position),
-    startTime: gearItem.startTime ? formatDisplayTime(gearItem.startTime) : "",
-    endTime: gearItem.endTime ? formatDisplayTime(gearItem.endTime) : "",
-    changeNote: displaySentenceText(gearItem.changeNote || "")
-  };
 }
 
 function compactSetupDisplayLabel(record = {}) {

@@ -220,8 +220,6 @@ function selectedStatsChartConfig(id, headers, metricIndexes) {
 function statsChartConfig(id, headers) {
   const byHeader = (name) => headers.findIndex((header) => header.toLowerCase() === name.toLowerCase());
   const fishIndex = byHeader("Fish");
-  const landedIndex = byHeader("Landed");
-  const lostIndex = byHeader("Lost");
   const rateIndex = byHeader("Fish / hr");
   const tripRateIndex = byHeader("Fish / trip");
   const catchShareIndex = byHeader("Fish %");

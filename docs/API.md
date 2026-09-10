@@ -55,6 +55,30 @@ Proxies SunriseSunset.io. Required: numeric `lat`, numeric `lng`, and `date`. Op
 
 Proxy errors return an upstream status where available or `503` for network/timeout failures. The response body is `{ "error": "..." }` on handled errors.
 
+### `GET /api/bathymetry/depth`
+
+Looks up the nearest Great Lakes bathymetry feature for numeric `latitude` and `longitude` coordinates. The response includes `depth_m`, `depth_ft`, `lake_name`, and `depth_source`; when a feature is unavailable, the depth fields are null. The request uses the saved per-lake FOW calibration settings.
+
+### `GET /api/great-lakes/temperature-value`
+
+Returns a modelled Great Lakes water-temperature value for numeric `forecastHour`, `depth`, `resolution`, `latitude`, and `longitude` query values. `forecastHour` is snapped to `0`, `6`, `12`, `24`, or `48`; depth is bounded to 0–500 meters and resolution to 128–512 pixels. An optional comma-separated `models` list selects known NOAA models.
+
+### `GET /api/great-lakes/profile`
+
+Returns the modelled water-column temperature profile and estimated thermocline for numeric `forecastHour`, `latitude`, and `longitude`, with the same optional `models` selection.
+
+### `GET /api/great-lakes/<layer>`
+
+Returns the current model payload for `temperature` or `currents`. The optional `forecastHour`, `depth`, and `models` query values select the model view.
+
+### `GET /api/great-lakes/temperature-raster`
+
+Returns a server-rendered temperature raster payload for the optional `forecastHour`, `depth`, `resolution`, and `models` query values.
+
+### `GET /api/great-lakes/thermocline-raster`
+
+Returns a server-rendered thermocline-depth raster payload for the optional `forecastHour`, `resolution`, and `models` query values.
+
 ## Uploads and Media
 
 Allowed categories: `catch-photos`, `trip-photos`, `lures`, `flashers`, `reels`, `rods`, `queue`.
@@ -104,5 +128,5 @@ Files are served from their category paths. Category validation occurs through t
 ## SPA and Static Routes
 
 - `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, and `/settings` render `templates/index.html` and its feature partials. `/` selects the Trips view.
-- `/static/<path:filename>` serves only `.css` and `.js` files beneath `static/`.
+- `/static/<path:filename>` serves only `.css`, `.js`, `.png`, `.jpg`, `.jpeg`, `.svg`, and `.webp` files beneath `static/`.
 - `/favicon.ico` returns 204.

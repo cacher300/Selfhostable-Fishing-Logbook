@@ -25,11 +25,6 @@ function setupLineAutoLabel(gearItem, index = 0) {
   return [pieces.join(" "), rodReel || gear].filter(Boolean).join(": ") || `Rod ${index + 1}`;
 }
 
-function setupLineDisplayLabel(trip, gearItem) {
-  const index = Math.max(0, (trip.gearUsed || []).findIndex((item) => item.id === gearItem.id));
-  return gearItem.lineLabel || setupLineAutoLabel(gearItem, index);
-}
-
 function resolveTripLineRecord(record) {
   const line = setupLineForRecord(record);
   if (!line) return record;

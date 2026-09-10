@@ -1,11 +1,5 @@
 /* Exported report */
 .share-report {
-  --report-bg: #061b2b;
-  --report-surface: #0b2a40;
-  --report-surface-2: #092338;
-  --report-text: #edf7ff;
-  --report-muted: #a9c1d2;
-  --report-line: #315b74;
   box-sizing: border-box;
   position: relative;
   width: 100%;
@@ -15,24 +9,6 @@
   color: var(--report-text);
   background: var(--report-bg);
   font: 500 1.42cqw/1.35 Roboto, Arial, sans-serif;
-}
-
-.share-report.theme-clean-light {
-  --report-bg: #fff;
-  --report-surface: #edf4f7;
-  --report-surface-2: #f7fafb;
-  --report-text: #10293a;
-  --report-muted: #527084;
-  --report-line: #b8ccd7;
-}
-
-.share-report.theme-nautical {
-  --report-bg: #07345b;
-  --report-surface: #0d4777;
-  --report-surface-2: #0a3d68;
-  --report-text: #f5fbff;
-  --report-muted: #b7d7ed;
-  --report-line: #4a7ea5;
 }
 
 .share-report h3,
@@ -859,7 +835,6 @@
 
 .share-report { --report-bg: #131b24; --report-surface: #18232d; --report-surface-2: #141f29; --report-text: #edf3f8; --report-muted: #aab7c5; --report-line: #2b3b4a; }
 .share-report.theme-clean-light { --report-bg: #f8fafb; --report-surface: #eef2f5; --report-surface-2: #ffffff; --report-text: #17212b; --report-muted: #5d6b78; --report-line: #cad4dc; }
-.share-report.theme-nautical { --report-bg: #19232d; --report-surface: #222f3b; --report-surface-2: #1d2934; --report-text: #edf3f8; --report-muted: #b1bdc8; --report-line: #3a4b5b; }
 
 @media (max-width: 860px) {
   .share-trip-controls { border-bottom-color: var(--line); }

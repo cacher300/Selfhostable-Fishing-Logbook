@@ -43,7 +43,6 @@ function renderCalendar(inputId) {
   const year = monthDate.getUTCFullYear();
   const month = monthDate.getUTCMonth();
   const firstDay = new Date(Date.UTC(year, month, 1)).getUTCDay();
-  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const monthLabel = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(year, month, 1)));
   const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
   const cells = [];

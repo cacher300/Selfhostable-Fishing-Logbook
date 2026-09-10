@@ -22,7 +22,7 @@ The logbook is stored in SQLite at `data/logbook.sqlite3`; collections are recon
 | C03 | Trip list search | Search location, target/catch species, lure names, and notes. | Implemented | Search box | In-memory normalized state | `dashboard.js`, `templates/partials/views/trips.html` | `trips`, `lures` | GET `/api/logbook` | Trips |
 | C04 | Trip filtering | Filter by target, method, and year. | Implemented | Trips toolbar | Saved predefined lists and trip dates | `dashboard.js` | `trips` | GET `/api/logbook` | Trips |
 | C05 | Trip sorting | Sort by date, catch rate, fish count, hours, or sortable table columns. | Implemented | Sort control/table headers | Calculated fish, hours, rate | `dashboard.js`, `app.js` | `trips.catches`, `hours` | None beyond logbook read | Trips |
-| C06 | Trip summary/report | Present metrics, conditions, notes, media, setup, catches, maps, spread, and event timeline; supports edit/delete. | Implemented | View button on trip row | All trip nested records, Leaflet | `trip-summary.js`, `trip-report.js`, `trip-timeline.js`, `maps.js`, `location-weather.js` | `trips[]` | Media GET routes | Trip Summary dialog |
+| C06 | Trip summary/report | Present metrics, conditions, notes, media, setup, catches, maps, spread, and catch timeline; supports edit/delete. | Implemented | View button on trip row | All trip nested records, Leaflet | `trip-summary.js`, `trip-report.js`, `trip-timeline.js`, `maps.js`, `location-weather.js` | `trips[]` | Media GET routes | Trip Summary dialog |
 | C07 | People tracking | Add reusable people and attribute landed/lost fish to them. | Implemented | People section and fish rows | People are merged globally from trips | `trip-editor.js`, `logbook_store.py` | `people[]`, `trip.people[]`, `personId` | GET/PUT `/api/logbook` | Trip dialog, Stats |
 | C08 | Species tracking | Maintain species choices and record target, landed, and possible lost-fish species. | Implemented | Trip/catch forms; Settings | User-managed option list | `settings.js`, `trip-editor.js`, `stats.js` | `species[]`, trip/catch species | GET/PUT `/api/logbook` | Trips, Stats, Settings |
 | C09 | Method tracking | Record fishing method and adapt the form for trolling/casting. | Implemented | Trip Method select | User-managed method list | `form-utils.js`, `trip-editor.js` | `methods[]`, `trip.method` | GET/PUT `/api/logbook` | Trip dialog, Stats |
@@ -50,7 +50,7 @@ The logbook is stored in SQLite at `data/logbook.sqlite3`; collections are recon
 | C29 | Rod/reel combos | Save named rod/reel pairings and copy selections into setup rows. | Implemented | Gear > Combos | Rod/reel IDs | `gear-dialogs.js`, `gear-pickers.js` | `rodReelCombos[]`, `comboId` | GET/PUT `/api/logbook` | Gear, Trip dialog |
 | C30 | Line-spooling history | Track reel line entries, dates, type, brand/name, weight, diameters, color, backing, and notes. | Implemented | Edit Reel; Line Tracker tab | Reel ownership and line type list | `gear-dialogs.js`, `gear-inventory.js` | `reels[].lineHistory[]` | GET/PUT `/api/logbook` | Gear |
 | C31 | Trolling spread diagram | Draw setup geometry and show catch/lost counts for a trip. | Implemented | Trip Summary | Setup sides/presentations | `trip-summary.js`, `trolling-spread.js` | `gearUsed`, catches, lost fish | None | Trip Summary |
-| C32 | Event timeline | Merge setup changes, catches, lost fish, and geotagged media into a filterable chronology. | Implemented | Trip Summary | Times and media capture times | `trip-timeline.js` | Nested trip records | None | Trip Summary |
+| C32 | Catch timeline | Render a sortable, filterable chronology of landed and lost fish with selectable report columns. | Implemented | Trip Summary | Catch times, nested records, and report preferences | `trip-report.js`, `trip-summary.js`, `trip-timeline.js` | Nested trip records | None | Trip Summary |
 
 ## Media, Mapping, and Environmental Features
 
@@ -71,6 +71,8 @@ The logbook is stored in SQLite at `data/logbook.sqlite3`; collections are recon
 | E13 | Weather trends/front classification | Calculate pressure/temperature/wind/cloud trends, 3-hour pressure rate, and front tag. | Implemented | Automatic weather enrichment | Hourly records | `location-weather.js`, `weather_service.py` | `weatherData.trend`, `frontTag` | Weather APIs | Summary, Stats |
 | E14 | Marine wave enrichment | Fetch wave height/direction/period, retry without cell selection, and fill wave height when user left it blank. | Implemented; external verification required | Automatic weather preview/save | Open-Meteo Marine | `location-weather.js`, `weather_service.py` | `weatherData.marine`, trip wave fields | GET `/api/weather/marine` | Trip dialog, Summary |
 | E15 | Sun/moon enrichment | Fetch sunrise, sunset, moonrise, moonset, phase, and illumination. | Implemented; external verification required | Automatic weather preview/save | SunriseSunset.io | `location-weather.js`, `weather_service.py` | `weatherData.sunMoon` | GET `/api/astronomy` | Summary, Stats |
+| E16 | Bathymetry depth lookup | Look up the nearest Great Lakes depth for catch coordinates and apply saved lake calibration when filling FOW. | Implemented; external verification required | Catch location picker | Esri Canada bathymetry service and lake calibration settings | `locations.js`, `bathymetry_service.py`, `server.py` | Catch depth/FOW fields | GET `/api/bathymetry/depth` | Trip dialog |
+| E17 | Great Lakes model conditions | Display modelled temperature, currents, thermocline rasters, map inspection, and water-column profiles. | Implemented; external verification required | Map > Great Lakes Conditions | NOAA Great Lakes model data and Leaflet overlays | `great-lakes-conditions.js`, `noaa-api.js`, `great_lakes_service.py`, `server.py` | Derived only | GET `/api/great-lakes/*` | Map |
 
 ## Analytics Features
 
@@ -148,12 +150,12 @@ The logbook is stored in SQLite at `data/logbook.sqlite3`; collections are recon
 
 ## Inventory Totals
 
-- Verified implemented, partial, hidden, or deprecated capabilities: **91**.
+- Verified implemented, partial, hidden, or deprecated capabilities: **93**.
 - Core fishing workflow capabilities: **34**.
-- Media, map, and environmental capabilities: **15**.
+- Media, map, and environmental capabilities: **17**.
 - Analytics capabilities counted: **20** (excluding two explicitly absent reports).
 - User/preferences capabilities counted: **5**.
 - Administrative/data-management capabilities counted: **4**.
 - Technical capabilities counted: **13**.
 
-These six mutually exclusive sections contain 103 rows. “Not implemented” rows are retained for audit completeness but excluded from the verified capability count.
+These six mutually exclusive sections contain 105 rows. “Not implemented” rows are retained for audit completeness but excluded from the verified capability count.

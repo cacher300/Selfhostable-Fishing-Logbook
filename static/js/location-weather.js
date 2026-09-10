@@ -49,17 +49,6 @@ function updateMarineWaveHeightPlaceholder(weatherData) {
   els.waveHeight.placeholder = marineWaveHeightPlaceholderText(weatherData);
 }
 
-function updateAutoWaveChopDisplay(weatherData = activeTripWeatherData) {
-  if (!els.waveChopDisplay) return;
-  const typedHeight = String(els.waveHeight?.value || "").trim();
-  const marine = marineSnapshot(weatherData);
-  const sourceHeight = typedHeight
-    || (marine?.marineDataAvailable && marine.waveHeightM !== null && marine.waveHeightM !== undefined ? formatMarineWaveHeightM(marine.waveHeightM) : "");
-  const chop = chopLabelForWaveHeight(sourceHeight);
-  els.waveChopDisplay.value = chop || "";
-  els.waveChopDisplay.placeholder = sourceHeight ? "Auto from wave height" : "Auto unavailable (no wave height)";
-}
-
 function tripWaveHeightDisplay(trip, weatherData) {
   const saved = String(trip?.waveHeight || "").trim();
   if (saved) return displayStoredMeasurement(saved, "waveHeight");
@@ -791,11 +780,6 @@ function renderWeatherSummary(weatherData = activeTripWeatherData) {
   if (els.weatherSummaryUpdated) els.weatherSummaryUpdated.textContent = "";
 }
 
-function syncMarineWaveHeightToForm(weatherData) {
-  updateMarineWaveHeightPlaceholder(weatherData);
-  updateAutoWaveChopDisplay(weatherData);
-}
-
 async function refreshTripWeatherPreview(force = false) {
   const trip = tripDraftForWeather();
   const source = tripWeatherCoordinates(trip);
@@ -821,7 +805,7 @@ async function refreshTripWeatherPreview(force = false) {
   try {
     const result = await buildWeatherDataForTrip(trip, source, false);
     activeTripWeatherData = result.tripWeather;
-    syncMarineWaveHeightToForm(activeTripWeatherData);
+    updateMarineWaveHeightPlaceholder(activeTripWeatherData);
     renderWeatherSummary();
     setWeatherStatus(weatherCardConditionsLabel());
   } catch (error) {

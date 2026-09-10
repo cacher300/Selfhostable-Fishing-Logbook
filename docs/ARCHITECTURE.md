@@ -32,7 +32,7 @@ flowchart LR
 - `photos.js`, `gallery.js`: metadata extraction, upload assignment, gallery, cleanup.
 - `gear-core.js`, `gear-pickers.js`, `gear-dialogs.js`, `gear-inventory.js`: gear media/naming, custom selectors, editor workflows, and inventory rendering.
 - `dashboard.js`, `stats-scope.js`, `stats-performance.js`, `stats.js`, `stats-rendering.js`: trip lists, analytics scoping/calculation, page composition, and reusable chart/table rendering.
-- `maps.js`, `trip-summary.js`, `trip-report.js`, `trip-timeline.js`: global/trip maps, summary details, reports, and event timelines.
+- `maps.js`, `trip-summary.js`, `trip-report.js`, `trip-timeline.js`: global/trip maps, summary detail rendering, report rendering, and summary dialog/media interactions.
 - `settings-core.js`, `settings.js`, `settings-fields.js`, `settings-locations.js`: preference orchestration, import/export, editable option groups, and mapped private locations/spots.
 
 Shared mutable globals couple these files. HTML IDs/classes are effectively internal APIs.
@@ -44,6 +44,9 @@ Shared mutable globals couple these files. HTML IDs/classes are effectively inte
 - `logbook_store.py`: whole-document normalization, validation, and SQLite I/O.
 - `media_service.py`: upload paths, metadata sidecars, preview generation, references, gallery, orphans.
 - `weather_service.py`: allowlisted external weather, marine, and astronomy proxies.
+- `bathymetry_service.py`: catch-depth lookup and lake-calibration support.
+- `great_lakes_service.py`: Great Lakes temperature, current, raster, and thermocline payloads.
+- `request_security.py`: session-backed CSRF protection for mutating requests.
 - `backend_config.py`: paths, defaults, units, media categories, external URLs, allowlists.
 
 The Flask development server runs threaded. SQLite writes are transactional, but concurrent whole-logbook saves remain last-write-wins.
@@ -94,4 +97,4 @@ Current protections include session-backed CSRF tokens for mutations, path resol
 
 ## Deployment and Automation
 
-Local Python defaults to `127.0.0.1:8080`. Docker uses `0.0.0.0:8080`, publishes port 80, mounts `./data`, and restarts unless stopped. The optional host backup script can install a nightly cron job and mirror SQLite/media to local and optional NAS storage. No in-process background worker or scheduler exists.
+Local Python defaults to `127.0.0.1:8080`. Docker uses `0.0.0.0:8080`, publishes port 80, mounts `./data`, and restarts unless stopped. Backups are host-managed; this repository has no backup scheduler or restore tool. No in-process background worker or scheduler exists.

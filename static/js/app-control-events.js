@@ -179,7 +179,6 @@ document.querySelector("#comboRod").addEventListener("change", () => {
 document.querySelector("#comboShortName").addEventListener("input", (event) => {
   event.target.dataset.autoName = "";
 });
-els.saveChopRangesButton?.addEventListener("click", saveChopRanges);
 document.querySelectorAll("[data-theme-option]").forEach((input) => input.addEventListener("change", saveThemePreference));
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
 els.defaultHomeLakeSelect?.addEventListener("change", () => saveDefaultHomeLake({ autosave: true }));
@@ -213,10 +212,6 @@ document.querySelectorAll("[data-time-format-option]").forEach((input) => {
 });
 els.editChopRangesButton?.addEventListener("click", toggleChopRangeEditing);
 els.cancelChopRangesButton?.addEventListener("click", cancelChopRangeEditing);
-els.settingsCancelButton?.addEventListener("click", renderSettings);
-els.settingsSaveNowButton?.addEventListener("click", saveCurrentSettingsTab);
-els.saveUnitSettingsButton?.addEventListener("click", saveUnitSettings);
-document.querySelector("#savePredefinedFieldsButton")?.addEventListener("click", savePredefinedFieldSettings);
 els.unitSettingsFields?.addEventListener("change", () => saveUnitSettings({ autosave: true }));
 els.unitSettingsFields?.addEventListener("input", (event) => {
     if (event.target.matches("[data-bathymetry-lake-calibration]")) {
