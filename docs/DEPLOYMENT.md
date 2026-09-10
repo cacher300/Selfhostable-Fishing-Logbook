@@ -1,7 +1,7 @@
 # Deployment
 
 The production site is served by Nginx and proxied to the Docker Compose service
-`selfhostable-fishing-logbook` on `127.0.0.1:8081`.
+`selfhostable-fishing-logbook` on `127.0.0.1:8081`. Nginx is the public HTTPS and HTTP Basic Auth boundary; the Docker port must never be published on a LAN or public interface.
 
 ## Automatic deployment
 

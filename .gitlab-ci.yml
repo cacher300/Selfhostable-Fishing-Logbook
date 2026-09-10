@@ -135,7 +135,7 @@ deploy_production:
       git cat-file -e "$CI_COMMIT_SHA^{commit}"
       git reset --hard "$CI_COMMIT_SHA"
       mkdir -p "$DEPLOY_DATA_PATH/uploads"
-      export APP_PORT=8081 FISH_DATA_DIR="$DEPLOY_DATA_PATH"
+      export APP_PORT=8081 FISH_DATA_DIR="$DEPLOY_DATA_PATH" SESSION_COOKIE_SECURE=true COMPOSE_PROJECT_NAME=fish-logbook
       docker compose build
       if docker compose up -d --remove-orphans --wait --wait-timeout 180; then
         docker compose ps
