@@ -16,6 +16,10 @@ services:
       # The production deploy sets this to true after HTTPS is enforced at
       # Nginx/Cloudflare. Leave development HTTP usable by default.
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      FISH_STORAGE_BACKEND: ${FISH_STORAGE_BACKEND:-local}
+      FISH_CLOUD_API_URL: ${FISH_CLOUD_API_URL:-}
+      FISH_API_TOKEN: ${FISH_API_TOKEN:-}
+      FISH_API_TOKEN_FILE: ${FISH_API_TOKEN_FILE:-}
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/"]
       interval: 10s

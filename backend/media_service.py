@@ -254,7 +254,7 @@ def extract_image_metadata(category: str, filename: str) -> dict:
     return metadata
 
 
-def scrub_private_photo_metadata(metadata: dict) -> dict:
+def scrub_private_photo_metadata(metadata: dict, logbook: dict | None = None) -> dict:
     """Apply the same private-location rule used by the browser metadata reader."""
     coordinates = metadata.get("coordinates")
     try:
@@ -263,7 +263,8 @@ def scrub_private_photo_metadata(metadata: dict) -> dict:
     except (KeyError, TypeError, ValueError):
         return metadata
 
-    for location in read_logbook().get("settings", {}).get("privatePhotoLocations", []):
+    active_logbook = logbook if logbook is not None else read_logbook()
+    for location in active_logbook.get("settings", {}).get("privatePhotoLocations", []):
         private_coordinates = location.get("coordinates") or {}
         try:
             private_latitude = float(private_coordinates["latitude"])

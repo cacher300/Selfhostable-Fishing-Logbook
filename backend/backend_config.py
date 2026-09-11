@@ -13,6 +13,10 @@ UPLOADS_DIR = DATA_DIR / "uploads"
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8080"))
 SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+FISH_STORAGE_BACKEND = os.environ.get("FISH_STORAGE_BACKEND", "local").strip().lower()
+FISH_CLOUD_API_URL = os.environ.get("FISH_CLOUD_API_URL", "").strip()
+FISH_API_TOKEN = os.environ.get("FISH_API_TOKEN", "")
+FISH_API_TOKEN_FILE = os.environ.get("FISH_API_TOKEN_FILE", "").strip()
 UPLOAD_CATEGORIES = {
     "catch-photos", "trip-photos", "lures",
     "flashers", "reels", "rods", "queue",

@@ -40,8 +40,8 @@ class Statement {
       return { meta: { changes: 1 } };
     }
     if (this.sql.startsWith("INSERT INTO media_objects")) {
-      const [object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by] = this.values;
-      this.db.media.set(object_key, { object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by });
+      const [object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by, metadata_json] = this.values;
+      this.db.media.set(object_key, { object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by, metadata_json });
       return { meta: { changes: 1 } };
     }
     if (this.sql.startsWith("DELETE FROM media_objects")) {
@@ -180,6 +180,7 @@ test("media upload, authenticated retrieval, listing, and deletion use R2 and D1
       "Content-Type": "image/jpeg",
       "X-Original-Filename": "my fish.jpg",
       "X-Fish-Client": "desktop",
+      "X-Fish-Metadata": btoa(JSON.stringify({ captureDate: "2026-09-10" })),
     },
     body: new Uint8Array([1, 2, 3]),
   })), env);
@@ -188,7 +189,9 @@ test("media upload, authenticated retrieval, listing, and deletion use R2 and D1
 
   const listed = await worker.fetch(request("/api/media?category=trip-photos", authorized()), env);
   assert.equal(listed.status, 200);
-  assert.equal((await listed.json()).media.length, 1);
+  const inventory = (await listed.json()).media;
+  assert.equal(inventory.length, 1);
+  assert.deepEqual(inventory[0].metadata, { captureDate: "2026-09-10" });
 
   const downloaded = await worker.fetch(request("/api/media/trip-photos/photo.jpg", authorized()), env);
   assert.equal(downloaded.status, 200);
@@ -199,6 +202,23 @@ test("media upload, authenticated retrieval, listing, and deletion use R2 and D1
   assert.equal(removed.status, 200);
   const missing = await worker.fetch(request("/api/media/trip-photos/photo.jpg", authorized()), env);
   assert.equal(missing.status, 404);
+});
+
+test("preview upload, retrieval, and deletion use R2 without inventory rows", async () => {
+  const env = environment();
+  const uploaded = await worker.fetch(request("/api/previews/trip-photos/photo.jpg", authorized({
+    method: "PUT",
+    headers: { "Content-Type": "image/jpeg" },
+    body: new Uint8Array([4, 5, 6]),
+  })), env);
+  assert.equal(uploaded.status, 201);
+  assert.equal(env.FISH_DB.media.size, 0);
+
+  const downloaded = await worker.fetch(request("/api/previews/trip-photos/photo.jpg", authorized()), env);
+  assert.deepEqual(new Uint8Array(await downloaded.arrayBuffer()), new Uint8Array([4, 5, 6]));
+
+  const removed = await worker.fetch(request("/api/previews/trip-photos/photo.jpg", authorized({ method: "DELETE" })), env);
+  assert.equal(removed.status, 200);
 });
 
 test("media upload rejects unsafe filenames and empty objects", async () => {

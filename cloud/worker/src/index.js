@@ -10,6 +10,7 @@ const ALLOWED_MEDIA_CATEGORIES = new Set([
 
 const MAX_LOGBOOK_BYTES = 1_800_000;
 const MAX_MEDIA_BYTES = 30 * 1024 * 1024;
+const MAX_METADATA_BYTES = 16 * 1024;
 const encoder = new TextEncoder();
 
 function json(payload, status = 200, headers = {}) {
@@ -72,8 +73,7 @@ function parseRevision(value) {
   return match ? Number(match[1]) : Number.NaN;
 }
 
-function mediaPath(pathname) {
-  const prefix = "/api/media/";
+function objectPath(pathname, prefix, objectPrefix) {
   if (!pathname.startsWith(prefix)) return null;
   const parts = pathname.slice(prefix.length).split("/");
   if (parts.length !== 2) return null;
@@ -93,8 +93,32 @@ function mediaPath(pathname) {
   return {
     category,
     filename,
-    objectKey: `media/${category}/${filename}`,
+    objectKey: objectPrefix + "/" + category + "/" + filename,
   };
+}
+
+function mediaPath(pathname) {
+  return objectPath(pathname, "/api/media/", "media");
+}
+
+function previewPath(pathname) {
+  return objectPath(pathname, "/api/previews/", "previews");
+}
+
+function decodeMetadata(request) {
+  const encoded = request.headers.get("X-Fish-Metadata") || "";
+  if (!encoded) return {};
+  if (encoded.length > MAX_METADATA_BYTES * 2) throw new Error("Media metadata is too large");
+  try {
+    const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+    if (bytes.byteLength > MAX_METADATA_BYTES) throw new Error("Media metadata is too large");
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
+    if (!payload || Array.isArray(payload) || typeof payload !== "object") throw new Error("Media metadata must be a JSON object");
+    return payload;
+  } catch (error) {
+    if (error.message === "Media metadata is too large" || error.message === "Media metadata must be a JSON object") throw error;
+    throw new Error("Media metadata is invalid");
+  }
 }
 
 async function getLogbook(env) {
@@ -192,13 +216,23 @@ async function listMedia(request, env) {
   const limit = Math.max(1, Math.min(500, Number(url.searchParams.get("limit") || 200) || 200));
   const query = category
     ? env.FISH_DB.prepare(
-      "SELECT object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by FROM media_objects WHERE category = ? ORDER BY uploaded_at DESC LIMIT ?",
+      "SELECT object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by, metadata_json FROM media_objects WHERE category = ? ORDER BY uploaded_at DESC LIMIT ?",
     ).bind(category, limit)
     : env.FISH_DB.prepare(
-      "SELECT object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by FROM media_objects ORDER BY uploaded_at DESC LIMIT ?",
+      "SELECT object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by, metadata_json FROM media_objects ORDER BY uploaded_at DESC LIMIT ?",
     ).bind(limit);
   const result = await query.all();
-  return json({ media: result.results || [] });
+  const media = (result.results || []).map((item) => {
+    let metadata = {};
+    try {
+      metadata = JSON.parse(item.metadata_json || "{}");
+    } catch {
+      metadata = {};
+    }
+    const { metadata_json: ignored, ...inventory } = item;
+    return { ...inventory, metadata };
+  });
+  return json({ media });
 }
 
 async function putMedia(request, env, media) {
@@ -214,6 +248,13 @@ async function putMedia(request, env, media) {
   const originalName = (request.headers.get("X-Original-Filename") || media.filename).slice(0, 255);
   const uploadedAt = new Date().toISOString();
   const uploadedBy = clientName(request);
+  let metadata;
+  try {
+    metadata = decodeMetadata(request);
+  } catch (error) {
+    return json({ error: error.message }, 400);
+  }
+  const metadataJson = JSON.stringify(metadata);
   const object = await env.FISH_MEDIA.put(media.objectKey, request.body, {
     httpMetadata: { contentType },
     customMetadata: {
@@ -234,7 +275,7 @@ async function putMedia(request, env, media) {
 
   try {
     await env.FISH_DB.prepare(
-      "INSERT INTO media_objects (object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(object_key) DO UPDATE SET original_name = excluded.original_name, content_type = excluded.content_type, byte_size = excluded.byte_size, etag = excluded.etag, uploaded_at = excluded.uploaded_at, uploaded_by = excluded.uploaded_by",
+      "INSERT INTO media_objects (object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(object_key) DO UPDATE SET original_name = excluded.original_name, content_type = excluded.content_type, byte_size = excluded.byte_size, etag = excluded.etag, uploaded_at = excluded.uploaded_at, uploaded_by = excluded.uploaded_by, metadata_json = excluded.metadata_json",
     ).bind(
       media.objectKey,
       media.category,
@@ -245,6 +286,7 @@ async function putMedia(request, env, media) {
       object.httpEtag || object.etag || "",
       uploadedAt,
       uploadedBy,
+      metadataJson,
     ).run();
   } catch (error) {
     await env.FISH_MEDIA.delete(media.objectKey);
@@ -261,7 +303,28 @@ async function putMedia(request, env, media) {
     size: object.size,
     etag: object.httpEtag || object.etag || "",
     uploadedAt,
+    metadata,
   }, 201);
+}
+
+async function putPreview(request, env, preview) {
+  const declaredLength = Number(request.headers.get("Content-Length") || 0);
+  if (declaredLength > MAX_MEDIA_BYTES) return json({ error: "Preview exceeds the 30 MB limit" }, 413);
+  const contentType = (request.headers.get("Content-Type") || "image/jpeg").split(";")[0].trim();
+  if (!contentType.startsWith("image/")) return json({ error: "Preview must be an image" }, 415);
+  const object = await env.FISH_MEDIA.put(preview.objectKey, request.body, { httpMetadata: { contentType } });
+  if (!object.size) {
+    await env.FISH_MEDIA.delete(preview.objectKey);
+    return json({ error: "Preview cannot be empty" }, 400);
+  }
+  return json({ ok: true, size: object.size, etag: object.httpEtag || object.etag || "" }, 201);
+}
+
+async function deletePreview(env, preview) {
+  const existing = await env.FISH_MEDIA.head(preview.objectKey);
+  if (!existing) return json({ error: "Preview not found" }, 404);
+  await env.FISH_MEDIA.delete(preview.objectKey);
+  return json({ ok: true });
 }
 
 async function getMedia(request, env, media) {
@@ -324,6 +387,10 @@ export async function handleRequest(request, env) {
   if (media && request.method === "DELETE") {
     return deleteMedia(env, media);
   }
+  const preview = previewPath(url.pathname);
+  if (preview && request.method === "PUT") return putPreview(request, env, preview);
+  if (preview && (request.method === "GET" || request.method === "HEAD")) return getMedia(request, env, preview);
+  if (preview && request.method === "DELETE") return deletePreview(env, preview);
   return json({ error: "Not found" }, 404);
 }
 

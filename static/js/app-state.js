@@ -1,4 +1,5 @@
 let state = structuredClone(defaults);
+let logbookRevision = "";
 let activeTripId = null;
 let activeSummaryTripId = null;
 let activeReportTimelineFilter = "all";
@@ -110,7 +111,10 @@ async function loadState() {
   if (location.protocol !== "file:") {
     try {
       const response = await fetch("/api/logbook");
-      if (response.ok) return normalizeState({ ...structuredClone(defaults), ...(await response.json()) });
+      if (response.ok) {
+        logbookRevision = response.headers.get("ETag") || "";
+        return normalizeState({ ...structuredClone(defaults), ...(await response.json()) });
+      }
     } catch {
       // Fall through to browser storage when the server is unavailable.
     }

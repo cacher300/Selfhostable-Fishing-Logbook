@@ -122,6 +122,7 @@ async function importDatabaseArchive(event) {
     if (!response.ok) throw new Error(payload.error || "Could not import the database.");
     const refreshed = await fetch("/api/logbook");
     if (!refreshed.ok) throw new Error("The backup was imported, but the logbook could not be refreshed.");
+    logbookRevision = refreshed.headers.get("ETag") || "";
     state = normalizeState(await refreshed.json());
     localStorage.setItem(storageKey, JSON.stringify(state));
     renderAll();

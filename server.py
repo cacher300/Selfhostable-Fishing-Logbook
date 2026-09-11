@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import mimetypes
 import os
 import shutil
 import sys
@@ -38,6 +39,7 @@ _relaunch_in_project_venv()
 from flask import Flask, Response, abort, jsonify, render_template, request, send_from_directory
 from werkzeug.utils import secure_filename
 
+from backend import cloud_storage
 from backend.backend_config import (
     ALLOWED_MEDIA_EXTENSIONS,
     DATA_DIR,
@@ -92,6 +94,74 @@ from backend.weather_service import (
 from backend.great_lakes_service import MODELS, great_lakes_payload, great_lakes_temperature_profile, great_lakes_temperature_rasters, great_lakes_temperature_value, great_lakes_thermocline_rasters
 
 
+def storage_read_logbook() -> dict:
+    if not cloud_storage.enabled():
+        return read_logbook()
+    payload, _ = cloud_storage.get_logbook()
+    is_valid, error = validate_logbook(payload)
+    if not is_valid:
+        raise cloud_storage.CloudStorageError(f"Cloud logbook is invalid: {error}", 500)
+    return normalize_logbook(payload)
+
+
+def storage_read_logbook_with_revision() -> tuple[dict, str]:
+    if not cloud_storage.enabled():
+        return read_logbook(), ""
+    payload, revision = cloud_storage.get_logbook()
+    is_valid, error = validate_logbook(payload)
+    if not is_valid:
+        raise cloud_storage.CloudStorageError(f"Cloud logbook is invalid: {error}", 500)
+    return normalize_logbook(payload), revision
+
+
+def storage_write_logbook(payload: dict, revision: str = "") -> str:
+    if not cloud_storage.enabled():
+        write_logbook(payload)
+        return ""
+    return cloud_storage.put_logbook(payload, revision)
+
+
+def cloud_copy_queue_item(filename: str, target_category: str, *, move: bool) -> dict:
+    item = cloud_storage.inventory_item("queue", filename)
+    if not item:
+        raise cloud_storage.CloudStorageError("Queued photo not found", 404)
+    suffix = Path(filename).suffix.lower() or ".jpg"
+    target_name = f"{uuid.uuid4().hex}{suffix}"
+    metadata = dict(item.get("metadata") if isinstance(item.get("metadata"), dict) else {})
+    source_preview = str(metadata.get("previewFilename") or "")
+    target_preview = f"{Path(target_name).stem}.jpg" if source_preview else ""
+    metadata["previewFilename"] = target_preview
+    metadata["mediaType"] = metadata.get("mediaType") or (
+        "video" if str(item.get("content_type") or "").startswith("video/") else "image"
+    )
+    body, headers = cloud_storage.get_object("queue", filename)
+    uploaded = False
+    try:
+        cloud_storage.put_media(
+            target_category,
+            target_name,
+            body,
+            headers.get("content-type") or item.get("content_type") or "application/octet-stream",
+            item.get("original_name") or filename,
+            metadata,
+        )
+        uploaded = True
+        if source_preview:
+            preview_body, _ = cloud_storage.get_object("queue", source_preview, preview=True)
+            cloud_storage.put_preview(target_category, target_preview, preview_body)
+    except Exception:
+        if uploaded:
+            cloud_storage.delete_object(target_category, target_name, missing_ok=True)
+            if target_preview:
+                cloud_storage.delete_object(target_category, target_preview, preview=True, missing_ok=True)
+        raise
+    if move:
+        if source_preview:
+            cloud_storage.delete_object("queue", source_preview, preview=True, missing_ok=True)
+        cloud_storage.delete_object("queue", filename)
+    return upload_payload(target_category, target_name, metadata)
+
+
 def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__, static_folder=None)
     secure_session_cookie = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() in {"1", "true", "yes", "on"}
@@ -107,6 +177,11 @@ def create_app(config: dict | None = None) -> Flask:
         app.config.update(config)
     configure_request_security(app)
 
+    @app.errorhandler(cloud_storage.CloudStorageError)
+    def cloud_storage_error(error: cloud_storage.CloudStorageError) -> tuple[Response, int]:
+        app.logger.error("Cloud storage request failed: %s", error)
+        return jsonify({"error": str(error)}), error.status
+
     @app.after_request
     def add_no_store_header(response: Response) -> Response:
         if request.endpoint != "static_files":
@@ -115,7 +190,11 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.get("/api/logbook")
     def get_logbook() -> Response:
-        return jsonify(read_logbook())
+        payload, revision = storage_read_logbook_with_revision()
+        response = jsonify(payload)
+        if revision:
+            response.headers["ETag"] = revision
+        return response
 
     @app.get("/api/csrf-token")
     def get_csrf_token() -> Response:
@@ -129,14 +208,17 @@ def create_app(config: dict | None = None) -> Flask:
             return jsonify({"error": error}), 400
 
         normalized = normalize_logbook(payload)
-        preserve_existing_depth_fields(normalized, read_logbook())
-        write_logbook(normalized)
-        return jsonify({"ok": True})
+        preserve_existing_depth_fields(normalized, storage_read_logbook())
+        revision = storage_write_logbook(normalized, request.headers.get("If-Match", ""))
+        response = jsonify({"ok": True})
+        if revision:
+            response.headers["ETag"] = revision
+        return response
 
     @app.get("/api/archive")
     def export_archive() -> Response:
         """Portable desktop/mobile archive. Existing web UI is intentionally unchanged."""
-        logbook = read_logbook()
+        logbook = storage_read_logbook()
         archive = BytesIO()
         with ZipFile(archive, "w", ZIP_STORED) as bundle:
             bundle.writestr("manifest.json", json.dumps({
@@ -145,11 +227,33 @@ def create_app(config: dict | None = None) -> Flask:
                 "schemaVersion": logbook.get("schemaVersion", 1),
             }, separators=(",", ":")))
             bundle.writestr("logbook.json", json.dumps(logbook, separators=(",", ":")))
-            for category in UPLOAD_CATEGORIES:
-                directory = upload_category_path(category)
-                for item in directory.rglob("*"):
-                    if item.is_file():
-                        bundle.write(item, f"media/{category}/{item.relative_to(directory).as_posix()}")
+            if cloud_storage.enabled():
+                for item in cloud_storage.list_media():
+                    category = item.get("category")
+                    filename = item.get("filename")
+                    if category not in UPLOAD_CATEGORIES or not filename:
+                        continue
+                    body, _ = cloud_storage.get_object(category, filename)
+                    bundle.writestr(f"media/{category}/{filename}", body)
+                    metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+                    bundle.writestr(
+                        f"media/{category}/{filename}.json",
+                        json.dumps(metadata, separators=(",", ":")),
+                    )
+                    preview_filename = metadata.get("previewFilename") or ""
+                    if preview_filename:
+                        try:
+                            preview, _ = cloud_storage.get_object(category, preview_filename, preview=True)
+                            bundle.writestr(f"media/{category}/{PREVIEW_DIRNAME}/{preview_filename}", preview)
+                        except cloud_storage.CloudStorageError as error:
+                            if error.status != 404:
+                                raise
+            else:
+                for category in UPLOAD_CATEGORIES:
+                    directory = upload_category_path(category)
+                    for item in directory.rglob("*"):
+                        if item.is_file():
+                            bundle.write(item, f"media/{category}/{item.relative_to(directory).as_posix()}")
         archive.seek(0)
         return Response(archive.getvalue(), mimetype="application/zip", headers={"Content-Disposition": "attachment; filename=fishing-logbook-archive.zip"})
 
@@ -180,6 +284,39 @@ def create_app(config: dict | None = None) -> Flask:
                     if name in media_names:
                         return jsonify({"error": "Archive contains duplicate media paths."}), 400
                     media_names.add(name)
+                if cloud_storage.enabled():
+                    for name in names:
+                        if not name.startswith("media/") or name.endswith("/"):
+                            continue
+                        _, category, *relative = Path(name).parts
+                        if relative[0] == PREVIEW_DIRNAME:
+                            if len(relative) == 2:
+                                cloud_storage.put_preview(category, relative[1], bundle.read(name))
+                            continue
+                        filename = relative[0]
+                        if len(relative) != 1 or filename.endswith(".json"):
+                            continue
+                        metadata_name = f"media/{category}/{filename}.json"
+                        try:
+                            metadata = json.loads(bundle.read(metadata_name)) if metadata_name in names else {}
+                        except json.JSONDecodeError:
+                            metadata = {}
+                        content_type = metadata.get("mimeType") or mimetypes.guess_type(filename)[0] or ""
+                        media_type = upload_media_type(content_type, Path(filename).suffix.lower())
+                        if not media_type:
+                            continue
+                        if not content_type:
+                            content_type = f"{media_type}/jpeg" if media_type == "image" else "video/mp4"
+                        cloud_storage.put_media(
+                            category,
+                            filename,
+                            bundle.read(name),
+                            content_type,
+                            metadata.get("name") or filename,
+                            metadata,
+                        )
+                    storage_write_logbook(normalize_logbook(payload))
+                    return jsonify({"ok": True})
                 with TemporaryDirectory(dir=DATA_DIR) as temporary_directory:
                     temporary_root = Path(temporary_directory)
                     staged_files: list[tuple[str, Path, Path]] = []
@@ -216,6 +353,8 @@ def create_app(config: dict | None = None) -> Flask:
                                 backup.parent.mkdir(parents=True, exist_ok=True)
                                 backup.replace(target)
                         raise
+        except cloud_storage.CloudStorageError:
+            raise
         except Exception:
             app.logger.exception("Archive import failed")
             return jsonify({"error": "Could not read the archive."}), 400
@@ -246,7 +385,7 @@ def create_app(config: dict | None = None) -> Flask:
             return jsonify({"error": "Catch coordinates are invalid."}), 400
         latitude, longitude = coordinates
         try:
-            settings = read_logbook().get("settings", {})
+            settings = storage_read_logbook().get("settings", {})
             result = lookup_depth(latitude, longitude, settings.get("bathymetryLakeCalibrationsFeet"))
         except Exception:
             app.logger.exception("Depth lookup failed for catch coordinates.")
@@ -354,7 +493,7 @@ def create_app(config: dict | None = None) -> Flask:
             metadata_payload = scrub_private_photo_metadata({
                 **extract_image_metadata(category, stored_name),
                 **metadata_payload,
-            })
+            }, storage_read_logbook())
         metadata_payload = {
             **metadata_payload,
             "name": filename,
@@ -365,11 +504,37 @@ def create_app(config: dict | None = None) -> Flask:
             **({"_heifMetadataVersion": 1} if converted_heif else {}),
         }
         write_upload_metadata(category, stored_name, metadata_payload)
-
-        return jsonify(upload_payload(category, stored_name, metadata_payload))
+        payload = upload_payload(category, stored_name, metadata_payload)
+        if cloud_storage.enabled():
+            media_path = upload_category_path(category) / stored_name
+            preview_path = upload_category_path(category) / PREVIEW_DIRNAME / preview_filename if preview_filename else None
+            original_uploaded = False
+            try:
+                cloud_storage.put_media(
+                    category,
+                    stored_name,
+                    media_path.read_bytes(),
+                    metadata_payload.get("mimeType") or upload.mimetype or "application/octet-stream",
+                    filename,
+                    metadata_payload,
+                )
+                original_uploaded = True
+                if preview_path and preview_path.is_file():
+                    cloud_storage.put_preview(category, preview_filename, preview_path.read_bytes())
+            except Exception:
+                if original_uploaded:
+                    cloud_storage.delete_object(category, stored_name, missing_ok=True)
+                raise
+            finally:
+                delete_upload_file(category, stored_name, metadata_payload)
+        return jsonify(payload)
 
     @app.get("/api/photo-queue")
     def list_photo_queue() -> Response:
+        if cloud_storage.enabled():
+            items = [cloud_storage.payload_from_inventory(item) for item in cloud_storage.list_media("queue")]
+            items.sort(key=lambda item: item["modified"], reverse=True)
+            return jsonify({"photos": items})
         queue_dir = upload_category_path("queue")
         items = []
         for file_path in queue_dir.iterdir():
@@ -389,10 +554,14 @@ def create_app(config: dict | None = None) -> Flask:
         categories = sorted(UPLOAD_CATEGORIES) if category == "all" else [category]
         if any(item not in UPLOAD_CATEGORIES for item in categories):
             return jsonify({"error": "Invalid upload category"}), 400
-        items = []
-        for item_category in categories:
-            items.extend(upload_gallery_items(item_category))
-        captions = upload_captions(read_logbook())
+        if cloud_storage.enabled():
+            inventory = cloud_storage.list_media(None if category == "all" else category)
+            items = [cloud_storage.payload_from_inventory(item) for item in inventory]
+        else:
+            items = []
+            for item_category in categories:
+                items.extend(upload_gallery_items(item_category))
+        captions = upload_captions(storage_read_logbook())
         for item in items:
             item_captions = captions.get((item["category"], item["filename"]), [])
             if item_captions:
@@ -402,20 +571,41 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.get("/api/orphaned-media")
     def list_orphaned_media() -> Response:
-        return jsonify({"media": orphaned_upload_items()})
+        if not cloud_storage.enabled():
+            return jsonify({"media": orphaned_upload_items()})
+        references = referenced_uploads(storage_read_logbook())
+        items = [
+            cloud_storage.payload_from_inventory(item)
+            for item in cloud_storage.list_media()
+            if item.get("category") != "queue"
+            and (item.get("category"), item.get("filename")) not in references
+        ]
+        items.sort(key=lambda item: item["modified"], reverse=True)
+        return jsonify({"media": items})
 
     @app.delete("/api/uploads/<category>/<filename>")
     def delete_upload(category: str, filename: str) -> tuple[Response, int] | Response:
         if category not in UPLOAD_CATEGORIES or category == "queue":
             return jsonify({"error": "Invalid upload category"}), 400
         safe_name = secure_filename(filename)
-        media_path = upload_category_path(category) / safe_name
-        if not safe_name or not media_path.exists() or not media_path.is_file():
+        if not safe_name:
             return jsonify({"error": "Upload not found"}), 404
-        if (category, safe_name) in referenced_uploads(read_logbook()):
+        if (category, safe_name) in referenced_uploads(storage_read_logbook()):
             return jsonify({"error": "This upload is still attached to the logbook"}), 409
-
-        delete_upload_file(category, safe_name)
+        if cloud_storage.enabled():
+            item = cloud_storage.inventory_item(category, safe_name)
+            if not item:
+                return jsonify({"error": "Upload not found"}), 404
+            metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+            preview_filename = metadata.get("previewFilename") or ""
+            if preview_filename:
+                cloud_storage.delete_object(category, preview_filename, preview=True, missing_ok=True)
+            cloud_storage.delete_object(category, safe_name)
+        else:
+            media_path = upload_category_path(category) / safe_name
+            if not media_path.exists() or not media_path.is_file():
+                return jsonify({"error": "Upload not found"}), 404
+            delete_upload_file(category, safe_name)
         return jsonify({"ok": True})
 
     @app.post("/api/photo-queue/claim")
@@ -425,6 +615,8 @@ def create_app(config: dict | None = None) -> Flask:
         target_category = str(payload.get("targetCategory", ""))
         if target_category not in UPLOAD_CATEGORIES or target_category == "queue":
             return jsonify({"error": "Invalid target category"}), 400
+        if cloud_storage.enabled():
+            return jsonify(cloud_copy_queue_item(filename, target_category, move=True))
         source = upload_category_path("queue") / filename
         if not filename or not source.exists() or not source.is_file():
             return jsonify({"error": "Queued photo not found"}), 404
@@ -477,6 +669,8 @@ def create_app(config: dict | None = None) -> Flask:
         target_category = str(payload.get("targetCategory", ""))
         if target_category not in UPLOAD_CATEGORIES or target_category == "queue":
             return jsonify({"error": "Invalid target category"}), 400
+        if cloud_storage.enabled():
+            return jsonify(cloud_copy_queue_item(filename, target_category, move=False))
         source = upload_category_path("queue") / filename
         if not filename or not source.exists() or not source.is_file():
             return jsonify({"error": "Queued photo not found"}), 404
@@ -512,6 +706,15 @@ def create_app(config: dict | None = None) -> Flask:
     @app.delete("/api/photo-queue/<filename>")
     def delete_photo_queue_item(filename: str) -> Response:
         safe_name = secure_filename(filename)
+        if cloud_storage.enabled():
+            item = cloud_storage.inventory_item("queue", safe_name)
+            if item:
+                metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+                preview_filename = metadata.get("previewFilename") or ""
+                if preview_filename:
+                    cloud_storage.delete_object("queue", preview_filename, preview=True, missing_ok=True)
+                cloud_storage.delete_object("queue", safe_name, missing_ok=True)
+            return jsonify({"ok": True})
         photo = upload_category_path("queue") / safe_name
         metadata = upload_metadata_path("queue", safe_name)
         metadata_payload = read_upload_metadata("queue", safe_name)
@@ -528,11 +731,28 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.get("/uploads/<category>/_previews/<filename>")
     def uploaded_preview_file(category: str, filename: str) -> Response:
-        return send_from_directory(upload_category_path(category) / PREVIEW_DIRNAME, filename)
+        if not cloud_storage.enabled():
+            return send_from_directory(upload_category_path(category) / PREVIEW_DIRNAME, filename)
+        if category not in UPLOAD_CATEGORIES or secure_filename(filename) != filename:
+            abort(404)
+        body, headers = cloud_storage.get_object(category, filename, preview=True)
+        response = Response(body, mimetype=headers.get("content-type", "image/jpeg"))
+        if headers.get("etag"):
+            response.headers["ETag"] = headers["etag"]
+        return response
 
     @app.get("/uploads/<category>/<filename>")
     def uploaded_file(category: str, filename: str) -> Response:
-        return send_from_directory(upload_category_path(category), filename)
+        if not cloud_storage.enabled():
+            return send_from_directory(upload_category_path(category), filename)
+        if category not in UPLOAD_CATEGORIES or secure_filename(filename) != filename:
+            abort(404)
+        body, headers = cloud_storage.get_object(category, filename)
+        response = Response(body, mimetype=headers.get("content-type", "application/octet-stream"))
+        response.headers["Content-Disposition"] = headers.get("content-disposition", f'inline; filename="{filename}"')
+        if headers.get("etag"):
+            response.headers["ETag"] = headers["etag"]
+        return response
 
     @app.get("/favicon.ico")
     def favicon() -> tuple[str, int]:
@@ -550,7 +770,7 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/checklists")
     @app.get("/settings")
     def app_page() -> Response:
-        theme = read_logbook().get("settings", {}).get("theme")
+        theme = storage_read_logbook().get("settings", {}).get("theme")
         initial_theme = "dark" if theme == "dark" else "light"
         return Response(render_template("index.html", initial_theme=initial_theme), mimetype="text/html")
 
