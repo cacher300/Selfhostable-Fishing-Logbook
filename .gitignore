@@ -10,6 +10,7 @@ __pycache__/
 *.py[cod]
 
 # Local generated files and server logs.
+.env
 tmp/
 
 # Local editor and OS noise.
