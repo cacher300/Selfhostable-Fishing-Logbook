@@ -277,16 +277,16 @@ function normalizeState(nextState) {
         rodId: "",
         ...catchItem,
         gpsSpeed: catchItem.gpsSpeed ?? catchItem.speed ?? "",
-        ballSpeed: catchItem.ballSpeed || "",
-        ballTemp: catchItem.ballTemp || "",
+        ballSpeed: catchItem.ballSpeed ?? "",
+        ballTemp: catchItem.ballTemp ?? "",
         presentation: migrateTrollingPresentationValue(catchItem.presentation)
       }, normalized.spots)),
       lostFish: (trip.lostFish || []).map((fishItem) => ({
         rodId: "",
         ...fishItem,
         gpsSpeed: fishItem.gpsSpeed ?? fishItem.speed ?? "",
-        ballSpeed: fishItem.ballSpeed || "",
-        ballTemp: fishItem.ballTemp || "",
+        ballSpeed: fishItem.ballSpeed ?? "",
+        ballTemp: fishItem.ballTemp ?? "",
         presentation: migrateTrollingPresentationValue(fishItem.presentation)
       })),
       location: location?.name || trip.location || "",
