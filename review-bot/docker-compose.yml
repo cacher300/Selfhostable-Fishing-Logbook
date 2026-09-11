@@ -1,0 +1,16 @@
+services:
+  openai-mr-review-bot:
+    build: .
+    container_name: openai-mr-review-bot
+    env_file:
+      - ${REVIEW_BOT_ENV_FILE:-.env}
+    ports:
+      - "127.0.0.1:${REVIEW_BOT_PORT:-8092}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
