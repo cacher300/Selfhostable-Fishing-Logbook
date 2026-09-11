@@ -170,6 +170,10 @@ function addMapMarker(layerGroup, record, options = {}) {
 }
 
 function ensureMapMarkerPanes(map) {
+  if (!map.getPane("spotMarkers")) {
+    map.createPane("spotMarkers");
+    map.getPane("spotMarkers").style.zIndex = 600;
+  }
   if (!map.getPane("tripMediaMarkers")) {
     map.createPane("tripMediaMarkers");
     map.getPane("tripMediaMarkers").style.zIndex = 610;
@@ -398,6 +402,50 @@ function mapRecordAngler(record) {
     || "Unknown angler";
 }
 
+function visibleMapSpots() {
+  return (state.spots || []).filter((spot) => isUsableCoordinates(spot?.coordinates));
+}
+
+function mapSpotPopupHtml(spot) {
+  const radius = Number(spot.radiusMeters);
+  const radiusText = Number.isFinite(radius) && radius > 0
+    ? `${typeof fishingSpotRadiusText === "function" ? fishingSpotRadiusText(radius) : `${Math.round(radius)} m`} radius`
+    : "";
+  return `
+    <div class="map-popup map-spot-popup">
+      <strong>${escapeHtml(spot.name || "Fishing spot")}</strong>
+      ${radiusText ? `<span>${escapeHtml(radiusText)}</span>` : ""}
+      <small>${escapeHtml(coordinateText(spot.coordinates))}</small>
+    </div>
+  `;
+}
+
+function addMapSpotMarker(layerGroup, spot) {
+  const point = [spot.coordinates.latitude, spot.coordinates.longitude];
+  const popupHtml = mapSpotPopupHtml(spot);
+  const radius = Number(spot.radiusMeters);
+  if (Number.isFinite(radius) && radius > 0) {
+    L.circle(point, {
+      radius,
+      color: "#118753",
+      weight: 2,
+      fillColor: "#2fb875",
+      fillOpacity: 0.12,
+      interactive: false,
+      pane: "spotMarkers"
+    }).addTo(layerGroup);
+  }
+  return L.circleMarker(point, {
+    radius: 7,
+    color: "#0b6e43",
+    fillColor: "#d9f7e8",
+    fillOpacity: 1,
+    weight: 3,
+    pane: "spotMarkers",
+    title: spot.name || "Fishing spot"
+  }).bindPopup(popupHtml).addTo(layerGroup);
+}
+
 function sortedMapValues(records, getValue) {
   return [...new Set(records.map(getValue).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
@@ -420,6 +468,7 @@ function renderAdditionalMapFilters(records) {
   activeMapMethod = renderMapSelect(els.mapMethodFilter, filterableRecords, mapRecordMethod, "All methods", activeMapMethod);
   activeMapDirection = renderMapSelect(els.mapDirectionFilter, catches, (record) => mapRecordTrollingDirection(record)?.label, "All directions", activeMapDirection);
   activeMapAngler = renderMapSelect(els.mapAnglerFilter, catches, mapRecordAngler, "All anglers", activeMapAngler);
+  if (els.mapSpotsToggle) els.mapSpotsToggle.checked = activeMapIncludeSpots;
   if (els.mapDirectionArrowsToggle) els.mapDirectionArrowsToggle.checked = activeMapShowDirectionArrows;
 }
 
@@ -521,6 +570,7 @@ function renderMapYearLegend(records, options = {}) {
   return `
     <div class="map-legend map-dual-legend">
       ${legendItems.length ? `<strong>Species</strong>${legendItems.map((name) => `<span><i style="--pin-color:${name === "Trip Photos" ? "#2763a7" : name === "Trip Videos" ? "#9a5b00" : speciesColor(name)}"></i>${escapeHtml(name)}</span>`).join("")}` : ""}
+      ${options.spotCount ? `<strong>Layers</strong><span><i class="map-spot-key"></i>${escapeHtml(`${options.spotCount} saved ${options.spotCount === 1 ? "spot" : "spots"}`)}</span>` : ""}
       ${years.length ? `<strong>Year outline</strong>${years.map((year) => `<span><i class="map-year-key" style="--pin-color:${mapYearColor(year)}"></i>${escapeHtml(year)}</span>`).join("")}` : ""}
       ${records.some(mapRecordTrollingDirection) ? `<span class="map-direction-key"><i>↑</i>Trolling direction</span>` : ""}
     </div>
@@ -529,6 +579,7 @@ function renderMapYearLegend(records, options = {}) {
 
 function renderFishMap() {
   const allRecords = catchMapRecords();
+  const spots = activeMapIncludeSpots ? visibleMapSpots() : [];
   renderMapSpeciesFilter(allRecords);
   renderAdditionalMapFilters(allRecords);
   renderMapYearFilter(allRecords);
@@ -538,11 +589,12 @@ function renderFishMap() {
   if (els.mapFilterSummary) {
     const catchCount = records.filter((record) => record.type === "catch").length;
     const mediaCount = records.length - catchCount;
-    els.mapFilterSummary.textContent = `${catchCount} ${catchCount === 1 ? "catch" : "catches"}${mediaCount ? ` · ${mediaCount} media` : ""}`;
+    els.mapFilterSummary.textContent = `${catchCount} ${catchCount === 1 ? "catch" : "catches"}${mediaCount ? ` · ${mediaCount} media` : ""}${spots.length ? ` · ${spots.length} ${spots.length === 1 ? "spot" : "spots"}` : ""}`;
   }
   els.mapLegend.innerHTML = renderMapYearLegend(allRecords, {
     includeTripMedia: activeMapIncludeTripMedia,
-    showYearOutlines: !activeMapYearFilteringHidden
+    showYearOutlines: !activeMapYearFilteringHidden,
+    spotCount: spots.length
   });
   if (!window.L) {
     els.fishMap.innerHTML = `<div class="empty-state"><p>Map tiles are unavailable; saved coordinates can still be inspected from trip details.</p></div>`;
@@ -558,12 +610,14 @@ function renderFishMap() {
     window.ensureGreatLakesConditions?.(fishMap);
     ensureMapMarkerPanes(fishMap);
     fishMapMarkers = L.layerGroup().addTo(fishMap);
+    fishMapSpotMarkers = L.layerGroup().addTo(fishMap);
   }
   syncMapPageChartOverlay(fishMap);
   ensureMapMarkerPanes(fishMap);
 
   fishMapMarkers.clearLayers();
-  if (!records.length) {
+  fishMapSpotMarkers.clearLayers();
+  if (!records.length && !spots.length) {
     const homeLake = window.getGreatLakesHomeView?.();
     fishMap.setView(homeLake?.center || [43.8, -79.5], homeLake?.zoom || 6);
     settleMapLayout(fishMap);
@@ -578,6 +632,10 @@ function renderFishMap() {
       colorByYear: !activeMapYearFilteringHidden,
       showDirectionArrows: activeMapShowDirectionArrows
     });
+  });
+  spots.forEach((spot) => {
+    bounds.push([spot.coordinates.latitude, spot.coordinates.longitude]);
+    addMapSpotMarker(fishMapSpotMarkers, spot);
   });
 
   if (bounds.length === 1) fishMap.setView(bounds[0], 13);

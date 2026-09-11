@@ -158,6 +158,13 @@
   background: transparent;
 }
 
+:root[data-theme="dark"] #tripDialog .trip-section-nav a:not(.is-active):hover,
+:root[data-theme="dark"] #tripDialog .trip-section-nav a:not(.is-active):focus-visible {
+  border-color: var(--green-dark);
+  background: var(--hover);
+  color: var(--text);
+}
+
 :root[data-theme="dark"] #tripDialog .trip-section-nav a.is-active,
 :root[data-theme="dark"] #tripDialog .intent-control input:checked + span {
   border-color: var(--active-bg);

@@ -30,6 +30,7 @@
 }
 
 .map-tools .map-media-toggle,
+.map-tools .map-spots-toggle,
 .map-tools .map-direction-toggle,
 .map-tools .map-chart-toggle,
 .map-tools .map-year-filter-toggle {
@@ -145,6 +146,7 @@
 .map-basemap-select select { width: 100%; }
 
 .map-tools .map-media-toggle input,
+.map-tools .map-spots-toggle input,
 .map-tools .map-direction-toggle input,
 .map-tools .map-chart-toggle input,
 .map-tools .map-year-filter-toggle input {
@@ -156,6 +158,7 @@
 
 .map-tools .map-chart-toggle:has(input:focus-visible),
 .map-tools .map-media-toggle:has(input:focus-visible),
+.map-tools .map-spots-toggle:has(input:focus-visible),
 .map-tools .map-direction-toggle:has(input:focus-visible),
 .map-tools .map-year-filter-toggle:has(input:focus-visible) {
   outline: 3px solid var(--focus);
@@ -399,6 +402,12 @@
   box-sizing: border-box;
   border: 3px solid var(--pin-color);
   background: transparent;
+}
+
+.map-dual-legend .map-spot-key {
+  box-sizing: border-box;
+  border: 3px solid #0b6e43;
+  background: #d9f7e8;
 }
 
 .map-dual-legend .map-direction-key i { display: grid; width: 14px; height: 14px; place-items: center; border-radius: 50%; background: var(--green); color: #fff; font-size: 12px; font-style: normal; line-height: 1; }

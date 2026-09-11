@@ -691,8 +691,23 @@
   padding-top: 14px;
 }
 
-#tripDialog .catch-row .collapsible-row-body {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 180px minmax(0, 1fr);
+.catch-row .collapsible-row-body {
+  grid-template-columns: minmax(0, 1fr) 180px minmax(0, 1fr) 180px;
+}
+
+.catch-trolling-details-grid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(7, max-content);
+  gap: 12px;
+  align-items: end;
+  justify-content: start;
+}
+
+.catch-trolling-details-grid > label:first-child,
+.catch-direction {
+  width: 15ch;
+  max-width: 15ch;
 }
 
 .catch-row.collapsed .collapsible-row-body,
@@ -770,7 +785,8 @@
 
 #tripDialog .catch-row .add-lure-inline {
   grid-column: 3 / 4;
-  justify-self: stretch;
+  justify-self: start;
+  width: max-content;
   min-width: 132px;
 }
 
@@ -805,11 +821,18 @@
 .catch-water-depth,
 .catch-depth-down,
 .catch-fow,
+.catch-ball-temp,
 .catch-ball-depth,
 .catch-estimated-lure-depth,
 .catch-estimated-depth {
   width: 8ch;
   max-width: 8ch;
+}
+
+.catch-gps-speed,
+.catch-ball-speed {
+  width: 10ch;
+  max-width: 10ch;
 }
 
 /* FOW values include the unit suffix, so give the editable field enough room
@@ -820,7 +843,16 @@
 }
 
 #tripDialog .catch-row .catch-fow-field {
-  min-width: 148px;
+  min-width: 0;
+  width: max-content;
+  max-width: 100%;
+  justify-self: start;
+}
+
+/* Keep the metadata lock alongside the compact FOW input instead of at the
+   far edge of a flexible details-grid column. */
+#tripDialog .catch-row .catch-fow-field > label {
+  flex: 0 1 auto;
 }
 
 .catch-identity-row {
@@ -1523,6 +1555,12 @@
   display: grid;
 }
 
+#tripDialog .catch-row .param-deepest-rigger.visible {
+  width: max-content;
+  max-width: max-content;
+  justify-self: start;
+}
+
 .catch-field-with-option.trolling-param.visible {
   display: flex;
 }
@@ -1698,14 +1736,14 @@
   border-bottom: 0;
 }
 
-.probe-temperature-cell:last-child {
-  border-right: 0;
+/* With an odd number of depths, the penultimate cell is the right-hand
+   cell of a complete row and still needs its bottom divider. */
+.probe-temperature-cell:nth-last-child(2):nth-child(even) {
+  border-bottom: 1px solid var(--line);
 }
 
-/* When a deeper reading leaves an odd number of cells, keep the final depth
-   as a complete row instead of leaving a partial divider behind it. */
-.probe-temperature-cell:nth-child(odd):last-child {
-  grid-column: 1 / -1;
+.probe-temperature-cell:last-child {
+  border-right: 0;
 }
 
 .probe-temperature-depth {
@@ -1910,21 +1948,6 @@
   padding: 28px 16px;
   color: var(--muted);
   text-align: center;
-}
-
-.probe-temperature-chart-empty svg {
-  width: 34px;
-  height: 34px;
-  fill: none;
-  stroke: var(--green);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.8;
-}
-
-.probe-temperature-chart-empty strong {
-  color: var(--text);
-  font-size: 14px;
 }
 
 .probe-temperature-chart-empty span {

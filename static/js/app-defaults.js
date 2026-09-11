@@ -197,6 +197,7 @@ const defaults = {
     theme: "light",
     defaultHomeLake: "",
     defaultPeople: [],
+    hasFishHawk: true,
     timeFormat: "24",
     bathymetryLakeCalibrationsFeet: {
       Erie: { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 }, Ontario: { shallowOffsetFeet: 0, offshoreOffsetFeet: 0 },

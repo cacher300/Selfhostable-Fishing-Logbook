@@ -89,6 +89,7 @@ function clearUnknownCatchDetails(row) {
     ".catch-fow",
     ".catch-gps-speed",
     ".catch-ball-speed",
+    ".catch-ball-temp",
     ".catch-shaker",
     ".catch-ball-depth",
     ".catch-cheater-depth",
@@ -239,6 +240,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-fow").value = catchItem.fowCaught || "";
   node.querySelector(".catch-gps-speed").value = catchItem.gpsSpeed ?? catchItem.speed ?? "";
   node.querySelector(".catch-ball-speed").value = catchItem.ballSpeed || "";
+  node.querySelector(".catch-ball-temp").value = catchItem.ballTemp || "";
   node.querySelector(".catch-shaker").checked = Boolean(catchItem.shaker);
   node.querySelector(".catch-retrieve").value = catchItem.retrieve || "";
   node.querySelector(".catch-rigging").value = catchItem.rigging || "";
