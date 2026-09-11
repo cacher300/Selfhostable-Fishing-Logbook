@@ -733,9 +733,6 @@
     min-width: 0;
   }
 
-  .map-tools .map-media-toggle,
-  .map-tools .map-spots-toggle,
-  .map-tools .map-direction-toggle,
   .map-tools .map-chart-toggle,
   .map-tools .map-year-filter-toggle {
     width: max-content;

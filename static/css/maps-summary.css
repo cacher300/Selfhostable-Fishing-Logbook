@@ -96,12 +96,33 @@
   z-index: 1200;
   top: 100%;
   right: 0;
-  min-width: 250px;
+  min-width: 270px;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 0 0 8px 8px;
   background: var(--panel);
   box-shadow: var(--shadow);
+}
+
+.map-more-filters-panel > .map-media-toggle,
+.map-more-filters-panel > .map-spots-toggle,
+.map-more-filters-panel > .map-direction-toggle {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  justify-content: flex-start;
+  margin: 0 0 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+}
+
+.map-more-filters-panel > .map-direction-toggle {
+  margin-bottom: 12px;
 }
 
 .map-more-filters-panel > label:not(.inline-toggle) { display: block; min-width: 0; margin-bottom: 9px; color: var(--muted); font-size: 12px; font-weight: 800; }
