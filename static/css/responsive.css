@@ -50,6 +50,10 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .catch-trolling-details-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .catch-row .catch-location-field {
     grid-column: span 2;
   }
@@ -622,6 +626,10 @@
     grid-template-columns: 1fr;
   }
 
+  .catch-trolling-details-grid {
+    grid-template-columns: 1fr;
+  }
+
   .gear-page-header,
   .gear-header,
   .gallery-header {
@@ -725,8 +733,6 @@
     min-width: 0;
   }
 
-  .map-tools .map-media-toggle,
-  .map-tools .map-direction-toggle,
   .map-tools .map-chart-toggle,
   .map-tools .map-year-filter-toggle {
     width: max-content;

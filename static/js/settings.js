@@ -148,10 +148,33 @@ function renderPreferenceSettings() {
   });
   if (els.timeFormatSelect) els.timeFormatSelect.value = timeFormatPreference();
   if (els.defaultHomeLakeSelect) els.defaultHomeLakeSelect.value = state.settings?.defaultHomeLake || "";
+  if (els.fishHawkToggle) els.fishHawkToggle.checked = hasFishHawk();
   renderDefaultPeopleSettings();
   document.querySelectorAll("[data-time-format-option]").forEach((input) => {
     input.checked = input.value === timeFormatPreference();
   });
+}
+
+async function saveFishHawkPreference(options = {}) {
+  const previousSetting = hasFishHawk();
+  const nextSetting = Boolean(els.fishHawkToggle?.checked);
+  state.settings = { ...(state.settings || {}), hasFishHawk: nextSetting };
+  try {
+    await runSettingsSave(
+      async () => {
+        await saveState();
+        syncFishHawkVisibility();
+        const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
+        if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
+      },
+      "The Fish Hawk setting could not be saved.",
+      options
+    );
+  } catch (error) {
+    state.settings = { ...(state.settings || {}), hasFishHawk: previousSetting };
+    renderPreferenceSettings();
+    syncFishHawkVisibility();
+  }
 }
 
 function renderDefaultPeopleSettings() {
@@ -362,6 +385,9 @@ function syncUnitLabels(root = document) {
   });
   root.querySelectorAll(".catch-gps-speed, .catch-ball-speed").forEach((input) => {
     input.placeholder = unitPreference("speed") === "mph" ? "2.4 mph" : unitPreference("speed") === "kn" ? "2.1 kn" : "3.9 kph";
+  });
+  root.querySelectorAll(".catch-ball-temp").forEach((input) => {
+    input.placeholder = unitPreference("waterTemperature") === "C" ? "8 C" : "47 F";
   });
   root.querySelectorAll(".catch-ball-depth, .catch-estimated-lure-depth, .catch-estimated-depth").forEach((input) => {
     input.placeholder = `17 ${unitSymbol("depth")}`;

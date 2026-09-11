@@ -1,7 +1,7 @@
 const reportColumnDefinitions = [
   ["number", "#"], ["type", "Record"], ["time", "Time"], ["angler", "Angler"], ["result", "Result"], ["species", "Species"], ["spot", "Spot"], ["structure", "Structure"], ["size", "Size"],
   ["waterDepth", "Water depth"], ["depth", "Depth Down"], ["method", "Method"], ["setup", "Line"], ["lure", "Lure"], ["flasher", "Flasher"], ["direction", "Direction"],
-  ["gpsSpeed", "GPS Speed"], ["ballSpeed", "Ball Speed"], ["flatlineWeight", "Flatline Weight"],
+  ["gpsSpeed", "GPS Speed"], ["ballSpeed", "Ball Speed"], ["ballTemp", "Ball Temp"], ["flatlineWeight", "Flatline Weight"],
   ["lineBehindBoard", "Line Behind Board"], ["leadcoreColors", "Leadcore Colors"], ["dipseySetting", "Dipsey Setting"],
   ["lineOut", "Line Out"], ["retrieve", "Retrieve"], ["shaker", "Shaker"], ["deepestRigger", "Deepest Rigger"],
   ["notes", "Notes"], ["photo", "Media"]
@@ -10,7 +10,7 @@ const reportDefaultColumns = new Set(reportColumnDefinitions.map(([key]) => key)
 const reportColumnPreferenceKey = `${storageKey}-trip-report-columns-v6`;
 const reportLegacyColumnPreferenceKey = `${storageKey}-trip-report-columns-v5`;
 const reportTrollingColumns = new Set([
-  "setup", "flasher", "direction", "gpsSpeed", "ballSpeed", "depth", "flatlineWeight", "lineBehindBoard",
+  "setup", "flasher", "direction", "gpsSpeed", "ballSpeed", "ballTemp", "depth", "flatlineWeight", "lineBehindBoard",
   "leadcoreColors", "dipseySetting", "lineOut", "shaker", "deepestRigger"
 ]);
 
@@ -100,7 +100,7 @@ function reportTimelineRecords(trip) {
       type: type === "lost" ? "Lost fish" : "Catch", angler: reportPersonName(trip, item.personId), setup: compactSetupDisplayLabel(record),
       waterDepth: reportDepthValue(record.fowCaught || record.waterDepth), depth: reportDepthDown(record, item), lure, flasher,
       lureId: record.lureId || "", flasherId: record.flasherId || "",
-      direction: displayTitleText(record.direction), gpsSpeed: displaySpeedValue(record.gpsSpeed || record.speed), ballSpeed: displaySpeedValue(record.ballSpeed),
+      direction: displayTitleText(record.direction), gpsSpeed: displaySpeedValue(record.gpsSpeed || record.speed), ballSpeed: displaySpeedValue(record.ballSpeed), ballTemp: displayStoredMeasurement(record.ballTemp, "waterTemperature"),
       flatlineWeight: record.flatlineWeightOz ? `${record.flatlineWeightOz} oz` : "",
       lineBehindBoard: reportDepthValue(record.lineBehindBoard), leadcoreColors: record.leadcoreColors,
       dipseySetting: record.dipseySetting, lineOut: reportDepthValue(record.lineOut), retrieve: record.retrieve,
@@ -229,7 +229,7 @@ function renderTripReport(trip) {
     <header class="report-header${hero ? " has-hero" : ""}">${hero ? `<div class="report-header-media" aria-hidden="true">${mediaMarkup(hero, "report-hero-asset", { download: false })}</div>` : ""}<div class="report-header-copy"><p class="report-date">${escapeHtml(reportMeta)}${trip.location ? ` · ${escapeHtml(displayTitleText(trip.location))}` : ""}</p><h3>${escapeHtml(displayTitleText(trip.title || trip.location || "Trip report"))}</h3><p class="report-subtitle">${escapeHtml([trip.targetSpecies, trip.method].filter(Boolean).map(displayTitleText).join(" · ") || "Fishing trip report")}</p><div class="report-actions"><button class="button primary" type="button" data-report-action="edit">Edit trip</button><button class="button secondary" type="button" data-report-action="share">Share trip</button></div></div></header>
     <section class="report-stat-strip">${[["Landed", landed], ["Missed / lost", lost], ["Biggest fish", biggestFish ? displayStoredMeasurement(biggestFish.value, biggestFish.unit) : ""], ["Fish / hr", fishPerHour], ["Hours", trimNumber(hours)], ["Species", species.count]].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value === "" || value === null || value === undefined ? "Not logged" : value))}</strong></div>`).join("")}</section>
     <section class="report-notes"><h3>Trip notes</h3><p>${escapeHtml(trip.notes || "Not logged")}</p></section>
-    <div class="report-fact-grid report-overview-grid">${renderReportKeyValue("Trip details", overview)}${renderReportKeyValue("Conditions", conditions)}${probeTemperatureReadings(trip.probeTemperatureProfile).length ? `<section class="report-fact-section report-probe-section"><h3>Probe temperature profile</h3>${renderProbeTemperatureProfileReport(trip.probeTemperatureProfile, trip.catches)}</section>` : ""}</div>
+    <div class="report-fact-grid report-overview-grid">${renderReportKeyValue("Trip details", overview)}${renderReportKeyValue("Conditions", conditions)}${hasFishHawk() ? `<section class="report-fact-section report-probe-section"><h3>Probe temperature profile</h3>${renderProbeTemperatureProfileReport(trip.probeTemperatureProfile, trip.catches)}</section>` : ""}</div>
     ${isTrollingTripRecord(trip) ? `<section class="report-spread"><div class="report-section-title"><h3>Trolling spread</h3></div>${renderTrollingSpread(trip)}</section>` : ""}
     ${renderReportSetupTable(trip)}
     ${renderReportTimeline(trip)}

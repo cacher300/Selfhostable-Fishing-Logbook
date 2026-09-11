@@ -81,6 +81,7 @@ function collectTripFromForm() {
         fowCaught: !detailsUnknown && (trolling || lost) ? row.querySelector(".catch-fow").value.trim() : "",
         gpsSpeed: !detailsUnknown && trolling ? row.querySelector(".catch-gps-speed").value.trim() : "",
         ballSpeed: !detailsUnknown && trolling ? row.querySelector(".catch-ball-speed").value.trim() : "",
+        ballTemp: !detailsUnknown && trolling ? row.querySelector(".catch-ball-temp").value.trim() : "",
         shaker: !detailsUnknown && trolling ? row.querySelector(".catch-shaker").checked : false,
         retrieve: !detailsUnknown && casting ? row.querySelector(".catch-retrieve").value.trim() : "",
         rigging: !detailsUnknown && !trolling && isSoftPlasticLureRow(row) ? row.querySelector(".catch-rigging").value : "",
@@ -147,6 +148,7 @@ function collectTripFromForm() {
       || item.fowCaught
       || item.gpsSpeed
       || item.ballSpeed
+      || item.ballTemp
       || item.shaker
       || item.retrieve
       || item.rigging

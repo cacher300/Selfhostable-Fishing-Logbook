@@ -225,6 +225,7 @@ function catchDetailRows(trip, catchItem) {
     ["Direction", displayTitleText(record.direction)],
     ["GPS Speed", displaySpeedValue(record.gpsSpeed || record.speed)],
     ["Ball Speed", displaySpeedValue(record.ballSpeed)],
+    ["Ball Temp", displayStoredMeasurement(record.ballTemp, "waterTemperature")],
     ["Flatline Weight", record.flatlineWeightOz ? `${record.flatlineWeightOz} oz` : ""],
     ["Line Behind Board", reportDepthValue(record.lineBehindBoard)],
     ["Leadcore Colors", record.leadcoreColors],

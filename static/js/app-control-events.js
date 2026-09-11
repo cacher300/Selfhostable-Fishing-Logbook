@@ -183,6 +183,7 @@ document.querySelectorAll("[data-theme-option]").forEach((input) => input.addEve
 els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
 els.defaultHomeLakeSelect?.addEventListener("change", () => saveDefaultHomeLake({ autosave: true }));
 els.defaultPeopleOptions?.addEventListener("change", () => saveDefaultPeople({ autosave: true }));
+els.fishHawkToggle?.addEventListener("change", () => saveFishHawkPreference({ autosave: true }));
 els.gearFilterField?.addEventListener("change", updateGearFilter);
 els.gearFilterQuery?.addEventListener("input", updateGearFilter);
 els.gearFilterQuery?.addEventListener("focus", openGearFilterSuggestions);
@@ -395,6 +396,10 @@ els.mapHideYearFilterToggle?.addEventListener("change", () => {
 });
 els.mapTripPhotosToggle?.addEventListener("change", () => {
   activeMapIncludeTripMedia = Boolean(els.mapTripPhotosToggle.checked);
+  renderFishMap();
+});
+els.mapSpotsToggle?.addEventListener("change", () => {
+  activeMapIncludeSpots = Boolean(els.mapSpotsToggle.checked);
   renderFishMap();
 });
 els.mapDirectionArrowsToggle?.addEventListener("change", () => {

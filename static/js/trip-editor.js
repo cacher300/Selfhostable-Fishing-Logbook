@@ -344,7 +344,7 @@ function getValue(id) {
   return document.querySelector(`#${valueId}`).value.trim();
 }
 
-let probeProfileDepthsFeet = Array.from({ length: 13 }, (_, index) => index * 10);
+let probeProfileDepthsFeet = Array.from({ length: 12 }, (_, index) => index * 10);
 
 function probeTemperatureProfileEntries(profile = []) {
   return Array.isArray(profile) ? profile.filter((entry) => Number.isFinite(Number(entry?.depthFeet))) : [];
@@ -610,8 +610,6 @@ function renderProbeTemperatureProfileChart(profile = []) {
   if (!readings.length) {
     chart.innerHTML = `
       <div class="probe-temperature-chart-empty">
-        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4v16M11 9l5-5 5 5M10 24h12M12 27h8" /></svg>
-        <strong>Your profile will appear here</strong>
         <span>Add at least two readings to see the temperature line.</span>
       </div>
     `;
@@ -756,9 +754,14 @@ function currentPeople() {
 function populatePersonSelect(select, selectedId = "") {
   syncPersonRowIds();
   const people = mergePeople(collectPeople());
-  select.innerHTML = people.map((person) => (
+  const assignedPersonId = selectedId || (people.length === 1 ? people[0].id : "");
+  select.innerHTML = [
+    `<option value="">Select person</option>`,
+    ...people.map((person) => (
     `<option value="${person.id}" ${person.id === selectedId ? "selected" : ""}>${escapeHtml(person.name)}</option>`
-  )).join("");
+    ))
+  ].join("");
+  select.value = assignedPersonId;
 }
 
 function populatePersonSelects() {

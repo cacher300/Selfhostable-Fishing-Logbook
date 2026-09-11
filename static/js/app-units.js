@@ -120,6 +120,7 @@ function convertStoredMeasurements(previousUnits, nextUnits) {
     ["fowCaught", "depth"],
     ["gpsSpeed", "speed"],
     ["ballSpeed", "speed"],
+    ["ballTemp", "waterTemperature"],
     ["ballDepth", "depth"],
     ["lineBehindBoard", "depth"],
     ["estimatedLureDepth", "depth"],

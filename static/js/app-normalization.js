@@ -277,14 +277,16 @@ function normalizeState(nextState) {
         rodId: "",
         ...catchItem,
         gpsSpeed: catchItem.gpsSpeed ?? catchItem.speed ?? "",
-        ballSpeed: catchItem.ballSpeed || "",
+        ballSpeed: catchItem.ballSpeed ?? "",
+        ballTemp: catchItem.ballTemp ?? "",
         presentation: migrateTrollingPresentationValue(catchItem.presentation)
       }, normalized.spots)),
       lostFish: (trip.lostFish || []).map((fishItem) => ({
         rodId: "",
         ...fishItem,
         gpsSpeed: fishItem.gpsSpeed ?? fishItem.speed ?? "",
-        ballSpeed: fishItem.ballSpeed || "",
+        ballSpeed: fishItem.ballSpeed ?? "",
+        ballTemp: fishItem.ballTemp ?? "",
         presentation: migrateTrollingPresentationValue(fishItem.presentation)
       })),
       location: location?.name || trip.location || "",
@@ -370,6 +372,7 @@ function normalizeSettings(settings = {}) {
     ...(settings && typeof settings === "object" ? settings : {})
   };
   normalized.theme = normalized.theme === "dark" ? "dark" : "light";
+  normalized.hasFishHawk = normalized.hasFishHawk !== false;
   normalized.timeFormat = normalized.timeFormat === "12" ? "12" : "24";
   normalized.defaultHomeLake = ["", "Superior", "Michigan", "Huron", "Erie", "Ontario"].includes(normalized.defaultHomeLake) ? normalized.defaultHomeLake : "";
   normalized.defaultPeople = Array.isArray(normalized.defaultPeople)
@@ -397,6 +400,10 @@ function normalizeSettings(settings = {}) {
   delete normalized.tackleBoxes;
   normalized.privatePhotoLocations = normalizePrivatePhotoLocations(normalized.privatePhotoLocations);
   return normalized;
+}
+
+function hasFishHawk() {
+  return state.settings?.hasFishHawk !== false;
 }
 
 function uniqueNormalizedName(baseName, usedNames, maxLength = 60) {

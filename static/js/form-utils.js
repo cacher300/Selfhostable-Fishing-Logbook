@@ -72,6 +72,13 @@ function updateTrollingVisibility() {
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updateRiggingVisibility);
   renderLiveTrollingSpread();
   syncLastTrollingSpreadImportButton();
+  syncFishHawkVisibility();
+}
+
+function syncFishHawkVisibility() {
+  document.querySelectorAll(".fish-hawk-field").forEach((element) => {
+    element.classList.toggle("hidden", !hasFishHawk());
+  });
 }
 
 function updatePresentationFields(row) {

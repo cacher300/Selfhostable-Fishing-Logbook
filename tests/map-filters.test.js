@@ -47,6 +47,8 @@ assert.equal(vm.runInContext(`mapRecordTrollingDirection(testRecords[1])`, conte
 assert.equal(vm.runInContext(`mapRecordLake(testRecords[0])`, context), "Lake Ontario");
 assert.equal(vm.runInContext(`mapRecordLake(testRecords[1])`, context), "Lake Erie");
 assert.equal(vm.runInContext(`mapRecordAngler(testRecords[0])`, context), "Alex");
+vm.runInContext(`state.spots = [{ id: "spot-1", name: "Point", coordinates: { latitude: 43.6, longitude: -79.1 }, radiusMeters: 100 }]`, context);
+assert.equal(vm.runInContext(`visibleMapSpots().length`, context), 1);
 assert.equal(vm.runInContext(`shouldShowMapDirectionArrow(testRecords[0])`, context), true);
 assert.equal(vm.runInContext(`shouldShowMapDirectionArrow(testRecords[0], { showDirectionArrows: false })`, context), false);
 assert.equal(vm.runInContext(`shouldShowMapDirectionArrow(testRecords[1])`, context), false);

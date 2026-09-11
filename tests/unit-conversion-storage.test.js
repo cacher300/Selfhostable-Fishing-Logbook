@@ -36,7 +36,7 @@ vm.runInContext(`state = {
     wind: "W 10 mph, gust 15 mph",
     catches: [{
       length: "24", weight: "5 lb", waterDepth: "50", depthDown: "20",
-      fowCaught: "40 FOW", gpsSpeed: "2", ballSpeed: "1.8", ballDepth: "15", lineBehindBoard: "60",
+      fowCaught: "40 FOW", gpsSpeed: "2", ballSpeed: "1.8", ballTemp: "50 F", ballDepth: "15", lineBehindBoard: "60",
       estimatedLureDepth: "18", lineOut: "75", estimatedDepth: "22"
     }],
     lostFish: [],
@@ -59,6 +59,7 @@ assert.equal(catchItem.waterDepth, "15.24");
 assert.equal(catchItem.fowCaught, "12.192 FOW");
 assert.equal(catchItem.gpsSpeed, "3.219");
 assert.equal(catchItem.ballSpeed, "2.897");
+assert.equal(catchItem.ballTemp, "10 °C");
 assert.equal(catchItem.lineOut, "22.86");
 assert.equal(state.reels[0].maxDrag, "9.072");
 assert.equal(state.reels[0].lineHistory[0].weight, "13.608");
