@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "fish-logger-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-11",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "FISH_DB",
+      "database_name": "fish-logger-prod-data",
+      "database_id": "__D1_DATABASE_ID__",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "FISH_MEDIA",
+      "bucket_name": "fish-logger-prod-media"
+    }
+  ]
+}

@@ -28,3 +28,7 @@ backups/
 *.sqlite3
 *.bak
 .venv/
+
+# Cloudflare Worker dependencies and rendered production binding config.
+cloud/worker/node_modules/
+cloud/worker/wrangler.generated.json
