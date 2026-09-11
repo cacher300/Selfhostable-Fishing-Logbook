@@ -1,7 +1,7 @@
 # Deployment
 
 The production site is served by Nginx and proxied to the Docker Compose service
-`selfhostable-fishing-logbook` on `127.0.0.1:8081`.
+`selfhostable-fishing-logbook` on `127.0.0.1:8081`. Nginx is the public HTTPS and HTTP Basic Auth boundary; the Docker port must never be published on a LAN or public interface.
 
 ## Automatic deployment
 
@@ -76,3 +76,37 @@ destination, preferably as a dated archive of both the database and uploads.
 It should not be the live `/uploads` filesystem: sync delays, permissions, and
 unstable file URLs can cause broken images. For a longer-term setup, use object
 storage such as S3-compatible storage, Cloudflare R2, or Backblaze B2.
+
+## Cloudflare D1 and R2 foundation
+
+The production cloud API is maintained under `cloud/worker/` and deployed by
+the self-hosted GitLab pipeline. Cloudflare's direct GitLab integration is not
+used because the repository is hosted at `git.zionkoudijs.com`, not
+GitLab.com.
+
+The Worker has two native bindings:
+
+| Binding | Cloudflare resource | Purpose |
+| --- | --- | --- |
+| `FISH_DB` | D1 `fish-logger-prod-data` | Versioned logbook documents and media inventory |
+| `FISH_MEDIA` | R2 `fish-logger-prod-media` | Private photos and videos |
+
+The Worker accesses both resources through bindings. No D1 or R2 storage key is
+stored in GitLab, the Worker source, or a browser. GitLab only stores the scoped
+Cloudflare deployment token, account ID, and D1 database ID.
+
+The `deploy_cloudflare_worker` job renders the D1 UUID into an ignored
+Wrangler configuration, applies pending migrations, and deploys
+`fish-logger-api`. It runs on the protected default branch when Worker or
+pipeline files change. The following project variables use environment scope
+`production`:
+
+- `CLOUDFLARE_API_TOKEN` — protected, masked and hidden.
+- `CLOUDFLARE_ACCOUNT_ID` — protected.
+- `CLOUDFLARE_D1_DATABASE_ID` — protected.
+
+All `/api/*` Worker routes fail closed until the encrypted
+`FISH_API_TOKEN` Worker secret is configured. Only `GET /health` is public.
+The initial deployment does not route `fish.zionkoudijs.com` to the Worker and
+does not modify the live SQLite/upload volume. Cutover happens only after the
+existing data has been backed up, migrated, and verified.

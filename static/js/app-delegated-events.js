@@ -175,6 +175,7 @@ document.addEventListener("click", (event) => {
   const duplicateCatch = event.target.closest(".duplicate-catch");
   if (duplicateCatch) {
     duplicateCatchRow(duplicateCatch.closest(".catch-row"));
+    renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
     return;
   }
 
@@ -197,6 +198,7 @@ document.addEventListener("click", (event) => {
     catchRow?.remove();
     updateAllRowSummaries();
     renderLiveTrollingSpread();
+    renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
   }
 
   const removeTripGear = event.target.closest(".remove-trip-gear");
@@ -759,7 +761,10 @@ document.addEventListener("change", (event) => {
   }
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);
-  if (event.target.closest("#tripForm")) renderLiveTrollingSpread();
+  if (event.target.closest("#tripForm")) {
+    renderLiveTrollingSpread();
+    renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
+  }
 });
 
 document.addEventListener("input", (event) => {
@@ -789,7 +794,10 @@ document.addEventListener("input", (event) => {
   }
   const row = event.target.closest(".catch-row, .gear-used-row");
   if (row) updateRowSummary(row);
-  if (event.target.closest("#tripForm")) renderLiveTrollingSpread();
+  if (event.target.closest("#tripForm")) {
+    renderLiveTrollingSpread();
+    renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
+  }
 });
 
 document.addEventListener("keydown", (event) => {
@@ -817,6 +825,22 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  const addProbeDepthButton = event.target.closest("[data-add-probe-depth]");
+  if (addProbeDepthButton) {
+    addProbeProfileDepth();
+    return;
+  }
+  const clearProbeProfileButton = event.target.closest("[data-clear-probe-profile]");
+  if (clearProbeProfileButton) {
+    const inputs = [...document.querySelectorAll("#probeTemperatureGrid [data-probe-depth-feet]")];
+    if (inputs.some((input) => input.value.trim()) && confirm("Clear all probe temperature readings?")) {
+      inputs.forEach((input) => { input.value = ""; });
+      renderProbeTemperatureProfileChart([]);
+      markTripFormChanged();
+      clearTripFormMessage();
+    }
+    return;
+  }
   const tab = event.target.closest("#tripDialog .trip-section-nav a");
   if (tab) {
     document.querySelectorAll("#tripDialog .trip-section-nav a").forEach((item) => {

@@ -491,8 +491,16 @@
   }
 
   #tripDialog .dialog-header {
+    display: flex;
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  #tripDialog .trip-section-nav {
+    width: 100%;
+    justify-content: flex-start;
+    margin: 0;
+    padding: 0;
   }
 
   #tripDialog .trip-dialog-header-actions {
@@ -528,6 +536,27 @@
 
   #tripDialog .trip-basics-water-fields {
     grid-template-columns: 1fr;
+  }
+
+  #tripDialog .probe-temperature-layout {
+    grid-template-columns: 1fr;
+  }
+
+  #tripDialog .probe-temperature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #tripDialog .probe-temperature-cell {
+    grid-template-columns: minmax(70px, .7fr) minmax(120px, 1fr);
+    border-right: 0;
+  }
+
+  #tripDialog .probe-temperature-cell:nth-last-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  #tripDialog .probe-temperature-cell:last-child {
+    border-bottom: 0;
   }
 
   #tripDialog .trip-time-inputs {

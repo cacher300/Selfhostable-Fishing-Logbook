@@ -321,6 +321,7 @@ function openTripDialog(trip = null) {
   populateSetupLineSelects();
   updateTrollingVisibility();
   renderLiveTrollingSpread();
+  renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
   syncUnitLabels(els.tripForm);
   els.tripDialog.showModal();
   els.tripForm.scrollTop = 0;
@@ -343,7 +344,7 @@ function getValue(id) {
   return document.querySelector(`#${valueId}`).value.trim();
 }
 
-const probeProfileDepthsFeet = Array.from({ length: 17 }, (_, index) => index * 10);
+let probeProfileDepthsFeet = Array.from({ length: 13 }, (_, index) => index * 10);
 
 function probeTemperatureProfileEntries(profile = []) {
   return Array.isArray(profile) ? profile.filter((entry) => Number.isFinite(Number(entry?.depthFeet))) : [];
@@ -357,16 +358,22 @@ function displayProbeDepth(depthFeet) {
 function renderProbeTemperatureProfile(profile = []) {
   const grid = document.querySelector("#probeTemperatureGrid");
   if (!grid) return;
-  const temperaturesByDepth = new Map(probeTemperatureProfileEntries(profile).map((entry) => [Number(entry.depthFeet), entry.temperature || ""]));
+  const profileEntries = probeTemperatureProfileEntries(profile);
+  const deepestSavedDepth = Math.max(...profileEntries.map((entry) => Number(entry.depthFeet)), 0);
+  while (probeProfileDepthsFeet.at(-1) < deepestSavedDepth) {
+    probeProfileDepthsFeet.push(probeProfileDepthsFeet.at(-1) + 10);
+  }
+  const temperaturesByDepth = new Map(profileEntries.map((entry) => [Number(entry.depthFeet), entry.temperature || ""]));
   grid.innerHTML = probeProfileDepthsFeet.map((depthFeet) => {
     const depthLabel = displayProbeDepth(depthFeet);
     return `
       <label class="probe-temperature-cell">
-        <span>${escapeHtml(depthLabel)}</span>
+        <span class="probe-temperature-depth">${escapeHtml(depthLabel)}</span>
         <input type="text" inputmode="decimal" data-probe-depth-feet="${depthFeet}" value="${escapeHtml(temperaturesByDepth.get(depthFeet) || "")}" placeholder="—" aria-label="Probe temperature at ${escapeHtml(depthLabel)}" />
       </label>
     `;
   }).join("");
+  renderProbeTemperatureProfileChart(profile);
 }
 
 function collectProbeTemperatureProfile() {
@@ -376,6 +383,241 @@ function collectProbeTemperatureProfile() {
       temperature: input.value.trim()
     }))
     .filter((entry) => entry.temperature);
+}
+
+function addProbeProfileDepth() {
+  const profile = collectProbeTemperatureProfile();
+  probeProfileDepthsFeet.push(probeProfileDepthsFeet.at(-1) + 10);
+  renderProbeTemperatureProfile(profile);
+  const addedInput = document.querySelector(`#probeTemperatureGrid [data-probe-depth-feet="${probeProfileDepthsFeet.at(-1)}"]`);
+  addedInput?.scrollIntoView({ behavior: "smooth", block: "center" });
+  addedInput?.focus({ preventScroll: true });
+  markTripFormChanged();
+}
+
+function numericProbeTemperature(value) {
+  const match = String(value || "").trim().match(/-?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*([a-zA-Z°]+))?/);
+  if (!match) return null;
+  const number = Number(match[0].match(/-?(?:\d+(?:\.\d+)?|\.\d+)/)?.[0]);
+  if (!Number.isFinite(number)) return null;
+  const fromUnit = explicitMeasurementUnit(match[1]) || unitPreference("waterTemperature");
+  return convertUnitValue(number, fromUnit, unitPreference("waterTemperature"));
+}
+
+function numericProbeDepth(value) {
+  const match = String(value || "").trim().match(/-?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*([a-zA-Z°]+))?/);
+  if (!match) return null;
+  const number = Number(match[0].match(/-?(?:\d+(?:\.\d+)?|\.\d+)/)?.[0]);
+  if (!Number.isFinite(number)) return null;
+  const fromUnit = explicitMeasurementUnit(match[1]) || unitPreference("depth");
+  return convertUnitValue(number, fromUnit, "ft");
+}
+
+function probeCatchDepthEntry(record = {}) {
+  if (!record || record.detailsUnknown) return null;
+  const ballDepth = numericProbeDepth(record.ballDepth);
+  const cheater = String(record.presentation || "").toLowerCase() === "cheater"
+    || String(record.setupLineId || "").endsWith("::cheater");
+  if (cheater && Number.isFinite(ballDepth)) {
+    return { depthFeet: ballDepth / 2, species: record.species || record.possibleSpecies || "" };
+  }
+  for (const field of ["depthDown", "ballDepth", "estimatedLureDepth", "estimatedDepth", "depth"]) {
+    const depthFeet = numericProbeDepth(record[field]);
+    if (Number.isFinite(depthFeet)) return { depthFeet, species: record.species || record.possibleSpecies || "" };
+  }
+  return null;
+}
+
+function probeCatchDepths(catches = []) {
+  return (Array.isArray(catches) ? catches : [])
+    .map(probeCatchDepthEntry)
+    .filter((entry) => entry && Number.isFinite(entry.depthFeet))
+    .sort((a, b) => a.depthFeet - b.depthFeet);
+}
+
+function collectProbeCatchDepths() {
+  return probeCatchDepths([...document.querySelectorAll("#catchRows .catch-row")].map((row) => ({
+    detailsUnknown: Boolean(row.querySelector(".catch-details-unknown")?.checked),
+    species: row.querySelector(".catch-species")?.value || "",
+    presentation: row.querySelector(".catch-presentation")?.value || "",
+    setupLineId: row.querySelector(".catch-setup-line")?.value || "",
+    depthDown: row.querySelector(".catch-depth-down")?.value || "",
+    ballDepth: row.querySelector(".catch-ball-depth")?.value || "",
+    estimatedLureDepth: row.querySelector(".catch-estimated-lure-depth")?.value || "",
+    estimatedDepth: row.querySelector(".catch-estimated-depth")?.value || ""
+  })));
+}
+
+const probeCatchColors = ["#f0b35b", "#e879f9", "#60a5fa", "#f87171", "#a3e635", "#c084fc", "#2dd4bf", "#fb7185"];
+
+function probeCatchSpecies(entry) {
+  return String(entry?.species || "").trim() || "Unknown species";
+}
+
+function probeCatchColor(species, speciesList = []) {
+  const value = String(species || "Unknown species");
+  const knownIndex = speciesList.indexOf(value);
+  if (knownIndex >= 0) return probeCatchColors[knownIndex % probeCatchColors.length];
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) hash = ((hash << 5) - hash) + value.charCodeAt(index);
+  return probeCatchColors[Math.abs(hash) % probeCatchColors.length];
+}
+
+function probeTemperatureChartLegendItemsMarkup(catchDepths = []) {
+  const species = [...new Set(catchDepths.map(probeCatchSpecies))];
+  return `<span><i class="probe-temperature-legend-line" aria-hidden="true"></i>Temperature profile</span>${species.length
+    ? species.map((name) => `<span><i class="probe-temperature-legend-dot" style="--probe-catch-color: ${probeCatchColor(name, species)}" aria-hidden="true"></i>${escapeHtml(name)}</span>`).join("")
+    : `<span><i class="probe-temperature-legend-dot" aria-hidden="true"></i>Fish caught depth</span>`}`;
+}
+
+function probeTemperatureChartLegendMarkup(catchDepths = []) {
+  return `<div class="probe-temperature-chart-legend" aria-label="Chart legend">${probeTemperatureChartLegendItemsMarkup(catchDepths)}</div>`;
+}
+
+function probeTemperatureReadings(profile = []) {
+  return probeTemperatureProfileEntries(profile)
+    .map((entry) => ({
+      depthFeet: Number(entry.depthFeet),
+      temperature: String(entry.temperature || "").trim(),
+      numericTemperature: numericProbeTemperature(entry.temperature)
+    }))
+    .filter((entry) => entry.temperature && Number.isFinite(entry.numericTemperature))
+    .sort((a, b) => a.depthFeet - b.depthFeet);
+}
+
+function probeChartScale(readings) {
+  const values = readings.map((reading) => reading.numericTemperature);
+  if (!values.length) return { min: 0, max: 100, step: 20, ticks: [0, 20, 40, 60, 80, 100] };
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const span = Math.max(10, maximum - minimum);
+  const step = span <= 18 ? 5 : span <= 36 ? 10 : 20;
+  const min = Math.floor((minimum - step) / step) * step;
+  const max = Math.max(Math.ceil((maximum + step) / step) * step, min + step * 2);
+  return {
+    min,
+    max,
+    step,
+    ticks: Array.from({ length: Math.round((max - min) / step) + 1 }, (_, index) => min + index * step)
+  };
+}
+
+function interpolatedProbeTemperature(readings, depthFeet) {
+  if (!readings.length) return null;
+  if (depthFeet <= readings[0].depthFeet) return readings[0].numericTemperature;
+  if (depthFeet >= readings.at(-1).depthFeet) return readings.at(-1).numericTemperature;
+  for (let index = 1; index < readings.length; index += 1) {
+    const deeper = readings[index];
+    if (depthFeet > deeper.depthFeet) continue;
+    const shallower = readings[index - 1];
+    const depthSpan = deeper.depthFeet - shallower.depthFeet;
+    if (!depthSpan) return deeper.numericTemperature;
+    const progress = (depthFeet - shallower.depthFeet) / depthSpan;
+    return shallower.numericTemperature + ((deeper.numericTemperature - shallower.numericTemperature) * progress);
+  }
+  return readings.at(-1).numericTemperature;
+}
+
+function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
+  const width = 620;
+  const height = options.compact ? 330 : 360;
+  const plot = { left: 58, right: 20, top: 34, bottom: 38 };
+  const plotWidth = width - plot.left - plot.right;
+  const plotHeight = height - plot.top - plot.bottom;
+  const catchDepths = (Array.isArray(options.catchDepths) ? options.catchDepths : [])
+    .filter((entry) => Number.isFinite(Number(entry?.depthFeet)));
+  const deepestDepth = Math.max(readings.at(-1).depthFeet, ...catchDepths.map((entry) => Number(entry.depthFeet)), 10);
+  // Keep the depth axis focused on the populated profile. Catch markers still
+  // extend the range when a catch is deeper than the last temperature reading.
+  const depthMax = Math.max(20, Math.ceil(deepestDepth / 20) * 20);
+  const scale = probeChartScale(readings);
+  const x = (temperature) => plot.left + ((temperature - scale.min) / (scale.max - scale.min)) * plotWidth;
+  const y = (depthFeet) => plot.top + (depthFeet / depthMax) * plotHeight;
+  const points = readings.map((reading) => `${x(reading.numericTemperature).toFixed(2)},${y(reading.depthFeet).toFixed(2)}`).join(" ");
+  const areaPoints = `${plot.left},${y(readings[0].depthFeet).toFixed(2)} ${points} ${plot.left},${y(readings.at(-1).depthFeet).toFixed(2)}`;
+  const horizontalGrid = Array.from({ length: Math.floor(depthMax / 20) + 1 }, (_, index) => index * 20)
+    .map((depth) => `<line x1="${plot.left}" y1="${y(depth).toFixed(2)}" x2="${width - plot.right}" y2="${y(depth).toFixed(2)}" />`)
+    .join("");
+  const verticalGrid = scale.ticks.map((tick) => `<line x1="${x(tick).toFixed(2)}" y1="${plot.top}" x2="${x(tick).toFixed(2)}" y2="${height - plot.bottom}" />`).join("");
+  const xLabels = scale.ticks.map((tick) => `<text x="${x(tick).toFixed(2)}" y="18" text-anchor="middle">${escapeHtml(String(tick))}</text>`).join("");
+  const yLabels = Array.from({ length: Math.floor(depthMax / 20) + 1 }, (_, index) => index * 20)
+    .map((depth) => `<text x="${plot.left - 12}" y="${(y(depth) + 4).toFixed(2)}" text-anchor="end">${escapeHtml(trimNumber(convertUnitValue(depth, "ft", unitPreference("depth")) ?? depth))}</text>`)
+    .join("");
+  const dots = readings.map((reading) => `
+    <circle cx="${x(reading.numericTemperature).toFixed(2)}" cy="${y(reading.depthFeet).toFixed(2)}" r="5" tabindex="0">
+      <title>${escapeHtml(`${displayProbeDepth(reading.depthFeet)}: ${displayStoredMeasurement(reading.temperature, "waterTemperature")}`)}</title>
+    </circle>
+  `).join("");
+  const catchGroups = new Map();
+  const speciesList = [...new Set(catchDepths.map(probeCatchSpecies))];
+  catchDepths.forEach((entry, index) => {
+    const depthFeet = Number(entry.depthFeet);
+    const group = catchGroups.get(depthFeet) || [];
+    group.push({ entry, index });
+    catchGroups.set(depthFeet, group);
+  });
+  const catchMarkers = catchDepths.map((entry, index) => {
+    const depthFeet = Number(entry.depthFeet);
+    const profileTemperature = interpolatedProbeTemperature(readings, depthFeet);
+    const species = probeCatchSpecies(entry);
+    const catchLabel = `${species} caught`;
+    const profileTemperatureLabel = `${trimNumber(profileTemperature)} ${unitSymbol("waterTemperature")}`;
+    const label = `${catchLabel} at ${displayProbeDepth(depthFeet)}; profile temperature approximately ${profileTemperatureLabel}`;
+    const group = catchGroups.get(depthFeet) || [];
+    const groupIndex = group.findIndex((item) => item.index === index);
+    const spread = group.length > 1 ? (groupIndex - ((group.length - 1) / 2)) * 11 : 0;
+    const markerX = Math.max(plot.left + 6, Math.min(width - plot.right - 6, x(profileTemperature) + spread));
+    const color = probeCatchColor(species, speciesList);
+    return `<line class="probe-catch-depth-connector" x1="${x(profileTemperature).toFixed(2)}" y1="${y(depthFeet).toFixed(2)}" x2="${markerX.toFixed(2)}" y2="${y(depthFeet).toFixed(2)}" style="--probe-catch-color: ${color}" aria-hidden="true" />
+      <circle class="probe-catch-depth-marker" cx="${markerX.toFixed(2)}" cy="${y(depthFeet).toFixed(2)}" r="6" tabindex="0" style="--probe-catch-color: ${color}"><title>${escapeHtml(label)}</title></circle>`;
+  }).join("");
+  const axisUnit = escapeHtml(unitSymbol("waterTemperature"));
+  const depthUnit = escapeHtml(unitSymbol("depth"));
+  const titleId = `${options.idPrefix || "probeTemperatureChart"}Title`;
+  const descriptionId = `${options.idPrefix || "probeTemperatureChart"}Description`;
+  const catchDescription = catchDepths.length ? ` ${catchDepths.length} fish catch marker${catchDepths.length === 1 ? "" : "s"} appear on the temperature profile at their recorded depth.` : "";
+  return `
+    <svg class="probe-temperature-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="${titleId} ${descriptionId}">
+      <title id="${titleId}">Probe temperature profile</title>
+      <desc id="${descriptionId}">Water temperature in ${axisUnit} plotted against depth in ${depthUnit}; depth increases downward.${catchDescription}</desc>
+      <g class="probe-temperature-grid-lines">${horizontalGrid}${verticalGrid}</g>
+      <line class="probe-temperature-axis" x1="${plot.left}" y1="${plot.top}" x2="${plot.left}" y2="${height - plot.bottom}" />
+      <line class="probe-temperature-axis" x1="${plot.left}" y1="${plot.top}" x2="${width - plot.right}" y2="${plot.top}" />
+      <g class="probe-temperature-axis-labels">${xLabels}${yLabels}</g>
+      <text class="probe-temperature-axis-title" x="${width / 2}" y="${height - 7}" text-anchor="middle">Temperature (${axisUnit})</text>
+      <text class="probe-temperature-axis-title" transform="translate(14 ${height / 2}) rotate(-90)" text-anchor="middle">Depth (${depthUnit})</text>
+      ${readings.length > 1 ? `<polygon class="probe-temperature-area" points="${areaPoints}" />` : ""}
+      ${readings.length > 1 ? `<polyline class="probe-temperature-line" points="${points}" />` : ""}
+      <g class="probe-temperature-points">${dots}</g>
+      <g class="probe-catch-depth-points" aria-label="Fish caught depths">${catchMarkers}</g>
+    </svg>
+  `;
+}
+
+function renderProbeTemperatureProfileChart(profile = []) {
+  const chart = document.querySelector("#probeTemperatureChart");
+  if (!chart) return;
+  const readings = probeTemperatureReadings(profile);
+  const catchDepths = collectProbeCatchDepths();
+  const legend = document.querySelector("#probeTemperatureChartLegend");
+  if (legend) legend.innerHTML = probeTemperatureChartLegendItemsMarkup(catchDepths);
+  const summary = document.querySelector("#probeTemperatureChartSummary");
+  if (summary) {
+    summary.textContent = readings.length
+      ? `Profile has ${readings.length} reading${readings.length === 1 ? "" : "s"}, from ${displayProbeDepth(readings[0].depthFeet)} to ${displayProbeDepth(readings.at(-1).depthFeet)}.${catchDepths.length ? ` ${catchDepths.length} fish catch marker${catchDepths.length === 1 ? "" : "s"} shown at catch depth.` : ""}`
+      : "Add probe temperatures to see the profile chart.";
+  }
+  if (!readings.length) {
+    chart.innerHTML = `
+      <div class="probe-temperature-chart-empty">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4v16M11 9l5-5 5 5M10 24h12M12 27h8" /></svg>
+        <strong>Your profile will appear here</strong>
+        <span>Add at least two readings to see the temperature line.</span>
+      </div>
+    `;
+    return;
+  }
+  chart.innerHTML = renderProbeTemperatureProfileChartMarkup(readings, { catchDepths });
 }
 
 function getTripIntent() {

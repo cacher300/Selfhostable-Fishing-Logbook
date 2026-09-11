@@ -1,0 +1,15 @@
+{
+  "name": "fish-logger-cloud-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "config:render": "node scripts/render-config.mjs",
+    "test": "node --test test/*.test.js",
+    "deploy": "wrangler deploy --config wrangler.generated.json",
+    "migrate:remote": "wrangler d1 migrations apply fish-logger-prod-data --remote --config wrangler.generated.json"
+  },
+  "devDependencies": {
+    "wrangler": "4.131.0"
+  }
+}

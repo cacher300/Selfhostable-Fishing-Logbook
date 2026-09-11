@@ -5,6 +5,14 @@
             <h2 id="tripDialogTitle">New Trip</h2>
             <p class="trip-dialog-meta" id="tripDialogMeta">Today's trip</p>
           </div>
+          <nav class="trip-section-nav" aria-label="Trip form sections">
+            <a href="#tripBasicsSection" class="is-active">Basics</a>
+            <a href="#tripPeopleSection">People</a>
+            <a href="#tripSetupSection">Setup</a>
+            <a href="#tripCatchesSection">Catches</a>
+            <a href="#tripLostFishSection">Lost</a>
+            <a href="#tripNotesSection">Photos</a>
+          </nav>
           <div class="trip-dialog-header-actions">
             <button class="button secondary" type="button" data-close-dialog>Cancel</button>
             <button class="button secondary" type="button" data-trip-draft-save>Save Draft</button>
@@ -15,14 +23,6 @@
 
         <input type="hidden" id="tripId" />
         <div class="form-message hidden" id="tripFormMessage" role="alert"></div>
-        <nav class="trip-section-nav" aria-label="Trip form sections">
-          <a href="#tripBasicsSection" class="is-active">Basics</a>
-          <a href="#tripPeopleSection">People</a>
-          <a href="#tripSetupSection">Setup</a>
-          <a href="#tripCatchesSection">Catches</a>
-          <a href="#tripLostFishSection">Lost</a>
-          <a href="#tripNotesSection">Photos</a>
-        </nav>
 
         <div class="trip-overview-layout">
           <div class="trip-overview-main">
@@ -30,7 +30,6 @@
           <div class="section-heading">
             <div>
               <h3>Trip Basics</h3>
-              <p>General information about this fishing trip.</p>
             </div>
           </div>
           <div class="form-grid">
@@ -171,11 +170,36 @@
           <div class="probe-temperature-heading">
             <div>
               <h4 id="probeTemperatureHeading">Probe temperature profile</h4>
+              <p>Enter water temperature at each depth</p>
             </div>
-            <span data-unit-label="waterTemperature" data-unit-label-text="Temperature">Temperature</span>
+            <button class="button secondary compact-action" type="button" data-clear-probe-profile>Clear readings</button>
           </div>
-          <div class="probe-temperature-scroll">
-            <div id="probeTemperatureGrid" class="probe-temperature-grid" aria-label="Probe temperature readings by depth"></div>
+          <div class="probe-temperature-layout">
+            <div class="probe-temperature-editor">
+              <div class="probe-temperature-editor-heading" aria-hidden="true">
+                <span data-unit-label="depth" data-unit-label-text="Depth">Depth</span>
+                <span data-unit-label="waterTemperature" data-unit-label-text="Temperature">Temperature</span>
+              </div>
+              <div id="probeTemperatureGrid" class="probe-temperature-grid" aria-label="Probe temperature readings by depth"></div>
+              <div class="probe-temperature-editor-footer">
+                <p class="probe-temperature-editor-hint">Blank readings are left out of the profile.</p>
+                <button class="button secondary compact-action" type="button" data-add-probe-depth>+ Add deeper depth</button>
+              </div>
+            </div>
+            <section class="probe-temperature-chart-panel" aria-labelledby="probeTemperatureChartHeading">
+              <div class="probe-temperature-chart-heading">
+                <div>
+                  <h5 id="probeTemperatureChartHeading">Temperature profile</h5>
+                  <p data-unit-label="waterTemperature" data-unit-label-text="Water temperature">Water temperature vs. depth</p>
+                </div>
+              </div>
+              <div id="probeTemperatureChart" class="probe-temperature-chart" aria-label="Probe temperature profile chart"></div>
+              <div id="probeTemperatureChartLegend" class="probe-temperature-chart-legend" aria-label="Chart legend">
+                <span><i class="probe-temperature-legend-line" aria-hidden="true"></i>Temperature profile</span>
+                <span><i class="probe-temperature-legend-dot" aria-hidden="true"></i>Fish caught depth</span>
+              </div>
+              <p id="probeTemperatureChartSummary" class="visually-hidden" aria-live="polite"></p>
+            </section>
           </div>
         </section>
 

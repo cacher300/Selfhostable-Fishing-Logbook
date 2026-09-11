@@ -94,10 +94,14 @@ from backend.great_lakes_service import MODELS, great_lakes_payload, great_lakes
 
 def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__, static_folder=None)
+    secure_session_cookie = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() in {"1", "true", "yes", "on"}
     app.config.update(
         SECRET_KEY=SECRET_KEY,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Strict",
+        # Enabled by the production deployment once Cloudflare/Nginx enforce
+        # HTTPS. Keep the default off for the documented local HTTP workflow.
+        SESSION_COOKIE_SECURE=secure_session_cookie,
     )
     if config:
         app.config.update(config)

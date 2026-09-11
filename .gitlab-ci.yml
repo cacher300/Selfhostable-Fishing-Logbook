@@ -35,6 +35,21 @@ test_javascript:
     - node --version
     - node --test tests/*.test.js
 
+test_cloud_worker:
+  stage: validate
+  image: node:22-alpine
+  before_script:
+    - cd cloud/worker
+    - npm ci
+  script:
+    - npm test
+    - CLOUDFLARE_D1_DATABASE_ID=00000000-0000-4000-8000-000000000000 npm run config:render
+    - npx wrangler deploy --dry-run --config wrangler.generated.json --outdir /tmp/fish-worker-dry-run
+  rules:
+    - changes:
+        - cloud/worker/**/*
+        - .gitlab-ci.yml
+
 smoke_test_flask_server:
   stage: smoke_test
   image: python:3.12-slim
@@ -135,7 +150,7 @@ deploy_production:
       git cat-file -e "$CI_COMMIT_SHA^{commit}"
       git reset --hard "$CI_COMMIT_SHA"
       mkdir -p "$DEPLOY_DATA_PATH/uploads"
-      export APP_PORT=8081 FISH_DATA_DIR="$DEPLOY_DATA_PATH"
+      export APP_PORT=8081 FISH_DATA_DIR="$DEPLOY_DATA_PATH" SESSION_COOKIE_SECURE=true COMPOSE_PROJECT_NAME=fish-logbook
       docker compose build
       if docker compose up -d --remove-orphans --wait --wait-timeout 180; then
         docker compose ps
@@ -150,3 +165,26 @@ deploy_production:
         exit "$deploy_status"
       fi
       REMOTE_SCRIPT
+
+deploy_cloudflare_worker:
+  stage: deploy
+  image: node:22-alpine
+  resource_group: fish-cloudflare-production
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - cloud/worker/**/*
+        - .gitlab-ci.yml
+  environment:
+    name: production
+  before_script:
+    - cd cloud/worker
+    - npm ci
+    - |
+      : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN must be configured as a protected production variable}"
+      : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID must be configured as a protected production variable}"
+      : "${CLOUDFLARE_D1_DATABASE_ID:?CLOUDFLARE_D1_DATABASE_ID must be configured as a protected production variable}"
+  script:
+    - npm run config:render
+    - npm run migrate:remote
+    - npm run deploy

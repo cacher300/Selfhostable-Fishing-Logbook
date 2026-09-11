@@ -98,7 +98,7 @@ The root `index.html` opens the generated `standalone.html` fallback when used d
 
 This project is designed for one trusted operator or household. It does not provide accounts, authentication, roles, or per-record authorization. CSRF protection guards browser write requests, but it does not prevent another client with network access from reading the logbook.
 
-Do not expose the Flask or Gunicorn service directly to the public internet. Keep it on a trusted network or place it behind an authenticated HTTPS reverse proxy. Fishing records may contain precise locations and personal media, so treat the entire `data/` directory as private.
+Do not expose the Flask or Gunicorn service directly to the public internet. Keep it on a trusted network or place it behind an authenticated HTTPS reverse proxy. Production uses Nginx HTTP Basic Auth with a bcrypt password file, and the Docker port is bound to loopback only so the proxy cannot be bypassed. Fishing records may contain precise locations and personal media, so treat the entire `data/` directory as private.
 
 Whole-logbook updates are transactional in SQLite but remain last-write-wins. Avoid editing from multiple web sessions at the same time.
 
@@ -130,6 +130,7 @@ The GitLab pipeline also compiles the Python sources, smoke-tests the Flask serv
 
 ```text
 backend/             Storage, media, security, weather, and lake services
+cloud/worker/        Versioned D1/R2 API and Cloudflare deployment configuration
 data/                Local database and uploaded media (not committed)
 docs/                Architecture, API, data model, deployment, and planning docs
 scripts/             Local launcher and standalone build tools
