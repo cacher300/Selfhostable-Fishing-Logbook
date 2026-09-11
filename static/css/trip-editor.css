@@ -6,7 +6,10 @@
 
 /* Trip editor refresh: uses the existing form controls and workflows with a calmer hierarchy. */
 #tripDialog .dialog-header {
+  display: grid;
+  grid-template-columns: minmax(180px, .7fr) minmax(0, 1.5fr) auto;
   align-items: center;
+  gap: 16px;
   margin-bottom: 12px;
   padding-bottom: 14px;
   border-bottom-color: var(--line);
@@ -33,10 +36,15 @@
 }
 
 #tripDialog .trip-section-nav {
-  top: 67px;
+  position: static;
+  z-index: auto;
+  min-width: 0;
+  justify-content: center;
   gap: 4px;
-  margin: -4px -2px 20px;
-  padding: 6px 2px;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
   border-bottom: 0;
   background: transparent;
 }
@@ -55,6 +63,10 @@
   border-color: var(--ink);
   background: var(--ink);
   color: #fff;
+}
+
+#tripDialog .trip-form-section {
+  scroll-margin-top: 26px;
 }
 
 #tripDialog .trip-form-section {
@@ -1457,7 +1469,7 @@
    adjacent picker has a thumbnail or a taller row. */
 #tripDialog .gear-inline-action {
   box-sizing: border-box;
-  align-self: start;
+  align-self: end;
   justify-self: start;
   width: 150px;
   min-width: 150px;
@@ -1584,10 +1596,10 @@
 .probe-temperature-section {
   display: grid;
   grid-column: 1 / -1;
-  gap: 12px;
-  padding: 16px;
+  gap: 16px;
+  padding: 18px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--panel-soft);
 }
 
@@ -1610,66 +1622,312 @@
 
 .probe-temperature-heading h4 {
   color: var(--green-dark);
-  font-size: 14px;
-}
-
-.probe-temperature-heading p,
-.probe-temperature-heading > span {
-  color: var(--muted);
-  font-size: 12px;
+  font-size: 18px;
+  line-height: 1.2;
 }
 
 .probe-temperature-heading p {
-  margin-top: 4px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
-.probe-temperature-scroll {
-  overflow-x: auto;
-  padding-bottom: 2px;
+.probe-temperature-heading .compact-action {
+  width: auto;
+  min-height: 36px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.probe-temperature-layout {
+  display: grid;
+  grid-template-columns: minmax(290px, .78fr) minmax(430px, 1.22fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.probe-temperature-editor,
+.probe-temperature-chart-panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--field);
+}
+
+.probe-temperature-editor {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+}
+
+.probe-temperature-editor-heading {
+  display: grid;
+  grid-template-columns: minmax(70px, .7fr) minmax(120px, 1fr);
+  gap: 12px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
 }
 
 .probe-temperature-grid {
   display: grid;
-  grid-template-columns: repeat(17, minmax(62px, 1fr));
-  min-width: 1054px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--field);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
 }
 
 .probe-temperature-cell {
   display: grid;
+  grid-template-columns: minmax(70px, .7fr) minmax(120px, 1fr);
+  gap: 12px;
+  align-items: center;
   min-width: 0;
+  min-height: 43px;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.probe-temperature-cell:nth-child(odd) {
   border-right: 1px solid var(--line);
+}
+
+.probe-temperature-cell:nth-last-child(-n + 2) {
+  border-bottom: 0;
 }
 
 .probe-temperature-cell:last-child {
   border-right: 0;
 }
 
-.probe-temperature-cell span {
-  padding: 6px 4px;
-  border-bottom: 1px solid var(--line);
+/* When a deeper reading leaves an odd number of cells, keep the final depth
+   as a complete row instead of leaving a partial divider behind it. */
+.probe-temperature-cell:nth-child(odd):last-child {
+  grid-column: 1 / -1;
+}
+
+.probe-temperature-depth {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
   white-space: nowrap;
 }
 
 .probe-temperature-cell input {
   min-width: 0;
-  height: 38px;
-  padding: 5px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  text-align: center;
+  height: 34px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field-soft);
+  color: var(--text);
+  font-size: 13px;
 }
 
 .probe-temperature-cell input:focus {
   position: relative;
   z-index: 1;
+  border-color: var(--green);
+  outline: 3px solid color-mix(in srgb, var(--green) 20%, transparent);
+  outline-offset: 0;
+}
+
+.probe-temperature-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.probe-temperature-editor-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.probe-temperature-editor-footer .compact-action {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 32px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.probe-temperature-chart-panel {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-content: start;
+  padding: 16px;
+}
+
+.probe-temperature-chart-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.probe-temperature-chart-heading h5 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.probe-temperature-chart-heading p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.probe-temperature-chart {
+  display: grid;
+  min-height: 300px;
+  margin-top: 10px;
+  place-items: center;
+}
+
+.probe-temperature-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.probe-temperature-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.probe-temperature-legend-line,
+.probe-temperature-legend-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.probe-temperature-legend-line {
+  width: 18px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--green);
+}
+
+.probe-temperature-legend-dot {
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  background: var(--probe-catch-color, #f0b35b);
+  box-shadow: 0 0 0 1px var(--probe-catch-color, #f0b35b);
+}
+
+.probe-temperature-chart-svg {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  overflow: visible;
+}
+
+.probe-temperature-grid-lines line {
+  stroke: var(--line);
+  stroke-dasharray: 3 5;
+  stroke-width: 1;
+  opacity: .68;
+}
+
+.probe-temperature-axis {
+  stroke: var(--muted);
+  stroke-width: 1.15;
+}
+
+.probe-temperature-axis-labels {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.probe-temperature-axis-title {
+  fill: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.probe-temperature-area {
+  fill: color-mix(in srgb, var(--green) 14%, transparent);
+}
+
+.probe-temperature-line {
+  fill: none;
+  stroke: var(--green);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.probe-temperature-points circle {
+  fill: var(--panel);
+  stroke: var(--green);
+  stroke-width: 3;
+}
+
+.probe-temperature-points circle:focus {
   outline: 2px solid var(--green);
-  outline-offset: -2px;
+  outline-offset: 3px;
+}
+
+.probe-catch-depth-points circle {
+  fill: var(--probe-catch-color, #f0b35b);
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+
+.probe-catch-depth-connector {
+  stroke: var(--probe-catch-color, #f0b35b);
+  stroke-dasharray: 2 3;
+  stroke-width: 1.25;
+  opacity: .78;
+}
+
+.probe-catch-depth-points circle:focus {
+  outline: 2px solid var(--probe-catch-color, #f0b35b);
+  outline-offset: 3px;
+}
+
+.probe-temperature-chart-empty {
+  display: grid;
+  max-width: 240px;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.probe-temperature-chart-empty svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: var(--green);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.probe-temperature-chart-empty strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.probe-temperature-chart-empty span {
+  font-size: 12px;
+  line-height: 1.4;
 }
