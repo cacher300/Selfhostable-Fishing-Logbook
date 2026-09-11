@@ -130,6 +130,7 @@ The GitLab pipeline also compiles the Python sources, smoke-tests the Flask serv
 
 ```text
 backend/             Storage, media, security, weather, and lake services
+cloud/worker/        Versioned D1/R2 API and Cloudflare deployment configuration
 data/                Local database and uploaded media (not committed)
 docs/                Architecture, API, data model, deployment, and planning docs
 scripts/             Local launcher and standalone build tools
