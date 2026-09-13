@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="static/css/styles.css?v=20260913-lure-depth-row-1" />
+    <link rel="stylesheet" href="static/css/styles.css?v=20260913-dynamic-trolling-fields-1" />
     <link rel="stylesheet" href="static/css/trip-sharing.css" />
   </head>
   <body>
@@ -2041,6 +2041,7 @@
               <input class="catch-estimated-lure-depth" type="text" placeholder="35 ft" />
             </label>
           </div>
+          <div class="catch-trolling-optional-fields catch-detail-optional">
           <label class="trolling-param param-flatline-weight catch-detail-optional">
             <span>Weight (oz)</span>
             <input class="catch-flatline-weight-oz" type="text" placeholder="2 oz" />
@@ -2065,8 +2066,9 @@
             <span class="estimated-depth-label" data-unit-label="depth" data-unit-label-text="Estimated depth">Estimated depth</span>
             <input class="catch-estimated-depth" type="text" placeholder="60 ft" />
           </label>
-          <div class="row-section-title catch-detail-optional">Notes</div>
-          <label class="catch-notes-label catch-detail-optional">
+          </div>
+          <div class="row-section-title catch-detail-optional catch-details-unknown-allowed">Notes</div>
+          <label class="catch-notes-label catch-detail-optional catch-details-unknown-allowed">
             <textarea class="catch-notes" rows="3" placeholder="Add notes about the catch: bite description, fish behavior, or weather observations"></textarea>
           </label>
         </div>
@@ -2272,7 +2274,7 @@
     <script src="static/js/expeditions.js?v=20260903-row-opens-trip-2"></script>
     <script src="static/js/photos.js?v=20260912-missed-fish-photos-1"></script>
     <script src="static/js/trip-editor.js?v=20260913-noaa-profile-source-1"></script>
-    <script src="static/js/trip-rows.js?v=20260912-missed-fish-photos-1"></script>
+    <script src="static/js/trip-rows.js?v=20260913-cheater-fields-1"></script>
     <script src="static/js/trip-save.js?v=20260912-missed-fish-photos-1"></script>
     <script src="static/js/photo-queue-autofill.js?v=20260829-queue-copy-1"></script>
     <script src="static/js/gear-core.js?v=20260829-lure-picker-1"></script>

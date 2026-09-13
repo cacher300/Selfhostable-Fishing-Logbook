@@ -190,7 +190,7 @@ function normalizeState(nextState) {
         })
       : normalized[key];
     normalized[key] = normalizeTextOptions(values, defaults[key]);
-    if (key === "lureTypes") normalized[key].sort((a, b) => a.localeCompare(b));
+    if (["species", "lureTypes"].includes(key)) normalized[key].sort((a, b) => a.localeCompare(b));
   });
   normalized.trollingPresentations = normalizeChoiceOptions(
     defaults.trollingPresentations,

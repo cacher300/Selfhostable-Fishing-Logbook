@@ -99,7 +99,7 @@ function collectTripFromForm() {
         dipseySetting: !detailsUnknown && trolling ? row.querySelector(".catch-dipsey-setting").value.trim() : "",
         lineOut: !detailsUnknown && trolling ? row.querySelector(".catch-line-out").value.trim() : "",
         estimatedDepth: !detailsUnknown && trolling ? row.querySelector(".catch-estimated-depth").value.trim() : "",
-        notes: detailsUnknown ? "" : row.querySelector(".catch-notes").value.trim(),
+        notes: row.querySelector(".catch-notes").value.trim(),
         metadataLocks: detailsUnknown ? { time: false, location: false, fow: false } : catchMetadataLocksPayload(row),
         lockedLocationCoordinates: detailsUnknown ? null : lockedPhotoCoordinatesFromRow(row),
         manualCoordinates: detailsUnknown ? null : manualCoordinatesFromRow(row),

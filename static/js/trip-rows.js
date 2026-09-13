@@ -121,7 +121,7 @@ function updateCatchDetailsUnknown(row, { clear = false } = {}) {
   const detailsUnknown = Boolean(row.querySelector(".catch-details-unknown")?.checked);
   if (detailsUnknown && clear) clearUnknownCatchDetails(row);
   row.classList.toggle("details-unknown", detailsUnknown);
-  row.querySelectorAll(".catch-detail-optional").forEach((field) => {
+  row.querySelectorAll(".catch-detail-optional:not(.catch-details-unknown-allowed)").forEach((field) => {
     field.classList.toggle("hidden", detailsUnknown);
   });
   updateUnknownTimeField(row);
@@ -684,7 +684,11 @@ function syncCatchMethodToSetupLine(row) {
   const setupLineId = selectedValue.split("::")[0];
   const setupRow = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
     .find((gearRow) => gearRow.dataset.gearId === setupLineId);
-  presentationSelect.value = selectedValue.endsWith("::cheater")
+  const isCheater = selectedValue.endsWith("::cheater");
+  if (isCheater && ![...presentationSelect.options].some((option) => option.value === "Cheater")) {
+    presentationSelect.add(new Option("Cheater", "Cheater"));
+  }
+  presentationSelect.value = isCheater
     ? "Cheater"
     : (setupRow?.querySelector(".catch-presentation")?.value || "");
   updatePresentationFields(row);
