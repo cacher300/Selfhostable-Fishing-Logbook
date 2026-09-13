@@ -145,12 +145,18 @@
 }
 
 .queued-gear-image-preview {
-  display: block;
-  flex: 0 0 auto;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
   padding: 0;
   border: 0;
   border-radius: 6px;
   background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: zoom-in;
 }
 
@@ -829,6 +835,11 @@
   max-width: 8ch;
 }
 
+.catch-dipsey-setting {
+  width: 4ch;
+  max-width: 4ch;
+}
+
 .catch-gps-speed,
 .catch-ball-speed {
   width: 10ch;
@@ -1103,7 +1114,7 @@
 
 #tripDialog .add-lure-inline {
   justify-self: start;
-  justify-content: flex-start;
+  justify-content: center;
   width: max-content;
   min-width: 120px;
   margin-left: 8px;
@@ -1436,16 +1447,19 @@
   grid-row: 6;
   align-self: start;
   justify-self: start;
-  width: 100%;
+  width: max-content;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.gear-used-row .cheater-lure-action {
+#tripDialog .gear-used-row .cheater-lure-action {
   grid-column: 5 / 6;
   grid-row: 6;
-  align-self: start;
+  align-self: end;
   justify-self: start;
   width: max-content;
   min-width: 120px;
+  max-width: 100%;
   padding-right: 18px;
   padding-left: 18px;
 }
@@ -1675,6 +1689,47 @@
   min-height: 36px;
   padding: 0 12px;
   white-space: nowrap;
+}
+
+.probe-temperature-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.probe-temperature-source-note {
+  max-width: 480px;
+  margin-top: 6px !important;
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.probe-profile-location-coordinates {
+  min-height: 1.2em;
+  margin-top: -8px;
+  color: var(--green-dark);
+  font-weight: 700;
+}
+
+.probe-temperature-import-status {
+  display: none;
+  max-width: 420px;
+  margin-top: 8px !important;
+  color: var(--green-dark) !important;
+  font-size: 12px !important;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.probe-temperature-import-status:not(:empty) {
+  display: block;
+}
+
+.probe-temperature-import-status.is-error {
+  color: var(--danger, #b42318) !important;
 }
 
 .probe-temperature-layout {

@@ -56,14 +56,14 @@ async function copyQueuedPhotoForCatch(filename) {
   };
 }
 
-function attachPhotoGroupToCatch(row, photos) {
+async function attachPhotoGroupToCatch(row, photos) {
   row.catchPhotos = photos;
   const selectedPhoto = selectedCatchPhotoLocation(row);
   if (selectedPhoto) applyPhotoLocationToCatch(row, selectedPhoto);
   applyPhotoCaptureTimeToCatch(row, selectedPhoto ? [selectedPhoto] : photos);
   renderCatchPhotos(row);
   updateCatchLocationSummary(row);
-  updateCatchFowFromLocation(row);
+  await updateCatchFowFromLocation(row);
   updateRowSummary(row);
 }
 
@@ -95,11 +95,13 @@ async function autofillCatchesFromPhotoQueue() {
       return;
     }
 
+    const depthLookups = [];
     for (const group of groups) {
       const copiedPhotos = await Promise.all(group.map((photo) => copyQueuedPhotoForCatch(photo.filename)));
       const row = addCatchRow();
-      attachPhotoGroupToCatch(row, copiedPhotos);
+      depthLookups.push(attachPhotoGroupToCatch(row, copiedPhotos));
     }
+    await Promise.all(depthLookups);
     if (typeof markTripFormChanged === "function") markTripFormChanged();
     setCatchQueueAutofillStatus();
   } catch (error) {

@@ -60,12 +60,14 @@ function updateTrollingVisibility() {
   });
   document.querySelectorAll("#tripDialog .catch-row").forEach((row) => {
     const lostFish = row.classList.contains("lost-fish-row");
-    const hideDuplicateDepth = trolling || row.classList.contains("lost-fish-row");
+    const hideDuplicateDepth = trolling;
     row.querySelector(".catch-water-depth-field")?.classList.toggle("hidden", hideDuplicateDepth);
     row.querySelector(".catch-depth-down-field")?.classList.toggle("hidden", hideDuplicateDepth);
     row.querySelector(".catch-fow-field")?.classList.toggle("hidden", !trolling && !lostFish);
-    row.querySelector(".catch-fow-field .metadata-lock-button")?.classList.toggle("hidden", lostFish);
+    row.querySelector(".catch-fow-field .metadata-lock-button")?.classList.remove("hidden");
   });
+  sortTrollingSetupRows();
+  document.querySelectorAll(".catch-row, .gear-used-row").forEach(updateRowSummary);
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updatePresentationFields);
   // Method visibility can reveal non-trolling fields; apply the lure-specific
   // rule last so rigging is only available for Soft Plastic lures.
@@ -77,7 +79,7 @@ function updateTrollingVisibility() {
 
 function syncFishHawkVisibility() {
   document.querySelectorAll(".fish-hawk-field").forEach((element) => {
-    element.classList.toggle("hidden", !hasFishHawk());
+    element.classList.toggle("hidden", !hasFishHawk() || !isTrollingTrip());
   });
 }
 
@@ -130,7 +132,8 @@ function updatePresentationFields(row) {
   if (isMainDownrigger || isCheater) {
     row.querySelector(".param-ball-depth")?.classList.add("visible");
     if (isCheater) {
-      row.querySelector(".param-cheater-depth")?.classList.add("visible");
+      row.querySelector(".param-lure-depth")?.classList.add("visible");
+      updateCheaterDepth(row);
     }
   }
   if (isMainDownrigger) {
@@ -142,7 +145,7 @@ function updatePresentationFields(row) {
     row.querySelector(".param-flatline-weight")?.classList.add("visible");
     row.querySelector(".param-estimated-depth")?.classList.add("visible");
   }
-  if (["flatline-leadcore", "Outside Board", "Inside Board"].includes(presentation)) {
+  if (["flatline-leadcore", "Outside Board", "Inside Board", "cheater", "Cheater"].includes(presentation)) {
     row.querySelector(".param-lure-depth")?.classList.add("visible");
   }
   if (isLeadcoreCatch) {
@@ -151,7 +154,7 @@ function updatePresentationFields(row) {
     updateLeadcoreEstimatedDepth(row);
   } else {
     const estimatedLureDepth = row.querySelector(".catch-estimated-lure-depth");
-    if (estimatedLureDepth) estimatedLureDepth.readOnly = false;
+    if (estimatedLureDepth && !isCheater) estimatedLureDepth.readOnly = false;
   }
   if (["dipsey-diver", "High Diver", "Low Diver"].includes(presentation)) {
     row.querySelector(".param-dipsey-setting")?.classList.add("visible");
@@ -195,8 +198,9 @@ function updateLeadcoreEstimatedDepth(row) {
 }
 
 function updateCheaterDepth(row) {
-  const output = row.querySelector(".catch-cheater-depth");
+  const output = row.querySelector(".catch-estimated-lure-depth");
   if (!output) return;
+  output.readOnly = true;
   const ballDepth = Number.parseFloat(row.querySelector(".catch-ball-depth")?.value);
   output.value = Number.isFinite(ballDepth) ? trimNumber(ballDepth / 2) : "";
 }

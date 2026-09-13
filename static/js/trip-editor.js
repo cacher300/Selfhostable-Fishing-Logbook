@@ -67,6 +67,7 @@ function tripFormSnapshot() {
     controls,
     notePhotos: activeNotePhotos.map((photo) => photo.id || photo.filename || photo.url || photo.image || ""),
     catchPhotos: [...els.catchRows.querySelectorAll(".catch-row")].map((row) => (row.catchPhotos || []).map((photo) => photo.id || photo.filename || photo.url || photo.image || "")),
+    lostFishPhotos: [...els.lostFishRows.querySelectorAll(".catch-row")].map((row) => (row.catchPhotos || []).map((photo) => photo.id || photo.filename || photo.url || photo.image || "")),
     lostCount: els.lostFishRows.querySelectorAll(".catch-row").length,
     gearCount: els.tripGearRows.querySelectorAll(".gear-used-row").length,
     peopleCount: els.personRows.querySelectorAll(".person-row").length
@@ -152,8 +153,8 @@ function validateTripForm() {
 function tripSaveWarnings() {
   const warnings = [];
   const importantFields = [
-    { field: document.querySelector("#launchTime"), label: "Launch time" },
-    { field: document.querySelector("#linesPulledTime"), label: "Lines pulled time" },
+    { field: document.querySelector("#launchTime"), label: "Start time" },
+    { field: document.querySelector("#linesPulledTime"), label: "End time" },
     { field: document.querySelector("#method"), label: "Fishing method" }
   ];
   importantFields
@@ -287,6 +288,10 @@ function openTripDialog(trip = null) {
   setValue("waveHeight", trip?.waveHeight || "");
   updateMarineWaveHeightPlaceholder(trip?.weatherData || activeTripWeatherData);
   setValue("structure", trip?.structure || "");
+  probeProfileImportCoordinates = null;
+  pendingProbeProfileImportCoordinates = null;
+  syncProbeProfileImportSourceNote();
+  setProbeProfileImportStatus("");
   renderProbeTemperatureProfile(trip?.probeTemperatureProfile || []);
   setValue("tripNotes", trip?.notes || "");
   activeTripWeatherData = trip?.weatherData || null;
@@ -355,6 +360,176 @@ function displayProbeDepth(depthFeet) {
   return `${trimNumber(depth ?? depthFeet)} ${unitSymbol("depth")}`;
 }
 
+function noaaProbeTemperatureProfileEntries(profile = {}) {
+  const temperaturesByDepth = new Map();
+  const temperatureUnit = unitPreference("waterTemperature");
+  (Array.isArray(profile?.values) ? profile.values : []).forEach((value) => {
+    const depthFeet = convertUnitValue(value?.depthMeters, "m", "ft");
+    const temperature = convertUnitValue(value?.temperatureC, "C", temperatureUnit);
+    if (!Number.isFinite(depthFeet) || !Number.isFinite(temperature)) return;
+    // Keep the model's vertical layers distinct in the app's canonical feet
+    // storage without exposing floating-point conversion noise in the editor.
+    const normalizedDepth = Math.round(depthFeet * 1000) / 1000;
+    const normalizedTemperature = Math.round(temperature * 1000) / 1000;
+    temperaturesByDepth.set(normalizedDepth, {
+      depthFeet: normalizedDepth,
+      temperature: String(normalizedTemperature)
+    });
+  });
+  return [...temperaturesByDepth.values()].sort((first, second) => first.depthFeet - second.depthFeet);
+}
+
+function setProbeProfileImportStatus(message = "", isError = false) {
+  const status = document.querySelector("#probeProfileImportStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle("is-error", Boolean(message) && isError);
+}
+
+function probeProfileImportSource() {
+  if (isUsableCoordinates(probeProfileImportCoordinates)) {
+    return { coordinates: probeProfileImportCoordinates, type: "map-point" };
+  }
+  const coordinates = selectedTripLocationCoordinates();
+  return isUsableCoordinates(coordinates) ? { coordinates, type: "launch" } : null;
+}
+
+function syncProbeProfileImportSourceNote() {
+  const note = document.querySelector("#probeProfileSourceNote");
+  const resetButton = document.querySelector("[data-clear-probe-profile-location]");
+  const hasMapPoint = isUsableCoordinates(probeProfileImportCoordinates);
+  if (note) {
+    note.textContent = hasMapPoint
+      ? `NOAA will use your selected map point (${coordinateText(probeProfileImportCoordinates)}) instead of the launch pin.`
+      : "NOAA uses the selected launch / area fished pin by default. If it has no pin, it uses the waterbody pin.";
+  }
+  resetButton?.classList.toggle("hidden", !hasMapPoint);
+}
+
+function setPendingProbeProfileImportCoordinates(coordinates) {
+  pendingProbeProfileImportCoordinates = isUsableCoordinates(coordinates) ? coordinates : null;
+  if (els.probeProfileLocationCoordinates) {
+    els.probeProfileLocationCoordinates.textContent = pendingProbeProfileImportCoordinates
+      ? `Selected point: ${coordinateText(pendingProbeProfileImportCoordinates)}`
+      : "Choose a point on the map.";
+  }
+  if (els.saveProbeProfileLocationButton) {
+    els.saveProbeProfileLocationButton.disabled = !pendingProbeProfileImportCoordinates;
+  }
+  if (!window.L || !probeProfileLocationMap || !pendingProbeProfileImportCoordinates) return;
+  const point = [pendingProbeProfileImportCoordinates.latitude, pendingProbeProfileImportCoordinates.longitude];
+  if (!probeProfileLocationMarker) {
+    probeProfileLocationMarker = L.marker(point, { draggable: true }).addTo(probeProfileLocationMap);
+    probeProfileLocationMarker.on("dragend", () => {
+      const latLng = probeProfileLocationMarker.getLatLng();
+      setPendingProbeProfileImportCoordinates({ latitude: latLng.lat, longitude: latLng.lng });
+    });
+  } else {
+    probeProfileLocationMarker.setLatLng(point);
+  }
+  probeProfileLocationMap.setView(point, Math.max(probeProfileLocationMap.getZoom(), LOCATION_FOCUS_ZOOM));
+}
+
+function ensureProbeProfileLocationMap(coordinates) {
+  if (!window.L || !els.probeProfileLocationMap) return;
+  if (!probeProfileLocationMap) {
+    probeProfileLocationMap = L.map(els.probeProfileLocationMap, seamlessMapOptions());
+    addSeamlessTileLayer(probeProfileLocationMap);
+    probeProfileLocationMap.on("click", (event) => {
+      setPendingProbeProfileImportCoordinates({ latitude: event.latlng.lat, longitude: event.latlng.lng });
+    });
+  }
+  const hasCoordinates = isUsableCoordinates(coordinates);
+  const center = hasCoordinates ? [coordinates.latitude, coordinates.longitude] : [43.7, -79.4];
+  probeProfileLocationMap.setView(center, hasCoordinates ? LOCATION_FOCUS_ZOOM : 7);
+  setTimeout(() => probeProfileLocationMap.invalidateSize(), 50);
+  if (hasCoordinates) setPendingProbeProfileImportCoordinates(coordinates);
+  else {
+    setPendingProbeProfileImportCoordinates(null);
+    probeProfileLocationMarker?.remove();
+    probeProfileLocationMarker = null;
+  }
+}
+
+function openProbeProfileLocationDialog() {
+  if (!els.probeProfileLocationDialog) return;
+  const source = probeProfileImportSource();
+  els.probeProfileLocationDialog.showModal();
+  ensureProbeProfileLocationMap(source?.coordinates || null);
+}
+
+function saveProbeProfileLocation() {
+  if (!isUsableCoordinates(pendingProbeProfileImportCoordinates)) return;
+  probeProfileImportCoordinates = { ...pendingProbeProfileImportCoordinates };
+  syncProbeProfileImportSourceNote();
+  els.probeProfileLocationDialog?.close();
+}
+
+function clearProbeProfileLocation() {
+  probeProfileImportCoordinates = null;
+  pendingProbeProfileImportCoordinates = null;
+  syncProbeProfileImportSourceNote();
+}
+
+function probeProfileCoordinatesMatch(first, second) {
+  return Number(first?.latitude) === Number(second?.latitude)
+    && Number(first?.longitude) === Number(second?.longitude);
+}
+
+function probeProfileDisplayDepths(profile = []) {
+  return [...new Set([
+    ...probeProfileDepthsFeet,
+    ...probeTemperatureProfileEntries(profile).map((entry) => Number(entry.depthFeet))
+  ])].sort((first, second) => first - second);
+}
+
+async function importNoaaProbeTemperatureProfile(button) {
+  const source = probeProfileImportSource();
+  if (!source) {
+    setProbeProfileImportStatus("Choose a map point, or select a launch or waterbody with a saved map pin before importing NOAA data.", true);
+    return;
+  }
+  const { coordinates } = source;
+
+  if (collectProbeTemperatureProfile().length && !confirm("Replace the current probe temperature readings with the NOAA profile?")) {
+    setProbeProfileImportStatus("NOAA import cancelled.");
+    return;
+  }
+
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.setAttribute?.("aria-busy", "true");
+  button.textContent = "Loading NOAA…";
+  setProbeProfileImportStatus("Loading NOAA water-column profile…");
+  try {
+    const forecastHour = typeof greatLakesControlValue === "function" ? greatLakesControlValue("forecast") : "0";
+    const models = typeof greatLakesLoadedModelsKey === "string" ? greatLakesLoadedModelsKey : "";
+    const profile = await window.noaaGreatLakesApi?.profile({
+      forecastHour: forecastHour || "0",
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      models
+    });
+    if (!profile?.available) throw new Error("NOAA profile unavailable");
+    const importedProfile = noaaProbeTemperatureProfileEntries(profile);
+    if (!importedProfile.length) throw new Error("NOAA profile contains no usable readings");
+    if (!probeProfileCoordinatesMatch(coordinates, probeProfileImportSource()?.coordinates)) {
+      setProbeProfileImportStatus("The NOAA source location changed while data loaded. Import again for the new location.", true);
+      return;
+    }
+    renderProbeTemperatureProfile(importedProfile);
+    markTripFormChanged();
+    clearTripFormMessage();
+    setProbeProfileImportStatus(`Imported ${importedProfile.length} NOAA temperature reading${importedProfile.length === 1 ? "" : "s"} at the model's exact depths.`);
+  } catch {
+    setProbeProfileImportStatus("NOAA water-column data is unavailable for this location. Your current readings were not changed.", true);
+  } finally {
+    button.disabled = false;
+    button.removeAttribute?.("aria-busy");
+    button.textContent = originalLabel;
+  }
+}
+
 function renderProbeTemperatureProfile(profile = []) {
   const grid = document.querySelector("#probeTemperatureGrid");
   if (!grid) return;
@@ -364,7 +539,8 @@ function renderProbeTemperatureProfile(profile = []) {
     probeProfileDepthsFeet.push(probeProfileDepthsFeet.at(-1) + 10);
   }
   const temperaturesByDepth = new Map(profileEntries.map((entry) => [Number(entry.depthFeet), entry.temperature || ""]));
-  grid.innerHTML = probeProfileDepthsFeet.map((depthFeet) => {
+  const displayedDepths = probeProfileDisplayDepths(profileEntries);
+  grid.innerHTML = displayedDepths.map((depthFeet) => {
     const depthLabel = displayProbeDepth(depthFeet);
     return `
       <label class="probe-temperature-cell">

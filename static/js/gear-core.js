@@ -174,8 +174,11 @@ function renderQueuedGearImage(type) {
   container.innerHTML = pending ? `
     ${isVideoMedia(pending)
       ? mediaMarkup(pending, "", { download: false })
-      : `<button class="queued-gear-image-preview" type="button" data-open-queued-gear-preview="${escapeHtml(type)}" aria-label="Enlarge queued photo">${mediaMarkup(pending, "", { download: false })}</button>`}
-    <span>${escapeHtml(isVideoMedia(pending) ? "Queued video selected" : "Queued photo selected")}</span>
+      : `<button class="queued-gear-image-preview" type="button" data-open-queued-gear-preview="${escapeHtml(type)}" aria-label="Enlarge queued photo">
+          ${mediaMarkup(pending, "", { download: false })}
+          <span>Queued photo selected</span>
+        </button>`}
+    ${isVideoMedia(pending) ? `<span>Queued video selected</span>` : ""}
   ` : "";
 }
 
@@ -250,12 +253,15 @@ function openQueuedGearImagePreview(type) {
   const source = originalMediaUrl(pending);
   if (!source || isVideoMedia(pending)) return;
   document.querySelector(".queued-gear-photo-lightbox")?.remove();
-  document.body.insertAdjacentHTML("beforeend", `
+  const dialog = gearDialogForType(type);
+  const lightboxHost = dialog?.open ? dialog : document.body;
+  lightboxHost.insertAdjacentHTML("beforeend", `
     <div class="report-photo-lightbox queued-gear-photo-lightbox" role="dialog" aria-modal="true" aria-label="Queued gear photo">
       <button type="button" class="report-photo-lightbox-close" data-close-report-photo aria-label="Close photo">×</button>
       <img src="${escapeHtml(source)}" alt="Queued gear photo">
     </div>
   `);
+  document.body.classList.add("report-photo-lightbox-open");
   document.querySelector(".queued-gear-photo-lightbox [data-close-report-photo]")?.focus();
 }
 

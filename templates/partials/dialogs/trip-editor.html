@@ -81,11 +81,11 @@
             <fieldset class="trip-time-field">
               <div class="trip-time-inputs">
                 <label>
-                  <span>Launch time</span>
+                  <span>Start time</span>
                   <input id="launchTime" type="time" />
                 </label>
                 <label>
-                  <span>Lines pulled time</span>
+                  <span>End time</span>
                   <input id="linesPulledTime" type="time" />
                 </label>
                 <label>
@@ -94,7 +94,7 @@
                 </label>
               </div>
             </fieldset>
-            <!-- Kept hidden for legacy trips; new trips use launch time as their start. -->
+            <!-- Kept hidden for legacy trips; new trips use start time as their start. -->
             <input id="linesSetTime" type="hidden" />
             <div class="trip-basics-water-fields">
               <label>
@@ -166,13 +166,20 @@
           </aside>
         </div>
 
-        <section class="probe-temperature-section trip-probe-temperature-section fish-hawk-field" aria-labelledby="probeTemperatureHeading">
+        <section class="probe-temperature-section trip-probe-temperature-section fish-hawk-field trolling-field" aria-labelledby="probeTemperatureHeading">
           <div class="probe-temperature-heading">
             <div>
               <h4 id="probeTemperatureHeading">Probe temperature profile</h4>
               <p>Enter water temperature at each depth</p>
+              <p id="probeProfileSourceNote" class="probe-temperature-source-note">NOAA uses the selected launch / area fished pin by default. If it has no pin, it uses the waterbody pin.</p>
+              <p id="probeProfileImportStatus" class="probe-temperature-import-status" role="status" aria-live="polite"></p>
             </div>
-            <button class="button secondary compact-action" type="button" data-clear-probe-profile>Clear readings</button>
+            <div class="probe-temperature-actions">
+              <button class="button secondary compact-action" type="button" data-choose-probe-profile-location>Choose map point</button>
+              <button class="button secondary compact-action hidden" type="button" data-clear-probe-profile-location>Use launch pin</button>
+              <button class="button secondary compact-action" type="button" data-import-noaa-probe-profile>Use NOAA profile</button>
+              <button class="button secondary compact-action" type="button" data-clear-probe-profile>Clear readings</button>
+            </div>
           </div>
           <div class="probe-temperature-layout">
             <div class="probe-temperature-editor">

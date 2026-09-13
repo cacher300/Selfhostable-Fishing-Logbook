@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="static/css/styles.css?v=20260910-details-layout-1" />
+    <link rel="stylesheet" href="static/css/styles.css?v=20260912-noaa-probe-profile-1" />
     <link rel="stylesheet" href="static/css/trip-sharing.css" />
   </head>
   <body>
@@ -835,22 +835,6 @@
                   <h4 id="appearanceSettingsHeading">Appearance</h4>
                 </div>
                 <div class="settings-field-grid">
-                  <label class="settings-control">
-                    <span>Default home lake</span>
-                    <select id="defaultHomeLakeSelect">
-                      <option value="">All lakes</option>
-                      <option value="Superior">Lake Superior</option>
-                      <option value="Michigan">Lake Michigan</option>
-                      <option value="Huron">Lake Huron</option>
-                      <option value="Erie">Lake Erie</option>
-                      <option value="Ontario">Lake Ontario</option>
-                    </select>
-                  </label>
-                  <fieldset class="settings-radio-group default-people-setting">
-                    <legend>Default people</legend>
-                    <p>Select the people who should be added to every new trip.</p>
-                    <div class="default-people-options" id="defaultPeopleOptions"></div>
-                  </fieldset>
                   <fieldset class="settings-radio-group">
                     <legend>Fish Hawk probe</legend>
                     <label><input id="fishHawkToggle" type="checkbox" /> Show probe temperature and depth profiles in trips</label>
@@ -868,6 +852,30 @@
                     </select>
                     <label><input type="radio" name="timeFormatChoice" value="24" data-time-format-option /> 24 Hour</label>
                     <label><input type="radio" name="timeFormatChoice" value="12" data-time-format-option /> 12 Hour</label>
+                  </fieldset>
+                </div>
+              </section>
+              <section class="settings-section" aria-labelledby="tripDefaultsSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="tripDefaultsSettingsHeading">Trip defaults</h4>
+                  <p>Choose the values that should be pre-filled when you start a new trip.</p>
+                </div>
+                <div class="settings-field-grid">
+                  <label class="settings-control">
+                    <span>Default home lake</span>
+                    <select id="defaultHomeLakeSelect">
+                      <option value="">All lakes</option>
+                      <option value="Superior">Lake Superior</option>
+                      <option value="Michigan">Lake Michigan</option>
+                      <option value="Huron">Lake Huron</option>
+                      <option value="Erie">Lake Erie</option>
+                      <option value="Ontario">Lake Ontario</option>
+                    </select>
+                  </label>
+                  <fieldset class="settings-radio-group default-people-setting">
+                    <legend>Default people</legend>
+                    <p>Select the people who should be added to every new trip.</p>
+                    <div class="default-people-options" id="defaultPeopleOptions"></div>
                   </fieldset>
                 </div>
               </section>
@@ -1263,11 +1271,11 @@
             <fieldset class="trip-time-field">
               <div class="trip-time-inputs">
                 <label>
-                  <span>Launch time</span>
+                  <span>Start time</span>
                   <input id="launchTime" type="time" />
                 </label>
                 <label>
-                  <span>Lines pulled time</span>
+                  <span>End time</span>
                   <input id="linesPulledTime" type="time" />
                 </label>
                 <label>
@@ -1276,7 +1284,7 @@
                 </label>
               </div>
             </fieldset>
-            <!-- Kept hidden for legacy trips; new trips use launch time as their start. -->
+            <!-- Kept hidden for legacy trips; new trips use start time as their start. -->
             <input id="linesSetTime" type="hidden" />
             <div class="trip-basics-water-fields">
               <label>
@@ -1348,13 +1356,20 @@
           </aside>
         </div>
 
-        <section class="probe-temperature-section trip-probe-temperature-section fish-hawk-field" aria-labelledby="probeTemperatureHeading">
+        <section class="probe-temperature-section trip-probe-temperature-section fish-hawk-field trolling-field" aria-labelledby="probeTemperatureHeading">
           <div class="probe-temperature-heading">
             <div>
               <h4 id="probeTemperatureHeading">Probe temperature profile</h4>
               <p>Enter water temperature at each depth</p>
+              <p id="probeProfileSourceNote" class="probe-temperature-source-note">NOAA uses the selected launch / area fished pin by default. If it has no pin, it uses the waterbody pin.</p>
+              <p id="probeProfileImportStatus" class="probe-temperature-import-status" role="status" aria-live="polite"></p>
             </div>
-            <button class="button secondary compact-action" type="button" data-clear-probe-profile>Clear readings</button>
+            <div class="probe-temperature-actions">
+              <button class="button secondary compact-action" type="button" data-choose-probe-profile-location>Choose map point</button>
+              <button class="button secondary compact-action hidden" type="button" data-clear-probe-profile-location>Use launch pin</button>
+              <button class="button secondary compact-action" type="button" data-import-noaa-probe-profile>Use NOAA profile</button>
+              <button class="button secondary compact-action" type="button" data-clear-probe-profile>Clear readings</button>
+            </div>
           </div>
           <div class="probe-temperature-layout">
             <div class="probe-temperature-editor">
@@ -2021,10 +2036,6 @@
               <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
               <input class="catch-ball-depth" type="text" placeholder="55 ft" />
             </label>
-            <label class="trolling-param param-cheater-depth catch-detail-optional">
-              <span data-unit-label="depth" data-unit-label-text="Cheater depth">Cheater depth</span>
-              <input class="catch-cheater-depth" type="text" readonly aria-readonly="true" />
-            </label>
           </div>
           <label class="trolling-param param-flatline-weight catch-detail-optional">
             <span>Weight (oz)</span>
@@ -2217,6 +2228,25 @@
       </div>
     </dialog>
 
+<dialog class="dialog location-dialog" id="probeProfileLocationDialog">
+      <div class="dialog-content">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">NOAA profile source</p>
+            <h2>Choose map point</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <p class="map-pin-instruction">Press the map to drop a temporary pin for this NOAA import. It does not change the trip launch or waterbody pin.</p>
+        <p id="probeProfileLocationCoordinates" class="map-pin-instruction probe-profile-location-coordinates" role="status" aria-live="polite"></p>
+        <div id="probeProfileLocationMap" class="fish-map location-picker-map" aria-label="Map for selecting a NOAA profile source"></div>
+        <div class="dialog-actions">
+          <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+          <button class="button primary" id="saveProbeProfileLocationButton" type="button" disabled>Use map point</button>
+        </div>
+      </div>
+    </dialog>
+
 
     
 
@@ -2240,10 +2270,10 @@
     <script src="static/js/dashboard.js?v=20260829-save-draft-1"></script>
     <script src="static/js/expedition-analytics.js"></script>
     <script src="static/js/expeditions.js?v=20260903-row-opens-trip-2"></script>
-    <script src="static/js/photos.js"></script>
-    <script src="static/js/trip-editor.js?v=20260910-fish-hawk-setting-1"></script>
-    <script src="static/js/trip-rows.js?v=20260910-ball-temp-1"></script>
-    <script src="static/js/trip-save.js?v=20260910-ball-temp-1"></script>
+    <script src="static/js/photos.js?v=20260912-missed-fish-photos-1"></script>
+    <script src="static/js/trip-editor.js?v=20260913-noaa-profile-source-1"></script>
+    <script src="static/js/trip-rows.js?v=20260912-missed-fish-photos-1"></script>
+    <script src="static/js/trip-save.js?v=20260912-missed-fish-photos-1"></script>
     <script src="static/js/photo-queue-autofill.js?v=20260829-queue-copy-1"></script>
     <script src="static/js/gear-core.js?v=20260829-lure-picker-1"></script>
     <script src="static/js/gear-pickers.js?v=20260903-cheater-spoon-1"></script>
@@ -2269,7 +2299,7 @@
     <script src="static/js/leaderboard.js"></script>
     <script src="static/js/checklists.js?v=20260909-checklists-1"></script>
     <script src="static/js/app-control-events.js?v=20260909-default-spread-restore-1"></script>
-    <script src="static/js/app-delegated-events.js?v=20260829-duplicate-catch-1"></script>
+    <script src="static/js/app-delegated-events.js?v=20260913-noaa-profile-source-1"></script>
     <script src="static/js/app.js?v=20260909-spreads-checklists-1"></script>
   </body>
 </html>

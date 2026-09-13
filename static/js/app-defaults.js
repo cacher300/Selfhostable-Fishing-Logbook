@@ -149,6 +149,7 @@ const defaults = {
     "Smallmouth Bass",
     "Chinook Salmon",
     "Coho Salmon",
+    "Atlantic Salmon",
     "Rainbow Trout",
     "Brown Trout",
     "Walleye",

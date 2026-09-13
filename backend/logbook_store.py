@@ -354,17 +354,18 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         trip["endTime"] = lines_pulled_time
         expedition_id = str(trip.get("expeditionId") or "").strip()
         trip["expeditionId"] = expedition_id if expedition_id in expedition_ids else ""
-        for catch in trip.get("catches", []):
-            if not isinstance(catch, dict):
-                continue
-            mode = "manual" if catch.get("spotAssignmentMode") == "manual" else "automatic"
-            selected_spot_id = str(catch.get("spotId") or "").strip()
-            catch["spotAssignmentMode"] = mode
-            catch["spotId"] = (
-                selected_spot_id if mode == "manual" and selected_spot_id in spot_ids
-                else "" if mode == "manual"
-                else automatic_spot_id(catch)
-            )
+        for record_group in ("catches", "lostFish"):
+            for catch in trip.get(record_group, []):
+                if not isinstance(catch, dict):
+                    continue
+                mode = "manual" if catch.get("spotAssignmentMode") == "manual" else "automatic"
+                selected_spot_id = str(catch.get("spotId") or "").strip()
+                catch["spotAssignmentMode"] = mode
+                catch["spotId"] = (
+                    selected_spot_id if mode == "manual" and selected_spot_id in spot_ids
+                    else "" if mode == "manual"
+                    else automatic_spot_id(catch)
+                )
         for person in trip.get("people", []):
             if (
                 isinstance(person, dict)
@@ -801,18 +802,17 @@ def _validate_trips(payload: dict) -> tuple[bool, str | None]:
             valid, error = _validate_nested_records(trip.get(field, []), f"{path}.{field}")
             if not valid:
                 return valid, error
-        for catch_index, catch in enumerate(trip.get("catches", [])):
-            for field in ("coordinates", "manualCoordinates", "lockedLocationCoordinates"):
-                valid, error = _validate_coordinates(
-                    catch.get(field),
-                    f"{path}.catches[{catch_index}].{field}",
-                )
-                if not valid:
-                    return valid, error
-            if "spotId" in catch and not isinstance(catch["spotId"], str):
-                return _error(f"{path}.catches[{catch_index}].spotId", "must be a string")
-            if "spotAssignmentMode" in catch and catch["spotAssignmentMode"] not in ("automatic", "manual"):
-                return _error(f"{path}.catches[{catch_index}].spotAssignmentMode", 'must be "automatic" or "manual"')
+        for record_group in ("catches", "lostFish"):
+            for catch_index, catch in enumerate(trip.get(record_group, [])):
+                record_path = f"{path}.{record_group}[{catch_index}]"
+                for field in ("coordinates", "manualCoordinates", "lockedLocationCoordinates"):
+                    valid, error = _validate_coordinates(catch.get(field), f"{record_path}.{field}")
+                    if not valid:
+                        return valid, error
+                if "spotId" in catch and not isinstance(catch["spotId"], str):
+                    return _error(f"{record_path}.spotId", "must be a string")
+                if "spotAssignmentMode" in catch and catch["spotAssignmentMode"] not in ("automatic", "manual"):
+                    return _error(f"{record_path}.spotAssignmentMode", 'must be "automatic" or "manual"')
     return True, None
 
 

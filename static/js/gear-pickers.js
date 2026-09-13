@@ -188,7 +188,7 @@ function renderGearPicker(select, type) {
       ${pickerMedia ? `<span class="gear-picker-trigger-media">${pickerMedia}</span>` : ""}
       <span class="gear-picker-trigger-copy">
         <strong>${escapeHtml(selected ? gearPickerLabel(selected, placeholder) : placeholder)}</strong>
-        <small>${escapeHtml(selected ? [selected.type, selected.brand].filter(Boolean).join(" / ") || "Saved gear" : `Choose from ${items.length} saved ${type}${items.length === 1 ? "" : "s"}`)}</small>
+        ${selected ? `<small>${escapeHtml([selected.type, selected.brand].filter(Boolean).join(" / ") || "Saved gear")}</small>` : ""}
       </span>
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
     `;

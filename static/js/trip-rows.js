@@ -42,7 +42,7 @@ function populateCatchSpotSelect(row, catchItem = {}) {
 
 function refreshCatchSpotSelect(row) {
   const select = row?.querySelector(".catch-spot");
-  if (!select || row.classList.contains("lost-fish-row")) return;
+  if (!select) return;
   const value = select.value || "__automatic__";
   populateCatchSpotSelect(row, {
     spotAssignmentMode: value === "__automatic__" ? "automatic" : "manual",
@@ -92,7 +92,6 @@ function clearUnknownCatchDetails(row) {
     ".catch-ball-temp",
     ".catch-shaker",
     ".catch-ball-depth",
-    ".catch-cheater-depth",
     ".catch-deepest-rigger",
     ".catch-flatline-weight-oz",
     ".catch-line-behind-board",
@@ -118,7 +117,7 @@ function clearUnknownCatchDetails(row) {
 }
 
 function updateCatchDetailsUnknown(row, { clear = false } = {}) {
-  if (!row || row.classList.contains("lost-fish-row")) return;
+  if (!row) return;
   const detailsUnknown = Boolean(row.querySelector(".catch-details-unknown")?.checked);
   if (detailsUnknown && clear) clearUnknownCatchDetails(row);
   row.classList.toggle("details-unknown", detailsUnknown);
@@ -169,13 +168,13 @@ function addFishRow(catchItem = {}, { container, lost }) {
   if (lost) node.classList.add("lost-fish-row");
   node.dataset.rowId = createId();
   node.dataset.catchId = catchItem.id || "";
-  node.catchPhotos = lost ? [] : structuredClone(catchItem.photos || []);
-  node.dataset.photoLocationId = lost ? "" : (catchItem.photoLocationId || "");
-  node.dataset.heroPhotoId = lost ? "" : (catchItem.heroPhotoId || "");
+  node.catchPhotos = structuredClone(catchItem.photos || []);
+  node.dataset.photoLocationId = catchItem.photoLocationId || "";
+  node.dataset.heroPhotoId = catchItem.heroPhotoId || "";
   node.catchMetadataLocks = {
-    time: !lost && Boolean(catchItem.metadataLocks?.time),
-    location: !lost && Boolean(catchItem.metadataLocks?.location),
-    fow: !lost && Boolean(catchItem.metadataLocks?.fow)
+    time: Boolean(catchItem.metadataLocks?.time),
+    location: Boolean(catchItem.metadataLocks?.location),
+    fow: Boolean(catchItem.metadataLocks?.fow)
   };
   node.dataset.metadataLockTime = String(node.catchMetadataLocks.time);
   node.dataset.metadataLockLocation = String(node.catchMetadataLocks.location);
@@ -196,16 +195,17 @@ function addFishRow(catchItem = {}, { container, lost }) {
   };
   node.querySelector(".remove-catch").setAttribute("aria-label", lost ? "Remove lost fish" : "Remove catch");
   node.querySelector(".catch-released-field").classList.toggle("hidden", lost);
-  node.querySelector(".catch-details-unknown-field").classList.toggle("hidden", lost);
+  node.querySelector(".catch-details-unknown-field").classList.remove("hidden");
   node.querySelector(".catch-species-field").classList.toggle("hidden", lost);
   node.querySelector(".possible-species-field").classList.toggle("hidden", !lost);
   node.querySelector(".catch-length-field").classList.toggle("hidden", lost);
   node.querySelector(".catch-weight-field").classList.toggle("hidden", lost);
-  node.querySelector(".catch-water-depth-field").classList.toggle("hidden", lost);
-  node.querySelector(".catch-depth-down-field").classList.toggle("hidden", lost);
-  node.querySelector(".catch-photo-title").classList.toggle("hidden", lost);
-  node.querySelector(".catch-photo-editor").classList.toggle("hidden", lost);
-  node.querySelector(".catch-spot-field").classList.toggle("hidden", lost);
+  node.querySelector(".catch-water-depth-field").classList.remove("hidden");
+  node.querySelector(".catch-depth-down-field").classList.remove("hidden");
+  node.querySelector(".catch-photo-title").textContent = lost ? "Missed fish photos" : "Catch photos";
+  node.querySelector(".catch-photo-title").classList.remove("hidden");
+  node.querySelector(".catch-photo-editor").classList.remove("hidden");
+  node.querySelector(".catch-spot-field").classList.remove("hidden");
 
   populatePersonSelect(node.querySelector(".catch-person"), catchItem.personId || "");
   populateOptionSelect(node.querySelector(".catch-species"), state.species, "Select species");
@@ -216,7 +216,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   populateOptionSelect(node.querySelector(".catch-direction"), optionLabels("trollingDirections"), "Select direction");
   node.querySelector(".catch-species").value = lost ? "" : (catchItem.species || "");
   node.querySelector(".catch-possible-species").value = catchItem.possibleSpecies || catchItem.species || "";
-  node.querySelector(".catch-details-unknown").checked = !lost && Boolean(catchItem.detailsUnknown);
+  node.querySelector(".catch-details-unknown").checked = Boolean(catchItem.detailsUnknown);
   // Keep the existing `released` storage field so legacy stats and reports remain compatible.
   node.querySelector(".catch-released").checked = catchItem.released === undefined
     ? false
@@ -233,7 +233,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
     : (catchItem.coordinates?.manual && isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : null);
   node.querySelector(".catch-latitude").value = manualCoordinates?.latitude ?? "";
   node.querySelector(".catch-longitude").value = manualCoordinates?.longitude ?? "";
-  if (!lost) populateCatchSpotSelect(node, catchItem);
+  populateCatchSpotSelect(node, catchItem);
   updateCatchLocationSummary(node);
   node.querySelector(".catch-presentation").value = catchItem.presentation || "";
   node.querySelector(".catch-direction").value = catchItem.direction || "";
@@ -247,11 +247,11 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-rigging-details").value = catchItem.riggingDetails || "";
   node.querySelector(".catch-ball-depth").value = catchItem.ballDepth || "";
   node.querySelector(".catch-deepest-rigger").checked = Boolean(catchItem.deepestRigger);
-  updateCheaterDepth(node);
   node.querySelector(".catch-flatline-weight-oz").value = catchItem.flatlineWeightOz || "";
   node.querySelector(".catch-line-behind-board").value = catchItem.lineBehindBoard || "";
   node.querySelector(".catch-leadcore-colors").value = catchItem.leadcoreColors || "";
   node.querySelector(".catch-estimated-lure-depth").value = catchItem.estimatedLureDepth || "";
+  updateCheaterDepth(node);
   node.querySelector(".catch-dipsey-setting").value = catchItem.dipseySetting || "";
   node.querySelector(".catch-line-out").value = catchItem.lineOut || "";
   node.querySelector(".catch-estimated-depth").value = catchItem.estimatedDepth || "";
@@ -571,6 +571,36 @@ function populateSetupLineSelects() {
     populateSetupLineSelect(select, select.value);
   });
   document.querySelectorAll("#catchRows .catch-row").forEach(syncCatchMethodToSetupLine);
+}
+
+const TROLLING_SETUP_ROW_ORDER = [
+  "starboard|outside board",
+  "starboard|inside board",
+  "starboard|high diver",
+  "starboard|low diver",
+  "starboard|downrigger",
+  "center|chute rod",
+  "port|downrigger",
+  "port|low diver",
+  "port|high diver",
+  "port|inside board",
+  "port|outside board"
+];
+
+function sortTrollingSetupRows() {
+  if (!isTrollingTrip() || !els.tripGearRows) return;
+  const order = new Map(TROLLING_SETUP_ROW_ORDER.map((value, index) => [value, index]));
+  const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
+  rows.sort((first, second) => {
+    const rowKey = (row) => [
+      row.querySelector(".trip-gear-side")?.value,
+      row.querySelector(".catch-presentation")?.value
+    ].map((value) => String(value || "").trim().toLowerCase()).join("|");
+    const firstOrder = order.get(rowKey(first)) ?? TROLLING_SETUP_ROW_ORDER.length;
+    const secondOrder = order.get(rowKey(second)) ?? TROLLING_SETUP_ROW_ORDER.length;
+    return firstOrder - secondOrder || rows.indexOf(first) - rows.indexOf(second);
+  });
+  rows.forEach((row) => els.tripGearRows.append(row));
 }
 
 function rodOptionFromGearRow(row, index) {

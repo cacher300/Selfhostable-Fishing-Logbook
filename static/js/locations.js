@@ -252,7 +252,7 @@ async function updateCatchFowFromLocation(row, options = {}) {
   if (!row) return;
   if (isCatchMetadataLocked(row, "fow") && !options.ignoreMetadataLock) return;
   const coordinates = fishCoordinatesFromRow(row);
-  updateCatchFowForCoordinates(row, coordinates, options);
+  return updateCatchFowForCoordinates(row, coordinates, options);
 }
 
 async function updateCatchFowForCoordinates(row, coordinates, options = {}) {

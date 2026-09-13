@@ -23,6 +23,11 @@ def test_frontend_template_renders_all_partials_once() -> None:
     assert "Fishing Logbook" in markup
     assert 'id="tripListPanel"' in markup
     assert 'id="tripDialog"' in markup
+    assert 'data-import-noaa-probe-profile' in markup
+    assert 'id="probeProfileImportStatus"' in markup
+    assert 'id="probeProfileSourceNote"' in markup
+    assert 'data-choose-probe-profile-location' in markup
+    assert 'id="probeProfileLocationDialog"' in markup
     assert 'id="checklistsPanel"' in markup
     assert 'id="loadSpreadTemplateButton"' not in markup
     assert 'id="saveSpreadTemplateButton"' not in markup

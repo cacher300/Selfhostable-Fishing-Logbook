@@ -675,6 +675,7 @@ async function addCatchPhotos(event) {
     updateCatchLocationSummary(row);
     updateCatchFowFromLocation(row);
     updateRowSummary(row);
+    markTripFormChanged();
   } catch (error) {
     console.error("Could not add catch media.", error);
     showTripFormMessage(error.message || "That catch media could not be uploaded.");
@@ -885,6 +886,7 @@ async function claimQueuedPhoto(filename) {
       updateCatchLocationSummary(row);
       updateCatchFowFromLocation(row);
       updateRowSummary(row);
+      markTripFormChanged();
     }
     if (activePhotoQueueTarget.type === "trip") {
       activeNotePhotos = [...activeNotePhotos, { ...photoItem, caption: "" }];

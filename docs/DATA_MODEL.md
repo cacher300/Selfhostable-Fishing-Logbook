@@ -74,7 +74,7 @@ Coordinates must be within latitude/longitude bounds and cannot be `(0,0)`. Stri
 
 A spot is `{ id, name, coordinates, radiusMeters }`. Names and IDs are unique, coordinates are required, and radius is stored in meters from 25 through 10,000. Spots are global geographic circles rather than children of waterbodies.
 
-Landed catches use `spotId` plus `spotAssignmentMode` (`automatic` or `manual`). Automatic assignment uses manual catch coordinates before resolved/photo coordinates, matches the nearest spot whose radius contains the catch, and uses spot ID to break equal-distance ties. Manual assignment can select any existing spot regardless of distance or explicitly store no spot. Lost fish are not assigned.
+Landed catches and lost fish use `spotId` plus `spotAssignmentMode` (`automatic` or `manual`). Automatic assignment uses manual catch coordinates before resolved/photo coordinates, matches the nearest spot whose radius contains the catch, and uses spot ID to break equal-distance ties. Manual assignment can select any existing spot regardless of distance or explicitly store no spot. Both record types can use the normal location picker, metadata locks, and media-derived coordinates.
 
 ## Expedition
 
@@ -105,7 +105,7 @@ Setup rows intentionally do not collect fish-specific speed/depth parameters. Re
 
 Common fields include `id`, `personId`, `time`, `waterDepth`, `depthDown`, `presentation`, `direction`, `fowCaught`, `speed`, `retrieve`, `ballDepth`, `deepestRigger`, `lineBehindBoard`, `estimatedLureDepth`, `dipseySetting`, `lineOut`, `estimatedDepth`, `notes`, `setupLineId`, and `lureId`. `deepestRigger` is a per-fish marker available only for a main downrigger catch, never a cheater catch. Legacy catch-level `flasherId` values remain readable; current trolling catches inherit the flasher from their setup line.
 
-Landed catches additionally use `species`, `released`, `length`, `weight`, `manualCoordinates`, `coordinates`, `spotId`, `spotAssignmentMode`, `photos[]`, and optional `weatherData`. Lost fish use `possibleSpecies`, force `released: false`, and currently save no photos, coordinates, or spot assignment.
+Landed catches additionally use `species`, `released`, `length`, and `weight`; both landed catches and lost fish can use `manualCoordinates`, `coordinates`, `lockedLocationCoordinates`, `spotId`, `spotAssignmentMode`, `photoLocationId`, `heroPhotoId`, `photos[]`, and optional `weatherData`. Lost fish use `possibleSpecies` and force `released: false` while retaining the shared location and media fields.
 
 An imported numeric `quantity` is honored by analytics, but the form has no quantity input. Current UI-created records therefore represent one fish each.
 

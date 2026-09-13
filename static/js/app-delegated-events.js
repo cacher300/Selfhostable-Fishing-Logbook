@@ -323,7 +323,7 @@ document.addEventListener("click", (event) => {
   }
 
   const catchQueueButton = event.target.closest(".use-catch-photo-queue");
-  if (catchQueueButton && !catchQueueButton.closest(".lost-fish-row")) {
+  if (catchQueueButton) {
     openPhotoQueue({
       type: "catch",
       category: "catch-photos",
@@ -746,6 +746,10 @@ document.addEventListener("change", (event) => {
     document.querySelectorAll(".catch-row").forEach(updatePresentationFields);
     document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
   }
+  if (event.target.matches(".trip-gear-side, .catch-presentation")) {
+    sortTrollingSetupRows();
+    document.querySelectorAll(".catch-row, .gear-used-row").forEach(updateRowSummary);
+  }
   if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-distance-behind, .trip-gear-cheater, .trip-gear-cheater-lure, .trip-gear-leadcore")) {
     populateSetupLineSelects();
     populateCatchRodSelects();
@@ -825,6 +829,25 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  const chooseProbeProfileLocationButton = event.target.closest("[data-choose-probe-profile-location]");
+  if (chooseProbeProfileLocationButton) {
+    openProbeProfileLocationDialog();
+    return;
+  }
+  const clearProbeProfileLocationButton = event.target.closest("[data-clear-probe-profile-location]");
+  if (clearProbeProfileLocationButton) {
+    clearProbeProfileLocation();
+    return;
+  }
+  if (event.target.closest("#saveProbeProfileLocationButton")) {
+    saveProbeProfileLocation();
+    return;
+  }
+  const importNoaaProbeProfileButton = event.target.closest("[data-import-noaa-probe-profile]");
+  if (importNoaaProbeProfileButton) {
+    importNoaaProbeTemperatureProfile(importNoaaProbeProfileButton);
+    return;
+  }
   const addProbeDepthButton = event.target.closest("[data-add-probe-depth]");
   if (addProbeDepthButton) {
     addProbeProfileDepth();
@@ -838,6 +861,7 @@ document.addEventListener("click", (event) => {
       renderProbeTemperatureProfileChart([]);
       markTripFormChanged();
       clearTripFormMessage();
+      setProbeProfileImportStatus("");
     }
     return;
   }

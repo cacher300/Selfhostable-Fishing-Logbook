@@ -23,4 +23,30 @@ const exactCutoff = photoQueueCatchGroups([
 ], "2026-08-23");
 assert.equal(exactCutoff.length, 1);
 
-console.log("photo queue autofill grouping tests passed");
+async function testPhotoAttachmentWaitsForDepthLookup() {
+  const events = [];
+  global.selectedCatchPhotoLocation = () => null;
+  global.applyPhotoCaptureTimeToCatch = () => events.push("capture-time");
+  global.renderCatchPhotos = () => events.push("render-photos");
+  global.updateCatchLocationSummary = () => events.push("location-summary");
+  global.updateCatchFowFromLocation = () => new Promise((resolve) => {
+    setTimeout(() => {
+      events.push("depth-lookup");
+      resolve();
+    }, 10);
+  });
+  global.updateRowSummary = () => events.push("row-summary");
+
+  const row = {};
+  const attachment = attachPhotoGroupToCatch(row, [{ id: "photo" }]);
+  assert.deepEqual(events, ["capture-time", "render-photos", "location-summary"]);
+  await attachment;
+  assert.deepEqual(events, ["capture-time", "render-photos", "location-summary", "depth-lookup", "row-summary"]);
+}
+
+testPhotoAttachmentWaitsForDepthLookup()
+  .then(() => console.log("photo queue autofill tests passed"))
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });

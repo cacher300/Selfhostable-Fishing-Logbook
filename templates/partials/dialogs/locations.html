@@ -48,3 +48,22 @@
         </div>
       </div>
     </dialog>
+
+<dialog class="dialog location-dialog" id="probeProfileLocationDialog">
+      <div class="dialog-content">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">NOAA profile source</p>
+            <h2>Choose map point</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
+        <p class="map-pin-instruction">Press the map to drop a temporary pin for this NOAA import. It does not change the trip launch or waterbody pin.</p>
+        <p id="probeProfileLocationCoordinates" class="map-pin-instruction probe-profile-location-coordinates" role="status" aria-live="polite"></p>
+        <div id="probeProfileLocationMap" class="fish-map location-picker-map" aria-label="Map for selecting a NOAA profile source"></div>
+        <div class="dialog-actions">
+          <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+          <button class="button primary" id="saveProbeProfileLocationButton" type="button" disabled>Use map point</button>
+        </div>
+      </div>
+    </dialog>

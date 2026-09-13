@@ -29,22 +29,6 @@
                   <h4 id="appearanceSettingsHeading">Appearance</h4>
                 </div>
                 <div class="settings-field-grid">
-                  <label class="settings-control">
-                    <span>Default home lake</span>
-                    <select id="defaultHomeLakeSelect">
-                      <option value="">All lakes</option>
-                      <option value="Superior">Lake Superior</option>
-                      <option value="Michigan">Lake Michigan</option>
-                      <option value="Huron">Lake Huron</option>
-                      <option value="Erie">Lake Erie</option>
-                      <option value="Ontario">Lake Ontario</option>
-                    </select>
-                  </label>
-                  <fieldset class="settings-radio-group default-people-setting">
-                    <legend>Default people</legend>
-                    <p>Select the people who should be added to every new trip.</p>
-                    <div class="default-people-options" id="defaultPeopleOptions"></div>
-                  </fieldset>
                   <fieldset class="settings-radio-group">
                     <legend>Fish Hawk probe</legend>
                     <label><input id="fishHawkToggle" type="checkbox" /> Show probe temperature and depth profiles in trips</label>
@@ -62,6 +46,30 @@
                     </select>
                     <label><input type="radio" name="timeFormatChoice" value="24" data-time-format-option /> 24 Hour</label>
                     <label><input type="radio" name="timeFormatChoice" value="12" data-time-format-option /> 12 Hour</label>
+                  </fieldset>
+                </div>
+              </section>
+              <section class="settings-section" aria-labelledby="tripDefaultsSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="tripDefaultsSettingsHeading">Trip defaults</h4>
+                  <p>Choose the values that should be pre-filled when you start a new trip.</p>
+                </div>
+                <div class="settings-field-grid">
+                  <label class="settings-control">
+                    <span>Default home lake</span>
+                    <select id="defaultHomeLakeSelect">
+                      <option value="">All lakes</option>
+                      <option value="Superior">Lake Superior</option>
+                      <option value="Michigan">Lake Michigan</option>
+                      <option value="Huron">Lake Huron</option>
+                      <option value="Erie">Lake Erie</option>
+                      <option value="Ontario">Lake Ontario</option>
+                    </select>
+                  </label>
+                  <fieldset class="settings-radio-group default-people-setting">
+                    <legend>Default people</legend>
+                    <p>Select the people who should be added to every new trip.</p>
+                    <div class="default-people-options" id="defaultPeopleOptions"></div>
                   </fieldset>
                 </div>
               </section>

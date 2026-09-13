@@ -69,8 +69,8 @@ function collectTripFromForm() {
         released: detailsUnknown || lost ? false : !row.querySelector(".catch-released").checked,
         length: lost ? "" : row.querySelector(".catch-length").value.trim(),
         weight: lost ? "" : row.querySelector(".catch-weight").value.trim(),
-        spotAssignmentMode: lost ? "automatic" : (spotSelection === "__automatic__" ? "automatic" : "manual"),
-        spotId: lost || spotSelection.startsWith("__") ? "" : spotSelection,
+        spotAssignmentMode: spotSelection === "__automatic__" ? "automatic" : "manual",
+        spotId: spotSelection.startsWith("__") ? "" : spotSelection,
         structureType: detailsUnknown ? "" : row.querySelector(".catch-structure").value,
         time: detailsUnknown ? "" : row.querySelector(".catch-time").value,
         timeUnknown: detailsUnknown ? false : row.querySelector(".catch-time-unknown").checked,
@@ -100,16 +100,16 @@ function collectTripFromForm() {
         lineOut: !detailsUnknown && trolling ? row.querySelector(".catch-line-out").value.trim() : "",
         estimatedDepth: !detailsUnknown && trolling ? row.querySelector(".catch-estimated-depth").value.trim() : "",
         notes: detailsUnknown ? "" : row.querySelector(".catch-notes").value.trim(),
-        metadataLocks: detailsUnknown || lost ? { time: false, location: false, fow: false } : catchMetadataLocksPayload(row),
-        lockedLocationCoordinates: detailsUnknown || lost ? null : lockedPhotoCoordinatesFromRow(row),
+        metadataLocks: detailsUnknown ? { time: false, location: false, fow: false } : catchMetadataLocksPayload(row),
+        lockedLocationCoordinates: detailsUnknown ? null : lockedPhotoCoordinatesFromRow(row),
         manualCoordinates: detailsUnknown ? null : manualCoordinatesFromRow(row),
         coordinates: detailsUnknown ? null : fishCoordinatesFromRow(row),
-        photoLocationId: detailsUnknown || lost ? "" : (catchPhotoLocationById(row)?.id || ""),
-        heroPhotoId: detailsUnknown || lost ? "" : (selectedCatchHeroPhoto(row)?.id || ""),
-        photos: detailsUnknown || lost ? [] : collectCatchPhotos(row)
+        photoLocationId: detailsUnknown ? "" : (catchPhotoLocationById(row)?.id || ""),
+        heroPhotoId: detailsUnknown ? "" : (selectedCatchHeroPhoto(row)?.id || ""),
+        photos: detailsUnknown ? [] : collectCatchPhotos(row)
       };
       const selectedRodId = row.querySelector(".catch-rod")?.selectedOptions?.[0]?.dataset.rodId || "";
-      if (!detailsUnknown && !lost && row.catchWeatherData) base.weatherData = row.catchWeatherData;
+      if (!detailsUnknown && row.catchWeatherData) base.weatherData = row.catchWeatherData;
       if (!detailsUnknown && hasCatchDepthData(row.catchDepthData)) {
         Object.assign(base, row.catchDepthData);
       }

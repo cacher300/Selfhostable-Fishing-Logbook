@@ -420,6 +420,7 @@ async function saveLure(event) {
       if (select) {
         populateLuresForType(select, lure.type, lure.id);
         select.value = lure.id;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
       }
       renderLurePreview(row);
       updateRowSummary(row);
