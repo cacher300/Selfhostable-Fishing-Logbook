@@ -200,6 +200,15 @@
   border-bottom: 1px solid var(--line);
 }
 
+.catch-photo-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
 .catch-photo-card .remove-catch-photo {
   position: absolute;
   top: 6px;

@@ -692,7 +692,9 @@ function renderCatchPhotos(row) {
   const heroPhoto = selectedCatchHeroPhoto(row);
   grid.innerHTML = photos.map((photo) => `
     <article class="catch-photo-card" data-catch-photo="${photo.id}">
-      ${mediaMarkup(photo, "", { download: false })}
+      ${isVideoMedia(photo)
+        ? mediaMarkup(photo, "", { download: false })
+        : `<button class="catch-photo-open" type="button" data-catch-photo-open="${escapeHtml(photo.id)}" aria-label="Enlarge ${escapeHtml(displayPhotoTitle(photo))}">${mediaMarkup(photo, "", { download: false })}</button>`}
       <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch media"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       ${isUsableCoordinates(photo.coordinates) ? `
         ${taggedPhotos.length > 1 ? `

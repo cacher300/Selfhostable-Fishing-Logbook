@@ -186,6 +186,14 @@ document.addEventListener("click", (event) => {
     if (photo) openTripReportPhotoLightbox(photo);
   }
 
+  const catchPhotoButton = event.target.closest("[data-catch-photo-open]");
+  if (catchPhotoButton) {
+    const row = catchPhotoButton.closest(".catch-row");
+    const photo = (row?.catchPhotos || []).find((item) => item.id === catchPhotoButton.dataset.catchPhotoOpen);
+    if (photo) openTripReportPhotoLightbox(photo);
+    return;
+  }
+
   if (event.target.closest("[data-close-report-photo]") || event.target.classList.contains("report-photo-lightbox")) {
     closeTripReportPhotoLightbox();
   }
