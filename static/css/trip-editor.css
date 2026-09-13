@@ -704,15 +704,19 @@
 .catch-trolling-details-grid {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(7, max-content);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 12px;
   align-items: end;
   justify-content: start;
 }
 
+.catch-trolling-details-grid > * {
+  min-width: 0;
+}
+
 .catch-trolling-details-grid > label:first-child,
 .catch-direction {
-  width: 15ch;
+  width: 100%;
   max-width: 15ch;
 }
 

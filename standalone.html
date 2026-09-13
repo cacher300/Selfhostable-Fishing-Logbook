@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="static/css/styles.css?v=20260912-noaa-probe-profile-1" />
+    <link rel="stylesheet" href="static/css/styles.css?v=20260913-lure-depth-row-1" />
     <link rel="stylesheet" href="static/css/trip-sharing.css" />
   </head>
   <body>
@@ -2036,6 +2036,10 @@
               <span data-unit-label="depth" data-unit-label-text="Ball depth">Ball depth</span>
               <input class="catch-ball-depth" type="text" placeholder="55 ft" />
             </label>
+            <label class="trolling-param param-lure-depth catch-detail-optional">
+              <span data-unit-label="depth" data-unit-label-text="Estimated lure depth">Estimated lure depth</span>
+              <input class="catch-estimated-lure-depth" type="text" placeholder="35 ft" />
+            </label>
           </div>
           <label class="trolling-param param-flatline-weight catch-detail-optional">
             <span>Weight (oz)</span>
@@ -2048,10 +2052,6 @@
           <label class="trolling-param param-leadcore-colors catch-detail-optional">
             <span>Leadcore colors</span>
             <input class="catch-leadcore-colors" type="number" min="0" step="0.5" placeholder="5" />
-          </label>
-          <label class="trolling-param param-lure-depth catch-detail-optional">
-            <span data-unit-label="depth" data-unit-label-text="Estimated lure depth">Estimated lure depth</span>
-            <input class="catch-estimated-lure-depth" type="text" placeholder="35 ft" />
           </label>
           <label class="trolling-param param-dipsey-setting catch-detail-optional">
             <span>Dipsey plate setting</span>
