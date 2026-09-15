@@ -24,18 +24,31 @@ assert.equal(output.value, "");
 
 console.log("cheater depth tests passed");
 
+const recalculationCalls = [];
 const rowsContext = {
   console,
   Option: function Option(label, value) {
     return { label, value };
   },
   els: { tripGearRows: { querySelectorAll: () => [] } },
-  updatePresentationFields() {},
-  updateCheaterDepth() {},
-  updateLeadcoreEstimatedDepth() {}
+  updatePresentationFields() { recalculationCalls.push("presentation"); },
+  updateCheaterDepth() { recalculationCalls.push("cheater"); },
+  updateLeadcoreEstimatedDepth() { recalculationCalls.push("leadcore"); }
 };
 vm.createContext(rowsContext);
 const rowsSource = fs.readFileSync("static/js/trip-rows.js", "utf8");
+const addFishRowFunction = rowsSource.match(/function addFishRow\([\s\S]*?\n\}/)?.[0];
+assert(addFishRowFunction, "addFishRow should be defined");
+assert.match(
+  addFishRowFunction,
+  /\.catch-estimated-lure-depth"\)\.value = catchItem\.estimatedLureDepth \|\| "";[\s\S]*?updatePresentationFields\(node\);/,
+  "saved lure depth should load before presentation-specific recalculation"
+);
+assert.doesNotMatch(
+  addFishRowFunction,
+  /\.catch-estimated-lure-depth"\)\.value = catchItem\.estimatedLureDepth \|\| "";\s*updateCheaterDepth\(node\);/,
+  "loading a fish must not unconditionally overwrite its saved lure depth"
+);
 const syncFunction = rowsSource.match(/function syncCatchMethodToSetupLine\(row\) \{[\s\S]*?\n\}/)?.[0];
 assert(syncFunction, "syncCatchMethodToSetupLine should be defined");
 vm.runInContext(syncFunction, rowsContext);
@@ -57,5 +70,6 @@ rowsContext.els.tripGearRows.querySelectorAll = () => [];
 vm.runInContext("syncCatchMethodToSetupLine(row)", vm.createContext({ ...rowsContext, row: cheaterRow }));
 assert.equal(presentation.value, "Cheater");
 assert.equal(presentation.options[0].value, "Cheater");
+assert.deepEqual(recalculationCalls, ["presentation", "cheater", "leadcore"]);
 
 console.log("cheater presentation sync tests passed");

@@ -765,6 +765,148 @@
   font-size: 12px;
 }
 
+.stats-activity-card {
+  overflow: hidden;
+  border: 1px solid var(--stats-border);
+  border-radius: 8px;
+  background: var(--stats-panel);
+  box-shadow: 0 1px 2px rgba(10, 39, 80, 0.04);
+}
+
+.stats-activity-card-header {
+  display: flex;
+  align-items: center;
+  min-height: 74px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--stats-border);
+}
+
+.stats-activity-card h3 {
+  margin: 0;
+  color: var(--stats-heading);
+  font-size: 18px;
+}
+
+.stats-activity-card p {
+  margin: 4px 0 0;
+  color: var(--stats-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.activity-heatmap-scroll {
+  overflow-x: auto;
+  padding: 16px 18px 8px;
+}
+
+.activity-heatmap {
+  min-width: 700px;
+}
+
+.activity-heatmap-months,
+.activity-heatmap-calendar {
+  display: grid;
+  grid-template-columns: repeat(53, minmax(10px, 1fr));
+  column-gap: 3px;
+}
+
+.activity-heatmap-months {
+  min-height: 18px;
+  margin-left: 35px;
+  color: var(--stats-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.activity-heatmap-month {
+  white-space: nowrap;
+}
+
+.activity-heatmap-content {
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.activity-heatmap-weekdays,
+.activity-heatmap-calendar {
+  grid-template-rows: repeat(7, minmax(10px, 1fr));
+  row-gap: 3px;
+}
+
+.activity-heatmap-weekdays {
+  display: grid;
+  align-items: center;
+  color: var(--stats-muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.activity-heatmap-weekday {
+  line-height: 1;
+}
+
+.activity-heatmap-calendar {
+  grid-auto-flow: column;
+}
+
+.activity-heatmap-day,
+.activity-heatmap-legend i {
+  display: block;
+  border: 1px solid rgba(7, 21, 46, 0.04);
+  border-radius: 2px;
+  background: #ebeff3;
+}
+
+.activity-heatmap-day {
+  aspect-ratio: 1;
+  min-width: 10px;
+  outline-offset: 2px;
+}
+
+.activity-heatmap-day:focus-visible {
+  outline: 2px solid var(--blue);
+}
+
+.activity-heatmap-day.is-today {
+  outline: 1px solid var(--text);
+  outline-offset: 1px;
+}
+
+.activity-heatmap-day.is-today:focus-visible {
+  outline: 2px solid var(--blue);
+}
+
+.activity-heatmap-level-1 { background: #bce4d0; }
+.activity-heatmap-level-2 { background: #82ce9f; }
+.activity-heatmap-level-3 { background: #42ad70; }
+.activity-heatmap-level-4 { background: #1a824f; }
+.activity-heatmap-level-5 { background: #075c35; }
+.activity-heatmap-day.is-future { opacity: 0.35; }
+
+.activity-heatmap-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 4px 18px 16px;
+  color: var(--stats-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.activity-heatmap-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.activity-heatmap-legend i {
+  width: 12px;
+  height: 12px;
+}
+
 .stats-page .metric-card strong {
   margin-top: 4px;
   color: var(--stats-heading);
@@ -921,4 +1063,3 @@
   }
 
 }
-

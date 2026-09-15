@@ -97,4 +97,4 @@ Current protections include session-backed CSRF tokens for mutations, path resol
 
 ## Deployment and Automation
 
-Local Python defaults to `127.0.0.1:8080`. Docker uses `0.0.0.0:8080`, publishes port 80, mounts `./data`, and restarts unless stopped. Backups are host-managed; this repository has no backup scheduler or restore tool. No in-process background worker or scheduler exists.
+Local Python defaults to `127.0.0.1:8080`. Docker listens on `0.0.0.0:8080` inside the container and publishes it to `127.0.0.1:8080` on the host by default, mounts `./data`, and restarts unless stopped. Set `APP_PORT` when a different loopback proxy target is required. Backups are host-managed; this repository has no backup scheduler or restore tool. No in-process background worker or scheduler exists.

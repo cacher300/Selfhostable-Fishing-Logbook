@@ -63,6 +63,8 @@ const els = {
   statsMonthFilter: document.querySelector("#statsMonthFilter"),
   statsRatingFilter: document.querySelector("#statsRatingFilter"),
   advancedMetricGrid: document.querySelector("#advancedMetricGrid"),
+  statsActivityHeatmap: document.querySelector("#statsActivityHeatmap"),
+  statsActivitySummary: document.querySelector("#statsActivitySummary"),
   statsActiveScope: document.querySelector("#statsActiveScope"),
   tripTrendStatsTable: document.querySelector("#tripTrendStatsTable"),
   speciesOverviewStatsTable: document.querySelector("#speciesOverviewStatsTable"),
