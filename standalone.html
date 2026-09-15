@@ -804,6 +804,192 @@
 </section>
 
 
+        <section class="wiki-page hidden" id="wikiPanel" aria-labelledby="wikiHeading">
+  <header class="wiki-hero">
+    <h3 id="wikiHeading">Logbook feature guide</h3>
+    <p>This is a practical guide to every feature in the app.</p>
+    <div class="wiki-search-row">
+      <label class="wiki-search-control" for="wikiSearch">
+        <span class="visually-hidden">Search the Wiki</span>
+        <input id="wikiSearch" type="search" placeholder="Search trips, weather, photos, gear, stats…" autocomplete="off" />
+      </label>
+      <button class="button secondary" id="wikiExpandAllButton" type="button">Expand all</button>
+      <button class="button secondary" id="wikiCollapseAllButton" type="button">Collapse all</button>
+    </div>
+    <p class="wiki-search-status" id="wikiSearchStatus" aria-live="polite"></p>
+  </header>
+
+  <div class="wiki-layout">
+    <nav class="wiki-index" aria-label="Wiki topics">
+      <strong>On this page</strong>
+      <a href="#wiki-start">Start here</a>
+      <a href="#wiki-trips">Trips and catches</a>
+      <a href="#wiki-summary">Trip review and sharing</a>
+      <a href="#wiki-planning">Planning and libraries</a>
+      <a href="#wiki-map">Maps and conditions</a>
+      <a href="#wiki-results">Stats and records</a>
+      <a href="#wiki-media">Photos, video, and Gallery</a>
+      <a href="#wiki-settings">Settings and data</a>
+    </nav>
+
+    <div class="wiki-topics" id="wikiTopics">
+      <details class="wiki-topic" id="wiki-start" data-wiki-topic open>
+        <summary><span>Start here: log a useful first trip</span><small>Quick start</small></summary>
+        <div class="wiki-topic-body">
+          <ol class="wiki-steps">
+            <li>Choose <strong>New Trip</strong>.</li>
+            <li>Enter the date, select a waterbody, and choose a target species. These are the only three fields needed for a normal save.</li>
+            <li>Add a start/end time, method, people, catches, and notes whenever you know them. Leave anything uncertain blank rather than guessing.</li>
+            <li>Save the trip, then open it from the Trips list to review its summary, map, timeline, and sharing options.</li>
+          </ol>
+          <div class="wiki-callout"><span class="wiki-label wiki-label-required">Required to save</span><p><strong>Date, Location / waterbody, and Target species</strong> are required for a normal save. A draft can be saved before those essentials are complete.</p></div>
+          <div class="wiki-callout"><span class="wiki-label wiki-label-optional">Optional</span><p>Trip title, times, conditions, photos, people, setup rows, fish records, and notes are optional. The app is designed to let you start small and add detail later.</p></div>
+          <div class="wiki-callout"><span class="wiki-label wiki-label-automatic">Automatic</span><p>A new trip starts with today’s date. Times, setup rows, catches, weather, and media can all be added after the trip exists; this makes a short trip record a useful starting point rather than an incomplete failure.</p></div>
+        </div>
+      </details>
+
+      <details class="wiki-topic" id="wiki-trips" data-wiki-topic open>
+        <summary><span>Trips and catches</span><small>Record the day</small></summary>
+        <div class="wiki-topic-body">
+          <h4>Trips list</h4>
+          <p>Use the Trips screen to search your history by location, target or caught species, lure name, or notes. Filter by target species, method, or year, then sort by date, catch rate, fish count, hours, or any sortable column. Select a trip to open its full summary; use its Edit action to return to the form.</p>
+          <h4>Trip basics</h4>
+          <p>A title is optional; untitled saves receive a generated title. Choose an expedition only when the trip belongs to one. Launch / Area Fished is optional and can identify a launch, an area, or a saved pin beneath the selected waterbody. Start/end time and idle time let the app calculate active fishing hours, including overnight trips. If you change the trip times, blank catch and setup times are brought along automatically; values you already entered stay unchanged.</p>
+          <p>Trip intent and rating help compare purposeful trips with experiments. Water temperature, clarity, FOW range, manual weather, wave height, and notes are all optional observations. The weather dropdown is your own label and is not overwritten by a weather lookup. FOW range describes the water you worked overall; the FOW and depth fields on a fish record describe that individual interaction.</p>
+          <details class="wiki-reference">
+            <summary>Trip Basics field guide</summary>
+            <div class="wiki-field-list">
+              <div><strong>Trip title</strong><span>Optional label. If blank, the app makes a title from the date and target species.</span></div>
+              <div><strong>Date, waterbody, target species</strong><span>The only fields required for a normal save. Add waterbodies and launches with the nearby plus buttons if they are not listed.</span></div>
+              <div><strong>Launch / Area Fished</strong><span>Optional place beneath the chosen waterbody. Its pin is the first choice for weather and NOAA profile lookups.</span></div>
+              <div><strong>Start, end, idle time</strong><span>Optional inputs used for hours and catch-rate calculations. Idle time is subtracted from the span between start and end.</span></div>
+              <div><strong>Intent and rating</strong><span>Personal context for later filtering: Serious or Experimental, plus Bad through Outstanding.</span></div>
+              <div><strong>Conditions</strong><span>Optional water temperature, clarity, FOW range, weather label, and wave height. Keep wording consistent if you want cleaner Stats comparisons.</span></div>
+            </div>
+          </details>
+          <div class="wiki-callout"><span class="wiki-label wiki-label-automatic">Automatic</span><p>When you save, the app can enrich the trip with weather, waves, sun, and moon data. Your manually entered wave height is kept; a fetched wave height fills in only when you left it blank.</p></div>
+          <h4>Save, draft, warnings, and editing</h4>
+          <p><strong>Save</strong> checks the three essentials and may show non-blocking reminders for blank start/end time, method, a trip outside its expedition dates, a trolling setup that has no rods, setup rows with incomplete or implausible deployment times, and fish records missing person, species, time, or a trolling rod. You may still choose <strong>Save anyway</strong>. <strong>Save Draft</strong> skips those normal required-field checks and reminders so you can capture an unfinished record. Closing an edited trip asks before discarding unsaved changes. You can delete a saved trip from its editor or summary.</p>
+          <h4>People</h4>
+          <p>Add everyone who fished. People you save become reusable choices and can be selected on catches and missed fish. Set default people in Settings to preselect them on future new trips; this does not change past trips.</p>
+          <h4>Setup timeline</h4>
+          <p>Add rods and gear used during the trip. Each row can represent a timed change, and you can connect it to a rod/reel combo, lure, flasher, presentation, side, and line details. A setup can be broad or very specific; fill only what you know. New setup rows inherit the trip start and end times when those are available. The live spread drawing helps you check the layout.</p>
+          <div class="wiki-callout"><span class="wiki-label wiki-label-trolling">Trolling-only</span><p>Trolling trips show presentation, side, leadcore, cheater, flasher, and spread tools. <strong>Import Last Spread</strong> starts a new trolling trip with your previous or configured default spread. A target-species default spread takes priority over the all-species default.</p></div>
+          <details class="wiki-reference">
+            <summary>Setup field guide</summary>
+            <div class="wiki-field-list">
+              <div><strong>Timing and note</strong><span>Use start/stop time to tell Stats how long a lure or flasher was in use. Add a note for a change you want to remember.</span></div>
+              <div><strong>Rod/reel combo, lure, flasher</strong><span>Reusable gear selections. Create a new lure or flasher inline without abandoning the trip form.</span></div>
+              <div><strong>Line side and rod label</strong><span>Trolling-only identifiers used in the spread drawing and side-performance analysis.</span></div>
+              <div><strong>Presentation</strong><span>Trolling-only choice: downrigger, flatline, planer board/leadcore, or Dipsey Diver. It controls which related detail fields are relevant.</span></div>
+              <div><strong>Leadcore and cheater</strong><span>Leadcore applies to compatible presentations. A cheater can be added only to a downrigger and may have its own lure.</span></div>
+            </div>
+          </details>
+          <h4>Landed catches and missed fish</h4>
+          <p>Add each landed catch or missed fish separately. A completely blank row is ignored when you save. Once a row contains information, the app retains it even if species, length, or weight are blank; normal Save shows a reminder for missing person, species, time, or trolling rod instead of blocking the trip. Use this flexibility for honest partial records, not estimates you do not trust.</p>
+          <p>For a landed catch, select species, length, weight, and the <strong>Kept</strong> checkbox when applicable. An unchecked Kept box records the fish as released. Missed fish use <strong>Possible species</strong> instead and have no kept/released, length, or weight result. Both types can carry a spot, FOW, depth down, structure, time, location, equipment, notes, and media.</p>
+          <p>A new fish row uses the trip start time when one exists. Choose <strong>Unknown time</strong> to clear and disable the time. <strong>Details unknown</strong> is for a landed fish when you only trust its core identity/size: turning it on clears optional person, timing, result, location, equipment, media, and notes, then hides those fields.</p>
+          <p>For a trolling catch, selecting a setup line carries its gear and presentation context into later analysis and limits the choice to lines active at the catch time. Mark an eligible main-downrigger catch as the deepest rigger when it matters. Casting catches instead expose retrieve, rigging, and rig-detail fields. Duplicate a catch when the next record is similar; its time and photos are cleared so you can update them independently.</p>
+          <div class="wiki-callout"><span class="wiki-label wiki-label-automatic">Automatic</span><p>A catch photo can supply capture time and coordinates. A manual catch coordinate overrides photo coordinates. If a catch falls inside a saved fishing-spot radius, it can be assigned automatically; a manual spot or explicit “no spot” choice stays in control.</p></div>
+          <div class="wiki-callout"><span class="wiki-label wiki-label-automatic">Automatic</span><p>Use the lock icons beside catch time, location, or FOW to keep the currently imported photo metadata from being replaced when you add or choose another photo. With a usable catch coordinate, the app can also look up nearby bathymetry and apply your lake calibration to FOW.</p></div>
+          <h4>Probe temperature profile</h4>
+          <p>Enter water temperature at each depth to draw a temperature profile and show catch-depth markers against it. Add deeper rows whenever needed, or clear all readings to start again.</p>
+          <div class="wiki-callout"><div class="wiki-callout-labels"><span class="wiki-label wiki-label-trolling">Trolling-only</span><span class="wiki-label wiki-label-connected">Needs a mapped location or internet</span></div><p>The profile section is available when Fish Hawk is enabled in Settings. <strong>Use NOAA profile</strong> replaces the current readings only after confirmation. By default it uses the selected launch / area pin, then the waterbody pin. Choose <strong>Choose map point</strong> to use a temporary point instead; it does not move the trip’s saved pins, and <strong>Use launch pin</strong> restores the default source. Unavailable data leaves existing readings unchanged.</p></div>
+        </div>
+      </details>
+
+      <details class="wiki-topic" id="wiki-summary" data-wiki-topic>
+        <summary><span>Trip review and sharing</span><small>Understand a finished trip</small></summary>
+        <div class="wiki-topic-body">
+          <p>The Trip Summary brings together the trip’s key totals, details, conditions, notes, photos, maps, setup/spread, and chronological catch timeline. Use its filters and selectable columns to focus the timeline on kept, released, or lost fish. Map and media entries open the associated trip context.</p>
+          <p>For trolling trips, the spread diagram shows line sides, presentations, gear labels, and the catch or missed-fish results attributed to each setup. Probe profiles and catch-depth markers appear here when Fish Hawk is enabled and profile readings exist.</p>
+          <h4>Share Trip</h4>
+          <p>Build a shareable image or text report without changing your saved trip. Image reports can include landed, lost, biggest fish, fish/hour, hours, water depth, notes, conditions, highlights, timeline, best lure, and best flasher. Choose a report photo, flip the best-lure image, and set accent, background, card, and text colors. Text reports have their own notes, conditions, highlights, missed-fish, and per-column timeline controls.</p>
+          <p>Review the live preview, then copy it or download a JPG, PNG, or TXT file. You can save a named appearance preset for reuse. Share-report choices and presets are stored in this browser, not in the trip itself, so another browser or device will not automatically have them.</p>
+        </div>
+      </details>
+
+      <details class="wiki-topic" id="wiki-planning" data-wiki-topic>
+        <summary><span>Planning and fishing libraries</span><small>Reuse what you know</small></summary>
+        <div class="wiki-topic-body">
+          <h4>Expeditions and checklists</h4>
+          <p>Create an expedition for a multi-day outing, give it a name, dates, destination, and notes, then assign individual trips from the trip form. Its page summarizes member trips, days, hours, fish, catch rate, and species. A trip may belong to one expedition; a warning appears if its date falls outside the expedition range. Deleting an expedition is a separate action—check its assigned trips before removing it.</p>
+          <p>Checklists are reusable preparation lists for launch day, safety, tackle, or any routine. Create items, reorder lists or their items by dragging, mark them complete, duplicate a list, reset completion, or delete it. Text changes and completion state autosave shortly after you make them. A duplicate starts with its items unchecked, which makes it suitable for the next outing.</p>
+          <h4>Waterbodies, launches, structures, and spots</h4>
+          <p>Manage waterbodies in Settings, including named launch/area entries and map pins. A waterbody and every launch/area require a name and map pin when you create or edit them. Use the plus buttons beside trip location fields to add an item while logging. You cannot delete a waterbody or launch that an existing trip still uses.</p>
+          <p>Fishing spots are named radius circles. Create them in Settings, set their centre and radius, then use them to group catches and missed fish by area. The catch Spot selector starts in automatic mode, which chooses the nearest matching circle; explicitly choose a spot or No spot to make that choice stick. Structures are reusable labels available from fish rows; add a new one from the inline option when needed.</p>
+          <h4>Gear</h4>
+          <p>Gear is a reusable library, not a required setup step. The tab filter can search by a chosen field and offers matching suggestions. Maintain lures/baits, flashers, rods, reels, named rod/reel combos, and a Line Tracker. Item details, quantity, notes, media, usage, and outcome history are there to help you identify the exact item later.</p>
+          <p>Lure type reveals useful type-specific fields: crankbaits have diving depth, blades have blade type, and spoons have spoon size. Reels hold style, capacity, ratio, drag, purchase, and maintenance details; rods hold length, power, action, rating, purchase, and use-case details. Use a combo to select a rod/reel pair at once in a setup. The Line Tracker records each spool with type, brand/name, weight, diameter, color, backing, date, and notes.</p>
+          <p>Use Queue is available for gear photos. Deleting gear clears its stored references where the app can do so; review trips and combinations if you need to preserve historical context before deleting an item.</p>
+        </div>
+      </details>
+
+      <details class="wiki-topic" id="wiki-map" data-wiki-topic>
+        <summary><span>Maps, weather, and water conditions</span><small>Use place and conditions together</small></summary>
+        <div class="wiki-topic-body">
+          <h4>Map</h4>
+          <p>The global Map can show catch locations, geotagged trip media, and saved fishing spots. Filter by species, lake, method, direction, person, and year. The year filter can be hidden when you want all years. Toggle trip photos, spots, direction arrows, choose Standard/Dark/Minimal basemap, and enable/disable NOAA charts to make the map easier to read. Clear filters returns the map controls to their defaults. Select a marker to inspect its record or open the related trip.</p>
+          <p>A Trip Summary has a focused trip map, with filters for catch species and trip photos. Saved coordinates remain useful even when map tiles cannot load.</p>
+          <h4>Weather and marine data</h4>
+          <div class="wiki-callout"><span class="wiki-label wiki-label-connected">Needs a mapped location or internet</span><p>Weather preview and saving need a trip date plus a saved launch or waterbody pin. The launch pin is preferred over the waterbody pin. Use <strong>Resync</strong> to retry a lookup. Provider data is helpful context, not a requirement for saving a trip.</p></div>
+          <p>For timed catches, the app can save the nearest hourly conditions, preferring the catch’s coordinates. Weather analysis can use wind, pressure, cloud, temperature, fronts, sun/moon, and marine values when they were available for the trip.</p>
+          <p>Great Lakes Conditions is separate from NOAA chart overlays. In Map &gt; Layers, choose a lake and one model layer: surface temperature, thermocline depth, or underwater currents. Then choose the forecast time and depth. Currents can appear as animated flow or static arrows, with density and speed controls; reduced-motion preference avoids animated flow. Provider data can be unavailable for a lake or forecast, so treat it as modeled context rather than a reading from your boat.</p>
+          <p>Bathymetry can look up nearby depth for a catch coordinate; per-lake calibration in Settings adjusts that value for your local reference. A lookup does not move your catch marker or replace a manually entered coordinate.</p>
+        </div>
+      </details>
+
+      <details class="wiki-topic" id="wiki-results" data-wiki-topic>
+        <summary><span>Stats, personal bests, and leaderboards</span><small>Find repeatable patterns</small></summary>
+        <div class="wiki-topic-body">
+          <p>The sidebar gives a quick logbook snapshot: trips, fish, hours, waterbodies, catch rate, pounds/hour, days since the last trip, top species, and top lures. The main Stats screen turns the details you recorded into comparisons.</p>
+          <h4>Stats</h4>
+          <p>Start by filtering the data set by date, method, species, person, location, launch, lure, and more. More Filters includes flasher, clarity, weather, month, rating, minimum trips/hours, sort preference, and an option to rank by strike opportunities (landed plus missed fish). Filters are temporary for the current session.</p>
+          <p><strong>Catch Results</strong> covers outcomes, species, lost fish, time of day, and release patterns. <strong>Lure Performance</strong> covers lure output, usage versus fish share, spread context, type, color, flashers, lure/flasher combinations, and trolling highlights. <strong>Trolling Setup</strong> covers direction, GPS speed by direction, line side, presentation, deepest rigger, FOW distribution, exact FOW, and depth down.</p>
+          <p><strong>Speed, Spread &amp; Water Column</strong> covers GPS speed, ball speed, their difference, shaker rate, distance behind, probe temperatures, and fish position versus thermocline. <strong>Trip Patterns</strong> covers location, method, people, month, fishing confidence, and ratings. <strong>Conditions</strong> covers clarity, weather, wind, pressure, cloud, air temperature, sunshine, trends, fronts, bite windows, moon phase, and moon windows. Cards only compare what was actually recorded or enriched; blank data does not become a made-up zero.</p>
+          <p>Sort tables by their headers and choose an available chart style where a card offers one. Read confidence and efficiency labels as sample-size guidance, not a guarantee that one item will work on every trip.</p>
+          <h4>Personal Bests and Leaderboard</h4>
+          <p>Personal Bests ranks landed fish by size and weight, with year, month, and ranking filters plus per-species progression. The Leaderboard ranks people and gear by landed/lost fish, landing rate, catch share, catches per trip, and last use. Open a gear row for its details and media.</p>
+        </div>
+      </details>
+
+      <details class="wiki-topic" id="wiki-media" data-wiki-topic>
+        <summary><span>Photos, video, Photo Queue, and Gallery</span><small>Keep media organized</small></summary>
+        <div class="wiki-topic-body">
+          <p>Attach photos or video to trips, catches, missed fish, and gear. Image capture time and GPS may be read automatically, and compatible HEIC/HEIF images can receive a usable JPEG preview. Unsupported images may save without a preview.</p>
+          <h4>Photo Queue</h4>
+          <p>Use the queue as a phone-friendly holding area before you know where a file belongs. Inspect capture time, remove an item, then use <strong>Use Queue</strong> from a trip, catch, or gear editor to move it into that record. The target receives a new managed copy and the queue item is no longer available there.</p>
+          <p><strong>Autofill from Queue</strong> is different: for the trip’s selected date, it finds queued photos with usable capture times, groups photos taken within three minutes of one another, creates one catch row per group, copies the files into those rows, and keeps the queue originals. It can carry time, GPS, and available depth context into the new rows. Photos on the correct date but without usable capture times are not grouped.</p>
+          <h4>Gallery</h4>
+          <p>Gallery searches and filters all uploaded media by type and source. Sort by date, type, or size; change the page size; open media in the lightbox; download one item or a selection; and remove items that are not attached to the logbook. Attached files are protected from deletion.</p>
+          <div class="wiki-callout"><span class="wiki-label wiki-label-automatic">Automatic</span><p>Private home-location radii protect your privacy during upload: matching media lose their map coordinates and capture timestamps before they appear in the logbook map.</p></div>
+        </div>
+      </details>
+
+      <details class="wiki-topic" id="wiki-settings" data-wiki-topic>
+        <summary><span>Settings, defaults, privacy, and backups</span><small>Make the app yours</small></summary>
+        <div class="wiki-topic-body">
+          <h4>Display and categories</h4>
+          <p>Choose light or dark theme, 12/24-hour display, and measurement units for depth, distance, speed, pressure, temperature, precipitation, waves, length, and weight. Unit changes alter how values are shown; use them before entering lots of comparable measurements.</p>
+          <p>Categories manages the reusable lists behind form selections: species, methods, rigging, water clarity, structures, weather, lure/flasher/reel/rod/line types, blade types, spoon sizes, trolling presentations, directions, and setup sides. Add, rename, or delete list choices there. Changing a list does not erase text already saved on older records.</p>
+          <h4>Defaults and trolling setup</h4>
+          <p>Choose default people for new trips and enable/disable Fish Hawk features. Configure an all-species or target-species default trolling spread, preview it, and have it appear on new trolling trips. The saved <strong>Default home lake</strong> preference is retained in Settings but does not currently prefill the waterbody on a new trip.</p>
+          <h4>Locations, privacy, and calibration</h4>
+          <p>Set home/private photo locations and their radius to keep at-home media off the map. Adjust Great Lakes FOW calibration for each supported lake when bathymetry depth needs a local correction. Configure chop ranges to convert wave height into the labels that make sense to you.</p>
+          <h4>Backup and import</h4>
+          <p>Export a portable archive before a major change or when moving data. The archive includes the logbook and uploaded media. Import validates the archive and <strong>replaces the current logbook and media</strong>, so export a current backup first. Direct-file standalone mode stores data in that browser and does not support server uploads, Gallery, or server-backed weather and map services.</p>
+        </div>
+      </details>
+
+      <div class="wiki-empty hidden" id="wikiEmpty" role="status">
+        <h4>No matching topics</h4>
+        <p>Try a broader word such as “trip,” “photo,” “map,” “gear,” or “settings.”</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
         <section class="settings-page hidden" id="settingsPanel" aria-label="Settings">
           <nav class="settings-tabs" aria-label="Settings sections">
             <button class="settings-tab is-active" type="button" data-settings-tab="general" aria-selected="true">General</button>
@@ -888,6 +1074,19 @@
                   <button class="button secondary" id="importDatabaseButton" type="button"><span class="button-loading-icon" aria-hidden="true"></span><span>Import Database</span></button>
                   <input class="visually-hidden" id="importDatabaseInput" type="file" accept=".zip,application/zip" />
                   <span class="database-backup-status" id="databaseBackupStatus" role="status" aria-live="polite"></span>
+                </div>
+              </section>
+              <section class="settings-section" aria-labelledby="wikiSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="wikiSettingsHeading">Logbook feature guide</h4>
+                  <p>Browse the user guide for trips, catches, maps, gear, reports, and settings.</p>
+                </div>
+                <div class="settings-row">
+                  <div>
+                    <strong>Wiki</strong>
+                    <span>Search every visible feature in plain language.</span>
+                  </div>
+                  <button class="button secondary settings-button-with-icon" id="settingsWikiButton" type="button">Open Wiki</button>
                 </div>
               </section>
             </div>
@@ -2300,6 +2499,7 @@
     <script src="static/js/gallery.js"></script>
     <script src="static/js/leaderboard.js"></script>
     <script src="static/js/checklists.js?v=20260909-checklists-1"></script>
+    <script src="static/js/wiki.js"></script>
     <script src="static/js/app-control-events.js?v=20260909-default-spread-restore-1"></script>
     <script src="static/js/app-delegated-events.js?v=20260913-noaa-profile-source-1"></script>
     <script src="static/js/app.js?v=20260909-spreads-checklists-1"></script>

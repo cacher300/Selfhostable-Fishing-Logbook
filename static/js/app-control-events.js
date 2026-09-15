@@ -162,6 +162,7 @@ els.mapViewButton.addEventListener("click", () => setView("map"));
 els.gearViewButton.addEventListener("click", () => setView("gear"));
 els.galleryViewButton.addEventListener("click", () => setView("gallery"));
 els.checklistsViewButton.addEventListener("click", () => setView("checklists"));
+els.settingsWikiButton?.addEventListener("click", () => setView("wiki"));
 els.settingsViewButton.addEventListener("click", () => setView("settings"));
 els.newLibraryLureButton.addEventListener("click", () => openLureDialog());
 els.newLibraryFlasherButton.addEventListener("click", () => openFlasherDialog());
