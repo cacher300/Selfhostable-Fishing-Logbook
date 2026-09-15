@@ -45,6 +45,8 @@ function renderAdvancedStats() {
     return `<article class="metric-card metric-card-${index}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${detail ? `<small>${detail}</small>` : ""}</article>`;
   }).join("");
 
+  renderStatsActivityHeatmap(trips);
+
   const performanceHeaders = ["Name", "Landed", "Lost", "Strikes", "Hours", "Fish / hr", "Strikes / hr", "Landing %", "Trips", "Fish / trip", "Time %", "Fish %", "Efficiency", "Delta", "Confidence", "Label"];
   const headersForPerformance = (name, items = []) => {
     const headers = [name, ...performanceHeaders.slice(1)];
@@ -248,6 +250,21 @@ function renderAdvancedStats() {
   renderStatsTable(els.moonPhaseStatsTable, ["Moon", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => record.trip?.weatherData?.sunMoon?.phase || ""));
   renderStatsTable(els.moonWindowStatsTable, ["Moon Window", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => moonWindowForTime(record.time, record.trip?.weatherData?.sunMoon)));
 
+}
+
+function renderStatsActivityHeatmap(trips) {
+  if (!els.statsActivityHeatmap || typeof StatsActivityHeatmap === "undefined") return;
+  const activity = StatsActivityHeatmap.build(trips, {
+    fishForTrip: (trip) => filteredCatchRecordsForTrip(trip)
+      .reduce((sum, catchItem) => sum + fishCount(catchItem), 0)
+  });
+  els.statsActivityHeatmap.innerHTML = StatsActivityHeatmap.render(activity);
+
+  if (els.statsActivitySummary) {
+    const dayLabel = activity.fishedDays === 1 ? "day" : "days";
+    const tripLabel = activity.tripCount === 1 ? "trip" : "trips";
+    els.statsActivitySummary.textContent = `${activity.fishedDays} ${dayLabel} fished · ${activity.tripCount} ${tripLabel} · ${activity.fishCount} fish landed`;
+  }
 }
 
 function formatPercent(value, total) {

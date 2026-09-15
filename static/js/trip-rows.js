@@ -251,7 +251,6 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-line-behind-board").value = catchItem.lineBehindBoard || "";
   node.querySelector(".catch-leadcore-colors").value = catchItem.leadcoreColors || "";
   node.querySelector(".catch-estimated-lure-depth").value = catchItem.estimatedLureDepth || "";
-  updateCheaterDepth(node);
   node.querySelector(".catch-dipsey-setting").value = catchItem.dipseySetting || "";
   node.querySelector(".catch-line-out").value = catchItem.lineOut || "";
   node.querySelector(".catch-estimated-depth").value = catchItem.estimatedDepth || "";
