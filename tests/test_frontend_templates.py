@@ -29,6 +29,13 @@ def test_frontend_template_renders_all_partials_once() -> None:
     assert 'data-choose-probe-profile-location' in markup
     assert 'id="probeProfileLocationDialog"' in markup
     assert 'id="checklistsPanel"' in markup
+    assert 'id="wikiPanel"' in markup
+    assert 'id="wikiSearch"' in markup
+    assert 'id="settingsWikiButton"' in markup
+    assert 'id="wikiViewButton"' not in markup
+    assert "Trip Basics field guide" in markup
+    assert "Choose map point" in markup
+    assert "Autofill from Queue" in markup
     assert 'id="loadSpreadTemplateButton"' not in markup
     assert 'id="saveSpreadTemplateButton"' not in markup
     assert 'id="settingsSpreadTemplateSelect"' not in markup
@@ -52,6 +59,19 @@ def test_checklists_route_renders_the_app() -> None:
 
     assert response.status_code == 200
     assert 'id="checklistsPanel"' in response.get_data(as_text=True)
+
+
+def test_wiki_route_renders_the_app() -> None:
+    app = create_app({"TESTING": True, "SECRET_KEY": "wiki-route-test"})
+    with patch("server.read_logbook", return_value={"settings": {}}):
+        response = app.test_client().get("/wiki")
+
+    assert response.status_code == 200
+    markup = response.get_data(as_text=True)
+    assert 'id="wikiPanel"' in markup
+    assert 'id="wikiSearch"' in markup
+    assert 'id="wikiExpandAllButton"' in markup
+    assert "Setup field guide" in markup
 
 
 def test_standalone_frontend_is_current() -> None:

@@ -39,7 +39,7 @@ function tripHours(trip) {
 }
 
 function tripStartMinutes(trip) {
-  const match = String(trip?.linesSetTime || trip?.startTime || "").match(/^(\d{1,2}):(\d{2})$/);
+  const match = String(trip?.linesSetTime || trip?.startTime || trip?.launchTime || "").match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   return (Number(match[1]) * 60) + Number(match[2]);
 }

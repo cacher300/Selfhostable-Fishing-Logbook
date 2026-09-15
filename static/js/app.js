@@ -9,6 +9,7 @@ const routeViews = {
   "/gear": "gear",
   "/gallery": "gallery",
   "/checklists": "checklists",
+  "/wiki": "wiki",
   "/settings": "settings"
 };
 
@@ -58,6 +59,7 @@ function setView(view) {
   const showingGear = view === "gear";
   const showingGallery = view === "gallery";
   const showingChecklists = view === "checklists";
+  const showingWiki = view === "wiki";
   const showingSettings = view === "settings";
   const viewButtons = {
     trips: els.tripsViewButton,
@@ -80,11 +82,13 @@ function setView(view) {
     gear: "Gear",
     gallery: "Gallery",
     checklists: "Checklists",
+    wiki: "Wiki",
     settings: "Settings",
   };
+  const activeNavigationView = showingWiki ? "settings" : view;
   document.body.dataset.activeView = view;
-  els.tripControls.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingGallery || showingChecklists || showingSettings);
-  els.tripListPanel.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingGallery || showingChecklists || showingSettings);
+  els.tripControls.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingGallery || showingChecklists || showingWiki || showingSettings);
+  els.tripListPanel.classList.toggle("hidden", showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingGallery || showingChecklists || showingWiki || showingSettings);
   els.expeditionsPanel.classList.toggle("hidden", !showingExpeditions);
   els.personalBestsPanel.classList.toggle("hidden", !showingBests);
   els.advancedStatsPanel.classList.toggle("hidden", !showingStats);
@@ -93,16 +97,18 @@ function setView(view) {
   els.gearPanel.classList.toggle("hidden", !showingGear);
   els.galleryPanel.classList.toggle("hidden", !showingGallery);
   els.checklistsPanel.classList.toggle("hidden", !showingChecklists);
+  els.wikiPanel.classList.toggle("hidden", !showingWiki);
   els.settingsPanel.classList.toggle("hidden", !showingSettings);
   Object.entries(viewButtons).forEach(([buttonView, button]) => {
-    button.classList.toggle("is-active", buttonView === view);
-    button.setAttribute("aria-current", buttonView === view ? "page" : "false");
+    const active = buttonView === activeNavigationView;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-current", active ? "page" : "false");
   });
   document.querySelector(".topbar h2").textContent = viewTitles[view] || "Trips";
   els.newTripButton.classList.toggle("hidden", showingExpeditions || showingChecklists);
   els.newExpeditionButton.classList.toggle("hidden", !showingExpeditions);
   if (window.matchMedia("(max-width: 640px)").matches) {
-    const activeButton = viewButtons[view];
+    const activeButton = viewButtons[activeNavigationView];
     const navigation = activeButton?.closest(".view-nav");
     if (activeButton && navigation) {
       navigation.scrollTo({
