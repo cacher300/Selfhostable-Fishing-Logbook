@@ -32,6 +32,7 @@ def test_frontend_template_renders_all_partials_once() -> None:
     assert 'id="wikiPanel"' in markup
     assert 'id="wikiSearch"' in markup
     assert 'id="settingsWikiButton"' in markup
+    assert 'class="settings-tab" id="settingsWikiButton"' in markup
     assert 'id="wikiViewButton"' not in markup
     assert "Trip Basics field guide" in markup
     assert "Choose map point" in markup

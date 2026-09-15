@@ -107,6 +107,7 @@
   grid-template-columns: 220px minmax(0, 1fr);
   align-items: start;
   gap: 18px;
+  margin-top: 18px;
 }
 
 .wiki-index {
@@ -251,7 +252,7 @@
 .wiki-callout {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
-  align-items: start;
+  align-items: center;
   gap: 10px;
   margin-top: 4px;
   border: 1px solid var(--line);
