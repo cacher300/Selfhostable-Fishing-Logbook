@@ -34,6 +34,9 @@ def test_frontend_template_renders_all_partials_once() -> None:
     assert 'id="settingsWikiButton"' in markup
     assert 'class="settings-tab" id="settingsWikiButton"' in markup
     assert 'id="wikiViewButton"' not in markup
+    assert 'id="wiki-mobile"' in markup
+    assert 'href="#wiki-mobile"' in markup
+    assert "Mobile-only features" in markup
     assert "Trip Basics field guide" in markup
     assert "Choose map point" in markup
     assert "Autofill from Queue" in markup
