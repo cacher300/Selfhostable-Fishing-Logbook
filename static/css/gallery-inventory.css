@@ -354,7 +354,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 7px 4px 1px;
+  padding: 4px;
   background: transparent;
   color: color-mix(in srgb, var(--muted) 88%, var(--text));
   font-size: 12px;
