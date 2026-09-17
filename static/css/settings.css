@@ -164,6 +164,210 @@
   min-height: 42px;
 }
 
+.trolling-spread-settings-controls {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+}
+
+.trolling-spread-settings-controls .settings-control {
+  min-width: min(280px, 100%);
+}
+
+.trolling-spread-settings-controls > .button {
+  min-height: 42px;
+}
+
+.trolling-spread-settings-list {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.trolling-spread-empty-state,
+.trolling-spread-empty-rows {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.trolling-spread-empty-state {
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+}
+
+.trolling-spread-card {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  container-type: inline-size;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+
+.trolling-spread-card.is-draft {
+  border-color: rgba(17, 135, 83, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(17, 135, 83, 0.08);
+}
+
+.trolling-spread-card-header,
+.trolling-spread-card-section-heading,
+.trolling-spread-card-actions {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.trolling-spread-card[data-trolling-spread-toggle][data-trolling-spread-editing="false"],
+.trolling-spread-card-header[data-trolling-spread-toggle] {
+  cursor: pointer;
+}
+
+.trolling-spread-card[data-trolling-spread-toggle][data-trolling-spread-editing="false"] button,
+.trolling-spread-card[data-trolling-spread-toggle][data-trolling-spread-editing="false"] input,
+.trolling-spread-card[data-trolling-spread-toggle][data-trolling-spread-editing="false"] select,
+.trolling-spread-card[data-trolling-spread-toggle][data-trolling-spread-editing="false"] textarea {
+  cursor: auto;
+}
+
+.trolling-spread-name-control {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.trolling-spread-name-control input {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.trolling-spread-card-actions {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.trolling-spread-card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  min-width: 0;
+}
+
+.trolling-spread-card-body[hidden] {
+  display: none;
+}
+
+.trolling-spread-card-section {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.trolling-spread-card-section-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.trolling-spread-card-section-heading strong {
+  font-size: 14px;
+}
+
+.trolling-spread-card-section-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.trolling-spread-list {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.trolling-spread-row {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.trolling-spread-row label {
+  display: grid;
+  flex: 1 1 150px;
+  min-width: 0;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.trolling-spread-row label:first-child {
+  flex: 2 1 220px;
+}
+
+.trolling-spread-row label:nth-child(3) {
+  flex: 1.25 1 160px;
+}
+
+.trolling-spread-row select {
+  min-width: 0;
+}
+
+.trolling-spread-row .button {
+  min-height: 42px;
+}
+
+.trolling-spread-card-preview {
+  min-width: 0;
+  overflow: hidden;
+  padding-top: 2px;
+  border-top: 1px solid var(--line);
+}
+
+.trolling-spread-preview-heading {
+  display: block;
+  margin: 18px 0 10px;
+  font-size: 14px;
+}
+
+.trolling-spread-card-preview > [data-trolling-spread-preview] {
+  width: 100%;
+}
+
+.trolling-spread-card-preview .spread-diagram-wrap {
+  margin: 0;
+  width: 100%;
+  max-width: none;
+}
+
+.trolling-spread-card-preview .spread-diagram {
+  aspect-ratio: 1400 / 820;
+}
+
+@container (max-width: 760px) {
+  .trolling-spread-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trolling-spread-row label:first-child,
+  .trolling-spread-row .button {
+    grid-column: 1 / -1;
+  }
+
+  .trolling-spread-row .button {
+    justify-self: start;
+  }
+}
+
 .settings-section > .default-trolling-spread-preview.default-trolling-spread-preview {
   grid-column: 1 / -1;
   width: min(100%, 1180px);
@@ -505,6 +709,21 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .trolling-spread-card-body {
+    grid-template-columns: 1fr;
+  }
+
+  .trolling-spread-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trolling-spread-row .button {
+    grid-column: 1 / -1;
+  }
+
 }
 
 

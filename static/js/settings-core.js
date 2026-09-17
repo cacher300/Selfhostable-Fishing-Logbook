@@ -25,7 +25,8 @@ let privateLocationNameEditId = "";
 let activeSettingsTab = "general";
 let chopRangesEditing = false;
 let chopRangesEditSnapshot = null;
-let activeDefaultTrollingSpreadTargetSpecies = "";
+let activeTrollingSpreadEditorId = "";
+let trollingSpreadDraft = null;
 let databaseExportInProgress = false;
 let databaseImportInProgress = false;
 

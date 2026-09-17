@@ -233,8 +233,10 @@ function confirmTripDeletion(trip) {
 async function deleteTripById(tripId, options = {}) {
   const trip = state.trips.find((item) => item.id === tripId);
   if (!trip || !confirmTripDeletion(trip)) return false;
+  const deletedTripMedia = [...mediaReferenceKeys(trip)];
   state.trips = state.trips.filter((item) => item.id !== tripId);
   await saveState();
+  await cleanupDeletedMedia(deletedTripMedia);
   if (options.closeEditor) closeTripDialog({ force: true });
   if (options.closeSummary) {
     activeSummaryTripId = null;
@@ -253,6 +255,7 @@ function localDateInputValue(date = new Date()) {
 
 function openTripDialog(trip = null) {
   activeTripId = trip?.id || null;
+  newTripStartupSpreadApplied = false;
   els.deleteTripButton.classList.toggle("hidden", !trip);
   els.tripSaveBar?.classList.toggle("is-existing-trip", Boolean(trip));
   els.tripForm.reset();

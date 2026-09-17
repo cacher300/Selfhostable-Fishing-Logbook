@@ -11,7 +11,7 @@ Fishing Logbook works for general trip records and has deeper support for trolli
 - Maintain reusable preparation checklists.
 - Manage lures, flashers, rods, reels, combos, and line history.
 - Track trolling setups over time and connect each fish to the line and presentation that produced it.
-- Compare performance through filters, charts, personal bests, leaderboards, and data-quality diagnostics.
+- Compare performance through filters, charts, personal bests, and leaderboards.
 - Use weather, marine, astronomy, Great Lakes bathymetry, temperature, and thermocline data where available.
 - Import and export portable ZIP archives containing both logbook data and media.
 - Keep photos and videos on your own server or in the mobile app's local storage.

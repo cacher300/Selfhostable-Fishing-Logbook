@@ -94,48 +94,72 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             })
         if not any(item.get("maxFeet") is None for item in cleaned_ranges):
             cleaned_ranges.append(default_ranges[-1])
-        cleaned_default_spread = []
-        default_spread = normalized["settings"].get("defaultTrollingSpread")
-        if isinstance(default_spread, list):
-            for item in default_spread:
-                if not isinstance(item, dict):
+        raw_named_spreads = normalized["settings"].get("trollingSpreads")
+        has_named_spreads = isinstance(raw_named_spreads, list)
+        raw_default_spreads = normalized["settings"].get("defaultTrollingSpreads")
+        raw_default_spread = normalized["settings"].get("defaultTrollingSpread")
+        legacy_entries = raw_default_spreads if isinstance(raw_default_spreads, list) else []
+        cleaned_trolling_spreads = []
+        used_spread_ids = set()
+        used_spread_names = set()
+
+        def cleaned_spread_rows(rows: object) -> list[dict]:
+            if not isinstance(rows, list):
+                return []
+            cleaned = []
+            for row in rows:
+                if not isinstance(row, dict):
                     continue
-                combo_id = str(item.get("comboId") or "").strip()
+                combo_id = str(row.get("comboId") or "").strip()
                 if not combo_id:
                     continue
-                cleaned_default_spread.append({
+                cleaned.append({
                     "comboId": combo_id,
-                    "side": str(item.get("side") or "").strip(),
-                    "presentation": str(item.get("presentation") or "").strip(),
+                    "side": str(row.get("side") or "").strip(),
+                    "presentation": str(row.get("presentation") or "").strip(),
                 })
-        cleaned_default_spreads = []
-        raw_default_spreads = normalized["settings"].get("defaultTrollingSpreads")
-        if isinstance(raw_default_spreads, list):
-            for item in raw_default_spreads:
-                if not isinstance(item, dict):
-                    continue
-                spread = []
-                rows = item.get("spread")
-                if not isinstance(rows, list):
-                    continue
-                for row in rows:
-                    if not isinstance(row, dict):
-                        continue
-                    combo_id = str(row.get("comboId") or "").strip()
-                    if not combo_id:
-                        continue
-                    spread.append({
-                        "comboId": combo_id,
-                        "side": str(row.get("side") or "").strip(),
-                        "presentation": str(row.get("presentation") or "").strip(),
-                    })
-                if spread:
-                    cleaned_default_spreads.append({
-                        "targetSpecies": str(item.get("targetSpecies") or "").strip(),
-                        "spread": spread,
-                    })
-        if cleaned_default_spread and not any(not item["targetSpecies"] for item in cleaned_default_spreads):
-            cleaned_default_spreads.append({"targetSpecies": "", "spread": cleaned_default_spread})
+            return cleaned
+
+        def add_trolling_spread(item: object, fallback_name: str) -> str | None:
+            if not isinstance(item, dict):
+                return None
+            spread = cleaned_spread_rows(item.get("spread"))
+            if not spread:
+                return None
+            spread_id = str(item.get("id") or uuid.uuid4()).strip() or str(uuid.uuid4())
+            while spread_id in used_spread_ids:
+                spread_id = str(uuid.uuid4())
+            used_spread_ids.add(spread_id)
+            base_name = str(item.get("name") or fallback_name).strip()[:60] or fallback_name
+            name = base_name
+            suffix = 2
+            while name.casefold() in used_spread_names:
+                suffix_text = f" ({suffix})"
+                name = f"{base_name[:max(1, 60 - len(suffix_text))]}{suffix_text}"
+                suffix += 1
+            used_spread_names.add(name.casefold())
+            cleaned_trolling_spreads.append({"id": spread_id, "name": name, "spread": spread})
+            return spread_id
+
+        migrated_general_id = None
+        if has_named_spreads:
+            for index, item in enumerate(raw_named_spreads):
+                add_trolling_spread(item, f"Trolling Spread {index + 1}")
+        else:
+            has_general_entry = False
+            for item in legacy_entries:
+                target_species = str(item.get("targetSpecies") or "").strip() if isinstance(item, dict) else ""
+                fallback_name = f"{target_species} Spread" if target_species else "General Spread"
+                spread_id = add_trolling_spread(item, fallback_name)
+                if spread_id and not target_species:
+                    has_general_entry = True
+                    migrated_general_id = spread_id
+            if not has_general_entry:
+                migrated_general_id = add_trolling_spread({"spread": raw_default_spread}, "General Spread")
+        requested_default_id = str(normalized["settings"].get("defaultTrollingSpreadId") or "").strip()
+        cleaned_default_trolling_spread_id = requested_default_id if any(
+            item["id"] == requested_default_id for item in cleaned_trolling_spreads
+        ) else ((migrated_general_id or "") if not has_named_spreads else "")
         raw_default_people = normalized["settings"].get("defaultPeople")
         cleaned_default_people = []
         if isinstance(raw_default_people, list):
@@ -173,13 +197,15 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             "bathymetryLakeCalibrationsFeet": lake_calibrations,
             "units": cleaned_units,
             "chopRanges": cleaned_ranges or default_ranges,
-            "defaultTrollingSpread": cleaned_default_spread,
-            "defaultTrollingSpreads": cleaned_default_spreads,
+            "trollingSpreads": cleaned_trolling_spreads,
+            "defaultTrollingSpreadId": cleaned_default_trolling_spread_id,
             "defaultPeople": cleaned_default_people,
             "privatePhotoLocations": cleaned_private_locations,
         }
         normalized["settings"].pop("bathymetryOffsetFeet", None)
         normalized["settings"].pop("bathymetryLakeOffsetsFeet", None)
+        normalized["settings"].pop("defaultTrollingSpread", None)
+        normalized["settings"].pop("defaultTrollingSpreads", None)
         normalized["settings"].pop("boatLayout", None)
         normalized["settings"].pop("tackleBoxes", None)
 
@@ -214,6 +240,8 @@ def normalize_logbook(payload: dict | None = None) -> dict:
                 cleaned.append(text)
                 seen.add(folded)
         normalized[key] = cleaned
+        if key == "waterClarities":
+            normalized[key] = [item for item in normalized[key] if item.casefold() != "algae bloom"]
 
     def slug_option_value(label: str) -> str:
         return "-".join("".join(char.lower() if char.isalnum() else " " for char in str(label)).split())
@@ -688,6 +716,47 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
         valid, error = _validate_nested_records(settings["defaultTrollingSpreads"], "settings.defaultTrollingSpreads")
         if not valid:
             return valid, error
+    if "trollingSpreads" in settings:
+        spreads = settings["trollingSpreads"]
+        if not isinstance(spreads, list):
+            return _error("settings.trollingSpreads", "must be a list")
+        spread_ids = set()
+        spread_names = set()
+        for index, item in enumerate(spreads):
+            path = f"settings.trollingSpreads[{index}]"
+            if not isinstance(item, dict):
+                return _error(path, "must be an object")
+            spread_id = item.get("id")
+            if not isinstance(spread_id, str) or not spread_id.strip():
+                return _error(f"{path}.id", "must be a non-empty string")
+            if spread_id in spread_ids:
+                return _error(f"{path}.id", "must be unique")
+            spread_ids.add(spread_id)
+            spread_name = item.get("name")
+            if not isinstance(spread_name, str) or not spread_name.strip():
+                return _error(f"{path}.name", "must be a non-empty string")
+            spread_name_key = spread_name.strip().casefold()
+            if spread_name_key in spread_names:
+                return _error(f"{path}.name", "must be unique ignoring case")
+            spread_names.add(spread_name_key)
+            rows = item.get("spread")
+            if not isinstance(rows, list) or not rows:
+                return _error(f"{path}.spread", "must contain at least one rod")
+            for row_index, row in enumerate(rows):
+                row_path = f"{path}.spread[{row_index}]"
+                if not isinstance(row, dict):
+                    return _error(row_path, "must be an object")
+                combo_id = row.get("comboId")
+                if not isinstance(combo_id, str) or not combo_id.strip():
+                    return _error(f"{row_path}.comboId", "must be a non-empty string")
+                for field in ("side", "presentation"):
+                    if field in row and not isinstance(row[field], str):
+                        return _error(f"{row_path}.{field}", "must be a string")
+        default_spread_id = settings.get("defaultTrollingSpreadId", "")
+        if not isinstance(default_spread_id, str):
+            return _error("settings.defaultTrollingSpreadId", "must be a string")
+        if default_spread_id and default_spread_id not in spread_ids:
+            return _error("settings.defaultTrollingSpreadId", "must reference a saved trolling spread")
     if "defaultPeople" in settings:
         if not isinstance(settings["defaultPeople"], list) or any(not isinstance(person_id, str) for person_id in settings["defaultPeople"]):
             return _error("settings.defaultPeople", "must be a list of person IDs")

@@ -18,16 +18,14 @@ function viewFromCurrentRoute() {
   return routeViews[pathname.toLowerCase()] || "trips";
 }
 
-function updateMethodVisibility({ refreshDefaultSpread = false } = {}) {
+function updateMethodVisibility({ applyStartupSpread = false } = {}) {
   updateTrollingVisibility();
-  applyDefaultTrollingSpread({
-    force: refreshDefaultSpread
-  });
+  if (applyStartupSpread) applyStartupTrollingSpread();
   document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
 }
 
-document.querySelector("#method").addEventListener("change", () => updateMethodVisibility({ refreshDefaultSpread: true }));
-document.querySelector("#targetSpecies").addEventListener("change", () => updateMethodVisibility({ refreshDefaultSpread: true }));
+document.querySelector("#method").addEventListener("change", () => updateMethodVisibility({ applyStartupSpread: true }));
+document.querySelector("#targetSpecies").addEventListener("change", () => updateMethodVisibility());
 els.personRows.addEventListener("input", () => {
   populatePersonSelects();
   updateAllRowSummaries();

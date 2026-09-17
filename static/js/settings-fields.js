@@ -185,7 +185,7 @@ async function cancelChopRangeEditing() {
 }
 
 function saveCurrentSettingsTab() {
-  if (activeSettingsTab === "trolling-spread") return saveDefaultTrollingSpreadSettings();
+  if (activeSettingsTab === "trolling-spread") return runSettingsSave(() => saveState(), "The trolling spread settings could not be saved.");
   if (activeSettingsTab === "measurements" && chopRangesEditing) return saveChopRanges();
   if (activeSettingsTab === "measurements") return saveUnitSettings();
   if (activeSettingsTab === "lists") return savePredefinedFieldSettings();

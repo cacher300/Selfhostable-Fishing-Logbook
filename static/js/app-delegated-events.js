@@ -251,16 +251,6 @@ document.addEventListener("click", (event) => {
     scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }), 150);
   }
 
-  const removeDefaultTrollingSpreadRow = event.target.closest(".remove-default-trolling-spread-row");
-  if (removeDefaultTrollingSpreadRow) {
-    removeDefaultTrollingSpreadRow.closest(".default-trolling-spread-row")?.remove();
-    const targetSpecies = activeDefaultTrollingSpreadTargetSpecies;
-    const spread = collectDefaultTrollingSpreadSettings();
-    updateDefaultTrollingSpreadSettings(targetSpecies, spread);
-    renderDefaultTrollingSpreadPreview();
-    scheduleSettingsAutosave((options) => saveDefaultTrollingSpreadSettings({ ...options, rerender: false, targetSpecies, spread }), 150);
-  }
-
   const metadataLockButton = event.target.closest("[data-metadata-lock]");
   if (metadataLockButton) {
     const row = metadataLockButton.closest(".catch-row");

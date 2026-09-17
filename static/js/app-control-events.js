@@ -190,21 +190,35 @@ els.gearFilterQuery?.addEventListener("input", updateGearFilter);
 els.gearFilterQuery?.addEventListener("focus", openGearFilterSuggestions);
 els.gearFilterQuery?.addEventListener("blur", () => setTimeout(closeGearFilterSuggestions, 120));
 els.clearGearFilterButton?.addEventListener("click", clearGearFilter);
-els.addDefaultTrollingSpreadRowButton?.addEventListener("click", addDefaultTrollingSpreadRow);
-els.defaultTrollingSpreadRows?.addEventListener("change", () => {
-  const targetSpecies = activeDefaultTrollingSpreadTargetSpecies;
-  const spread = collectDefaultTrollingSpreadSettings();
-  updateDefaultTrollingSpreadSettings(targetSpecies, spread);
-  renderDefaultTrollingSpreadPreview();
-  scheduleSettingsAutosave((options) => saveDefaultTrollingSpreadSettings({ ...options, rerender: false, targetSpecies, spread }));
+els.pickTrollingSpreadButton?.addEventListener("click", openTrollingSpreadPicker);
+els.addTrollingSpreadButton?.addEventListener("click", addTrollingSpread);
+els.defaultTrollingSpreadId?.addEventListener("change", () => saveDefaultTrollingSpreadId({ autosave: true }));
+els.defaultTrollingSpreadRows?.addEventListener("click", (event) => {
+  const card = event.target.closest(".trolling-spread-card");
+  if (!card) return;
+  if (event.target.closest(".edit-trolling-spread")) editTrollingSpread(card.dataset.trollingSpreadId);
+  if (event.target.closest(".finish-trolling-spread-edit")) finishTrollingSpreadEdit(card).catch(() => {});
+  if (event.target.closest(".add-trolling-spread-row")) addTrollingSpreadRowToCard(card);
+  if (event.target.closest(".remove-trolling-spread-row")) {
+    event.target.closest(".trolling-spread-row")?.remove();
+    refreshTrollingSpreadCardPreview(card);
+    scheduleTrollingSpreadAutosave(card);
+  }
+  if (event.target.closest(".cancel-trolling-spread")) cancelTrollingSpreadDraft();
+  if (event.target.closest(".delete-trolling-spread")) deleteTrollingSpread(card.dataset.trollingSpreadId).catch(() => {});
 });
-els.defaultTrollingSpreadTargetSpecies?.addEventListener("change", () => {
-  const targetSpecies = activeDefaultTrollingSpreadTargetSpecies;
-  const spread = collectDefaultTrollingSpreadSettings();
-  updateDefaultTrollingSpreadSettings(targetSpecies, spread);
-  scheduleSettingsAutosave((options) => saveDefaultTrollingSpreadSettings({ ...options, rerender: false, targetSpecies, spread }));
-  activeDefaultTrollingSpreadTargetSpecies = els.defaultTrollingSpreadTargetSpecies.value;
-  renderDefaultTrollingSpreadSettings();
+els.defaultTrollingSpreadRows?.addEventListener("change", (event) => {
+  if (event.target.matches(".trolling-spread-combo, .trolling-spread-side, .trolling-spread-presentation")) {
+    const card = event.target.closest(".trolling-spread-card");
+    refreshTrollingSpreadCardPreview(card);
+    scheduleTrollingSpreadAutosave(card);
+  }
+});
+els.defaultTrollingSpreadRows?.addEventListener("input", (event) => {
+  if (event.target.matches(".trolling-spread-name")) {
+    setTrollingSpreadSettingsMessage("");
+    scheduleTrollingSpreadAutosave(event.target.closest(".trolling-spread-card"));
+  }
 });
 document.querySelectorAll("[data-settings-tab]").forEach((tab) => {
   tab.addEventListener("click", () => setSettingsTab(tab.dataset.settingsTab));

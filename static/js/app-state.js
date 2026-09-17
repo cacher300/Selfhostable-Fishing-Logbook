@@ -1,6 +1,7 @@
 let state = structuredClone(defaults);
 let logbookRevision = "";
 let activeTripId = null;
+let newTripStartupSpreadApplied = false;
 let activeSummaryTripId = null;
 let activeReportTimelineFilter = "all";
 let activeReportTimelineSort = { key: "time", direction: "asc" };

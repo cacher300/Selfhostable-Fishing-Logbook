@@ -16,6 +16,22 @@ from backend import logbook_store
 from server import create_app
 
 class LogbookStoreTests(unittest.TestCase):
+    def test_attached_setup_weight_survives_normalization(self) -> None:
+        normalized = logbook_store.normalize_logbook({
+            "schemaVersion": 1,
+            "trips": [{
+                "id": "trip-1",
+                "method": "Trolling",
+                "gearUsed": [{
+                    "id": "line-1",
+                    "presentation": "Outside Board",
+                    "attachedWeightOz": "2 oz",
+                }],
+            }],
+        })
+
+        self.assertEqual("2 oz", normalized["trips"][0]["gearUsed"][0]["attachedWeightOz"])
+
     def test_removed_boat_and_tackle_fields_are_dropped(self) -> None:
         normalized = logbook_store.normalize_logbook({
             "schemaVersion": 1,
@@ -244,7 +260,7 @@ class LogbookStoreTests(unittest.TestCase):
         )
         self.assertTrue(valid, error)
 
-    def test_default_trolling_spread_is_normalized_without_lure_data(self) -> None:
+    def test_legacy_default_trolling_spread_migrates_to_general_named_spread(self) -> None:
         normalized = logbook_store.normalize_logbook(
             {
                 "schemaVersion": 1,
@@ -266,10 +282,13 @@ class LogbookStoreTests(unittest.TestCase):
         )
         self.assertEqual(
             [{"comboId": "combo-1", "side": "port", "presentation": "downrigger"}],
-            normalized["settings"]["defaultTrollingSpread"],
+            normalized["settings"]["trollingSpreads"][0]["spread"],
         )
+        self.assertEqual("General Spread", normalized["settings"]["trollingSpreads"][0]["name"])
+        self.assertEqual(normalized["settings"]["trollingSpreads"][0]["id"], normalized["settings"]["defaultTrollingSpreadId"])
+        self.assertNotIn("defaultTrollingSpread", normalized["settings"])
 
-    def test_default_trolling_spreads_support_target_species(self) -> None:
+    def test_legacy_default_trolling_spreads_migrate_to_named_spreads_without_species_matching(self) -> None:
         normalized = logbook_store.normalize_logbook(
             {
                 "schemaVersion": 1,
@@ -289,9 +308,57 @@ class LogbookStoreTests(unittest.TestCase):
             }
         )
         self.assertEqual(
-            [{"targetSpecies": "Walleye", "spread": [{"comboId": "walleye-combo", "side": "Port", "presentation": "Downrigger"}]}],
-            normalized["settings"]["defaultTrollingSpreads"],
+            [{"comboId": "walleye-combo", "side": "Port", "presentation": "Downrigger"}],
+            normalized["settings"]["trollingSpreads"][0]["spread"],
         )
+        self.assertEqual("Walleye Spread", normalized["settings"]["trollingSpreads"][0]["name"])
+        self.assertEqual("", normalized["settings"]["defaultTrollingSpreadId"])
+        self.assertNotIn("defaultTrollingSpreads", normalized["settings"])
+
+    def test_named_trolling_spreads_and_default_id_are_normalized(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {
+                    "trollingSpreads": [
+                        {
+                            "id": "one-man",
+                            "name": "  One Man Spread ",
+                            "spread": [{"comboId": "combo-1", "side": "Port", "presentation": "Downrigger", "lureId": "ignored"}],
+                        },
+                        {
+                            "id": "two-man",
+                            "name": "ONE MAN SPREAD",
+                            "spread": [{"comboId": "combo-2"}],
+                        },
+                    ],
+                    "defaultTrollingSpreadId": "missing",
+                },
+            }
+        )
+        self.assertEqual("one-man", normalized["settings"]["trollingSpreads"][0]["id"])
+        self.assertEqual("One Man Spread", normalized["settings"]["trollingSpreads"][0]["name"])
+        self.assertEqual("ONE MAN SPREAD (2)", normalized["settings"]["trollingSpreads"][1]["name"])
+        self.assertEqual("", normalized["settings"]["defaultTrollingSpreadId"])
+
+    def test_named_trolling_spread_validation_rejects_missing_default_reference(self) -> None:
+        valid, error = logbook_store.validate_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {
+                    "trollingSpreads": [{"id": "spread-1", "name": "Spread", "spread": [{"comboId": "combo-1"}]}],
+                    "defaultTrollingSpreadId": "missing",
+                },
+            }
+        )
+        self.assertFalse(valid)
+        self.assertEqual("settings.defaultTrollingSpreadId: must reference a saved trolling spread", error)
 
     def test_write_creates_sqlite_database(self) -> None:
         payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}

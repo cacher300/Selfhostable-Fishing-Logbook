@@ -52,6 +52,8 @@ Legacy top-level `tripTypes` is removed during normalization.
 - `units`: `depth`, `distance`, `speed`, `windSpeed`, `pressure`, `airTemperature`, `waterTemperature`, `precipitation`, `waveHeight`, `fishLength`, `fishWeight`.
 - `chopRanges[]`: `{ id, label, maxFeet }`; at least one open-ended `maxFeet: null` range is ensured.
 - `checklists[]`: independent named preparation lists whose item completion remains saved until reset.
+- `trollingSpreads[]`: named reusable trolling setup templates. Each item is `{ id, name, spread[] }`, where each spread row contains `comboId`, `side`, and `presentation`.
+- `defaultTrollingSpreadId`: optional ID of the saved trolling spread used to seed new trolling trips. It is not tied to target species.
 
 Typed fishing measurements such as `waterTemp`, `weight`, and `fowCaught` are strings. When a unit preference changes, the client converts persisted numeric fishing values in the same save transaction, then updates the preference. This keeps existing trips, catches, lost fish, legacy setup-line measurements, analytics, and edit forms physically consistent in the newly selected display unit. Free-form nonnumeric text is left unchanged.
 
@@ -97,7 +99,7 @@ For legacy trips, `startTime` migrates to `linesSetTime` and `endTime` migrates 
 
 ## Setup Line (`trip.gearUsed[]`)
 
-`id`, `startTime`, `endTime`, `changeNote`, `side`, `lineLabel`, `comboId`, `rodId`, `reelId`, `lureId`, `flasherId`, `presentation`, `lureMinutes`, and `flasherMinutes`. Legacy setup-level `deepestRigger` values remain readable for older trips.
+`id`, `startTime`, `endTime`, `changeNote`, `side`, `lineLabel`, `comboId`, `rodId`, `reelId`, `lureId`, `flasherId`, `presentation`, `distanceBehind`, `attachedWeightOz`, `lureMinutes`, and `flasherMinutes`. `attachedWeightOz` is used for Outside Board, Inside Board, and Chute Rod setup lines. Legacy setup-level `deepestRigger` values remain readable for older trips.
 
 Setup rows intentionally do not collect fish-specific speed/depth parameters. Resolver code can read legacy setup-level speed/depth properties if imported, but the current UI does not write them.
 

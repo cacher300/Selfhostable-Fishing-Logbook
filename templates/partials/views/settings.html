@@ -86,22 +86,24 @@
               </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="trolling-spread" hidden>
-              <section class="settings-section" aria-labelledby="defaultSpreadSettingsHeading">
-                <div class="settings-section-copy settings-section-copy--action">
+              <section class="settings-section" aria-labelledby="trollingSpreadSettingsHeading">
+                <div class="settings-section-copy">
                   <div>
-                    <h4 id="defaultSpreadSettingsHeading">Default Trolling Spread</h4>
-                    <p>This default spread will be autofilled for all trolling trips.</p>
+                    <h4 id="trollingSpreadSettingsHeading">Saved Trolling Spreads</h4>
+                    <p>Create reusable named spreads, then choose which one should start every new trolling trip. Spread changes save automatically.</p>
                   </div>
+                </div>
+                <div class="trolling-spread-settings-controls">
                   <label class="settings-control">
-                    <span>Target species</span>
-                    <select id="defaultTrollingSpreadTargetSpecies"></select>
+                    <span>Startup default</span>
+                    <select id="defaultTrollingSpreadId">
+                      <option value="">No startup default</option>
+                    </select>
                   </label>
-                  <button class="button secondary" id="addDefaultTrollingSpreadRowButton" type="button">Add Rod</button>
+                  <button class="button secondary" id="addTrollingSpreadButton" type="button">New Spread</button>
                 </div>
-                <div class="settings-table" id="defaultTrollingSpreadRows"></div>
-                <div class="default-trolling-spread-preview" id="defaultTrollingSpreadPreview">
-                  <div id="defaultTrollingSpreadCanvas"></div>
-                </div>
+                <div class="form-message hidden" id="trollingSpreadSettingsMessage" role="alert"></div>
+                <div class="trolling-spread-settings-list" id="defaultTrollingSpreadRows"></div>
               </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="measurements" hidden>

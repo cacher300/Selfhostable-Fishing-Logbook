@@ -123,6 +123,12 @@ function updatePresentationFields(row) {
         row.querySelector(".param-cheater-lure-select")?.classList.add("visible");
       }
     }
+    if (isAttachedWeightPresentation(presentation)) {
+      row.querySelector(".param-attached-weight")?.classList.add("visible");
+    } else {
+      const attachedWeight = row.querySelector(".trip-gear-attached-weight");
+      if (attachedWeight) attachedWeight.value = "";
+    }
     return;
   }
 
@@ -164,6 +170,10 @@ function updatePresentationFields(row) {
 }
 
 function isLeadcoreCapablePresentation(presentation) {
+  return ["Outside Board", "Inside Board", "Chute Rod", "flatline-leadcore", "flatline"].includes(presentation);
+}
+
+function isAttachedWeightPresentation(presentation) {
   return ["Outside Board", "Inside Board", "Chute Rod", "flatline-leadcore", "flatline"].includes(presentation);
 }
 

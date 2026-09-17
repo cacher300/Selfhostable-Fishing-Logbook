@@ -367,6 +367,7 @@ function addTripGearRow(gearItem = {}) {
   node.querySelector(".trip-gear-cheater").checked = Boolean(gearItem.hasCheater);
   node.querySelector(".trip-gear-leadcore").checked = Boolean(gearItem.hasLeadcore);
   node.querySelector(".trip-gear-distance-behind").value = gearItem.distanceBehind || "";
+  node.querySelector(".trip-gear-attached-weight").value = gearItem.attachedWeightOz || "";
   populateLureSelect(node.querySelector(".trip-gear-lure"), gearItem.lureId || "");
   populateOptionSelect(node.querySelector(".trip-gear-rigging"), state.riggings, "Select rigging");
   node.querySelector(".trip-gear-rigging").value = gearItem.rigging || "";
@@ -387,20 +388,12 @@ function addTripGearRow(gearItem = {}) {
   return node;
 }
 
-function applyDefaultTrollingSpread({ force = false } = {}) {
-  if (!isTrollingTrip()) return false;
-  const targetSpecies = getValue("targetSpecies");
-  const targetKey = targetSpecies || "__all__";
+function applyStartupTrollingSpread() {
+  if (activeTripId || !isTrollingTrip() || newTripStartupSpreadApplied) return false;
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
-  const existingDefaultRows = rows.filter((row) => row.dataset.defaultTrollingSpread === "true");
-  const onlyDefaultRows = rows.length > 0 && existingDefaultRows.length === rows.length;
-  // Preserve saved/manual setup rows when a target species changes. Generated
-  // default rows are the only rows that may be replaced automatically.
-  const canReplaceRows = onlyDefaultRows;
-  const defaultRowsMatchTarget = existingDefaultRows.every((row) => row.dataset.defaultTrollingSpreadTarget === targetKey);
-  if (rows.length && (!canReplaceRows || (!force && defaultRowsMatchTarget))) return false;
-  const spread = defaultTrollingSpreadForSpecies(targetSpecies);
-  if (canReplaceRows) rows.forEach((row) => row.remove());
+  newTripStartupSpreadApplied = true;
+  if (rows.length) return false;
+  const spread = trollingSpreadById(state.settings?.defaultTrollingSpreadId);
   if (!spread.length) return false;
   spread.forEach((item) => addTripGearRow({
     comboId: item.comboId,
@@ -413,7 +406,6 @@ function applyDefaultTrollingSpread({ force = false } = {}) {
   }));
   [...els.tripGearRows.querySelectorAll(".gear-used-row")].slice(-spread.length).forEach((row) => {
     row.dataset.defaultTrollingSpread = "true";
-    row.dataset.defaultTrollingSpreadTarget = targetKey;
   });
   return true;
 }
