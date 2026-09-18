@@ -384,7 +384,7 @@ function openTripDialog(trip = null) {
   (trip?.catches || []).map(migrateLegacyDeepestRigger).forEach(addCatchRow);
   (trip?.lostFish || []).map(migrateLegacyDeepestRigger).forEach(addLostFishRow);
   populateSetupLineSelects();
-  updateTrollingVisibility();
+  updateMethodVisibility({ applyStartupSpread: !trip });
   renderLiveTrollingSpread();
   renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
   syncUnitLabels(els.tripForm);

@@ -355,7 +355,8 @@
 }
 
 .trolling-spread-card-preview .spread-diagram {
-  aspect-ratio: 1400 / 820;
+  /* Saved-spread previews need extra height for the eight horizontal label lanes. */
+  aspect-ratio: 1400 / 1000;
 }
 
 .saved-setup-method-sections {

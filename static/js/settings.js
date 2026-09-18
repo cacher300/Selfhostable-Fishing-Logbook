@@ -176,17 +176,16 @@ function setTrollingSpreadSettingsMessage(message = "") {
 }
 
 function toggleTrollingSpreadCard(card, event = null) {
-  if (!card || card.dataset.trollingSpreadEditing === "true") return;
+  if (!card) return;
   const clickedName = event?.target?.matches(".trolling-spread-name");
   if (event?.target?.closest("button, input, select, textarea, a") && !clickedName) return;
-  const body = card.querySelector(".trolling-spread-card-body");
-  const toggle = card.matches("[data-trolling-spread-toggle]")
-    ? card
-    : card.querySelector("[data-trolling-spread-toggle]");
-  if (!body || !toggle) return;
-  const expanded = body.hidden;
-  body.hidden = !expanded;
-  toggle.setAttribute("aria-expanded", String(expanded));
+  if (card.dataset.trollingSpreadDraft === "true") return;
+
+  // A spread's expanded state is its editing state. Clicking the card surface
+  // should therefore enter the editor rather than opening a read-only card.
+  if (card.dataset.trollingSpreadEditing !== "true") {
+    editTrollingSpread(card.dataset.trollingSpreadId);
+  }
 }
 
 async function finishTrollingSpreadEdit(card) {

@@ -14,7 +14,8 @@
   display: block;
   width: 100%;
   min-width: 0;
-  aspect-ratio: 1400 / 680;
+  /* Give the spread's label lanes enough vertical room to stay readable. */
+  aspect-ratio: 1400 / 900;
 }
 
 .spread-water {
