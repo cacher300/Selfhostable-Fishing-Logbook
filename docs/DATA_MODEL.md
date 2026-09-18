@@ -101,7 +101,7 @@ For legacy trips, `startTime` migrates to `linesSetTime` and `endTime` migrates 
 
 ## Setup Line (`trip.gearUsed[]`)
 
-`id`, `startTime`, `endTime`, `changeNote`, `side`, `lineLabel`, `comboId`, `rodId`, `reelId`, `lureId`, `flasherId`, `presentation`, `distanceBehind`, `attachedWeightOz`, `lureMinutes`, and `flasherMinutes`. `attachedWeightOz` is used for Outside Board, Inside Board, and Chute Rod setup lines. Legacy setup-level `deepestRigger` values remain readable for older trips.
+`id`, `startTime`, `endTime`, `changeNote`, `side`, `lineLabel`, `comboId`, `rodId`, `reelId`, `lureId`, `flasherId`, `presentation`, `distanceBehind`, `attachedWeightOz`, `lureMinutes`, and `flasherMinutes`. `attachedWeightOz` is used for Outside Board, Inside Board, Chute Rod, flatline, and flatline-leadcore setup lines. Legacy setup-level `deepestRigger` values remain readable for older trips.
 
 Setup rows intentionally do not collect fish-specific speed/depth parameters. Resolver code can read legacy setup-level speed/depth properties if imported, but the current UI does not write them.
 
