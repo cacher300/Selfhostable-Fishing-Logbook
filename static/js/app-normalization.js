@@ -403,6 +403,11 @@ function normalizeSettings(settings = {}) {
   normalized.defaultTrollingSpreadId = hasRequestedDefault
     ? requestedDefaultTrollingSpreadId
     : migratedGeneralSpread?.id || "";
+  normalized.savedSetups = normalizeSavedSetups(settings?.savedSetups);
+  normalized.defaultSavedSetupIds = normalizeDefaultSavedSetupIds(
+    settings?.defaultSavedSetupIds,
+    normalized.savedSetups
+  );
   delete normalized.defaultTrollingSpread;
   delete normalized.defaultTrollingSpreads;
   delete normalized.spreadTemplates;
@@ -528,6 +533,51 @@ function normalizeTrollingSpreads(spreads = [], legacySpreads = [], legacySpread
 function trollingSpreadById(spreadId = "", spreads = state.settings?.trollingSpreads) {
   const id = String(spreadId || "").trim();
   return (Array.isArray(spreads) ? spreads : []).find((item) => item?.id === id)?.spread || [];
+}
+
+function normalizeSavedSetupRows(rows = []) {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((item) => ({
+    comboId: String(item?.comboId || "").trim()
+  })).filter((item) => item.comboId);
+}
+
+function normalizeSavedSetups(setups = []) {
+  const normalized = [];
+  const usedIds = new Set();
+  const usedNamesByMethod = new Map();
+  (Array.isArray(setups) ? setups : [])
+    .filter((item) => item && typeof item === "object")
+    .forEach((item, index) => {
+      const method = String(item.method || "").trim();
+      const rawName = String(item.name || "").trim();
+      const rows = normalizeSavedSetupRows(item.rows);
+      if (!method || !rawName || !rows.length) return;
+
+      let id = String(item.id || createId()).trim() || createId();
+      while (usedIds.has(id)) id = createId();
+      usedIds.add(id);
+
+      const methodKey = method.toLowerCase();
+      if (!usedNamesByMethod.has(methodKey)) usedNamesByMethod.set(methodKey, new Set());
+      const baseName = rawName.slice(0, 60);
+      const name = uniqueNormalizedName(baseName, usedNamesByMethod.get(methodKey));
+      normalized.push({ id, name, method, rows });
+    });
+  return normalized;
+}
+
+function normalizeDefaultSavedSetupIds(defaults = {}, setups = []) {
+  if (!defaults || typeof defaults !== "object" || Array.isArray(defaults)) return {};
+  const normalized = {};
+  Object.entries(defaults).forEach(([method, setupId]) => {
+    const methodText = String(method || "").trim();
+    const id = String(setupId || "").trim();
+    if (!methodText || !id) return;
+    const setup = setups.find((item) => item.id === id && item.method.toLowerCase() === methodText.toLowerCase());
+    if (setup) normalized[setup.method] = setup.id;
+  });
+  return normalized;
 }
 
 function normalizePrivatePhotoLocations(locations = []) {

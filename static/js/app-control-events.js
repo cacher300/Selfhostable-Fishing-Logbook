@@ -191,6 +191,7 @@ els.gearFilterQuery?.addEventListener("focus", openGearFilterSuggestions);
 els.gearFilterQuery?.addEventListener("blur", () => setTimeout(closeGearFilterSuggestions, 120));
 els.clearGearFilterButton?.addEventListener("click", clearGearFilter);
 els.pickTrollingSpreadButton?.addEventListener("click", openTrollingSpreadPicker);
+els.pickSavedSetupButton?.addEventListener("click", openSavedSetupPicker);
 els.addTrollingSpreadButton?.addEventListener("click", addTrollingSpread);
 els.defaultTrollingSpreadId?.addEventListener("change", () => saveDefaultTrollingSpreadId({ autosave: true }));
 els.defaultTrollingSpreadRows?.addEventListener("click", (event) => {

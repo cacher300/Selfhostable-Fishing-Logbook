@@ -3,6 +3,7 @@
             <button class="settings-tab is-active" type="button" data-settings-tab="general" aria-selected="true">General</button>
             <button class="settings-tab" id="settingsWikiButton" type="button">Wiki</button>
             <button class="settings-tab" type="button" data-settings-tab="trolling-spread" aria-selected="false">Trolling Spread</button>
+            <button class="settings-tab" type="button" data-settings-tab="saved-setups" aria-selected="false">Saved Setups</button>
             <button class="settings-tab" type="button" data-settings-tab="measurements" aria-selected="false">Measurements</button>
             <button class="settings-tab" type="button" data-settings-tab="fow-calibration" aria-selected="false">FOW Calibration</button>
             <button class="settings-tab" type="button" data-settings-tab="lists" aria-selected="false">Categories</button>
@@ -86,7 +87,7 @@
               </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="trolling-spread" hidden>
-              <section class="settings-section" aria-labelledby="trollingSpreadSettingsHeading">
+              <section class="settings-section trolling-spread-settings-section" aria-labelledby="trollingSpreadSettingsHeading">
                 <div class="settings-section-copy">
                   <div>
                     <h4 id="trollingSpreadSettingsHeading">Saved Trolling Spreads</h4>
@@ -95,15 +96,27 @@
                 </div>
                 <div class="trolling-spread-settings-controls">
                   <label class="settings-control">
-                    <span>Startup default</span>
+                    <span>Trolling default</span>
                     <select id="defaultTrollingSpreadId">
-                      <option value="">No startup default</option>
+                      <option value="">No Trolling default</option>
                     </select>
                   </label>
                   <button class="button secondary" id="addTrollingSpreadButton" type="button">New Spread</button>
                 </div>
                 <div class="form-message hidden" id="trollingSpreadSettingsMessage" role="alert"></div>
                 <div class="trolling-spread-settings-list" id="defaultTrollingSpreadRows"></div>
+              </section>
+            </div>
+            <div class="settings-tab-panel" data-settings-panel="saved-setups" hidden>
+              <section class="settings-section saved-setups-settings-section" aria-labelledby="savedSetupsSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="savedSetupsSettingsHeading">Saved Setups</h4>
+                  <p>Save rod and reel combinations for casting, jigging, and your other fishing methods. Setup changes save automatically.</p>
+                </div>
+                <div class="saved-setups-settings-content">
+                  <div class="form-message hidden" id="savedSetupSettingsMessage" role="alert"></div>
+                  <div class="saved-setup-method-sections" id="savedSetupMethodSections"></div>
+                </div>
               </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="measurements" hidden>

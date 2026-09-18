@@ -20,7 +20,10 @@ function viewFromCurrentRoute() {
 
 function updateMethodVisibility({ applyStartupSpread = false } = {}) {
   updateTrollingVisibility();
-  if (applyStartupSpread) applyStartupTrollingSpread();
+  if (applyStartupSpread) {
+    if (isTrollingTrip()) applyStartupTrollingSpread();
+    else applyStartupSavedSetup();
+  }
   document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
 }
 

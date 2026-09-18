@@ -48,4 +48,27 @@ const speciesOnly = vm.runInContext(`normalizeSettings({
 assert.equal(speciesOnly.trollingSpreads[0].name, "Salmon Spread");
 assert.equal(speciesOnly.defaultTrollingSpreadId, "");
 
-console.log("trolling spread normalization tests passed");
+const savedSetups = vm.runInContext(`normalizeSettings({
+  savedSetups: [
+    { id: "jig-1", name: "  Light Setup ", method: "Jigging", rows: [{ comboId: "combo-1", lureId: "ignored" }] },
+    { id: "jig-2", name: "LIGHT SETUP", method: "Jigging", rows: [{ comboId: "combo-2" }] },
+    { id: "cast-1", name: "Light Setup", method: "Casting", rows: [{ comboId: "combo-3" }] },
+    { id: "invalid", name: "No Rod", method: "Casting", rows: [] },
+    { id: "unnamed", name: " ", method: "Casting", rows: [{ comboId: "combo-4" }] }
+  ],
+  defaultSavedSetupIds: {
+    Jigging: "jig-2",
+    Casting: "jig-1",
+    Drifting: "missing"
+  }
+})`, context);
+assert.deepEqual(JSON.parse(JSON.stringify(savedSetups.savedSetups)), [
+  { id: "jig-1", name: "Light Setup", method: "Jigging", rows: [{ comboId: "combo-1" }] },
+  { id: "jig-2", name: "LIGHT SETUP (2)", method: "Jigging", rows: [{ comboId: "combo-2" }] },
+  { id: "cast-1", name: "Light Setup", method: "Casting", rows: [{ comboId: "combo-3" }] }
+]);
+assert.deepEqual(JSON.parse(JSON.stringify(savedSetups.defaultSavedSetupIds)), {
+  Jigging: "jig-2"
+});
+
+console.log("trolling and saved setup normalization tests passed");

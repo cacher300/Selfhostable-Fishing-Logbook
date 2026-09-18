@@ -209,6 +209,8 @@ const defaults = {
     chopRanges: structuredClone(defaultChopRanges),
     trollingSpreads: [],
     defaultTrollingSpreadId: "",
+    savedSetups: [],
+    defaultSavedSetupIds: {},
     checklists: [],
     privatePhotoLocations: []
   },

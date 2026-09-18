@@ -160,6 +160,67 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         cleaned_default_trolling_spread_id = requested_default_id if any(
             item["id"] == requested_default_id for item in cleaned_trolling_spreads
         ) else ((migrated_general_id or "") if not has_named_spreads else "")
+        raw_saved_setups = normalized["settings"].get("savedSetups")
+        cleaned_saved_setups = []
+        used_setup_ids = set()
+        used_setup_names = {}
+
+        def cleaned_saved_setup_rows(rows: object) -> list[dict]:
+            if not isinstance(rows, list):
+                return []
+            cleaned = []
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                combo_id = str(row.get("comboId") or "").strip()
+                if combo_id:
+                    cleaned.append({"comboId": combo_id})
+            return cleaned
+
+        def add_saved_setup(item: object, fallback_name: str) -> str | None:
+            if not isinstance(item, dict):
+                return None
+            method = str(item.get("method") or "").strip()
+            name = str(item.get("name") or "").strip()
+            rows = cleaned_saved_setup_rows(item.get("rows"))
+            if not method or not name or not rows:
+                return None
+            setup_id = str(item.get("id") or uuid.uuid4()).strip() or str(uuid.uuid4())
+            while setup_id in used_setup_ids:
+                setup_id = str(uuid.uuid4())
+            used_setup_ids.add(setup_id)
+            method_key = method.casefold()
+            names = used_setup_names.setdefault(method_key, set())
+            base_name = name[:60]
+            name = base_name
+            suffix = 2
+            while name.casefold() in names:
+                suffix_text = f" ({suffix})"
+                name = f"{base_name[:max(1, 60 - len(suffix_text))]}{suffix_text}"
+                suffix += 1
+            names.add(name.casefold())
+            cleaned_saved_setups.append({"id": setup_id, "name": name, "method": method, "rows": rows})
+            return setup_id
+
+        if isinstance(raw_saved_setups, list):
+            for index, item in enumerate(raw_saved_setups):
+                method = str(item.get("method") or "").strip() if isinstance(item, dict) else ""
+                add_saved_setup(item, f"{method or 'Fishing'} Setup {index + 1}")
+        raw_default_saved_setup_ids = normalized["settings"].get("defaultSavedSetupIds")
+        cleaned_default_saved_setup_ids = {}
+        if isinstance(raw_default_saved_setup_ids, dict):
+            for method, setup_id in raw_default_saved_setup_ids.items():
+                method_text = str(method or "").strip()
+                setup_id = str(setup_id or "").strip()
+                matching_setup = next(
+                    (
+                        item for item in cleaned_saved_setups
+                        if item["id"] == setup_id and item["method"].casefold() == method_text.casefold()
+                    ),
+                    None,
+                )
+                if matching_setup:
+                    cleaned_default_saved_setup_ids[matching_setup["method"]] = matching_setup["id"]
         raw_default_people = normalized["settings"].get("defaultPeople")
         cleaned_default_people = []
         if isinstance(raw_default_people, list):
@@ -199,6 +260,8 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             "chopRanges": cleaned_ranges or default_ranges,
             "trollingSpreads": cleaned_trolling_spreads,
             "defaultTrollingSpreadId": cleaned_default_trolling_spread_id,
+            "savedSetups": cleaned_saved_setups,
+            "defaultSavedSetupIds": cleaned_default_saved_setup_ids,
             "defaultPeople": cleaned_default_people,
             "privatePhotoLocations": cleaned_private_locations,
         }
@@ -757,6 +820,61 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
             return _error("settings.defaultTrollingSpreadId", "must be a string")
         if default_spread_id and default_spread_id not in spread_ids:
             return _error("settings.defaultTrollingSpreadId", "must reference a saved trolling spread")
+    if "savedSetups" in settings:
+        setups = settings["savedSetups"]
+        if not isinstance(setups, list):
+            return _error("settings.savedSetups", "must be a list")
+        setup_ids = set()
+        setup_names = {}
+        setup_methods_by_id = {}
+        for index, item in enumerate(setups):
+            path = f"settings.savedSetups[{index}]"
+            if not isinstance(item, dict):
+                return _error(path, "must be an object")
+            setup_id = item.get("id")
+            if not isinstance(setup_id, str) or not setup_id.strip():
+                return _error(f"{path}.id", "must be a non-empty string")
+            if setup_id in setup_ids:
+                return _error(f"{path}.id", "must be unique")
+            setup_ids.add(setup_id)
+            method = item.get("method")
+            if not isinstance(method, str) or not method.strip():
+                return _error(f"{path}.method", "must be a non-empty string")
+            method_key = method.strip().casefold()
+            method_names = setup_names.setdefault(method_key, set())
+            name = item.get("name")
+            if not isinstance(name, str) or not name.strip():
+                return _error(f"{path}.name", "must be a non-empty string")
+            name_key = name.strip().casefold()
+            if name_key in method_names:
+                return _error(f"{path}.name", "must be unique within the method ignoring case")
+            method_names.add(name_key)
+            rows = item.get("rows")
+            if not isinstance(rows, list) or not rows:
+                return _error(f"{path}.rows", "must contain at least one rod")
+            for row_index, row in enumerate(rows):
+                row_path = f"{path}.rows[{row_index}]"
+                if not isinstance(row, dict):
+                    return _error(row_path, "must be an object")
+                combo_id = row.get("comboId")
+                if not isinstance(combo_id, str) or not combo_id.strip():
+                    return _error(f"{row_path}.comboId", "must be a non-empty string")
+            setup_methods_by_id[setup_id] = method.strip()
+    else:
+        setup_methods_by_id = {}
+    if "defaultSavedSetupIds" in settings:
+        default_setup_ids = settings["defaultSavedSetupIds"]
+        if not isinstance(default_setup_ids, dict):
+            return _error("settings.defaultSavedSetupIds", "must be an object")
+        for method, setup_id in default_setup_ids.items():
+            method_text = str(method or "").strip()
+            if not method_text:
+                return _error("settings.defaultSavedSetupIds", "must not contain an empty method")
+            if not isinstance(setup_id, str):
+                return _error(f"settings.defaultSavedSetupIds.{method}", "must be a setup ID string")
+            setup_method = setup_methods_by_id.get(setup_id)
+            if not setup_method or setup_method.casefold() != method_text.casefold():
+                return _error(f"settings.defaultSavedSetupIds.{method}", "must reference a saved setup for that method")
     if "defaultPeople" in settings:
         if not isinstance(settings["defaultPeople"], list) or any(not isinstance(person_id, str) for person_id in settings["defaultPeople"]):
             return _error("settings.defaultPeople", "must be a list of person IDs")

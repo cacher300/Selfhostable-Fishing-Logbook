@@ -53,7 +53,9 @@ Legacy top-level `tripTypes` is removed during normalization.
 - `chopRanges[]`: `{ id, label, maxFeet }`; at least one open-ended `maxFeet: null` range is ensured.
 - `checklists[]`: independent named preparation lists whose item completion remains saved until reset.
 - `trollingSpreads[]`: named reusable trolling setup templates. Each item is `{ id, name, spread[] }`, where each spread row contains `comboId`, `side`, and `presentation`.
-- `defaultTrollingSpreadId`: optional ID of the saved trolling spread used to seed new trolling trips. It is not tied to target species.
+- `defaultTrollingSpreadId`: optional ID of the saved trolling spread used to seed new trolling trips. The Settings label is `Trolling default`; it is not tied to target species.
+- `savedSetups[]`: named reusable non-trolling setup templates. Each item is `{ id, name, method, rows[] }`, where each row contains only `comboId`. Multiple setups may belong to the same method.
+- `defaultSavedSetupIds`: object mapping a non-trolling method name to the optional saved setup ID used to seed new trips for that method.
 
 Typed fishing measurements such as `waterTemp`, `weight`, and `fowCaught` are strings. When a unit preference changes, the client converts persisted numeric fishing values in the same save transaction, then updates the preference. This keeps existing trips, catches, lost fish, legacy setup-line measurements, analytics, and edit forms physically consistent in the newly selected display unit. Free-form nonnumeric text is left unchanged.
 

@@ -2,6 +2,7 @@ function renderSettings() {
   syncSettingsTabs();
   renderPreferenceSettings();
   renderTrollingSpreadSettings();
+  renderSavedSetupSettings();
   renderUnitSettings();
   renderFowCalibrationSettings();
   renderPredefinedFieldSettings();
@@ -72,15 +73,15 @@ function renderTrollingSpreadCard(item, { draft = false } = {}) {
   const editing = draft || activeTrollingSpreadEditorId === item.id;
   const expanded = editing;
   return `
-    <article class="trolling-spread-card${draft ? " is-draft" : ""}" data-trolling-spread-id="${escapeHtml(item.id)}" data-trolling-spread-draft="${draft ? "true" : "false"}" data-trolling-spread-editing="${editing ? "true" : "false"}" data-trolling-spread-toggle onclick="toggleTrollingSpreadCard(this, event)">
+    <article class="trolling-spread-card${draft ? " is-draft" : ""}" data-trolling-spread-id="${escapeHtml(item.id)}" data-trolling-spread-draft="${draft ? "true" : "false"}" data-trolling-spread-editing="${editing ? "true" : "false"}" data-trolling-spread-toggle aria-expanded="${expanded ? "true" : "false"}" onclick="toggleTrollingSpreadCard(this, event)">
       <div class="trolling-spread-card-header">
         <label class="settings-control trolling-spread-name-control">
-          <span>Spread name</span>
+          <span>Spread</span>
           <input class="trolling-spread-name" type="text" maxlength="60" value="${escapeHtml(name)}" placeholder="1 Man Spread"${editing ? "" : " readonly"} />
         </label>
         <div class="trolling-spread-card-actions">
           ${editing && !draft ? '<button class="button secondary finish-trolling-spread-edit" type="button">Done</button>' : !editing ? '<button class="button secondary edit-trolling-spread" type="button">Edit</button>' : ""}
-          ${draft ? '<button class="button secondary cancel-trolling-spread" type="button">Cancel</button>' : '<button class="button danger delete-trolling-spread" type="button">Delete</button>'}
+          ${editing && !draft ? '<button class="button danger delete-trolling-spread" type="button">Delete</button>' : draft ? '<button class="button secondary cancel-trolling-spread" type="button">Cancel</button>' : ""}
         </div>
       </div>
       <div class="trolling-spread-card-body"${expanded ? "" : " hidden"}>
@@ -112,7 +113,7 @@ function renderTrollingSpreadSettings() {
   const defaultId = String(state.settings?.defaultTrollingSpreadId || "");
   if (els.defaultTrollingSpreadId) {
     els.defaultTrollingSpreadId.innerHTML = [
-      '<option value="">No startup default</option>',
+      '<option value="">No Trolling default</option>',
       ...spreads.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`)
     ].join("");
     els.defaultTrollingSpreadId.value = spreads.some((item) => item.id === defaultId) ? defaultId : "";
@@ -179,7 +180,9 @@ function toggleTrollingSpreadCard(card, event = null) {
   const clickedName = event?.target?.matches(".trolling-spread-name");
   if (event?.target?.closest("button, input, select, textarea, a") && !clickedName) return;
   const body = card.querySelector(".trolling-spread-card-body");
-  const toggle = card.querySelector("[data-trolling-spread-toggle]");
+  const toggle = card.matches("[data-trolling-spread-toggle]")
+    ? card
+    : card.querySelector("[data-trolling-spread-toggle]");
   if (!body || !toggle) return;
   const expanded = body.hidden;
   body.hidden = !expanded;
@@ -279,7 +282,7 @@ async function saveDefaultTrollingSpreadId(options = {}) {
   if (!validId) return;
   state.settings = { ...(state.settings || {}), defaultTrollingSpreadId: nextId };
   try {
-    await runSettingsSave(() => saveState(), "The startup trolling spread could not be saved.", options);
+    await runSettingsSave(() => saveState(), "The Trolling default could not be saved.", options);
   } catch (error) {
     state.settings = { ...(state.settings || {}), defaultTrollingSpreadId: previousId };
     renderTrollingSpreadSettings();

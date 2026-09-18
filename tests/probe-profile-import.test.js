@@ -65,7 +65,7 @@ vm.runInContext(functionSource(editorSource, "probeProfileDisplayDepths"), gridC
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(gridContext.probeProfileDisplayDepths(exactProfile))),
   [0, 8.202, 10, 20, 22.966],
-  "the editor adds exact NOAA depths without replacing the blank manual rows"
+  "manual profiles keep their editable depth rows"
 );
 
 const locationContext = {
@@ -120,7 +120,11 @@ const importContext = {
   confirm: () => true,
   window: { noaaGreatLakesApi: { profile: async () => ({ available: true }) } },
   noaaProbeTemperatureProfileEntries: () => [{ depthFeet: 8.202, temperature: "61.25" }],
-  renderProbeTemperatureProfile: () => { importContext.rendered = true; },
+  probeProfileDepthsFeet: [0, 10, 20, 30],
+  renderProbeTemperatureProfile: (profile, options) => {
+    importContext.rendered = profile;
+    importContext.renderOptions = options;
+  },
   markTripFormChanged: () => { importContext.changed = true; },
   clearTripFormMessage: () => { importContext.messageCleared = true; },
   greatLakesControlValue: () => "0",
@@ -156,7 +160,17 @@ const button = { textContent: "Use NOAA profile", disabled: false, setAttribute(
   importContext.window.noaaGreatLakesApi.profile = async () => ({ available: true });
   importContext.status = null;
   await importContext.importNoaaProbeTemperatureProfile(button);
-  assert.equal(importContext.rendered, true, "available NOAA data replaces the grid");
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(importContext.rendered)),
+    [{ depthFeet: 8.202, temperature: "61.25" }],
+    "available NOAA data replaces the grid"
+  );
+  assert.equal(importContext.renderOptions.exactDepths, true, "NOAA renders only its returned depths");
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(importContext.probeProfileDepthsFeet)),
+    [8.202],
+    "an NOAA import removes blank manual depths from the editor"
+  );
   assert.equal(importContext.changed, true, "a successful import marks the form dirty");
   assert.equal(importContext.messageCleared, true, "a successful import clears stale form messages");
   assert.match(importContext.status.message, /exact depths/, "success reports exact-depth import");

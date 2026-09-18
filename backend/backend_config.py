@@ -229,6 +229,8 @@ DEFAULT_LOGBOOK = {
         ],
         "trollingSpreads": [],
         "defaultTrollingSpreadId": "",
+        "savedSetups": [],
+        "defaultSavedSetupIds": {},
         "privatePhotoLocations": [],
     },
     "people": [],

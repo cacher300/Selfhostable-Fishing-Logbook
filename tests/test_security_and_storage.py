@@ -360,6 +360,80 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertFalse(valid)
         self.assertEqual("settings.defaultTrollingSpreadId: must reference a saved trolling spread", error)
 
+    def test_saved_setups_allow_multiple_setups_per_method_and_normalize_defaults(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {
+                    "savedSetups": [
+                        {
+                            "id": "jig-1",
+                            "name": "  Light Setup ",
+                            "method": "Jigging",
+                            "rows": [{"comboId": "combo-1", "lureId": "ignored"}],
+                        },
+                        {
+                            "id": "jig-2",
+                            "name": "LIGHT SETUP",
+                            "method": "Jigging",
+                            "rows": [{"comboId": "combo-2"}],
+                        },
+                        {
+                            "id": "cast-1",
+                            "name": "Light Setup",
+                            "method": "Casting",
+                            "rows": [{"comboId": "combo-3"}],
+                        },
+                        {"id": "invalid", "name": "No Rod", "method": "Casting", "rows": []},
+                        {"id": "unnamed", "name": " ", "method": "Casting", "rows": [{"comboId": "combo-4"}]},
+                    ],
+                    "defaultSavedSetupIds": {
+                        "Jigging": "jig-2",
+                        "Casting": "jig-1",
+                        "Drifting": "missing",
+                    },
+                },
+            }
+        )
+        self.assertEqual(
+            [
+                {"id": "jig-1", "name": "Light Setup", "method": "Jigging", "rows": [{"comboId": "combo-1"}]},
+                {"id": "jig-2", "name": "LIGHT SETUP (2)", "method": "Jigging", "rows": [{"comboId": "combo-2"}]},
+                {"id": "cast-1", "name": "Light Setup", "method": "Casting", "rows": [{"comboId": "combo-3"}]},
+            ],
+            normalized["settings"]["savedSetups"],
+        )
+        self.assertEqual({"Jigging": "jig-2"}, normalized["settings"]["defaultSavedSetupIds"])
+
+    def test_saved_setup_validation_rejects_default_for_wrong_method(self) -> None:
+        valid, error = logbook_store.validate_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [],
+                "lures": [],
+                "flashers": [],
+                "settings": {
+                    "savedSetups": [
+                        {
+                            "id": "jig-1",
+                            "name": "Light Setup",
+                            "method": "Jigging",
+                            "rows": [{"comboId": "combo-1"}],
+                        }
+                    ],
+                    "defaultSavedSetupIds": {"Casting": "jig-1"},
+                },
+            }
+        )
+        self.assertFalse(valid)
+        self.assertEqual(
+            "settings.defaultSavedSetupIds.Casting: must reference a saved setup for that method",
+            error,
+        )
+
     def test_write_creates_sqlite_database(self) -> None:
         payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
         with tempfile.TemporaryDirectory() as directory:
