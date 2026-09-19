@@ -28,6 +28,9 @@ function lineRowMarkup(line = {}) {
       <label><span>Brand</span><input class="line-brand" type="text" value="${escapeHtml(line.brand || "")}" placeholder="Berkley" /></label>
       <label><span>Name</span><input class="line-name" type="text" value="${escapeHtml(line.name || "")}" placeholder="X5" /></label>
       <label><span>Weight (${unitSymbol("fishWeight")})</span><input class="line-weight" type="text" value="${escapeHtml(line.weight || "")}" placeholder="30" /></label>
+      <label class="fly-line-field hidden"><span>Fly line weight</span><input class="line-fly-weight" type="number" min="0" max="16" step="1" value="${escapeHtml(line.flyWeight || "")}" placeholder="5" /></label>
+      <label class="fly-line-field hidden"><span>Taper</span><input class="line-fly-taper" type="text" value="${escapeHtml(line.flyTaper || "")}" placeholder="Weight forward" /></label>
+      <label class="fly-line-field hidden"><span>Density / sink rate</span><input class="line-fly-density" type="text" value="${escapeHtml(line.flyDensity || "")}" placeholder="Floating, 3 ips" /></label>
       <label><span>Diameter in</span><input class="line-diameter-in" type="text" value="${escapeHtml(line.diameterIn || "")}" placeholder="0.008" /></label>
       <label><span>Diameter mm</span><input class="line-diameter-mm" type="text" value="${escapeHtml(line.diameterMm || "")}" placeholder="0.20" /></label>
       <label><span>Color</span><input class="line-color" type="text" value="${escapeHtml(line.color || "")}" placeholder="Lo-Vis" /></label>
@@ -46,6 +49,9 @@ function collectLineRows() {
       brand: row.querySelector(".line-brand").value.trim(),
       name: row.querySelector(".line-name").value.trim(),
       weight: row.querySelector(".line-weight").value.trim(),
+      flyWeight: row.querySelector(".line-fly-weight").value.trim(),
+      flyTaper: row.querySelector(".line-fly-taper").value.trim(),
+      flyDensity: row.querySelector(".line-fly-density").value.trim(),
       diameterIn: row.querySelector(".line-diameter-in").value.trim(),
       diameterMm: row.querySelector(".line-diameter-mm").value.trim(),
       color: row.querySelector(".line-color").value.trim(),
@@ -54,6 +60,16 @@ function collectLineRows() {
     }))
     .filter((line) => line.spooledDate || line.type || line.brand || line.name || line.weight || line.diameterIn || line.diameterMm || line.color || line.monoBacking || line.notes);
   return lines.slice(0, 1);
+}
+
+function isFlyType(type) { return String(type || "").trim().toLowerCase() === "fly"; }
+
+function updateFlyGearVisibility() {
+  const rodFly = isFlyType(getValue("rodType"));
+  const reelFly = isFlyType(getValue("reelStyle"));
+  document.querySelectorAll(".fly-rod-field").forEach((field) => field.classList.toggle("hidden", !rodFly));
+  document.querySelectorAll(".fly-reel-field").forEach((field) => field.classList.toggle("hidden", !reelFly));
+  document.querySelectorAll(".fly-line-field").forEach((field) => field.classList.toggle("hidden", String(document.querySelector(".line-type")?.value || "").toLowerCase() !== "fly line"));
 }
 
 function openReelDialog(reel = null, { duplicate = false } = {}) {
@@ -77,11 +93,14 @@ function openReelDialog(reel = null, { duplicate = false } = {}) {
   setValue("reelMaxDrag", reel?.maxDrag || "");
   setValue("reelMonoCapacity", reel?.monoCapacity || "");
   setValue("reelBraidCapacity", reel?.braidCapacity || "");
+  setValue("reelFlyLineRange", reel?.flyLineRange || "");
+  setValue("reelArbor", reel?.arbor || "");
   setValue("reelPurchaseAmount", reel?.purchaseAmount || "");
   setValue("reelDateBought", reel?.dateBought || "");
   setValue("reelQuantityAvailable", duplicate ? increasedQuantity(reel?.quantityAvailable) : reel?.quantityAvailable ?? "");
   setValue("reelNotes", reel?.notes || "");
   renderLineRows(reel?.lineHistory || []);
+  updateFlyGearVisibility();
   els.deleteReelButton.classList.toggle("hidden", !editing);
   els.reelDialog.showModal();
 }
@@ -104,11 +123,14 @@ function openRodDialog(rod = null, { duplicate = false } = {}) {
   setValue("rodLength", rod?.length || "");
   setValue("rodPower", rod?.power || "");
   setValue("rodAction", rod?.action || "");
+  setValue("rodFlyWeight", rod?.flyWeight || "");
+  setValue("rodPieces", rod?.pieces || "");
   setValue("rodLureRating", rod?.lureRating || "");
   setValue("rodPurchaseAmount", rod?.purchaseAmount || "");
   setValue("rodDateBought", rod?.dateBought || "");
   setValue("rodQuantityAvailable", rod?.quantityAvailable ?? "");
   setValue("rodNotes", rod?.notes || "");
+  updateFlyGearVisibility();
   els.deleteRodButton.classList.toggle("hidden", !editing);
   els.rodDialog.showModal();
 }
@@ -138,6 +160,7 @@ function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "") 
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#lureBladeType"), optionLabels("lureBladeTypes"), "Select blade type");
   populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
+  populateOptionSelect(document.querySelector("#flyCategory"), optionLabels("flyCategories"), "Select category");
   const editing = Boolean(lure);
   document.querySelector("#lureDialog h2").textContent = editing ? "Edit Lure" : "Add Lure";
   setValue("pendingCatchRow", pendingRowId);
@@ -147,6 +170,9 @@ function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "") 
   setValue("lureDivingDepth", lure?.divingDepth || "");
   setValue("lureBladeType", lure?.bladeType || "");
   setValue("lureSpoonSize", lure?.spoonSize || "");
+  setValue("flyCategory", lure?.flyCategory || "");
+  setValue("flyPattern", lure?.flyPattern || "");
+  setValue("flyHookSize", lure?.flyHookSize || "");
   updateLureDivingDepthField();
   setValue("lureBrand", lure?.brand || "");
   setValue("lureModel", lure?.model || "");
@@ -198,9 +224,11 @@ function openLureInfoDialog(lure, pendingRowId = "") {
 function updateLureDivingDepthField() {
   const lureType = getValue("lureType");
   const hasDivingDepth = ["crankbait", "jerkbait"].includes(lureType.toLowerCase());
+  const fly = lureType.toLowerCase() === "fly";
   document.querySelector("#lureDivingDepthField").classList.toggle("hidden", !hasDivingDepth);
   document.querySelector("#lureBladeTypeField").classList.toggle("hidden", !isWormHarnessType(lureType));
   document.querySelector("#lureSpoonSizeField").classList.toggle("hidden", !isSpoonType(lureType));
+  document.querySelectorAll("#flyCategoryField, #flyPatternField, #flyHookSizeField").forEach((field) => field.classList.toggle("hidden", !fly));
 }
 
 function isWormHarnessType(type) {
@@ -285,6 +313,8 @@ async function saveReel(event) {
       maxDrag: getValue("reelMaxDrag"),
       monoCapacity: getValue("reelMonoCapacity"),
       braidCapacity: getValue("reelBraidCapacity"),
+      flyLineRange: getValue("reelFlyLineRange"),
+      arbor: getValue("reelArbor"),
       purchaseAmount: getValue("reelPurchaseAmount"),
       dateBought: getValue("reelDateBought"),
       quantityAvailable: getValue("reelQuantityAvailable"),
@@ -329,6 +359,8 @@ async function saveRod(event) {
       length: getValue("rodLength"),
       power: getValue("rodPower"),
       action: getValue("rodAction"),
+      flyWeight: getValue("rodFlyWeight"),
+      pieces: getValue("rodPieces"),
       lureRating: getValue("rodLureRating"),
       purchaseAmount: getValue("rodPurchaseAmount"),
       dateBought: getValue("rodDateBought"),
@@ -394,6 +426,9 @@ async function saveLure(event) {
       divingDepth: ["crankbait", "jerkbait"].includes(getValue("lureType").toLowerCase()) ? getValue("lureDivingDepth") : "",
       bladeType: isWormHarnessType(getValue("lureType")) ? getValue("lureBladeType") : "",
       spoonSize: isSpoonType(getValue("lureType")) ? getValue("lureSpoonSize") : "",
+      flyCategory: getValue("lureType").toLowerCase() === "fly" ? getValue("flyCategory") : "",
+      flyPattern: getValue("lureType").toLowerCase() === "fly" ? getValue("flyPattern") : "",
+      flyHookSize: getValue("lureType").toLowerCase() === "fly" ? getValue("flyHookSize") : "",
       brand: getValue("lureBrand"),
       model: getValue("lureModel"),
       color: getValue("lureColor"),
@@ -408,6 +443,7 @@ async function saveLure(event) {
     if (lureIndex >= 0) state.lures[lureIndex] = lure;
     else state.lures.push(lure);
     upsertListValue("lureTypes", lure.type);
+    upsertListValue("flyCategories", lure.flyCategory);
     await saveState();
     [...document.querySelectorAll(".catch-lure, .trip-gear-lure, .trip-gear-cheater-lure")].forEach((select) => populateLureSelect(select, select.value));
     const rowId = getValue("pendingCatchRow");
@@ -556,4 +592,3 @@ async function deleteFlasher() {
   els.flasherDialog.close();
   renderAll();
 }
-

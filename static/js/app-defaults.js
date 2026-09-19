@@ -24,7 +24,10 @@ const defaultWeatherOptions = [
 
 const defaultReelStyleOptions = ["Baitcaster", "Spinning", "Linecounter", "Trolling", "Centerpin", "Fly"];
 const defaultRodTypeOptions = ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"];
-const defaultLineTypeOptions = ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wire", "Copper", "Other"];
+const defaultLineTypeOptions = ["Braid", "Mono", "Fluorocarbon", "Fly Line", "Leadcore", "Wire", "Copper", "Other"];
+const defaultFlyCategoryOptions = ["Dry", "Emerger", "Nymph", "Streamer", "Wet Fly", "Terrestrial", "Egg", "Other"];
+const defaultFlyPresentationOptions = ["Dead Drift", "Swing", "Strip / Retrieve", "Indicator", "Euro Nymph", "Other"];
+const defaultWaterLevelOptions = ["Low", "Normal", "High"];
 const defaultRiggingOptions = ["Wacky", "Texas", "Carolina", "Neko", "Weightless", "Drop-shot", "Jika", "Jighead", "Ned", "Other"];
 const defaultLureBladeTypeOptions = ["Colorado", "Willow Leaf", "Indiana", "Butterfly"];
 const defaultLureSpoonSizeOptions = ["Micro", "Small", "Standard", "Magnum"];
@@ -174,6 +177,9 @@ const defaults = {
   reelStyles: structuredClone(defaultReelStyleOptions),
   rodTypes: structuredClone(defaultRodTypeOptions),
   lineTypes: structuredClone(defaultLineTypeOptions),
+  flyCategories: structuredClone(defaultFlyCategoryOptions),
+  flyPresentations: structuredClone(defaultFlyPresentationOptions),
+  waterLevels: structuredClone(defaultWaterLevelOptions),
   lureBladeTypes: structuredClone(defaultLureBladeTypeOptions),
   lureSpoonSizes: structuredClone(defaultLureSpoonSizeOptions),
   trollingPresentations: structuredClone(defaultTrollingPresentationOptions),

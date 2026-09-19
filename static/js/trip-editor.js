@@ -333,6 +333,9 @@ function openTripDialog(trip = null) {
   setTripRating(tripRatingValue(trip || {}));
   setValue("waterTemp", trip?.waterTemp || "");
   setValue("waterClarity", trip?.waterClarity || "");
+  populateOptionSelect(document.querySelector("#waterLevel"), optionLabels("waterLevels"), "Select level");
+  setValue("flyHatch", trip?.flyHatch || "");
+  setValue("waterLevel", trip?.waterLevel || "");
   setValue("weather", trip?.weather || "");
   setValue("waveHeight", trip?.waveHeight || "");
   updateMarineWaveHeightPlaceholder(trip?.weatherData || activeTripWeatherData);

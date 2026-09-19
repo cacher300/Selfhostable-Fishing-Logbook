@@ -73,6 +73,10 @@
     grid-column: auto;
   }
 
+  #tripDialog .catch-row .fly-catch-field {
+    grid-column: 1 / -1;
+  }
+
   .gear-used-row .gear-lure-field,
   .gear-used-row .gear-combo-field,
   .gear-used-row .gear-start-field,

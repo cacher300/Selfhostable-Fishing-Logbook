@@ -1514,7 +1514,9 @@
                 <span>Water clarity</span>
                 <select id="waterClarity"></select>
               </label>
-              <label>
+              <label class="fly-trip-field hidden"><span>Hatch / food activity</span><input id="flyHatch" type="text" placeholder="BWO hatch, sparse" /></label>
+              <label class="fly-trip-field hidden"><span>Water level</span><select id="waterLevel"></select></label>
+              <label class="fow-range-field">
                 <span data-unit-label="depth" data-unit-label-text="FOW range">FOW range</span>
                 <input id="structure" type="text" placeholder="40-60 FOW" />
               </label>
@@ -1837,6 +1839,8 @@
           <label><span data-unit-label="fishWeight" data-unit-label-text="Max drag">Max drag</span><input id="reelMaxDrag" type="text" placeholder="18 lb" /></label>
           <label><span>Mono capacity</span><input id="reelMonoCapacity" type="text" placeholder="145/12" /></label>
           <label><span>Braid capacity</span><input id="reelBraidCapacity" type="text" placeholder="140/30" /></label>
+          <label class="fly-reel-field hidden"><span>Fly line range</span><input id="reelFlyLineRange" type="text" placeholder="5/6 wt" /></label>
+          <label class="fly-reel-field hidden"><span>Arbor</span><select id="reelArbor"><option value="">Select arbor</option><option>Standard</option><option>Mid</option><option>Large</option></select></label>
           <label><span>Purchase amount</span><input id="reelPurchaseAmount" type="text" placeholder="89.99" /></label>
           <label><span>Date bought</span><input id="reelDateBought" type="date" /></label>
           <label><span>Quantity owned</span><input id="reelQuantityAvailable" type="number" min="0" step="1" placeholder="1" /></label>
@@ -1875,6 +1879,8 @@
           <label><span>Length</span><input id="rodLength" type="text" placeholder="8 ft 6 in" /></label>
           <label><span>Power</span><input id="rodPower" type="text" placeholder="Medium" /></label>
           <label><span>Action</span><input id="rodAction" type="text" placeholder="Moderate" /></label>
+          <label class="fly-rod-field hidden"><span>Fly rod weight</span><input id="rodFlyWeight" type="number" min="0" max="16" step="1" placeholder="5" /></label>
+          <label class="fly-rod-field hidden"><span>Pieces</span><input id="rodPieces" type="number" min="1" max="8" step="1" placeholder="4" /></label>
           <label><span>Lure rating</span><input id="rodLureRating" type="text" placeholder="1/2 - 2 oz" /></label>
           <label><span>Purchase amount</span><input id="rodPurchaseAmount" type="text" placeholder="69.99" /></label>
           <label><span>Date bought</span><input id="rodDateBought" type="date" /></label>
@@ -1947,6 +1953,9 @@
             <span>Spoon size</span>
             <select id="lureSpoonSize"></select>
           </label>
+          <label id="flyCategoryField" class="hidden"><span>Fly category</span><select id="flyCategory"></select></label>
+          <label id="flyPatternField" class="hidden"><span>Pattern</span><input id="flyPattern" type="text" placeholder="Pheasant Tail" /></label>
+          <label id="flyHookSizeField" class="hidden"><span>Hook size</span><input id="flyHookSize" type="text" placeholder="#14" /></label>
           <label>
             <span>Brand</span>
             <input id="lureBrand" type="text" placeholder="Acme" />
@@ -2243,6 +2252,7 @@
             <span>Rig details</span>
             <input class="catch-rigging-details" type="text" placeholder="1/0 hook, 1/8 oz weight, weedless" />
           </label>
+          <label class="fly-catch-field catch-detail-optional hidden"><span>Presentation</span><select class="catch-fly-presentation"></select></label>
           <label class="casting-field catch-retrieve-field catch-detail-optional">
             <span>Retrieve</span>
             <input class="catch-retrieve" type="text" placeholder="Slow roll, pause-twitch, burn-stop" />
@@ -2408,6 +2418,8 @@
             <span>Rig details</span>
             <input class="trip-gear-rigging-details" type="text" placeholder="1/0 hook, 1/8 oz weight, weedless" />
           </label>
+          <label class="fly-setup-field hidden"><span>Leader</span><input class="trip-gear-leader" type="text" placeholder="9 ft fluorocarbon" /></label>
+          <label class="fly-setup-field hidden"><span>Tippet</span><input class="trip-gear-tippet" type="text" placeholder="5X" /></label>
           <label class="trolling-field gear-flasher-field">
             <span>Flasher</span>
             <select class="trip-gear-flasher"></select>

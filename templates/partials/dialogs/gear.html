@@ -18,6 +18,8 @@
           <label><span data-unit-label="fishWeight" data-unit-label-text="Max drag">Max drag</span><input id="reelMaxDrag" type="text" placeholder="18 lb" /></label>
           <label><span>Mono capacity</span><input id="reelMonoCapacity" type="text" placeholder="145/12" /></label>
           <label><span>Braid capacity</span><input id="reelBraidCapacity" type="text" placeholder="140/30" /></label>
+          <label class="fly-reel-field hidden"><span>Fly line range</span><input id="reelFlyLineRange" type="text" placeholder="5/6 wt" /></label>
+          <label class="fly-reel-field hidden"><span>Arbor</span><select id="reelArbor"><option value="">Select arbor</option><option>Standard</option><option>Mid</option><option>Large</option></select></label>
           <label><span>Purchase amount</span><input id="reelPurchaseAmount" type="text" placeholder="89.99" /></label>
           <label><span>Date bought</span><input id="reelDateBought" type="date" /></label>
           <label><span>Quantity owned</span><input id="reelQuantityAvailable" type="number" min="0" step="1" placeholder="1" /></label>
@@ -56,6 +58,8 @@
           <label><span>Length</span><input id="rodLength" type="text" placeholder="8 ft 6 in" /></label>
           <label><span>Power</span><input id="rodPower" type="text" placeholder="Medium" /></label>
           <label><span>Action</span><input id="rodAction" type="text" placeholder="Moderate" /></label>
+          <label class="fly-rod-field hidden"><span>Fly rod weight</span><input id="rodFlyWeight" type="number" min="0" max="16" step="1" placeholder="5" /></label>
+          <label class="fly-rod-field hidden"><span>Pieces</span><input id="rodPieces" type="number" min="1" max="8" step="1" placeholder="4" /></label>
           <label><span>Lure rating</span><input id="rodLureRating" type="text" placeholder="1/2 - 2 oz" /></label>
           <label><span>Purchase amount</span><input id="rodPurchaseAmount" type="text" placeholder="69.99" /></label>
           <label><span>Date bought</span><input id="rodDateBought" type="date" /></label>
@@ -128,6 +132,9 @@
             <span>Spoon size</span>
             <select id="lureSpoonSize"></select>
           </label>
+          <label id="flyCategoryField" class="hidden"><span>Fly category</span><select id="flyCategory"></select></label>
+          <label id="flyPatternField" class="hidden"><span>Pattern</span><input id="flyPattern" type="text" placeholder="Pheasant Tail" /></label>
+          <label id="flyHookSizeField" class="hidden"><span>Hook size</span><input id="flyHookSize" type="text" placeholder="#14" /></label>
           <label>
             <span>Brand</span>
             <input id="lureBrand" type="text" placeholder="Acme" />

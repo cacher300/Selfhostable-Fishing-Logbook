@@ -13,7 +13,7 @@ PRIVATE_PHOTO_LOCATION_RADIUS_MIN_METERS = 25
 PRIVATE_PHOTO_LOCATION_RADIUS_MAX_METERS = 10000
 _COLLECTION_KEYS = (
     "species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes",
-    "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections",
+    "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections",
     "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people",
     "locations", "spots", "expeditions", "trips",
 )
@@ -275,7 +275,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         normalized["settings"].pop("boatLayout", None)
         normalized["settings"].pop("tackleBoxes", None)
 
-    list_keys = ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips")
+    list_keys = ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips")
     for key in list_keys:
         if not isinstance(normalized.get(key), list):
             normalized[key] = deepcopy(DEFAULT_LOGBOOK[key])
@@ -329,7 +329,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
                 seen.add(folded)
         normalized[key] = cleaned
 
-    for key in ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingDirections"):
+    for key in ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingDirections"):
         clean_text_options(key)
     normalized["lureTypes"].sort(key=str.casefold)
     for key in ("trollingPresentations", "setupLineSides"):
@@ -692,7 +692,7 @@ def _validate_required_lists(payload: dict) -> tuple[bool, str | None]:
 def _validate_option_lists(payload: dict) -> tuple[bool, str | None]:
     keys = (
         "species", "methods", "lureTypes", "flasherTypes", "waterClarities",
-        "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "lureBladeTypes", "lureSpoonSizes", "trollingDirections",
+        "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingDirections",
     )
     for key in keys:
         if key not in payload:

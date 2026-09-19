@@ -189,7 +189,10 @@ DEFAULT_LOGBOOK = {
     ],
     "reelStyles": ["Baitcaster", "Spinning", "Linecounter", "Centerpin", "Fly"],
     "rodTypes": ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"],
-    "lineTypes": ["Braid", "Mono", "Fluorocarbon", "Leadcore", "Wire", "Copper", "Other"],
+    "lineTypes": ["Braid", "Mono", "Fluorocarbon", "Fly Line", "Leadcore", "Wire", "Copper", "Other"],
+    "flyCategories": ["Dry", "Emerger", "Nymph", "Streamer", "Wet Fly", "Terrestrial", "Egg", "Other"],
+    "flyPresentations": ["Dead Drift", "Swing", "Strip / Retrieve", "Indicator", "Euro Nymph", "Other"],
+    "waterLevels": ["Low", "Normal", "High"],
     "lureBladeTypes": ["Colorado", "Willow Leaf", "Indiana", "Butterfly"],
     "lureSpoonSizes": ["Micro", "Small", "Standard", "Magnum"],
     "trollingPresentations": [

@@ -245,6 +245,8 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-retrieve").value = catchItem.retrieve || "";
   node.querySelector(".catch-rigging").value = catchItem.rigging || "";
   node.querySelector(".catch-rigging-details").value = catchItem.riggingDetails || "";
+  populateOptionSelect(node.querySelector(".catch-fly-presentation"), optionLabels("flyPresentations"), "Select presentation");
+  node.querySelector(".catch-fly-presentation").value = catchItem.flyPresentation || "";
   node.querySelector(".catch-ball-depth").value = catchItem.ballDepth || "";
   node.querySelector(".catch-deepest-rigger").checked = Boolean(catchItem.deepestRigger);
   node.querySelector(".catch-flatline-weight-oz").value = catchItem.flatlineWeightOz || "";
@@ -372,6 +374,8 @@ function addTripGearRow(gearItem = {}) {
   populateOptionSelect(node.querySelector(".trip-gear-rigging"), state.riggings, "Select rigging");
   node.querySelector(".trip-gear-rigging").value = gearItem.rigging || "";
   node.querySelector(".trip-gear-rigging-details").value = gearItem.riggingDetails || "";
+  node.querySelector(".trip-gear-leader").value = gearItem.leader || "";
+  node.querySelector(".trip-gear-tippet").value = gearItem.tippet || "";
   populateLureSelect(node.querySelector(".trip-gear-cheater-lure"), gearItem.cheaterLureId || "");
   populateFlasherSelect(node.querySelector(".trip-gear-flasher"), gearItem.flasherId || "");
   renderLurePreview(node);

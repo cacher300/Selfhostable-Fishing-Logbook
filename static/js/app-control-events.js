@@ -88,6 +88,9 @@ els.importDatabaseInput?.addEventListener("change", importDatabaseArchive);
 els.photoQueueInput.addEventListener("change", addPhotosToQueue);
 els.lureForm.addEventListener("submit", saveLure);
 document.querySelector("#lureType").addEventListener("change", updateLureDivingDepthField);
+document.querySelector("#rodType").addEventListener("change", updateFlyGearVisibility);
+document.querySelector("#reelStyle").addEventListener("change", updateFlyGearVisibility);
+document.querySelector("#reelLineRows").addEventListener("change", updateFlyGearVisibility);
 els.flasherForm.addEventListener("submit", saveFlasher);
 els.reelForm.addEventListener("submit", saveReel);
 document.querySelector("#reelLineRows")?.addEventListener("change", (event) => {

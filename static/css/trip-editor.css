@@ -171,6 +171,22 @@
     calc(100% - 12px) 16px;
 }
 
+/* Rod selectors should track the chosen rod label instead of claiming the
+   full grid column in casting, fly-fishing, and trolling catch rows. */
+#tripDialog .catch-rod,
+#tripDialog .catch-setup-line {
+  field-sizing: content;
+  width: fit-content;
+  min-width: 12ch;
+  max-width: 100%;
+}
+
+#tripDialog .catch-rod-field,
+#tripDialog .trolling-catch-line-field {
+  width: fit-content;
+  max-width: 100%;
+}
+
 #tripDialog .inline-control-row {
   gap: 8px;
 }
@@ -799,6 +815,12 @@
 
 #tripDialog .catch-row .catch-lure-field {
   grid-column: 2 / 3;
+}
+
+#tripDialog .catch-row .fly-catch-field {
+  grid-column: 1 / -1;
+  justify-self: start;
+  width: min(100%, 320px);
 }
 
 #tripDialog .catch-row .add-lure-inline {

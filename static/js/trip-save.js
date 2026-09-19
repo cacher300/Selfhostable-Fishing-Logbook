@@ -20,6 +20,8 @@ function collectTripFromForm() {
       lureId: row.querySelector(".trip-gear-lure").value,
       rigging: isSoftPlasticLureRow(row) ? row.querySelector(".trip-gear-rigging").value : "",
       riggingDetails: isSoftPlasticLureRow(row) ? row.querySelector(".trip-gear-rigging-details").value.trim() : "",
+      leader: isFlyFishingTrip() ? row.querySelector(".trip-gear-leader").value.trim() : "",
+      tippet: isFlyFishingTrip() ? row.querySelector(".trip-gear-tippet").value.trim() : "",
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",
       distanceBehind: trolling ? row.querySelector(".trip-gear-distance-behind").value.trim() : "",
@@ -88,6 +90,7 @@ function collectTripFromForm() {
         ballTemp: !detailsUnknown && trolling ? row.querySelector(".catch-ball-temp").value.trim() : "",
         shaker: !detailsUnknown && trolling ? row.querySelector(".catch-shaker").checked : false,
         retrieve: !detailsUnknown && casting ? row.querySelector(".catch-retrieve").value.trim() : "",
+        flyPresentation: !detailsUnknown && isFlyFishingTrip() ? row.querySelector(".catch-fly-presentation").value : "",
         rigging: !detailsUnknown && !trolling && isSoftPlasticLureRow(row) ? row.querySelector(".catch-rigging").value : "",
         riggingDetails: !detailsUnknown && !trolling && isSoftPlasticLureRow(row) ? row.querySelector(".catch-rigging-details").value.trim() : "",
         ballDepth: !detailsUnknown && trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
@@ -203,6 +206,8 @@ function collectTripFromForm() {
     waterTemp: getValue("waterTemp"),
     probeTemperatureProfile: collectProbeTemperatureProfile(),
     waterClarity: getValue("waterClarity"),
+    flyHatch: isFlyFishingTrip() ? getValue("flyHatch") : "",
+    waterLevel: isFlyFishingTrip() ? getValue("waterLevel") : "",
     weather: getValue("weather"),
     waveHeight,
     waveChop,
@@ -248,6 +253,8 @@ async function persistTrip(event, { draft = false } = {}) {
     upsertListValue("species", trip.targetSpecies);
     upsertListValue("methods", trip.method);
     upsertListValue("waterClarities", trip.waterClarity);
+    upsertListValue("waterLevels", trip.waterLevel);
+    trip.catches.forEach((catchItem) => upsertListValue("flyPresentations", catchItem.flyPresentation));
     upsertListValue("weatherTypes", trip.weather);
     trip.catches.forEach((catchItem) => upsertListValue("species", catchItem.species));
     trip.lostFish.forEach((fish) => upsertListValue("species", fish.possibleSpecies));

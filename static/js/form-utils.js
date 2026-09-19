@@ -18,6 +18,10 @@ function isCastingTrip() {
   return getValue("method").toLowerCase() === "casting";
 }
 
+function isFlyFishingTrip() {
+  return getValue("method").toLowerCase() === "fly fishing";
+}
+
 function populateStructureSelect(select, selectedValue = "") {
   if (!select) return;
   const current = selectedValue || select.value || "";
@@ -34,6 +38,7 @@ function populateStructureSelect(select, selectedValue = "") {
 function updateTrollingVisibility() {
   const trolling = isTrollingTrip();
   const casting = isCastingTrip();
+  const flyFishing = isFlyFishingTrip();
   if (!trolling) {
     document.querySelectorAll(".trip-gear-side").forEach((select) => {
       select.value = "";
@@ -48,6 +53,12 @@ function updateTrollingVisibility() {
   });
   document.querySelectorAll("#tripDialog .casting-field").forEach((element) => {
     element.classList.toggle("hidden", !casting);
+  });
+  document.querySelectorAll("#tripDialog .fly-trip-field, #tripDialog .fly-setup-field, #tripDialog .fly-catch-field").forEach((element) => {
+    element.classList.toggle("hidden", !flyFishing);
+  });
+  document.querySelectorAll("#tripDialog .fow-range-field").forEach((element) => {
+    element.classList.toggle("hidden", flyFishing);
   });
   document.querySelectorAll("#tripDialog .non-trolling-field").forEach((element) => {
     element.classList.toggle("hidden", trolling);
