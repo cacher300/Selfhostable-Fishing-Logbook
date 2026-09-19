@@ -12,6 +12,7 @@ __pycache__/
 # Local generated files and server logs.
 .env
 tmp/
+relaunch-desktop.ps1
 
 # Local editor and OS noise.
 .vscode/
