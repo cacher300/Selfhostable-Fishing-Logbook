@@ -22,6 +22,7 @@ vm.runInContext(fs.readFileSync("static/js/app-normalization.js", "utf8"), conte
 
 const normalized = context.normalizeState({
   schemaVersion: 1,
+  waterClarities: ["Muddy", "Algae Bloom"],
   trips: [{
     id: "trip",
     catches: [{ ballSpeed: 0, ballTemp: 0 }],
@@ -36,5 +37,6 @@ assert.strictEqual(normalized.trips[0].catches[0].ballSpeed, 0);
 assert.strictEqual(normalized.trips[0].catches[0].ballTemp, 0);
 assert.strictEqual(normalized.trips[0].lostFish[0].ballSpeed, 0);
 assert.strictEqual(normalized.trips[0].lostFish[0].ballTemp, 0);
+assert.strictEqual(normalized.waterClarities.includes("Algae Bloom"), false);
 
 console.log("numeric zero measurements are preserved during normalization");

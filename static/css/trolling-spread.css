@@ -14,7 +14,8 @@
   display: block;
   width: 100%;
   min-width: 0;
-  aspect-ratio: 1400 / 680;
+  /* Give the spread's label lanes enough vertical room to stay readable. */
+  aspect-ratio: 1400 / 900;
 }
 
 .spread-water {
@@ -256,4 +257,115 @@
   aspect-ratio: 1400 / 850;
   min-height: 0;
   margin: 0 auto;
+}
+
+.trolling-spread-picker-list {
+  display: grid;
+  gap: 10px;
+  max-height: min(520px, calc(100vh - 220px));
+  overflow-y: auto;
+}
+
+.saved-setup-picker-list {
+  display: grid;
+  gap: 10px;
+  max-height: min(520px, calc(100vh - 220px));
+  overflow-y: auto;
+}
+
+.trolling-spread-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text);
+  text-align: left;
+}
+
+.saved-setup-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text);
+  text-align: left;
+}
+
+.trolling-spread-picker-option:hover,
+.trolling-spread-picker-option:focus-visible,
+.saved-setup-picker-option:hover,
+.saved-setup-picker-option:focus-visible {
+  border-color: var(--green);
+  background: var(--hover);
+}
+
+.trolling-spread-picker-option-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.saved-setup-picker-option-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.trolling-spread-picker-option-copy strong {
+  font-size: 14px;
+}
+
+.saved-setup-picker-option-copy strong {
+  font-size: 14px;
+}
+
+.trolling-spread-picker-option-copy small,
+.trolling-spread-picker-empty,
+.saved-setup-picker-option-copy small,
+.saved-setup-picker-empty {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.trolling-spread-picker-option svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.saved-setup-picker-option svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.trolling-spread-picker-empty {
+  margin: 0;
+}
+
+.saved-setup-picker-empty {
+  margin: 0;
 }

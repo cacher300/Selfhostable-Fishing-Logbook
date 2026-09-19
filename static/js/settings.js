@@ -1,7 +1,8 @@
 function renderSettings() {
   syncSettingsTabs();
   renderPreferenceSettings();
-  renderDefaultTrollingSpreadSettings();
+  renderTrollingSpreadSettings();
+  renderSavedSetupSettings();
   renderUnitSettings();
   renderFowCalibrationSettings();
   renderPredefinedFieldSettings();
@@ -12,7 +13,7 @@ function renderSettings() {
   renderLocationManager();
 }
 
-function defaultTrollingSpreadRowMarkup(item = {}) {
+function trollingSpreadRowMarkup(item = {}, { disabled = false } = {}) {
   const comboId = String(item.comboId || "");
   const side = String(item.side || "");
   const presentation = String(item.presentation || "");
@@ -25,76 +26,31 @@ function defaultTrollingSpreadRowMarkup(item = {}) {
     )).join("")}`
   );
   return `
-    <div class="default-trolling-spread-row">
+    <div class="trolling-spread-row">
       <label>
         <span>Rod / reel combo</span>
-        <select class="default-spread-combo">
+        <select class="trolling-spread-combo"${disabled ? " disabled" : ""}>
           <option value="">Select rod / reel combo</option>
           ${comboOptions}
         </select>
       </label>
       <label>
         <span>Side</span>
-        <select class="default-spread-side">${choiceOptions("setupLineSides", side, "Select side")}</select>
+        <select class="trolling-spread-side"${disabled ? " disabled" : ""}>${choiceOptions("setupLineSides", side, "Select side")}</select>
       </label>
       <label>
         <span>Method</span>
-        <select class="default-spread-presentation">${choiceOptions("trollingPresentations", presentation, "Select method")}</select>
+        <select class="trolling-spread-presentation"${disabled ? " disabled" : ""}>${choiceOptions("trollingPresentations", presentation, "Select method")}</select>
       </label>
-      <button class="button danger remove-default-trolling-spread-row" type="button">Remove</button>
+      ${disabled ? "" : '<button class="button danger remove-trolling-spread-row" type="button">Remove</button>'}
     </div>
   `;
 }
 
-function storedDefaultTrollingSpreadForSpecies(targetSpecies = "") {
-  const target = String(targetSpecies || "").trim();
-  return normalizeDefaultTrollingSpreads(
-    state.settings?.defaultTrollingSpreads,
-    state.settings?.defaultTrollingSpread
-  ).find((item) => item.targetSpecies === target)?.spread || [];
-}
-
-function renderDefaultTrollingSpreadSettings() {
-  if (!els.defaultTrollingSpreadRows) return;
-  const species = [...new Set((state.species || []).map((item) => String(item || "").trim()).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b));
-  if (els.defaultTrollingSpreadTargetSpecies) {
-    if (activeDefaultTrollingSpreadTargetSpecies && !species.includes(activeDefaultTrollingSpreadTargetSpecies)) {
-      activeDefaultTrollingSpreadTargetSpecies = "";
-    }
-    els.defaultTrollingSpreadTargetSpecies.innerHTML = ["All target species", ...species].map((speciesName) => {
-      const value = speciesName === "All target species" ? "" : speciesName;
-      return `<option value="${escapeHtml(value)}" ${value === activeDefaultTrollingSpreadTargetSpecies ? "selected" : ""}>${escapeHtml(speciesName)}</option>`;
-    }).join("");
-  }
-  const spread = storedDefaultTrollingSpreadForSpecies(activeDefaultTrollingSpreadTargetSpecies);
-  els.defaultTrollingSpreadRows.innerHTML = `
-    <div class="default-trolling-spread-list">
-      ${(spread.length ? spread : [{}]).map(defaultTrollingSpreadRowMarkup).join("")}
-    </div>
-  `;
-  renderDefaultTrollingSpreadPreview();
-}
-
-function addDefaultTrollingSpreadRow() {
-  const list = els.defaultTrollingSpreadRows?.querySelector(".default-trolling-spread-list");
-  if (!list) return renderDefaultTrollingSpreadSettings();
-  list.insertAdjacentHTML("beforeend", defaultTrollingSpreadRowMarkup());
-  renderDefaultTrollingSpreadPreview();
-}
-
-function collectDefaultTrollingSpreadSettings() {
-  return [...els.defaultTrollingSpreadRows?.querySelectorAll(".default-trolling-spread-row") || []].map((row) => ({
-    comboId: row.querySelector(".default-spread-combo")?.value || "",
-    side: row.querySelector(".default-spread-side")?.value || "",
-    presentation: row.querySelector(".default-spread-presentation")?.value || ""
-  })).filter((item) => item.comboId);
-}
-
-function defaultTrollingSpreadRodsForPreview() {
-  return collectDefaultTrollingSpreadSettings().map((item, index) => ({
+function trollingSpreadRodsForPreview(spread = []) {
+  return normalizeTrollingSpreadRows(spread).map((item, index) => ({
     ...(state.rodReelCombos.find((combo) => combo.id === item.comboId) || {}),
-    id: `default-spread-${index}`,
+    id: `trolling-spread-${index}`,
     comboId: item.comboId,
     lineSide: item.side,
     trollingMethod: item.presentation,
@@ -105,40 +61,242 @@ function defaultTrollingSpreadRodsForPreview() {
   }));
 }
 
-function renderDefaultTrollingSpreadPreview() {
-  if (!els.defaultTrollingSpreadCanvas || typeof renderSpreadDiagram !== "function") return;
-  els.defaultTrollingSpreadCanvas.innerHTML = renderSpreadDiagram(defaultTrollingSpreadRodsForPreview(), { labelWithCombo: true });
+function renderTrollingSpreadPreview(card, spread) {
+  const canvas = card?.querySelector("[data-trolling-spread-preview]");
+  if (!canvas || typeof renderSpreadDiagram !== "function") return;
+  canvas.innerHTML = renderSpreadDiagram(trollingSpreadRodsForPreview(spread), { labelWithCombo: true });
 }
 
-function updateDefaultTrollingSpreadSettings(targetSpecies, spread) {
-  const currentSpread = normalizeDefaultTrollingSpread(spread);
-  const spreads = normalizeDefaultTrollingSpreads(
-    state.settings?.defaultTrollingSpreads,
-    state.settings?.defaultTrollingSpread
-  ).filter((item) => item.targetSpecies !== targetSpecies);
-  if (currentSpread.length) spreads.push({ targetSpecies, spread: currentSpread });
-  state.settings = {
-    ...(state.settings || {}),
-    defaultTrollingSpreads: spreads,
-    defaultTrollingSpread: defaultTrollingSpreadForSpecies("", spreads, [])
+function renderTrollingSpreadCard(item, { draft = false } = {}) {
+  const name = String(item?.name || "");
+  const spread = normalizeTrollingSpreadRows(item?.spread);
+  const editing = draft || activeTrollingSpreadEditorId === item.id;
+  const expanded = editing;
+  return `
+    <article class="trolling-spread-card${draft ? " is-draft" : ""}" data-trolling-spread-id="${escapeHtml(item.id)}" data-trolling-spread-draft="${draft ? "true" : "false"}" data-trolling-spread-editing="${editing ? "true" : "false"}" data-trolling-spread-toggle aria-expanded="${expanded ? "true" : "false"}" onclick="toggleTrollingSpreadCard(this, event)">
+      <div class="trolling-spread-card-header">
+        <label class="settings-control trolling-spread-name-control">
+          <span>Spread</span>
+          <input class="trolling-spread-name" type="text" maxlength="60" value="${escapeHtml(name)}" placeholder="1 Man Spread"${editing ? "" : " readonly"} />
+        </label>
+        <div class="trolling-spread-card-actions">
+          ${editing && !draft ? '<button class="button secondary finish-trolling-spread-edit" type="button">Done</button>' : !editing ? '<button class="button secondary edit-trolling-spread" type="button">Edit</button>' : ""}
+          ${editing && !draft ? '<button class="button danger delete-trolling-spread" type="button">Delete</button>' : draft ? '<button class="button secondary cancel-trolling-spread" type="button">Cancel</button>' : ""}
+        </div>
+      </div>
+      <div class="trolling-spread-card-body"${expanded ? "" : " hidden"}>
+        <div class="trolling-spread-card-section">
+          <div class="trolling-spread-card-section-heading">
+            <div>
+              <strong>Rod positions</strong>
+              <span>Saved spreads use combo, side, and presentation only.</span>
+            </div>
+            ${editing ? '<button class="button secondary add-trolling-spread-row" type="button">Add Rod</button>' : ""}
+          </div>
+          <div class="trolling-spread-list">
+            ${spread.map((row) => trollingSpreadRowMarkup(row, { disabled: !editing })).join("") || '<p class="trolling-spread-empty-rows">Add at least one rod to save this spread.</p>'}
+          </div>
+        </div>
+        <div class="trolling-spread-card-preview">
+          <strong class="trolling-spread-preview-heading">Preview</strong>
+          <div data-trolling-spread-preview></div>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderTrollingSpreadSettings() {
+  if (!els.defaultTrollingSpreadRows) return;
+  const spreads = normalizeTrollingSpreads(state.settings?.trollingSpreads);
+  const visibleSpreads = trollingSpreadDraft ? [...spreads, trollingSpreadDraft] : spreads;
+  const defaultId = String(state.settings?.defaultTrollingSpreadId || "");
+  if (els.defaultTrollingSpreadId) {
+    els.defaultTrollingSpreadId.innerHTML = [
+      '<option value="">No Trolling default</option>',
+      ...spreads.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`)
+    ].join("");
+    els.defaultTrollingSpreadId.value = spreads.some((item) => item.id === defaultId) ? defaultId : "";
+  }
+  els.defaultTrollingSpreadRows.innerHTML = `
+    ${visibleSpreads.length
+      ? visibleSpreads.map((item) => renderTrollingSpreadCard(item, { draft: item === trollingSpreadDraft })).join("")
+      : '<div class="trolling-spread-empty-state">No saved trolling spreads yet. Add one to make it available from the trip editor.</div>'}
+  `;
+  visibleSpreads.forEach((item) => {
+    const card = els.defaultTrollingSpreadRows.querySelector(`[data-trolling-spread-id="${CSS.escape(item.id)}"]`);
+    renderTrollingSpreadPreview(card, item.spread);
+  });
+}
+
+function addTrollingSpread() {
+  if (trollingSpreadDraft) {
+    document.querySelector(`[data-trolling-spread-id="${CSS.escape(trollingSpreadDraft.id)}"] .trolling-spread-name`)?.focus();
+    return;
+  }
+  trollingSpreadDraft = { id: createId(), name: "", spread: [] };
+  activeTrollingSpreadEditorId = trollingSpreadDraft.id;
+  renderTrollingSpreadSettings();
+  document.querySelector(`[data-trolling-spread-id="${CSS.escape(trollingSpreadDraft.id)}"] .trolling-spread-name`)?.focus();
+}
+
+function addTrollingSpreadRowToCard(card) {
+  const list = card?.querySelector(".trolling-spread-list");
+  if (!list || card.dataset.trollingSpreadEditing !== "true") return;
+  card.querySelector(".trolling-spread-empty-rows")?.remove();
+  list.insertAdjacentHTML("beforeend", trollingSpreadRowMarkup());
+  renderTrollingSpreadPreview(card, collectTrollingSpreadCard(card).spread);
+  scheduleTrollingSpreadAutosave(card);
+  list.querySelector(".trolling-spread-row:last-child select")?.focus();
+}
+
+function editTrollingSpread(spreadId) {
+  if (!normalizeTrollingSpreads(state.settings?.trollingSpreads).some((item) => item.id === spreadId)) return;
+  activeTrollingSpreadEditorId = spreadId;
+  renderTrollingSpreadSettings();
+  document.querySelector(`[data-trolling-spread-id="${CSS.escape(spreadId)}"] .trolling-spread-name`)?.focus();
+}
+
+function collectTrollingSpreadCard(card) {
+  return {
+    id: card?.dataset.trollingSpreadId || createId(),
+    name: card?.querySelector(".trolling-spread-name")?.value.trim() || "",
+    spread: normalizeTrollingSpreadRows([...card?.querySelectorAll(".trolling-spread-row") || []].map((row) => ({
+      comboId: row.querySelector(".trolling-spread-combo")?.value || "",
+      side: row.querySelector(".trolling-spread-side")?.value || "",
+      presentation: row.querySelector(".trolling-spread-presentation")?.value || ""
+    })))
   };
 }
 
-async function saveDefaultTrollingSpreadSettings(options = {}) {
-  const targetSpecies = options.targetSpecies ?? activeDefaultTrollingSpreadTargetSpecies;
-  const spread = options.spread ?? collectDefaultTrollingSpreadSettings();
-  updateDefaultTrollingSpreadSettings(targetSpecies, spread);
-  try {
-    await runSettingsSave(
-      async () => {
-        await saveState();
-        if (options.rerender !== false) renderDefaultTrollingSpreadSettings();
-      },
-      "The default trolling spread could not be saved.",
-      options
-    );
-  } catch (error) {
+function setTrollingSpreadSettingsMessage(message = "") {
+  if (!els.trollingSpreadSettingsMessage) return;
+  els.trollingSpreadSettingsMessage.textContent = message;
+  els.trollingSpreadSettingsMessage.classList.toggle("hidden", !message);
+}
+
+function toggleTrollingSpreadCard(card, event = null) {
+  if (!card) return;
+  const clickedName = event?.target?.matches(".trolling-spread-name");
+  if (event?.target?.closest("button, input, select, textarea, a") && !clickedName) return;
+  if (card.dataset.trollingSpreadDraft === "true") return;
+
+  // A spread's expanded state is its editing state. Clicking the card surface
+  // should therefore enter the editor rather than opening a read-only card.
+  if (card.dataset.trollingSpreadEditing !== "true") {
+    editTrollingSpread(card.dataset.trollingSpreadId);
   }
+}
+
+async function finishTrollingSpreadEdit(card) {
+  const next = collectTrollingSpreadCard(card);
+  if (!next.name) {
+    setTrollingSpreadSettingsMessage("Enter a name for this spread before finishing.");
+    card?.querySelector(".trolling-spread-name")?.focus();
+    return;
+  }
+  if (!next.spread.length) {
+    setTrollingSpreadSettingsMessage("Add at least one rod with a rod / reel combo before finishing.");
+    return;
+  }
+  clearTimeout(settingsAutosaveTimer);
+  await saveTrollingSpreadCard(card, { autosave: true });
+  activeTrollingSpreadEditorId = "";
+  setTrollingSpreadSettingsMessage("");
+  renderTrollingSpreadSettings();
+}
+
+function scheduleTrollingSpreadAutosave(card) {
+  if (!card || card.dataset.trollingSpreadEditing !== "true") return;
+  scheduleSettingsAutosave(async (options = {}) => {
+    const next = collectTrollingSpreadCard(card);
+    if (!next.name || !next.spread.length) return;
+    await saveTrollingSpreadCard(card, options);
+  });
+}
+
+async function saveTrollingSpreadCard(card, options = {}) {
+  const next = collectTrollingSpreadCard(card);
+  const wasDraft = card?.dataset.trollingSpreadDraft === "true";
+  if (!next.name) {
+    if (!options.silentInvalid) setTrollingSpreadSettingsMessage("Enter a name for this spread before saving.");
+    if (!options.silentInvalid) card?.querySelector(".trolling-spread-name")?.focus();
+    return;
+  }
+  if (!next.spread.length) {
+    if (!options.silentInvalid) setTrollingSpreadSettingsMessage("Add at least one rod with a rod / reel combo before saving.");
+    return;
+  }
+  const duplicate = normalizeTrollingSpreads(state.settings?.trollingSpreads)
+    .some((item) => item.id !== next.id && item.name.toLowerCase() === next.name.toLowerCase());
+  if (duplicate) {
+    if (!options.silentInvalid) setTrollingSpreadSettingsMessage("Spread names must be unique.");
+    if (!options.silentInvalid) card?.querySelector(".trolling-spread-name")?.focus();
+    return;
+  }
+  const previousState = structuredClone(state);
+  const spreads = normalizeTrollingSpreads(state.settings?.trollingSpreads);
+  const index = spreads.findIndex((item) => item.id === next.id);
+  if (index >= 0) spreads[index] = next;
+  else spreads.push(next);
+  state.settings = { ...(state.settings || {}), trollingSpreads: spreads };
+  trollingSpreadDraft = null;
+  activeTrollingSpreadEditorId = next.id;
+  setTrollingSpreadSettingsMessage("");
+  try {
+    await runSettingsSave(() => saveState(), "The trolling spread could not be saved.", options);
+    renderTrollingSpreadSettings();
+  } catch (error) {
+    state = previousState;
+    trollingSpreadDraft = wasDraft ? next : null;
+    activeTrollingSpreadEditorId = next.id;
+    renderTrollingSpreadSettings();
+  }
+}
+
+async function deleteTrollingSpread(spreadId) {
+  const spread = normalizeTrollingSpreads(state.settings?.trollingSpreads).find((item) => item.id === spreadId);
+  if (!spread || !confirm(`Delete the ${spread.name} spread?`)) return;
+  const previousState = structuredClone(state);
+  if (activeTrollingSpreadEditorId === spreadId) activeTrollingSpreadEditorId = "";
+  const spreads = normalizeTrollingSpreads(state.settings?.trollingSpreads).filter((item) => item.id !== spreadId);
+  state.settings = {
+    ...(state.settings || {}),
+    trollingSpreads: spreads,
+    defaultTrollingSpreadId: state.settings?.defaultTrollingSpreadId === spreadId ? "" : state.settings?.defaultTrollingSpreadId || ""
+  };
+  try {
+    await runSettingsSave(() => saveState(), "The trolling spread could not be deleted.");
+    renderTrollingSpreadSettings();
+  } catch (error) {
+    state = previousState;
+    renderTrollingSpreadSettings();
+  }
+}
+
+async function saveDefaultTrollingSpreadId(options = {}) {
+  const previousId = state.settings?.defaultTrollingSpreadId || "";
+  const nextId = els.defaultTrollingSpreadId?.value || "";
+  const validId = !nextId || normalizeTrollingSpreads(state.settings?.trollingSpreads).some((item) => item.id === nextId);
+  if (!validId) return;
+  state.settings = { ...(state.settings || {}), defaultTrollingSpreadId: nextId };
+  try {
+    await runSettingsSave(() => saveState(), "The Trolling default could not be saved.", options);
+  } catch (error) {
+    state.settings = { ...(state.settings || {}), defaultTrollingSpreadId: previousId };
+    renderTrollingSpreadSettings();
+  }
+}
+
+function refreshTrollingSpreadCardPreview(card) {
+  renderTrollingSpreadPreview(card, collectTrollingSpreadCard(card).spread);
+}
+
+function cancelTrollingSpreadDraft() {
+  trollingSpreadDraft = null;
+  activeTrollingSpreadEditorId = "";
+  setTrollingSpreadSettingsMessage("");
+  renderTrollingSpreadSettings();
 }
 
 function renderPreferenceSettings() {

@@ -23,6 +23,9 @@ function collectTripFromForm() {
       flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
       presentation: trolling ? row.querySelector(".catch-presentation").value : "",
       distanceBehind: trolling ? row.querySelector(".trip-gear-distance-behind").value.trim() : "",
+      attachedWeightOz: trolling && isAttachedWeightPresentation(row.querySelector(".catch-presentation").value)
+        ? row.querySelector(".trip-gear-attached-weight").value.trim()
+        : "",
       hasCheater: trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
         ? row.querySelector(".trip-gear-cheater").checked
         : false,
@@ -51,6 +54,7 @@ function collectTripFromForm() {
       || item.flasherMinutes
       || item.presentation
       || item.distanceBehind
+      || item.attachedWeightOz
       || item.hasCheater
       || item.cheaterLureId
     ));

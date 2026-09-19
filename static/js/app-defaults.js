@@ -207,8 +207,10 @@ const defaults = {
     },
     units: structuredClone(defaultUnits),
     chopRanges: structuredClone(defaultChopRanges),
-    defaultTrollingSpread: [],
-    defaultTrollingSpreads: [],
+    trollingSpreads: [],
+    defaultTrollingSpreadId: "",
+    savedSetups: [],
+    defaultSavedSetupIds: {},
     checklists: [],
     privatePhotoLocations: []
   },

@@ -233,8 +233,10 @@ function confirmTripDeletion(trip) {
 async function deleteTripById(tripId, options = {}) {
   const trip = state.trips.find((item) => item.id === tripId);
   if (!trip || !confirmTripDeletion(trip)) return false;
+  const deletedTripMedia = [...mediaReferenceKeys(trip)];
   state.trips = state.trips.filter((item) => item.id !== tripId);
   await saveState();
+  await cleanupDeletedMedia(deletedTripMedia);
   if (options.closeEditor) closeTripDialog({ force: true });
   if (options.closeSummary) {
     activeSummaryTripId = null;
@@ -251,8 +253,55 @@ function localDateInputValue(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function ensureProbeTemperatureProfileDisclosure() {
+  const section = document.querySelector(".trip-probe-temperature-section");
+  // Fresh templates use the native details/summary disclosure. This fallback
+  // keeps the control functional when a running server still has the older
+  // section markup cached.
+  if (!section) return;
+  if (section.tagName === "DETAILS") {
+    section.open = false;
+    return;
+  }
+  const heading = section.querySelector(".probe-temperature-heading");
+  const layout = section.querySelector(".probe-temperature-layout");
+  if (!heading || !layout) return;
+  if (section.dataset.disclosureReady) {
+    section.classList.add("is-collapsed");
+    heading.setAttribute("aria-expanded", "false");
+    return;
+  }
+  section.dataset.disclosureReady = "true";
+  const title = heading.querySelector("#probeTemperatureHeading");
+  if (title) title.textContent = "Water temperature profile";
+  [...heading.querySelectorAll("p")]
+    .filter((paragraph) => paragraph.textContent.trim() === "Enter water temperature at each depth")
+    .forEach((paragraph) => paragraph.remove());
+  layout.id ||= "probeTemperatureProfileContent";
+  heading.setAttribute("role", "button");
+  heading.setAttribute("tabindex", "0");
+  heading.setAttribute("aria-controls", layout.id);
+  heading.setAttribute("aria-expanded", "false");
+  section.classList.add("is-collapsed");
+  const toggle = () => {
+    const collapsed = section.classList.toggle("is-collapsed");
+    heading.setAttribute("aria-expanded", String(!collapsed));
+  };
+  heading.addEventListener("click", (event) => {
+    if (event.target.closest("button, input, select, a, label")) return;
+    toggle();
+  });
+  heading.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggle();
+  });
+}
+
 function openTripDialog(trip = null) {
   activeTripId = trip?.id || null;
+  newTripStartupSpreadApplied = false;
+  newTripSavedSetupAppliedMethods = new Set();
   els.deleteTripButton.classList.toggle("hidden", !trip);
   els.tripSaveBar?.classList.toggle("is-existing-trip", Boolean(trip));
   els.tripForm.reset();
@@ -292,7 +341,18 @@ function openTripDialog(trip = null) {
   pendingProbeProfileImportCoordinates = null;
   syncProbeProfileImportSourceNote();
   setProbeProfileImportStatus("");
-  renderProbeTemperatureProfile(trip?.probeTemperatureProfile || []);
+  ensureProbeTemperatureProfileDisclosure();
+  const savedProbeProfile = Array.isArray(trip?.probeTemperatureProfile) ? trip.probeTemperatureProfile : [];
+  // Once a trip has saved readings, show only its populated depths when it is
+  // reopened. Empty starter rows are reserved for a brand-new profile.
+  if (savedProbeProfile.length) {
+    probeProfileDepthsFeet = savedProbeProfile
+      .map((entry) => Number(entry?.depthFeet))
+      .filter((depthFeet) => Number.isFinite(depthFeet));
+  } else {
+    probeProfileDepthsFeet = Array.from({ length: 12 }, (_, index) => index * 10);
+  }
+  renderProbeTemperatureProfile(savedProbeProfile, { exactDepths: savedProbeProfile.length > 0 });
   setValue("tripNotes", trip?.notes || "");
   activeTripWeatherData = trip?.weatherData || null;
   activeTripWeatherKey = "";
@@ -324,7 +384,7 @@ function openTripDialog(trip = null) {
   (trip?.catches || []).map(migrateLegacyDeepestRigger).forEach(addCatchRow);
   (trip?.lostFish || []).map(migrateLegacyDeepestRigger).forEach(addLostFishRow);
   populateSetupLineSelects();
-  updateTrollingVisibility();
+  updateMethodVisibility({ applyStartupSpread: !trip });
   renderLiveTrollingSpread();
   renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
   syncUnitLabels(els.tripForm);
@@ -517,7 +577,10 @@ async function importNoaaProbeTemperatureProfile(button) {
       setProbeProfileImportStatus("The NOAA source location changed while data loaded. Import again for the new location.", true);
       return;
     }
-    renderProbeTemperatureProfile(importedProfile);
+    // NOAA provides readings at its own model depths. Replace the editable
+    // depth list as well, so old blank manual rows do not remain in the grid.
+    probeProfileDepthsFeet = importedProfile.map((entry) => Number(entry.depthFeet));
+    renderProbeTemperatureProfile(importedProfile, { exactDepths: true });
     markTripFormChanged();
     clearTripFormMessage();
     setProbeProfileImportStatus(`Imported ${importedProfile.length} NOAA temperature reading${importedProfile.length === 1 ? "" : "s"} at the model's exact depths.`);
@@ -530,7 +593,7 @@ async function importNoaaProbeTemperatureProfile(button) {
   }
 }
 
-function renderProbeTemperatureProfile(profile = []) {
+function renderProbeTemperatureProfile(profile = [], options = {}) {
   const grid = document.querySelector("#probeTemperatureGrid");
   if (!grid) return;
   const profileEntries = probeTemperatureProfileEntries(profile);
@@ -539,7 +602,9 @@ function renderProbeTemperatureProfile(profile = []) {
     probeProfileDepthsFeet.push(probeProfileDepthsFeet.at(-1) + 10);
   }
   const temperaturesByDepth = new Map(profileEntries.map((entry) => [Number(entry.depthFeet), entry.temperature || ""]));
-  const displayedDepths = probeProfileDisplayDepths(profileEntries);
+  const displayedDepths = options.exactDepths
+    ? profileEntries.map((entry) => Number(entry.depthFeet))
+    : probeProfileDisplayDepths(profileEntries);
   grid.innerHTML = displayedDepths.map((depthFeet) => {
     const depthLabel = displayProbeDepth(depthFeet);
     return `
@@ -694,18 +759,94 @@ function interpolatedProbeTemperature(readings, depthFeet) {
   return readings.at(-1).numericTemperature;
 }
 
+function probeTemperatureChartTooltipText(temperature, depthFeet) {
+  return `Temperature: ${trimNumber(temperature)} ${unitSymbol("waterTemperature")} · Depth: ${displayProbeDepth(depthFeet)}`;
+}
+
+function bindProbeTemperatureChartTooltip(chart) {
+  if (!chart || chart.dataset.tooltipBound) return;
+  chart.dataset.tooltipBound = "true";
+  const hideTooltip = () => {
+    const tooltip = chart.querySelector(".probe-temperature-chart-tooltip");
+    if (tooltip) tooltip.hidden = true;
+  };
+  const positionTooltip = (tooltip, clientX, clientY) => {
+    const chartRect = chart.getBoundingClientRect();
+    tooltip.hidden = false;
+    const maxLeft = Math.max(8, chartRect.width - tooltip.offsetWidth - 8);
+    const maxTop = Math.max(8, chartRect.height - tooltip.offsetHeight - 8);
+    tooltip.style.left = `${Math.max(8, Math.min(clientX - chartRect.left + 14, maxLeft))}px`;
+    tooltip.style.top = `${Math.max(8, Math.min(clientY - chartRect.top + 14, maxTop))}px`;
+  };
+  const showPointTooltip = (target, clientX, clientY) => {
+    const tooltip = chart.querySelector(".probe-temperature-chart-tooltip");
+    if (!tooltip) return;
+    tooltip.textContent = probeTemperatureChartTooltipText(
+      Number(target.dataset.chartTemperature),
+      Number(target.dataset.chartDepth)
+    );
+    positionTooltip(tooltip, clientX, clientY);
+  };
+  const showLineTooltip = (target, clientX, clientY) => {
+    const tooltip = chart.querySelector(".probe-temperature-chart-tooltip");
+    const svg = target.ownerSVGElement;
+    if (!tooltip || !svg) return;
+    const rect = svg.getBoundingClientRect();
+    const viewBox = svg.viewBox.baseVal;
+    const rawX = ((clientX - rect.left) / rect.width) * viewBox.width;
+    const rawY = ((clientY - rect.top) / rect.height) * viewBox.height;
+    const plotLeft = Number(svg.dataset.chartPlotLeft);
+    const plotTop = Number(svg.dataset.chartPlotTop);
+    const plotWidth = Number(svg.dataset.chartPlotWidth);
+    const plotHeight = Number(svg.dataset.chartPlotHeight);
+    const scaleMin = Number(svg.dataset.chartScaleMin);
+    const scaleMax = Number(svg.dataset.chartScaleMax);
+    const depthMax = Number(svg.dataset.chartDepthMax);
+    const temperature = scaleMin + (Math.max(0, Math.min(1, (rawX - plotLeft) / plotWidth)) * (scaleMax - scaleMin));
+    const depthFeet = Math.max(0, Math.min(depthMax, ((rawY - plotTop) / plotHeight) * depthMax));
+    tooltip.textContent = probeTemperatureChartTooltipText(temperature, depthFeet);
+    positionTooltip(tooltip, clientX, clientY);
+  };
+  chart.addEventListener("pointermove", (event) => {
+    const target = event.target.closest?.("[data-chart-point], [data-chart-line]");
+    if (!target) return;
+    if (target.matches("[data-chart-point]")) showPointTooltip(target, event.clientX, event.clientY);
+    else showLineTooltip(target, event.clientX, event.clientY);
+  });
+  chart.addEventListener("pointerout", (event) => {
+    const target = event.target.closest?.("[data-chart-point], [data-chart-line]");
+    const nextTarget = event.relatedTarget?.closest?.("[data-chart-point], [data-chart-line]");
+    if (target && target !== nextTarget) hideTooltip();
+  });
+  chart.addEventListener("focusin", (event) => {
+    const target = event.target.closest?.("[data-chart-point]");
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    showPointTooltip(target, rect.left + (rect.width / 2), rect.top + (rect.height / 2));
+  });
+  chart.addEventListener("focusout", (event) => {
+    if (!event.relatedTarget || !chart.contains(event.relatedTarget)) hideTooltip();
+  });
+  chart.addEventListener("pointerleave", hideTooltip);
+}
+
 function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
   const width = 620;
-  const height = options.compact ? 330 : 360;
   const plot = { left: 58, right: 20, top: 34, bottom: 38 };
-  const plotWidth = width - plot.left - plot.right;
-  const plotHeight = height - plot.top - plot.bottom;
   const catchDepths = (Array.isArray(options.catchDepths) ? options.catchDepths : [])
     .filter((entry) => Number.isFinite(Number(entry?.depthFeet)));
   const deepestDepth = Math.max(readings.at(-1).depthFeet, ...catchDepths.map((entry) => Number(entry.depthFeet)), 10);
   // Keep the depth axis focused on the populated profile. Catch markers still
   // extend the range when a catch is deeper than the last temperature reading.
   const depthMax = Math.max(20, Math.ceil(deepestDepth / 20) * 20);
+  // The editor is allowed to grow with a deeper profile so closely spaced
+  // depth readings remain legible. The compact trip-report chart keeps its
+  // fixed footprint.
+  const height = options.compact
+    ? 330
+    : Math.max(360, plot.top + plot.bottom + ((depthMax / 20) * 36));
+  const plotWidth = width - plot.left - plot.right;
+  const plotHeight = height - plot.top - plot.bottom;
   const scale = probeChartScale(readings);
   const x = (temperature) => plot.left + ((temperature - scale.min) / (scale.max - scale.min)) * plotWidth;
   const y = (depthFeet) => plot.top + (depthFeet / depthMax) * plotHeight;
@@ -720,7 +861,7 @@ function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
     .map((depth) => `<text x="${plot.left - 12}" y="${(y(depth) + 4).toFixed(2)}" text-anchor="end">${escapeHtml(trimNumber(convertUnitValue(depth, "ft", unitPreference("depth")) ?? depth))}</text>`)
     .join("");
   const dots = readings.map((reading) => `
-    <circle cx="${x(reading.numericTemperature).toFixed(2)}" cy="${y(reading.depthFeet).toFixed(2)}" r="5" tabindex="0">
+    <circle class="probe-temperature-point" data-chart-point="profile" data-chart-temperature="${reading.numericTemperature}" data-chart-depth="${reading.depthFeet}" cx="${x(reading.numericTemperature).toFixed(2)}" cy="${y(reading.depthFeet).toFixed(2)}" r="5" tabindex="0">
       <title>${escapeHtml(`${displayProbeDepth(reading.depthFeet)}: ${displayStoredMeasurement(reading.temperature, "waterTemperature")}`)}</title>
     </circle>
   `).join("");
@@ -745,7 +886,7 @@ function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
     const markerX = Math.max(plot.left + 6, Math.min(width - plot.right - 6, x(profileTemperature) + spread));
     const color = probeCatchColor(species, speciesList);
     return `<line class="probe-catch-depth-connector" x1="${x(profileTemperature).toFixed(2)}" y1="${y(depthFeet).toFixed(2)}" x2="${markerX.toFixed(2)}" y2="${y(depthFeet).toFixed(2)}" style="--probe-catch-color: ${color}" aria-hidden="true" />
-      <circle class="probe-catch-depth-marker" cx="${markerX.toFixed(2)}" cy="${y(depthFeet).toFixed(2)}" r="6" tabindex="0" style="--probe-catch-color: ${color}"><title>${escapeHtml(label)}</title></circle>`;
+      <circle class="probe-catch-depth-marker" data-chart-point="catch" data-chart-temperature="${profileTemperature}" data-chart-depth="${depthFeet}" cx="${markerX.toFixed(2)}" cy="${y(depthFeet).toFixed(2)}" r="6" tabindex="0" style="--probe-catch-color: ${color}"><title>${escapeHtml(label)}</title></circle>`;
   }).join("");
   const axisUnit = escapeHtml(unitSymbol("waterTemperature"));
   const depthUnit = escapeHtml(unitSymbol("depth"));
@@ -753,7 +894,7 @@ function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
   const descriptionId = `${options.idPrefix || "probeTemperatureChart"}Description`;
   const catchDescription = catchDepths.length ? ` ${catchDepths.length} fish catch marker${catchDepths.length === 1 ? "" : "s"} appear on the temperature profile at their recorded depth.` : "";
   return `
-    <svg class="probe-temperature-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="${titleId} ${descriptionId}">
+    <svg class="probe-temperature-chart-svg" viewBox="0 0 ${width} ${height}" data-chart-scale-min="${scale.min}" data-chart-scale-max="${scale.max}" data-chart-depth-max="${depthMax}" data-chart-plot-left="${plot.left}" data-chart-plot-top="${plot.top}" data-chart-plot-width="${plotWidth}" data-chart-plot-height="${plotHeight}" role="img" aria-labelledby="${titleId} ${descriptionId}">
       <title id="${titleId}">Probe temperature profile</title>
       <desc id="${descriptionId}">Water temperature in ${axisUnit} plotted against depth in ${depthUnit}; depth increases downward.${catchDescription}</desc>
       <g class="probe-temperature-grid-lines">${horizontalGrid}${verticalGrid}</g>
@@ -763,7 +904,7 @@ function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
       <text class="probe-temperature-axis-title" x="${width / 2}" y="${height - 7}" text-anchor="middle">Temperature (${axisUnit})</text>
       <text class="probe-temperature-axis-title" transform="translate(14 ${height / 2}) rotate(-90)" text-anchor="middle">Depth (${depthUnit})</text>
       ${readings.length > 1 ? `<polygon class="probe-temperature-area" points="${areaPoints}" />` : ""}
-      ${readings.length > 1 ? `<polyline class="probe-temperature-line" points="${points}" />` : ""}
+      ${readings.length > 1 ? `<polyline class="probe-temperature-line" data-chart-line="true" points="${points}" />` : ""}
       <g class="probe-temperature-points">${dots}</g>
       <g class="probe-catch-depth-points" aria-label="Fish caught depths">${catchMarkers}</g>
     </svg>
@@ -773,6 +914,7 @@ function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
 function renderProbeTemperatureProfileChart(profile = []) {
   const chart = document.querySelector("#probeTemperatureChart");
   if (!chart) return;
+  bindProbeTemperatureChartTooltip(chart);
   const readings = probeTemperatureReadings(profile);
   const catchDepths = collectProbeCatchDepths();
   const legend = document.querySelector("#probeTemperatureChartLegend");
@@ -791,7 +933,7 @@ function renderProbeTemperatureProfileChart(profile = []) {
     `;
     return;
   }
-  chart.innerHTML = renderProbeTemperatureProfileChartMarkup(readings, { catchDepths });
+  chart.innerHTML = `${renderProbeTemperatureProfileChartMarkup(readings, { catchDepths })}<div class="probe-temperature-chart-tooltip" role="status" aria-live="polite" hidden></div>`;
 }
 
 function getTripIntent() {

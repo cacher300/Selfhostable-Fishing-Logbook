@@ -190,6 +190,7 @@ function normalizeState(nextState) {
         })
       : normalized[key];
     normalized[key] = normalizeTextOptions(values, defaults[key]);
+    if (key === "waterClarities") normalized[key] = normalized[key].filter((item) => String(item).trim().toLowerCase() !== "algae bloom");
     if (["species", "lureTypes"].includes(key)) normalized[key].sort((a, b) => a.localeCompare(b));
   });
   normalized.trollingPresentations = normalizeChoiceOptions(
@@ -388,11 +389,27 @@ function normalizeSettings(settings = {}) {
   delete normalized.bathymetryLakeOffsetsFeet;
   normalized.units = normalizeUnits(normalized.units);
   normalized.chopRanges = normalizeChopRanges(normalized.chopRanges);
-  normalized.defaultTrollingSpread = normalizeDefaultTrollingSpread(normalized.defaultTrollingSpread);
-  normalized.defaultTrollingSpreads = normalizeDefaultTrollingSpreads(
-    normalized.defaultTrollingSpreads,
-    normalized.defaultTrollingSpread
+  const hasNamedTrollingSpreads = Array.isArray(settings?.trollingSpreads);
+  normalized.trollingSpreads = normalizeTrollingSpreads(
+    hasNamedTrollingSpreads ? settings.trollingSpreads : [],
+    hasNamedTrollingSpreads ? [] : settings?.defaultTrollingSpreads,
+    hasNamedTrollingSpreads ? [] : settings?.defaultTrollingSpread
   );
+  const requestedDefaultTrollingSpreadId = String(settings?.defaultTrollingSpreadId || "").trim();
+  const hasRequestedDefault = normalized.trollingSpreads.some((item) => item.id === requestedDefaultTrollingSpreadId);
+  const migratedGeneralSpread = !hasNamedTrollingSpreads
+    ? normalized.trollingSpreads.find((item) => item.name.toLowerCase() === "general spread")
+    : null;
+  normalized.defaultTrollingSpreadId = hasRequestedDefault
+    ? requestedDefaultTrollingSpreadId
+    : migratedGeneralSpread?.id || "";
+  normalized.savedSetups = normalizeSavedSetups(settings?.savedSetups);
+  normalized.defaultSavedSetupIds = normalizeDefaultSavedSetupIds(
+    settings?.defaultSavedSetupIds,
+    normalized.savedSetups
+  );
+  delete normalized.defaultTrollingSpread;
+  delete normalized.defaultTrollingSpreads;
   delete normalized.spreadTemplates;
   normalized.checklists = normalizeChecklists(normalized.checklists);
   delete normalized.tripTemplates;
@@ -471,7 +488,7 @@ function normalizeBathymetryLakeCalibrations(calibrations, offsets, fallback = 0
   ]));
 }
 
-function normalizeDefaultTrollingSpread(spread = []) {
+function normalizeTrollingSpreadRows(spread = []) {
   if (!Array.isArray(spread)) return [];
   return spread.map((item) => ({
     comboId: String(item?.comboId || "").trim(),
@@ -480,31 +497,87 @@ function normalizeDefaultTrollingSpread(spread = []) {
   })).filter((item) => item.comboId);
 }
 
-function normalizeDefaultTrollingSpreads(spreads = [], legacySpread = []) {
-  const normalized = new Map();
-  if (Array.isArray(spreads)) {
-    spreads.forEach((item) => {
-      if (!item || typeof item !== "object") return;
-      const spread = normalizeDefaultTrollingSpread(item.spread);
-      if (!spread.length) return;
-      normalized.set(String(item.targetSpecies || "").trim(), spread);
-    });
+function normalizeTrollingSpreads(spreads = [], legacySpreads = [], legacySpread = []) {
+  const normalized = [];
+  const usedIds = new Set();
+  const usedNames = new Set();
+  const addSpread = (item, fallbackName) => {
+    if (!item || typeof item !== "object") return;
+    const spread = normalizeTrollingSpreadRows(item.spread);
+    if (!spread.length) return;
+    let id = String(item.id || createId()).trim() || createId();
+    if (usedIds.has(id)) id = createId();
+    usedIds.add(id);
+    const baseName = String(item.name || fallbackName || "Trolling Spread").trim().slice(0, 60) || "Trolling Spread";
+    const name = uniqueNormalizedName(baseName, usedNames);
+    normalized.push({ id, name, spread });
+  };
+
+  if (Array.isArray(spreads) && spreads.length) {
+    spreads.forEach((item, index) => addSpread(item, `Trolling Spread ${index + 1}`));
+    return normalized;
   }
-  const fallback = normalizeDefaultTrollingSpread(legacySpread);
-  if (fallback.length && !normalized.has("")) normalized.set("", fallback);
-  return [...normalized.entries()].map(([targetSpecies, spread]) => ({ targetSpecies, spread }));
+
+  const oldEntries = Array.isArray(legacySpreads) ? legacySpreads : [];
+  oldEntries.forEach((item, index) => {
+    const targetSpecies = String(item?.targetSpecies || "").trim();
+    addSpread(item, targetSpecies ? `${targetSpecies} Spread` : "General Spread");
+  });
+  const hasGeneralEntry = oldEntries.some((item) => (
+    !String(item?.targetSpecies || "").trim() && normalizeTrollingSpreadRows(item?.spread).length
+  ));
+  if (!hasGeneralEntry) addSpread({ spread: legacySpread }, "General Spread");
+  return normalized;
 }
 
-function defaultTrollingSpreadForSpecies(
-  targetSpecies = "",
-  spreads = state.settings?.defaultTrollingSpreads,
-  legacySpread = state.settings?.defaultTrollingSpread
-) {
-  const normalized = normalizeDefaultTrollingSpreads(spreads, legacySpread);
-  const target = String(targetSpecies || "").trim();
-  return normalized.find((item) => item.targetSpecies === target)?.spread
-    || normalized.find((item) => !item.targetSpecies)?.spread
-    || [];
+function trollingSpreadById(spreadId = "", spreads = state.settings?.trollingSpreads) {
+  const id = String(spreadId || "").trim();
+  return (Array.isArray(spreads) ? spreads : []).find((item) => item?.id === id)?.spread || [];
+}
+
+function normalizeSavedSetupRows(rows = []) {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((item) => ({
+    comboId: String(item?.comboId || "").trim()
+  })).filter((item) => item.comboId);
+}
+
+function normalizeSavedSetups(setups = []) {
+  const normalized = [];
+  const usedIds = new Set();
+  const usedNamesByMethod = new Map();
+  (Array.isArray(setups) ? setups : [])
+    .filter((item) => item && typeof item === "object")
+    .forEach((item, index) => {
+      const method = String(item.method || "").trim();
+      const rawName = String(item.name || "").trim();
+      const rows = normalizeSavedSetupRows(item.rows);
+      if (!method || !rawName || !rows.length) return;
+
+      let id = String(item.id || createId()).trim() || createId();
+      while (usedIds.has(id)) id = createId();
+      usedIds.add(id);
+
+      const methodKey = method.toLowerCase();
+      if (!usedNamesByMethod.has(methodKey)) usedNamesByMethod.set(methodKey, new Set());
+      const baseName = rawName.slice(0, 60);
+      const name = uniqueNormalizedName(baseName, usedNamesByMethod.get(methodKey));
+      normalized.push({ id, name, method, rows });
+    });
+  return normalized;
+}
+
+function normalizeDefaultSavedSetupIds(defaults = {}, setups = []) {
+  if (!defaults || typeof defaults !== "object" || Array.isArray(defaults)) return {};
+  const normalized = {};
+  Object.entries(defaults).forEach(([method, setupId]) => {
+    const methodText = String(method || "").trim();
+    const id = String(setupId || "").trim();
+    if (!methodText || !id) return;
+    const setup = setups.find((item) => item.id === id && item.method.toLowerCase() === methodText.toLowerCase());
+    if (setup) normalized[setup.method] = setup.id;
+  });
+  return normalized;
 }
 
 function normalizePrivatePhotoLocations(locations = []) {

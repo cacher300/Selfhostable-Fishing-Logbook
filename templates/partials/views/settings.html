@@ -3,6 +3,7 @@
             <button class="settings-tab is-active" type="button" data-settings-tab="general" aria-selected="true">General</button>
             <button class="settings-tab" id="settingsWikiButton" type="button">Wiki</button>
             <button class="settings-tab" type="button" data-settings-tab="trolling-spread" aria-selected="false">Trolling Spread</button>
+            <button class="settings-tab" type="button" data-settings-tab="saved-setups" aria-selected="false">Saved Setups</button>
             <button class="settings-tab" type="button" data-settings-tab="measurements" aria-selected="false">Measurements</button>
             <button class="settings-tab" type="button" data-settings-tab="fow-calibration" aria-selected="false">FOW Calibration</button>
             <button class="settings-tab" type="button" data-settings-tab="lists" aria-selected="false">Categories</button>
@@ -86,21 +87,35 @@
               </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="trolling-spread" hidden>
-              <section class="settings-section" aria-labelledby="defaultSpreadSettingsHeading">
-                <div class="settings-section-copy settings-section-copy--action">
+              <section class="settings-section trolling-spread-settings-section" aria-labelledby="trollingSpreadSettingsHeading">
+                <div class="settings-section-copy">
                   <div>
-                    <h4 id="defaultSpreadSettingsHeading">Default Trolling Spread</h4>
-                    <p>This default spread will be autofilled for all trolling trips.</p>
+                    <h4 id="trollingSpreadSettingsHeading">Saved Trolling Spreads</h4>
+                    <p>Create reusable named spreads, then choose which one should start every new trolling trip. Spread changes save automatically.</p>
                   </div>
-                  <label class="settings-control">
-                    <span>Target species</span>
-                    <select id="defaultTrollingSpreadTargetSpecies"></select>
-                  </label>
-                  <button class="button secondary" id="addDefaultTrollingSpreadRowButton" type="button">Add Rod</button>
                 </div>
-                <div class="settings-table" id="defaultTrollingSpreadRows"></div>
-                <div class="default-trolling-spread-preview" id="defaultTrollingSpreadPreview">
-                  <div id="defaultTrollingSpreadCanvas"></div>
+                <div class="trolling-spread-settings-controls">
+                  <label class="settings-control">
+                    <span>Trolling default</span>
+                    <select id="defaultTrollingSpreadId">
+                      <option value="">No Trolling default</option>
+                    </select>
+                  </label>
+                  <button class="button secondary" id="addTrollingSpreadButton" type="button">New Spread</button>
+                </div>
+                <div class="form-message hidden" id="trollingSpreadSettingsMessage" role="alert"></div>
+                <div class="trolling-spread-settings-list" id="defaultTrollingSpreadRows"></div>
+              </section>
+            </div>
+            <div class="settings-tab-panel" data-settings-panel="saved-setups" hidden>
+              <section class="settings-section saved-setups-settings-section" aria-labelledby="savedSetupsSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="savedSetupsSettingsHeading">Saved Setups</h4>
+                  <p>Save rod and reel combinations for casting, jigging, and your other fishing methods. Setup changes save automatically.</p>
+                </div>
+                <div class="saved-setups-settings-content">
+                  <div class="form-message hidden" id="savedSetupSettingsMessage" role="alert"></div>
+                  <div class="saved-setup-method-sections" id="savedSetupMethodSections"></div>
                 </div>
               </section>
             </div>

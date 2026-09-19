@@ -166,22 +166,22 @@
           </aside>
         </div>
 
-        <section class="probe-temperature-section trip-probe-temperature-section fish-hawk-field trolling-field" aria-labelledby="probeTemperatureHeading">
-          <div class="probe-temperature-heading">
+        <details class="probe-temperature-section trip-probe-temperature-section fish-hawk-field trolling-field">
+          <summary class="probe-temperature-heading">
             <div>
-              <h4 id="probeTemperatureHeading">Probe temperature profile</h4>
-              <p>Enter water temperature at each depth</p>
-              <p id="probeProfileSourceNote" class="probe-temperature-source-note">NOAA uses the selected launch / area fished pin by default. If it has no pin, it uses the waterbody pin.</p>
-              <p id="probeProfileImportStatus" class="probe-temperature-import-status" role="status" aria-live="polite"></p>
+              <h4 id="probeTemperatureHeading">Water temperature profile</h4>
             </div>
+          </summary>
+          <div class="probe-temperature-content">
             <div class="probe-temperature-actions">
               <button class="button secondary compact-action" type="button" data-choose-probe-profile-location>Choose map point</button>
               <button class="button secondary compact-action hidden" type="button" data-clear-probe-profile-location>Use launch pin</button>
               <button class="button secondary compact-action" type="button" data-import-noaa-probe-profile>Use NOAA profile</button>
               <button class="button secondary compact-action" type="button" data-clear-probe-profile>Clear readings</button>
             </div>
-          </div>
-          <div class="probe-temperature-layout">
+            <p id="probeProfileSourceNote" class="probe-temperature-source-note">NOAA uses the selected launch / area fished pin by default. If it has no pin, it uses the waterbody pin.</p>
+            <p id="probeProfileImportStatus" class="probe-temperature-import-status" role="status" aria-live="polite"></p>
+            <div class="probe-temperature-layout">
             <div class="probe-temperature-editor">
               <div class="probe-temperature-editor-heading" aria-hidden="true">
                 <span data-unit-label="depth" data-unit-label-text="Depth">Depth</span>
@@ -206,8 +206,9 @@
               </div>
               <p id="probeTemperatureChartSummary" class="visually-hidden" aria-live="polite"></p>
             </section>
+            </div>
           </div>
-        </section>
+        </details>
 
         <section class="trip-form-section people-editor" id="tripPeopleSection">
           <div class="section-heading">
@@ -227,6 +228,8 @@
               <p>Rods and gear used throughout the trip.</p>
             </div>
             <div class="section-actions">
+              <button class="button secondary non-trolling-field" id="pickSavedSetupButton" type="button">Pick Setup</button>
+              <button class="button secondary trolling-field" id="pickTrollingSpreadButton" type="button">Pick Spread</button>
               <button class="button secondary trolling-field" id="importLastTrollingSpreadButton" type="button">Import Last Spread</button>
               <button class="button secondary" id="addTripGearButton" type="button">Add Rod</button>
             </div>
