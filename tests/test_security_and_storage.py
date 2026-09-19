@@ -288,6 +288,41 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertEqual(normalized["settings"]["trollingSpreads"][0]["id"], normalized["settings"]["defaultTrollingSpreadId"])
         self.assertNotIn("defaultTrollingSpread", normalized["settings"])
 
+    def test_empty_named_spreads_do_not_suppress_legacy_spread_migration(self) -> None:
+        cases = [
+            (
+                "defaultTrollingSpread",
+                [{"comboId": "combo-1", "side": "Port", "presentation": "Downrigger"}],
+                "General Spread",
+            ),
+            (
+                "defaultTrollingSpreads",
+                [{
+                    "targetSpecies": "Walleye",
+                    "spread": [{"comboId": "combo-2", "side": "Starboard", "presentation": "High Diver"}],
+                }],
+                "Walleye Spread",
+            ),
+        ]
+
+        for legacy_key, legacy_value, expected_name in cases:
+            with self.subTest(legacy_key=legacy_key):
+                normalized = logbook_store.normalize_logbook(
+                    {
+                        "schemaVersion": 1,
+                        "trips": [],
+                        "lures": [],
+                        "flashers": [],
+                        "settings": {
+                            "trollingSpreads": [],
+                            legacy_key: legacy_value,
+                        },
+                    }
+                )
+
+                self.assertEqual(expected_name, normalized["settings"]["trollingSpreads"][0]["name"])
+                self.assertEqual(1, len(normalized["settings"]["trollingSpreads"]))
+
     def test_legacy_default_trolling_spreads_migrate_to_named_spreads_without_species_matching(self) -> None:
         normalized = logbook_store.normalize_logbook(
             {

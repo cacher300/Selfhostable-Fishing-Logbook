@@ -95,7 +95,10 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         if not any(item.get("maxFeet") is None for item in cleaned_ranges):
             cleaned_ranges.append(default_ranges[-1])
         raw_named_spreads = normalized["settings"].get("trollingSpreads")
-        has_named_spreads = isinstance(raw_named_spreads, list)
+        # An empty list is the new default, not proof that a legacy logbook has
+        # no saved spreads. Keep the legacy migration path open until there is
+        # at least one named spread to treat as authoritative.
+        has_named_spreads = isinstance(raw_named_spreads, list) and bool(raw_named_spreads)
         raw_default_spreads = normalized["settings"].get("defaultTrollingSpreads")
         raw_default_spread = normalized["settings"].get("defaultTrollingSpread")
         legacy_entries = raw_default_spreads if isinstance(raw_default_spreads, list) else []
