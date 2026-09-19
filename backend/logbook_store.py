@@ -69,7 +69,7 @@ def normalize_logbook(payload: dict | None = None) -> dict:
         raw_units = normalized["settings"].get("units")
         cleaned_units = deepcopy(DEFAULT_UNITS)
         if isinstance(raw_units, dict):
-            for key, default_value in DEFAULT_UNITS.items():
+            for key in DEFAULT_UNITS:
                 value = raw_units.get(key)
                 if value in UNIT_OPTIONS.get(key, set()):
                     cleaned_units[key] = value

@@ -141,6 +141,7 @@ const els = {
   newChecklistButton: document.querySelector("#newChecklistButton"),
   emptyNewChecklistButton: document.querySelector("#emptyNewChecklistButton"),
   newLibraryLureButton: document.querySelector("#newLibraryLureButton"),
+  newLibraryFlyButton: document.querySelector("#newLibraryFlyButton"),
   newLibraryFlasherButton: document.querySelector("#newLibraryFlasherButton"),
   newLibraryReelButton: document.querySelector("#newLibraryReelButton"),
   newLibraryRodButton: document.querySelector("#newLibraryRodButton"),
@@ -330,5 +331,6 @@ const els = {
   comboInventoryTable: document.querySelector("#comboInventoryTable"),
   lineTrackerTable: document.querySelector("#lineTrackerTable"),
   baitInventoryTable: document.querySelector("#baitInventoryTable"),
+  flyInventoryTable: document.querySelector("#flyInventoryTable"),
   flasherInventoryTable: document.querySelector("#flasherInventoryTable")
 };

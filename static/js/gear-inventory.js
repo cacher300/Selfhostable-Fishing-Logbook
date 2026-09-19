@@ -270,7 +270,7 @@ function renderLineTracker() {
 }
 
 function renderBaitInventory() {
-  const rows = state.lures.map((lure) => {
+  const rows = state.lures.filter((lure) => !isFlyLure(lure)).map((lure) => {
     return inventoryRow("lure", lure, [
       inventoryThumb(lure),
       `<button class="inventory-gear-preview-link" type="button" data-inventory-lure-id="${escapeHtml(lure.id)}" aria-label="Open preview for ${escapeHtml(lure.name || "lure")}">${escapeHtml(lure.name || "-")}</button>`,
@@ -284,6 +284,21 @@ function renderBaitInventory() {
     ]);
   });
   renderInventoryTable(els.baitInventoryTable, ["Photo", "Lure", "Fish caught", "Last used", "Type", "Brand", "Model", "Color", "Owned", ""], rows, "No saved lures yet.");
+}
+
+function renderFlyInventory() {
+  const rows = state.lures.filter(isFlyLure).map((fly) => inventoryRow("lure", fly, [
+    inventoryThumb(fly),
+    `<button class="inventory-gear-preview-link" type="button" data-inventory-lure-id="${escapeHtml(fly.id)}" aria-label="Open preview for ${escapeHtml(fly.name || "fly")}">${escapeHtml(fly.name || "-")}</button>`,
+    ...gearUsageCells("lure", fly.id),
+    escapeHtml(fly.flyCategory || "Other"),
+    escapeHtml(fly.flyPattern || "-"),
+    escapeHtml(fly.flyHookSize || "-"),
+    escapeHtml(fly.color || "-"),
+    escapeHtml(fly.quantityAvailable === "" || fly.quantityAvailable === null || fly.quantityAvailable === undefined ? "-" : fly.quantityAvailable),
+    `<button class="button secondary inventory-edit-action" type="button" data-edit-lure="${escapeHtml(fly.id)}">Edit</button>`
+  ]));
+  renderInventoryTable(els.flyInventoryTable, ["Photo", "Fly", "Fish caught", "Last used", "Category", "Pattern", "Hook size", "Color", "Owned", ""], rows, "No saved flies yet. Add a fly from any category to build your fly box.");
 }
 
 function renderFlasherInventory() {
@@ -310,6 +325,9 @@ function setGearTab(tab) {
   document.querySelectorAll("[data-gear-panel]").forEach((panel) => {
     panel.classList.toggle("hidden", panel.dataset.gearPanel !== tab);
   });
+  document.querySelectorAll("[data-gear-action-tab]").forEach((button) => {
+    button.classList.toggle("hidden", button.dataset.gearActionTab !== tab);
+  });
   const controls = document.querySelector(".gear-inventory-controls");
   const activePanel = document.querySelector(`[data-gear-panel="${tab}"]`);
   if (controls && activePanel) activePanel.querySelector(".gear-header")?.append(controls);
@@ -324,6 +342,7 @@ function renderGearLibrary() {
   renderComboInventory();
   renderLineTracker();
   renderBaitInventory();
+  renderFlyInventory();
   renderFlasherInventory();
   setGearTab(activeGearTab);
 }

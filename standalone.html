@@ -671,14 +671,16 @@
               <button class="gear-tab" type="button" data-gear-tab="combos">Combos</button>
               <button class="gear-tab" type="button" data-gear-tab="line">Line Tracker</button>
               <button class="gear-tab is-active" type="button" data-gear-tab="baits">Baits</button>
+              <button class="gear-tab" type="button" data-gear-tab="flies">Flies</button>
               <button class="gear-tab" type="button" data-gear-tab="flashers">Flashers</button>
             </div>
             <div class="gear-actions">
-              <button class="button primary gear-standard-action" id="newLibraryReelButton" type="button">New Reel</button>
-              <button class="button primary gear-standard-action" id="newLibraryRodButton" type="button">New Rod</button>
-              <button class="button primary gear-standard-action" id="newLibraryLureButton" type="button">New Lure</button>
-              <button class="button primary gear-standard-action" id="newLibraryFlasherButton" type="button">New Flasher</button>
-              <button class="button primary gear-standard-action" id="newLibraryComboButton" type="button">New Combo</button>
+              <button class="button primary gear-standard-action" id="newLibraryReelButton" data-gear-action-tab="reels" type="button">New Reel</button>
+              <button class="button primary gear-standard-action" id="newLibraryRodButton" data-gear-action-tab="rods" type="button">New Rod</button>
+              <button class="button primary gear-standard-action" id="newLibraryLureButton" data-gear-action-tab="baits" type="button">New Lure</button>
+              <button class="button primary gear-standard-action" id="newLibraryFlyButton" data-gear-action-tab="flies" type="button">New Fly</button>
+              <button class="button primary gear-standard-action" id="newLibraryFlasherButton" data-gear-action-tab="flashers" type="button">New Flasher</button>
+              <button class="button primary gear-standard-action" id="newLibraryComboButton" data-gear-action-tab="combos" type="button">New Combo</button>
             </div>
           </div>
           <div class="gear-inventory-controls" aria-label="Gear table controls">
@@ -732,6 +734,15 @@
                 </div>
               </div>
               <div class="inventory-table" id="baitInventoryTable"></div>
+            </section>
+            <section class="gear-tab-panel hidden" data-gear-panel="flies">
+              <div class="gear-header">
+                <div>
+                  <h3>Flies</h3>
+                  <p>Dry flies, emergers, nymphs, streamers, wets, terrestrials, eggs, midges, leeches, poppers, attractors, and saltwater patterns.</p>
+                </div>
+              </div>
+              <div class="inventory-table" id="flyInventoryTable"></div>
             </section>
             <section class="gear-tab-panel hidden" data-gear-panel="flashers">
               <div class="gear-header">

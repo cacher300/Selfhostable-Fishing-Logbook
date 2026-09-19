@@ -149,7 +149,7 @@ function openComboDialog(combo = null) {
   els.comboDialog.showModal();
 }
 
-function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "") {
+function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", initialType = "") {
   prepareInlineGearDialog("lure", pendingRowId);
   els.lureDialog.dataset.removedPhotoKeys = "[]";
   els.lureDialog.dataset.pendingLureTarget = pendingLureTarget;
@@ -162,11 +162,12 @@ function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "") 
   populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
   populateOptionSelect(document.querySelector("#flyCategory"), optionLabels("flyCategories"), "Select category");
   const editing = Boolean(lure);
-  document.querySelector("#lureDialog h2").textContent = editing ? "Edit Lure" : "Add Lure";
+  const gearLabel = String(lure?.type || initialType).toLowerCase() === "fly" ? "Fly" : "Lure";
+  document.querySelector("#lureDialog h2").textContent = editing ? `Edit ${gearLabel}` : `Add ${gearLabel}`;
   setValue("pendingCatchRow", pendingRowId);
   setValue("editingLureId", lure?.id || "");
   setValue("lureName", lure?.name || "");
-  setValue("lureType", lure?.type || "");
+  setValue("lureType", lure?.type || initialType);
   setValue("lureDivingDepth", lure?.divingDepth || "");
   setValue("lureBladeType", lure?.bladeType || "");
   setValue("lureSpoonSize", lure?.spoonSize || "");

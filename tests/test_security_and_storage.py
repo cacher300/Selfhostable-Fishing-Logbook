@@ -13,7 +13,6 @@ from unittest.mock import patch
 os.environ.setdefault("SECRET_KEY", "module-import-test-secret")
 
 from backend import logbook_store
-from server import create_app
 
 class LogbookStoreTests(unittest.TestCase):
     def test_attached_setup_weight_survives_normalization(self) -> None:
@@ -542,7 +541,6 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertEqual(locked_coordinates, stored["trips"][0]["catches"][0]["lockedLocationCoordinates"])
 
     def test_read_returns_defaults_before_database_exists(self) -> None:
-        payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
         with tempfile.TemporaryDirectory() as directory:
             database_file = Path(directory) / "logbook.sqlite3"
             with patch.object(logbook_store, "DATABASE_FILE", database_file):

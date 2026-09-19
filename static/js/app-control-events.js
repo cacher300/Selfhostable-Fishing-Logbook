@@ -168,6 +168,7 @@ els.checklistsViewButton.addEventListener("click", () => setView("checklists"));
 els.settingsWikiButton?.addEventListener("click", () => setView("wiki"));
 els.settingsViewButton.addEventListener("click", () => setView("settings"));
 els.newLibraryLureButton.addEventListener("click", () => openLureDialog());
+els.newLibraryFlyButton.addEventListener("click", () => openLureDialog(null, "", "", "Fly"));
 els.newLibraryFlasherButton.addEventListener("click", () => openFlasherDialog());
 els.newLibraryReelButton.addEventListener("click", () => openReelDialog());
 els.newLibraryRodButton.addEventListener("click", () => openRodDialog());
