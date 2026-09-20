@@ -172,6 +172,36 @@ function tripWeatherCoordinates(trip) {
   return null;
 }
 
+function tripNamingKey(trip) {
+  return [trip?.targetSpecies, trip?.method]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .join("\u0000");
+}
+
+function legacyGeneratedTripTitle(trip) {
+  const title = String(trip?.title || "").trim();
+  const legacyTitle = [trip?.date, trip?.targetSpecies ? `${trip.targetSpecies} Trip` : "Trip"]
+    .filter(Boolean)
+    .join(" ");
+  return Boolean(title) && title === legacyTitle;
+}
+
+function generatedTripTitle(trip, trips = []) {
+  const records = Array.isArray(trips) ? trips : [];
+  const currentIndex = records.findIndex((item) => item === trip
+    || (String(item?.id || "") && String(item?.id || "") === String(trip?.id || "")));
+  const recordsThroughTrip = currentIndex >= 0 ? records.slice(0, currentIndex + 1) : records;
+  const matchingTrips = recordsThroughTrip.filter((item) => tripNamingKey(item) === tripNamingKey(trip));
+  const currentTripMatches = currentIndex >= 0 && tripNamingKey(records[currentIndex]) === tripNamingKey(trip);
+  const number = matchingTrips.length + (currentTripMatches ? 0 : 1);
+  const labels = [String(trip?.targetSpecies || "").trim(), String(trip?.method || "").trim()].filter(Boolean);
+  return `${labels.join(" ") || "Fishing"} Trip #${number}`;
+}
+
+function shouldGenerateTripTitle(trip) {
+  return !String(trip?.title || "").trim() || legacyGeneratedTripTitle(trip);
+}
+
 function normalizeState(nextState) {
   const normalized = { ...structuredClone(defaults), ...(nextState || {}) };
   delete normalized.tripTypes;
@@ -297,6 +327,10 @@ function normalizeState(nextState) {
       expeditionId: expeditionIds.has(String(trip.expeditionId || "")) ? String(trip.expeditionId) : ""
     };
   });
+  const tripsForNaming = normalized.trips;
+  normalized.trips = tripsForNaming.map((trip) => shouldGenerateTripTitle(trip)
+    ? { ...trip, title: generatedTripTitle(trip, tripsForNaming) }
+    : trip);
 
   return normalized;
 }

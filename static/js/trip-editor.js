@@ -204,10 +204,6 @@ function tripSaveWarnings() {
   return warnings;
 }
 
-function generatedTripTitle(trip) {
-  return [trip?.date, trip?.targetSpecies ? `${trip.targetSpecies} Trip` : "Trip"].filter(Boolean).join(" ");
-}
-
 function confirmTripSaveWarnings() {
   const warnings = tripSaveWarnings();
   if (!warnings.length) return true;
@@ -215,7 +211,7 @@ function confirmTripSaveWarnings() {
 }
 
 function tripDeleteTitle(trip) {
-  return String(trip?.title || generatedTripTitle(trip || {}) || trip?.location || "Untitled trip").trim();
+  return String(trip?.title || generatedTripTitle(trip || {}, state.trips) || trip?.location || "Untitled trip").trim();
 }
 
 function confirmTripDeletion(trip) {

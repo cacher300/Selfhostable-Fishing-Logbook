@@ -535,6 +535,48 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             known_locations.setdefault(location.lower(), normalize_location(location))
     normalized["locations"] = sorted(known_locations.values(), key=lambda item: item["name"].lower())
 
+    def trip_naming_key(trip: dict) -> tuple[str, str]:
+        return (
+            str(trip.get("targetSpecies") or "").strip().casefold(),
+            str(trip.get("method") or "").strip().casefold(),
+        )
+
+    def legacy_generated_trip_title(trip: dict) -> bool:
+        title = str(trip.get("title") or "").strip()
+        legacy_title = " ".join(
+            value
+            for value in (
+                str(trip.get("date") or "").strip(),
+                f"{str(trip.get('targetSpecies') or '').strip()} Trip"
+                if str(trip.get("targetSpecies") or "").strip()
+                else "Trip",
+            )
+            if value
+        )
+        return bool(title) and title == legacy_title
+
+    def generated_trip_title(trip: dict, trips: list[dict]) -> str:
+        current_index = next(
+            (
+                index
+                for index, item in enumerate(trips)
+                if item is trip
+                or (str(item.get("id") or "") and str(item.get("id") or "") == str(trip.get("id") or ""))
+            ),
+            -1,
+        )
+        records_through_trip = trips[: current_index + 1] if current_index >= 0 else trips
+        matching_trips = sum(trip_naming_key(item) == trip_naming_key(trip) for item in records_through_trip)
+        current_trip_matches = current_index >= 0 and trip_naming_key(trips[current_index]) == trip_naming_key(trip)
+        number = matching_trips + (0 if current_trip_matches else 1)
+        labels = [
+            str(trip.get("targetSpecies") or "").strip(),
+            str(trip.get("method") or "").strip(),
+        ]
+        label = " ".join(value for value in labels if value) or "Fishing"
+        return f"{label} Trip #{number}"
+
+    trips_for_naming = normalized["trips"]
     for trip in normalized["trips"]:
         if not isinstance(trip, dict):
             continue
@@ -542,14 +584,10 @@ def normalize_logbook(payload: dict | None = None) -> dict:
             if isinstance(gear_item, dict):
                 gear_item.pop("boatItemId", None)
         title = str(trip.get("title") or "").strip()
-        if title:
+        if title and not legacy_generated_trip_title(trip):
             trip["title"] = title
         else:
-            date = str(trip.get("date") or "").strip()
-            species = str(trip.get("targetSpecies") or "").strip()
-            trip["title"] = " ".join(
-                value for value in (date, f"{species} Trip" if species else "Trip") if value
-            )
+            trip["title"] = generated_trip_title(trip, trips_for_naming)
         location_name = str(trip.get("location", "")).strip()
         location_id = str(trip.get("locationId", "")).strip()
         location_record = next((item for item in normalized["locations"] if item["id"] == location_id), None)

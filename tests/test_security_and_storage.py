@@ -597,16 +597,37 @@ class LogbookStoreTests(unittest.TestCase):
         )
         self.assertEqual("Blue/Silver Magnum Acme Spoon", normalized["lures"][0]["name"])
 
-    def test_trip_title_is_generated_from_date_and_species(self) -> None:
+    def test_trip_title_is_generated_from_species_method_and_sequence(self) -> None:
         normalized = logbook_store.normalize_logbook(
             {
                 "schemaVersion": 1,
-                "trips": [{"id": "trip-1", "title": "", "date": "2026-07-07", "targetSpecies": "Walleye"}],
+                "trips": [
+                    {"id": "trip-1", "title": "", "date": "2026-07-07", "targetSpecies": "Walleye", "method": "Trolling"},
+                    {"id": "trip-2", "title": "My evening trip", "date": "2026-07-08", "targetSpecies": "Walleye", "method": "Trolling"},
+                    {"id": "trip-3", "title": "", "date": "2026-07-09", "targetSpecies": "Walleye", "method": "Trolling"},
+                ],
                 "lures": [],
                 "flashers": [],
             }
         )
-        self.assertEqual("2026-07-07 Walleye Trip", normalized["trips"][0]["title"])
+        self.assertEqual("Walleye Trolling Trip #1", normalized["trips"][0]["title"])
+        self.assertEqual("My evening trip", normalized["trips"][1]["title"])
+        self.assertEqual("Walleye Trolling Trip #3", normalized["trips"][2]["title"])
+
+    def test_legacy_generated_trip_title_is_migrated_without_overwriting_custom_titles(self) -> None:
+        normalized = logbook_store.normalize_logbook(
+            {
+                "schemaVersion": 1,
+                "trips": [
+                    {"id": "trip-1", "title": "2026-07-07 Walleye Trip", "date": "2026-07-07", "targetSpecies": "Walleye", "method": "Trolling"},
+                    {"id": "trip-2", "title": "2026-07-08 Walleye Trip (custom)", "date": "2026-07-08", "targetSpecies": "Walleye", "method": "Trolling"},
+                ],
+                "lures": [],
+                "flashers": [],
+            }
+        )
+        self.assertEqual("Walleye Trolling Trip #1", normalized["trips"][0]["title"])
+        self.assertEqual("2026-07-08 Walleye Trip (custom)", normalized["trips"][1]["title"])
 
     def test_trip_people_are_saved_without_catches(self) -> None:
         normalized = logbook_store.normalize_logbook(

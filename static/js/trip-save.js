@@ -247,7 +247,7 @@ async function persistTrip(event, { draft = false } = {}) {
     // the same in-memory trip instead of creating a duplicate.
     setValue("tripId", trip.id);
     trip.isDraft = draft;
-    trip.title = trip.title || generatedTripTitle(trip);
+    trip.title = trip.title || generatedTripTitle(trip, state.trips);
     state.people = mergePeople(state.people, trip.people);
     state.locations = mergeLocations(state.locations, [trip.location]);
     upsertListValue("species", trip.targetSpecies);
