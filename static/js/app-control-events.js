@@ -123,6 +123,12 @@ els.editFlasherFromInfoButton.addEventListener("click", () => {
 });
 els.reelDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("reel"));
 els.rodDialog.addEventListener("close", () => restoreTripDialogAfterInlineGear("rod"));
+[
+  [els.tripDialog, "trip"], [els.lureDialog, "lure"],
+  [els.flasherDialog, "flasher"], [els.reelDialog, "reel"], [els.rodDialog, "rod"]
+].forEach(([dialog, scope]) => dialog.addEventListener("close", () => {
+  finishMediaEditSession(scope).catch((error) => console.warn(`Could not clean up ${scope} editor media.`, error));
+}));
 els.photoQueueDialog.addEventListener("close", restoreDialogAfterPhotoQueue);
 els.saveCatchLocationButton?.addEventListener("click", saveCatchLocationFromPicker);
 els.clearCatchLocationButton?.addEventListener("click", clearActiveCatchLocation);
@@ -449,6 +455,7 @@ els.galleryPageSizeSelect?.addEventListener("input", syncGallerySearchSort);
 els.galleryPreviousPageButton?.addEventListener("click", () => setGalleryPage(activeGalleryPage - 1));
 els.galleryNextPageButton?.addEventListener("click", () => setGalleryPage(activeGalleryPage + 1));
 els.gallerySelectModeButton?.addEventListener("click", () => setGallerySelectionMode(!gallerySelectionMode));
+els.galleryOrphanScanButton?.addEventListener("click", () => toggleGalleryOrphanScan());
 els.galleryBatchDownloadButton?.addEventListener("click", () => downloadGalleryItems(selectedGalleryPayload()));
 els.galleryBatchDeleteButton?.addEventListener("click", async () => {
   try {

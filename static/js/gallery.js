@@ -29,11 +29,15 @@ let activeGallerySort = "newest";
 let activeGalleryPageSize = "50";
 let activeGalleryPage = 1;
 let gallerySelectionMode = false;
+let galleryOrphanScanActive = false;
 let selectedGalleryItems = new Set();
 let activeGalleryLightboxIndex = -1;
 
 async function loadGalleryItems() {
-  const response = await fetch(`/api/gallery?category=${encodeURIComponent(activeGalleryCategory)}`);
+  const url = galleryOrphanScanActive
+    ? "/api/orphaned-media"
+    : `/api/gallery?category=${encodeURIComponent(activeGalleryCategory)}`;
+  const response = await fetch(url);
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.error || "Could not load gallery");
@@ -257,14 +261,16 @@ function renderGalleryItems() {
   const endIndex = Number.isFinite(limit) ? startIndex + limit : matchedItems.length;
   galleryVisibleItems = matchedItems.slice(startIndex, endIndex);
   selectedGalleryItems = new Set([...selectedGalleryItems].filter((key) => galleryItems.some((item) => galleryItemKey(item) === key)));
-  els.galleryStatus.textContent = `Showing ${galleryVisibleItems.length} of ${matchedItems.length} ${matchedItems.length === 1 ? "photo" : "photos"} available`;
+  els.galleryStatus.textContent = galleryOrphanScanActive
+    ? `${matchedItems.length} orphaned ${matchedItems.length === 1 ? "item" : "items"} found${galleryVisibleItems.length < matchedItems.length ? `; showing ${galleryVisibleItems.length}` : ""}`
+    : `Showing ${galleryVisibleItems.length} of ${matchedItems.length} ${matchedItems.length === 1 ? "item" : "items"} available`;
   els.galleryPagination?.classList.toggle("hidden", pageCount <= 1);
   els.galleryPreviousPageButton?.toggleAttribute("disabled", activeGalleryPage <= 1);
   els.galleryNextPageButton?.toggleAttribute("disabled", activeGalleryPage >= pageCount);
   if (els.galleryPageStatus) els.galleryPageStatus.textContent = `Page ${activeGalleryPage} of ${pageCount}`;
   updateGallerySelectionBar();
   if (!galleryVisibleItems.length) {
-    els.galleryGrid.innerHTML = `<div class="empty-state"><p>No uploaded media matches these filters.</p></div>`;
+    els.galleryGrid.innerHTML = `<div class="empty-state"><p>${galleryOrphanScanActive ? "No orphaned media matches these filters." : "No uploaded media matches these filters."}</p></div>`;
     return;
   }
   els.galleryGrid.innerHTML = galleryVisibleItems.map(galleryCard).join("");
@@ -272,6 +278,11 @@ function renderGalleryItems() {
 
 async function renderGallery() {
   renderGalleryFilters();
+  if (els.galleryOrphanScanButton) {
+    els.galleryOrphanScanButton.textContent = galleryOrphanScanActive ? "Show all media" : "Scan orphaned media";
+    els.galleryOrphanScanButton.setAttribute("aria-pressed", String(galleryOrphanScanActive));
+  }
+  els.galleryOrphanHelp?.classList.toggle("hidden", !galleryOrphanScanActive);
   els.galleryStatus.textContent = "Loading gallery...";
   els.galleryPagination?.classList.add("hidden");
   els.galleryGrid.innerHTML = "";
@@ -284,6 +295,15 @@ async function renderGallery() {
     els.galleryPagination?.classList.add("hidden");
     els.galleryGrid.innerHTML = `<div class="empty-state"><p>The gallery could not be loaded.</p></div>`;
   }
+}
+
+async function toggleGalleryOrphanScan() {
+  galleryOrphanScanActive = !galleryOrphanScanActive;
+  activeGalleryCategory = "all";
+  activeGalleryQuickFilter = "all";
+  activeGalleryPage = 1;
+  setGallerySelectionMode(false);
+  await renderGallery();
 }
 
 function galleryLightboxMarkup(item, index) {

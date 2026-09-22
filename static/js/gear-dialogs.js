@@ -73,6 +73,7 @@ function updateFlyGearVisibility() {
 }
 
 function openReelDialog(reel = null, { duplicate = false } = {}) {
+  beginMediaEditSession("reel");
   els.reelDialog.dataset.removedPhotoKeys = "[]";
   els.reelForm.reset();
   pendingReelImage = null;
@@ -106,6 +107,7 @@ function openReelDialog(reel = null, { duplicate = false } = {}) {
 }
 
 function openRodDialog(rod = null, { duplicate = false } = {}) {
+  beginMediaEditSession("rod");
   els.rodDialog.dataset.removedPhotoKeys = "[]";
   els.rodForm.reset();
   pendingRodImage = null;
@@ -150,6 +152,7 @@ function openComboDialog(combo = null) {
 }
 
 function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", initialType = "") {
+  beginMediaEditSession("lure");
   prepareInlineGearDialog("lure", pendingRowId);
   els.lureDialog.dataset.removedPhotoKeys = "[]";
   els.lureDialog.dataset.pendingLureTarget = pendingLureTarget;
@@ -241,6 +244,7 @@ function isSpoonType(type) {
 }
 
 function openFlasherDialog(flasher = null, pendingRowId = "") {
+  beginMediaEditSession("flasher");
   prepareInlineGearDialog("flasher", pendingRowId);
   els.flasherDialog.dataset.removedPhotoKeys = "[]";
   els.flasherForm.reset();
@@ -331,6 +335,8 @@ async function saveReel(event) {
     upsertListValue("reelStyles", reel.style);
     reel.lineHistory.forEach((line) => upsertListValue("lineTypes", line.type));
     await saveState();
+    markMediaEditSessionSaved("reel");
+    await cleanupReplacedMedia(editingId ? existing : null, reel);
     els.reelDialog.close();
     els.reelForm.reset();
     els.reelDialog.dataset.duplicateFromId = "";
@@ -380,6 +386,8 @@ async function saveRod(event) {
     else state.rods.push(rod);
     upsertListValue("rodTypes", rod.type);
     await saveState();
+    markMediaEditSessionSaved("rod");
+    await cleanupReplacedMedia(editingId ? existing : null, rod);
     els.rodDialog.close();
     els.rodForm.reset();
     els.rodDialog.dataset.duplicateFromId = "";
@@ -446,6 +454,8 @@ async function saveLure(event) {
     upsertListValue("lureTypes", lure.type);
     upsertListValue("flyCategories", lure.flyCategory);
     await saveState();
+    markMediaEditSessionSaved("lure");
+    await cleanupReplacedMedia(existing, lure);
     [...document.querySelectorAll(".catch-lure, .trip-gear-lure, .trip-gear-cheater-lure")].forEach((select) => populateLureSelect(select, select.value));
     const rowId = getValue("pendingCatchRow");
     const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
@@ -496,6 +506,8 @@ async function saveFlasher(event) {
     else state.flashers.push(flasher);
     upsertListValue("flasherTypes", flasher.type);
     await saveState();
+    markMediaEditSessionSaved("flasher");
+    await cleanupReplacedMedia(existing, flasher);
     [...document.querySelectorAll(".catch-flasher, .trip-gear-flasher")].forEach((select) => populateFlasherSelect(select, select.value));
     const rowId = getValue("pendingFlasherCatchRow");
     const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
@@ -528,6 +540,7 @@ async function deleteReel() {
     if (gearItem.reelId === reelId) gearItem.reelId = "";
   }));
   await saveState();
+  await cleanupReplacedMedia(reel, null);
   els.reelDialog.close();
   renderAll();
 }
@@ -544,6 +557,7 @@ async function deleteRod() {
     if (gearItem.rodId === rodId) gearItem.rodId = "";
   }));
   await saveState();
+  await cleanupReplacedMedia(rod, null);
   els.rodDialog.close();
   renderAll();
 }
@@ -575,6 +589,7 @@ async function deleteLure() {
     (trip.lostFish || []).forEach((fish) => { if (fish.lureId === lureId) fish.lureId = ""; });
   });
   await saveState();
+  await cleanupReplacedMedia(lure, null);
   els.lureDialog.close();
   renderAll();
 }
@@ -590,6 +605,7 @@ async function deleteFlasher() {
     (trip.lostFish || []).forEach((fish) => { if (fish.flasherId === flasherId) fish.flasherId = ""; });
   });
   await saveState();
+  await cleanupReplacedMedia(flasher, null);
   els.flasherDialog.close();
   renderAll();
 }

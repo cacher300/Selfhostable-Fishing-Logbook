@@ -38,6 +38,8 @@ function photoQueueCatchGroups(photos = [], tripDate = "") {
 }
 
 async function copyQueuedPhotoForCatch(filename) {
+  const session = mediaEditSession("trip");
+  if (!session) throw new Error("Open the trip editor before copying queued photos.");
   const response = await protectedFetch("/api/photo-queue/copy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -48,6 +50,7 @@ async function copyQueuedPhotoForCatch(filename) {
     throw new Error(payload.error || "Could not use queued photo");
   }
   const photo = await response.json();
+  if (!trackCreatedMedia(session, photo)) throw new Error("The trip editor closed before the photo was copied.");
   return {
     id: createId(),
     ...photo,

@@ -120,19 +120,28 @@ def test_orphan_listing_is_read_only() -> None:
         orphan = uploads / "trip-photos" / "orphan.jpg"
         orphan.parent.mkdir(parents=True)
         orphan.write_bytes(b"keep-me")
+        attached = uploads / "trip-photos" / "attached.jpg"
+        attached.write_bytes(b"attached")
+        queued = uploads / "queue" / "waiting.jpg"
+        queued.parent.mkdir(parents=True)
+        queued.write_bytes(b"queued")
 
         with (
             patch.object(logbook_store, "DATABASE_FILE", database),
             patch.object(media_service, "UPLOADS_DIR", uploads),
             patch("server.DATA_DIR", root),
         ):
-            logbook_store.write_logbook({"schemaVersion": 1, "trips": [], "lures": [], "flashers": []})
+            logbook_store.write_logbook({
+                "schemaVersion": 1,
+                "trips": [{"id": "trip", "notePhotos": [{"path": "trip-photos/attached.jpg"}]}],
+                "lures": [], "flashers": [],
+            })
             app = create_app({"TESTING": True, "SECRET_KEY": "orphan-list-test"})
             with app.test_client() as client:
                 response = client.get("/api/orphaned-media")
 
             assert response.status_code == 200
-            assert response.get_json()["media"][0]["filename"] == "orphan.jpg"
+            assert [item["filename"] for item in response.get_json()["media"]] == ["orphan.jpg"]
             assert orphan.read_bytes() == b"keep-me"
 
 

@@ -12,10 +12,10 @@
 
 .gallery-tools {
   display: grid;
-  grid-template-columns: minmax(220px, 1.1fr) minmax(130px, 0.6fr) minmax(110px, 0.45fr) minmax(150px, 0.7fr) auto;
+  grid-template-columns: minmax(165px, 1.1fr) minmax(110px, 0.6fr) minmax(90px, 0.45fr) minmax(130px, 0.7fr) minmax(140px, 0.75fr) minmax(185px, 0.8fr);
   align-items: end;
   gap: 10px;
-  width: min(100%, 860px);
+  width: min(100%, 1120px);
   min-width: 0;
 }
 
@@ -26,6 +26,10 @@
 .gallery-select-mode-button {
   align-self: end;
   min-height: 42px;
+  white-space: nowrap;
+}
+
+.gallery-tools > .button {
   white-space: nowrap;
 }
 
@@ -630,4 +634,3 @@
 .end-only .danger {
   margin-right: auto;
 }
-

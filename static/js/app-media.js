@@ -91,6 +91,61 @@ async function cleanupDeletedMedia(mediaKeys) {
   };
 }
 
+async function cleanupReplacedMedia(previous, current) {
+  const retained = mediaReferenceKeys(current);
+  return cleanupDeletedMedia([...mediaReferenceKeys(previous)].filter((key) => !retained.has(key)));
+}
+
+const mediaEditSessions = new Map();
+
+function beginMediaEditSession(scope) {
+  const session = { active: true, saved: false, keys: new Set(), claimedQueue: new Map() };
+  mediaEditSessions.set(scope, session);
+  return session;
+}
+
+function mediaEditSession(scope) {
+  return mediaEditSessions.get(scope) || null;
+}
+
+function trackCreatedMedia(session, item, queueFilename = "") {
+  const key = mediaReferenceKey(item);
+  if (!session || !key || key.startsWith("queue/")) return true;
+  if (!session.active) {
+    cleanupDeletedMedia([key]).catch((error) => console.warn("Could not clean up a late media upload.", error));
+    return false;
+  }
+  session.keys.add(key);
+  if (queueFilename) session.claimedQueue.set(key, queueFilename);
+  return true;
+}
+
+function markMediaEditSessionSaved(scope) {
+  const session = mediaEditSession(scope);
+  if (session) session.saved = true;
+}
+
+async function finishMediaEditSession(scope) {
+  const session = mediaEditSession(scope);
+  if (!session) return;
+  session.active = false;
+  mediaEditSessions.delete(scope);
+  const referenced = session.saved ? mediaReferenceKeys(state) : new Set();
+  await cleanupDeletedMedia([...session.keys].filter((key) => !referenced.has(key)));
+  if (!session.saved || typeof location === "undefined" || location.protocol === "file:") return;
+  const claimedSources = new Set([...session.claimedQueue]
+    .filter(([key]) => referenced.has(key))
+    .map(([, filename]) => filename));
+  for (const filename of claimedSources) {
+    try {
+      const response = await protectedFetch(`/api/photo-queue/${encodeURIComponent(filename)}`, { method: "DELETE" });
+      if (!response.ok) console.warn(`Could not remove claimed queue media ${filename} (${response.status}).`);
+    } catch (error) {
+      console.warn(`Could not remove claimed queue media ${filename}.`, error);
+    }
+  }
+}
+
 function mediaMarkup(item, className = "") {
   const source = previewImage(item);
   if (!source) return "";

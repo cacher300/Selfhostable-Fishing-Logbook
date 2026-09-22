@@ -15,14 +15,16 @@ function sharedTripImportText(value, fallback = "Not logged") {
 function sharedTripImportSummaryHtml(trip) {
   const date = trip.date ? formatDate(trip.date) : "Date not logged";
   const place = [trip.location, trip.launch].filter(Boolean).join(" · ") || "Location not logged";
-  const time = [trip.linesSetTime, trip.linesPulledTime].filter(Boolean).join(" – ") || "Time not logged";
+  const startTime = formatDisplayTime(trip.linesSetTime || trip.startTime || trip.launchTime || "") || "Not logged";
+  const endTime = formatDisplayTime(trip.linesPulledTime || trip.endTime || "") || "Not logged";
   const people = Array.isArray(trip.people) && trip.people.length ? trip.people.join(", ") : "No people logged";
   return `
     <div><dt>Trip</dt><dd>${escapeHtml(sharedTripImportText(trip.title, "Untitled trip"))}</dd></div>
     <div><dt>Date</dt><dd>${escapeHtml(date)}</dd></div>
     <div><dt>Location</dt><dd>${escapeHtml(place)}</dd></div>
     <div><dt>Method</dt><dd>${escapeHtml(sharedTripImportText(trip.method))}</dd></div>
-    <div><dt>Fishing time</dt><dd>${escapeHtml(time)}</dd></div>
+    <div><dt>Start time</dt><dd>${escapeHtml(startTime)}</dd></div>
+    <div><dt>End time</dt><dd>${escapeHtml(endTime)}</dd></div>
     <div><dt>Log</dt><dd>${escapeHtml(`${Number(trip.caught || 0)} landed · ${Number(trip.lost || 0)} lost`)}</dd></div>
     <div><dt>People</dt><dd>${escapeHtml(people)}</dd></div>
   `;
@@ -53,7 +55,9 @@ function sharedTripImportPeopleHtml(people) {
 
 function sharedTripCandidateLabel(candidate) {
   const place = [candidate.location, candidate.launch].filter(Boolean).join(" · ") || "No location";
-  const time = [candidate.linesSetTime, candidate.linesPulledTime].filter(Boolean).join(" – ") || "No fishing time";
+  const startTime = formatDisplayTime(candidate.linesSetTime || candidate.startTime || candidate.launchTime || "");
+  const endTime = formatDisplayTime(candidate.linesPulledTime || candidate.endTime || "");
+  const time = [startTime, endTime].filter(Boolean).join(" – ") || "No times logged";
   return `${candidate.title || "Untitled trip"} — ${place} · ${time}`;
 }
 
@@ -85,14 +89,12 @@ function renderSharedTripImportPreview(preview) {
   els.sharedTripImportDuplicate.innerHTML = sharedTripImportDuplicateHtml(preview.candidates || []);
   els.sharedTripImportPreview.hidden = false;
   els.sharedTripImportConfirmButton.disabled = false;
-  sharedTripImportStatus("Review the people and any possible overlap before importing.");
 }
 
 function resetSharedTripImportDialog() {
   sharedTripImportFile = null;
   sharedTripImportPreviewData = null;
   if (els.sharedTripImportInput) els.sharedTripImportInput.value = "";
-  if (els.sharedTripImportFileName) els.sharedTripImportFileName.textContent = "No file selected";
   if (els.sharedTripImportPreview) els.sharedTripImportPreview.hidden = true;
   if (els.sharedTripImportPeople) els.sharedTripImportPeople.innerHTML = "";
   if (els.sharedTripImportDuplicate) els.sharedTripImportDuplicate.innerHTML = "";
@@ -114,7 +116,6 @@ async function previewSharedTripImport(file) {
     return;
   }
   sharedTripImportFile = file;
-  els.sharedTripImportFileName.textContent = file.name;
   els.sharedTripImportPreview.hidden = true;
   els.sharedTripImportConfirmButton.disabled = true;
   sharedTripImportStatus("Reading Shared Trip ZIP…");
@@ -129,7 +130,6 @@ async function previewSharedTripImport(file) {
     console.error("Shared trip preview failed", error);
     sharedTripImportFile = null;
     sharedTripImportPreviewData = null;
-    els.sharedTripImportFileName.textContent = "No file selected";
     sharedTripImportStatus(error.message || "Could not read the Shared Trip ZIP.", "error");
   }
 }

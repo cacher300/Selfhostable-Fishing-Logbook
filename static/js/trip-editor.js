@@ -295,6 +295,7 @@ function ensureProbeTemperatureProfileDisclosure() {
 }
 
 function openTripDialog(trip = null) {
+  beginMediaEditSession("trip");
   activeTripId = trip?.id || null;
   newTripStartupSpreadApplied = false;
   newTripSavedSetupAppliedMethods = new Set();

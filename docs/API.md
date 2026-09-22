@@ -124,7 +124,7 @@ Deletes queued media, sidecar, and preview. It is idempotent and returns `{ "ok"
 
 ### `GET /api/orphaned-media`
 
-Returns non-queue disk items not recursively referenced by the current logbook as `{ "media": [...] }`.
+Returns non-queue local or cloud uploads not recursively referenced by the saved logbook as `{ "media": [...] }`. The Gallery uses this route for its orphaned media scan. Review results before deletion because uploads in an unsaved editor can appear here.
 
 ### `DELETE /api/uploads/<category>/<filename>`
 

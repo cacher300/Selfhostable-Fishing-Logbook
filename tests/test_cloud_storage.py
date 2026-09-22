@@ -30,6 +30,49 @@ class CloudStorageRouteTests(unittest.TestCase):
         return self.client.get("/api/csrf-token").get_json()["csrfToken"]
 
     @patch("server.cloud_storage.enabled", return_value=True)
+    @patch("server.cloud_storage.list_media")
+    @patch("server.cloud_storage.get_logbook")
+    def test_orphan_scan_excludes_references_and_queue(self, get_logbook, list_media, _enabled) -> None:
+        logbook = sample_logbook()
+        logbook["trips"] = [{"id": "trip", "notePhotos": [{"path": "trip-photos/attached.jpg"}]}]
+        get_logbook.return_value = (logbook, '"7"')
+        list_media.return_value = [
+            {"category": "trip-photos", "filename": "attached.jpg"},
+            {"category": "trip-photos", "filename": "orphan.jpg"},
+            {"category": "queue", "filename": "waiting.jpg"},
+        ]
+
+        response = self.client.get("/api/orphaned-media")
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(["orphan.jpg"], [item["filename"] for item in response.get_json()["media"]])
+
+    @patch("server.cloud_storage.enabled", return_value=True)
+    @patch("server.cloud_storage.list_media", return_value=[{}] * 500)
+    @patch("server.cloud_storage.get_logbook")
+    def test_orphan_scan_rejects_truncated_cloud_inventory(self, get_logbook, _list_media, _enabled) -> None:
+        get_logbook.return_value = (sample_logbook(), '"7"')
+
+        response = self.client.get("/api/orphaned-media")
+
+        self.assertEqual(503, response.status_code)
+        self.assertIn("500-item limit", response.get_json()["error"])
+
+    @patch("server.cloud_storage.enabled", return_value=True)
+    @patch("server.cloud_storage.list_media")
+    @patch("server.cloud_storage.get_logbook")
+    def test_orphan_scan_checks_categories_when_total_exceeds_limit(self, get_logbook, list_media, _enabled) -> None:
+        get_logbook.return_value = (sample_logbook(), '"7"')
+        list_media.side_effect = lambda category=None: ([{}] * 500 if category is None else [
+            {"category": category, "filename": f"{category}.jpg"}
+        ])
+
+        response = self.client.get("/api/orphaned-media")
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(6, len(response.get_json()["media"]))
+
+    @patch("server.cloud_storage.enabled", return_value=True)
     @patch("server.cloud_storage.get_logbook")
     def test_logbook_get_exposes_cloud_revision(self, get_logbook, _enabled) -> None:
         get_logbook.return_value = (sample_logbook(), '"7"')

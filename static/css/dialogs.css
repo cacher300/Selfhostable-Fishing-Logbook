@@ -102,17 +102,11 @@
   color: var(--muted);
 }
 
-.target-pill {
+.trip-target-text {
   display: inline-block;
-  width: max-content;
   max-width: 100%;
-  border: 1px solid var(--chip-line);
-  color: var(--active-text);
-  background: var(--chip-bg);
-  padding: 4px 8px;
-  border-radius: 999px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -73,6 +73,10 @@
   display: grid;
 }
 
+.shared-trip-import-review[hidden] {
+  display: none;
+}
+
 .shared-trip-import-section + .shared-trip-import-section {
   border-top: 1px solid var(--line);
 }

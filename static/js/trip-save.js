@@ -264,10 +264,14 @@ async function persistTrip(event, { draft = false } = {}) {
     activeTripWeatherData = trip.weatherData || null;
 
     const index = state.trips.findIndex((item) => item.id === trip.id);
+    const previousMedia = index >= 0 ? [...mediaReferenceKeys(state.trips[index])] : [];
     if (index >= 0) state.trips[index] = trip;
     else state.trips.push(trip);
 
     await saveState();
+    markMediaEditSessionSaved("trip");
+    const currentMedia = mediaReferenceKeys(trip);
+    await cleanupDeletedMedia(previousMedia.filter((key) => !currentMedia.has(key)));
     closeTripDialog({ force: true });
     renderAll();
   } catch (error) {

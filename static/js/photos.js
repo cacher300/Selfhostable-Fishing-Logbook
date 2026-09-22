@@ -8,6 +8,12 @@ function getExifAscii(view, offset, count) {
 }
 
 async function uploadImageFile(file, category, metadata = {}) {
+  const scope = {
+    "trip-photos": "trip", "catch-photos": "trip",
+    lures: "lure", flashers: "flasher", reels: "reel", rods: "rod"
+  }[category];
+  const session = scope ? mediaEditSession(scope) : null;
+  if (scope && !session) throw new Error("Open an editor before uploading media.");
   const formData = new FormData();
   formData.append("file", file);
   formData.append("metadata", JSON.stringify(metadata));
@@ -20,6 +26,7 @@ async function uploadImageFile(file, category, metadata = {}) {
     throw new Error(payload.error || "Media upload failed");
   }
   const payload = await response.json();
+  if (!trackCreatedMedia(session, payload)) throw new Error("The editor closed before the upload finished.");
   return {
     ...payload,
     image: payload.url,
@@ -857,13 +864,17 @@ async function addPhotosToQueue(event) {
 
 async function claimQueuedPhoto(filename) {
   if (!activePhotoQueueTarget) return;
+  const target = activePhotoQueueTarget;
+  const scope = ["catch", "trip"].includes(target.type) ? "trip" : target.type;
+  const session = mediaEditSession(scope);
   try {
-    const response = await protectedFetch("/api/photo-queue/claim", {
+    if (!session) throw new Error("Open an editor before using queued media.");
+    const response = await protectedFetch("/api/photo-queue/copy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         filename,
-        targetCategory: activePhotoQueueTarget.category
+        targetCategory: target.category
       })
     });
     if (!response.ok) {
@@ -871,15 +882,16 @@ async function claimQueuedPhoto(filename) {
       throw new Error(payload.error || "Could not use queued photo");
     }
     const photo = await response.json();
-  const photoItem = {
-    id: createId(),
-    ...photo,
-    image: photo.url,
-    previewImage: photo.previewUrl || photo.url
-  };
+    if (!trackCreatedMedia(session, photo, filename)) return;
+    const photoItem = {
+      id: createId(),
+      ...photo,
+      image: photo.url,
+      previewImage: photo.previewUrl || photo.url
+    };
 
-    if (activePhotoQueueTarget.type === "catch") {
-      const row = activePhotoQueueTarget.row;
+    if (target.type === "catch") {
+      const row = target.row;
       row.catchPhotos = [...(row.catchPhotos || []), photoItem];
       const selectedPhoto = selectedCatchPhotoLocation(row);
       if (selectedPhoto) applyPhotoLocationToCatch(row, selectedPhoto);
@@ -890,33 +902,33 @@ async function claimQueuedPhoto(filename) {
       updateRowSummary(row);
       markTripFormChanged();
     }
-    if (activePhotoQueueTarget.type === "trip") {
+    if (target.type === "trip") {
       activeNotePhotos = [...activeNotePhotos, { ...photoItem, caption: "" }];
       renderNotePhotos();
     }
-    if (activePhotoQueueTarget.type === "lure") {
+    if (target.type === "lure") {
       pendingLureImage = photoItem;
       document.querySelector("#lureImage").value = "";
       renderQueuedGearImage("lure");
     }
-    if (activePhotoQueueTarget.type === "flasher") {
+    if (target.type === "flasher") {
       pendingFlasherImage = photoItem;
       document.querySelector("#flasherImage").value = "";
       renderQueuedGearImage("flasher");
     }
-    if (activePhotoQueueTarget.type === "reel") {
+    if (target.type === "reel") {
       pendingReelImage = photoItem;
       document.querySelector("#reelImage").value = "";
       renderQueuedGearImage("reel");
     }
-    if (activePhotoQueueTarget.type === "rod") {
+    if (target.type === "rod") {
       pendingRodImage = photoItem;
       document.querySelector("#rodImage").value = "";
       renderQueuedGearImage("rod");
     }
 
     await renderPhotoQueue();
-    if (["lure", "flasher", "reel", "rod"].includes(activePhotoQueueTarget.type)) {
+    if (["lure", "flasher", "reel", "rod"].includes(target.type)) {
       els.photoQueueDialog.close();
     }
   } catch (error) {

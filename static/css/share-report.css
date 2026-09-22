@@ -803,8 +803,8 @@
 .share-check input { accent-color: var(--green); }
 .share-content-card { min-height: 48px; border-color: var(--line); border-radius: 6px; color: var(--muted); background: var(--field); }
 .share-content-card:hover { border-color: var(--muted); background: var(--hover); }
-.share-content-card input { accent-color: var(--muted); }
-.share-content-card:has(input:checked) { border-color: var(--line); color: var(--text); background: var(--hover); }
+.share-content-card input { accent-color: var(--green); }
+.share-content-card:has(input:checked) { border-color: var(--green); color: var(--active-text); background: var(--active-bg); }
 .share-content-card:has(input:focus-visible) { outline-color: color-mix(in srgb, var(--green) 42%, transparent); }
 
 .share-trip-preview-panel { display: grid; align-content: start; gap: 12px; padding: 18px 20px 24px; background: var(--panel); }

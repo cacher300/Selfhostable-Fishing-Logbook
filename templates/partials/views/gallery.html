@@ -29,6 +29,7 @@
                 <select id="galleryCategoryFilter"></select>
               </label>
               <button class="button secondary gallery-select-mode-button" id="gallerySelectModeButton" type="button">Select Photos</button>
+              <button class="button secondary" id="galleryOrphanScanButton" type="button">Scan orphaned media</button>
             </div>
           </div>
           <div class="gallery-filter-row" id="galleryQuickFilters" aria-label="Gallery quick filters"></div>
@@ -41,6 +42,7 @@
             </div>
           </div>
           <span id="galleryStatus" class="map-summary">No uploads loaded</span>
+          <p id="galleryOrphanHelp" class="map-summary hidden">These uploads have no saved logbook reference. Photo Queue items are excluded. Review them before deleting; recent unsaved uploads may appear here.</p>
           <div id="galleryGrid" class="gallery-grid"></div>
           <div class="gallery-pagination hidden" id="galleryPagination" aria-label="Gallery pages">
             <button class="button secondary" id="galleryPreviousPageButton" type="button">Previous</button>

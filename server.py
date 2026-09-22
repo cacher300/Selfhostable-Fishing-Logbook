@@ -740,9 +740,17 @@ def create_app(config: dict | None = None) -> Flask:
         if not cloud_storage.enabled():
             return jsonify({"media": orphaned_upload_items()})
         references = referenced_uploads(storage_read_logbook())
+        inventory = cloud_storage.list_media()
+        if len(inventory) >= 500:
+            inventory = []
+            for category in sorted(UPLOAD_CATEGORIES - {"queue"}):
+                category_items = cloud_storage.list_media(category)
+                if len(category_items) >= 500:
+                    return jsonify({"error": f"Cloud {category} inventory reached its 500-item limit; the orphan scan cannot verify all uploads."}), 503
+                inventory.extend(category_items)
         items = [
             cloud_storage.payload_from_inventory(item)
-            for item in cloud_storage.list_media()
+            for item in inventory
             if item.get("category") != "queue"
             and (item.get("category"), item.get("filename")) not in references
         ]

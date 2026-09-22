@@ -389,11 +389,11 @@ function shareReportHtml(trip) {
   const topMetrics = [
     ["shareStatLanded", "Landed", metrics.landed],
     ["shareStatMissed", "Lost", metrics.misses],
-    ["shareStatBiggest", "Biggest fish", biggestWeight],
+    biggest ? ["shareStatBiggest", "Biggest fish", biggestWeight] : null,
     ["shareStatRate", "Fish / hr", fishPerHour],
     ["shareStatHours", "Hours", trimNumber(metrics.hours)],
     ["shareStatFow", "Water depth", fowRange]
-  ].filter(([controlId]) => shareChecked(controlId));
+  ].filter(Boolean).filter(([controlId]) => shareChecked(controlId));
   const highlightItems = [
     ["Biggest fish", biggestLabel],
     ["Best presentation", bestMethods.join(" / ")]

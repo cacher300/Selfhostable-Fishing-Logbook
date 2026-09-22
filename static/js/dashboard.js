@@ -489,8 +489,8 @@ function renderTrips() {
       </span>
       <span>${escapeHtml(trip.title || "")}</span>
       <span class="trip-pill-stack">
-        <span class="target-pill">${escapeHtml(trip.targetSpecies)}</span>
-        <span class="intent-pill ${tripIntent(trip) === "experimental" ? "experimental" : ""}">${escapeHtml(intentLabel(tripIntent(trip)))}</span>
+        <span class="trip-target-text">${escapeHtml(trip.targetSpecies)}</span>
+        ${tripIntent(trip) === "experimental" ? '<span class="intent-pill experimental">Experimental</span>' : ""}
         <span class="rating-pill ${escapeHtml(tripRatingClass(tripRatingValue(trip)))}">${escapeHtml(tripRatingLabel(tripRatingValue(trip)))}</span>
       </span>
       <span class="method-pill">${escapeHtml(trip.method || "Unknown")}</span>

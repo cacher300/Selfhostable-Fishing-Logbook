@@ -3,7 +3,6 @@
     <div class="dialog-header">
       <div>
         <h2 id="sharedTripImportTitle">Import Shared Trip</h2>
-        <p>Review the shared log before adding it to your trips.</p>
       </div>
       <button class="icon-button" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
     </div>
@@ -11,12 +10,10 @@
     <section class="shared-trip-import-start" aria-label="Shared Trip ZIP selection">
       <div>
         <h3>Choose a Shared Trip ZIP</h3>
-        <p>This imports one trip with its used gear and attached media. Database backups belong in Settings.</p>
       </div>
       <div class="shared-trip-import-file-action">
         <input class="visually-hidden" id="sharedTripImportInput" type="file" accept=".zip,application/zip" />
         <button class="button secondary" id="sharedTripImportChooseButton" type="button">Choose ZIP</button>
-        <span id="sharedTripImportFileName" aria-live="polite">No file selected</span>
       </div>
     </section>
 
@@ -28,7 +25,6 @@
 
       <section class="shared-trip-import-section" aria-labelledby="sharedTripPeopleHeading">
         <h3 id="sharedTripPeopleHeading">Match people</h3>
-        <p>We suggest close name matches. Choose an existing person when the names describe the same angler, or create a new person.</p>
         <div id="sharedTripImportPeople" class="shared-trip-import-people"></div>
       </section>
 
