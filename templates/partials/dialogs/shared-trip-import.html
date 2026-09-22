@@ -1,0 +1,49 @@
+<dialog id="sharedTripImportDialog" class="dialog shared-trip-import-dialog" aria-labelledby="sharedTripImportTitle">
+  <div class="shared-trip-import-shell">
+    <div class="dialog-header">
+      <div>
+        <h2 id="sharedTripImportTitle">Import Shared Trip</h2>
+        <p>Review the shared log before adding it to your trips.</p>
+      </div>
+      <button class="icon-button" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+    </div>
+
+    <section class="shared-trip-import-start" aria-label="Shared Trip ZIP selection">
+      <div>
+        <h3>Choose a Shared Trip ZIP</h3>
+        <p>This imports one trip with its used gear and attached media. Database backups belong in Settings.</p>
+      </div>
+      <div class="shared-trip-import-file-action">
+        <input class="visually-hidden" id="sharedTripImportInput" type="file" accept=".zip,application/zip" />
+        <button class="button secondary" id="sharedTripImportChooseButton" type="button">Choose ZIP</button>
+        <span id="sharedTripImportFileName" aria-live="polite">No file selected</span>
+      </div>
+    </section>
+
+    <div id="sharedTripImportPreview" class="shared-trip-import-review" hidden>
+      <section class="shared-trip-import-section" aria-labelledby="sharedTripIncomingHeading">
+        <h3 id="sharedTripIncomingHeading">Incoming trip</h3>
+        <div class="shared-trip-import-summary" id="sharedTripImportSummary"></div>
+      </section>
+
+      <section class="shared-trip-import-section" aria-labelledby="sharedTripPeopleHeading">
+        <h3 id="sharedTripPeopleHeading">Match people</h3>
+        <p>We suggest close name matches. Choose an existing person when the names describe the same angler, or create a new person.</p>
+        <div id="sharedTripImportPeople" class="shared-trip-import-people"></div>
+      </section>
+
+      <section class="shared-trip-import-section" aria-labelledby="sharedTripDuplicateHeading">
+        <h3 id="sharedTripDuplicateHeading">Possible overlapping trip</h3>
+        <div id="sharedTripImportDuplicate" class="shared-trip-import-duplicate"></div>
+      </section>
+    </div>
+
+    <div class="dialog-actions shared-trip-import-actions">
+      <span id="sharedTripImportStatus" class="shared-trip-import-status" role="status" aria-live="polite"></span>
+      <div>
+        <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+        <button class="button primary" id="sharedTripImportConfirmButton" type="button" disabled>Import Shared Trip</button>
+      </div>
+    </div>
+  </div>
+</dialog>

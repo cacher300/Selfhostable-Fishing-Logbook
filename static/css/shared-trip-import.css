@@ -1,0 +1,246 @@
+.shared-trip-import-dialog {
+  width: min(780px, calc(100vw - 32px));
+  max-height: min(860px, calc(100dvh - 32px));
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.shared-trip-import-shell {
+  display: grid;
+  max-height: min(860px, calc(100dvh - 32px));
+  overflow: auto;
+}
+
+.shared-trip-import-shell > .dialog-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.shared-trip-import-shell > .dialog-header p,
+.shared-trip-import-start p,
+.shared-trip-import-section > p {
+  max-width: 68ch;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.shared-trip-import-start,
+.shared-trip-import-section {
+  padding: 20px 24px;
+}
+
+.shared-trip-import-start {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-soft);
+}
+
+.shared-trip-import-start h3,
+.shared-trip-import-section h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  letter-spacing: -.01em;
+}
+
+.shared-trip-import-file-action {
+  display: grid;
+  flex: 0 0 min(290px, 42%);
+  gap: 7px;
+}
+
+.shared-trip-import-file-action > span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shared-trip-import-review {
+  display: grid;
+}
+
+.shared-trip-import-section + .shared-trip-import-section {
+  border-top: 1px solid var(--line);
+}
+
+.shared-trip-import-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--line);
+}
+
+.shared-trip-import-summary > div {
+  min-width: 0;
+  padding: 12px 13px;
+  background: var(--field);
+}
+
+.shared-trip-import-summary > div:first-child {
+  grid-column: span 3;
+}
+
+.shared-trip-import-summary dt {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: .045em;
+}
+
+.shared-trip-import-summary dd {
+  overflow: hidden;
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shared-trip-import-people,
+.shared-trip-import-duplicate {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.shared-trip-person-map,
+.shared-trip-candidate,
+.shared-trip-no-candidate {
+  display: grid;
+  gap: 8px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
+}
+
+.shared-trip-person-map {
+  grid-template-columns: minmax(0, 1fr) minmax(220px, .9fr);
+  align-items: center;
+}
+
+.shared-trip-person-map strong,
+.shared-trip-candidate strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.shared-trip-person-map small,
+.shared-trip-candidate small,
+.shared-trip-no-candidate {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.shared-trip-person-map select,
+.shared-trip-candidate-select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 10px;
+  color: var(--text);
+  background: var(--panel);
+  font: inherit;
+}
+
+.shared-trip-import-choices {
+  display: grid;
+  gap: 8px;
+}
+
+.shared-trip-import-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.shared-trip-import-choice:has(input:checked) {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 10%, var(--panel));
+}
+
+.shared-trip-import-choice input {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: var(--green);
+}
+
+.shared-trip-import-choice span {
+  display: grid;
+  gap: 2px;
+}
+
+.shared-trip-import-choice small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.shared-trip-import-actions {
+  position: sticky;
+  bottom: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.shared-trip-import-status {
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shared-trip-import-status[data-type="error"] { color: var(--danger); }
+.shared-trip-import-status[data-type="success"] { color: var(--green); }
+
+@media (max-width: 640px) {
+  .shared-trip-import-start,
+  .shared-trip-person-map {
+    grid-template-columns: 1fr;
+  }
+
+  .shared-trip-import-start {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .shared-trip-import-file-action { flex-basis: auto; }
+
+  .shared-trip-import-start,
+  .shared-trip-import-section { padding: 18px 16px; }
+
+  .shared-trip-import-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shared-trip-import-summary > div:first-child { grid-column: span 2; }
+}

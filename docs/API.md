@@ -33,6 +33,18 @@ Returns a portable ZIP archive containing the normalized logbook, manifest, and 
 
 Imports a portable archive and replaces the current logbook and media after validation.
 
+### `GET /api/trips/<trip_id>/shared-archive`
+
+Downloads a versioned `fishing-logbook-shared-trip` ZIP for one trip. It includes only that trip, its required people, locations, spots, used gear, and referenced media; unrelated history, preferences, and expeditions are excluded.
+
+### `POST /api/shared-trip-archive/preview`
+
+Accepts multipart field `archive` containing a Shared Trip ZIP and returns its trip summary, normalized-name person suggestions, and likely local overlap candidates. It does not change the logbook.
+
+### `POST /api/shared-trip-archive/import`
+
+Accepts multipart `archive`, JSON `personMappings` (`sourcePersonId` to existing local person ID), `duplicateAction` (`add`, `replace`, or `keep-local`), and `replacementTripId` for `replace`. It merges the one imported trip without replacing unrelated logbook data. Imported media is copied under collision-free filenames. `replace` is allowed only for a candidate returned by preview.
+
 ## Environmental Proxies
 
 These routes accept only allowlisted query keys and use a 20-second upstream timeout.

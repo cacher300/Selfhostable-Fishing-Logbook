@@ -108,6 +108,7 @@ function setView(view) {
   });
   document.querySelector(".topbar h2").textContent = viewTitles[view] || "Trips";
   els.newTripButton?.classList.toggle("hidden", showingExpeditions || showingChecklists);
+  els.importSharedTripButton?.classList.toggle("hidden", view !== "trips");
   els.newExpeditionButton?.classList.toggle("hidden", !showingExpeditions);
   if (window.matchMedia("(max-width: 640px)").matches) {
     const activeButton = viewButtons[activeNavigationView];

@@ -150,3 +150,7 @@ Catch `weatherData` contains source/fetch/timezone/units and one nearest normali
 Backend validation recursively checks JSON value types, schema compatibility, collection and nested-record shapes, duplicate top-level record IDs, expedition dates, settings, units, locations, coordinates, people, and trip child collections. Errors include the failing JSON path.
 
 Normalization supplies defaults, validates unit/time/chop preferences, cleans choice lists, merges people and locations, and reconnects trip location/launch names and IDs. There is no explicit schema-version migration history.
+
+## Shared Trip ZIP
+
+A Shared Trip ZIP is a portable, single-trip snapshot rather than a database backup. Its manifest format is `fishing-logbook-shared-trip` version 1 and its `logbook.json` contains exactly one trip with only the people, location/launch, spots, used gear, and media references required to display it. Import creates a new local trip ID, maps people through the recipient's reviewed choices, and never imports another user's settings, expedition history, or unrelated records.

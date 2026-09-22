@@ -705,6 +705,24 @@ function shareDownloadText() {
   shareDownloadBlob(blob, "txt");
 }
 
+async function shareDownloadTripArchive() {
+  if (!activeShareTrip?.id) throw new Error("This trip is no longer available to share.");
+  if (location.protocol === "file:") throw new Error("Shared Trip ZIP export needs the app server to be running.");
+  const response = await fetch(`/api/trips/${encodeURIComponent(activeShareTrip.id)}/shared-archive`);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || "Could not prepare the Shared Trip ZIP.");
+  }
+  const blob = await response.blob();
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `shared-trip-${activeShareTrip.date || "share"}.zip`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
 async function saveShareAppearancePreset() {
   const name = shareControl("shareTripAppearanceName")?.value.trim();
   if (!name) {
@@ -758,6 +776,7 @@ shareControl("shareTripDownloadJpg")?.addEventListener("click", (event) => share
 shareControl("shareTripCopyImage")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, shareCopyImage, "Image copied"));
 shareControl("shareTripCopyText")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, shareCopyText, "Text copied"));
 shareControl("shareTripDownloadText")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, async () => shareDownloadText(), "Text downloaded"));
+shareControl("shareTripDownloadArchive")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, shareDownloadTripArchive, "Shared Trip ZIP downloaded"));
 shareControl("shareSaveAppearance")?.addEventListener("click", saveShareAppearancePreset);
 shareControl("shareFlipBestLurePhoto")?.addEventListener("click", () => {
   shareBestLurePhotoFlipped = !shareBestLurePhotoFlipped;

@@ -85,6 +85,14 @@ from backend.media_service import (
     upload_preview_path,
     write_upload_metadata,
 )
+from backend.shared_trip_archive import (
+    ArchiveMedia,
+    SharedTripArchiveError,
+    archive_preview,
+    create_shared_archive,
+    merge_shared_archive,
+    read_shared_archive,
+)
 from backend.weather_service import (
     astronomy_payload,
     marine_weather_payload,
@@ -119,6 +127,99 @@ def storage_write_logbook(payload: dict, revision: str = "") -> str:
         write_logbook(payload)
         return ""
     return cloud_storage.put_logbook(payload, revision)
+
+
+def shared_archive_media_item(category: str, filename: str) -> ArchiveMedia | None:
+    """Read one referenced asset in a form suitable for a portable trip archive."""
+    if cloud_storage.enabled():
+        item = cloud_storage.inventory_item(category, filename)
+        if not item:
+            return None
+        metadata = dict(item.get("metadata") if isinstance(item.get("metadata"), dict) else {})
+        content, _ = cloud_storage.get_object(category, filename)
+        preview = None
+        preview_name = str(metadata.get("previewFilename") or "")
+        if preview_name:
+            try:
+                preview, _ = cloud_storage.get_object(category, preview_name, preview=True)
+            except cloud_storage.CloudStorageError as error:
+                if error.status != 404:
+                    raise
+        return ArchiveMedia(category, filename, content, metadata, preview)
+
+    source = upload_category_path(category) / filename
+    if not source.is_file():
+        return None
+    metadata = read_upload_metadata(category, filename)
+    preview_name = str(metadata.get("previewFilename") or "")
+    preview = None
+    if preview_name:
+        preview_path = upload_category_path(category) / PREVIEW_DIRNAME / preview_name
+        if preview_path.is_file():
+            preview = preview_path.read_bytes()
+    return ArchiveMedia(category, filename, source.read_bytes(), metadata, preview)
+
+
+def persist_shared_trip_import(media: dict[tuple[str, str], ArchiveMedia], logbook: dict, revision: str = "") -> str:
+    """Persist collision-free imported media before committing the merged logbook."""
+    prepared: list[ArchiveMedia] = []
+    for item in media.values():
+        metadata = scrub_private_photo_metadata(dict(item.metadata), logbook)
+        prepared.append(ArchiveMedia(item.category, item.filename, item.content, metadata, item.preview))
+
+    if cloud_storage.enabled():
+        for item in prepared:
+            content_type = str(item.metadata.get("mimeType") or mimetypes.guess_type(item.filename)[0] or "application/octet-stream")
+            cloud_storage.put_media(
+                item.category,
+                item.filename,
+                item.content,
+                content_type,
+                str(item.metadata.get("name") or item.filename),
+                item.metadata,
+            )
+            preview_name = str(item.metadata.get("previewFilename") or "")
+            if item.preview and preview_name:
+                cloud_storage.put_preview(item.category, preview_name, item.preview)
+        return storage_write_logbook(logbook, revision)
+
+    with TemporaryDirectory(dir=DATA_DIR) as temporary_directory:
+        temporary_root = Path(temporary_directory)
+        staged: list[tuple[Path, Path]] = []
+        for item in prepared:
+            target = upload_category_path(item.category) / item.filename
+            if target.exists():
+                raise SharedTripArchiveError("A generated imported-media filename already exists. Please import the ZIP again.")
+            staged_media = temporary_root / item.category / item.filename
+            staged_media.parent.mkdir(parents=True, exist_ok=True)
+            staged_media.write_bytes(item.content)
+            staged.append((staged_media, target))
+
+            staged_metadata = temporary_root / item.category / f"{item.filename}.json"
+            staged_metadata.write_text(json.dumps(item.metadata, allow_nan=False), encoding="utf-8")
+            staged.append((staged_metadata, upload_metadata_path(item.category, item.filename)))
+
+            preview_name = str(item.metadata.get("previewFilename") or "")
+            if item.preview and preview_name:
+                staged_preview = temporary_root / item.category / PREVIEW_DIRNAME / preview_name
+                staged_preview.parent.mkdir(parents=True, exist_ok=True)
+                staged_preview.write_bytes(item.preview)
+                staged.append((staged_preview, upload_preview_path(item.category, item.filename).with_name(preview_name)))
+
+        promoted: list[Path] = []
+        try:
+            for source, target in staged:
+                if target.exists():
+                    raise SharedTripArchiveError("A generated imported-media filename already exists. Please import the ZIP again.")
+                target.parent.mkdir(parents=True, exist_ok=True)
+                source.replace(target)
+                promoted.append(target)
+            return storage_write_logbook(logbook, revision)
+        except Exception:
+            for target in reversed(promoted):
+                if target.is_file():
+                    target.unlink()
+            raise
 
 
 def cloud_copy_queue_item(filename: str, target_category: str, *, move: bool) -> dict:
@@ -359,6 +460,71 @@ def create_app(config: dict | None = None) -> Flask:
             app.logger.exception("Archive import failed")
             return jsonify({"error": "Could not read the archive."}), 400
         return jsonify({"ok": True})
+
+    @app.get("/api/trips/<trip_id>/shared-archive")
+    def export_shared_trip_archive(trip_id: str) -> tuple[Response, int] | Response:
+        try:
+            logbook = storage_read_logbook()
+            archive = create_shared_archive(logbook, trip_id, shared_archive_media_item)
+            trip = next((item for item in logbook.get("trips", []) if str(item.get("id") or "") == trip_id), None)
+            title = secure_filename(str((trip or {}).get("title") or "trip")) or "trip"
+            date = secure_filename(str((trip or {}).get("date") or ""))
+            suffix = f"-{date}" if date else ""
+            return Response(
+                archive.getvalue(),
+                mimetype="application/zip",
+                headers={"Content-Disposition": f'attachment; filename="shared-trip{suffix}-{title}.zip"'},
+            )
+        except SharedTripArchiveError as error:
+            return jsonify({"error": str(error)}), 400
+
+    @app.post("/api/shared-trip-archive/preview")
+    def preview_shared_trip_archive() -> tuple[Response, int] | Response:
+        upload = request.files.get("archive")
+        if upload is None:
+            return jsonify({"error": "Choose a Shared Trip ZIP file."}), 400
+        try:
+            archive = read_shared_archive(upload.stream)
+            return jsonify(archive_preview(archive, storage_read_logbook()))
+        except SharedTripArchiveError as error:
+            return jsonify({"error": str(error)}), 400
+
+    @app.post("/api/shared-trip-archive/import")
+    def import_shared_trip_archive() -> tuple[Response, int] | Response:
+        upload = request.files.get("archive")
+        if upload is None:
+            return jsonify({"error": "Choose a Shared Trip ZIP file."}), 400
+        try:
+            raw_mappings = request.form.get("personMappings", "{}")
+            person_mappings = json.loads(raw_mappings)
+            if not isinstance(person_mappings, dict) or any(not isinstance(key, str) or not isinstance(value, str) for key, value in person_mappings.items()):
+                raise SharedTripArchiveError("Person mappings must be valid selections.")
+            action = str(request.form.get("duplicateAction") or "")
+            replacement_trip_id = str(request.form.get("replacementTripId") or "")
+            archive = read_shared_archive(upload.stream)
+            current, current_revision = storage_read_logbook_with_revision()
+            merged, discarded_media, trip_id = merge_shared_archive(
+                archive,
+                current,
+                person_mappings,
+                action,
+                replacement_trip_id,
+            )
+            if action == "keep-local":
+                return jsonify({"ok": True, "cancelled": True})
+            revision = persist_shared_trip_import(
+                archive.media,
+                merged,
+                request.headers.get("If-Match", current_revision),
+            )
+            response = jsonify({"ok": True, "tripId": trip_id, "discardedMedia": discarded_media})
+            if revision:
+                response.headers["ETag"] = revision
+            return response
+        except SharedTripArchiveError as error:
+            return jsonify({"error": str(error)}), 400
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return jsonify({"error": "Shared trip import selections are invalid."}), 400
 
     @app.get("/api/weather/archive")
     def weather_archive() -> tuple[Response, int]:

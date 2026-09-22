@@ -212,7 +212,10 @@ const CATCH_DETAIL_GROUPS = Object.freeze([
 
 function catchDetailValueMarkup(row) {
   if (row.kind === "lure" && row.lureId) {
-    return `<button class="catch-detail-lure-link" type="button" data-catch-lure-id="${escapeHtml(row.lureId)}" aria-label="View lure details for ${escapeHtml(row.value)}">${escapeHtml(row.value)}</button>`;
+    const lure = state.lures.find((item) => item.id === row.lureId);
+    const preview = gearPhotos(lure)[0];
+    const previewMarkup = preview ? mediaMarkup(preview, "catch-detail-lure-preview") : "";
+    return `<button class="catch-detail-lure-link${previewMarkup ? " has-preview" : ""}" type="button" data-catch-lure-id="${escapeHtml(row.lureId)}" aria-label="View lure details for ${escapeHtml(row.value)}">${previewMarkup}<span class="catch-detail-lure-label">${escapeHtml(row.value)}</span></button>`;
   }
   if (row.kind === "flasher" && row.lureId) {
     return `<button class="catch-detail-lure-link" type="button" data-catch-flasher-id="${escapeHtml(row.lureId)}" aria-label="View flasher details for ${escapeHtml(row.value)}">${escapeHtml(row.value)}</button>`;
@@ -223,6 +226,7 @@ function catchDetailValueMarkup(row) {
 function catchDetailRows(trip, catchItem, catchIndex) {
   const record = resolveTripLineRecord({ ...catchItem, trip });
   const trollingTrip = isTrollingTripRecord(trip);
+  const hourlyWeather = catchItem.weatherData?.hourly || {};
   const formatWeightDetail = (value) => {
     return displayStoredMeasurement(value, "fishWeight");
   };
@@ -241,20 +245,27 @@ function catchDetailRows(trip, catchItem, catchIndex) {
     { key: "rigging", group: "tackle", label: "Rigging", value: trollingTrip ? "" : record.rigging },
     { key: "riggingDetails", group: "tackle", label: "Rig details", value: trollingTrip ? "" : record.riggingDetails },
     { key: "flasher", group: "tackle", label: "Flasher", value: displayTitleText(flasherName(record.flasherId)), kind: "flasher", lureId: record.flasherId },
-    { key: "presentation", group: "presentation", label: "Presentation", value: displayTitleText(presentationLabel(record.presentation)) },
+    { key: "presentation", group: "presentation", label: "Presentation", value: displayTitleText(record.presentation ? presentationLabel(record.presentation) : record.flyPresentation) },
+    { key: "side", group: "presentation", label: "Side", value: setupLineSideLabel(record.side) },
     { key: "direction", group: "presentation", label: "Direction", value: displayTitleText(record.direction) },
     { key: "gpsSpeed", group: "presentation", label: "GPS speed", value: displaySpeedValue(record.gpsSpeed || record.speed) },
     { key: "ballSpeed", group: "presentation", label: "Ball speed", value: displaySpeedValue(record.ballSpeed) },
     { key: "ballTemp", group: "presentation", label: "Ball temp", value: displayStoredMeasurement(record.ballTemp, "waterTemperature") },
+    { key: "ballDepth", group: "presentation", label: "Ball depth", value: reportDepthValue(record.ballDepth) },
+    { key: "estimatedLureDepth", group: "presentation", label: "Estimated lure depth", value: reportDepthValue(record.estimatedLureDepth) },
+    { key: "estimatedDepth", group: "presentation", label: "Estimated depth", value: reportDepthValue(record.estimatedDepth) },
+    { key: "retrieve", group: "presentation", label: "Retrieve", value: record.retrieve },
     { key: "flatlineWeight", group: "trolling", label: "Flatline weight", value: record.flatlineWeightOz ? `${record.flatlineWeightOz} oz` : "" },
     { key: "lineBehindBoard", group: "trolling", label: "Line behind board", value: reportDepthValue(record.lineBehindBoard) },
     { key: "leadcoreColors", group: "trolling", label: "Leadcore colors", value: record.leadcoreColors },
-    { key: "dipseySetting", group: "trolling", label: "Dipsey setting", value: record.dipseySetting },
+    { key: "dipseySetting", group: "trolling", label: "Dipsy plate setting", value: record.dipseySetting },
     { key: "lineOut", group: "trolling", label: "Line out", value: reportDepthValue(record.lineOut) },
-    { key: "retrieve", group: "trolling", label: "Retrieve", value: record.retrieve },
-    { key: "shaker", group: "trolling", label: "Shaker", value: trollingTrip ? (record.shaker ? "Yes" : "No") : "" },
-    { key: "deepestRigger", group: "trolling", label: "Deepest rigger", value: trollingTrip ? (record.deepestRigger ? "Yes" : "No") : "" },
-    { key: "catchWeather", group: "conditions", label: "Catch weather", value: catchWeatherSummary(catchItem.weatherData || {}), wide: true, hideLabel: true },
+    { key: "shaker", group: "overview", label: "Shaker", value: trollingTrip ? (record.shaker ? "Yes" : "No") : "" },
+    { key: "deepestRigger", group: "presentation", label: "Deepest rigger", value: trollingTrip ? (record.deepestRigger ? "Yes" : "No") : "" },
+    { key: "temperature", group: "conditions", label: "Temperature", value: hourlyWeather.temperatureC === null || hourlyWeather.temperatureC === undefined ? "" : celsiusText(Math.round(hourlyWeather.temperatureC)) },
+    { key: "apparentTemperature", group: "conditions", label: "Feels like", value: hourlyWeather.apparentTemperatureC === null || hourlyWeather.apparentTemperatureC === undefined ? "" : celsiusText(Math.round(hourlyWeather.apparentTemperatureC)) },
+    { key: "wind", group: "conditions", label: "Wind", value: hourlyWindText(hourlyWeather) },
+    { key: "cloudCover", group: "conditions", label: "Cloud cover", value: hourlyWeather.cloudCoverPercent === null || hourlyWeather.cloudCoverPercent === undefined ? "" : `${Math.round(hourlyWeather.cloudCoverPercent)}%` },
     { key: "notes", group: "notes", label: "Notes", value: displaySentenceText(catchItem.notes), kind: "notes", wide: true }
   ].filter(({ value }) => value !== null && value !== undefined && value !== "");
   const visibleGroups = CATCH_DETAIL_GROUPS.map((group) => ({
@@ -267,7 +278,7 @@ function catchDetailRows(trip, catchItem, catchIndex) {
       <dl class="catch-detail-fields${group.rows.length === 1 ? " catch-detail-fields-single" : ""}">${group.rows.map((row) => `
         <div class="catch-detail-field${row.wide ? " catch-detail-field-wide" : ""}${row.kind === "notes" ? " catch-detail-field-notes" : ""}">
           <dt class="${row.hideLabel ? "visually-hidden" : ""}">${escapeHtml(row.label)}</dt>
-          <dd class="${row.kind === "status" ? "catch-detail-value-status" : ""}">${catchDetailValueMarkup(row)}</dd>
+          <dd>${catchDetailValueMarkup(row)}</dd>
         </div>
       `).join("")}</dl>${group.id === "location" ? `
       <div class="catch-detail-location-action">
@@ -305,7 +316,9 @@ function renderCatchDetailPopout(trip, catchItem, index, selectedIndex) {
   return `
     <div class="catch-detail-popout" id="catchDetailPopout" role="dialog" aria-modal="true" aria-label="Catch details">
       <div class="catch-detail-panel">
-        <button class="icon-button catch-detail-close" type="button" data-close-catch-detail aria-label="Close catch details"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        <div class="catch-detail-controls">
+          <button class="icon-button catch-detail-close" type="button" data-close-catch-detail aria-label="Close catch details"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        </div>
         ${renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${index + 1}`, {
           catchIndex: index,
           selectedIndex,

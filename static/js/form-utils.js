@@ -145,6 +145,7 @@ function updatePresentationFields(row) {
 
   const isMainDownrigger = ["downrigger", "Downrigger"].includes(presentation);
   const isCheater = ["cheater", "Cheater"].includes(presentation);
+  const isBoardOrChute = ["Outside Board", "Inside Board", "Chute Rod", "flatline-leadcore", "flatline"].includes(presentation);
   const deepestRiggerToggle = row.querySelector(".catch-deepest-rigger");
   if (isMainDownrigger || isCheater) {
     row.querySelector(".param-ball-depth")?.classList.add("visible");
@@ -158,11 +159,11 @@ function updatePresentationFields(row) {
   } else if (deepestRiggerToggle) {
     deepestRiggerToggle.checked = false;
   }
-  if (presentation === "flatline") {
+  if (isBoardOrChute) {
     row.querySelector(".param-flatline-weight")?.classList.add("visible");
-    row.querySelector(".param-estimated-depth")?.classList.add("visible");
+    row.querySelector(".param-board-line")?.classList.add("visible");
   }
-  if (["flatline-leadcore", "Outside Board", "Inside Board", "cheater", "Cheater"].includes(presentation)) {
+  if (isBoardOrChute || isCheater) {
     row.querySelector(".param-lure-depth")?.classList.add("visible");
   }
   if (isLeadcoreCatch) {
