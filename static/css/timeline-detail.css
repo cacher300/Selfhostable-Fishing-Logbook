@@ -266,10 +266,10 @@
 
 .catch-detail-panel .thumbnail-column {
   gap: 14px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--panel-soft);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .catch-detail-panel .catch-media-gallery.is-scrollable .thumbnail-column {
@@ -295,63 +295,233 @@
   box-shadow: 0 16px 28px rgba(5, 150, 105, 0.16);
 }
 
-.catch-detail-table-wrap {
+.catch-detail-location-action {
+  margin-top: 12px;
+}
+
+.catch-detail-location-popout {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  padding: 36px;
+  overflow: auto;
+  background: rgba(7, 21, 46, 0.44);
+}
+
+.catch-detail-location-panel {
+  display: grid;
+  gap: 14px;
+  width: min(960px, calc(100vw - 72px));
+  max-height: calc(100vh - 72px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.catch-detail-location-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.catch-detail-location-header h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+}
+
+.catch-detail-location-header .eyebrow {
+  margin-bottom: 4px;
+}
+
+.catch-detail-location-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.catch-detail-location-scope {
+  min-height: 32px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--field);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.catch-detail-location-scope:hover,
+.catch-detail-location-scope:focus-visible,
+.catch-detail-location-scope.is-active {
+  border-color: var(--green);
+  background: var(--active-bg);
+  color: var(--active-text);
+}
+
+.catch-detail-location-legend {
+  min-height: 0;
+}
+
+.catch-detail-location-map {
+  min-height: 520px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.catch-detail-location-empty {
+  min-height: 520px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  text-align: center;
+}
+
+.catch-detail-fields-wrap {
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  justify-self: start;
+  padding: 18px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--field);
 }
 
-.catch-detail-table {
-  width: 100%;
+.catch-detail-groups {
+  width: fit-content;
+  max-width: 100%;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 18px;
-  padding: 0 18px;
+  grid-template-columns: repeat(2, minmax(220px, 420px));
+  gap: 16px 32px;
   color: var(--text);
   font-size: 13px;
 }
 
-.catch-detail-table tbody { display: contents; }
-
-.catch-detail-table tr {
-  display: grid;
-  grid-template-columns: minmax(112px, .78fr) minmax(0, 1.22fr);
+.catch-detail-group,
+.catch-detail-fields,
+.catch-detail-field {
   min-width: 0;
-  border-bottom: 1px solid var(--line);
 }
 
-.catch-detail-table .catch-detail-table-wide { grid-column: 1 / -1; }
-.catch-detail-table tr.catch-detail-table-wide { grid-template-columns: minmax(150px, 190px) minmax(0, 1fr); }
-.catch-detail-table tr:last-child { border-bottom: 0; }
-
-.catch-detail-table th,
-.catch-detail-table td {
-  padding: 10px 0;
-  text-align: left;
-  vertical-align: top;
+.catch-detail-group-wide {
+  grid-column: 1 / -1;
 }
 
-.catch-detail-table th {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .05em;
+.catch-detail-group h3 {
+  margin: 0 0 9px;
+  color: var(--active-text);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  line-height: 1.2;
   text-transform: uppercase;
 }
 
-.catch-detail-table td {
+.catch-detail-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+  margin: 0;
+}
+
+.catch-detail-fields-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.catch-detail-field-wide {
+  grid-column: 1 / -1;
+}
+
+.catch-detail-field dt {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.catch-detail-field dd {
+  margin: 4px 0 0;
   color: var(--text);
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 700px) {
-  .catch-detail-table { grid-template-columns: 1fr; }
-  .catch-detail-table .catch-detail-table-wide { grid-column: auto; }
+.catch-detail-field-notes dd {
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: pre-line;
 }
 
-.catch-detail-lure-link { padding: 0; border: 0; border-bottom: 2px solid var(--muted); background: transparent; color: var(--text); font: inherit; font-weight: 700; line-height: inherit; text-align: left; }
+.catch-detail-value-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--active-text);
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .catch-detail-fields-wrap {
+    width: 100%;
+  }
+
+  .catch-detail-groups,
+  .catch-detail-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .catch-detail-group-wide,
+  .catch-detail-field-wide {
+    grid-column: auto;
+  }
+
+  .catch-detail-location-popout {
+    padding: 16px;
+  }
+
+  .catch-detail-location-panel {
+    width: min(100%, calc(100vw - 32px));
+    padding: 18px;
+  }
+
+  .catch-detail-location-map,
+  .catch-detail-location-empty {
+    min-height: 360px;
+  }
+}
+
+/* Keep linked tackle values visually distinct without adding row dividers. */
+.catch-detail-lure-link {
+  padding: 0;
+  border: 0;
+  border-bottom: 2px solid var(--muted);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  line-height: inherit;
+  text-align: left;
+}
+
 .catch-detail-lure-link:hover, .catch-detail-lure-link:focus-visible { border-bottom-color: currentColor; color: var(--text); outline-offset: 4px; }
 
 .compact-empty {

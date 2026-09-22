@@ -113,12 +113,6 @@
   background: #0b1118;
 }
 
-/* Catch media stays inside the dark surface instead of retaining its light thumbnail rail. */
-:root[data-theme="dark"] .catch-detail-panel .thumbnail-column {
-  border-color: var(--line);
-  background: var(--panel-soft);
-}
-
 :root[data-theme="dark"] .catch-detail-panel .featured-image-wrap {
   background: transparent;
 }

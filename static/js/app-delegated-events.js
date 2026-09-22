@@ -87,6 +87,27 @@ document.addEventListener("click", (event) => {
     openSummaryCatchDetail(Number(catchDetailButton.dataset.summaryCatchIndex));
   }
 
+  const catchMapButton = event.target.closest("[data-show-catch-map]");
+  if (catchMapButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleSummaryCatchLocationMap(Number(catchMapButton.dataset.catchIndex));
+    return;
+  }
+
+  const catchLocationScopeButton = event.target.closest("[data-catch-location-scope]");
+  if (catchLocationScopeButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    setSummaryCatchLocationScope(catchLocationScopeButton.dataset.catchLocationScope);
+    return;
+  }
+
+  if (event.target.closest("[data-close-catch-map]") || event.target.classList.contains("catch-detail-location-popout")) {
+    closeSummaryCatchLocationMap();
+    return;
+  }
+
   const catchLureLink = event.target.closest("[data-catch-lure-id]");
   if (catchLureLink) {
     event.stopPropagation();
@@ -803,6 +824,10 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && document.querySelector("#catchDetailLocationPopout")) {
+    closeSummaryCatchLocationMap();
+    return;
+  }
   if (event.key === "Escape" && document.querySelector("#catchDetailPopout")) {
     closeSummaryCatchDetail();
     return;

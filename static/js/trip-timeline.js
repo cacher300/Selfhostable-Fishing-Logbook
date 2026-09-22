@@ -52,7 +52,45 @@ function openSummaryCatchDetail(catchIndex, selectedIndex) {
   host.querySelector(".catch-detail-close")?.focus();
 }
 
+function openSummaryCatchLocationMap(catchIndex) {
+  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+  const catchItem = trip?.catches?.[catchIndex];
+  const host = document.querySelector("#catchDetailLocationHost");
+  if (!trip || !catchItem || !host) return;
+  host.innerHTML = renderCatchDetailLocationPopout(trip, catchItem, catchIndex);
+  renderCatchDetailLocationMap(trip, catchItem, catchIndex, "trip");
+  host.querySelector("[data-close-catch-map]")?.focus();
+}
+
+function setSummaryCatchLocationScope(scope) {
+  const popout = document.querySelector("#catchDetailLocationPopout");
+  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+  const catchIndex = Number(popout?.dataset.catchIndex);
+  const catchItem = trip?.catches?.[catchIndex];
+  if (!popout || !trip || !catchItem || Number.isNaN(catchIndex)) return;
+  const nextScope = scope === "all" ? "all" : "trip";
+  popout.dataset.catchLocationScope = nextScope;
+  popout.querySelectorAll("[data-catch-location-scope]").forEach((button) => {
+    const isActive = button.dataset.catchLocationScope === nextScope;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+  renderCatchDetailLocationMap(trip, catchItem, catchIndex, nextScope);
+}
+
+function closeSummaryCatchLocationMap() {
+  destroyCatchDetailLocationMap();
+  const host = document.querySelector("#catchDetailLocationHost");
+  if (host) host.innerHTML = "";
+}
+
+function toggleSummaryCatchLocationMap(catchIndex) {
+  if (document.querySelector("#catchDetailLocationPopout")) closeSummaryCatchLocationMap();
+  else openSummaryCatchLocationMap(catchIndex);
+}
+
 function closeSummaryCatchDetail() {
+  closeSummaryCatchLocationMap();
   const host = document.querySelector("#catchDetailHost");
   if (host) host.innerHTML = "";
   document.querySelector("#tripSummaryDialog")?.classList.remove("catch-detail-open");

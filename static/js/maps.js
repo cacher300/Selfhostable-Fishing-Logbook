@@ -131,7 +131,7 @@ function mapRecordTrollingDirection(record) {
   return Number.isFinite(numeric) ? { label: `${Math.round(numeric)}°`, degrees: ((numeric % 360) + 360) % 360 } : null;
 }
 
-function mapDirectionMarker(record, color, fillColor, popupHtml) {
+function mapDirectionMarker(record, color, fillColor, popupHtml, popupOptions) {
   const direction = mapRecordTrollingDirection(record);
   const icon = L.divIcon({
     className: "map-catch-direction-icon",
@@ -144,7 +144,7 @@ function mapDirectionMarker(record, color, fillColor, popupHtml) {
     bubblingMouseEvents: false,
     pane: "fishMarkers",
     title: `${mapRecordTitle(record)} — trolling ${direction.label}`
-  }).bindPopup(popupHtml);
+  }).bindPopup(popupHtml, popupOptions);
 }
 
 function shouldShowMapDirectionArrow(record, options = {}) {
@@ -155,8 +155,9 @@ function addMapMarker(layerGroup, record, options = {}) {
   const fillColor = mapRecordColor(record);
   const color = options.colorByYear ? mapYearColor(mapRecordYear(record)) : fillColor;
   const popupHtml = mapPopupHtml(record);
+  const popupOptions = options.autoPanPopup === false ? { autoPan: false } : undefined;
   if (shouldShowMapDirectionArrow(record, options)) {
-    return mapDirectionMarker(record, color, fillColor, popupHtml).addTo(layerGroup);
+    return mapDirectionMarker(record, color, fillColor, popupHtml, popupOptions).addTo(layerGroup);
   }
   return L.circleMarker([record.coordinates.latitude, record.coordinates.longitude], {
     radius: record.type === "catch" ? 8 : 7,
@@ -166,7 +167,7 @@ function addMapMarker(layerGroup, record, options = {}) {
     weight: options.colorByYear ? 3 : 2,
     bubblingMouseEvents: false,
     pane: record.type === "catch" ? "fishMarkers" : "tripMediaMarkers"
-  }).bindPopup(popupHtml).addTo(layerGroup);
+  }).bindPopup(popupHtml, popupOptions).addTo(layerGroup);
 }
 
 function ensureMapMarkerPanes(map) {
@@ -704,5 +705,47 @@ function renderTripSummaryMap(trip) {
   if (bounds.length === 1) tripSummaryMap.setView(bounds[0], 13);
   else tripSummaryMap.fitBounds(bounds, { padding: [24, 24] });
   settleMapLayout(tripSummaryMap);
+}
+
+function destroyCatchDetailLocationMap() {
+  if (catchDetailMap) catchDetailMap.remove();
+  catchDetailMap = null;
+  catchDetailMapMarkers = null;
+}
+
+function catchDetailLocationRecords(trip, scope) {
+  const records = scope === "all" ? catchMapRecords() : catchMapRecordsForTrip(trip);
+  return records.filter((record) => record.type === "catch");
+}
+
+function renderCatchDetailLocationMap(trip, catchItem, catchIndex, scope = "trip") {
+  const mapNode = document.querySelector("#catchDetailLocationMap");
+  if (!mapNode) return;
+  destroyCatchDetailLocationMap();
+  const records = catchDetailLocationRecords(trip, scope);
+  const legendNode = document.querySelector("#catchDetailLocationLegend");
+  if (legendNode) legendNode.innerHTML = renderMapYearLegend(records, { includeTripMedia: false });
+  if (!window.L) {
+    mapNode.innerHTML = `<div class="empty-state catch-detail-location-empty"><p>Map tiles are unavailable.</p></div>`;
+    return;
+  }
+  if (!records.length) {
+    mapNode.innerHTML = `<div class="empty-state catch-detail-location-empty"><p>No saved coordinates are available for these catches.</p></div>`;
+    return;
+  }
+  catchDetailMap = L.map(mapNode, seamlessMapOptions());
+  addSeamlessTileLayer(catchDetailMap, savedMapBasemap());
+  bindDepthLookupPopup(catchDetailMap);
+  ensureMapMarkerPanes(catchDetailMap);
+  catchDetailMapMarkers = L.layerGroup().addTo(catchDetailMap);
+  const bounds = [];
+  records.forEach((mapRecord) => {
+    const point = [mapRecord.coordinates.latitude, mapRecord.coordinates.longitude];
+    bounds.push(point);
+    addMapMarker(catchDetailMapMarkers, mapRecord, { autoPanPopup: false });
+  });
+  if (bounds.length === 1) catchDetailMap.setView(bounds[0], 13);
+  else catchDetailMap.fitBounds(bounds, { padding: [28, 28] });
+  settleMapLayout(catchDetailMap);
 }
 

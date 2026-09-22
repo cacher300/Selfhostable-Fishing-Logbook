@@ -7,7 +7,7 @@
 @import url("personal-bests-patterns.css?v=20260908-progression-cards-1");
 @import url("maps-summary.css?v=20260910-map-filters-1");
 @import url("trolling-spread.css");
-@import url("timeline-detail.css");
+@import url("timeline-detail.css?v=20260920-catch-location-map-4");
 @import url("trip-report.css");
 @import url("share-report.css");
 @import url("stats.css");
@@ -17,5 +17,5 @@
 @import url("checklists.css");
 @import url("wiki.css");
 @import url("gallery-inventory.css");
-@import url("theme-dark.css");
+@import url("theme-dark.css?v=20260920-catch-location-map-3");
 @import url("responsive.css");
