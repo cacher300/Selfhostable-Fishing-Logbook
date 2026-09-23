@@ -60,7 +60,7 @@ The server binds to `127.0.0.1:8080` by default. Set `HOST` and `PORT` to overri
 docker compose up --build -d
 ```
 
-Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Compose publishes the application on loopback port `8080` by default so it does not conflict with an Nginx listener on ports 80 or 443. Set `APP_PORT` to use another loopback port. Application data is mounted from `./data` unless `FISH_DATA_DIR` points to a different host directory.
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Compose publishes the application on loopback port `8080` by default so it does not conflict with an Nginx listener on ports 80 or 443. Set `APP_PORT` to use another port. To allow access from another machine on a trusted LAN, set `APP_BIND_ADDRESS=0.0.0.0` and open `http://<host-lan-ip>:8080`; the app has no built-in authentication, so do not expose that binding to an untrusted network. Application data is mounted from `./data` unless `FISH_DATA_DIR` points to a different host directory.
 
 For example:
 
