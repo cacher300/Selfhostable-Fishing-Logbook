@@ -185,17 +185,11 @@ def payload_from_inventory(item: dict) -> dict:
         "category": category,
         "filename": filename,
         "name": metadata.get("name") or item.get("original_name") or filename,
-        "path": f"{category}/{filename}",
-        "url": f"/uploads/{category}/{filename}",
-        "image": f"/uploads/{category}/{filename}",
         "mediaType": metadata.get("mediaType") or (
             "video" if str(item.get("content_type") or "").startswith("video/") else "image"
         ),
         "mimeType": metadata.get("mimeType") or item.get("content_type") or "",
         "previewFilename": preview_filename,
-        "previewPath": f"{category}/_previews/{preview_filename}" if preview_filename else "",
-        "previewUrl": f"/uploads/{category}/_previews/{preview_filename}" if preview_filename else "",
-        "previewImage": f"/uploads/{category}/_previews/{preview_filename}" if preview_filename else "",
         "size": int(item.get("byte_size") or 0),
         "modified": timestamp(item.get("uploaded_at")),
         "downloadUrl": f"/uploads/{category}/{filename}",

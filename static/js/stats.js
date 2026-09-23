@@ -89,7 +89,7 @@ function renderAdvancedStats() {
   const tripTrendRows = statsTripTrendRows(trips);
   const speciesOverviewRows = summarizeBy(records.filter((record) => record.species), (record) => record.species)
     .map((item) => [item.name, item.fish, item.trips.size, fish ? `${trimNumber((item.fish / fish) * 100)}%` : "0%"]);
-  renderStatsTable(els.tripTrendStatsTable, ["Trip", "Lines set", "Lines pulled", "Hours", "Landed", "Lost", "Fish / hr"], tripTrendRows);
+  renderStatsTable(els.tripTrendStatsTable, ["Trip", "Start", "Lines pulled", "Hours", "Landed", "Lost", "Fish / hr"], tripTrendRows);
   renderStatsTable(els.speciesOverviewStatsTable, ["Species", "Fish", "Trips", "Share"], speciesOverviewRows);
 
   let flasherItems = [];
@@ -171,7 +171,7 @@ function renderAdvancedStats() {
     renderStatsTable(els.downriggerStatsTable, ["Position / Method", "Fish", "Lost", "Strikes", "Landing %", "Trips", "Fish / trip", "Fish Share"], catchComparisonRows(downriggerItems, "Position / Method"));
     renderStatsTable(els.fowRangeStatsTable, ["FOW Range", "Fish", "Trips", "Fish Share"], fishShareRows(fowRangeItems));
 
-    const gpsSpeedRows = summarizeCatchMeasurement(trollingCatches, (record) => record.gpsSpeed || record.speed, { step: 0.5, suffix: " mph", min: 0.1, max: 15 });
+    const gpsSpeedRows = summarizeCatchMeasurement(trollingCatches, (record) => record.gpsSpeed, { step: 0.5, suffix: " mph", min: 0.1, max: 15 });
     const ballSpeedRows = summarizeCatchMeasurement(trollingCatches, (record) => record.ballSpeed, { step: 0.5, suffix: " mph", min: 0.1, max: 15 });
     const speedDeltaRows = summarizeSpeedDelta(trollingCatches);
     const distanceRows = summarizeDistanceBehind(trollingGear, trollingCatches);

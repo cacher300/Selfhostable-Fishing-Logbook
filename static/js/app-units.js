@@ -182,25 +182,22 @@ function formatDisplayTime(value, format = timeFormatPreference()) {
   return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
-function normalizeChopRanges(ranges = []) {
-  const source = Array.isArray(ranges) && ranges.length ? ranges : defaultChopRanges;
-  const normalized = source
-    .map((range, index) => {
-      const fallback = defaultChopRanges[index] || defaultChopRanges.at(-1);
-      const label = String(range?.label || fallback.label || "").trim();
-      const maxFeet = range?.maxFeet === null || range?.maxFeet === ""
-        ? null
-        : Number(range?.maxFeet);
-      return {
-        id: String(range?.id || fallback.id || `chop-${index + 1}`),
-        label: label || fallback.label,
-        maxFeet: Number.isFinite(maxFeet) ? Math.max(0, Math.round(maxFeet * 100) / 100) : null
-      };
-    })
-    .filter((range) => range.label);
-  if (!normalized.length) return structuredClone(defaultChopRanges);
-  if (!normalized.some((range) => range.maxFeet === null)) {
-    normalized.push({ id: "rough", label: "rough", maxFeet: null });
+function currentChopRanges(ranges = state.settings?.chopRanges) {
+  return Array.isArray(ranges) ? ranges : defaultChopRanges;
+}
+
+function validateChopRanges(ranges) {
+  if (!Array.isArray(ranges)) throw new Error("Chop ranges must be a list.");
+  const ids = new Set();
+  for (const range of ranges) {
+    if (!range || typeof range !== "object" || typeof range.id !== "string" || !range.id.trim()
+      || typeof range.label !== "string" || !range.label.trim()) {
+      throw new Error("Every chop range needs a name and ID.");
+    }
+    if (ids.has(range.id)) throw new Error("Chop ranges must have unique IDs.");
+    ids.add(range.id);
+    if (range.maxFeet !== null && (typeof range.maxFeet !== "number" || !Number.isFinite(range.maxFeet) || range.maxFeet < 0)) {
+      throw new Error(`Chop range ${range.id} needs a nonnegative maximum or an open end.`);
+    }
   }
-  return normalized;
 }

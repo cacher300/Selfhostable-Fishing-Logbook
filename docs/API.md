@@ -6,32 +6,32 @@ Base URL defaults to `http://127.0.0.1:8080`. Application, API, and upload route
 
 ### `GET /api/logbook`
 
-Returns the complete normalized logbook JSON document reconstructed from SQLite. A missing or empty database returns normalized defaults; invalid stored data returns a server error.
+Returns the complete v2 logbook reconstructed from SQLite. A missing or empty database returns the canonical v2 defaults; invalid stored data returns a server error.
 
 ### `PUT /api/logbook`
 
 Replaces the complete logbook document.
 
-Imports are recursively checked before normalization. Validation errors identify the failing JSON path. Legacy documents without `schemaVersion` are treated as version 0 and migrated to version 1; versions newer than the server supports are rejected.
+The request must be a complete v2 document. It is validated before replacement; ordinary reads, writes, and imports preserve the document without reshaping. Documents without `schemaVersion` and unsupported schema versions are rejected.
 
 Required top-level JSON types:
 
 - Body must be an object.
-- `trips`, `lures`, and `flashers` must be arrays.
-- `reels`, `rods`, and `rodReelCombos`, when present, must be arrays.
-- `people`, when present, must be an array.
-- `spots`, when present, must be an array of uniquely identified/named records with valid coordinates and a radius from 25 through 10,000 meters.
-- `expeditions`, when present, must be an array of uniquely identified records with a name and ordered ISO start/end dates.
+- `schemaVersion` must be `2`.
+- Every v2 collection listed in `DATA_MODEL.md` must be present as an array, including option lists, gear libraries, people, locations, spots, expeditions, and trips.
+- `settings` must be an object.
+- `spots` must contain uniquely identified/named records with valid coordinates and a radius from 25 through 500 meters.
+- `expeditions` must contain uniquely identified records with a name and ordered ISO start/end dates.
 
 Success: `200 {"ok": true}`. Shape failure: `400 {"error": "..."}`. Validation recursively checks JSON values and known nested record structures; see `DATA_MODEL.md`.
 
 ### `GET /api/archive`
 
-Returns a portable ZIP archive containing the normalized logbook, manifest, and uploaded media.
+Returns an `archiveVersion` 2 ZIP containing `manifest.json`, the canonical v2 logbook at `logbook.json`, and uploaded media under `media/<category>/`. This format is shared by desktop and mobile and contains no platform-specific database file.
 
 ### `POST /api/archive`
 
-Imports a portable archive and replaces the current logbook and media after validation.
+Imports an archiveVersion 2 logbook/media archive and replaces the current logbook and media after validation.
 
 ### `GET /api/trips/<trip_id>/shared-archive`
 

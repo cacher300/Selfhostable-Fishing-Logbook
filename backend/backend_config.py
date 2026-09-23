@@ -117,7 +117,7 @@ UNIT_OPTIONS = {
 
 
 DEFAULT_LOGBOOK = {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "species": [
         "Lake Trout",
         "Largemouth Bass",
@@ -190,6 +190,8 @@ DEFAULT_LOGBOOK = {
     "reelStyles": ["Baitcaster", "Spinning", "Linecounter", "Centerpin", "Fly"],
     "rodTypes": ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"],
     "lineTypes": ["Braid", "Mono", "Fluorocarbon", "Fly Line", "Leadcore", "Wire", "Copper", "Other"],
+    "riggings": ["Wacky", "Texas", "Carolina", "Neko", "Weightless", "Drop-shot", "Jika", "Jighead", "Ned", "Other"],
+    "structureOptions": ["Drop-off", "Weedline", "Rocky bottom", "Sand bottom", "Vegetation", "Bait"],
     "flyCategories": ["Dry Fly", "Emerger", "Nymph", "Streamer", "Terrestrial", "Egg", "Midge", "Leech", "Popper", "Junk", "Other"],
     "flyPresentations": ["Dead Drift", "Swing", "Strip / Retrieve", "Indicator", "Euro Nymph", "Other"],
     "waterLevels": ["Low", "Normal", "High"],
@@ -205,9 +207,9 @@ DEFAULT_LOGBOOK = {
     ],
     "trollingDirections": ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
     "setupLineSides": [
-        {"value": "port", "label": "Port"},
-        {"value": "center", "label": "Center"},
-        {"value": "starboard", "label": "Starboard"},
+        {"value": "Port", "label": "Port"},
+        {"value": "Center", "label": "Center"},
+        {"value": "Starboard", "label": "Starboard"},
     ],
     "lures": [],
     "flashers": [],
@@ -215,8 +217,10 @@ DEFAULT_LOGBOOK = {
     "rods": [],
     "rodReelCombos": [],
     "settings": {
+        "theme": "light",
         "defaultHomeLake": "",
         "defaultPeople": [],
+        "hasFishHawk": True,
         "timeFormat": "24",
         "bathymetryLakeCalibrationsFeet": {
             lake: {"shallowOffsetFeet": 0, "offshoreOffsetFeet": 0}
@@ -234,6 +238,7 @@ DEFAULT_LOGBOOK = {
         "defaultTrollingSpreadId": "",
         "savedSetups": [],
         "defaultSavedSetupIds": {},
+        "checklists": [],
         "privatePhotoLocations": [],
     },
     "people": [],

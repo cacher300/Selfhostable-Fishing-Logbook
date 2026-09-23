@@ -20,23 +20,6 @@ function coordinateDistanceMeters(first, second) {
   return earthRadius * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 }
 
-function normalizeSpots(spots = []) {
-  const ids = new Set();
-  const names = new Set();
-  return (Array.isArray(spots) ? spots : []).flatMap((spot) => {
-    if (!spot || typeof spot !== "object") return [];
-    const id = String(spot.id || "").trim();
-    const name = String(spot.name || "").trim();
-    const nameKey = name.toLowerCase();
-    const coordinates = normalizeCoordinates(spot.coordinates);
-    const radiusMeters = Number(spot.radiusMeters);
-    if (!id || ids.has(id) || !name || names.has(nameKey) || !coordinates || !Number.isFinite(radiusMeters) || radiusMeters < 25 || radiusMeters > 500) return [];
-    ids.add(id);
-    names.add(nameKey);
-    return [{ id, name, coordinates, radiusMeters: Math.round(radiusMeters * 100) / 100 }];
-  });
-}
-
 function automaticSpotId(catchItem, spots = state.spots || []) {
   const coordinates = normalizeCoordinates(catchItem?.manualCoordinates) || normalizeCoordinates(catchItem?.coordinates);
   if (!coordinates) return "";
@@ -72,67 +55,6 @@ function slugId(prefix, value) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return slug ? `${prefix}-${slug}` : createId();
-}
-
-function normalizeLaunchRecord(launch, locationId) {
-  if (!launch) return null;
-  if (typeof launch === "string") {
-    const name = launch.trim();
-    return name ? { id: slugId(`${locationId}-launch`, name), name, coordinates: null } : null;
-  }
-  if (typeof launch !== "object") return null;
-  const name = String(launch.name || launch.launch || "").trim();
-  if (!name) return null;
-  return {
-    id: String(launch.id || slugId(`${locationId}-launch`, name)),
-    name,
-    coordinates: normalizeCoordinates(launch.coordinates)
-  };
-}
-
-function normalizeLocationRecord(location) {
-  if (!location) return null;
-  if (typeof location === "string") {
-    const name = location.trim();
-    return name ? { id: slugId("loc", name), name, coordinates: null, launches: [] } : null;
-  }
-  if (typeof location !== "object") return null;
-  const name = String(location.name || location.location || "").trim();
-  if (!name) return null;
-  const id = String(location.id || slugId("loc", name));
-  return {
-    id,
-    name,
-    coordinates: normalizeCoordinates(location.coordinates),
-    launches: (Array.isArray(location.launches) ? location.launches : [])
-      .map((launch) => normalizeLaunchRecord(launch, id))
-      .filter(Boolean)
-  };
-}
-
-function mergeLocations(locations, tripNames = []) {
-  const byName = new Map();
-  locations.map(normalizeLocationRecord).filter(Boolean).forEach((location) => {
-    const key = location.name.toLowerCase();
-    const existing = byName.get(key);
-    if (!existing) {
-      byName.set(key, location);
-      return;
-    }
-    existing.coordinates = existing.coordinates || location.coordinates;
-    location.launches.forEach((launch) => {
-      if (!existing.launches.some((item) => item.name.toLowerCase() === launch.name.toLowerCase())) {
-        existing.launches.push(launch);
-      }
-    });
-  });
-  tripNames.forEach((name) => {
-    const trimmed = String(name || "").trim();
-    if (!trimmed || byName.has(trimmed.toLowerCase())) return;
-    const location = normalizeLocationRecord(trimmed);
-    if (location) byName.set(trimmed.toLowerCase(), location);
-  });
-  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function locationNames() {
@@ -178,14 +100,6 @@ function tripNamingKey(trip) {
     .join("\u0000");
 }
 
-function legacyGeneratedTripTitle(trip) {
-  const title = String(trip?.title || "").trim();
-  const legacyTitle = [trip?.date, trip?.targetSpecies ? `${trip.targetSpecies} Trip` : "Trip"]
-    .filter(Boolean)
-    .join(" ");
-  return Boolean(title) && title === legacyTitle;
-}
-
 function generatedTripTitle(trip, trips = []) {
   const records = Array.isArray(trips) ? trips : [];
   const currentIndex = records.findIndex((item) => item === trip
@@ -199,157 +113,41 @@ function generatedTripTitle(trip, trips = []) {
 }
 
 function shouldGenerateTripTitle(trip) {
-  return !String(trip?.title || "").trim() || legacyGeneratedTripTitle(trip);
+  return !String(trip?.title || "").trim();
 }
 
-function normalizeState(nextState) {
-  const normalized = { ...structuredClone(defaults), ...(nextState || {}) };
-  delete normalized.tripTypes;
-  normalized.settings = normalizeSettings(normalized.settings);
-
-  ["species", "methods", "riggings", "lureTypes", "flasherTypes", "waterClarities", "structureOptions", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips"].forEach((key) => {
-    if (!Array.isArray(normalized[key])) normalized[key] = structuredClone(defaults[key]);
-  });
-  ["species", "methods", "riggings", "lureTypes", "flasherTypes", "waterClarities", "structureOptions", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingDirections"].forEach((key) => {
-    const values = key === "species"
-      ? normalized[key].flatMap((item) => {
-          const value = typeof item === "object" ? item?.label || item?.value : item;
-          return String(value || "").trim().toLowerCase() === "crappie"
-            ? ["Black Crappie", "White Crappie"]
-            : [item];
-        })
-      : normalized[key];
-    normalized[key] = normalizeTextOptions(values, defaults[key]);
-    if (key === "waterClarities") normalized[key] = normalized[key].filter((item) => String(item).trim().toLowerCase() !== "algae bloom");
-    if (["species", "lureTypes"].includes(key)) normalized[key].sort((a, b) => a.localeCompare(b));
-  });
-  normalized.trollingPresentations = normalizeChoiceOptions(
-    defaults.trollingPresentations,
-    normalized.trollingPresentations.map((item) => {
-      const value = migrateTrollingPresentationValue(typeof item === "object" ? item.value : item);
-      return { value, label: value };
-    })
-  );
-  normalized.setupLineSides = normalizeChoiceOptions(
-    defaults.setupLineSides,
-    normalized.setupLineSides.map((item) => {
-      const value = migrateSetupLineSideValue(typeof item === "object" ? item.value : item);
-      return { value, label: value };
-    })
-  );
-
-  normalized.reels = normalized.reels.map((reel) => ({
-    lineHistory: [],
-    ...reel
-  }));
-  normalized.rods = normalized.rods.map((rod) => ({ ...rod }));
-  normalized.rodReelCombos = normalized.rodReelCombos.map((combo) => ({ ...combo }));
-  normalized.spots = normalizeSpots(normalized.spots);
-  normalized.expeditions = normalized.expeditions
-    .filter((expedition) => expedition && typeof expedition === "object")
-    .map((expedition) => ({
-      id: String(expedition.id || createId()),
-      name: String(expedition.name || "").trim(),
-      startDate: String(expedition.startDate || "").trim(),
-      endDate: String(expedition.endDate || "").trim(),
-      destination: String(expedition.destination || "").trim(),
-      notes: String(expedition.notes || "").trim()
-    }))
-    .filter((expedition) => expedition.name && expedition.startDate && expedition.endDate);
-  const expeditionIds = new Set(normalized.expeditions.map((expedition) => expedition.id));
-  normalized.trips = normalized.trips.map((trip) => ({
-    catches: [],
-    lostFish: [],
-    gearUsed: [],
-    people: [],
-    notePhotos: [],
-    ...trip
-  }));
-  normalized.people = mergePeople(
-    normalized.people,
-    normalized.trips.flatMap((trip) => trip.people || [])
-  );
-  normalized.locations = mergeLocations(normalized.locations, normalized.trips.map((trip) => trip.location));
-  normalized.trips = normalized.trips.map((trip) => {
-    const location = normalized.locations.find((item) => item.id === trip.locationId)
-      || normalized.locations.find((item) => item.name.toLowerCase() === String(trip.location || "").trim().toLowerCase());
-    const launch = location
-      ? (location.launches || []).find((item) => item.id === trip.launchId)
-        || (location.launches || []).find((item) => item.name.toLowerCase() === String(trip.launch || "").trim().toLowerCase())
-      : null;
-    const { checklist: deprecatedChecklist, ...cleanTrip } = trip;
-    return {
-      ...cleanTrip,
-      isDraft: Boolean(trip.isDraft),
-      launchTime: trip.launchTime || "",
-      linesSetTime: trip.linesSetTime || trip.startTime || "",
-      linesPulledTime: trip.linesPulledTime || trip.endTime || "",
-      startTime: trip.linesSetTime || trip.startTime || "",
-      endTime: trip.linesPulledTime || trip.endTime || "",
-      probeTemperatureProfile: (Array.isArray(trip.probeTemperatureProfile) ? trip.probeTemperatureProfile : [])
-        .filter((entry) => entry && Number.isFinite(Number(entry.depthFeet)))
-        .map((entry) => ({ depthFeet: Number(entry.depthFeet), temperature: String(entry.temperature || "").trim() })),
-      gearUsed: (trip.gearUsed || []).map((gearItem) => {
-        const normalizedGearItem = {
-          comboId: "",
-          rodId: "",
-          reelId: "",
-          ...(gearItem || {}),
-          // Line sides are meaningful only for trolling setups.
-          side: String(trip.method || "").toLowerCase() === "trolling"
-            ? migrateSetupLineSideValue(gearItem.side)
-            : "",
-          presentation: migrateTrollingPresentationValue(gearItem.presentation)
-        };
-        delete normalizedGearItem.boatItemId;
-        return normalizedGearItem;
-      }),
-      catches: (trip.catches || []).map((catchItem) => normalizeCatchSpotAssignment({
-        rodId: "",
-        ...catchItem,
-        gpsSpeed: catchItem.gpsSpeed ?? catchItem.speed ?? "",
-        ballSpeed: catchItem.ballSpeed ?? "",
-        ballTemp: catchItem.ballTemp ?? "",
-        presentation: migrateTrollingPresentationValue(catchItem.presentation)
-      }, normalized.spots)),
-      lostFish: (trip.lostFish || []).map((fishItem) => normalizeCatchSpotAssignment({
-        rodId: "",
-        ...fishItem,
-        gpsSpeed: fishItem.gpsSpeed ?? fishItem.speed ?? "",
-        ballSpeed: fishItem.ballSpeed ?? "",
-        ballTemp: fishItem.ballTemp ?? "",
-        presentation: migrateTrollingPresentationValue(fishItem.presentation)
-      }, normalized.spots)),
-      location: location?.name || trip.location || "",
-      locationId: location?.id || trip.locationId || "",
-      launch: launch?.name || trip.launch || "",
-      launchId: launch?.id || trip.launchId || "",
-      expeditionId: expeditionIds.has(String(trip.expeditionId || "")) ? String(trip.expeditionId) : ""
-    };
-  });
-  const tripsForNaming = normalized.trips;
-  normalized.trips = tripsForNaming.map((trip) => shouldGenerateTripTitle(trip)
-    ? { ...trip, title: generatedTripTitle(trip, tripsForNaming) }
-    : trip);
-
-  return normalized;
-}
-
-function normalizeTextOptions(options = [], fallback = []) {
-  const source = [
-    ...(Array.isArray(options) ? options : []),
-    ...(Array.isArray(fallback) ? fallback : [])
-  ];
-  const seen = new Set();
-  return source
-    .map((item) => typeof item === "object" ? item?.label || item?.value : item)
-    .map((item) => String(item || "").trim())
-    .filter((item) => {
-      const key = item.toLowerCase();
-      if (!item || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+function validateState(document) {
+  if (!document || typeof document !== "object" || document.schemaVersion !== 2) {
+    throw new Error("Only v2 logbooks are supported.");
+  }
+  for (const key of ["species", "methods", "riggings", "lureTypes", "flasherTypes", "waterClarities", "structureOptions", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips"]) {
+    if (!Array.isArray(document[key])) throw new Error(`Missing v2 collection: ${key}`);
+  }
+  if (!document.settings || typeof document.settings !== "object") throw new Error("Missing v2 settings.");
+  if (document.settings.chopRanges !== undefined) validateChopRanges(document.settings.chopRanges);
+  const uploadCategories = new Set(["catch-photos", "trip-photos", "lures", "flashers", "reels", "rods", "queue"]);
+  const checkMedia = (items, label) => {
+    if (!Array.isArray(items)) throw new Error(`${label} must be a list.`);
+    for (const item of items) {
+      if (!item || typeof item !== "object" || typeof item.id !== "string" || !item.id
+        || !uploadCategories.has(item.category) || typeof item.filename !== "string" || !item.filename
+        || /[/\\]/.test(item.filename)) {
+        throw new Error(`${label} contains an invalid v2 media reference.`);
+      }
+    }
+  };
+  for (const key of ["lures", "flashers", "reels", "rods"]) {
+    for (const gear of document[key]) {
+      checkMedia(gear.media || [], `${key} media`);
+    }
+  }
+  for (const trip of document.trips) {
+    checkMedia(trip.notePhotos || [], "Trip note photos");
+    for (const fish of [...(trip.catches || []), ...(trip.lostFish || [])]) {
+      checkMedia(fish.photos || [], "Fish photos");
+    }
+  }
+  return document;
 }
 
 function slugOptionValue(label) {
@@ -360,40 +158,17 @@ function slugOptionValue(label) {
     .replace(/^-+|-+$/g, "");
 }
 
-function normalizeChoiceOptions(options = [], fallback = []) {
-  const source = [
-    ...(Array.isArray(options) ? options : []),
-    ...(Array.isArray(fallback) ? fallback : [])
-  ];
-  const seen = new Set();
-  return source
-    .map((item) => {
-      if (item && typeof item === "object") {
-        const label = String(item.label || item.value || "").trim();
-        const value = String(item.value || slugOptionValue(label)).trim();
-        return { value, label: label || value };
-      }
-      const label = String(item || "").trim();
-      return { value: slugOptionValue(label) || label, label };
-    })
-    .filter((item) => {
-      const key = item.value.toLowerCase();
-      if (!item.value || !item.label || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
-
 function optionChoices(key) {
-  const choices = normalizeChoiceOptions(state[key], defaults[key]);
+  const choices = Array.isArray(state[key]) ? state[key] : [];
   if (key !== "trollingPresentations") return choices;
   return choices.filter((item) => (
-    item.value.toLowerCase() !== "cheater" && item.label.toLowerCase() !== "cheater"
+    String(item?.value || "").toLowerCase() !== "cheater" && String(item?.label || "").toLowerCase() !== "cheater"
   ));
 }
 
 function optionLabels(key) {
-  return normalizeTextOptions(state[key], defaults[key]);
+  const values = Array.isArray(state[key]) ? state[key] : [];
+  return values.map((item) => typeof item === "object" ? item?.label || item?.value : item);
 }
 
 function choiceLabel(key, value) {
@@ -401,232 +176,19 @@ function choiceLabel(key, value) {
   return optionChoices(key).find((item) => item.value === text)?.label || text;
 }
 
-function normalizeSettings(settings = {}) {
-  const normalized = {
-    ...structuredClone(defaults.settings),
-    ...(settings && typeof settings === "object" ? settings : {})
-  };
-  normalized.theme = normalized.theme === "dark" ? "dark" : "light";
-  normalized.hasFishHawk = normalized.hasFishHawk !== false;
-  normalized.timeFormat = normalized.timeFormat === "12" ? "12" : "24";
-  normalized.defaultHomeLake = ["", "Superior", "Michigan", "Huron", "Erie", "Ontario"].includes(normalized.defaultHomeLake) ? normalized.defaultHomeLake : "";
-  normalized.defaultPeople = Array.isArray(normalized.defaultPeople)
-    ? [...new Set(normalized.defaultPeople.map((personId) => String(personId || "").trim()).filter(Boolean))]
-    : [];
-  const legacyBathymetryOffset = normalizeBathymetryOffsetFeet(settings?.bathymetryOffsetFeet);
-  normalized.bathymetryLakeCalibrationsFeet = normalizeBathymetryLakeCalibrations(
-    settings?.bathymetryLakeCalibrationsFeet,
-    settings?.bathymetryLakeOffsetsFeet,
-    legacyBathymetryOffset
-  );
-  delete normalized.bathymetryOffsetFeet;
-  delete normalized.bathymetryLakeOffsetsFeet;
-  normalized.units = normalizeUnits(normalized.units);
-  normalized.chopRanges = normalizeChopRanges(normalized.chopRanges);
-  const hasNamedTrollingSpreads = Array.isArray(settings?.trollingSpreads);
-  normalized.trollingSpreads = normalizeTrollingSpreads(
-    hasNamedTrollingSpreads ? settings.trollingSpreads : [],
-    hasNamedTrollingSpreads ? [] : settings?.defaultTrollingSpreads,
-    hasNamedTrollingSpreads ? [] : settings?.defaultTrollingSpread
-  );
-  const requestedDefaultTrollingSpreadId = String(settings?.defaultTrollingSpreadId || "").trim();
-  const hasRequestedDefault = normalized.trollingSpreads.some((item) => item.id === requestedDefaultTrollingSpreadId);
-  const migratedGeneralSpread = !hasNamedTrollingSpreads
-    ? normalized.trollingSpreads.find((item) => item.name.toLowerCase() === "general spread")
-    : null;
-  normalized.defaultTrollingSpreadId = hasRequestedDefault
-    ? requestedDefaultTrollingSpreadId
-    : migratedGeneralSpread?.id || "";
-  normalized.savedSetups = normalizeSavedSetups(settings?.savedSetups);
-  normalized.defaultSavedSetupIds = normalizeDefaultSavedSetupIds(
-    settings?.defaultSavedSetupIds,
-    normalized.savedSetups
-  );
-  delete normalized.defaultTrollingSpread;
-  delete normalized.defaultTrollingSpreads;
-  delete normalized.spreadTemplates;
-  normalized.checklists = normalizeChecklists(normalized.checklists);
-  delete normalized.tripTemplates;
-  delete normalized.boatLayout;
-  delete normalized.tackleBoxes;
-  normalized.privatePhotoLocations = normalizePrivatePhotoLocations(normalized.privatePhotoLocations);
-  return normalized;
-}
 
 function hasFishHawk() {
   return state.settings?.hasFishHawk !== false;
 }
 
-function uniqueNormalizedName(baseName, usedNames, maxLength = 60) {
-  const safeBase = String(baseName || "").slice(0, maxLength);
-  let name = safeBase;
-  let suffix = 2;
-  while (usedNames.has(name.toLowerCase())) {
-    const suffixText = ` (${suffix++})`;
-    name = `${safeBase.slice(0, Math.max(1, maxLength - suffixText.length))}${suffixText}`;
-  }
-  usedNames.add(name.toLowerCase());
-  return name;
+function currentTrollingSpreads() {
+  return Array.isArray(state.settings?.trollingSpreads) ? state.settings.trollingSpreads : [];
 }
 
-function normalizeChecklistItems(items = []) {
-  const usedIds = new Set();
-  return (Array.isArray(items) ? items : [])
-    .map((item) => typeof item === "string" ? { label: item } : item)
-    .filter((item) => item && typeof item === "object")
-    .map((item) => {
-      let id = String(item.id || createId()).trim() || createId();
-      if (usedIds.has(id)) id = createId();
-      usedIds.add(id);
-      return {
-        id,
-        label: String(item.label || "").trim().slice(0, 120),
-        done: Boolean(item.done)
-      };
-    })
-    .filter((item) => item.label);
-}
-
-function normalizeChecklists(checklists = []) {
-  const usedIds = new Set();
-  const usedNames = new Set();
-  return (Array.isArray(checklists) ? checklists : [])
-    .filter((checklist) => checklist && typeof checklist === "object")
-    .map((checklist, index) => {
-      let id = String(checklist.id || createId()).trim() || createId();
-      if (usedIds.has(id)) id = createId();
-      usedIds.add(id);
-
-      const fallback = `Checklist ${index + 1}`;
-      const baseName = String(checklist.name || fallback).trim().slice(0, 60) || fallback;
-      const name = uniqueNormalizedName(baseName, usedNames);
-
-      return { id, name, items: normalizeChecklistItems(checklist.items) };
-    });
-}
-
-function normalizeBathymetryOffsetFeet(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return 0;
-  return Math.round(number * 100) / 100;
-}
-
-function normalizeBathymetryLakeCalibrations(calibrations, offsets, fallback = 0) {
-  const lakes = ["Erie", "Ontario", "St. Clair", "Huron", "Michigan", "Superior"];
-  return Object.fromEntries(lakes.map((lake) => [
-    lake,
-    {
-      shallowOffsetFeet: 0,
-      offshoreOffsetFeet: normalizeBathymetryOffsetFeet(calibrations?.[lake]?.offshoreOffsetFeet ?? offsets?.[lake] ?? fallback)
-    }
-  ]));
-}
-
-function normalizeTrollingSpreadRows(spread = []) {
-  if (!Array.isArray(spread)) return [];
-  return spread.map((item) => ({
-    comboId: String(item?.comboId || "").trim(),
-    side: String(item?.side || "").trim(),
-    presentation: String(item?.presentation || "").trim()
-  })).filter((item) => item.comboId);
-}
-
-function normalizeTrollingSpreads(spreads = [], legacySpreads = [], legacySpread = []) {
-  const normalized = [];
-  const usedIds = new Set();
-  const usedNames = new Set();
-  const addSpread = (item, fallbackName) => {
-    if (!item || typeof item !== "object") return;
-    const spread = normalizeTrollingSpreadRows(item.spread);
-    if (!spread.length) return;
-    let id = String(item.id || createId()).trim() || createId();
-    if (usedIds.has(id)) id = createId();
-    usedIds.add(id);
-    const baseName = String(item.name || fallbackName || "Trolling Spread").trim().slice(0, 60) || "Trolling Spread";
-    const name = uniqueNormalizedName(baseName, usedNames);
-    normalized.push({ id, name, spread });
-  };
-
-  if (Array.isArray(spreads) && spreads.length) {
-    spreads.forEach((item, index) => addSpread(item, `Trolling Spread ${index + 1}`));
-    return normalized;
-  }
-
-  const oldEntries = Array.isArray(legacySpreads) ? legacySpreads : [];
-  oldEntries.forEach((item, index) => {
-    const targetSpecies = String(item?.targetSpecies || "").trim();
-    addSpread(item, targetSpecies ? `${targetSpecies} Spread` : "General Spread");
-  });
-  const hasGeneralEntry = oldEntries.some((item) => (
-    !String(item?.targetSpecies || "").trim() && normalizeTrollingSpreadRows(item?.spread).length
-  ));
-  if (!hasGeneralEntry) addSpread({ spread: legacySpread }, "General Spread");
-  return normalized;
+function currentSavedSetups(setups = state.settings?.savedSetups) {
+  return Array.isArray(setups) ? setups : [];
 }
 
 function trollingSpreadById(spreadId = "", spreads = state.settings?.trollingSpreads) {
-  const id = String(spreadId || "").trim();
-  return (Array.isArray(spreads) ? spreads : []).find((item) => item?.id === id)?.spread || [];
-}
-
-function normalizeSavedSetupRows(rows = []) {
-  if (!Array.isArray(rows)) return [];
-  return rows.map((item) => ({
-    comboId: String(item?.comboId || "").trim()
-  })).filter((item) => item.comboId);
-}
-
-function normalizeSavedSetups(setups = []) {
-  const normalized = [];
-  const usedIds = new Set();
-  const usedNamesByMethod = new Map();
-  (Array.isArray(setups) ? setups : [])
-    .filter((item) => item && typeof item === "object")
-    .forEach((item, index) => {
-      const method = String(item.method || "").trim();
-      const rawName = String(item.name || "").trim();
-      const rows = normalizeSavedSetupRows(item.rows);
-      if (!method || !rawName || !rows.length) return;
-
-      let id = String(item.id || createId()).trim() || createId();
-      while (usedIds.has(id)) id = createId();
-      usedIds.add(id);
-
-      const methodKey = method.toLowerCase();
-      if (!usedNamesByMethod.has(methodKey)) usedNamesByMethod.set(methodKey, new Set());
-      const baseName = rawName.slice(0, 60);
-      const name = uniqueNormalizedName(baseName, usedNamesByMethod.get(methodKey));
-      normalized.push({ id, name, method, rows });
-    });
-  return normalized;
-}
-
-function normalizeDefaultSavedSetupIds(defaults = {}, setups = []) {
-  if (!defaults || typeof defaults !== "object" || Array.isArray(defaults)) return {};
-  const normalized = {};
-  Object.entries(defaults).forEach(([method, setupId]) => {
-    const methodText = String(method || "").trim();
-    const id = String(setupId || "").trim();
-    if (!methodText || !id) return;
-    const setup = setups.find((item) => item.id === id && item.method.toLowerCase() === methodText.toLowerCase());
-    if (setup) normalized[setup.method] = setup.id;
-  });
-  return normalized;
-}
-
-function normalizePrivatePhotoLocations(locations = []) {
-  if (!Array.isArray(locations)) return [];
-  return locations.map((location, index) => {
-    const coordinates = isUsableCoordinates(location?.coordinates) ? {
-      latitude: Number(location.coordinates.latitude),
-      longitude: Number(location.coordinates.longitude)
-    } : null;
-    const radiusMeters = Math.max(25, Math.min(10000, Number(location?.radiusMeters) || 400));
-    return {
-      id: String(location?.id || createId()),
-      name: String(location?.name || `Home ${index + 1}`).trim() || `Home ${index + 1}`,
-      radiusMeters,
-      coordinates
-    };
-  }).filter((location) => isUsableCoordinates(location.coordinates));
+  return (Array.isArray(spreads) ? spreads : []).find((item) => item?.id === spreadId)?.spread || [];
 }

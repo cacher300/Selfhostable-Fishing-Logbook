@@ -1,611 +1,22 @@
 from __future__ import annotations
 
 import math
-import uuid
 from copy import deepcopy
 from datetime import date
 
-from .backend_config import BATHYMETRY_LAKES, DATABASE_FILE, DEFAULT_LOGBOOK, DEFAULT_UNITS, UNIT_OPTIONS
+from .backend_config import BATHYMETRY_LAKES, DATABASE_FILE, DEFAULT_LOGBOOK, UNIT_OPTIONS, UPLOAD_CATEGORIES
 from . import logbook_repository
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 PRIVATE_PHOTO_LOCATION_RADIUS_MIN_METERS = 25
 PRIVATE_PHOTO_LOCATION_RADIUS_MAX_METERS = 10000
 _COLLECTION_KEYS = (
     "species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes",
-    "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections",
+    "reelStyles", "rodTypes", "lineTypes", "riggings", "structureOptions", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections",
     "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people",
     "locations", "spots", "expeditions", "trips",
 )
 _OBJECT_COLLECTION_KEYS = {"lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips"}
-
-
-def normalize_logbook(payload: dict | None = None) -> dict:
-    normalized = deepcopy(DEFAULT_LOGBOOK)
-    if isinstance(payload, dict):
-        normalized.update(payload)
-
-    normalized.pop("tripTypes", None)
-    normalized["schemaVersion"] = SCHEMA_VERSION
-
-    def usable_coordinates(value: object) -> dict | None:
-        if not isinstance(value, dict):
-            return None
-        try:
-            latitude = float(value.get("latitude"))
-            longitude = float(value.get("longitude"))
-        except (TypeError, ValueError):
-            return None
-        if latitude < -90 or latitude > 90 or longitude < -180 or longitude > 180:
-            return None
-        if latitude == 0 and longitude == 0:
-            return None
-        return {"latitude": latitude, "longitude": longitude}
-
-    if not isinstance(normalized.get("settings"), dict):
-        normalized["settings"] = deepcopy(DEFAULT_LOGBOOK["settings"])
-    else:
-        default_ranges = deepcopy(DEFAULT_LOGBOOK["settings"]["chopRanges"])
-        ranges = normalized["settings"].get("chopRanges")
-        time_format = str(normalized["settings"].get("timeFormat") or "24")
-        if time_format not in ("12", "24"):
-            time_format = "24"
-        try:
-            legacy_bathymetry_offset_feet = float(normalized["settings"].get("bathymetryOffsetFeet") or 0)
-        except (TypeError, ValueError):
-            legacy_bathymetry_offset_feet = 0
-        raw_lake_offsets = normalized["settings"].get("bathymetryLakeOffsetsFeet")
-        raw_lake_calibrations = normalized["settings"].get("bathymetryLakeCalibrationsFeet")
-        lake_calibrations = {}
-        for lake in BATHYMETRY_LAKES:
-            legacy_offset = raw_lake_offsets.get(lake, legacy_bathymetry_offset_feet) if isinstance(raw_lake_offsets, dict) else legacy_bathymetry_offset_feet
-            calibration = raw_lake_calibrations.get(lake) if isinstance(raw_lake_calibrations, dict) else None
-            offshore_value = calibration.get("offshoreOffsetFeet", legacy_offset) if isinstance(calibration, dict) else legacy_offset
-            try:
-                offshore_offset = round(float(offshore_value or 0), 2)
-            except (TypeError, ValueError):
-                offshore_offset = 0
-            lake_calibrations[lake] = {"shallowOffsetFeet": 0, "offshoreOffsetFeet": offshore_offset}
-        raw_units = normalized["settings"].get("units")
-        cleaned_units = deepcopy(DEFAULT_UNITS)
-        if isinstance(raw_units, dict):
-            for key in DEFAULT_UNITS:
-                value = raw_units.get(key)
-                if value in UNIT_OPTIONS.get(key, set()):
-                    cleaned_units[key] = value
-        if not isinstance(ranges, list) or not ranges:
-            ranges = default_ranges
-        cleaned_ranges = []
-        for index, item in enumerate(ranges):
-            if not isinstance(item, dict):
-                continue
-            fallback = default_ranges[index] if index < len(default_ranges) else default_ranges[-1]
-            label = str(item.get("label") or fallback["label"]).strip()
-            if not label:
-                continue
-            try:
-                max_feet = None if item.get("maxFeet") in (None, "") else round(max(0, float(item.get("maxFeet"))), 2)
-            except (TypeError, ValueError):
-                max_feet = None
-            cleaned_ranges.append({
-                "id": str(item.get("id") or fallback["id"]),
-                "label": label,
-                "maxFeet": max_feet,
-            })
-        if not any(item.get("maxFeet") is None for item in cleaned_ranges):
-            cleaned_ranges.append(default_ranges[-1])
-        raw_named_spreads = normalized["settings"].get("trollingSpreads")
-        # An empty list is the new default, not proof that a legacy logbook has
-        # no saved spreads. Keep the legacy migration path open until there is
-        # at least one named spread to treat as authoritative.
-        has_named_spreads = isinstance(raw_named_spreads, list) and bool(raw_named_spreads)
-        raw_default_spreads = normalized["settings"].get("defaultTrollingSpreads")
-        raw_default_spread = normalized["settings"].get("defaultTrollingSpread")
-        legacy_entries = raw_default_spreads if isinstance(raw_default_spreads, list) else []
-        cleaned_trolling_spreads = []
-        used_spread_ids = set()
-        used_spread_names = set()
-
-        def cleaned_spread_rows(rows: object) -> list[dict]:
-            if not isinstance(rows, list):
-                return []
-            cleaned = []
-            for row in rows:
-                if not isinstance(row, dict):
-                    continue
-                combo_id = str(row.get("comboId") or "").strip()
-                if not combo_id:
-                    continue
-                cleaned.append({
-                    "comboId": combo_id,
-                    "side": str(row.get("side") or "").strip(),
-                    "presentation": str(row.get("presentation") or "").strip(),
-                })
-            return cleaned
-
-        def add_trolling_spread(item: object, fallback_name: str) -> str | None:
-            if not isinstance(item, dict):
-                return None
-            spread = cleaned_spread_rows(item.get("spread"))
-            if not spread:
-                return None
-            spread_id = str(item.get("id") or uuid.uuid4()).strip() or str(uuid.uuid4())
-            while spread_id in used_spread_ids:
-                spread_id = str(uuid.uuid4())
-            used_spread_ids.add(spread_id)
-            base_name = str(item.get("name") or fallback_name).strip()[:60] or fallback_name
-            name = base_name
-            suffix = 2
-            while name.casefold() in used_spread_names:
-                suffix_text = f" ({suffix})"
-                name = f"{base_name[:max(1, 60 - len(suffix_text))]}{suffix_text}"
-                suffix += 1
-            used_spread_names.add(name.casefold())
-            cleaned_trolling_spreads.append({"id": spread_id, "name": name, "spread": spread})
-            return spread_id
-
-        migrated_general_id = None
-        if has_named_spreads:
-            for index, item in enumerate(raw_named_spreads):
-                add_trolling_spread(item, f"Trolling Spread {index + 1}")
-        else:
-            has_general_entry = False
-            for item in legacy_entries:
-                target_species = str(item.get("targetSpecies") or "").strip() if isinstance(item, dict) else ""
-                fallback_name = f"{target_species} Spread" if target_species else "General Spread"
-                spread_id = add_trolling_spread(item, fallback_name)
-                if spread_id and not target_species:
-                    has_general_entry = True
-                    migrated_general_id = spread_id
-            if not has_general_entry:
-                migrated_general_id = add_trolling_spread({"spread": raw_default_spread}, "General Spread")
-        requested_default_id = str(normalized["settings"].get("defaultTrollingSpreadId") or "").strip()
-        cleaned_default_trolling_spread_id = requested_default_id if any(
-            item["id"] == requested_default_id for item in cleaned_trolling_spreads
-        ) else ((migrated_general_id or "") if not has_named_spreads else "")
-        raw_saved_setups = normalized["settings"].get("savedSetups")
-        cleaned_saved_setups = []
-        used_setup_ids = set()
-        used_setup_names = {}
-
-        def cleaned_saved_setup_rows(rows: object) -> list[dict]:
-            if not isinstance(rows, list):
-                return []
-            cleaned = []
-            for row in rows:
-                if not isinstance(row, dict):
-                    continue
-                combo_id = str(row.get("comboId") or "").strip()
-                if combo_id:
-                    cleaned.append({"comboId": combo_id})
-            return cleaned
-
-        def add_saved_setup(item: object, fallback_name: str) -> str | None:
-            if not isinstance(item, dict):
-                return None
-            method = str(item.get("method") or "").strip()
-            name = str(item.get("name") or "").strip()
-            rows = cleaned_saved_setup_rows(item.get("rows"))
-            if not method or not name or not rows:
-                return None
-            setup_id = str(item.get("id") or uuid.uuid4()).strip() or str(uuid.uuid4())
-            while setup_id in used_setup_ids:
-                setup_id = str(uuid.uuid4())
-            used_setup_ids.add(setup_id)
-            method_key = method.casefold()
-            names = used_setup_names.setdefault(method_key, set())
-            base_name = name[:60]
-            name = base_name
-            suffix = 2
-            while name.casefold() in names:
-                suffix_text = f" ({suffix})"
-                name = f"{base_name[:max(1, 60 - len(suffix_text))]}{suffix_text}"
-                suffix += 1
-            names.add(name.casefold())
-            cleaned_saved_setups.append({"id": setup_id, "name": name, "method": method, "rows": rows})
-            return setup_id
-
-        if isinstance(raw_saved_setups, list):
-            for index, item in enumerate(raw_saved_setups):
-                method = str(item.get("method") or "").strip() if isinstance(item, dict) else ""
-                add_saved_setup(item, f"{method or 'Fishing'} Setup {index + 1}")
-        raw_default_saved_setup_ids = normalized["settings"].get("defaultSavedSetupIds")
-        cleaned_default_saved_setup_ids = {}
-        if isinstance(raw_default_saved_setup_ids, dict):
-            for method, setup_id in raw_default_saved_setup_ids.items():
-                method_text = str(method or "").strip()
-                setup_id = str(setup_id or "").strip()
-                matching_setup = next(
-                    (
-                        item for item in cleaned_saved_setups
-                        if item["id"] == setup_id and item["method"].casefold() == method_text.casefold()
-                    ),
-                    None,
-                )
-                if matching_setup:
-                    cleaned_default_saved_setup_ids[matching_setup["method"]] = matching_setup["id"]
-        raw_default_people = normalized["settings"].get("defaultPeople")
-        cleaned_default_people = []
-        if isinstance(raw_default_people, list):
-            for person_id in raw_default_people:
-                person_id = str(person_id or "").strip()
-                if person_id and person_id not in cleaned_default_people:
-                    cleaned_default_people.append(person_id)
-        cleaned_private_locations = []
-        private_locations = normalized["settings"].get("privatePhotoLocations")
-        if isinstance(private_locations, list):
-            for index, item in enumerate(private_locations):
-                if not isinstance(item, dict):
-                    continue
-                coordinates = usable_coordinates(item.get("coordinates"))
-                if not coordinates:
-                    continue
-                try:
-                    radius_meters = max(
-                        PRIVATE_PHOTO_LOCATION_RADIUS_MIN_METERS,
-                        min(PRIVATE_PHOTO_LOCATION_RADIUS_MAX_METERS, float(item.get("radiusMeters") or 400)),
-                    )
-                except (TypeError, ValueError):
-                    radius_meters = 400
-                name = str(item.get("name") or f"Home {index + 1}").strip() or f"Home {index + 1}"
-                cleaned_private_locations.append({
-                    "id": str(item.get("id") or uuid.uuid4()),
-                    "name": name,
-                    "radiusMeters": round(radius_meters, 2),
-                    "coordinates": coordinates,
-                })
-        normalized["settings"] = {
-            **deepcopy(DEFAULT_LOGBOOK["settings"]),
-            **normalized["settings"],
-            "timeFormat": time_format,
-            "bathymetryLakeCalibrationsFeet": lake_calibrations,
-            "units": cleaned_units,
-            "chopRanges": cleaned_ranges or default_ranges,
-            "trollingSpreads": cleaned_trolling_spreads,
-            "defaultTrollingSpreadId": cleaned_default_trolling_spread_id,
-            "savedSetups": cleaned_saved_setups,
-            "defaultSavedSetupIds": cleaned_default_saved_setup_ids,
-            "defaultPeople": cleaned_default_people,
-            "privatePhotoLocations": cleaned_private_locations,
-        }
-        normalized["settings"].pop("bathymetryOffsetFeet", None)
-        normalized["settings"].pop("bathymetryLakeOffsetsFeet", None)
-        normalized["settings"].pop("defaultTrollingSpread", None)
-        normalized["settings"].pop("defaultTrollingSpreads", None)
-        normalized["settings"].pop("boatLayout", None)
-        normalized["settings"].pop("tackleBoxes", None)
-
-    list_keys = ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips")
-    for key in list_keys:
-        if not isinstance(normalized.get(key), list):
-            normalized[key] = deepcopy(DEFAULT_LOGBOOK[key])
-
-    if isinstance(normalized.get("species"), list):
-        normalized["species"] = [
-            replacement
-            for item in normalized["species"]
-            for replacement in (
-                ("Black Crappie", "White Crappie")
-                if str((item.get("label") or item.get("value")) if isinstance(item, dict) else item).strip().lower() == "crappie"
-                else (item,)
-            )
-        ]
-
-    def clean_text_options(key: str) -> None:
-        seen = set()
-        cleaned = []
-        source = [
-            *(normalized.get(key) if isinstance(normalized.get(key), list) else []),
-            *DEFAULT_LOGBOOK[key],
-        ]
-        for item in source:
-            value = item.get("label") or item.get("value") if isinstance(item, dict) else item
-            text = str(value or "").strip()
-            folded = text.lower()
-            if text and folded not in seen:
-                cleaned.append(text)
-                seen.add(folded)
-        normalized[key] = cleaned
-        if key == "waterClarities":
-            normalized[key] = [item for item in normalized[key] if item.casefold() != "algae bloom"]
-
-    def slug_option_value(label: str) -> str:
-        return "-".join("".join(char.lower() if char.isalnum() else " " for char in str(label)).split())
-
-    def clean_choice_options(key: str) -> None:
-        seen = set()
-        cleaned = []
-        source = normalized.get(key) if isinstance(normalized.get(key), list) else DEFAULT_LOGBOOK[key]
-        for item in source:
-            if isinstance(item, dict):
-                label = str(item.get("label") or item.get("value") or "").strip()
-                value = str(item.get("value") or slug_option_value(label)).strip()
-            else:
-                label = str(item or "").strip()
-                value = slug_option_value(label) or label
-            folded = value.lower()
-            if value and label and folded not in seen:
-                cleaned.append({"value": value, "label": label})
-                seen.add(folded)
-        normalized[key] = cleaned
-
-    for key in ("species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingDirections"):
-        clean_text_options(key)
-    normalized["lureTypes"].sort(key=str.casefold)
-    for key in ("trollingPresentations", "setupLineSides"):
-        clean_choice_options(key)
-
-    normalized_spots = []
-    spot_ids = set()
-    spot_names = set()
-    for spot in normalized["spots"]:
-        if not isinstance(spot, dict):
-            continue
-        spot_id = str(spot.get("id") or "").strip()
-        name = str(spot.get("name") or "").strip()
-        coordinates = usable_coordinates(spot.get("coordinates"))
-        try:
-            radius_meters = float(spot.get("radiusMeters"))
-        except (TypeError, ValueError):
-            radius_meters = 0
-        name_key = name.lower()
-        if (
-            not spot_id or spot_id in spot_ids or not name or name_key in spot_names
-            or not coordinates or not 25 <= radius_meters <= 500
-        ):
-            continue
-        spot_ids.add(spot_id)
-        spot_names.add(name_key)
-        normalized_spots.append({
-            "id": spot_id,
-            "name": name,
-            "coordinates": coordinates,
-            "radiusMeters": round(radius_meters, 2),
-        })
-    normalized["spots"] = normalized_spots
-
-    def distance_meters(first: dict, second: dict) -> float:
-        radius = 6371000
-        latitude_delta = math.radians(second["latitude"] - first["latitude"])
-        longitude_delta = math.radians(second["longitude"] - first["longitude"])
-        latitude_one = math.radians(first["latitude"])
-        latitude_two = math.radians(second["latitude"])
-        haversine = (
-            math.sin(latitude_delta / 2) ** 2
-            + math.cos(latitude_one) * math.cos(latitude_two) * math.sin(longitude_delta / 2) ** 2
-        )
-        return radius * 2 * math.atan2(math.sqrt(haversine), math.sqrt(1 - haversine))
-
-    def automatic_spot_id(catch: dict) -> str:
-        coordinates = usable_coordinates(catch.get("manualCoordinates")) or usable_coordinates(catch.get("coordinates"))
-        if not coordinates:
-            return ""
-        matches = []
-        for spot in normalized_spots:
-            distance = distance_meters(coordinates, spot["coordinates"])
-            if distance <= spot["radiusMeters"]:
-                matches.append((distance, spot["id"]))
-        return min(matches, default=(0, ""), key=lambda item: (item[0], item[1]))[1]
-
-    normalized_expeditions = []
-    expedition_ids = set()
-    for expedition in normalized["expeditions"]:
-        if not isinstance(expedition, dict):
-            continue
-        expedition_id = str(expedition.get("id") or uuid.uuid4())
-        if expedition_id in expedition_ids:
-            continue
-        name = str(expedition.get("name") or "").strip()
-        start_date = str(expedition.get("startDate") or "").strip()
-        end_date = str(expedition.get("endDate") or "").strip()
-        if not name or not start_date or not end_date:
-            continue
-        expedition_ids.add(expedition_id)
-        normalized_expeditions.append({
-            "id": expedition_id,
-            "name": name,
-            "startDate": start_date,
-            "endDate": end_date,
-            "destination": str(expedition.get("destination") or "").strip(),
-            "notes": str(expedition.get("notes") or "").strip(),
-        })
-    normalized["expeditions"] = normalized_expeditions
-
-    for lure in normalized["lures"]:
-        if not isinstance(lure, dict):
-            continue
-        name = str(lure.get("name") or "").strip()
-        if name:
-            lure["name"] = name
-            continue
-        generated_name = " ".join(
-            value
-            for value in (
-                str(lure.get("color") or "").strip(),
-                str(lure.get("spoonSize") or "").strip(),
-                str(lure.get("bladeType") or "").strip(),
-                str(lure.get("brand") or "").strip(),
-                str(lure.get("type") or "").strip(),
-            )
-            if value
-        )
-        lure["name"] = generated_name or "Unnamed Lure"
-
-    known_people = {
-        person.get("id"): person
-        for person in normalized["people"]
-        if isinstance(person, dict) and person.get("id")
-    }
-    for trip in normalized["trips"]:
-        if not isinstance(trip, dict):
-            continue
-        lines_set_time = str(trip.get("linesSetTime") or trip.get("startTime") or "")
-        lines_pulled_time = str(trip.get("linesPulledTime") or trip.get("endTime") or "")
-        trip["launchTime"] = str(trip.get("launchTime") or "")
-        trip["linesSetTime"] = lines_set_time
-        trip["linesPulledTime"] = lines_pulled_time
-        trip["startTime"] = lines_set_time
-        trip["endTime"] = lines_pulled_time
-        expedition_id = str(trip.get("expeditionId") or "").strip()
-        trip["expeditionId"] = expedition_id if expedition_id in expedition_ids else ""
-        for record_group in ("catches", "lostFish"):
-            for catch in trip.get(record_group, []):
-                if not isinstance(catch, dict):
-                    continue
-                mode = "manual" if catch.get("spotAssignmentMode") == "manual" else "automatic"
-                selected_spot_id = str(catch.get("spotId") or "").strip()
-                catch["spotAssignmentMode"] = mode
-                catch["spotId"] = (
-                    selected_spot_id if mode == "manual" and selected_spot_id in spot_ids
-                    else "" if mode == "manual"
-                    else automatic_spot_id(catch)
-                )
-        for person in trip.get("people", []):
-            if (
-                isinstance(person, dict)
-                and person.get("id")
-                and person.get("name")
-                and person.get("id") not in known_people
-            ):
-                known_people[person["id"]] = {"id": person["id"], "name": person["name"]}
-    normalized["people"] = list(known_people.values())
-
-    def slug_id(prefix: str, value: str) -> str:
-        slug = "".join(char.lower() if char.isalnum() else "-" for char in value).strip("-")
-        while "--" in slug:
-            slug = slug.replace("--", "-")
-        return f"{prefix}-{slug}" if slug else str(uuid.uuid4())
-
-    def normalize_launch(launch: object, location_id: str) -> dict | None:
-        if isinstance(launch, str):
-            name = launch.strip()
-            return {"id": slug_id(f"{location_id}-launch", name), "name": name, "coordinates": None} if name else None
-        if not isinstance(launch, dict):
-            return None
-        name = str(launch.get("name") or launch.get("launch") or "").strip()
-        if not name:
-            return None
-        return {
-            "id": str(launch.get("id") or slug_id(f"{location_id}-launch", name)),
-            "name": name,
-            "coordinates": usable_coordinates(launch.get("coordinates")),
-        }
-
-    def normalize_location(location: object) -> dict | None:
-        if isinstance(location, str):
-            name = location.strip()
-            return {"id": slug_id("loc", name), "name": name, "coordinates": None, "launches": []} if name else None
-        if not isinstance(location, dict):
-            return None
-        name = str(location.get("name") or location.get("location") or "").strip()
-        if not name:
-            return None
-        location_id = str(location.get("id") or slug_id("loc", name))
-        launches = [
-            item for item in (
-                normalize_launch(launch, location_id)
-                for launch in location.get("launches", [])
-            )
-            if item
-        ] if isinstance(location.get("launches"), list) else []
-        return {
-            "id": location_id,
-            "name": name,
-            "coordinates": usable_coordinates(location.get("coordinates")),
-            "launches": launches,
-        }
-
-    known_locations: dict[str, dict] = {}
-    for location in normalized["locations"]:
-        location_record = normalize_location(location)
-        if not location_record:
-            continue
-        key = location_record["name"].lower()
-        existing = known_locations.get(key)
-        if not existing:
-            known_locations[key] = location_record
-            continue
-        existing["coordinates"] = existing.get("coordinates") or location_record.get("coordinates")
-        for launch in location_record.get("launches", []):
-            if not any(item["name"].lower() == launch["name"].lower() for item in existing.get("launches", [])):
-                existing.setdefault("launches", []).append(launch)
-    for trip in normalized["trips"]:
-        if isinstance(trip, dict) and str(trip.get("location", "")).strip():
-            location = str(trip["location"]).strip()
-            known_locations.setdefault(location.lower(), normalize_location(location))
-    normalized["locations"] = sorted(known_locations.values(), key=lambda item: item["name"].lower())
-
-    def trip_naming_key(trip: dict) -> tuple[str, str]:
-        return (
-            str(trip.get("targetSpecies") or "").strip().casefold(),
-            str(trip.get("method") or "").strip().casefold(),
-        )
-
-    def legacy_generated_trip_title(trip: dict) -> bool:
-        title = str(trip.get("title") or "").strip()
-        legacy_title = " ".join(
-            value
-            for value in (
-                str(trip.get("date") or "").strip(),
-                f"{str(trip.get('targetSpecies') or '').strip()} Trip"
-                if str(trip.get("targetSpecies") or "").strip()
-                else "Trip",
-            )
-            if value
-        )
-        return bool(title) and title == legacy_title
-
-    def generated_trip_title(trip: dict, trips: list[dict]) -> str:
-        current_index = next(
-            (
-                index
-                for index, item in enumerate(trips)
-                if item is trip
-                or (str(item.get("id") or "") and str(item.get("id") or "") == str(trip.get("id") or ""))
-            ),
-            -1,
-        )
-        records_through_trip = trips[: current_index + 1] if current_index >= 0 else trips
-        matching_trips = sum(trip_naming_key(item) == trip_naming_key(trip) for item in records_through_trip)
-        current_trip_matches = current_index >= 0 and trip_naming_key(trips[current_index]) == trip_naming_key(trip)
-        number = matching_trips + (0 if current_trip_matches else 1)
-        labels = [
-            str(trip.get("targetSpecies") or "").strip(),
-            str(trip.get("method") or "").strip(),
-        ]
-        label = " ".join(value for value in labels if value) or "Fishing"
-        return f"{label} Trip #{number}"
-
-    trips_for_naming = normalized["trips"]
-    for trip in normalized["trips"]:
-        if not isinstance(trip, dict):
-            continue
-        for gear_item in trip.get("gearUsed", []) if isinstance(trip.get("gearUsed"), list) else []:
-            if isinstance(gear_item, dict):
-                gear_item.pop("boatItemId", None)
-        title = str(trip.get("title") or "").strip()
-        if title and not legacy_generated_trip_title(trip):
-            trip["title"] = title
-        else:
-            trip["title"] = generated_trip_title(trip, trips_for_naming)
-        location_name = str(trip.get("location", "")).strip()
-        location_id = str(trip.get("locationId", "")).strip()
-        location_record = next((item for item in normalized["locations"] if item["id"] == location_id), None)
-        if location_record is None and location_name:
-            location_record = next((item for item in normalized["locations"] if item["name"].lower() == location_name.lower()), None)
-        launch_name = str(trip.get("launch", "")).strip()
-        launch_id = str(trip.get("launchId", "")).strip()
-        launch_record = None
-        if location_record:
-            launch_record = next((item for item in location_record.get("launches", []) if item["id"] == launch_id), None)
-            if launch_record is None and launch_name:
-                launch_record = next((item for item in location_record.get("launches", []) if item["name"].lower() == launch_name.lower()), None)
-        trip["location"] = location_record["name"] if location_record else location_name
-        trip["locationId"] = location_record["id"] if location_record else location_id
-        trip["launch"] = launch_record["name"] if launch_record else launch_name
-        trip["launchId"] = launch_record["id"] if launch_record else launch_id
-
-    return normalized
 
 
 def database_exists() -> bool:
@@ -616,14 +27,20 @@ def initialize_database() -> None:
     logbook_repository.initialize(DATABASE_FILE)
 
 
-def read_logbook() -> dict:
-    loaded = logbook_repository.read(DATABASE_FILE, _COLLECTION_KEYS)
+def read_logbook_file(database_file, *, allow_empty: bool = True) -> dict:
+    loaded = logbook_repository.read(database_file, _COLLECTION_KEYS)
     if loaded is None:
-        return normalize_logbook()
+        if not allow_empty:
+            raise ValueError("Database does not contain a Fishing Logbook.")
+        return deepcopy(DEFAULT_LOGBOOK)
     is_valid, error = validate_logbook(loaded)
     if not is_valid:
         raise ValueError(f"Stored logbook is invalid: {error}")
-    return normalize_logbook(loaded)
+    return loaded
+
+
+def read_logbook() -> dict:
+    return read_logbook_file(DATABASE_FILE)
 
 
 def write_logbook(payload: dict) -> None:
@@ -631,8 +48,7 @@ def write_logbook(payload: dict) -> None:
     if not is_valid:
         raise ValueError(error)
 
-    normalized = normalize_logbook(payload)
-    logbook_repository.write(DATABASE_FILE, normalized, _COLLECTION_KEYS, _OBJECT_COLLECTION_KEYS)
+    logbook_repository.write(DATABASE_FILE, payload, _COLLECTION_KEYS, _OBJECT_COLLECTION_KEYS)
 
 
 def _error(path: str, message: str) -> tuple[bool, str]:
@@ -713,24 +129,26 @@ def _validate_schema(payload: dict) -> tuple[bool, str | None]:
     version = payload.get("schemaVersion", 0)
     if not isinstance(version, int) or isinstance(version, bool):
         return _error("schemaVersion", "must be an integer")
-    if version < 0:
-        return _error("schemaVersion", "must not be negative")
-    if version > SCHEMA_VERSION:
-        return _error("schemaVersion", f"version {version} is newer than supported version {SCHEMA_VERSION}")
+    if version != SCHEMA_VERSION:
+        return _error("schemaVersion", f"must be version {SCHEMA_VERSION}")
     return True, None
 
 
 def _validate_required_lists(payload: dict) -> tuple[bool, str | None]:
-    for key in ("trips", "lures", "flashers"):
+    for key in _COLLECTION_KEYS:
         if key not in payload:
             return _error(key, "is required")
+        if not isinstance(payload[key], list):
+            return _error(key, "must be a list")
+    if not isinstance(payload.get("settings"), dict):
+        return _error("settings", "is required and must be an object")
     return True, None
 
 
 def _validate_option_lists(payload: dict) -> tuple[bool, str | None]:
     keys = (
         "species", "methods", "lureTypes", "flasherTypes", "waterClarities",
-        "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingDirections",
+        "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "riggings", "structureOptions", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingDirections",
     )
     for key in keys:
         if key not in payload:
@@ -787,6 +205,10 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
         return _error("settings", "must be an object")
     if not isinstance(settings, dict):
         return True, None
+    if "theme" in settings and settings["theme"] not in ("light", "dark"):
+        return _error("settings.theme", 'must be "light" or "dark"')
+    if "hasFishHawk" in settings and not isinstance(settings["hasFishHawk"], bool):
+        return _error("settings.hasFishHawk", "must be a boolean")
     if "timeFormat" in settings and settings["timeFormat"] not in ("12", "24"):
         return _error("settings.timeFormat", 'must be "12" or "24"')
     if "defaultHomeLake" in settings and settings["defaultHomeLake"] not in ("", "Superior", "Michigan", "Huron", "Erie", "Ontario"):
@@ -801,25 +223,73 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
             if not isinstance(calibration, dict):
                 return _error(f"settings.bathymetryLakeCalibrationsFeet.{lake}", "must be an object")
             for key in ("shallowOffsetFeet", "offshoreOffsetFeet"):
-                try:
-                    float(calibration.get(key, 0))
-                except (TypeError, ValueError):
+                value = calibration.get(key, 0)
+                if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
                     return _error(f"settings.bathymetryLakeCalibrationsFeet.{lake}.{key}", "must be a number")
     valid, error = _validate_units(settings)
     if not valid:
         return valid, error
     if "chopRanges" in settings:
-        valid, error = _validate_nested_records(settings["chopRanges"], "settings.chopRanges")
-        if not valid:
-            return valid, error
-    if "defaultTrollingSpread" in settings:
-        valid, error = _validate_nested_records(settings["defaultTrollingSpread"], "settings.defaultTrollingSpread")
-        if not valid:
-            return valid, error
-    if "defaultTrollingSpreads" in settings:
-        valid, error = _validate_nested_records(settings["defaultTrollingSpreads"], "settings.defaultTrollingSpreads")
-        if not valid:
-            return valid, error
+        chop_ranges = settings["chopRanges"]
+        if not isinstance(chop_ranges, list):
+            return _error("settings.chopRanges", "must be a list")
+        chop_ids: set[str] = set()
+        for index, item in enumerate(chop_ranges):
+            path = f"settings.chopRanges[{index}]"
+            if not isinstance(item, dict):
+                return _error(path, "must be an object")
+            range_id = item.get("id")
+            if not isinstance(range_id, str) or not range_id.strip():
+                return _error(f"{path}.id", "must be a non-empty string")
+            if range_id in chop_ids:
+                return _error(f"{path}.id", "must be unique")
+            chop_ids.add(range_id)
+            if not isinstance(item.get("label"), str) or not item["label"].strip():
+                return _error(f"{path}.label", "must be a non-empty string")
+            maximum = item.get("maxFeet")
+            if maximum is not None and (not isinstance(maximum, (int, float)) or isinstance(maximum, bool) or not math.isfinite(maximum) or maximum < 0):
+                return _error(f"{path}.maxFeet", "must be a nonnegative number or null")
+    if "checklists" in settings:
+        checklists = settings["checklists"]
+        if not isinstance(checklists, list):
+            return _error("settings.checklists", "must be a list")
+        checklist_ids: set[str] = set()
+        checklist_names: set[str] = set()
+        for index, checklist in enumerate(checklists):
+            path = f"settings.checklists[{index}]"
+            if not isinstance(checklist, dict):
+                return _error(path, "must be an object")
+            checklist_id = checklist.get("id")
+            if not isinstance(checklist_id, str) or not checklist_id.strip():
+                return _error(f"{path}.id", "must be a non-empty string")
+            if checklist_id in checklist_ids:
+                return _error(f"{path}.id", "must be unique")
+            checklist_ids.add(checklist_id)
+            name = checklist.get("name")
+            if not isinstance(name, str) or not name.strip():
+                return _error(f"{path}.name", "must be a non-empty string")
+            name_key = name.strip().casefold()
+            if name_key in checklist_names:
+                return _error(f"{path}.name", "must be unique ignoring case")
+            checklist_names.add(name_key)
+            items = checklist.get("items")
+            if not isinstance(items, list):
+                return _error(f"{path}.items", "must be a list")
+            item_ids: set[str] = set()
+            for item_index, item in enumerate(items):
+                item_path = f"{path}.items[{item_index}]"
+                if not isinstance(item, dict):
+                    return _error(item_path, "must be an object")
+                item_id = item.get("id")
+                if not isinstance(item_id, str) or not item_id.strip():
+                    return _error(f"{item_path}.id", "must be a non-empty string")
+                if item_id in item_ids:
+                    return _error(f"{item_path}.id", "must be unique within its checklist")
+                item_ids.add(item_id)
+                if not isinstance(item.get("label"), str) or not item["label"].strip():
+                    return _error(f"{item_path}.label", "must be a non-empty string")
+                if not isinstance(item.get("done"), bool):
+                    return _error(f"{item_path}.done", "must be a boolean")
     if "trollingSpreads" in settings:
         spreads = settings["trollingSpreads"]
         if not isinstance(spreads, list):
@@ -854,8 +324,8 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
                 if not isinstance(combo_id, str) or not combo_id.strip():
                     return _error(f"{row_path}.comboId", "must be a non-empty string")
                 for field in ("side", "presentation"):
-                    if field in row and not isinstance(row[field], str):
-                        return _error(f"{row_path}.{field}", "must be a string")
+                    if not isinstance(row.get(field), str) or not row[field].strip():
+                        return _error(f"{row_path}.{field}", "must be a non-empty string")
         default_spread_id = settings.get("defaultTrollingSpreadId", "")
         if not isinstance(default_spread_id, str):
             return _error("settings.defaultTrollingSpreadId", "must be a string")
@@ -923,27 +393,30 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
         private_locations = settings["privatePhotoLocations"]
         if not isinstance(private_locations, list):
             return _error("settings.privatePhotoLocations", "must be a list")
+        private_ids: set[str] = set()
         for index, item in enumerate(private_locations):
             path = f"settings.privatePhotoLocations[{index}]"
             if not isinstance(item, dict):
                 return _error(path, "must be an object")
-            if "coordinates" in item:
-                valid, error = _validate_coordinates(item.get("coordinates"), f"{path}.coordinates")
-                if not valid:
-                    return valid, error
-            if "radiusMeters" in item:
-                try:
-                    radius = float(item["radiusMeters"])
-                except (TypeError, ValueError):
-                    return _error(f"{path}.radiusMeters", "must be a number")
-                if (
-                    radius < PRIVATE_PHOTO_LOCATION_RADIUS_MIN_METERS
-                    or radius > PRIVATE_PHOTO_LOCATION_RADIUS_MAX_METERS
-                ):
-                    return _error(
-                        f"{path}.radiusMeters",
-                        "must be between 25 and 10000",
-                    )
+            location_id = item.get("id")
+            if not isinstance(location_id, str) or not location_id.strip():
+                return _error(f"{path}.id", "must be a non-empty string")
+            if location_id in private_ids:
+                return _error(f"{path}.id", "must be unique")
+            private_ids.add(location_id)
+            name = item.get("name")
+            if not isinstance(name, str) or not name.strip():
+                return _error(f"{path}.name", "must be a non-empty string")
+            if "coordinates" not in item or item.get("coordinates") is None:
+                return _error(f"{path}.coordinates", "is required")
+            valid, error = _validate_coordinates(item["coordinates"], f"{path}.coordinates")
+            if not valid:
+                return valid, error
+            radius = item.get("radiusMeters")
+            if not isinstance(radius, (int, float)) or isinstance(radius, bool) or not math.isfinite(radius):
+                return _error(f"{path}.radiusMeters", "must be a finite number")
+            if radius < PRIVATE_PHOTO_LOCATION_RADIUS_MIN_METERS or radius > PRIVATE_PHOTO_LOCATION_RADIUS_MAX_METERS:
+                return _error(f"{path}.radiusMeters", "must be between 25 and 10000")
     return True, None
 
 
@@ -1044,6 +517,41 @@ def _validate_trips(payload: dict) -> tuple[bool, str | None]:
     return True, None
 
 
+def _validate_media(payload: dict) -> tuple[bool, str | None]:
+    def check(items: object, path: str) -> tuple[bool, str | None]:
+        if not isinstance(items, list):
+            return _error(path, "must be a list")
+        for index, item in enumerate(items):
+            item_path = f"{path}[{index}]"
+            if not isinstance(item, dict):
+                return _error(item_path, "must be an object")
+            if not isinstance(item.get("id"), str) or not item["id"]:
+                return _error(f"{item_path}.id", "must be a non-empty string")
+            if item.get("category") not in UPLOAD_CATEGORIES:
+                return _error(f"{item_path}.category", "must be an upload category")
+            filename = item.get("filename")
+            if not isinstance(filename, str) or not filename or "/" in filename or "\\" in filename:
+                return _error(f"{item_path}.filename", "must be a filename")
+        return True, None
+
+    for collection in ("lures", "flashers", "rods", "reels"):
+        for index, gear in enumerate(payload[collection]):
+            path = f"{collection}[{index}]"
+            valid, error = check(gear.get("media", []), f"{path}.media")
+            if not valid:
+                return valid, error
+    for trip_index, trip in enumerate(payload["trips"]):
+        valid, error = check(trip.get("notePhotos", []), f"trips[{trip_index}].notePhotos")
+        if not valid:
+            return valid, error
+        for group in ("catches", "lostFish"):
+            for fish_index, fish in enumerate(trip.get(group, [])):
+                valid, error = check(fish.get("photos", []), f"trips[{trip_index}].{group}[{fish_index}].photos")
+                if not valid:
+                    return valid, error
+    return True, None
+
+
 def validate_logbook(payload: object) -> tuple[bool, str | None]:
     if not isinstance(payload, dict):
         return _error("$", "logbook must be a JSON object")
@@ -1061,6 +569,7 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
         _validate_expeditions,
         _validate_reels,
         _validate_trips,
+        _validate_media,
     )
     for validator in validators:
         valid, error = validator(payload)

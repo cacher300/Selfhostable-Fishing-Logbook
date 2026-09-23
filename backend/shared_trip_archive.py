@@ -12,12 +12,21 @@ from typing import Callable
 from zipfile import BadZipFile, ZIP_STORED, ZipFile
 
 from .backend_config import DEFAULT_LOGBOOK, PREVIEW_DIRNAME, UPLOAD_CATEGORIES
-from .logbook_store import normalize_logbook, validate_logbook
+from .logbook_store import validate_logbook
 from .media_service import media_key_from_reference, referenced_uploads
 
 
 SHARED_ARCHIVE_FORMAT = "fishing-logbook-shared-trip"
-SHARED_ARCHIVE_VERSION = 1
+SHARED_ARCHIVE_VERSION = 2
+
+
+def _checked_logbook(document: dict) -> dict:
+    valid, error = validate_logbook(document)
+    if not valid:
+        raise SharedTripArchiveError(error or "Only v2 logbooks are supported.")
+    return deepcopy(document)
+
+
 _GEAR_COLLECTIONS = ("lures", "flashers", "reels", "rods", "rodReelCombos")
 _ID_COLLECTIONS = ("lures", "flashers", "reels", "rods", "rodReelCombos")
 
@@ -80,7 +89,7 @@ def _referenced_trip_ids(trip: dict) -> dict[str, set[str]]:
 
 def build_shared_logbook(logbook: dict, trip_id: str) -> dict:
     """Return a valid, intentionally small logbook document for one shared trip."""
-    normalized = normalize_logbook(logbook)
+    normalized = _checked_logbook(logbook)
     trip = _record_by_id(normalized["trips"], trip_id)
     if not trip:
         raise SharedTripArchiveError("Trip not found.")
@@ -121,7 +130,7 @@ def build_shared_logbook(logbook: dict, trip_id: str) -> dict:
 
     shared = deepcopy(DEFAULT_LOGBOOK)
     shared.update({
-        "schemaVersion": normalized.get("schemaVersion", 1),
+        "schemaVersion": 2,
         "trips": [selected_trip],
         "people": [people_by_id[person_id] for person_id in referenced["people"] if person_id in people_by_id],
         "locations": locations,
@@ -136,7 +145,7 @@ def build_shared_logbook(logbook: dict, trip_id: str) -> dict:
     valid, error = validate_logbook(shared)
     if not valid:
         raise SharedTripArchiveError(error or "The selected trip cannot be shared.")
-    return normalize_logbook(shared)
+    return shared
 
 
 def create_shared_archive(
@@ -151,7 +160,7 @@ def create_shared_archive(
         bundle.writestr("manifest.json", json.dumps({
             "format": SHARED_ARCHIVE_FORMAT,
             "sharedTripArchiveVersion": SHARED_ARCHIVE_VERSION,
-            "schemaVersion": shared.get("schemaVersion", 1),
+            "schemaVersion": shared["schemaVersion"],
         }, separators=(",", ":")))
         bundle.writestr("logbook.json", json.dumps(shared, allow_nan=False, separators=(",", ":")))
         for category, filename in sorted(requested_media):
@@ -198,13 +207,11 @@ def read_shared_archive(stream) -> SharedTripArchive:
             if (
                 manifest.get("format") != SHARED_ARCHIVE_FORMAT
                 or manifest.get("sharedTripArchiveVersion") != SHARED_ARCHIVE_VERSION
+                or manifest.get("schemaVersion") != 2
             ):
                 raise SharedTripArchiveError("This is not a supported shared trip archive.")
             payload = json.loads(bundle.read("logbook.json"))
-            valid, error = validate_logbook(payload)
-            if not valid:
-                raise SharedTripArchiveError(error or "Shared trip archive contains invalid logbook data.")
-            normalized = normalize_logbook(payload)
+            normalized = _checked_logbook(payload)
             if len(normalized.get("trips", [])) != 1:
                 raise SharedTripArchiveError("A shared trip archive must contain exactly one trip.")
 
@@ -261,7 +268,7 @@ def _trip_summary(trip: dict) -> dict:
         "location": str(trip.get("location") or ""),
         "launch": str(trip.get("launch") or ""),
         "method": str(trip.get("method") or ""),
-        "linesSetTime": str(trip.get("linesSetTime") or ""),
+        "launchTime": str(trip.get("launchTime") or ""),
         "linesPulledTime": str(trip.get("linesPulledTime") or ""),
         "caught": len(trip.get("catches") or []),
         "lost": len(trip.get("lostFish") or []),
@@ -270,10 +277,10 @@ def _trip_summary(trip: dict) -> dict:
 
 
 def _time_window_overlaps(first: dict, second: dict) -> bool | None:
-    first_start = str(first.get("linesSetTime") or first.get("startTime") or "")
-    first_end = str(first.get("linesPulledTime") or first.get("endTime") or "")
-    second_start = str(second.get("linesSetTime") or second.get("startTime") or "")
-    second_end = str(second.get("linesPulledTime") or second.get("endTime") or "")
+    first_start = str(first.get("launchTime") or "")
+    first_end = str(first.get("linesPulledTime") or "")
+    second_start = str(second.get("launchTime") or "")
+    second_end = str(second.get("linesPulledTime") or "")
     if not all((first_start, first_end, second_start, second_end)):
         return None
 
@@ -303,7 +310,7 @@ def likely_overlaps(incoming_trip: dict, local_logbook: dict) -> list[dict]:
     incoming_location = normalized_name(incoming_trip.get("location"))
     incoming_launch = normalized_name(incoming_trip.get("launch"))
     incoming_people = {normalized_name(person.get("name")) for person in incoming_trip.get("people", []) if isinstance(person, dict)}
-    for trip in normalize_logbook(local_logbook).get("trips", []):
+    for trip in _checked_logbook(local_logbook).get("trips", []):
         if str(trip.get("date") or "") != str(incoming_trip.get("date") or ""):
             continue
         location_matches = bool(incoming_location and incoming_location == normalized_name(trip.get("location")))
@@ -329,7 +336,7 @@ def likely_overlaps(incoming_trip: dict, local_logbook: dict) -> list[dict]:
 
 def archive_preview(archive: SharedTripArchive, local_logbook: dict) -> dict:
     trip = archive.logbook["trips"][0]
-    local = normalize_logbook(local_logbook)
+    local = _checked_logbook(local_logbook)
     local_people = [person for person in local.get("people", []) if person.get("id") and person.get("name")]
     source_people = {str(person.get("id")): person for person in trip.get("people", []) if isinstance(person, dict) and person.get("id") and person.get("name")}
     for record_group in ("catches", "lostFish"):
@@ -387,14 +394,6 @@ def _rewrite_media_references(value: object, mapping: dict[tuple[str, str], tupl
         rewritten["category"] = category
     if "filename" in rewritten:
         rewritten["filename"] = filename
-    if "imageFilename" in rewritten:
-        rewritten["imageFilename"] = filename
-    for field in ("path", "imagePath"):
-        if field in rewritten:
-            rewritten[field] = f"{category}/{filename}"
-    for field in ("url", "image"):
-        if field in rewritten and str(rewritten[field]).startswith("/uploads/"):
-            rewritten[field] = f"/uploads/{category}/{filename}"
     return rewritten
 
 
@@ -420,9 +419,9 @@ def merge_shared_archive(
     if action not in {"add", "replace", "keep-local"}:
         raise SharedTripArchiveError("Choose how to handle the possible duplicate trip.")
     if action == "keep-local":
-        return normalize_logbook(local_logbook), [], ""
+        return _checked_logbook(local_logbook), [], ""
 
-    local = normalize_logbook(local_logbook)
+    local = _checked_logbook(local_logbook)
     incoming = deepcopy(archive.logbook)
     trip = deepcopy(incoming["trips"][0])
     source_trip_id = str(trip.get("id") or "")
@@ -515,7 +514,7 @@ def merge_shared_archive(
             if source_spot_id in spot_map:
                 record["spotId"] = spot_map[source_spot_id]
 
-    # Gear is carried only when the trip references it. Existing compatible IDs are reused;
+    # Gear is carried only when the trip references it. Existing matching IDs are reused;
     # collisions get fresh IDs and all trip references are rewritten.
     id_maps: dict[str, dict[str, str]] = {key: {} for key in _ID_COLLECTIONS}
     imported_gear_ids: dict[str, set[str]] = {key: set() for key in _ID_COLLECTIONS}
@@ -597,7 +596,7 @@ def merge_shared_archive(
     trip["id"] = _unique_id({str(item.get("id") or "") for item in local["trips"]}, source_trip_id)
     trip["expeditionId"] = ""
     local["trips"].append(trip)
-    merged = normalize_logbook(local)
+    merged = local
     valid, error = validate_logbook(merged)
     if not valid:
         raise SharedTripArchiveError(error or "Shared trip could not be merged.")

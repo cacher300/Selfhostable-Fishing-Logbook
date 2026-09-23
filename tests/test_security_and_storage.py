@@ -1,679 +1,178 @@
 from __future__ import annotations
 
-import json
-import os
 import sqlite3
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
-os.environ.setdefault("SECRET_KEY", "module-import-test-secret")
-
 from backend import logbook_store
+from backend.backend_config import DEFAULT_LOGBOOK
+
+
+def document(**changes):
+    result = deepcopy(DEFAULT_LOGBOOK)
+    result.update(changes)
+    return result
+
+
+def trip(**changes):
+    return {
+        "id": "trip-1", "title": "Test Trip", "date": "2026-09-22",
+        "launchTime": "08:00", "linesPulledTime": "12:00",
+        "gearUsed": [], "catches": [], "lostFish": [], **changes,
+    }
+
 
 class LogbookStoreTests(unittest.TestCase):
-    def test_attached_setup_weight_survives_normalization(self) -> None:
-        normalized = logbook_store.normalize_logbook({
-            "schemaVersion": 1,
-            "trips": [{
-                "id": "trip-1",
-                "method": "Trolling",
-                "gearUsed": [{
-                    "id": "line-1",
-                    "presentation": "Outside Board",
-                    "attachedWeightOz": "2 oz",
-                }],
-            }],
-        })
+    def test_empty_document_is_canonical_v2(self):
+        payload = document()
+        self.assertEqual(2, payload["schemaVersion"])
+        self.assertTrue(logbook_store.validate_logbook(payload)[0])
+        self.assertEqual(10, len(payload["riggings"]))
+        self.assertIn("flyCategories", payload)
+        self.assertIn("structureOptions", payload)
+        self.assertEqual(["Port", "Center", "Starboard"], [item["value"] for item in payload["setupLineSides"]])
+        self.assertEqual("light", payload["settings"]["theme"])
+        self.assertIs(payload["settings"]["hasFishHawk"], True)
 
-        self.assertEqual("2 oz", normalized["trips"][0]["gearUsed"][0]["attachedWeightOz"])
+    def test_current_settings_are_validated_at_the_v2_boundary(self):
+        settings = deepcopy(DEFAULT_LOGBOOK["settings"])
+        settings["checklists"] = [{"id": "safety", "name": "Safety", "items": [
+            {"id": "vests", "label": "Check vests", "done": False}
+        ]}]
+        settings["privatePhotoLocations"] = [{"id": "home", "name": "Home", "coordinates": {
+            "latitude": 43.2, "longitude": -79.4
+        }, "radiusMeters": 10000}, {"id": "home-2", "name": "Home", "coordinates": {
+            "latitude": 43.3, "longitude": -79.5
+        }, "radiusMeters": 400}]
+        self.assertTrue(logbook_store.validate_logbook(document(settings=settings))[0])
 
-    def test_removed_boat_and_tackle_fields_are_dropped(self) -> None:
-        normalized = logbook_store.normalize_logbook({
-            "schemaVersion": 1,
-            "lures": [],
-            "flashers": [],
-            "settings": {
-                "boatLayout": {"name": "Old boat"},
-                "tackleBoxes": [{"id": "old-box"}],
-            },
-            "trips": [{
-                "id": "trip-1",
-                "gearUsed": [{"id": "line-1", "boatItemId": "old-item"}],
-            }],
-        })
+        invalid_theme = {**settings, "theme": "system"}
+        self.assertIn("settings.theme", logbook_store.validate_logbook(document(settings=invalid_theme))[1])
+        invalid_fish_hawk = {**settings, "hasFishHawk": 1}
+        self.assertIn("settings.hasFishHawk", logbook_store.validate_logbook(document(settings=invalid_fish_hawk))[1])
+        invalid_checklist = deepcopy(settings)
+        invalid_checklist["checklists"][0]["items"][0]["done"] = "false"
+        self.assertIn("settings.checklists[0].items[0].done", logbook_store.validate_logbook(document(settings=invalid_checklist))[1])
+        invalid_private_location = deepcopy(settings)
+        invalid_private_location["privatePhotoLocations"][0]["radiusMeters"] = 10001
+        self.assertIn("settings.privatePhotoLocations[0].radiusMeters", logbook_store.validate_logbook(document(settings=invalid_private_location))[1])
+        invalid_calibration = {**settings, "bathymetryLakeCalibrationsFeet": {"Ontario": {"offshoreOffsetFeet": "2.5"}}}
+        self.assertIn("settings.bathymetryLakeCalibrationsFeet.Ontario.offshoreOffsetFeet", logbook_store.validate_logbook(document(settings=invalid_calibration))[1])
+        invalid_chop = {**settings, "chopRanges": [{"id": "calm", "label": "Calm", "maxFeet": "0.5"}]}
+        self.assertIn("settings.chopRanges[0].maxFeet", logbook_store.validate_logbook(document(settings=invalid_chop))[1])
 
-        self.assertNotIn("boatLayout", normalized["settings"])
-        self.assertNotIn("tackleBoxes", normalized["settings"])
-        self.assertNotIn("boatItemId", normalized["trips"][0]["gearUsed"][0])
+    def test_unsupported_schema_and_missing_collection_are_rejected(self):
+        payload = document(schemaVersion=3)
+        self.assertEqual("schemaVersion: must be version 2", logbook_store.validate_logbook(payload)[1])
+        payload = document()
+        del payload["riggings"]
+        self.assertEqual("riggings: is required", logbook_store.validate_logbook(payload)[1])
 
-    def test_spots_assign_nearest_catch_and_preserve_manual_choices(self) -> None:
-        payload = {
-            "schemaVersion": 1,
-            "lures": [],
-            "flashers": [],
-            "spots": [
-                {"id": "z-west", "name": "West", "coordinates": {"latitude": 43, "longitude": -79.001}, "radiusMeters": 500},
-                {"id": "a-east", "name": "East", "coordinates": {"latitude": 43, "longitude": -78.999}, "radiusMeters": 500},
-            ],
-            "trips": [{
-                "id": "trip",
-                "catches": [
-                    {"id": "auto", "coordinates": {"latitude": 43, "longitude": -79}},
-                    {"id": "manual", "coordinates": {"latitude": 43, "longitude": -79}, "spotAssignmentMode": "manual", "spotId": "z-west"},
-                    {"id": "none", "coordinates": {"latitude": 43, "longitude": -79}, "spotAssignmentMode": "manual", "spotId": ""},
-                ],
-                "lostFish": [], "gearUsed": [], "people": [], "notePhotos": [],
-            }],
+    def test_validation_does_not_mutate_values(self):
+        fish = {"id": "fish-1", "gpsSpeed": 0, "depth_m": 18.2, "depth_ft": 59.7,
+                "lake_name": "Ontario", "depth_source": "bathymetry", "fowCaught": "60",
+                "photos": [{"id": "photo-1", "category": "catch-photos", "filename": "fish.jpg",
+                            "captureDate": "2026-09-22", "capturedAt": "2026-09-22T08:30:00Z"}]}
+        payload = document(trips=[trip(gearUsed=[{"id": "line-1", "startTime": "08:00", "endTime": "12:00"}],
+                                       catches=[fish])])
+        original = deepcopy(payload)
+        self.assertTrue(logbook_store.validate_logbook(payload)[0])
+        self.assertEqual(original, payload)
+
+    def test_current_trip_times_round_trip_without_reshaping(self):
+        trip_record = {
+            "id": "current-trip", "title": "Current", "date": "2026-09-22",
+            "launchTime": "07:45", "linesPulledTime": "11:00",
+            "gearUsed": [{"id": "line-1", "startTime": "08:00", "endTime": "10:30"}],
+            "catches": [], "lostFish": [],
         }
-        catches = logbook_store.normalize_logbook(payload)["trips"][0]["catches"]
-        self.assertEqual("a-east", catches[0]["spotId"])
-        self.assertEqual("automatic", catches[0]["spotAssignmentMode"])
-        self.assertEqual("z-west", catches[1]["spotId"])
-        self.assertEqual("", catches[2]["spotId"])
+        payload = document(trips=[trip_record])
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(logbook_store, "DATABASE_FILE", Path(directory) / "logbook.sqlite3"):
+                logbook_store.write_logbook(payload)
+                stored = logbook_store.read_logbook()
+        self.assertEqual(trip_record, stored["trips"][0])
 
-        payload["spots"] = [payload["spots"][1]]
-        catches = logbook_store.normalize_logbook(payload)["trips"][0]["catches"]
-        self.assertEqual("a-east", catches[0]["spotId"])
-        self.assertEqual("", catches[1]["spotId"])
-        self.assertEqual("manual", catches[1]["spotAssignmentMode"])
+    def test_round_trip_preserves_all_collections_and_unknown_current_metadata(self):
+        fish = {"id": "fish-1", "time": "09:00", "coordinates": {"latitude": 43.2, "longitude": -79.4},
+                "depth_m": 18.2, "depth_ft": 59.7, "fowCaught": "60",
+                "heroPhotoId": "photo-1", "photos": [{"id": "photo-1", "category": "catch-photos",
+                                                       "filename": "fish.jpg", "captureDate": "2026-09-22"}]}
+        payload = document(trips=[trip(catches=[fish])], customTopLevelField={"kept": True})
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / "logbook.sqlite3"
+            with patch.object(logbook_store, "DATABASE_FILE", file):
+                logbook_store.write_logbook(payload)
+                stored = logbook_store.read_logbook()
+            with closing(sqlite3.connect(file)) as connection:
+                self.assertEqual("ok", connection.execute("PRAGMA integrity_check").fetchone()[0])
+                self.assertEqual(1, connection.execute("SELECT COUNT(*) FROM logbook_entries WHERE collection_name='riggings'").fetchone()[0] > 0)
+        self.assertEqual(payload, stored)
 
-    def test_spot_validation_rejects_duplicate_names_and_invalid_radius(self) -> None:
-        base = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
-        duplicate_names = {
-            **base,
-            "spots": [
-                {"id": "one", "name": "The Bar", "coordinates": {"latitude": 43, "longitude": -79}, "radiusMeters": 100},
-                {"id": "two", "name": "the bar", "coordinates": {"latitude": 44, "longitude": -78}, "radiusMeters": 200},
-            ],
-        }
-        valid, error = logbook_store.validate_logbook(duplicate_names)
-        self.assertFalse(valid)
-        self.assertEqual("spots[1].name: must be unique ignoring case", error)
+    def test_editing_a_trip_preserves_depth_and_media_without_server_merge(self):
+        fish = {"id": "fish-1", "depth_m": 18.2, "depth_ft": 59.7, "fowCaught": "60",
+                "photos": [{"id": "photo", "filename": "fish.jpg", "category": "catch-photos",
+                            "capturedAt": "2026-09-22T09:00:00Z"}]}
+        payload = document(trips=[trip(catches=[fish])])
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(logbook_store, "DATABASE_FILE", Path(directory) / "logbook.sqlite3"):
+                logbook_store.write_logbook(payload)
+                edited = logbook_store.read_logbook()
+                edited["trips"][0]["title"] = "Renamed"
+                logbook_store.write_logbook(edited)
+                stored = logbook_store.read_logbook()
+        self.assertEqual(fish, stored["trips"][0]["catches"][0])
 
-        invalid_radius = {
-            **base,
-            "spots": [{"id": "one", "name": "Tiny", "coordinates": {"latitude": 43, "longitude": -79}, "radiusMeters": 24}],
-        }
-        valid, error = logbook_store.validate_logbook(invalid_radius)
-        self.assertFalse(valid)
-        self.assertEqual("spots[0].radiusMeters: must be between 25 and 500", error)
-
-    def test_private_photo_location_validation_matches_supported_radius(self) -> None:
-        base = {
-            "schemaVersion": 1,
-            "trips": [],
-            "lures": [],
-            "flashers": [],
-        }
-        location = {
-            "id": "home",
-            "name": "Home",
-            "coordinates": {"latitude": 43, "longitude": -79},
-        }
-
-        valid, error = logbook_store.validate_logbook({
-            **base,
-            "settings": {
-                "privatePhotoLocations": [
-                    {**location, "radiusMeters": 10000},
-                ],
-            },
-        })
-        self.assertTrue(valid, error)
-
-        valid, error = logbook_store.validate_logbook({
-            **base,
-            "settings": {
-                "privatePhotoLocations": [
-                    {**location, "radiusMeters": 10001},
-                ],
-            },
-        })
-        self.assertFalse(valid)
-        self.assertEqual(
-            "settings.privatePhotoLocations[0].radiusMeters: must be between 25 and 10000",
-            error,
-        )
-
-    def test_legacy_trip_start_time_migrates_to_lines_set_time(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [{"id": "trip-1", "startTime": "06:15", "endTime": "12:30"}],
-                "lures": [],
-                "flashers": [],
-            }
-        )
-        trip = normalized["trips"][0]
-        self.assertEqual("", trip["launchTime"])
-        self.assertEqual("06:15", trip["linesSetTime"])
-        self.assertEqual("12:30", trip["linesPulledTime"])
-        self.assertEqual("06:15", trip["startTime"])
-        self.assertEqual("12:30", trip["endTime"])
-
-    def test_dedicated_line_times_override_compatibility_aliases(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [{
-                    "id": "trip-1",
-                    "launchTime": "05:45",
-                    "linesSetTime": "06:10",
-                    "linesPulledTime": "12:40",
-                    "startTime": "05:45",
-                    "endTime": "12:30",
-                }],
-                "lures": [],
-                "flashers": [],
-            }
-        )
-        trip = normalized["trips"][0]
-        self.assertEqual("05:45", trip["launchTime"])
-        self.assertEqual("06:10", trip["startTime"])
-        self.assertEqual("12:40", trip["endTime"])
-
-    def test_rejects_future_schema_version_with_clear_error(self) -> None:
-        valid, error = logbook_store.validate_logbook(
-            {"schemaVersion": 2, "trips": [], "lures": [], "flashers": []}
-        )
-        self.assertFalse(valid)
-        self.assertEqual(
-            "schemaVersion: version 2 is newer than supported version 1", error
-        )
-
-    def test_write_rejects_future_schema_version(self) -> None:
-        payload = {"schemaVersion": 2, "trips": [], "lures": [], "flashers": []}
-        with self.assertRaisesRegex(
-            ValueError,
-            "schemaVersion: version 2 is newer than supported version 1",
-        ):
-            logbook_store.write_logbook(payload)
-
-    def test_rejects_non_string_unit_with_clear_error(self) -> None:
-        valid, error = logbook_store.validate_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [],
-                "flashers": [],
-                "settings": {"units": {"depth": []}},
-            }
-        )
-        self.assertFalse(valid)
-        self.assertEqual("settings.units.depth: has an unsupported unit", error)
-
-    def test_rejects_invalid_lake_bathymetry_calibration_with_clear_error(self) -> None:
-        valid, error = logbook_store.validate_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [],
-                "flashers": [],
-                "settings": {"bathymetryLakeCalibrationsFeet": {"Erie": {"offshoreOffsetFeet": "deep-ish"}}},
-            }
-        )
-        self.assertFalse(valid)
-        self.assertEqual("settings.bathymetryLakeCalibrationsFeet.Erie.offshoreOffsetFeet: must be a number", error)
-
-    def test_lake_bathymetry_calibrations_are_normalized_in_settings(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [],
-                "flashers": [],
-                "settings": {"bathymetryLakeCalibrationsFeet": {"Erie": {"shallowOffsetFeet": "1.25", "offshoreOffsetFeet": "2.5"}}},
-            }
-        )
-        self.assertEqual(0, normalized["settings"]["bathymetryLakeCalibrationsFeet"]["Erie"]["shallowOffsetFeet"])
-        self.assertEqual(2.5, normalized["settings"]["bathymetryLakeCalibrationsFeet"]["Erie"]["offshoreOffsetFeet"])
-        self.assertEqual(0, normalized["settings"]["bathymetryLakeCalibrationsFeet"]["Ontario"]["offshoreOffsetFeet"])
-
-    def test_legacy_bathymetry_offset_is_copied_to_each_lake(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [],
-                "flashers": [],
-                "settings": {"bathymetryOffsetFeet": "1.25"},
-            }
-        )
-        self.assertEqual(0, normalized["settings"]["bathymetryLakeCalibrationsFeet"]["Erie"]["shallowOffsetFeet"])
-        self.assertEqual(1.25, normalized["settings"]["bathymetryLakeCalibrationsFeet"]["Ontario"]["offshoreOffsetFeet"])
-        self.assertNotIn("bathymetryOffsetFeet", normalized["settings"])
-
-    def test_lake_bathymetry_calibration_allows_any_numeric_value(self) -> None:
-        valid, error = logbook_store.validate_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [],
-                "flashers": [],
-                "settings": {"bathymetryLakeCalibrationsFeet": {"Erie": {"shallowOffsetFeet": -250.75, "offshoreOffsetFeet": 12}}},
-            }
-        )
-        self.assertTrue(valid, error)
-
-    def test_legacy_default_trolling_spread_migrates_to_general_named_spread(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [],
-                "flashers": [],
-                "settings": {
-                    "defaultTrollingSpread": [
-                        {
-                            "comboId": "combo-1",
-                            "side": "port",
-                            "presentation": "downrigger",
-                            "lureId": "lure-1",
-                        },
-                        {"comboId": "", "side": "starboard"},
-                    ]
-                },
-            }
-        )
-        self.assertEqual(
-            [{"comboId": "combo-1", "side": "port", "presentation": "downrigger"}],
-            normalized["settings"]["trollingSpreads"][0]["spread"],
-        )
-        self.assertEqual("General Spread", normalized["settings"]["trollingSpreads"][0]["name"])
-        self.assertEqual(normalized["settings"]["trollingSpreads"][0]["id"], normalized["settings"]["defaultTrollingSpreadId"])
-        self.assertNotIn("defaultTrollingSpread", normalized["settings"])
-
-    def test_empty_named_spreads_do_not_suppress_legacy_spread_migration(self) -> None:
-        cases = [
-            (
-                "defaultTrollingSpread",
-                [{"comboId": "combo-1", "side": "Port", "presentation": "Downrigger"}],
-                "General Spread",
-            ),
-            (
-                "defaultTrollingSpreads",
-                [{
-                    "targetSpecies": "Walleye",
-                    "spread": [{"comboId": "combo-2", "side": "Starboard", "presentation": "High Diver"}],
-                }],
-                "Walleye Spread",
-            ),
-        ]
-
-        for legacy_key, legacy_value, expected_name in cases:
-            with self.subTest(legacy_key=legacy_key):
-                normalized = logbook_store.normalize_logbook(
-                    {
-                        "schemaVersion": 1,
-                        "trips": [],
-                        "lures": [],
-                        "flashers": [],
-                        "settings": {
-                            "trollingSpreads": [],
-                            legacy_key: legacy_value,
-                        },
-                    }
-                )
-
-                self.assertEqual(expected_name, normalized["settings"]["trollingSpreads"][0]["name"])
-                self.assertEqual(1, len(normalized["settings"]["trollingSpreads"]))
-
-    def test_legacy_default_trolling_spreads_migrate_to_named_spreads_without_species_matching(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [],
-                "flashers": [],
-                "settings": {
-                    "defaultTrollingSpreads": [
-                        {
-                            "targetSpecies": "Walleye",
-                            "spread": [
-                                {"comboId": "walleye-combo", "side": "Port", "presentation": "Downrigger", "lureId": "ignored"}
-                            ],
-                        }
-                    ]
-                },
-            }
-        )
-        self.assertEqual(
-            [{"comboId": "walleye-combo", "side": "Port", "presentation": "Downrigger"}],
-            normalized["settings"]["trollingSpreads"][0]["spread"],
-        )
-        self.assertEqual("Walleye Spread", normalized["settings"]["trollingSpreads"][0]["name"])
-        self.assertEqual("", normalized["settings"]["defaultTrollingSpreadId"])
-        self.assertNotIn("defaultTrollingSpreads", normalized["settings"])
-
-    def test_named_trolling_spreads_and_default_id_are_normalized(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [],
-                "flashers": [],
-                "settings": {
-                    "trollingSpreads": [
-                        {
-                            "id": "one-man",
-                            "name": "  One Man Spread ",
-                            "spread": [{"comboId": "combo-1", "side": "Port", "presentation": "Downrigger", "lureId": "ignored"}],
-                        },
-                        {
-                            "id": "two-man",
-                            "name": "ONE MAN SPREAD",
-                            "spread": [{"comboId": "combo-2"}],
-                        },
-                    ],
-                    "defaultTrollingSpreadId": "missing",
-                },
-            }
-        )
-        self.assertEqual("one-man", normalized["settings"]["trollingSpreads"][0]["id"])
-        self.assertEqual("One Man Spread", normalized["settings"]["trollingSpreads"][0]["name"])
-        self.assertEqual("ONE MAN SPREAD (2)", normalized["settings"]["trollingSpreads"][1]["name"])
-        self.assertEqual("", normalized["settings"]["defaultTrollingSpreadId"])
-
-    def test_named_trolling_spread_validation_rejects_missing_default_reference(self) -> None:
-        valid, error = logbook_store.validate_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [],
-                "flashers": [],
-                "settings": {
-                    "trollingSpreads": [{"id": "spread-1", "name": "Spread", "spread": [{"comboId": "combo-1"}]}],
-                    "defaultTrollingSpreadId": "missing",
-                },
-            }
-        )
+    def test_named_spread_default_must_reference_a_saved_spread(self):
+        settings = deepcopy(DEFAULT_LOGBOOK["settings"])
+        settings["defaultTrollingSpreadId"] = "missing"
+        valid, error = logbook_store.validate_logbook(document(settings=settings))
         self.assertFalse(valid)
         self.assertEqual("settings.defaultTrollingSpreadId: must reference a saved trolling spread", error)
 
-    def test_saved_setups_allow_multiple_setups_per_method_and_normalize_defaults(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [],
-                "flashers": [],
-                "settings": {
-                    "savedSetups": [
-                        {
-                            "id": "jig-1",
-                            "name": "  Light Setup ",
-                            "method": "Jigging",
-                            "rows": [{"comboId": "combo-1", "lureId": "ignored"}],
-                        },
-                        {
-                            "id": "jig-2",
-                            "name": "LIGHT SETUP",
-                            "method": "Jigging",
-                            "rows": [{"comboId": "combo-2"}],
-                        },
-                        {
-                            "id": "cast-1",
-                            "name": "Light Setup",
-                            "method": "Casting",
-                            "rows": [{"comboId": "combo-3"}],
-                        },
-                        {"id": "invalid", "name": "No Rod", "method": "Casting", "rows": []},
-                        {"id": "unnamed", "name": " ", "method": "Casting", "rows": [{"comboId": "combo-4"}]},
-                    ],
-                    "defaultSavedSetupIds": {
-                        "Jigging": "jig-2",
-                        "Casting": "jig-1",
-                        "Drifting": "missing",
-                    },
-                },
-            }
-        )
-        self.assertEqual(
-            [
-                {"id": "jig-1", "name": "Light Setup", "method": "Jigging", "rows": [{"comboId": "combo-1"}]},
-                {"id": "jig-2", "name": "LIGHT SETUP (2)", "method": "Jigging", "rows": [{"comboId": "combo-2"}]},
-                {"id": "cast-1", "name": "Light Setup", "method": "Casting", "rows": [{"comboId": "combo-3"}]},
-            ],
-            normalized["settings"]["savedSetups"],
-        )
-        self.assertEqual({"Jigging": "jig-2"}, normalized["settings"]["defaultSavedSetupIds"])
-
-    def test_saved_setup_validation_rejects_default_for_wrong_method(self) -> None:
-        valid, error = logbook_store.validate_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [],
-                "flashers": [],
-                "settings": {
-                    "savedSetups": [
-                        {
-                            "id": "jig-1",
-                            "name": "Light Setup",
-                            "method": "Jigging",
-                            "rows": [{"comboId": "combo-1"}],
-                        }
-                    ],
-                    "defaultSavedSetupIds": {"Casting": "jig-1"},
-                },
-            }
-        )
+    def test_saved_setup_default_must_match_its_method(self):
+        settings = deepcopy(DEFAULT_LOGBOOK["settings"])
+        settings["savedSetups"] = [{"id": "jig", "name": "Jigging", "method": "Jigging",
+                                    "rows": [{"comboId": "combo"}]}]
+        settings["defaultSavedSetupIds"] = {"Casting": "jig"}
+        valid, error = logbook_store.validate_logbook(document(settings=settings))
         self.assertFalse(valid)
-        self.assertEqual(
-            "settings.defaultSavedSetupIds.Casting: must reference a saved setup for that method",
-            error,
-        )
+        self.assertIn("settings.defaultSavedSetupIds.Casting", error)
 
-    def test_write_creates_sqlite_database(self) -> None:
-        payload = {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
+    def test_invalid_units_and_nonfinite_numbers_are_rejected(self):
+        settings = deepcopy(DEFAULT_LOGBOOK["settings"])
+        settings["units"]["depth"] = "yards"
+        self.assertIn("settings.units.depth", logbook_store.validate_logbook(document(settings=settings))[1])
+        self.assertIn("$.trips", logbook_store.validate_logbook(document(trips=[trip(hours=float("nan"))]))[1])
+
+    def test_duplicate_spot_ids_and_invalid_radius_are_rejected(self):
+        spot = {"id": "spot", "name": "Point", "coordinates": {"latitude": 43, "longitude": -79}, "radiusMeters": 100}
+        self.assertIn("spots[1].id", logbook_store.validate_logbook(document(spots=[spot, spot]))[1])
+        bad = {**spot, "radiusMeters": 2}
+        self.assertIn("spots[0].radiusMeters", logbook_store.validate_logbook(document(spots=[bad]))[1])
+
+    def test_read_returns_v2_defaults_before_database_exists(self):
         with tempfile.TemporaryDirectory() as directory:
-            database_file = Path(directory) / "logbook.sqlite3"
-            with patch.object(logbook_store, "DATABASE_FILE", database_file):
-                logbook_store.write_logbook(payload)
-                self.assertTrue(database_file.is_file())
-                with closing(sqlite3.connect(database_file)) as connection:
-                    tables = {
-                        row[0]
-                        for row in connection.execute(
-                            "SELECT name FROM sqlite_master WHERE type = 'table'"
-                        )
-                    }
-        self.assertIn("logbook_metadata", tables)
-        self.assertIn("logbook_entries", tables)
+            with patch.object(logbook_store, "DATABASE_FILE", Path(directory) / "missing.sqlite3"):
+                self.assertEqual(document(), logbook_store.read_logbook())
 
-    def test_write_and_read_round_trip_through_sqlite(self) -> None:
-        payload = {
-            "schemaVersion": 1,
-            "trips": [{"id": "trip-1", "catches": [], "lostFish": [], "customTripField": "kept"}],
-            "lures": [{"id": "lure-1", "name": "Blue Spoon"}],
-            "flashers": [],
-            "customTopLevelField": {"kept": True},
-        }
+    def test_concurrent_writes_leave_one_complete_v2_document(self):
         with tempfile.TemporaryDirectory() as directory:
-            database_file = Path(directory) / "logbook.sqlite3"
-            with patch.object(logbook_store, "DATABASE_FILE", database_file):
-                logbook_store.write_logbook(payload)
-                stored = logbook_store.read_logbook()
-        self.assertEqual("kept", stored["trips"][0]["customTripField"])
-        self.assertEqual({"kept": True}, stored["customTopLevelField"])
-
-    def test_catch_metadata_lock_status_is_saved_in_sqlite(self) -> None:
-        locks = {"time": True, "location": True, "fow": False}
-        locked_coordinates = {"latitude": 43.12345, "longitude": -79.12345}
-        payload = {
-            "schemaVersion": 1,
-            "trips": [
-                {
-                    "id": "trip-1",
-                    "title": "Locked Metadata Trip",
-                    "catches": [
-                        {
-                            "id": "catch-1",
-                            "metadataLocks": locks,
-                            "lockedLocationCoordinates": locked_coordinates,
-                        }
-                    ],
-                    "lostFish": [],
-                }
-            ],
-            "lures": [],
-            "flashers": [],
-        }
-        with tempfile.TemporaryDirectory() as directory:
-            database_file = Path(directory) / "logbook.sqlite3"
-            with patch.object(logbook_store, "DATABASE_FILE", database_file):
-                logbook_store.write_logbook(payload)
-                with closing(sqlite3.connect(database_file)) as connection:
-                    payload_json = connection.execute(
-                        "SELECT payload_json FROM logbook_entries WHERE collection_name = ? AND record_id = ?",
-                        ("trips", "trip-1"),
-                    ).fetchone()[0]
-                raw_trip = json.loads(payload_json)
-                stored = logbook_store.read_logbook()
-
-        self.assertEqual(locks, raw_trip["catches"][0]["metadataLocks"])
-        self.assertEqual(locked_coordinates, raw_trip["catches"][0]["lockedLocationCoordinates"])
-        self.assertEqual(locks, stored["trips"][0]["catches"][0]["metadataLocks"])
-        self.assertEqual(locked_coordinates, stored["trips"][0]["catches"][0]["lockedLocationCoordinates"])
-
-    def test_read_returns_defaults_before_database_exists(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            database_file = Path(directory) / "logbook.sqlite3"
-            with patch.object(logbook_store, "DATABASE_FILE", database_file):
-                self.assertEqual([], logbook_store.read_logbook()["trips"])
-
-    def test_rejects_invalid_nested_data_with_path(self) -> None:
-        valid, error = logbook_store.validate_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [{"id": "trip-1", "catches": ["not-an-object"]}],
-                "lures": [],
-                "flashers": [],
-            }
-        )
-        self.assertFalse(valid)
-        self.assertEqual("trips[0].catches[0]: must be an object", error)
-
-    def test_legacy_document_without_version_is_migrated(self) -> None:
-        payload = {"trips": [], "lures": [], "flashers": []}
-        valid, error = logbook_store.validate_logbook(payload)
-        self.assertTrue(valid, error)
-        self.assertEqual(1, logbook_store.normalize_logbook(payload)["schemaVersion"])
-
-    def test_lure_name_is_generated_from_color_brand_and_type(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [
-                    {"id": "lure-1", "name": "", "color": "Blue/Silver", "brand": "Acme", "type": "Spoon"}
-                ],
-                "flashers": [],
-            }
-        )
-        self.assertEqual("Blue/Silver Acme Spoon", normalized["lures"][0]["name"])
-
-    def test_spoon_lure_name_can_include_size(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [],
-                "lures": [
-                    {
-                        "id": "lure-1",
-                        "name": "",
-                        "color": "Blue/Silver",
-                        "spoonSize": "Magnum",
-                        "brand": "Acme",
-                        "type": "Spoon",
-                    }
-                ],
-                "flashers": [],
-            }
-        )
-        self.assertEqual("Blue/Silver Magnum Acme Spoon", normalized["lures"][0]["name"])
-
-    def test_trip_title_is_generated_from_species_method_and_sequence(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [
-                    {"id": "trip-1", "title": "", "date": "2026-07-07", "targetSpecies": "Walleye", "method": "Trolling"},
-                    {"id": "trip-2", "title": "My evening trip", "date": "2026-07-08", "targetSpecies": "Walleye", "method": "Trolling"},
-                    {"id": "trip-3", "title": "", "date": "2026-07-09", "targetSpecies": "Walleye", "method": "Trolling"},
-                ],
-                "lures": [],
-                "flashers": [],
-            }
-        )
-        self.assertEqual("Walleye Trolling Trip #1", normalized["trips"][0]["title"])
-        self.assertEqual("My evening trip", normalized["trips"][1]["title"])
-        self.assertEqual("Walleye Trolling Trip #3", normalized["trips"][2]["title"])
-
-    def test_legacy_generated_trip_title_is_migrated_without_overwriting_custom_titles(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "trips": [
-                    {"id": "trip-1", "title": "2026-07-07 Walleye Trip", "date": "2026-07-07", "targetSpecies": "Walleye", "method": "Trolling"},
-                    {"id": "trip-2", "title": "2026-07-08 Walleye Trip (custom)", "date": "2026-07-08", "targetSpecies": "Walleye", "method": "Trolling"},
-                ],
-                "lures": [],
-                "flashers": [],
-            }
-        )
-        self.assertEqual("Walleye Trolling Trip #1", normalized["trips"][0]["title"])
-        self.assertEqual("2026-07-08 Walleye Trip (custom)", normalized["trips"][1]["title"])
-
-    def test_trip_people_are_saved_without_catches(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {
-                "schemaVersion": 1,
-                "people": [],
-                "trips": [
-                    {
-                        "id": "trip-1",
-                        "people": [{"id": "person-1", "name": "Sam"}],
-                        "catches": [],
-                        "lostFish": [],
-                    }
-                ],
-                "lures": [],
-                "flashers": [],
-            }
-        )
-        self.assertEqual([{"id": "person-1", "name": "Sam"}], normalized["trips"][0]["people"])
-        self.assertEqual([{"id": "person-1", "name": "Sam"}], normalized["people"])
-
-    def test_concurrent_writes_always_leave_complete_json(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            directory_path = Path(directory)
-            database_file = directory_path / "logbook.sqlite3"
-
-            def write(index: int) -> None:
-                logbook_store.write_logbook(
-                    {
-                        "schemaVersion": 1,
-                        "trips": [{"id": f"trip-{index}", "catches": [], "lostFish": []}],
-                        "lures": [],
-                        "flashers": [],
-                    }
-                )
-
-            with (
-                patch.object(logbook_store, "DATABASE_FILE", database_file),
-            ):
+            file = Path(directory) / "logbook.sqlite3"
+            with patch.object(logbook_store, "DATABASE_FILE", file):
+                def write(index):
+                    logbook_store.write_logbook(document(trips=[trip(id=f"trip-{index}")]))
                 with ThreadPoolExecutor(max_workers=8) as executor:
                     list(executor.map(write, range(30)))
                 stored = logbook_store.read_logbook()
-                valid, error = logbook_store.validate_logbook(stored)
-
-            self.assertTrue(valid, error)
+            self.assertTrue(logbook_store.validate_logbook(stored)[0])
             self.assertEqual(1, len(stored["trips"]))
+
 
 if __name__ == "__main__":
     unittest.main()

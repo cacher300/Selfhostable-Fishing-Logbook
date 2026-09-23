@@ -29,7 +29,7 @@ docker compose down
 
 - `server.py`: Flask routes and static serving.
 - `backend/backend_config.py`: paths, defaults, units, media and proxy constants.
-- `backend/logbook_store.py`: normalization, validation, SQLite I/O.
+- `backend/logbook_store.py`: v2 validation, SQLite I/O.
 - `backend/media_service.py`: uploads, previews, gallery, reference/orphan handling.
 - `backend/weather_service.py`: allowlisted weather, marine, and astronomy proxy helpers.
 - `templates/index.html` and `templates/partials/`: server-rendered shell, screens, dialogs, and row templates.
@@ -44,7 +44,7 @@ The UI and scripts are tightly coupled by selectors. When adding or renaming a f
 1. Markup/template and unit labels.
 2. DOM population and method-specific visibility.
 3. Form hydration and collection.
-4. Browser and backend defaults/normalization when applicable.
+4. Browser/backend v2 validation and canonical defaults when applicable.
 5. Summary, map, analytics, import/export, and reference cleanup behavior.
 6. Data/API/feature documentation.
 
@@ -52,7 +52,17 @@ Keep landed and lost fish separate. Setup rows describe timed gear configuration
 
 ## Data Safety
 
-Do not commit `data/logbook.sqlite3`, uploads, backups, or personal media. Before testing destructive workflows, copy the database and upload tree. A portable archive is the complete backup because its JSON member alone does not include uploaded media.
+Do not commit `data/logbook.sqlite3`, uploads, backups, or personal media. Before testing destructive workflows, copy the database and upload tree. The portable v2 archive contains the canonical logbook document and uploaded media; it does not contain a SQLite database snapshot.
+
+Legacy database conversion is an offline operation, never a server startup or request path:
+
+```powershell
+py scripts/migrate_logbook_v2.py --database <path-to-legacy.sqlite3>
+py scripts/migrate_logbook_v2.py --database <path-to-legacy.sqlite3> --apply
+py scripts/migrate_logbook_v2.py --archive <path-to-mobile-or-desktop.zip> --apply
+```
+
+The apply command creates a backup, converts known v1 fields to v2 fields, validates the result, and rewrites the SQLite database or shared ZIP archive. For an older archive whose referenced files live in a neighboring upload tree, add `--media-root <uploads>` so the script can include those files. The running desktop or mobile application must receive a canonical v2 database/archive.
 
 The server performs whole-document writes inside SQLite transactions. A failed server PUT can leave localStorage ahead of server state because the browser writes localStorage first.
 
@@ -68,7 +78,7 @@ Automated Python and Node test suites cover the core behavior. For a behavior ch
 - Test manual catch GPS and supported metadata GPS on both maps.
 - Test mapped/unmapped trips and weather-service failure; trip save must still complete.
 - Change unit/time/predefined/chop settings and inspect forms and reports.
-- Export, import into a disposable copy, and verify normalization.
+- Export/import into a disposable copy; verify schema v2, integrity, and that valid records are not reshaped.
 - Exercise narrow-screen navigation/dialog/table behavior.
 
 Useful static checks:
@@ -76,7 +86,7 @@ Useful static checks:
 ```powershell
 py -m compileall server.py backend
 py scripts/build-standalone.py --check
-rg -n "TODO|FIXME|deprecated|tripTypes|patterns" . -g "!.venv/**" -g "!data/**"
+rg -n "TODO|FIXME|deprecated|patterns" . -g "!.venv/**" -g "!data/**"
 ```
 
 After changing frontend templates, regenerate the optional direct-file fallback with `py scripts/build-standalone.py`. Flask development does not require this generation step.

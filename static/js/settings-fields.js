@@ -74,17 +74,18 @@ function collectPredefinedFieldSettings() {
     const current = predefinedFieldItems(group);
     const rows = [...section.querySelectorAll(".predefined-option-row")];
     if (group.choice) {
-      next[group.key] = normalizeChoiceOptions(rows.map((row) => {
+      next[group.key] = rows.map((row) => {
         const index = Number(row.dataset.optionIndex);
         const existing = current[index];
         const label = row.querySelector(".predefined-option-label")?.value.trim() || "";
         return {
+          ...existing,
           value: existing?.value || slugOptionValue(label),
           label
         };
-      }), defaults[group.key]);
+      });
     } else {
-      next[group.key] = normalizeTextOptions(rows.map((row) => row.querySelector(".predefined-option-label")?.value), defaults[group.key]);
+      next[group.key] = rows.map((row) => row.querySelector(".predefined-option-label")?.value ?? "");
     }
   });
   return next;
@@ -108,7 +109,7 @@ async function savePredefinedFieldSettings(options = {}) {
 
 function renderChopRangeSettings() {
   if (!els.chopRangeRows) return;
-  const ranges = normalizeChopRanges(state.settings?.chopRanges);
+  const ranges = currentChopRanges();
   if (els.editChopRangesButton) {
     els.editChopRangesButton.textContent = chopRangesEditing ? "Done Editing" : "Edit Chop Ranges";
   }
@@ -162,26 +163,13 @@ async function toggleChopRangeEditing() {
     renderChopRangeSettings();
     return;
   }
-  chopRangesEditSnapshot = normalizeChopRanges(state.settings?.chopRanges);
+  chopRangesEditSnapshot = currentChopRanges();
   chopRangesEditing = true;
   renderChopRangeSettings();
 }
 
 async function cancelChopRangeEditing() {
   clearTimeout(settingsAutosaveTimer);
-  if (chopRangesEditSnapshot) {
-    state.settings = {
-      ...(state.settings || {}),
-      chopRanges: normalizeChopRanges(chopRangesEditSnapshot)
-    };
-    await runSettingsSave(
-      async () => {
-        await saveState();
-        renderTrips();
-      },
-      "The chop range edits could not be cancelled."
-    ).catch(() => {});
-  }
   chopRangesEditing = false;
   chopRangesEditSnapshot = null;
   renderChopRangeSettings();
@@ -197,18 +185,25 @@ function saveCurrentSettingsTab() {
 }
 
 async function saveChopRanges(options = {}) {
-  const current = normalizeChopRanges(state.settings?.chopRanges);
+  const current = currentChopRanges();
   const ranges = [...document.querySelectorAll(".chop-range-row")].map((row, index) => {
     const maxInput = row.querySelector(".chop-range-max");
     return {
+      ...current[index],
       id: current[index]?.id || `chop-${index + 1}`,
-      label: row.querySelector(".chop-range-label")?.value.trim() || current[index]?.label || "",
+      label: row.querySelector(".chop-range-label")?.value ?? "",
       maxFeet: maxInput ? Number(maxInput.value) : null
     };
   });
+  try {
+    validateChopRanges(ranges);
+  } catch (error) {
+    alert(error.message || "Check the chop ranges before saving.");
+    return;
+  }
   state.settings = {
     ...(state.settings || {}),
-    chopRanges: normalizeChopRanges(ranges)
+    chopRanges: ranges
   };
   try {
     await runSettingsSave(

@@ -1,6 +1,6 @@
 # Feature Inventory
 
-Audit date: 2026-09-13. This inventory was checked against the running local application and the executable templates, frontend scripts, backend routes, configuration, and tests in this repository. The exercised UI surfaces were Trips, New Trip, Trip Summary, Share Trip, Expeditions, Stats, Personal Bests, Leaderboard, Map, Gear, Gallery, Photo Queue, Checklists, Wiki, and Settings.
+Audit date: 2026-09-23. This inventory was checked against the running local application and the executable templates, frontend scripts, backend routes, configuration, and tests in this repository. The exercised UI surfaces were Trips, New Trip, Trip Summary, Share Trip, Expeditions, Stats, Personal Bests, Leaderboard, Map, Gear, Gallery, Photo Queue, Checklists, Wiki, and Settings.
 
 The application has one effective role: **trusted logbook operator**. There are no accounts, roles, permission checks, or shared-user workflows.
 
@@ -13,7 +13,7 @@ Status vocabulary:
 - **Not implemented**: explicitly audited and absent. These rows are retained for completeness but excluded from the verified capability count.
 - **Verification Required**: code and UI support the capability, but a live external dependency was not fully verified during this audit.
 
-The logbook is stored in SQLite at `data/logbook.sqlite3`; the browser works with one normalized JSON document at the API boundary. There is one current schema version and no formal migration framework.
+The logbook is stored in SQLite at `data/logbook.sqlite3`; the browser works with one canonical version-2 JSON document at the API boundary. Runtime reads and writes validate the document and preserve records without normalization.
 
 ## Core Fishing Features
 
@@ -38,7 +38,7 @@ The logbook is stored in SQLite at `data/logbook.sqlite3`; the browser works wit
 | C15 | Deepest-rigger marker | Mark an individual main-downrigger catch as the deepest rigger for analysis. | Implemented | Downrigger catch row | Trolling presentation and non-cheater target | `form-utils.js`, `stats.js` | `catch.deepestRigger` | GET/PUT `/api/logbook` | Trip dialog, Stats, Summary |
 | C16 | Setup-line catch resolution | Resolve trolling catches/lost fish through a selected setup row, inheriting gear and presentation context. | Implemented | Setup-line selector on fish rows | `setupLineId` foreign-key-like reference | `trolling-spread.js`, `trip-editor.js` | `catch.setupLineId`, `gearUsed[].id` | None beyond logbook | Trip dialog, Summary, Stats |
 | C17 | Landed catch logging | Record person, species, kept/released state, length, weight, time or unknown time, FOW, depth down, spot, structure, equipment, notes, GPS, and catch photos. Metadata/location locks and details-unknown controls preserve capture confidence. | Implemented | Add Catch | Method-specific fields and gear libraries | `trip-editor.js`, `photos.js`, `row-templates.html` | `trip.catches[]` | GET/PUT `/api/logbook`, upload routes | Trip dialog, Summary, Stats, Map |
-| C18 | Multi-fish count convention | Treat a numeric `quantity` on imported catch records as fish count; UI-created catches default to one and expose no quantity editor. | Partial | Import/data compatibility only | Imported JSON convention | `dashboard.js`, `app-normalization.js` | `catch.quantity` | PUT `/api/logbook` | Stats/dashboard calculations |
+| C18 | Multi-fish count convention | Treat a numeric `quantity` as fish count; UI-created catches default to one, and editing a catch preserves its count even though the desktop form has no quantity editor. | Partial | Import/data convention | Numeric catch quantity | `dashboard.js`, `trip-save.js` | `catch.quantity` | PUT `/api/logbook` | Stats/dashboard calculations |
 | C19 | Lost/missed fish logging | Record person, possible species, structure, time, location, rod, lure, FOW, notes, photos, GPS override, and spot assignment separately from landed catches while sharing the normal catch metadata flow. | Implemented | Add Missed Fish | Separate lost-fish record shape with shared catch location/media fields | `trip-editor.js`, `trip-rows.js`, `trip-save.js`, `photos.js`, `stats.js`, `row-templates.html` | `trip.lostFish[]` | GET/PUT `/api/logbook`, upload routes | Trip dialog, Summary timeline, Stats |
 | C20 | Trolling fish context | Record direction, FOW caught, GPS speed, ball speed/depth, flatline weight, distance behind board, leadcore colors, estimated lure/depth, dipsey setting, line out, shaker, deepest-rigger state, and computed cheater depth where applicable. | Implemented | Trolling catch/lost rows | Presentation controls conditional field visibility | `form-utils.js`, `trip-editor.js` | Catch/lost trolling fields | GET/PUT `/api/logbook` | Trip dialog, Summary, Stats |
 | C21 | Casting retrieve and rigging | Show and save retrieve style plus non-trolling rigging and rig details for casting catches/lost fish. | Implemented | Casting fish row | Method visibility logic | `form-utils.js`, `trip-editor.js` | `catch.retrieve`, rigging fields | GET/PUT `/api/logbook` | Trip dialog, Summary |
@@ -131,7 +131,7 @@ The logbook is stored in SQLite at `data/logbook.sqlite3`; the browser works wit
 
 | ID | Feature | Description / purpose | Status | Entry point and role | Data and dependencies | Related files | Database | API endpoints | Screens |
 |---|---|---|---|---|---|---|---|---|---|
-| D01 | Archive export/import | Transfer normalized logbook data and uploaded media in a portable ZIP archive containing a manifest and `logbook.json`; import validates and replaces the current data/media set. | Implemented | Settings > Backup/Import | SQLite and upload tree | `settings-core.js`, `server.py` | Entire logbook and media | GET/POST `/api/archive` | Settings |
+| D01 | Archive export/import | Transfer the canonical v2 logbook and uploaded media in a portable ZIP archive shared with mobile; import validates and replaces the current logbook and media set. | Implemented | Settings > Database Archive | SQLite and upload tree | `settings-core.js`, `server.py` | Entire logbook and media | GET/POST `/api/archive` | Settings |
 | D02 | Docker launch lifecycle | Stop old/current containers, rebuild, and launch Compose. | Implemented; host verification required | `launch-container.sh` | Docker Compose | Launcher/Compose files | Mounted `./data` | Port 80→8080 | None |
 | D03 | Location referential deletion guard | Refuse to delete locations/launches still used by trips. | Implemented | Settings manager delete buttons | Name/ID matching | `locations.js` | Trips/locations | PUT `/api/logbook` | Settings |
 | D04 | Gear referential cleanup | Deleting gear clears references from combos/trips/catches where coded. | Implemented | Gear delete actions | Client-side cascading updates | `gear-dialogs.js` | Gear and nested IDs | PUT `/api/logbook` | Gear |
@@ -142,9 +142,9 @@ The logbook is stored in SQLite at `data/logbook.sqlite3`; the browser works wit
 
 | ID | Feature | Description / purpose | Status | Entry point and role | Data and dependencies | Related files | Database | API endpoints | Screens |
 |---|---|---|---|---|---|---|---|---|---|
-| T01 | SQLite persistence API | Read and replace the normalized logbook document. | Implemented | SPA load/save; unauthenticated | Flask and SQLite | `server.py`, `logbook_store.py` | `data/logbook.sqlite3` | GET/PUT `/api/logbook` | All |
-| T02 | JSON normalization | Merge defaults, sanitize settings/options/coordinates, migrate string locations, normalize spots/expeditions/checklists, and merge people/locations from trips. | Implemented | Every read/write/import | Schema version 1 | `logbook_store.py`, `app-state.js` | Entire document | GET/PUT logbook | All |
-| T03 | UUID/slug identity | Create browser UUIDs for records and deterministic slugs for migrated locations/options. | Implemented | Automatic | Web Crypto or fallback | `app-state.js`, `logbook_store.py` | IDs throughout | None | All edit workflows |
+| T01 | SQLite persistence API | Read and replace a validated v2 logbook document without runtime normalization. | Implemented | SPA load/save; unauthenticated | Flask and SQLite | `server.py`, `logbook_store.py` | `data/logbook.sqlite3` | GET/PUT `/api/logbook` | All |
+| T02 | Version-2 document validation | Require the complete schema-version-2 document and validate known shapes without reshaping records. | Implemented | Every read/write/import | Schema version 2 | `logbook_store.py`, `app-normalization.js`, `app-state.js` | Entire document | GET/PUT logbook | All |
+| T03 | UUID/slug identity | Create browser UUIDs for records and deterministic slugs for user-managed labels. | Implemented | Automatic | Web Crypto or fallback | `app-state.js` | IDs throughout | None | All edit workflows |
 | T04 | Weather proxy APIs | Allowlisted proxies for Open-Meteo archive and forecast requests. | Implemented | Browser weather workflow | Internet access | `server.py`, `weather_service.py` | None directly | GET archive/forecast | Trip workflow |
 | T05 | Marine proxy API | Allowlisted Open-Meteo Marine proxy. | Implemented | Browser weather workflow | Internet access | `server.py`, `weather_service.py` | None directly | GET `/api/weather/marine` | Trip workflow |
 | T06 | Astronomy proxy API | Allowlisted SunriseSunset.io proxy. | Implemented | Browser weather workflow | Internet access | `server.py`, `weather_service.py` | None directly | GET `/api/astronomy` | Trip workflow |
@@ -155,14 +155,12 @@ The logbook is stored in SQLite at `data/logbook.sqlite3`; the browser works wit
 | T11 | No-store responses | Add `Cache-Control: no-store` to every Flask response, with explicit private caching for model raster/value responses where coded. | Implemented | Automatic | Flask response hook | `server.py` | None | All server routes | All |
 | T12 | Environment configuration | Configure bind host/port and data paths through environment/process configuration and Compose. | Implemented | Process/shell environment | Host process | `backend_config.py`, scripts, Compose | None | None | None |
 | T13 | Standalone fallback generation | Rebuild or check the generated direct-file bundle from Jinja templates; `standalone.html` is generated output and should not be edited by hand. | Implemented | `python scripts/build-standalone.py [--check]` | Jinja2 template rendering | `scripts/build-standalone.py`, `templates/index.html`, `standalone.html` | None | None | None |
-| T15 | Deprecated `tripTypes` cleanup | Normalizers delete a legacy `tripTypes` property from imported/current documents. | Hidden / Deprecated | Automatic normalization | Legacy imported JSON | `app-state.js`, `logbook_store.py` | Removes top-level field | GET/PUT logbook | None |
 | T16 | Offline/PWA | No service worker, manifest, cache strategy, IndexedDB, background sync, or full offline parity. Local-file fallback is not full offline operation. | Not implemented | None | — | — | — | — | — |
 | T17 | Feature flags | No feature-flag framework or environment-controlled product toggles. | Not implemented | None | — | — | — | — | — |
-| T18 | Database migrations | SQLite is the relational database, but no formal migration framework exists; compatibility changes are performed during document normalization. | Not implemented | None | — | — | — | — | — |
 
 ## Inventory Totals
 
-- Verified implemented, partial, hidden, deprecated, or externally dependent capabilities: **102**.
+- Verified implemented, partial, hidden, deprecated, or externally dependent capabilities: **100**.
 - Core fishing workflow capabilities: **36**.
 - Media, map, and environmental capabilities: **17**.
 - Analytics capabilities counted: **21** (excluding two explicitly absent reports).

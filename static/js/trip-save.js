@@ -1,11 +1,14 @@
 function collectTripFromForm() {
   const trolling = isTrollingTrip();
   const people = collectPeople();
+  const existingTrip = state.trips.find((trip) => trip.id === getValue("tripId"));
+  const existingTripMetadata = { ...(existingTrip || {}) };
   const gearUsed = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
     .map((row) => ({
+      // Setup lines are extensible shared records. Preserve valid v2 fields
+      // owned by another client (for example per-line person attribution).
+      ...(existingTrip?.gearUsed?.find((line) => line.id === row.dataset.gearId) || {}),
       id: row.dataset.gearId || createId(),
-      defaultTrollingSpread: row.dataset.defaultTrollingSpread === "true",
-      defaultTrollingSpreadTarget: row.dataset.defaultTrollingSpreadTarget || "",
       startTime: row.querySelector(".trip-gear-start-time").value,
       endTime: row.querySelector(".trip-gear-end-time").value,
       changeNote: row.querySelector(".trip-gear-change-note").value.trim(),
@@ -66,7 +69,11 @@ function collectTripFromForm() {
       const casting = isCastingTrip();
       const detailsUnknown = !lost && Boolean(row.querySelector(".catch-details-unknown")?.checked);
       const spotSelection = row.querySelector(".catch-spot")?.value || "__automatic__";
+      const existingFish = (lost ? existingTrip?.lostFish : existingTrip?.catches)?.find((fish) => fish.id === row.dataset.catchId);
       const base = {
+        // Preserve valid v2 fish fields not represented by this editor, such
+        // as quantity and cheater depth, as well as additive client metadata.
+        ...(existingFish || {}),
         id: row.dataset.catchId || createId(),
         detailsUnknown,
         personId: detailsUnknown ? "" : row.querySelector(".catch-person").value,
@@ -117,6 +124,7 @@ function collectTripFromForm() {
       };
       const selectedRodId = row.querySelector(".catch-rod")?.selectedOptions?.[0]?.dataset.rodId || "";
       if (!detailsUnknown && row.catchWeatherData) base.weatherData = row.catchWeatherData;
+      else if (detailsUnknown) delete base.weatherData;
       if (!detailsUnknown && hasCatchDepthData(row.catchDepthData)) {
         Object.assign(base, row.catchDepthData);
       }
@@ -184,6 +192,9 @@ function collectTripFromForm() {
   const waveChop = chopLabelForWaveHeight(waveHeight);
 
   return {
+    // Keep v2 trip data that the desktop editor does not expose (live-trip
+    // events/state and location coordinates, for example) when editing.
+    ...existingTripMetadata,
     id: getValue("tripId") || createId(),
     title: getValue("tripTitle"),
     date: getValue("tripDate"),
@@ -193,12 +204,9 @@ function collectTripFromForm() {
     launch: launch?.name || "",
     launchId: launch?.id || "",
     launchTime: getValue("launchTime"),
-    linesSetTime: getValue("linesSetTime"),
     linesPulledTime: getValue("linesPulledTime"),
-    startTime: getValue("linesSetTime"),
-    endTime: getValue("linesPulledTime"),
     idleHours: idleHoursFromForm(),
-    hours: Math.max(0, calculateHours(getValue("linesSetTime") || getValue("launchTime"), getValue("linesPulledTime")) - idleHoursFromForm()),
+    hours: Math.max(0, calculateHours(getValue("launchTime"), getValue("linesPulledTime")) - idleHoursFromForm()),
     targetSpecies: getValue("targetSpecies"),
     method: getValue("method"),
     intent: getTripIntent(),
@@ -249,7 +257,6 @@ async function persistTrip(event, { draft = false } = {}) {
     trip.isDraft = draft;
     trip.title = trip.title || generatedTripTitle(trip, state.trips);
     state.people = mergePeople(state.people, trip.people);
-    state.locations = mergeLocations(state.locations, [trip.location]);
     upsertListValue("species", trip.targetSpecies);
     upsertListValue("methods", trip.method);
     upsertListValue("waterClarities", trip.waterClarity);

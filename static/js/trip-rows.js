@@ -17,7 +17,7 @@ function expandAndRevealTripRow(row) {
 }
 
 function defaultFishTime(catchItem = {}) {
-  return catchItem.timeUnknown ? "" : (catchItem.time ?? (getValue("linesSetTime") || getValue("launchTime") || defaultTimeValue));
+  return catchItem.timeUnknown ? "" : (catchItem.time ?? (getValue("launchTime") || defaultTimeValue));
 }
 
 function populateCatchSpotSelect(row, catchItem = {}) {
@@ -132,7 +132,7 @@ function updateCatchDetailsUnknown(row, { clear = false } = {}) {
 }
 
 function defaultSetupStartTime(gearItem = {}) {
-  return gearItem.startTime ?? (getValue("linesSetTime") || getValue("launchTime") || defaultTimeValue);
+  return gearItem.startTime ?? (getValue("launchTime") || defaultTimeValue);
 }
 
 function defaultSetupEndTime(gearItem = {}) {
@@ -140,7 +140,7 @@ function defaultSetupEndTime(gearItem = {}) {
 }
 
 function syncTripTimesToBlankRows() {
-  const startTime = getValue("linesSetTime") || getValue("launchTime");
+  const startTime = getValue("launchTime");
   const endTime = getValue("linesPulledTime");
   if (startTime) {
     document.querySelectorAll("#catchRows .catch-time, #lostFishRows .catch-time, #tripGearRows .trip-gear-start-time").forEach((field) => {
@@ -217,7 +217,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-species").value = lost ? "" : (catchItem.species || "");
   node.querySelector(".catch-possible-species").value = catchItem.possibleSpecies || catchItem.species || "";
   node.querySelector(".catch-details-unknown").checked = Boolean(catchItem.detailsUnknown);
-  // Keep the existing `released` storage field so legacy stats and reports remain compatible.
+  // Keep the current `released` field used by stats and reports.
   node.querySelector(".catch-released").checked = catchItem.released === undefined
     ? false
     : !Boolean(catchItem.released);
@@ -226,8 +226,8 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-time").value = defaultFishTime(catchItem);
   node.querySelector(".catch-time-unknown").checked = Boolean(catchItem.timeUnknown);
   updateUnknownTimeField(node);
-  node.querySelector(".catch-water-depth").value = catchItem.waterDepth || catchItem.depth || "";
-  node.querySelector(".catch-depth-down").value = catchItem.depthDown || catchItem.depth || "";
+  node.querySelector(".catch-water-depth").value = catchItem.waterDepth || "";
+  node.querySelector(".catch-depth-down").value = catchItem.depthDown || "";
   const manualCoordinates = isUsableCoordinates(catchItem.manualCoordinates)
     ? catchItem.manualCoordinates
     : (catchItem.coordinates?.manual && isUsableCoordinates(catchItem.coordinates) ? catchItem.coordinates : null);
@@ -238,7 +238,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-presentation").value = catchItem.presentation || "";
   node.querySelector(".catch-direction").value = catchItem.direction || "";
   node.querySelector(".catch-fow").value = catchItem.fowCaught || "";
-  node.querySelector(".catch-gps-speed").value = catchItem.gpsSpeed ?? catchItem.speed ?? "";
+  node.querySelector(".catch-gps-speed").value = catchItem.gpsSpeed ?? "";
   node.querySelector(".catch-ball-speed").value = catchItem.ballSpeed || "";
   node.querySelector(".catch-ball-temp").value = catchItem.ballTemp || "";
   node.querySelector(".catch-shaker").checked = Boolean(catchItem.shaker);
@@ -346,11 +346,6 @@ function addTripGearRow(gearItem = {}) {
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.rowId = createId();
   node.dataset.gearId = gearItem.id || "";
-  if (gearItem.defaultTrollingSpread) {
-    node.dataset.defaultTrollingSpread = "true";
-    node.dataset.defaultTrollingSpreadTarget = gearItem.defaultTrollingSpreadTarget || "__all__";
-  }
-
   node.querySelector(".trip-gear-start-time").value = defaultSetupStartTime(gearItem);
   node.querySelector(".trip-gear-end-time").value = defaultSetupEndTime(gearItem);
   node.querySelector(".trip-gear-change-note").value = gearItem.changeNote || gearItem.notes || "";
@@ -409,7 +404,7 @@ function applyStartupTrollingSpread() {
     hasCheater: false
   }));
   [...els.tripGearRows.querySelectorAll(".gear-used-row")].slice(-spread.length).forEach((row) => {
-    row.dataset.defaultTrollingSpread = "true";
+    row.dataset.autoAddedSpread = "true";
   });
   return true;
 }
@@ -466,8 +461,8 @@ function importLastTrollingSpread() {
     return;
   }
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
-  const onlyDefaultRows = rows.length > 0 && rows.every((row) => row.dataset.defaultTrollingSpread === "true");
-  if (rows.length && !onlyDefaultRows && !window.confirm("Replace the current setup with the spread from your last matching trip?")) return;
+  const onlyAutoAddedRows = rows.length > 0 && rows.every((row) => row.dataset.autoAddedSpread === "true");
+  if (rows.length && !onlyAutoAddedRows && !window.confirm("Replace the current setup with the spread from your last matching trip?")) return;
 
   rows.forEach((row) => row.remove());
   sourceTrip.gearUsed.forEach((gearItem) => addTripGearRow(lastTripSpreadGearItem(gearItem)));

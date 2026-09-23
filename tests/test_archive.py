@@ -4,11 +4,60 @@ import io
 import json
 import tempfile
 import zipfile
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
 from backend import logbook_store, media_service
+from backend.backend_config import DEFAULT_LOGBOOK
 from server import create_app
+
+
+def v2(partial: dict) -> dict:
+    return {**deepcopy(DEFAULT_LOGBOOK), **partial}
+
+
+def test_archive_contains_v2_logbook_and_media_and_import_restores_it() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        database = root / "logbook.sqlite3"
+        uploads = root / "uploads"
+        media = uploads / "trip-photos"
+        media.mkdir(parents=True)
+        (media / "photo.jpg").write_bytes(b"archive-media")
+        payload = v2({"trips": [{"id": "sqlite-trip", "title": "SQLite Trip", "catches": [], "lostFish": []}]})
+
+        with (
+            patch.object(logbook_store, "DATABASE_FILE", database),
+            patch("server.DATABASE_FILE", database),
+            patch("server.DATA_DIR", root),
+            patch.object(media_service, "UPLOADS_DIR", uploads),
+        ):
+            logbook_store.write_logbook(payload)
+            client = create_app({"TESTING": True, "SECRET_KEY": "database-test"}).test_client()
+            exported = client.get("/api/archive")
+
+            assert exported.status_code == 200
+            assert exported.headers["Content-Disposition"] == "attachment; filename=fishing-logbook-archive.zip"
+            with zipfile.ZipFile(io.BytesIO(exported.data)) as bundle:
+                manifest = json.loads(bundle.read("manifest.json"))
+                assert manifest["archiveVersion"] == 2
+                assert manifest["schemaVersion"] == 2
+                assert "logbook.sqlite3" not in bundle.namelist()
+                assert json.loads(bundle.read("logbook.json")) == payload
+                assert "media/trip-photos/photo.jpg" in bundle.namelist()
+
+            logbook_store.write_logbook(v2({"trips": [{"id": "changed", "title": "Changed", "catches": [], "lostFish": []}]}))
+            csrf = client.get("/api/csrf-token").get_json()["csrfToken"]
+            imported = client.post(
+                "/api/archive",
+                data={"archive": (io.BytesIO(exported.data), "fishing-logbook-archive.zip")},
+                headers={"X-CSRF-Token": csrf},
+                content_type="multipart/form-data",
+            )
+
+            assert imported.status_code == 200
+            assert logbook_store.read_logbook()["trips"][0]["id"] == "sqlite-trip"
 
 
 def test_archive_round_trip_preserves_logbook_and_media() -> None:
@@ -20,7 +69,7 @@ def test_archive_round_trip_preserves_logbook_and_media() -> None:
         trip_media.mkdir(parents=True)
         (trip_media / "photo.jpg").write_bytes(b"mobile-compatible-media")
         payload = {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "trips": [{
                 "id": "trip-1",
                 "title": "Archive Trip",
@@ -40,8 +89,9 @@ def test_archive_round_trip_preserves_logbook_and_media() -> None:
             patch.object(logbook_store, "DATABASE_FILE", database),
             patch.object(media_service, "UPLOADS_DIR", uploads),
             patch("server.DATA_DIR", root),
+            patch("server.DATABASE_FILE", database),
         ):
-            logbook_store.write_logbook(payload)
+            logbook_store.write_logbook(v2(payload))
             app = create_app({"TESTING": True, "SECRET_KEY": "archive-test"})
             client = app.test_client()
             exported = client.get("/api/archive")
@@ -49,8 +99,9 @@ def test_archive_round_trip_preserves_logbook_and_media() -> None:
             assert exported.status_code == 200
             with zipfile.ZipFile(io.BytesIO(exported.data)) as bundle:
                 assert all(item.compress_type == zipfile.ZIP_STORED for item in bundle.infolist())
-                assert json.loads(bundle.read("manifest.json"))["archiveVersion"] == 1
-                assert json.loads(bundle.read("logbook.json"))["trips"][0]["title"] == "Archive Trip"
+                assert json.loads(bundle.read("manifest.json"))["archiveVersion"] == 2
+                assert "logbook.sqlite3" not in bundle.namelist()
+                assert json.loads(bundle.read("logbook.json")) == v2(payload)
                 assert bundle.read("media/trip-photos/photo.jpg") == b"mobile-compatible-media"
 
             csrf = client.get("/api/csrf-token").get_json()["csrfToken"]
@@ -72,21 +123,21 @@ def test_archive_import_rolls_back_media_when_logbook_write_fails() -> None:
         target.parent.mkdir(parents=True)
         target.write_bytes(b"existing-media")
         original = {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "trips": [{"id": "original-trip", "title": "Original", "catches": [], "lostFish": []}],
             "lures": [],
             "flashers": [],
         }
         incoming = {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "trips": [{"id": "incoming-trip", "title": "Incoming", "catches": [], "lostFish": []}],
             "lures": [],
             "flashers": [],
         }
         archive = io.BytesIO()
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_STORED) as bundle:
-            bundle.writestr("manifest.json", json.dumps({"archiveVersion": 1}))
-            bundle.writestr("logbook.json", json.dumps(incoming))
+            bundle.writestr("manifest.json", json.dumps({"archiveVersion": 2, "schemaVersion": 2, "format": "fishing-logbook-archive"}))
+            bundle.writestr("logbook.json", json.dumps(v2(incoming)))
             bundle.writestr("media/trip-photos/photo.jpg", b"incoming-media")
         archive.seek(0)
 
@@ -95,7 +146,7 @@ def test_archive_import_rolls_back_media_when_logbook_write_fails() -> None:
             patch.object(media_service, "UPLOADS_DIR", uploads),
             patch("server.DATA_DIR", root),
         ):
-            logbook_store.write_logbook(original)
+            logbook_store.write_logbook(v2(original))
             app = create_app({"TESTING": True, "SECRET_KEY": "archive-rollback-test"})
             with app.test_client() as client:
                 csrf = client.get("/api/csrf-token").get_json()["csrfToken"]
@@ -110,6 +161,39 @@ def test_archive_import_rolls_back_media_when_logbook_write_fails() -> None:
             assert response.status_code == 400
             assert target.read_bytes() == b"existing-media"
             assert logbook_store.read_logbook()["trips"][0]["id"] == "original-trip"
+
+
+def test_archive_rejects_missing_referenced_media_before_replacing_logbook() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        database = root / "logbook.sqlite3"
+        uploads = root / "uploads"
+        uploads.mkdir()
+        original = v2({"trips": [{"id": "original-trip", "title": "Original", "catches": [], "lostFish": []}]})
+        incoming = v2({"trips": [{
+            "id": "incoming-trip", "title": "Incoming", "catches": [], "lostFish": [],
+            "notePhotos": [{"id": "missing", "category": "trip-photos", "filename": "missing.jpg", "mediaType": "image"}],
+        }]})
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w", zipfile.ZIP_STORED) as bundle:
+            bundle.writestr("manifest.json", json.dumps({"archiveVersion": 2, "schemaVersion": 2, "format": "fishing-logbook-archive"}))
+            bundle.writestr("logbook.json", json.dumps(incoming))
+        archive.seek(0)
+        with (
+            patch.object(logbook_store, "DATABASE_FILE", database),
+            patch.object(media_service, "UPLOADS_DIR", uploads),
+            patch("server.DATA_DIR", root),
+        ):
+            logbook_store.write_logbook(original)
+            client = create_app({"TESTING": True, "SECRET_KEY": "archive-missing-media-test"}).test_client()
+            csrf = client.get("/api/csrf-token").get_json()["csrfToken"]
+            response = client.post(
+                "/api/archive", data={"archive": (archive, "missing-media.zip")},
+                headers={"X-CSRF-Token": csrf}, content_type="multipart/form-data",
+            )
+            assert response.status_code == 400
+            assert "missing referenced media" in response.get_json()["error"].lower()
+            assert logbook_store.read_logbook() == original
 
 
 def test_orphan_listing_is_read_only() -> None:
@@ -131,11 +215,11 @@ def test_orphan_listing_is_read_only() -> None:
             patch.object(media_service, "UPLOADS_DIR", uploads),
             patch("server.DATA_DIR", root),
         ):
-            logbook_store.write_logbook({
-                "schemaVersion": 1,
-                "trips": [{"id": "trip", "notePhotos": [{"path": "trip-photos/attached.jpg"}]}],
+            logbook_store.write_logbook(v2({
+                "schemaVersion": 2,
+                "trips": [{"id": "trip", "notePhotos": [{"id": "attached", "category": "trip-photos", "filename": "attached.jpg"}]}],
                 "lures": [], "flashers": [],
-            })
+            }))
             app = create_app({"TESTING": True, "SECRET_KEY": "orphan-list-test"})
             with app.test_client() as client:
                 response = client.get("/api/orphaned-media")
@@ -143,14 +227,6 @@ def test_orphan_listing_is_read_only() -> None:
             assert response.status_code == 200
             assert [item["filename"] for item in response.get_json()["media"]] == ["orphan.jpg"]
             assert orphan.read_bytes() == b"keep-me"
-
-
-def test_media_reference_falls_back_from_malformed_path_to_valid_url() -> None:
-    reference = {
-        "path": "unknown-category/photo.jpg",
-        "url": "/uploads/catch-photos/photo.jpg",
-    }
-    assert media_service.media_key_from_reference(reference) == ("catch-photos", "photo.jpg")
 
 
 def test_media_reference_supports_explicit_category_and_filename() -> None:
@@ -178,7 +254,7 @@ def test_queue_claim_rolls_back_when_target_metadata_write_fails() -> None:
             patch.object(media_service, "UPLOADS_DIR", uploads),
             patch("server.DATA_DIR", root),
         ):
-            logbook_store.write_logbook({"schemaVersion": 1, "trips": [], "lures": [], "flashers": []})
+            logbook_store.write_logbook(v2({}))
             app = create_app({"TESTING": True, "PROPAGATE_EXCEPTIONS": False, "SECRET_KEY": "queue-rollback-test"})
             with app.test_client() as client:
                 csrf = client.get("/api/csrf-token").get_json()["csrfToken"]
@@ -216,7 +292,7 @@ def test_queue_copy_keeps_source_and_preview_for_review() -> None:
             patch.object(media_service, "UPLOADS_DIR", uploads),
             patch("server.DATA_DIR", root),
         ):
-            logbook_store.write_logbook({"schemaVersion": 1, "trips": [], "lures": [], "flashers": []})
+            logbook_store.write_logbook(v2({}))
             app = create_app({"TESTING": True, "SECRET_KEY": "queue-copy-test"})
             with app.test_client() as client:
                 csrf = client.get("/api/csrf-token").get_json()["csrfToken"]
@@ -259,7 +335,7 @@ def test_queue_delete_removes_metadata_named_preview() -> None:
             patch.object(media_service, "UPLOADS_DIR", uploads),
             patch("server.DATA_DIR", root),
         ):
-            logbook_store.write_logbook({"schemaVersion": 1, "trips": [], "lures": [], "flashers": []})
+            logbook_store.write_logbook(v2({}))
             app = create_app({"TESTING": True, "SECRET_KEY": "queue-delete-test"})
             with app.test_client() as client:
                 csrf = client.get("/api/csrf-token").get_json()["csrfToken"]

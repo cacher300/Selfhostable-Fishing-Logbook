@@ -1,4 +1,4 @@
-const storageKey = "fishing-logbook-v1";
+const storageKey = "fishing-logbook-v2";
 let csrfTokenPromise;
 
 async function protectedFetch(url, options = {}, retry = true) {

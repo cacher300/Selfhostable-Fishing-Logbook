@@ -25,7 +25,7 @@ flowchart LR
 
 `templates/index.html` composes routed screens, dialogs, and row templates from feature partials under `templates/partials/`. Flask renders the composition at request time. `standalone.html` is a generated copy for direct-file fallback, reached through the small root `index.html` bootstrap. Scripts are loaded as classic global scripts in dependency order; there are no modules, package manager, compilation, or bundling.
 
-- `app-state.js`, `app-normalization.js`, `app-units.js`, `app-persistence.js`: shared state, normalization, measurement display, and load/save behavior.
+- `app-state.js`, `app-normalization.js`, `app-units.js`, `app-persistence.js`: shared state, v2 validation, measurement display, and load/save behavior.
 - `app.js`, `app-control-events.js`, `app-delegated-events.js`: route/view startup plus direct and delegated event wiring.
 - `trip-editor.js`, `trip-rows.js`, `trip-save.js`, `form-utils.js`, `trolling-spread.js`: trip lifecycle, repeated catch/setup rows, persistence, and method-specific fishing behavior.
 - `locations.js`, `location-weather.js`: mapped locations and environmental enrichment.
@@ -41,7 +41,7 @@ Shared mutable globals couple these files. HTML IDs/classes are effectively inte
 
 `server.py` creates the Flask app and owns HTTP routing. Helpers are separated by concern:
 
-- `logbook_store.py`: whole-document normalization, validation, and SQLite I/O.
+- `logbook_store.py`: v2 whole-document validation and SQLite I/O.
 - `media_service.py`: upload paths, metadata sidecars, preview generation, references, gallery, orphans.
 - `weather_service.py`: allowlisted external weather, marine, and astronomy proxies.
 - `bathymetry_service.py`: catch-depth lookup and lake-calibration support.
@@ -55,17 +55,17 @@ The Flask development server runs threaded. SQLite writes are transactional, but
 
 The application stores its logbook in `data/logbook.sqlite3`. Top-level collections such as `lures`, `locations`, and `trips` are individual SQLite rows with ordered JSON payloads, preserving their nested setup, catches, people references, weather snapshots, and media references.
 
-Media files are stored separately by category. Each file may have `<filename>.json` metadata and `_previews/<stem>.jpg`. Archive export includes the normalized logbook and media binaries in one ZIP.
+Media files are stored separately by category. Each file may have `<filename>.json` metadata and `_previews/<stem>.jpg`. Archive export includes the v2 logbook and media binaries in one ZIP.
 
 ## Request and State Flows
 
 ### Startup and save
 
 1. The browser requests `/api/logbook`.
-2. Flask reads and normalizes the SQLite data.
-3. The browser normalizes again and renders all views.
+2. Flask validates the v2 SQLite document and returns it without runtime reshaping.
+3. The browser validates the v2 document and renders all views.
 4. A mutation updates in-memory state.
-5. `saveState()` normalizes, writes localStorage, then replaces the complete server document with `PUT /api/logbook`.
+5. `saveState()` validates, writes localStorage, then replaces the complete server document with `PUT /api/logbook`.
 
 When opened via `file:`, step 5 stops after localStorage. This is fallback persistence, not feature-complete offline operation.
 

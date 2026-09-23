@@ -31,6 +31,7 @@ let activeGalleryPage = 1;
 let gallerySelectionMode = false;
 let galleryOrphanScanActive = false;
 let selectedGalleryItems = new Set();
+let gallerySelectionAnchorKey = "";
 let activeGalleryLightboxIndex = -1;
 
 async function loadGalleryItems() {
@@ -83,15 +84,9 @@ function gallerySortValue(item) {
 }
 
 function galleryMediaKey(item) {
-  const path = String(item?.path || "");
-  if (path.includes("/")) return path;
   const category = String(item?.category || "");
   const filename = String(item?.filename || "");
   if (category && filename) return `${category}/${filename}`;
-  for (const field of ["url", "image"]) {
-    const value = String(item?.[field] || "");
-    if (value.startsWith("/uploads/")) return value.replace("/uploads/", "");
-  }
   return "";
 }
 
@@ -185,10 +180,10 @@ function setGalleryPage(page) {
 
 function galleryPreviewMarkup(item) {
   if (isVideoMedia(item)) {
-    const videoSource = item.url || item.image || "";
+    const videoSource = originalMediaUrl(item);
     return `<video src="${escapeHtml(videoSource)}" muted playsinline preload="metadata" aria-hidden="true"></video>`;
   }
-  const source = item.previewImage || item.previewUrl || item.image || item.url || "";
+  const source = previewImage(item);
   return `<img src="${escapeHtml(source)}" alt="">`;
 }
 
@@ -214,14 +209,14 @@ function galleryCard(item, index) {
       </button>
       <div class="gallery-hover-overlay" aria-hidden="true">
         <button type="button" data-gallery-open="${escapeHtml(String(index))}" title="View" aria-label="View"><svg viewBox="0 0 16 16"><path d="M1.5 8s2.25-4 6.5-4 6.5 4 6.5 4-2.25 4-6.5 4-6.5-4-6.5-4z" /><circle cx="8" cy="8" r="2" /></svg></button>
-        <a href="${escapeHtml(item.downloadUrl || item.url)}" download="${escapeHtml(downloadName)}" title="Download Original" aria-label="Download Original"><svg viewBox="0 0 16 16"><path d="M8 2v7m0 0 3-3m-3 3L5 6M3 12.5h10" /></svg></a>
+        <a href="${escapeHtml(item.downloadUrl || originalMediaUrl(item))}" download="${escapeHtml(downloadName)}" title="Download Original" aria-label="Download Original"><svg viewBox="0 0 16 16"><path d="M8 2v7m0 0 3-3m-3 3L5 6M3 12.5h10" /></svg></a>
         <button type="button" data-gallery-delete="${escapeHtml(key)}" title="Delete" aria-label="Delete"><svg viewBox="0 0 16 16"><path d="M3 4h10M6 4V2.75h4V4m-5 2v6m3-6v6m3-6v6M4.5 4l.5 9h6l.5-9" /></svg></button>
       </div>
       <details class="gallery-more-actions">
         <summary aria-label="More actions"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1" /><circle cx="8" cy="8" r="1" /><circle cx="12.5" cy="8" r="1" /></svg></summary>
         <div>
           <button type="button" data-gallery-open="${escapeHtml(String(index))}">View</button>
-          <a href="${escapeHtml(item.downloadUrl || item.url)}" download="${escapeHtml(downloadName)}">Download Original</a>
+          <a href="${escapeHtml(item.downloadUrl || originalMediaUrl(item))}" download="${escapeHtml(downloadName)}">Download Original</a>
           <button type="button" data-gallery-delete="${escapeHtml(key)}">Delete</button>
         </div>
       </details>
@@ -248,7 +243,10 @@ function updateGallerySelectionBar() {
 
 function setGallerySelectionMode(active) {
   gallerySelectionMode = Boolean(active);
-  if (!gallerySelectionMode) selectedGalleryItems.clear();
+  if (!gallerySelectionMode) {
+    selectedGalleryItems.clear();
+    gallerySelectionAnchorKey = "";
+  }
   renderGalleryItems();
 }
 
@@ -260,6 +258,9 @@ function renderGalleryItems() {
   const startIndex = Number.isFinite(limit) ? (activeGalleryPage - 1) * limit : 0;
   const endIndex = Number.isFinite(limit) ? startIndex + limit : matchedItems.length;
   galleryVisibleItems = matchedItems.slice(startIndex, endIndex);
+  if (!galleryVisibleItems.some((item) => galleryItemKey(item) === gallerySelectionAnchorKey)) {
+    gallerySelectionAnchorKey = "";
+  }
   selectedGalleryItems = new Set([...selectedGalleryItems].filter((key) => galleryItems.some((item) => galleryItemKey(item) === key)));
   els.galleryStatus.textContent = galleryOrphanScanActive
     ? `${matchedItems.length} orphaned ${matchedItems.length === 1 ? "item" : "items"} found${galleryVisibleItems.length < matchedItems.length ? `; showing ${galleryVisibleItems.length}` : ""}`
@@ -322,8 +323,8 @@ function galleryLightboxMarkup(item, index) {
       <button class="gallery-lightbox-nav previous" type="button" data-gallery-lightbox-prev aria-label="Previous media" ${index <= 0 ? "disabled" : ""}><svg viewBox="0 0 16 16"><path d="M10 3 5 8l5 5" /></svg></button>
       <figure class="gallery-lightbox-stage">
         ${isVideoMedia(item)
-          ? `<video src="${escapeHtml(item.url || item.image || "")}" controls autoplay playsinline></video>`
-          : `<img src="${escapeHtml(item.image || item.url || item.previewImage || "")}" alt="">`}
+          ? `<video src="${escapeHtml(originalMediaUrl(item))}" controls autoplay playsinline></video>`
+          : `<img src="${escapeHtml(originalMediaUrl(item))}" alt="">`}
       </figure>
       <button class="gallery-lightbox-nav next" type="button" data-gallery-lightbox-next aria-label="Next media" ${index >= galleryVisibleItems.length - 1 ? "disabled" : ""}><svg viewBox="0 0 16 16"><path d="m6 3 5 5-5 5" /></svg></button>
       <aside class="gallery-lightbox-details">
@@ -372,7 +373,7 @@ function downloadGalleryItems(items) {
   items.forEach((item, index) => {
     setTimeout(() => {
       const link = document.createElement("a");
-      link.href = item.downloadUrl || item.url;
+      link.href = item.downloadUrl || originalMediaUrl(item);
       link.download = item.name || item.filename || "download";
       document.body.append(link);
       link.click();
@@ -403,10 +404,29 @@ async function deleteGalleryItems(items) {
 
 function toggleGallerySelection(key, selected) {
   if (!gallerySelectionMode) return;
+  gallerySelectionAnchorKey = key;
   if (selected) selectedGalleryItems.add(key);
   else selectedGalleryItems.delete(key);
   const card = els.galleryGrid.querySelector(`[data-gallery-key="${CSS.escape(key)}"]`);
   card?.classList.toggle("is-selected", selected);
+  updateGallerySelectionBar();
+}
+
+function selectGalleryRange(key) {
+  if (!gallerySelectionMode) return;
+  const targetIndex = galleryVisibleItems.findIndex((item) => galleryItemKey(item) === key);
+  if (targetIndex < 0) return;
+  const anchorIndex = galleryVisibleItems.findIndex((item) => galleryItemKey(item) === gallerySelectionAnchorKey);
+  const startIndex = anchorIndex < 0 ? targetIndex : Math.min(anchorIndex, targetIndex);
+  const endIndex = anchorIndex < 0 ? targetIndex : Math.max(anchorIndex, targetIndex);
+  galleryVisibleItems.slice(startIndex, endIndex + 1).forEach((item) => {
+    selectedGalleryItems.add(galleryItemKey(item));
+  });
+  els.galleryGrid.querySelectorAll("[data-gallery-select]").forEach((input) => {
+    const selected = selectedGalleryItems.has(input.dataset.gallerySelect);
+    input.checked = selected;
+    input.closest(".gallery-card")?.classList.toggle("is-selected", selected);
+  });
   updateGallerySelectionBar();
 }
 

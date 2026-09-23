@@ -9,7 +9,7 @@ function trollingSpreadPickerItemLabel(item) {
 
 function renderTrollingSpreadPicker() {
   if (!els.trollingSpreadPickerList) return;
-  const spreads = normalizeTrollingSpreads(state.settings?.trollingSpreads);
+  const spreads = currentTrollingSpreads();
   els.trollingSpreadPickerList.innerHTML = spreads.length
     ? spreads.map((item) => `
         <button class="trolling-spread-picker-option" type="button" data-pick-trolling-spread="${escapeHtml(item.id)}">
@@ -30,7 +30,7 @@ function openTrollingSpreadPicker() {
 }
 
 function applySavedTrollingSpread(spreadId) {
-  const spread = normalizeTrollingSpreads(state.settings?.trollingSpreads).find((item) => item.id === spreadId);
+  const spread = currentTrollingSpreads().find((item) => item.id === spreadId);
   if (!spread) return;
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
   if (rows.length && !window.confirm(`Replace the current setup with the ${spread.name} spread?`)) return;

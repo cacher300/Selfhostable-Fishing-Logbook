@@ -46,21 +46,6 @@ const defaultSetupLineSideOptions = [
   { value: "Starboard", label: "Starboard" }
 ];
 
-function migrateTrollingPresentationValue(value) {
-  const legacyValues = {
-    downrigger: "Downrigger",
-    cheater: "Cheater",
-    flatline: "Chute Rod",
-    "flatline-leadcore": "Outside Board",
-    "dipsey-diver": "High Diver"
-  };
-  return legacyValues[String(value || "")] || String(value || "");
-}
-
-function migrateSetupLineSideValue(value) {
-  const legacyValues = { port: "Port", center: "Center", starboard: "Starboard" };
-  return legacyValues[String(value || "")] || String(value || "");
-}
 const defaultChopRanges = [
   { id: "calm", label: "Calm", maxFeet: 0.5 },
   { id: "light", label: "Light Chop", maxFeet: 1 },
@@ -146,6 +131,7 @@ function createId() {
 }
 
 const defaults = {
+  schemaVersion: 2,
   species: [
     "Atlantic Salmon",
     "Black Bullhead",
@@ -193,7 +179,7 @@ const defaults = {
       brand: "",
       color: "Blue/Silver",
       notes: "Starter lure. Replace with your real lure photo when ready.",
-      image: ""
+      media: []
     }
   ],
   flashers: [],

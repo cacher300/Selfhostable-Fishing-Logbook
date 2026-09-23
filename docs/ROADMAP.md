@@ -10,14 +10,14 @@ This roadmap is derived from verified code gaps, not from assumed product commit
 
 ## Priority 1: Establish Schema and Quality Guardrails
 
-1. Define an explicit migration policy for the existing schema version and compatibility fields.
+1. Keep the v2-only runtime boundary; require deliberate offline conversion for any future schema change.
 2. Expand server validation limits and referential checks for trips, nested records, IDs, coordinates, and units.
-3. Add automated tests for normalization, overnight time logic, setup resolution, landed-vs-lost totals, media references, and proxy validation.
+3. Add automated tests for v2 validation, overnight time logic, setup resolution, landed-vs-lost totals, media references, and proxy validation.
 4. Add a browser smoke suite for trip CRUD, trolling setup/catches, queue assignment, and settings.
 
 ## Priority 2: Close Product Gaps
 
-1. Decide whether imported catch `quantity` should gain a UI control or be rejected/normalized away.
+1. Decide whether the desktop editor should expose the existing catch `quantity` field; until then it is preserved when editing.
 2. Add a dedicated natural/live bait model if “Baits” is intended to cover more than lures.
 3. Add year-over-year/season comparison reports and explicit success-rate definitions.
 4. Keep the existing pattern-combination tables aligned with the current personal-best and analytics screens.

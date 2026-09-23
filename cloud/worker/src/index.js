@@ -168,8 +168,8 @@ async function putLogbook(request, env) {
   if (!payload || Array.isArray(payload) || typeof payload !== "object") {
     return json({ error: "Logbook must be a JSON object" }, 400);
   }
-  if (!Number.isInteger(payload.schemaVersion) || payload.schemaVersion < 1) {
-    return json({ error: "Logbook schemaVersion must be a positive integer" }, 400);
+  if (payload.schemaVersion !== 2) {
+    return json({ error: "Only v2 logbooks are supported" }, 400);
   }
 
   const existing = await env.FISH_DB.prepare(

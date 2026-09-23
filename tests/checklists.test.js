@@ -2,31 +2,48 @@ const fs = require("fs");
 const vm = require("vm");
 const assert = require("assert");
 
-let nextId = 0;
-const context = {
-  console,
-  structuredClone,
-  createId: () => `generated-${nextId += 1}`
-};
-
-vm.createContext(context);
-vm.runInContext(fs.readFileSync("static/js/app-normalization.js", "utf8"), context);
-
-const checklists = vm.runInContext(`normalizeChecklists([{
+const original = [{
   id: "launch",
   name: "Launch Day",
-  items: [
-    { id: "battery", label: "Charge batteries", done: true },
-    { id: "license", label: "Pack licences", done: false },
-    { label: "" }
-  ]
-}])`, context);
+  syncTag: "mobile",
+  items: [{ id: "battery", label: "Charge batteries", done: true, icon: "battery" }]
+}];
+const card = {
+  dataset: { checklistId: "launch" },
+  querySelector(selector) {
+    if (selector === ".checklist-name") return { value: "Launch Day" };
+    return null;
+  },
+  querySelectorAll(selector) {
+    if (selector !== ".checklist-item") return [];
+    return [{
+      dataset: { checklistItemId: "battery" },
+      querySelector(field) {
+        if (field === ".checklist-item-label") return { value: "Charge batteries" };
+        if (field === ".checklist-item-done") return { checked: true };
+        return null;
+      }
+    }];
+  }
+};
+const context = {
+  console,
+  state: { settings: { checklists: original } },
+  els: { checklistList: { querySelectorAll: (selector) => selector === ".checklist-card" ? [card] : [] } },
+  createId: () => "generated-id"
+};
+vm.createContext(context);
+vm.runInContext(fs.readFileSync("static/js/app-normalization.js", "utf8"), context);
+vm.runInContext(fs.readFileSync("static/js/checklists.js", "utf8"), context);
 
-const checklistResult = JSON.parse(JSON.stringify(checklists));
-assert.equal(checklistResult.length, 1);
-assert.equal(checklistResult[0].items.length, 2);
-assert.equal(checklistResult[0].items[0].done, true);
-assert.equal(checklistResult[0].items[1].done, false);
+assert.strictEqual(context.savedChecklists(), original, "reading checklists must not replace or reshape state");
+const collected = JSON.parse(JSON.stringify(context.checklistsFromView()));
+assert.equal(collected[0].syncTag, "mobile");
+assert.equal(collected[0].items[0].icon, "battery");
+assert.deepEqual(original, [{
+  id: "launch", name: "Launch Day", syncTag: "mobile",
+  items: [{ id: "battery", label: "Charge batteries", done: true, icon: "battery" }]
+}], "collecting an unchanged form must not mutate the source records");
 
 const cleanupContext = {
   console,
@@ -38,17 +55,5 @@ vm.createContext(cleanupContext);
 vm.runInContext(fs.readFileSync("static/js/app-defaults.js", "utf8"), cleanupContext);
 vm.runInContext(fs.readFileSync("static/js/app-units.js", "utf8"), cleanupContext);
 vm.runInContext(fs.readFileSync("static/js/app-normalization.js", "utf8"), cleanupContext);
-const cleanedState = vm.runInContext(`normalizeState({
-  ...structuredClone(defaults),
-  settings: {
-    ...structuredClone(defaults.settings),
-    tripTemplates: [{ id: "old-template" }],
-    spreadTemplates: [{ id: "dead-spread", name: "Old spread" }]
-  },
-  trips: [{ id: "old-trip", checklist: [{ label: "Old trip item" }] }]
-})`, cleanupContext);
-assert.equal(cleanedState.settings.tripTemplates, undefined);
-assert.equal(cleanedState.settings.spreadTemplates, undefined);
-assert.equal(cleanedState.trips[0].checklist, undefined);
 
-console.log("checklist tests passed");
+console.log("checklists render and collect without reshaping saved records");

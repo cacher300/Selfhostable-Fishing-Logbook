@@ -55,6 +55,18 @@ def exists(database_file: Path) -> bool:
     return database_file.exists()
 
 
+def backup(source_file: Path, destination_file: Path) -> None:
+    """Create a consistent SQLite snapshot, including committed WAL data."""
+    with _LOCK:
+        if not source_file.exists():
+            raise FileNotFoundError(source_file)
+        destination_file.parent.mkdir(parents=True, exist_ok=True)
+        with closing(sqlite3.connect(source_file, timeout=10)) as source:
+            with closing(sqlite3.connect(destination_file, timeout=10)) as destination:
+                source.backup(destination)
+                destination.commit()
+
+
 def initialize(database_file: Path) -> None:
     with _LOCK:
         database_file.parent.mkdir(parents=True, exist_ok=True)

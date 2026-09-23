@@ -28,11 +28,13 @@ function formatTimelineDisplayTime(value) {
 function refreshCatchMediaGallery(gallery, selectedIndex = 0) {
   const trip = state.trips.find((item) => item.id === activeSummaryTripId);
   const catchIndex = Number(gallery?.dataset?.catchIndex);
-  const catchItem = trip?.catches?.[catchIndex];
+  const catchType = gallery?.dataset?.catchType === "lost" ? "lostFish" : "catches";
+  const catchItem = trip?.[catchType]?.[catchIndex];
   if (!trip || !catchItem || Number.isNaN(catchIndex)) return;
   const wrapper = document.createElement("div");
   wrapper.innerHTML = renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${catchIndex + 1}`, {
     catchIndex,
+    catchType: catchType === "lostFish" ? "lost" : "catch",
     selectedIndex,
     heroPhotoId: catchItem.heroPhotoId,
     context: gallery.dataset.galleryContext || "summary",
@@ -42,12 +44,13 @@ function refreshCatchMediaGallery(gallery, selectedIndex = 0) {
   if (nextGallery) gallery.replaceWith(nextGallery);
 }
 
-function openSummaryCatchDetail(catchIndex, selectedIndex) {
+function openSummaryCatchDetail(catchIndex, selectedIndex, catchType = "catch") {
   const trip = state.trips.find((item) => item.id === activeSummaryTripId);
-  const catchItem = trip?.catches?.[catchIndex];
+  const isLost = catchType === "lost";
+  const catchItem = trip?.[isLost ? "lostFish" : "catches"]?.[catchIndex];
   const host = document.querySelector("#catchDetailHost");
   if (!trip || !catchItem || !host) return;
-  host.innerHTML = renderCatchDetailPopout(trip, catchItem, catchIndex, selectedIndex);
+  host.innerHTML = renderCatchDetailPopout(trip, catchItem, catchIndex, selectedIndex, isLost ? "lost" : "catch");
   document.querySelector("#tripSummaryDialog")?.classList.add("catch-detail-open");
   host.querySelector(".catch-detail-close")?.focus();
 }

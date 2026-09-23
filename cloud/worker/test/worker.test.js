@@ -146,7 +146,7 @@ test("logbook create, read, update, and stale-write conflict preserve revisions"
   const first = await worker.fetch(request("/api/logbook", authorized({
     method: "PUT",
     headers: { "Content-Type": "application/json", "If-Match": '"0"' },
-    body: JSON.stringify({ schemaVersion: 1, trips: [] }),
+    body: JSON.stringify({ schemaVersion: 2, trips: [] }),
   })), env);
   assert.equal(first.status, 200);
   assert.equal(first.headers.get("ETag"), '"1"');
@@ -154,12 +154,12 @@ test("logbook create, read, update, and stale-write conflict preserve revisions"
   const loaded = await worker.fetch(request("/api/logbook", authorized()), env);
   assert.equal(loaded.status, 200);
   assert.equal(loaded.headers.get("ETag"), '"1"');
-  assert.deepEqual(await loaded.json(), { schemaVersion: 1, trips: [] });
+  assert.deepEqual(await loaded.json(), { schemaVersion: 2, trips: [] });
 
   const updated = await worker.fetch(request("/api/logbook", authorized({
     method: "PUT",
     headers: { "Content-Type": "application/json", "If-Match": '"1"' },
-    body: JSON.stringify({ schemaVersion: 1, trips: [{ id: "trip-1" }] }),
+    body: JSON.stringify({ schemaVersion: 2, trips: [{ id: "trip-1" }] }),
   })), env);
   assert.equal(updated.status, 200);
   assert.equal(updated.headers.get("ETag"), '"2"');
@@ -167,7 +167,7 @@ test("logbook create, read, update, and stale-write conflict preserve revisions"
   const stale = await worker.fetch(request("/api/logbook", authorized({
     method: "PUT",
     headers: { "Content-Type": "application/json", "If-Match": '"1"' },
-    body: JSON.stringify({ schemaVersion: 1, trips: [] }),
+    body: JSON.stringify({ schemaVersion: 2, trips: [] }),
   })), env);
   assert.equal(stale.status, 409);
 });

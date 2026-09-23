@@ -58,4 +58,12 @@ const measuredMetrics = measuredReport.match(/<section class="report-metrics"[^>
 assert.strictEqual((measuredMetrics.match(/<div/g) || []).length, 6);
 assert.strictEqual(measuredMetrics.includes("Biggest fish"), true);
 
+const timingReport = context.shareTextReport({
+  ...unmeasuredTrip,
+  launchTime: "08:00",
+  linesPulledTime: "12:00"
+});
+assert.strictEqual(timingReport.includes("08:00"), true);
+assert.strictEqual(timingReport.includes("12:00"), true);
+
 console.log("share report omits unlogged biggest-fish metric and preserves logged metric");

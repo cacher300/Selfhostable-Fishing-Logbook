@@ -1,5 +1,15 @@
+function displayMedia(item) {
+  if (!Array.isArray(item?.media)) return item;
+  const photos = item.media.filter((media) => media && !isVideoMedia(media));
+  return photos.find((media) => media.id && media.id === item.heroMediaId) || photos[0] || null;
+}
+
 function previewImage(item) {
-  return item?.previewImage || item?.previewUrl || item?.image || item?.url || "";
+  const media = displayMedia(item);
+  if (media?.uri) return media.uri;
+  if (media?.category && media?.previewFilename) return `/uploads/${encodeURIComponent(media.category)}/_previews/${encodeURIComponent(media.previewFilename)}`;
+  if (media?.category && media?.filename) return `/uploads/${encodeURIComponent(media.category)}/${encodeURIComponent(media.filename)}`;
+  return "";
 }
 
 function isVideoMedia(item) {
@@ -7,7 +17,10 @@ function isVideoMedia(item) {
 }
 
 function originalMediaUrl(item) {
-  return item?.url || item?.image || previewImage(item);
+  const media = displayMedia(item);
+  if (media?.uri) return media.uri;
+  if (media?.category && media?.filename) return `/uploads/${encodeURIComponent(media.category)}/${encodeURIComponent(media.filename)}`;
+  return "";
 }
 
 const uploadMediaCategories = new Set([
@@ -22,31 +35,17 @@ const uploadMediaCategories = new Set([
 
 function mediaReferenceKey(item) {
   if (!item || typeof item !== "object") return "";
+  const category = String(item.category || "").trim();
+  const filename = String(item.filename || "").trim();
+  if (!uploadMediaCategories.has(category) || !filename || filename.includes("/") || filename.includes("\\")) return "";
+  return `${category}/${filename}`;
+}
 
-  const normalize = (category, filename) => {
-    const normalizedCategory = String(category || "").trim();
-    const normalizedFilename = String(filename || "").trim();
-    if (!uploadMediaCategories.has(normalizedCategory) || !normalizedFilename) return "";
-    if (normalizedFilename.includes("/") || normalizedFilename.includes("\\")) return "";
-    return `${normalizedCategory}/${normalizedFilename}`;
-  };
-
-  const fromPath = (value, prefix = "") => {
-    const path = String(value || "").trim();
-    if (!path || (prefix && !path.startsWith(prefix))) return "";
-    const parts = (prefix ? path.slice(prefix.length) : path).split("/");
-    return parts.length === 2 ? normalize(parts[0], parts[1]) : "";
-  };
-
-  for (const field of ["path", "imagePath"]) {
-    const key = fromPath(item[field]);
-    if (key) return key;
-  }
-  for (const field of ["url", "image"]) {
-    const key = fromPath(item[field], "/uploads/");
-    if (key) return key;
-  }
-  return normalize(item.category, item.filename || item.imageFilename);
+function canonicalMediaRef(item) {
+  if (!item || typeof item !== "object") return null;
+  const key = mediaReferenceKey(item);
+  if (!key) return null;
+  return { ...item, id: item.id || createId() };
 }
 
 function mediaReferenceKeys(value, keys = new Set(), seen = new Set()) {

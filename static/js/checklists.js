@@ -2,9 +2,7 @@ let checklistSaveTimer = null;
 let activeChecklistPointer = null;
 
 function savedChecklists() {
-  const checklists = normalizeChecklists(state.settings?.checklists);
-  state.settings.checklists = checklists;
-  return checklists;
+  return Array.isArray(state.settings?.checklists) ? state.settings.checklists : [];
 }
 
 function checklistItemMarkup(item = {}) {
@@ -55,15 +53,26 @@ function renderChecklists({ focusChecklistId = "", focusItemId = "" } = {}) {
 }
 
 function checklistsFromView() {
-  return [...els.checklistList?.querySelectorAll(".checklist-card") || []].map((card, checklistIndex) => ({
-    id: card.dataset.checklistId || createId(),
-    name: card.querySelector(".checklist-name")?.value.trim() || `Checklist ${checklistIndex + 1}`,
-    items: [...card.querySelectorAll(".checklist-item")].map((item) => ({
-      id: item.dataset.checklistItemId || createId(),
-      label: item.querySelector(".checklist-item-label")?.value || "",
-      done: item.querySelector(".checklist-item-done")?.checked === true
-    }))
-  }));
+  const existing = savedChecklists();
+  return [...els.checklistList?.querySelectorAll(".checklist-card") || []].map((card) => {
+    const id = card.dataset.checklistId || createId();
+    const previous = existing.find((checklist) => checklist.id === id) || {};
+    const previousItems = new Map((previous.items || []).map((item) => [item.id, item]));
+    return {
+      ...previous,
+      id,
+      name: card.querySelector(".checklist-name")?.value ?? previous.name ?? "",
+      items: [...card.querySelectorAll(".checklist-item")].map((item) => {
+        const itemId = item.dataset.checklistItemId || createId();
+        return {
+          ...(previousItems.get(itemId) || {}),
+          id: itemId,
+          label: item.querySelector(".checklist-item-label")?.value ?? "",
+          done: item.querySelector(".checklist-item-done")?.checked === true
+        };
+      })
+    };
+  });
 }
 
 function setChecklistSaveStatus(card, message, stateName = "") {
@@ -77,7 +86,7 @@ function setChecklistSaveStatus(card, message, stateName = "") {
 async function persistChecklistsFromView({ rerender = false } = {}) {
   clearTimeout(checklistSaveTimer);
   const source = checklistsFromView();
-  state.settings.checklists = normalizeChecklists(source);
+  state.settings.checklists = source;
   try {
     await saveState();
     if (rerender) renderChecklists();
@@ -104,7 +113,7 @@ function updateChecklistCardProgress(card) {
 }
 
 async function createChecklist() {
-  const checklists = normalizeChecklists(checklistsFromView());
+  const checklists = checklistsFromView();
   const checklist = { id: createId(), name: "New Checklist", items: [] };
   state.settings.checklists = [...checklists, checklist];
   await saveState();
@@ -114,7 +123,7 @@ async function createChecklist() {
 async function handleChecklistAction(event) {
   const card = event.target.closest(".checklist-card");
   if (!card) return;
-  state.settings.checklists = normalizeChecklists(checklistsFromView());
+  state.settings.checklists = checklistsFromView();
   const checklists = state.settings.checklists;
   const checklistIndex = checklists.findIndex((item) => item.id === card.dataset.checklistId);
   if (checklistIndex < 0) return;
@@ -134,7 +143,7 @@ async function handleChecklistAction(event) {
       items: checklist.items.map((item) => ({ ...item, id: createId(), done: false }))
     };
     checklists.splice(checklistIndex + 1, 0, copy);
-    state.settings.checklists = normalizeChecklists(checklists);
+    state.settings.checklists = checklists;
     await saveState();
     renderChecklists({ focusChecklistId: copy.id });
     return;

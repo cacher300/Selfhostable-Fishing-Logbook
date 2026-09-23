@@ -1,10 +1,10 @@
 function privatePhotoLocations() {
   const existing = state.settings?.privatePhotoLocations;
-  return normalizePrivatePhotoLocations(existing);
+  return Array.isArray(existing) ? existing : [];
 }
 
 function fishingSpots() {
-  return normalizeSpots(state.spots);
+  return Array.isArray(state.spots) ? state.spots : [];
 }
 
 function ensureActiveFishingSpot(spots = fishingSpots()) {
@@ -54,13 +54,36 @@ function collectFishingSpotSettings() {
 }
 
 function validateFishingSpots(spots) {
+  if (!Array.isArray(spots)) throw new Error("Fishing spots must be a list.");
+  const ids = new Set();
   const names = new Set();
   spots.forEach((spot) => {
+    const id = String(spot?.id || "");
     const name = String(spot.name || "").trim();
     const nameKey = name.toLowerCase();
+    const radiusMeters = Number(spot.radiusMeters);
+    if (!id || ids.has(id)) throw new Error("Fishing spots need unique IDs.");
     if (!name) throw new Error("Every fishing spot needs a name.");
     if (names.has(nameKey)) throw new Error(`Fishing spot names must be unique. “${name}” is used more than once.`);
+    if (!isUsableCoordinates(spot.coordinates)) throw new Error(`Fishing spot “${name}” needs valid coordinates.`);
+    if (!Number.isFinite(radiusMeters) || radiusMeters < 25 || radiusMeters > 500) throw new Error(`Fishing spot “${name}” radius must be between 25 and 500 meters.`);
+    ids.add(id);
     names.add(nameKey);
+  });
+}
+
+function validatePrivatePhotoLocations(locations) {
+  if (!Array.isArray(locations)) throw new Error("Private photo locations must be a list.");
+  const ids = new Set();
+  locations.forEach((location) => {
+    const id = String(location?.id || "");
+    const name = String(location?.name || "").trim();
+    const radiusMeters = Number(location?.radiusMeters);
+    if (!id || ids.has(id)) throw new Error("Private photo locations need unique IDs.");
+    if (!name) throw new Error("Every private photo location needs a name.");
+    if (!isUsableCoordinates(location.coordinates)) throw new Error(`Private photo location “${name}” needs valid coordinates.`);
+    if (!Number.isFinite(radiusMeters) || radiusMeters < 25 || radiusMeters > 10000) throw new Error(`Private photo location “${name}” radius must be between 25 and 10000 meters.`);
+    ids.add(id);
   });
 }
 
@@ -68,10 +91,8 @@ async function saveFishingSpots(nextSpots, options = {}) {
   await runSettingsSave(
     async () => {
       validateFishingSpots(nextSpots);
-      const normalized = normalizeSpots(nextSpots);
-      if (normalized.length !== nextSpots.length) throw new Error("A fishing spot has invalid coordinates or radius.");
-      state.spots = normalized;
-      ensureActiveFishingSpot(normalized);
+      state.spots = nextSpots;
+      ensureActiveFishingSpot(nextSpots);
       await saveState();
       if (options.rerender !== false) renderFishingSpotSettings();
       else renderFishingSpotMap();
@@ -88,7 +109,6 @@ function renderFishingSpotSettings() {
   const orderedSpots = activeId
     ? [spots.find((spot) => spot.id === activeId), ...spots.filter((spot) => spot.id !== activeId)].filter(Boolean)
     : spots;
-  state.spots = spots;
   const radiusConfig = fishingSpotRadiusSliderConfig();
   els.fishingSpotList.innerHTML = orderedSpots.length ? orderedSpots.map((spot) => {
     const count = fishingSpotCatchCount(spot.id);
@@ -281,10 +301,6 @@ function renderPrivatePhotoLocationSettings() {
   const orderedLocations = activeLocationId
     ? [locations.find((location) => location.id === activeLocationId), ...locations.filter((location) => location.id !== activeLocationId)].filter(Boolean)
     : locations;
-  state.settings = {
-    ...(state.settings || {}),
-    privatePhotoLocations: locations
-  };
   const radiusConfig = privateLocationRadiusSliderConfig();
   els.privatePhotoLocationList.innerHTML = orderedLocations.length ? orderedLocations.map((location) => `
     <article class="private-location-card${location.id === activeLocationId ? " is-selected" : ""}" data-private-location-id="${escapeHtml(location.id)}" aria-current="${location.id === activeLocationId ? "true" : "false"}">
@@ -316,14 +332,12 @@ function privateLocationDefaultCoordinates() {
 }
 
 async function savePrivatePhotoLocations(nextLocations, options = {}) {
-  state.settings = {
-    ...(state.settings || {}),
-    privatePhotoLocations: normalizePrivatePhotoLocations(nextLocations)
-  };
-  ensureActivePrivatePhotoLocation(state.settings.privatePhotoLocations);
   try {
     await runSettingsSave(
       async () => {
+        validatePrivatePhotoLocations(nextLocations);
+        state.settings = { ...(state.settings || {}), privatePhotoLocations: nextLocations };
+        ensureActivePrivatePhotoLocation(nextLocations);
         await saveState();
         if (options.rerender !== false) {
           renderPrivatePhotoLocationSettings();

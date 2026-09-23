@@ -177,17 +177,13 @@ function shareRankedValues(trip, getter) {
 function shareCatchLureName(trip, fish) {
   const setupLineId = String(fish?.setupLineId || "").split("::")[0];
   const setup = (trip.gearUsed || []).find((item) => item.id === setupLineId);
-  return lureName(fish?.lureId)
-    || lureName(setup?.lureId)
-    || String(fish?.lureName || fish?.lure || "").trim();
+  return lureName(fish?.lureId) || lureName(setup?.lureId);
 }
 
 function shareCatchFlasherName(trip, fish) {
   const setupLineId = String(fish?.setupLineId || "").split("::")[0];
   const setup = (trip.gearUsed || []).find((item) => item.id === setupLineId);
-  return flasherName(fish?.flasherId)
-    || flasherName(setup?.flasherId)
-    || String(fish?.flasherName || fish?.flasher || "").trim();
+  return flasherName(fish?.flasherId) || flasherName(setup?.flasherId);
 }
 
 function shareBestLures(trip) {
@@ -276,15 +272,12 @@ function shareTextDepth(fish) {
   return "";
 }
 
-function shareLinesSetTime(trip) {
-  return trip.linesSetTime
-    || trip.startTime
-    || (trip.gearUsed || []).map((item) => item.startTime).filter(Boolean).sort()[0]
-    || "";
+function shareStartTime(trip) {
+  return trip.launchTime || "";
 }
 
-function shareLinesPulledTime(trip) {
-  return trip.linesPulledTime || trip.endTime || "";
+function shareEndTime(trip) {
+  return trip.linesPulledTime || "";
 }
 
 function shareOverviewItems(trip) {
@@ -344,7 +337,7 @@ function shareTimelineHtml(trip) {
       <td>${shareEscape(shareFow(fish.fowCaught || fish.waterDepth) || "—")}</td>
       <td>${shareEscape(fish.presentation || "—")}</td>
       <td>${shareEscape(shareDepthText(fish) || "—")}</td>
-      <td>${shareEscape(fish.speed ? displayStoredMeasurement(fish.speed, "speed") : "—")}</td>
+      <td>${shareEscape(fish.gpsSpeed ? displayStoredMeasurement(fish.gpsSpeed, "speed") : "—")}</td>
       <td>${shareEscape(lure || "—")}</td>
       <td>${shareEscape(flasher || "—")}</td>
     </tr>`;
@@ -378,12 +371,13 @@ function shareReportHtml(trip) {
   const biggestSize = biggest ? shareFormatSize(biggest) || (biggest.shaker ? "Shaker" : "Size not logged") : "";
   const biggestLabel = biggest ? [biggestSize, biggest.species || "Fish"].filter(Boolean).join(" ") : "No landed fish";
   const fishPerHour = metrics.hours ? trimNumber(metrics.landed / metrics.hours) : "Not logged";
-  const launchHeaderTime = trip.launchTime ? shareStatTime(trip.launchTime) : "";
+  const startTime = shareStartTime(trip);
+  const startHeaderTime = startTime ? shareStatTime(startTime) : "";
   const biggestWeight = biggest ? shareFormatSize(biggest) : "Not logged";
   const fowRange = overview.find(([label]) => label === "Water depth")?.[1] || "Not logged";
   const headerMeta = [
     formatDate(trip.date),
-    launchHeaderTime,
+    startHeaderTime,
     shareLocationText(trip)
   ].filter(Boolean).join(" · ");
   const topMetrics = [
@@ -430,7 +424,7 @@ function shareFormatEventSentence(trip, fish, index) {
   if (shareChecked("shareTextTimelineMethod") && fish.presentation) details.push(displayTitleText(fish.presentation));
   const depth = shareTextDepth(fish);
   if (shareChecked("shareTextTimelineDepth") && depth) details.push(depth);
-  if (shareChecked("shareTextTimelineSpeed") && fish.speed) details.push(displayStoredMeasurement(fish.speed, "speed"));
+  if (shareChecked("shareTextTimelineSpeed") && fish.gpsSpeed) details.push(displayStoredMeasurement(fish.gpsSpeed, "speed"));
   const lure = shareCatchLureName(trip, fish);
   if (shareChecked("shareTextTimelineLure") && lure) details.push(lure);
   const flasher = shareCatchFlasherName(trip, fish);
@@ -465,13 +459,12 @@ function shareTextReport(trip) {
   const headline = shareControl("shareTripHeadline")?.value.trim() || `${shareLaunch(trip)} fishing report`;
   const subtitle = shareControl("shareTripSubtitle")?.value.trim();
   const metrics = shareMetricData(trip);
-  const linesSet = shareLinesSetTime(trip);
+  const startTime = shareStartTime(trip);
   const location = shareLocationText(trip);
   const intro = [`${headline} - ${formatDate(trip.date)}.`, subtitle].filter(Boolean).join("\n");
   const timing = [
-    `Out of ${location}${trip.launchTime ? ` at ${formatTimelineDisplayTime(trip.launchTime)}` : ""}`,
-    linesSet ? `lines set by ${formatTimelineDisplayTime(linesSet)}` : "",
-    shareLinesPulledTime(trip) ? `lines pulled at ${formatTimelineDisplayTime(shareLinesPulledTime(trip))}` : ""
+    `Out of ${location}${startTime ? ` at ${formatTimelineDisplayTime(startTime)}` : ""}`,
+    shareEndTime(trip) ? `back at ${formatTimelineDisplayTime(shareEndTime(trip))}` : ""
   ].filter(Boolean).join(", ");
   const timingSentence = timing ? `${timing.charAt(0).toUpperCase()}${timing.slice(1)}.` : "";
   const score = `Finished ${metrics.landed} for ${metrics.encounters}${metrics.hours ? ` over ${trimNumber(metrics.hours)} hours` : ""}.`;

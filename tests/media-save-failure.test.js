@@ -13,7 +13,7 @@ global.localStorage = {
 };
 global.location = { protocol: "https:" };
 global.logbookRevision = '"1"';
-global.normalizeState = (value) => structuredClone(value);
+global.validateState = (value) => structuredClone(value);
 global.state = structuredClone(saved);
 rememberPersistedState(state);
 

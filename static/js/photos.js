@@ -27,11 +27,7 @@ async function uploadImageFile(file, category, metadata = {}) {
   }
   const payload = await response.json();
   if (!trackCreatedMedia(session, payload)) throw new Error("The editor closed before the upload finished.");
-  return {
-    ...payload,
-    image: payload.url,
-    previewImage: payload.previewUrl || payload.url
-  };
+  return payload;
 }
 
 function getExifRational(view, offset, littleEndian) {
@@ -344,7 +340,7 @@ function distanceMeters(a, b) {
 
 function shouldIgnorePhotoCoordinates(coordinates) {
   if (!coordinates) return false;
-  const configured = normalizePrivatePhotoLocations(state.settings?.privatePhotoLocations || []);
+  const configured = Array.isArray(state.settings?.privatePhotoLocations) ? state.settings.privatePhotoLocations : [];
   return configured.some((location) => (
     isUsableCoordinates(location.coordinates)
     && distanceMeters(coordinates, location.coordinates) <= (Number(location.radiusMeters) || 400)
@@ -450,9 +446,9 @@ function collectNotePhotos() {
   ]));
 
   return activeNotePhotos.map((photo) => ({
-    ...photo,
+    ...canonicalMediaRef(photo),
     caption: captions.get(photo.id) ?? photo.caption ?? ""
-  }));
+  })).filter((photo) => photo.category);
 }
 
 function catchMetadataLocks(row) {
@@ -730,7 +726,7 @@ function renderCatchPhotos(row) {
 }
 
 function collectCatchPhotos(row) {
-  return (row.catchPhotos || []).map((photo) => ({ ...photo }));
+  return (row.catchPhotos || []).map(canonicalMediaRef).filter(Boolean);
 }
 
 function firstCatchCoordinates(row) {
@@ -883,12 +879,7 @@ async function claimQueuedPhoto(filename) {
     }
     const photo = await response.json();
     if (!trackCreatedMedia(session, photo, filename)) return;
-    const photoItem = {
-      id: createId(),
-      ...photo,
-      image: photo.url,
-      previewImage: photo.previewUrl || photo.url
-    };
+    const photoItem = { id: createId(), ...photo };
 
     if (target.type === "catch") {
       const row = target.row;

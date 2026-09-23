@@ -190,7 +190,7 @@ function statsChartDescription(id) {
 
 function statsChartMetricIndexes(headers, rows) {
   const nonMetricHeaders = new Set([
-    "Trip", "Launch", "Lines set", "Lines pulled", "Pattern", "Species", "Outcome", "Lure", "Lure Type", "Lure Color",
+    "Trip", "Launch", "Start", "Lines pulled", "Pattern", "Species", "Outcome", "Lure", "Lure Type", "Lure Color",
     "Flasher", "Combo", "Direction", "Line Side", "Method", "Location", "Water Clarity", "Intent", "Rating", "Person",
     "Wind", "Trend", "Front Tag", "Moon", "Moon Window", "Window", "Relationship", "Catch Class", "Position", "Field",
     "Meaning", "Label", "Confidence", "Time", "FOW Range", "GPS Speed", "Ball Speed", "Distance"

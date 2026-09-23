@@ -15,8 +15,8 @@ function sharedTripImportText(value, fallback = "Not logged") {
 function sharedTripImportSummaryHtml(trip) {
   const date = trip.date ? formatDate(trip.date) : "Date not logged";
   const place = [trip.location, trip.launch].filter(Boolean).join(" · ") || "Location not logged";
-  const startTime = formatDisplayTime(trip.linesSetTime || trip.startTime || trip.launchTime || "") || "Not logged";
-  const endTime = formatDisplayTime(trip.linesPulledTime || trip.endTime || "") || "Not logged";
+  const startTime = formatDisplayTime(trip.launchTime || "") || "Not logged";
+  const endTime = formatDisplayTime(trip.linesPulledTime || "") || "Not logged";
   const people = Array.isArray(trip.people) && trip.people.length ? trip.people.join(", ") : "No people logged";
   return `
     <div><dt>Trip</dt><dd>${escapeHtml(sharedTripImportText(trip.title, "Untitled trip"))}</dd></div>
@@ -55,8 +55,8 @@ function sharedTripImportPeopleHtml(people) {
 
 function sharedTripCandidateLabel(candidate) {
   const place = [candidate.location, candidate.launch].filter(Boolean).join(" · ") || "No location";
-  const startTime = formatDisplayTime(candidate.linesSetTime || candidate.startTime || candidate.launchTime || "");
-  const endTime = formatDisplayTime(candidate.linesPulledTime || candidate.endTime || "");
+  const startTime = formatDisplayTime(candidate.launchTime || "");
+  const endTime = formatDisplayTime(candidate.linesPulledTime || "");
   const time = [startTime, endTime].filter(Boolean).join(" – ") || "No times logged";
   return `${candidate.title || "Untitled trip"} — ${place} · ${time}`;
 }
@@ -175,7 +175,7 @@ async function confirmSharedTripImport() {
     const refreshed = await fetch("/api/logbook");
     if (!refreshed.ok) throw new Error("The trip was imported, but the logbook could not be refreshed.");
     logbookRevision = refreshed.headers.get("ETag") || response.headers.get("ETag") || "";
-    state = normalizeState(await refreshed.json());
+    state = validateState(await refreshed.json());
     localStorage.setItem(storageKey, JSON.stringify(state));
     renderAll();
     await cleanupDeletedMedia(payload.discardedMedia || []);

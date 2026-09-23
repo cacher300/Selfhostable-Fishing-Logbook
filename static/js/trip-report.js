@@ -8,11 +8,23 @@ const reportColumnDefinitions = [
 ];
 const reportDefaultColumns = new Set(reportColumnDefinitions.map(([key]) => key));
 const reportColumnPreferenceKey = `${storageKey}-trip-report-columns-v6`;
-const reportLegacyColumnPreferenceKey = `${storageKey}-trip-report-columns-v5`;
 const reportTrollingColumns = new Set([
   "setup", "flasher", "direction", "gpsSpeed", "ballSpeed", "ballTemp", "depth", "flatlineWeight", "lineBehindBoard",
   "leadcoreColors", "dipseySetting", "lineOut", "shaker", "deepestRigger"
 ]);
+const reportRequiredColumns = new Set(["number", "type", "time", "result", "species"]);
+
+function reportColumnValueIsMeaningful(column, row) {
+  if (column === "photo") return row.photos?.length > 0;
+  if (column === "shaker" || column === "deepestRigger") return row[column] === "Yes";
+  return row[column] !== null && row[column] !== undefined && row[column] !== "";
+}
+
+function reportRelevantColumnDefinitions(trip, records = reportTimelineRecords(trip)) {
+  const definitions = reportColumnDefinitionsForTrip(trip);
+  return definitions.filter(([key]) => reportRequiredColumns.has(key)
+    || records.some((row) => reportColumnValueIsMeaningful(key, row)));
+}
 
 function reportColumnDefinitionsForTrip(trip) {
   const trolling = isTrollingTripRecord(trip);
@@ -24,13 +36,8 @@ function reportColumnDefinitionsForTrip(trip) {
 function reportColumns() {
   if (activeReportTimelineColumns) return activeReportTimelineColumns;
   try {
-    const current = localStorage.getItem(reportColumnPreferenceKey);
-    const saved = JSON.parse(current ?? localStorage.getItem(reportLegacyColumnPreferenceKey) ?? "null");
+    const saved = JSON.parse(localStorage.getItem(reportColumnPreferenceKey) || "null");
     activeReportTimelineColumns = Array.isArray(saved) ? new Set(saved) : new Set(reportDefaultColumns);
-    if (!current && Array.isArray(saved)) {
-      activeReportTimelineColumns.add("structure");
-      localStorage.setItem(reportColumnPreferenceKey, JSON.stringify([...activeReportTimelineColumns]));
-    }
   } catch {
     activeReportTimelineColumns = new Set(reportDefaultColumns);
   }
@@ -91,7 +98,7 @@ function reportTimelineRecords(trip) {
     const flasher = displayTitleText(flasherName(record.flasherId));
     const status = type === "lost" ? "Lost" : reportResult(item);
     return {
-      index, catchIndex: type === "catch" ? index : null, type, time: item.time || "", result: status,
+      index, catchIndex: index, catchType: type, type, time: item.time || "", result: status,
       species: displayTitleText(item.species || item.possibleSpecies || "Unknown"),
       spot: type === "catch" ? spotName(item.spotId) : "",
       structure: displayTitleText(item.structureType || item.structure || ""),
@@ -100,7 +107,7 @@ function reportTimelineRecords(trip) {
       type: type === "lost" ? "Lost fish" : "Catch", angler: reportPersonName(trip, item.personId), setup: compactSetupDisplayLabel(record),
       waterDepth: reportDepthValue(record.fowCaught || record.waterDepth), depth: reportDepthDown(record, item), lure, flasher,
       lureId: record.lureId || "", flasherId: record.flasherId || "",
-      direction: displayTitleText(record.direction), gpsSpeed: displaySpeedValue(record.gpsSpeed || record.speed), ballSpeed: displaySpeedValue(record.ballSpeed), ballTemp: displayStoredMeasurement(record.ballTemp, "waterTemperature"),
+      direction: displayTitleText(record.direction), gpsSpeed: displaySpeedValue(record.gpsSpeed), ballSpeed: displaySpeedValue(record.ballSpeed), ballTemp: displayStoredMeasurement(record.ballTemp, "waterTemperature"),
       flatlineWeight: record.flatlineWeightOz ? `${record.flatlineWeightOz} oz` : "",
       lineBehindBoard: reportDepthValue(record.lineBehindBoard), leadcoreColors: record.leadcoreColors,
       dipseySetting: record.dipseySetting, lineOut: reportDepthValue(record.lineOut), retrieve: record.retrieve,
@@ -122,7 +129,7 @@ function renderReportKeyValue(title, rows) {
 }
 
 function renderReportTimeline(trip) {
-  const definitions = reportColumnDefinitionsForTrip(trip);
+  const definitions = reportRelevantColumnDefinitions(trip);
   const columns = reportColumns();
   let records = reportTimelineRecords(trip).filter((row) => activeReportTimelineFilter === "all" || row.result.toLowerCase() === activeReportTimelineFilter);
   const { key, direction } = activeReportTimelineSort;
@@ -135,7 +142,7 @@ function renderReportTimeline(trip) {
         <details class="report-column-picker"><summary>Columns</summary><div class="report-column-picker-menu">${definitions.map(([key, label]) => `<label><input type="checkbox" data-report-column="${key}" ${columns.has(key) ? "checked" : ""}> ${escapeHtml(label)}</label>`).join("")}</div></details></div></div>
     <div class="report-table-scroll" tabindex="0" aria-label="Catch timeline. Scroll horizontally for more columns.">
       <table class="report-catch-table"><thead><tr>${visible.map(([column, label]) => `<th scope="col"><button type="button" data-report-sort="${column}" aria-label="Sort by ${escapeHtml(label)}">${escapeHtml(label)}${key === column ? `<span aria-hidden="true"> ${direction === "asc" ? "↑" : "↓"}</span>` : ""}</button></th>`).join("")}</tr></thead>
-      <tbody>${records.length ? records.map((row, index) => `<tr ${row.catchIndex !== null ? `data-summary-catch-index="${row.catchIndex}" tabindex="0" role="button" aria-label="Open details for ${escapeHtml(row.species)}"` : ""}>${visible.map(([column]) => {
+      <tbody>${records.length ? records.map((row, index) => `<tr data-summary-catch-index="${row.catchIndex}" data-summary-catch-type="${row.catchType}" tabindex="0" role="button" aria-label="Open details for ${escapeHtml(row.species)}">${visible.map(([column]) => {
         if (column === "number") return `<td>${index + 1}</td>`;
         if (column === "time") return `<td>${escapeHtml(row.time ? formatTimelineDisplayTime(row.time) : "—")}</td>`;
         if (column === "result") return `<td><span class="report-result result-${row.result.toLowerCase()}">${escapeHtml(row.result)}</span></td>`;
@@ -222,7 +229,7 @@ function renderTripReport(trip) {
   const catchPhotos = catchPhotosByPriority(trip);
   const hero = [...tripPhotos, ...catchPhotos].find((photo) => !isVideoMedia(photo) && previewImage(photo));
   const reportMeta = [formatDate(trip.date), trip.launchTime ? formatTimelineDisplayTime(trip.launchTime) : ""].filter(Boolean).join(" · ");
-  const overview = [["Date", formatDate(trip.date)], ["Location", displayTitleText(trip.location)], ["Launch / area", displayTitleText(trip.launch)], ["Start time", trip.linesSetTime || trip.startTime || trip.launchTime ? formatTimelineDisplayTime(trip.linesSetTime || trip.startTime || trip.launchTime) : ""], ["End time", trip.linesPulledTime || trip.endTime ? formatTimelineDisplayTime(trip.linesPulledTime || trip.endTime) : ""], ["Duration", tripHours(trip) ? `${trimNumber(tripHours(trip))} hours` : ""], ["People", (trip.people || []).map((person) => displayTitleText(person.name)).filter(Boolean).join(", ")], ["Target species", displayTitleText(trip.targetSpecies)], ["Method", displayTitleText(trip.method)], ["Intent", displayTitleText(trip.intent)], ["Rating", reportRatingLabel(trip.tripRating)]];
+  const overview = [["Date", formatDate(trip.date)], ["Location", displayTitleText(trip.location)], ["Launch / area", displayTitleText(trip.launch)], ["Start time", trip.launchTime ? formatTimelineDisplayTime(trip.launchTime) : ""], ["End time", trip.linesPulledTime ? formatTimelineDisplayTime(trip.linesPulledTime) : ""], ["Duration", tripHours(trip) ? `${trimNumber(tripHours(trip))} hours` : ""], ["People", (trip.people || []).map((person) => displayTitleText(person.name)).filter(Boolean).join(", ")], ["Target species", displayTitleText(trip.targetSpecies)], ["Method", displayTitleText(trip.method)], ["Intent", displayTitleText(trip.intent)], ["Rating", reportRatingLabel(trip.tripRating)]];
   const conditions = [["Weather", displayTitleText(trip.weather)], ["Water temperature", displayStoredMeasurement(trip.waterTemp, "waterTemperature")], ["Water clarity", displayTitleText(trip.waterClarity)], ["Structure", displayTitleText(trip.structureType)], ["FOW range", displayStoredMeasurement(trip.structure, "depth")], ["Wind", trip.wind], ["Waves / chop", formatWaveHeightChopLine(trip, trip.weatherData)], ...reportAdditionalConditionRows(trip)];
   const mapRecords = catchMapRecordsForTrip(trip);
   return `<article class="trip-report">

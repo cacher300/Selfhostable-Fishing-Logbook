@@ -191,14 +191,6 @@ def point_to_segment_meters(latitude: float, longitude: float, start: object, en
     return math.hypot(ax + t * dx, ay + t * dy)
 
 
-def catch_needs_depth(catch: dict) -> bool:
-    missing_fow = not str(catch.get("fowCaught") or "").strip()
-    has_fow_source = bool(format_fow_value(catch.get("depth_ft"), catch.get("depth_m")))
-    return not has_depth_metadata(catch) or (missing_fow and has_fow_source)
-
-
-def has_depth_metadata(catch: dict) -> bool:
-    return all(key in catch and catch.get(key) is not None for key in ("depth_m", "depth_ft", "lake_name", "depth_source"))
 
 
 def format_fow_value(depth_ft: object, depth_m: object = None) -> str:
@@ -227,47 +219,6 @@ def apply_depth_result(catch: dict, result: dict | None) -> None:
             catch["fowCaught"] = fow
 
 
-def depth_fields(catch: dict) -> dict:
-    return {
-        "depth_m": catch.get("depth_m"),
-        "depth_ft": catch.get("depth_ft"),
-        "lake_name": catch.get("lake_name"),
-        "depth_source": catch.get("depth_source"),
-        "fowCaught": catch.get("fowCaught"),
-    }
-
-
-def trip_fish_records(trip: dict) -> list:
-    return [
-        fish
-        for key in ("catches", "lostFish")
-        for fish in (trip.get(key) if isinstance(trip.get(key), list) else [])
-    ]
-
-
-def preserve_existing_depth_fields(incoming_logbook: dict, existing_logbook: dict) -> dict:
-    depth_by_catch_id = {}
-    for trip in existing_logbook.get("trips", []):
-        if not isinstance(trip, dict):
-            continue
-        for catch in trip_fish_records(trip):
-            if not isinstance(catch, dict) or not catch.get("id") or not has_depth_metadata(catch):
-                continue
-            depth_by_catch_id[str(catch["id"])] = depth_fields(catch)
-
-    for trip in incoming_logbook.get("trips", []):
-        if not isinstance(trip, dict):
-            continue
-        for catch in trip_fish_records(trip):
-            if not isinstance(catch, dict) or not catch.get("id") or not catch_needs_depth(catch):
-                continue
-            existing_depth = depth_by_catch_id.get(str(catch["id"]))
-            if existing_depth is not None:
-                for key, value in existing_depth.items():
-                    if key == "fowCaught" and str(catch.get("fowCaught") or "").strip():
-                        continue
-                    catch[key] = value
-    return incoming_logbook
 
 
 def depth_null_payload() -> dict:

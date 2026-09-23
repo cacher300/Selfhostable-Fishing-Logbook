@@ -1,21 +1,9 @@
-function imageFields(uploadedImage, existing = {}) {
-  return {
-    image: uploadedImage?.image || existing.image || "",
-    previewImage: uploadedImage?.previewImage || existing.previewImage || uploadedImage?.image || existing.image || "",
-    imagePath: uploadedImage?.path || existing.imagePath || "",
-    imageFilename: uploadedImage?.filename || existing.imageFilename || "",
-    previewPath: uploadedImage?.previewPath || existing.previewPath || "",
-    previewFilename: uploadedImage?.previewFilename || existing.previewFilename || ""
-  };
-}
-
 function gearPhotos(item) {
-  if (Array.isArray(item?.photos) && item.photos.length) return item.photos;
-  return item?.image ? [item] : [];
+  return Array.isArray(item?.media) ? item.media : [];
 }
 
 function gearPhotoKey(photo, index = 0) {
-  return String(photo?.imagePath || photo?.imageFilename || photo?.image || `photo-${index}`);
+  return String(photo?.id || mediaReferenceKey(photo) || `photo-${index}`);
 }
 
 function gearDialogForType(type) {
@@ -28,17 +16,17 @@ function removedGearPhotoKeys(type) {
 
 function gearPhotoFields(uploadedPhotos = [], existing = {}, type = "") {
   const removed = removedGearPhotoKeys(type);
-  const photos = [...gearPhotos(existing).filter((photo, index) => !removed.has(gearPhotoKey(photo, index))), ...uploadedPhotos].filter((photo) => photo?.image);
-  return { ...imageFields(photos[0]), photos };
+  const media = [...gearPhotos(existing).filter((photo, index) => !removed.has(gearPhotoKey(photo, index))), ...uploadedPhotos]
+    .map(canonicalMediaRef).filter(Boolean);
+  const requestedHero = String(existing?.heroMediaId || "");
+  const heroMediaId = media.some((photo) => photo.id === requestedHero && !isVideoMedia(photo)) ? requestedHero : "";
+  return { media, heroMediaId };
 }
 
 function gearPhotoSignature(item) {
   return gearPhotos(item).map((photo) => [
-    photo.image || "",
-    photo.previewImage || "",
-    photo.imagePath || "",
-    photo.imageFilename || "",
-    photo.previewPath || "",
+    photo.category || "",
+    photo.filename || "",
     photo.previewFilename || ""
   ]);
 }
@@ -118,8 +106,22 @@ function flasherName(id) {
 }
 
 function activeLineEntry(reel) {
-  return (reel?.lineHistory || [])
+  return [...(reel?.lineHistory || [])]
     .sort((a, b) => String(b.spooledDate || "").localeCompare(String(a.spooledDate || "")))[0] || null;
+}
+
+function mergeLineHistory(existingEntries = [], editedEntries = []) {
+  const originals = Array.isArray(existingEntries) ? existingEntries : [];
+  const changes = Array.isArray(editedEntries) ? editedEntries : [];
+  const editedById = new Map(changes.filter((entry) => entry?.id).map((entry) => [entry.id, entry]));
+  const merged = originals.map((entry) => {
+    const edited = editedById.get(entry?.id);
+    if (!edited) return entry;
+    editedById.delete(entry.id);
+    return { ...entry, ...edited };
+  });
+  merged.push(...editedById.values());
+  return merged;
 }
 
 function lineSummary(line) {
@@ -196,8 +198,7 @@ function renderExistingGearPhotos(type, item = null, localFiles = []) {
     const url = URL.createObjectURL(file);
     container._localPreviewUrls.push(url);
     return {
-      image: url,
-      previewImage: url,
+      uri: url,
       mediaType: file.type.startsWith("video/") ? "video" : "image",
       mimeType: file.type,
       name: file.name
@@ -264,4 +265,3 @@ function openQueuedGearImagePreview(type) {
   document.body.classList.add("report-photo-lightbox-open");
   document.querySelector(".queued-gear-photo-lightbox [data-close-report-photo]")?.focus();
 }
-

@@ -1,13 +1,13 @@
 # Gap Analysis
 
-Audit date: 2026-09-09. Findings are source-verified. “Verification Required” means the code path exists but depends on runtime/external behavior not proven by static inspection.
+Audit date: 2026-09-23. Findings are source-verified against the canonical code paths. “Verification Required” means the code path exists but depends on runtime/external behavior not proven by static inspection.
 
 ## Partially Implemented Features
 
 | Finding | Evidence | Impact | Recommendation |
 |---|---|---|---|
 | “Baits” is a lure library only. | Gear tab is labeled Baits but data/UI use `lures` and lure-specific fields. | Natural/live bait cannot be represented cleanly. | Rename the tab to Lures or add a bait entity and method-specific fields. |
-| Imported multi-fish `quantity` affects totals but has no UI field. | `fishCount()` reads quantity; catch collection never writes it. | Imported records may behave differently from UI records. | Add a quantity control with validation or normalize all catches to one fish. |
+| Desktop has no catch `quantity` control. | Analytics honors the field and trip editing now preserves existing values. | Desktop-created catches default to one; mobile/imported multi-fish records remain intact. | Decide whether to expose a desktop quantity control. |
 | Seasonal analysis is month aggregation only. | Month Patterns exists; no season/year comparison engine. | Historical trend questions require manual filtering. | Add year/season comparison after measurement normalization. |
 | Local-file fallback is not offline feature parity. | localStorage works on `file:`, but upload/weather/gallery APIs do not. | Users may mistake it for a complete offline mode. | Label it fallback mode or implement a service worker and deferred sync. |
 | Routed navigation is one-way. | Direct URLs select a view, but nav buttons do not update history and there is no `popstate` listener. | Refresh/share/back behavior can disagree with the visible panel. | Synchronize panel changes with `pushState` and handle back/forward. |
@@ -28,10 +28,10 @@ Audit date: 2026-09-09. Findings are source-verified. “Verification Required�
 
 | Field/capability | Code behavior | Assessment |
 |---|---|---|
-| `catch.quantity` | Used by dashboard/stats when present. | No create/edit control; imported-data-only behavior. |
-| `gearUsed.personId` | Setup collection always writes an empty string. | Schema residue or unfinished setup attribution. |
-| Setup-level speed/depth properties | Resolver can inherit `line.speed`, `line.ballDepth`, etc. | Current setup template intentionally omits them; likely backward compatibility, not current UI. |
-| Arbitrary unknown JSON fields | Additive normalization preserves most unknown keys. | Not necessarily dead, but unvalidated and invisible. Verification Required for any private historical dataset. |
+| `catch.quantity` | Used by dashboard/stats; the desktop editor now preserves it without exposing an edit control. | Some records represent multiple fish in one catch record; new UI records default to one. |
+| `gearUsed.personId` | Mobile can assign an angler to a setup line; desktop preserves the value but has no assignment control. | Cross-client field; not schema residue. |
+| Reel line-history detail | Mobile can edit all spool records; desktop edits the most recent record only but now preserves every other v2 history entry. | Desktop cannot yet manage the full history, but editing the reel no longer truncates it. |
+| Arbitrary additive properties | Mobile types explicitly retain additive properties; desktop validates JSON and preserves existing properties during trip edits. | Useful for cross-client evolution; do not treat unknown values as validated domain fields. |
 | Raw Open-Meteo weather codes/daylight fields | Fetched/stored in normalized records, but not all receive dedicated visible reports. | Useful as source data; partially surfaced through summaries/analytics. |
 
 ## UI/Backend Disconnections
@@ -40,12 +40,6 @@ Audit date: 2026-09-09. Findings are source-verified. “Verification Required�
 |---|---|---|
 | Browser and backend weather responsibilities are split. | The browser reduces weather data while Flask provides allowlisted upstream proxies. | Keep the proxy contract and browser reducer covered together. |
 | Settings/cleanup endpoints have no privilege boundary. | Every visitor can import/replace data and delete eligible media. | They function, but are unsafe on an untrusted network. |
-
-## Dead, Deprecated, or Unused Code
-
-| Finding | Evidence | Recommendation |
-|---|---|---|
-| Legacy `tripTypes` | Deleted in both normalizers; no current producer/consumer. | Keep only as an explicit versioned migration, then retire when safe. |
 
 No unused public API route was found; the current archive, media, weather, bathymetry, page, and static routes are wired or intentionally public.
 
@@ -66,7 +60,7 @@ No unused public API route was found; the current archive, media, weather, bathy
 ## Documentation Status
 
 - The repository now has feature inventory, architecture, data model, API, development, deployment, roadmap, and gap documents.
-- Schema version 1 and normalization-based compatibility handling are documented; there is no formal migration framework.
+- Schema version 2 is the canonical runtime and archive format; normal reads and writes validate and preserve records without runtime reshaping.
 - Backup and restore boundaries are documented, but a non-destructive restore workflow is not yet scripted.
 
 ## Recommended Priorities
@@ -74,7 +68,7 @@ No unused public API route was found; the current archive, media, weather, bathy
 1. Add an authentication boundary or require/document authenticated reverse-proxy deployment; add upload limits and rate limiting.
 2. Expand field-level limits and referential validation while preserving the atomic SQLite write path.
 3. Add automated tests around normalization, setup resolution, lost-vs-landed metrics, media references, and time/weather logic.
-4. Keep legacy archive compatibility explicit and periodically prune migrations after a documented retention window.
+4. Keep the v2 archive boundary and backup/restore workflow explicit.
 5. Decide product direction for catch quantity, natural bait, and comparative seasonal reports.
 
 ## Potential Future Enhancements

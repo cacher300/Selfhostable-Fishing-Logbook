@@ -4,16 +4,17 @@ import io
 import json
 import tempfile
 import zipfile
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
 from backend import logbook_store, media_service
+from backend.backend_config import DEFAULT_LOGBOOK
 from server import create_app
 
 
 def shared_source() -> dict:
-    return {
-        "schemaVersion": 1,
+    return {**deepcopy(DEFAULT_LOGBOOK),
         "trips": [
             {
                 "id": "shared-source",
@@ -23,7 +24,7 @@ def shared_source() -> dict:
                 "locationId": "loc-source",
                 "launch": "Port Credit",
                 "launchId": "launch-source",
-                "linesSetTime": "08:00",
+                "launchTime": "08:00",
                 "linesPulledTime": "12:00",
                 "people": [{"id": "source-jose", "name": "José Smith"}],
                 "gearUsed": [{"id": "line-source", "comboId": "combo-source", "lureId": "lure-source"}],
@@ -32,10 +33,10 @@ def shared_source() -> dict:
                     "personId": "source-jose",
                     "lureId": "lure-source",
                     "spotId": "spot-source",
-                    "photos": [{"category": "catch-photos", "filename": "source-fish.jpg"}],
+                    "photos": [{"id": "source-fish-photo", "category": "catch-photos", "filename": "source-fish.jpg"}],
                 }],
                 "lostFish": [],
-                "notePhotos": [{"category": "trip-photos", "filename": "source-note.jpg"}],
+                "notePhotos": [{"id": "source-note-photo", "category": "trip-photos", "filename": "source-note.jpg"}],
             },
             {"id": "unrelated-trip", "title": "Do not share", "catches": [], "lostFish": []},
         ],
@@ -64,19 +65,18 @@ def target_logbook(with_overlap: bool = False) -> dict:
             "date": "2026-09-20",
             "location": "Lake Ontario",
             "launch": "Port Credit",
-            "linesSetTime": "09:00",
+            "launchTime": "09:00",
             "linesPulledTime": "11:00",
             "people": [{"id": "local-jose", "name": "Jose Smith"}],
             "catches": [],
             "lostFish": [],
         })
-    return {
-        "schemaVersion": 1,
+    return {**deepcopy(DEFAULT_LOGBOOK),
         "trips": trips,
         "people": [{"id": "local-jose", "name": "Jose Smith"}],
         "lures": [],
         "flashers": [],
-        "settings": {"theme": "dark"},
+        "settings": {**deepcopy(DEFAULT_LOGBOOK["settings"]), "theme": "dark"},
     }
 
 
@@ -126,6 +126,7 @@ def test_shared_trip_export_and_import_preserve_only_required_records() -> None:
                 assert manifest["format"] == "fishing-logbook-shared-trip"
                 assert len(shared["trips"]) == 1
                 assert shared["trips"][0]["id"] == "shared-source"
+                assert shared["trips"][0]["launchTime"] == "08:00"
                 assert [item["id"] for item in shared["lures"]] == ["lure-source"]
                 assert bundle.read("media/catch-photos/source-fish.jpg") == b"fish"
 
@@ -240,7 +241,7 @@ def test_shared_trip_preview_rejects_full_backup_format_without_mutating_logbook
             logbook_store.write_logbook(original)
             archive = io.BytesIO()
             with zipfile.ZipFile(archive, "w") as bundle:
-                bundle.writestr("manifest.json", json.dumps({"format": "fishing-logbook-archive", "archiveVersion": 1}))
+                bundle.writestr("manifest.json", json.dumps({"format": "fishing-logbook-archive", "archiveVersion": 2}))
                 bundle.writestr("logbook.json", json.dumps(original))
             archive.seek(0)
             app = create_app({"TESTING": True, "SECRET_KEY": "shared-trip-invalid"})
@@ -273,7 +274,7 @@ def test_shared_trip_preview_rejects_unsafe_media_paths_without_mutating_logbook
             logbook_store.write_logbook(original)
             archive = io.BytesIO()
             with zipfile.ZipFile(archive, "w") as bundle:
-                bundle.writestr("manifest.json", json.dumps({"format": "fishing-logbook-shared-trip", "sharedTripArchiveVersion": 1}))
+                bundle.writestr("manifest.json", json.dumps({"format": "fishing-logbook-shared-trip", "sharedTripArchiveVersion": 2, "schemaVersion": 2}))
                 bundle.writestr("logbook.json", json.dumps(payload))
                 bundle.writestr("media/catch-photos/../../escape.jpg", b"unsafe")
             archive.seek(0)

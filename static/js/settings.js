@@ -13,7 +13,7 @@ function renderSettings() {
   renderLocationManager();
 }
 
-function trollingSpreadRowMarkup(item = {}, { disabled = false } = {}) {
+function trollingSpreadRowMarkup(item = {}, { disabled = false, sourceIndex = "" } = {}) {
   const comboId = String(item.comboId || "");
   const side = String(item.side || "");
   const presentation = String(item.presentation || "");
@@ -26,7 +26,7 @@ function trollingSpreadRowMarkup(item = {}, { disabled = false } = {}) {
     )).join("")}`
   );
   return `
-    <div class="trolling-spread-row">
+    <div class="trolling-spread-row"${sourceIndex === "" ? "" : ` data-source-index="${sourceIndex}"`}>
       <label>
         <span>Rod / reel combo</span>
         <select class="trolling-spread-combo"${disabled ? " disabled" : ""}>
@@ -48,7 +48,7 @@ function trollingSpreadRowMarkup(item = {}, { disabled = false } = {}) {
 }
 
 function trollingSpreadRodsForPreview(spread = []) {
-  return normalizeTrollingSpreadRows(spread).map((item, index) => ({
+  return (Array.isArray(spread) ? spread : []).map((item, index) => ({
     ...(state.rodReelCombos.find((combo) => combo.id === item.comboId) || {}),
     id: `trolling-spread-${index}`,
     comboId: item.comboId,
@@ -69,7 +69,7 @@ function renderTrollingSpreadPreview(card, spread) {
 
 function renderTrollingSpreadCard(item, { draft = false } = {}) {
   const name = String(item?.name || "");
-  const spread = normalizeTrollingSpreadRows(item?.spread);
+  const spread = Array.isArray(item?.spread) ? item.spread : [];
   const editing = draft || activeTrollingSpreadEditorId === item.id;
   const expanded = editing;
   return `
@@ -94,7 +94,7 @@ function renderTrollingSpreadCard(item, { draft = false } = {}) {
             ${editing ? '<button class="button secondary add-trolling-spread-row" type="button">Add Rod</button>' : ""}
           </div>
           <div class="trolling-spread-list">
-            ${spread.map((row) => trollingSpreadRowMarkup(row, { disabled: !editing })).join("") || '<p class="trolling-spread-empty-rows">Add at least one rod to save this spread.</p>'}
+            ${spread.map((row, index) => trollingSpreadRowMarkup(row, { disabled: !editing, sourceIndex: index })).join("") || '<p class="trolling-spread-empty-rows">Add at least one rod to save this spread.</p>'}
           </div>
         </div>
         <div class="trolling-spread-card-preview">
@@ -108,7 +108,7 @@ function renderTrollingSpreadCard(item, { draft = false } = {}) {
 
 function renderTrollingSpreadSettings() {
   if (!els.defaultTrollingSpreadRows) return;
-  const spreads = normalizeTrollingSpreads(state.settings?.trollingSpreads);
+  const spreads = currentTrollingSpreads();
   const visibleSpreads = trollingSpreadDraft ? [...spreads, trollingSpreadDraft] : spreads;
   const defaultId = String(state.settings?.defaultTrollingSpreadId || "");
   if (els.defaultTrollingSpreadId) {
@@ -151,21 +151,25 @@ function addTrollingSpreadRowToCard(card) {
 }
 
 function editTrollingSpread(spreadId) {
-  if (!normalizeTrollingSpreads(state.settings?.trollingSpreads).some((item) => item.id === spreadId)) return;
+  if (!currentTrollingSpreads().some((item) => item.id === spreadId)) return;
   activeTrollingSpreadEditorId = spreadId;
   renderTrollingSpreadSettings();
   document.querySelector(`[data-trolling-spread-id="${CSS.escape(spreadId)}"] .trolling-spread-name`)?.focus();
 }
 
 function collectTrollingSpreadCard(card) {
+  const id = card?.dataset.trollingSpreadId || createId();
+  const existing = currentTrollingSpreads().find((item) => item.id === id);
   return {
-    id: card?.dataset.trollingSpreadId || createId(),
+    ...existing,
+    id,
     name: card?.querySelector(".trolling-spread-name")?.value.trim() || "",
-    spread: normalizeTrollingSpreadRows([...card?.querySelectorAll(".trolling-spread-row") || []].map((row) => ({
+    spread: [...card?.querySelectorAll(".trolling-spread-row") || []].map((row) => ({
+      ...(row.dataset.sourceIndex !== undefined ? existing?.spread?.[Number(row.dataset.sourceIndex)] : {}),
       comboId: row.querySelector(".trolling-spread-combo")?.value || "",
       side: row.querySelector(".trolling-spread-side")?.value || "",
       presentation: row.querySelector(".trolling-spread-presentation")?.value || ""
-    })))
+    }))
   };
 }
 
@@ -227,7 +231,11 @@ async function saveTrollingSpreadCard(card, options = {}) {
     if (!options.silentInvalid) setTrollingSpreadSettingsMessage("Add at least one rod with a rod / reel combo before saving.");
     return;
   }
-  const duplicate = normalizeTrollingSpreads(state.settings?.trollingSpreads)
+  if (next.spread.some((row) => !row.comboId)) {
+    if (!options.silentInvalid) setTrollingSpreadSettingsMessage("Choose a combo or remove the empty rod row before saving.");
+    return;
+  }
+  const duplicate = currentTrollingSpreads()
     .some((item) => item.id !== next.id && item.name.toLowerCase() === next.name.toLowerCase());
   if (duplicate) {
     if (!options.silentInvalid) setTrollingSpreadSettingsMessage("Spread names must be unique.");
@@ -235,7 +243,7 @@ async function saveTrollingSpreadCard(card, options = {}) {
     return;
   }
   const previousState = structuredClone(state);
-  const spreads = normalizeTrollingSpreads(state.settings?.trollingSpreads);
+  const spreads = [...currentTrollingSpreads()];
   const index = spreads.findIndex((item) => item.id === next.id);
   if (index >= 0) spreads[index] = next;
   else spreads.push(next);
@@ -255,11 +263,11 @@ async function saveTrollingSpreadCard(card, options = {}) {
 }
 
 async function deleteTrollingSpread(spreadId) {
-  const spread = normalizeTrollingSpreads(state.settings?.trollingSpreads).find((item) => item.id === spreadId);
+  const spread = currentTrollingSpreads().find((item) => item.id === spreadId);
   if (!spread || !confirm(`Delete the ${spread.name} spread?`)) return;
   const previousState = structuredClone(state);
   if (activeTrollingSpreadEditorId === spreadId) activeTrollingSpreadEditorId = "";
-  const spreads = normalizeTrollingSpreads(state.settings?.trollingSpreads).filter((item) => item.id !== spreadId);
+  const spreads = currentTrollingSpreads().filter((item) => item.id !== spreadId);
   state.settings = {
     ...(state.settings || {}),
     trollingSpreads: spreads,
@@ -277,7 +285,7 @@ async function deleteTrollingSpread(spreadId) {
 async function saveDefaultTrollingSpreadId(options = {}) {
   const previousId = state.settings?.defaultTrollingSpreadId || "";
   const nextId = els.defaultTrollingSpreadId?.value || "";
-  const validId = !nextId || normalizeTrollingSpreads(state.settings?.trollingSpreads).some((item) => item.id === nextId);
+  const validId = !nextId || currentTrollingSpreads().some((item) => item.id === nextId);
   if (!validId) return;
   state.settings = { ...(state.settings || {}), defaultTrollingSpreadId: nextId };
   try {
@@ -446,17 +454,18 @@ function renderUnitSettings() {
 function renderFowCalibrationSettings() {
   if (!els.fowCalibrationFields) return;
   const calibrationUnit = unitPreference("depth") || "ft";
-  const lakeCalibrations = normalizeBathymetryLakeCalibrations(state.settings?.bathymetryLakeCalibrationsFeet);
+  const lakeCalibrations = state.settings?.bathymetryLakeCalibrationsFeet || {};
   els.fowCalibrationFields.innerHTML = ["Erie", "Ontario", "St. Clair", "Huron", "Michigan", "Superior"].map((lake) => `
     <label class="settings-control">
       <span>${escapeHtml(lake)} FOW adjustment</span>
-      <input data-bathymetry-lake-calibration="${escapeHtml(lake)}" data-bathymetry-calibration-end="offshoreOffsetFeet" type="number" step="0.1" value="${escapeHtml(bathymetryOffsetDisplayValue(lakeCalibrations[lake].offshoreOffsetFeet, calibrationUnit))}" />
+      <input data-bathymetry-lake-calibration="${escapeHtml(lake)}" data-bathymetry-calibration-end="offshoreOffsetFeet" type="number" step="0.1" value="${escapeHtml(bathymetryOffsetDisplayValue(lakeCalibrations[lake]?.offshoreOffsetFeet ?? 0, calibrationUnit))}" />
     </label>
   `).join("");
 }
 
 function bathymetryOffsetDisplayValue(offsetFeet, depthUnit = unitPreference("depth")) {
-  const offset = normalizeBathymetryOffsetFeet(offsetFeet);
+  const offset = Number(offsetFeet);
+  if (!Number.isFinite(offset)) return "0";
   const converted = convertUnitValue(offset, "ft", depthUnit || "ft");
   if (converted === null) return "0";
   return trimNumber(Math.round(converted * 100) / 100);
@@ -466,7 +475,7 @@ function bathymetryOffsetFeetFromDisplay(value, depthUnit = unitPreference("dept
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
   const converted = convertUnitValue(number, depthUnit || "ft", "ft");
-  return normalizeBathymetryOffsetFeet(converted);
+  return converted === null ? 0 : Math.round(converted * 100) / 100;
 }
 
 async function saveUnitSettings(options = {}) {
@@ -476,19 +485,26 @@ async function saveUnitSettings(options = {}) {
   document.querySelectorAll("[data-unit-setting]").forEach((select) => {
     units[select.dataset.unitSetting] = select.value;
   });
-  const lakeCalibrations = {};
+  const originalCalibrations = state.settings?.bathymetryLakeCalibrationsFeet || {};
+  const lakeCalibrations = { ...originalCalibrations };
   document.querySelectorAll("[data-bathymetry-lake-calibration]").forEach((input) => {
     const lake = input.dataset.bathymetryLakeCalibration;
-    lakeCalibrations[lake] ||= {};
+    const field = input.dataset.bathymetryCalibrationEnd;
     // The field was rendered in the unit that was active before this save.
-    lakeCalibrations[lake][input.dataset.bathymetryCalibrationEnd] = bathymetryOffsetFeetFromDisplay(input.value, previousUnits.depth);
+    const existing = originalCalibrations[lake] || {};
+    const currentDisplayValue = bathymetryOffsetDisplayValue(existing[field] ?? 0, previousUnits.depth);
+    if (String(input.value).trim() === currentDisplayValue) return;
+    lakeCalibrations[lake] = {
+      ...existing,
+      [field]: bathymetryOffsetFeetFromDisplay(input.value, previousUnits.depth)
+    };
   });
   const nextUnits = normalizeUnits(units);
   convertStoredMeasurements(previousUnits, nextUnits);
   state.settings = {
     ...(state.settings || {}),
     units: nextUnits,
-    bathymetryLakeCalibrationsFeet: normalizeBathymetryLakeCalibrations(lakeCalibrations)
+    bathymetryLakeCalibrationsFeet: lakeCalibrations
   };
   try {
     await runSettingsSave(

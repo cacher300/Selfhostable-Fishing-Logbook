@@ -110,6 +110,7 @@ function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {})
       data-catch-media-gallery
       data-gallery-context="${escapeHtml(options.context || "summary")}"
       data-catch-index="${escapeHtml(String(options.catchIndex ?? ""))}"
+      data-catch-type="${escapeHtml(options.catchType || "catch")}"
       data-selected-index="${escapeHtml(String(selectedIndex))}"
       data-photo-count="${escapeHtml(String(photoCount))}"
       data-show-all-thumbnails="${showAllThumbnails ? "true" : "false"}"
@@ -223,16 +224,17 @@ function catchDetailValueMarkup(row) {
   return escapeHtml(row.value);
 }
 
-function catchDetailRows(trip, catchItem, catchIndex) {
+function catchDetailRows(trip, catchItem, catchIndex, catchType = "catch") {
   const record = resolveTripLineRecord({ ...catchItem, trip });
   const trollingTrip = isTrollingTripRecord(trip);
+  const isLost = catchType === "lost";
   const hourlyWeather = catchItem.weatherData?.hourly || {};
   const formatWeightDetail = (value) => {
     return displayStoredMeasurement(value, "fishWeight");
   };
   const rows = [
-    { key: "species", group: "overview", label: "Species", value: displayTitleText(record.species || catchItem.species) },
-    { key: "status", group: "overview", label: "Status", value: record.released ? "Released" : "Kept", kind: "status" },
+    { key: "species", group: "overview", label: "Species", value: displayTitleText(record.species || catchItem.species || catchItem.possibleSpecies) },
+    { key: "status", group: "overview", label: "Status", value: isLost ? "Lost" : (record.released ? "Released" : "Kept"), kind: "status" },
     { key: "time", group: "overview", label: "Time", value: catchItem.time ? formatDisplayTime(catchItem.time) : "" },
     { key: "angler", group: "overview", label: "Angler", value: reportPersonName(trip, catchItem.personId) },
     { key: "length", group: "overview", label: "Length", value: displayStoredMeasurement(record.length, "fishLength") },
@@ -248,7 +250,7 @@ function catchDetailRows(trip, catchItem, catchIndex) {
     { key: "presentation", group: "presentation", label: "Presentation", value: displayTitleText(record.presentation ? presentationLabel(record.presentation) : record.flyPresentation) },
     { key: "side", group: "presentation", label: "Side", value: setupLineSideLabel(record.side) },
     { key: "direction", group: "presentation", label: "Direction", value: displayTitleText(record.direction) },
-    { key: "gpsSpeed", group: "presentation", label: "GPS speed", value: displaySpeedValue(record.gpsSpeed || record.speed) },
+    { key: "gpsSpeed", group: "presentation", label: "GPS speed", value: displaySpeedValue(record.gpsSpeed) },
     { key: "ballSpeed", group: "presentation", label: "Ball speed", value: displaySpeedValue(record.ballSpeed) },
     { key: "ballTemp", group: "presentation", label: "Ball temp", value: displayStoredMeasurement(record.ballTemp, "waterTemperature") },
     { key: "ballDepth", group: "presentation", label: "Ball depth", value: reportDepthValue(record.ballDepth) },
@@ -282,7 +284,7 @@ function catchDetailRows(trip, catchItem, catchIndex) {
         </div>
       `).join("")}</dl>${group.id === "location" ? `
       <div class="catch-detail-location-action">
-        <button class="button secondary compact-action" type="button" data-show-catch-map data-catch-index="${catchIndex}" aria-controls="catchDetailLocationPopout" aria-label="Show ${escapeHtml(displayTitleText(catchItem.species || "catch"))} location on map">Show on map</button>
+        ${!isLost ? `<button class="button secondary compact-action" type="button" data-show-catch-map data-catch-index="${catchIndex}" aria-controls="catchDetailLocationPopout" aria-label="Show ${escapeHtml(displayTitleText(catchItem.species || catchItem.possibleSpecies || "catch"))} location on map">Show on map</button>` : ""}
         <div id="catchDetailLocationHost"></div>
       </div>` : ""}
     </section>
@@ -312,21 +314,22 @@ function reportAdditionalConditionRows(trip) {
   ];
 }
 
-function renderCatchDetailPopout(trip, catchItem, index, selectedIndex) {
+function renderCatchDetailPopout(trip, catchItem, index, selectedIndex, catchType = "catch") {
   return `
     <div class="catch-detail-popout" id="catchDetailPopout" role="dialog" aria-modal="true" aria-label="Catch details">
       <div class="catch-detail-panel">
         <div class="catch-detail-controls">
           <button class="icon-button catch-detail-close" type="button" data-close-catch-detail aria-label="Close catch details"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
-        ${renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${index + 1}`, {
+        ${renderCatchMediaGallery(catchItem.photos || [], catchItem.species || catchItem.possibleSpecies || `${catchType === "lost" ? "Lost fish" : "Catch"} ${index + 1}`, {
           catchIndex: index,
+          catchType,
           selectedIndex,
           heroPhotoId: catchItem.heroPhotoId,
           context: "detail",
           showAllThumbnails: true
         })}
-        ${catchDetailRows(trip, catchItem, index)}
+        ${catchDetailRows(trip, catchItem, index, catchType)}
       </div>
     </div>
   `;

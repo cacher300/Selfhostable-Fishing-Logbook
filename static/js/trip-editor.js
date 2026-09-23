@@ -65,9 +65,9 @@ function tripFormSnapshot() {
     }));
   return JSON.stringify({
     controls,
-    notePhotos: activeNotePhotos.map((photo) => photo.id || photo.filename || photo.url || photo.image || ""),
-    catchPhotos: [...els.catchRows.querySelectorAll(".catch-row")].map((row) => (row.catchPhotos || []).map((photo) => photo.id || photo.filename || photo.url || photo.image || "")),
-    lostFishPhotos: [...els.lostFishRows.querySelectorAll(".catch-row")].map((row) => (row.catchPhotos || []).map((photo) => photo.id || photo.filename || photo.url || photo.image || "")),
+    notePhotos: activeNotePhotos.map((photo) => photo.id || photo.filename || ""),
+    catchPhotos: [...els.catchRows.querySelectorAll(".catch-row")].map((row) => (row.catchPhotos || []).map((photo) => photo.id || photo.filename || "")),
+    lostFishPhotos: [...els.lostFishRows.querySelectorAll(".catch-row")].map((row) => (row.catchPhotos || []).map((photo) => photo.id || photo.filename || "")),
     lostCount: els.lostFishRows.querySelectorAll(".catch-row").length,
     gearCount: els.tripGearRows.querySelectorAll(".gear-used-row").length,
     peopleCount: els.personRows.querySelectorAll(".person-row").length
@@ -167,7 +167,7 @@ function tripSaveWarnings() {
   }
 
   const trolling = isTrollingTrip();
-  const tripStartTime = getValue("linesSetTime") || getValue("launchTime");
+  const tripStartTime = getValue("launchTime");
   const tripEndTime = getValue("linesPulledTime");
   const tripMinutes = tripStartTime && tripEndTime
     ? calculateMinutes(tripStartTime, tripEndTime)
@@ -321,8 +321,7 @@ function openTripDialog(trip = null) {
   const launch = findLaunchByIdOrName(location, trip?.launchId, trip?.launch);
   populateLaunchSelect(launch?.id || "");
   setValue("launchTime", trip ? (trip.launchTime || "") : defaultTimeValue);
-  setValue("linesSetTime", trip?.linesSetTime || trip?.startTime || "");
-  setValue("linesPulledTime", trip ? (trip.linesPulledTime || trip.endTime || "") : defaultTimeValue);
+  setValue("linesPulledTime", trip ? (trip.linesPulledTime || "") : defaultTimeValue);
   setValue("tripIdleTime", trip?.idleHours || "");
   setValue("targetSpecies", trip?.targetSpecies || "");
   setValue("method", trip?.method || "");
@@ -370,19 +369,8 @@ function openTripDialog(trip = null) {
     else addPersonRow({}, { editNew: true });
   }
   (trip?.gearUsed || []).forEach(addTripGearRow);
-  const legacyDeepestRiggerBySetupLine = new Map((trip?.gearUsed || [])
-    .filter((item) => Boolean(item.deepestRigger))
-    .map((item) => [item.id, true]));
-  const migrateLegacyDeepestRigger = (item) => {
-    const setupLineIsDeepest = legacyDeepestRiggerBySetupLine.get(item.setupLineId);
-    const onCheater = item.setupLineTarget === "cheater";
-    return {
-      ...item,
-      deepestRigger: !onCheater && Boolean(item.deepestRigger || setupLineIsDeepest)
-    };
-  };
-  (trip?.catches || []).map(migrateLegacyDeepestRigger).forEach(addCatchRow);
-  (trip?.lostFish || []).map(migrateLegacyDeepestRigger).forEach(addLostFishRow);
+  (trip?.catches || []).forEach(addCatchRow);
+  (trip?.lostFish || []).forEach(addLostFishRow);
   populateSetupLineSelects();
   updateMethodVisibility({ applyStartupSpread: !trip });
   renderLiveTrollingSpread();
@@ -662,7 +650,7 @@ function probeCatchDepthEntry(record = {}) {
   if (cheater && Number.isFinite(ballDepth)) {
     return { depthFeet: ballDepth / 2, species: record.species || record.possibleSpecies || "" };
   }
-  for (const field of ["depthDown", "ballDepth", "estimatedLureDepth", "estimatedDepth", "depth"]) {
+  for (const field of ["depthDown", "ballDepth", "estimatedLureDepth", "estimatedDepth"]) {
     const depthFeet = numericProbeDepth(record[field]);
     if (Number.isFinite(depthFeet)) return { depthFeet, species: record.species || record.possibleSpecies || "" };
   }
@@ -981,10 +969,10 @@ function mergePeople(...personLists) {
     const normalizedName = name.toLowerCase();
     const existingId = idsByName.get(normalizedName);
     if (existingId) {
-      peopleById.set(existingId, { id: existingId, name });
+      peopleById.set(existingId, { ...(peopleById.get(existingId) || {}), ...person, id: existingId, name });
       return;
     }
-    peopleById.set(person.id, { id: person.id, name });
+    peopleById.set(person.id, { ...(peopleById.get(person.id) || {}), ...person, id: person.id, name });
     idsByName.set(normalizedName, person.id);
   });
   return [...peopleById.values()].filter((person) => person.name);
@@ -1032,6 +1020,7 @@ function personFromRow(row) {
     const existing = state.people.find((person) => person.id === selected)
       || collectNewPeople({ excludeRow: row }).find((person) => person.id === selected);
     return {
+      ...existing,
       id: existing?.id || row.dataset.personId || selected,
       name: existing?.name || select.selectedOptions[0]?.textContent?.trim() || ""
     };

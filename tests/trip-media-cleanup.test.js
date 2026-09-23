@@ -7,17 +7,17 @@ vm.runInThisContext(fs.readFileSync("static/js/photos.js", "utf8"));
 
 const trip = {
   notePhotos: [
-    { path: "trip-photos/trip.jpg", previewPath: "trip-photos/_previews/trip.jpg" }
+    { category: "trip-photos", filename: "trip.jpg", previewFilename: "trip.jpg" }
   ],
   catches: [
     {
       photos: [
-        { url: "/uploads/catch-photos/catch.jpg", previewUrl: "/uploads/catch-photos/_previews/catch.jpg" },
+        { category: "catch-photos", filename: "catch.jpg", previewFilename: "catch.jpg" },
         { category: "catch-photos", filename: "shared.jpg" }
       ]
     }
   ],
-  queuePhoto: { path: "queue/queued.jpg" }
+  queuePhoto: { category: "queue", filename: "queued.jpg" }
 };
 
 assert.deepEqual(
@@ -54,10 +54,10 @@ async function testCleanupUsesGuardedDeleteAndSkipsQueue() {
   calls.length = 0;
   const replaced = await cleanupReplacedMedia(
     { photos: [
-      { path: "reels/removed.jpg" },
-      { path: "reels/retained.jpg" }
+      { category: "reels", filename: "removed.jpg" },
+      { category: "reels", filename: "retained.jpg" }
     ] },
-    { photos: [{ path: "reels/retained.jpg" }] }
+    { photos: [{ category: "reels", filename: "retained.jpg" }] }
   );
   assert.deepEqual(calls, ["/api/uploads/reels/removed.jpg"]);
   assert.deepEqual(replaced, { deleted: 1, retained: 0, failed: 0 });
@@ -73,8 +73,8 @@ async function testEditorSessionCleansDiscardedUploadsAndPreservesQueueSource() 
   };
 
   const discarded = beginMediaEditSession("trip");
-  trackCreatedMedia(discarded, { path: "catch-photos/copied.jpg" }, "queued.jpg");
-  trackCreatedMedia(discarded, { path: "trip-photos/uploaded.jpg" });
+  trackCreatedMedia(discarded, { category: "catch-photos", filename: "copied.jpg" }, "queued.jpg");
+  trackCreatedMedia(discarded, { category: "trip-photos", filename: "uploaded.jpg" });
   await finishMediaEditSession("trip");
   assert.deepEqual(calls.sort(), [
     "/api/uploads/catch-photos/copied.jpg",
@@ -83,9 +83,9 @@ async function testEditorSessionCleansDiscardedUploadsAndPreservesQueueSource() 
 
   calls.length = 0;
   const saved = beginMediaEditSession("trip");
-  trackCreatedMedia(saved, { path: "catch-photos/attached.jpg" }, "queued.jpg");
-  trackCreatedMedia(saved, { path: "catch-photos/removed.jpg" });
-  global.state = { trips: [{ catches: [{ photos: [{ path: "catch-photos/attached.jpg" }] }] }] };
+  trackCreatedMedia(saved, { category: "catch-photos", filename: "attached.jpg" }, "queued.jpg");
+  trackCreatedMedia(saved, { category: "catch-photos", filename: "removed.jpg" });
+  global.state = { trips: [{ catches: [{ photos: [{ category: "catch-photos", filename: "attached.jpg" }] }] }] };
   markMediaEditSessionSaved("trip");
   await finishMediaEditSession("trip");
   assert.deepEqual(calls.sort(), [
@@ -109,7 +109,7 @@ async function testUploadFinishingAfterEditorClosesIsDeleted() {
   beginMediaEditSession("trip");
   const upload = uploadImageFile(new Blob(["photo"], { type: "image/jpeg" }), "catch-photos");
   await finishMediaEditSession("trip");
-  finishUpload({ ok: true, json: async () => ({ path: "catch-photos/late.jpg", url: "/uploads/catch-photos/late.jpg" }) });
+  finishUpload({ ok: true, json: async () => ({ category: "catch-photos", filename: "late.jpg" }) });
   await assert.rejects(upload, /editor closed/);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(calls, ["/api/uploads/catch-photos", "/api/uploads/catch-photos/late.jpg"]);

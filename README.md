@@ -82,7 +82,7 @@ data/.secret_key
 
 These paths are ignored by Git. Keep the database and upload tree together when making server backups.
 
-Use the archive export for a portable backup or to transfer data between the web and mobile clients. A Fishing Logbook archive contains:
+Use the archive export for a complete backup or to transfer data between the web and mobile clients. A local Fishing Logbook archive contains:
 
 ```text
 manifest.json
@@ -90,7 +90,7 @@ logbook.json
 media/<category>/...
 ```
 
-Legacy JSON documents remain supported when they are included in a Fishing Logbook archive. A plain JSON export or database copy does not include uploaded media.
+Runtime imports and the API accept canonical v2 data only. Convert an older SQLite database or desktop/mobile ZIP archive offline with `py scripts/migrate_logbook_v2.py --database <path> --apply` or `py scripts/migrate_logbook_v2.py --archive <path> --apply`; the script creates a backup, removes legacy fields, validates the v2 document, and rewrites the archive/database before the app opens it. Use `--media-root <uploads>` when an older archive references local media that is stored beside it rather than inside the ZIP.
 
 The root `index.html` opens the generated `standalone.html` fallback when used directly from disk. That mode persists to browser storage and does not provide server uploads or server proxy features. Edit files under `templates/` and regenerate the fallback with `python scripts/build-standalone.py`; do not edit `standalone.html` by hand.
 

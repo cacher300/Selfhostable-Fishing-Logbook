@@ -546,7 +546,7 @@ function summarizeSpeedDelta(records) {
     ["Ball faster", { fish: 0, trips: new Set(), deltas: [] }]
   ]);
   records.forEach((record) => {
-    const gps = saneStatsNumber(record.gpsSpeed || record.speed, { min: 0.1, max: 15 });
+    const gps = saneStatsNumber(record.gpsSpeed, { min: 0.1, max: 15 });
     const ball = saneStatsNumber(record.ballSpeed, { min: 0.1, max: 15 });
     if (gps === null || ball === null) return;
     const delta = ball - gps;
@@ -569,7 +569,7 @@ function summarizeBestSpeedByDirection(records) {
   const directions = new Map();
   records.forEach((record) => {
     const direction = String(record.direction || "").trim();
-    const speed = saneStatsNumber(record.gpsSpeed || record.speed, { min: 0.1, max: 15 });
+    const speed = saneStatsNumber(record.gpsSpeed, { min: 0.1, max: 15 });
     if (!direction || speed === null) return;
     const roundedSpeed = Math.round(speed * 10) / 10;
     const speeds = directions.get(direction) || new Map();
@@ -686,8 +686,8 @@ function statsTripTrendRows(trips) {
     const hours = tripHours(trip);
     return [
       formatDate(trip.date),
-      trip.linesSetTime || trip.startTime ? formatDisplayTime(trip.linesSetTime || trip.startTime) : "—",
-      trip.linesPulledTime || trip.endTime ? formatDisplayTime(trip.linesPulledTime || trip.endTime) : "—",
+      trip.launchTime ? formatDisplayTime(trip.launchTime) : "—",
+      trip.linesPulledTime ? formatDisplayTime(trip.linesPulledTime) : "—",
       hours ? trimNumber(hours) : "n/a",
       landed,
       lost,

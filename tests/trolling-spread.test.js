@@ -8,23 +8,27 @@ vm.runInContext(fs.readFileSync("static/js/trolling-spread.js", "utf8"), context
 
 const inherited = vm.runInContext(`resolveTripLineRecord({
   setupLineId: "line-1",
-  deepestRigger: false,
+  deepestRigger: true,
+  ballDepth: "65",
   trip: {
     method: "Trolling",
-    gearUsed: [{ id: "line-1", presentation: "Downrigger", deepestRigger: true }]
+    gearUsed: [{ id: "line-1", presentation: "Downrigger", ballDepth: "12" }]
   }
 })`, context);
 assert.equal(inherited.deepestRigger, true);
+assert.equal(inherited.ballDepth, "65");
 
-const legacy = vm.runInContext(`resolveTripLineRecord({
+const noSetupDepthInheritance = vm.runInContext(`resolveTripLineRecord({
   setupLineId: "line-1",
-  deepestRigger: true,
+  deepestRigger: false,
   trip: {
     method: "Trolling",
-    gearUsed: [{ id: "line-1", presentation: "Downrigger" }]
+    gearUsed: [{ id: "line-1", presentation: "Downrigger", deepestRigger: true, ballDepth: "12", speed: "2.1" }]
   }
 })`, context);
-assert.equal(legacy.deepestRigger, true);
+assert.equal(noSetupDepthInheritance.deepestRigger, false);
+assert.equal(noSetupDepthInheritance.ballDepth, "");
+assert.equal(noSetupDepthInheritance.gpsSpeed, "");
 
 const cheater = vm.runInContext(`resolveTripLineRecord({
   setupLineId: "line-1",
@@ -37,5 +41,8 @@ const cheater = vm.runInContext(`resolveTripLineRecord({
 })`, context);
 assert.equal(cheater.presentation, "Cheater");
 assert.equal(cheater.deepestRigger, false);
+
+assert.equal(vm.runInContext('getSpreadSlot({ lineSide: "Port", trollingMethod: "Downrigger" })', context), "portDownRigger");
+assert.equal(vm.runInContext('getSpreadSlot({ lineSide: "port", trollingMethod: "downrigger" })', context), null);
 
 console.log("trolling spread inheritance tests passed");

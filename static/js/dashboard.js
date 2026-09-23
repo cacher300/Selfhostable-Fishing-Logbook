@@ -33,13 +33,13 @@ function catchRate(trip) {
 }
 
 function tripHours(trip) {
-  const calculated = calculateHours(trip.linesSetTime || trip.startTime || trip.launchTime, trip.linesPulledTime || trip.endTime);
+  const calculated = calculateHours(trip.launchTime, trip.linesPulledTime);
   if (calculated) return Math.max(0, calculated - number(trip.idleHours));
   return number(trip.hours);
 }
 
 function tripStartMinutes(trip) {
-  const match = String(trip?.linesSetTime || trip?.startTime || trip?.launchTime || "").match(/^(\d{1,2}):(\d{2})$/);
+  const match = String(trip?.launchTime || "").match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   return (Number(match[1]) * 60) + Number(match[2]);
 }
@@ -200,7 +200,7 @@ function renderBrandSpotlight() {
       })));
       return [...notePhotos, ...catchPhotos];
     })
-    .filter((photo) => photo.image && !isVideoMedia(photo)));
+    .filter((photo) => previewImage(photo) && !isVideoMedia(photo)));
 
   if (!photos.length) {
     els.brandSpotlight.innerHTML = `

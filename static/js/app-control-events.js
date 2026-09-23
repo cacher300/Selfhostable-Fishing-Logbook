@@ -82,9 +82,9 @@ els.notePhotoInput.addEventListener("change", addNotePhotos);
 els.photoQueueButton.addEventListener("click", () => {
   openPhotoQueue();
 });
-els.exportDatabaseButton?.addEventListener("click", exportDatabaseArchive);
+els.exportDatabaseButton?.addEventListener("click", exportArchive);
 els.importDatabaseButton?.addEventListener("click", () => els.importDatabaseInput?.click());
-els.importDatabaseInput?.addEventListener("change", importDatabaseArchive);
+els.importDatabaseInput?.addEventListener("change", importArchive);
 els.photoQueueInput.addEventListener("change", addPhotosToQueue);
 els.lureForm.addEventListener("submit", saveLure);
 document.querySelector("#lureType").addEventListener("change", updateLureDivingDepthField);

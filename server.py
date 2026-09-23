@@ -8,7 +8,7 @@ import sys
 import uuid
 from io import BytesIO
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from zipfile import ZIP_STORED, ZipFile
 
 
@@ -55,7 +55,6 @@ from backend.backend_config import (
 from backend.logbook_store import (
     database_exists,
     initialize_database,
-    normalize_logbook,
     read_logbook,
     validate_logbook,
     write_logbook,
@@ -63,7 +62,6 @@ from backend.logbook_store import (
 from backend.bathymetry_service import (
     apply_depth_result,
     lookup_depth,
-    preserve_existing_depth_fields,
     valid_coordinates,
 )
 from backend.request_security import configure_request_security, csrf_token
@@ -109,7 +107,7 @@ def storage_read_logbook() -> dict:
     is_valid, error = validate_logbook(payload)
     if not is_valid:
         raise cloud_storage.CloudStorageError(f"Cloud logbook is invalid: {error}", 500)
-    return normalize_logbook(payload)
+    return payload
 
 
 def storage_read_logbook_with_revision() -> tuple[dict, str]:
@@ -119,7 +117,7 @@ def storage_read_logbook_with_revision() -> tuple[dict, str]:
     is_valid, error = validate_logbook(payload)
     if not is_valid:
         raise cloud_storage.CloudStorageError(f"Cloud logbook is invalid: {error}", 500)
-    return normalize_logbook(payload), revision
+    return payload, revision
 
 
 def storage_write_logbook(payload: dict, revision: str = "") -> str:
@@ -308,9 +306,7 @@ def create_app(config: dict | None = None) -> Flask:
         if not is_valid:
             return jsonify({"error": error}), 400
 
-        normalized = normalize_logbook(payload)
-        preserve_existing_depth_fields(normalized, storage_read_logbook())
-        revision = storage_write_logbook(normalized, request.headers.get("If-Match", ""))
+        revision = storage_write_logbook(payload, request.headers.get("If-Match", ""))
         response = jsonify({"ok": True})
         if revision:
             response.headers["ETag"] = revision
@@ -318,14 +314,19 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.get("/api/archive")
     def export_archive() -> Response:
-        """Portable desktop/mobile archive. Existing web UI is intentionally unchanged."""
+        """Download the canonical logbook and uploaded media as a portable archive."""
+        if not cloud_storage.enabled() and not DATABASE_FILE.is_file():
+            return jsonify({"error": "The local SQLite database does not exist yet."}), 404
         logbook = storage_read_logbook()
-        archive = BytesIO()
-        with ZipFile(archive, "w", ZIP_STORED) as bundle:
+
+        with NamedTemporaryFile(prefix="logbook-export-", suffix=".zip", dir=DATA_DIR, delete=False) as temporary:
+            archive_path = Path(temporary.name)
+        try:
+          with ZipFile(archive_path, "w", ZIP_STORED, allowZip64=True) as bundle:
             bundle.writestr("manifest.json", json.dumps({
-                "archiveVersion": 1,
+                "archiveVersion": 2,
                 "format": "fishing-logbook-archive",
-                "schemaVersion": logbook.get("schemaVersion", 1),
+                "schemaVersion": 2,
             }, separators=(",", ":")))
             bundle.writestr("logbook.json", json.dumps(logbook, separators=(",", ":")))
             if cloud_storage.enabled():
@@ -355,8 +356,19 @@ def create_app(config: dict | None = None) -> Flask:
                     for item in directory.rglob("*"):
                         if item.is_file():
                             bundle.write(item, f"media/{category}/{item.relative_to(directory).as_posix()}")
-        archive.seek(0)
-        return Response(archive.getvalue(), mimetype="application/zip", headers={"Content-Disposition": "attachment; filename=fishing-logbook-archive.zip"})
+        except Exception:
+            archive_path.unlink(missing_ok=True)
+            raise
+
+        def chunks():
+            try:
+                with archive_path.open("rb") as stream:
+                    while block := stream.read(1024 * 1024):
+                        yield block
+            finally:
+                archive_path.unlink(missing_ok=True)
+
+        return Response(chunks(), mimetype="application/zip", headers={"Content-Disposition": "attachment; filename=fishing-logbook-archive.zip"})
 
     @app.post("/api/archive")
     def import_archive() -> tuple[Response, int] | Response:
@@ -366,11 +378,15 @@ def create_app(config: dict | None = None) -> Flask:
         try:
             with ZipFile(upload.stream) as bundle:
                 names = bundle.namelist()
-                if "logbook.json" not in names or "manifest.json" not in names:
+                if len(names) != len(set(names)):
+                    return jsonify({"error": "Archive contains duplicate file paths."}), 400
+                if "manifest.json" not in names:
                     return jsonify({"error": "Archive is missing its manifest or logbook."}), 400
                 manifest = json.loads(bundle.read("manifest.json"))
-                if manifest.get("archiveVersion") != 1:
+                if manifest.get("archiveVersion") != 2 or manifest.get("schemaVersion") != 2 or manifest.get("format") != "fishing-logbook-archive":
                     return jsonify({"error": "This archive version is not supported."}), 400
+                if "logbook.json" not in names:
+                    return jsonify({"error": "Archive is missing its manifest or logbook."}), 400
                 payload = json.loads(bundle.read("logbook.json"))
                 is_valid, error = validate_logbook(payload)
                 if not is_valid:
@@ -385,6 +401,13 @@ def create_app(config: dict | None = None) -> Flask:
                     if name in media_names:
                         return jsonify({"error": "Archive contains duplicate media paths."}), 400
                     media_names.add(name)
+                missing_media = sorted(
+                    f"media/{category}/{filename}"
+                    for category, filename in referenced_uploads(payload)
+                    if f"media/{category}/{filename}" not in media_names
+                )
+                if missing_media:
+                    return jsonify({"error": f"Archive is missing referenced media: {missing_media[0]}."}), 400
                 if cloud_storage.enabled():
                     for name in names:
                         if not name.startswith("media/") or name.endswith("/"):
@@ -416,7 +439,7 @@ def create_app(config: dict | None = None) -> Flask:
                             metadata.get("name") or filename,
                             metadata,
                         )
-                    storage_write_logbook(normalize_logbook(payload))
+                    storage_write_logbook(payload)
                     return jsonify({"ok": True})
                 with TemporaryDirectory(dir=DATA_DIR) as temporary_directory:
                     temporary_root = Path(temporary_directory)
@@ -431,7 +454,8 @@ def create_app(config: dict | None = None) -> Flask:
                             return jsonify({"error": "Archive media path escapes its category."}), 400
                         staged = temporary_root / "staged" / category / Path(*relative)
                         staged.parent.mkdir(parents=True, exist_ok=True)
-                        staged.write_bytes(bundle.read(name))
+                        with bundle.open(name) as source, staged.open("wb") as destination:
+                            shutil.copyfileobj(source, destination, length=1024 * 1024)
                         staged_files.append((category, staged, target))
 
                     promoted: list[tuple[Path, Path | None]] = []
@@ -445,7 +469,7 @@ def create_app(config: dict | None = None) -> Flask:
                                 target.replace(backup)
                             promoted.append((target, backup))
                             staged.replace(target)
-                        write_logbook(normalize_logbook(payload))
+                        write_logbook(payload)
                     except Exception:
                         for target, backup in reversed(promoted):
                             if target.is_file():

@@ -123,7 +123,7 @@ async function loadState() {
       const response = await fetch("/api/logbook");
       if (response.ok) {
         logbookRevision = response.headers.get("ETag") || "";
-        return normalizeState({ ...structuredClone(defaults), ...(await response.json()) });
+        return validateState(await response.json());
       }
     } catch {
       // Fall through to browser storage when the server is unavailable.
@@ -132,9 +132,9 @@ async function loadState() {
 
   try {
     const saved = localStorage.getItem(storageKey);
-    if (!saved) return normalizeState(structuredClone(defaults));
-    return normalizeState({ ...structuredClone(defaults), ...JSON.parse(saved) });
-  } catch {
-    return normalizeState(structuredClone(defaults));
+    if (!saved) return validateState(structuredClone(defaults));
+    return validateState(JSON.parse(saved));
+  } catch (error) {
+    throw new Error(`Could not load the v2 logbook: ${error.message}`);
   }
 }

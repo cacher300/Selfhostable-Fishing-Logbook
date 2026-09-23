@@ -3,22 +3,19 @@ from __future__ import annotations
 import io
 import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
 
 from backend import logbook_store, media_service
+from backend.backend_config import DEFAULT_LOGBOOK
 from server import create_app
 
 
 def sample_logbook() -> dict:
-    return logbook_store.normalize_logbook({
-        "schemaVersion": 1,
-        "trips": [],
-        "lures": [],
-        "flashers": [],
-    })
+    return deepcopy(DEFAULT_LOGBOOK)
 
 
 class CloudStorageRouteTests(unittest.TestCase):
@@ -34,7 +31,7 @@ class CloudStorageRouteTests(unittest.TestCase):
     @patch("server.cloud_storage.get_logbook")
     def test_orphan_scan_excludes_references_and_queue(self, get_logbook, list_media, _enabled) -> None:
         logbook = sample_logbook()
-        logbook["trips"] = [{"id": "trip", "notePhotos": [{"path": "trip-photos/attached.jpg"}]}]
+        logbook["trips"] = [{"id": "trip", "notePhotos": [{"id": "attached", "category": "trip-photos", "filename": "attached.jpg"}]}]
         get_logbook.return_value = (logbook, '"7"')
         list_media.return_value = [
             {"category": "trip-photos", "filename": "attached.jpg"},

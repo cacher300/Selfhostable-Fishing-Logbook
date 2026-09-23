@@ -552,7 +552,7 @@ function mapPopupHtml(record) {
   const method = record.type === "catch" ? mapRecordMethod(record) : "";
   return `
     <div class="map-popup" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
-      ${media?.image ? mediaMarkup(media) : ""}
+      ${media && previewImage(media) ? mediaMarkup(media) : ""}
       <strong>${escapeHtml(title)}</strong>
       <span>${escapeHtml(formatDate(trip.date))}</span>
       ${fowValue ? `<span><strong>FOW</strong>${escapeHtml(fowValue)}</span>` : ""}

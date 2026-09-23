@@ -21,10 +21,10 @@ assert.deepEqual(
 
 assert.deepEqual(
   [
-    { id: "legacy", date: "2026-09-13", startTime: "05:00", launchTime: "23:00" },
+    { id: "early-start", date: "2026-09-13", launchTime: "05:00" },
     laterTrip
   ].sort((a, b) => context.compareTripsByDateTime(a, b, "desc")).map((trip) => trip.id),
-  ["later", "legacy"]
+  ["later", "early-start"]
 );
 
 console.log("trip sorting tests passed");

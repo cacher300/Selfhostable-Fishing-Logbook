@@ -166,7 +166,7 @@ function leaderboardDecimal(value) {
 function leaderboardGearAvatar(row) {
   const source = typeof previewImage === "function"
     ? previewImage(row.item)
-    : (row.item.previewImage || row.item.image || "");
+    : "";
   if (source) {
     return `<button class="leaderboard-avatar leaderboard-equipment-avatar leaderboard-preview-button" type="button" data-leaderboard-preview-type="${escapeHtml(row.gearType)}" data-leaderboard-preview-id="${escapeHtml(row.id)}" aria-label="Open details for ${escapeHtml(row.name)}"><img src="${escapeHtml(source)}" alt=""></button>`;
   }

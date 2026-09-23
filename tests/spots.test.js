@@ -24,6 +24,7 @@ vm.runInContext(fs.readFileSync("static/js/app-defaults.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/app-state.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/app-normalization.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/app-units.js", "utf8"), context);
+vm.runInContext(fs.readFileSync("static/js/settings-locations.js", "utf8"), context);
 
 const center = { latitude: 43, longitude: -79 };
 const north = { latitude: 43.001, longitude: -79 };
@@ -44,38 +45,28 @@ assert.equal(
   "z-west"
 );
 
-const normalized = context.normalizeState({
-  schemaVersion: 1,
-  lures: [],
-  flashers: [],
-  spots: [west, east],
-  trips: [{
-    id: "trip",
-    catches: [
-      { id: "auto", coordinates: center },
-      { id: "manual", coordinates: center, spotAssignmentMode: "manual", spotId: "z-west" },
-      { id: "none", coordinates: center, spotAssignmentMode: "manual", spotId: "" }
-    ],
-    lostFish: [],
-    gearUsed: [],
-    people: [],
-    notePhotos: []
-  }]
-});
-assert.equal(normalized.trips[0].catches[0].spotId, "a-east");
-assert.equal(normalized.trips[0].catches[1].spotId, "z-west");
-assert.equal(normalized.trips[0].catches[2].spotId, "");
+const assigned = [
+  context.normalizeCatchSpotAssignment({ id: "auto", coordinates: center }, [west, east]),
+  context.normalizeCatchSpotAssignment({ id: "manual", coordinates: center, spotAssignmentMode: "manual", spotId: "z-west" }, [west, east]),
+  context.normalizeCatchSpotAssignment({ id: "none", coordinates: center, spotAssignmentMode: "manual", spotId: "" }, [west, east])
+];
+assert.equal(assigned[0].spotId, "a-east");
+assert.equal(assigned[1].spotId, "z-west");
+assert.equal(assigned[2].spotId, "");
 
-const afterDelete = context.normalizeState({ ...normalized, spots: [east] });
-assert.equal(afterDelete.trips[0].catches[0].spotId, "a-east");
-assert.equal(afterDelete.trips[0].catches[1].spotId, "");
-assert.equal(afterDelete.trips[0].catches[1].spotAssignmentMode, "manual");
+const afterDelete = context.normalizeCatchSpotAssignment(assigned[1], [east]);
+assert.equal(afterDelete.spotId, "");
+assert.equal(afterDelete.spotAssignmentMode, "manual");
 
-const malformed = context.normalizeSpots([
-  east,
-  { ...west, id: "duplicate-name", name: "east" },
-  { id: "bad-radius", name: "Bad", coordinates: center, radiusMeters: 10 }
-]);
-assert.deepEqual(JSON.parse(JSON.stringify(malformed)), [east]);
+assert.doesNotThrow(() => context.validateFishingSpots([east]));
+assert.throws(() => context.validateFishingSpots([east, { ...west, id: "duplicate-name", name: "east" }]), /names must be unique/);
+assert.throws(() => context.validateFishingSpots([{ id: "bad-radius", name: "Bad", coordinates: center, radiusMeters: 10 }]), /between 25 and 500/);
+assert.throws(() => context.validateFishingSpots([east, { ...east, name: "East duplicate" }]), /unique IDs/);
+assert.doesNotThrow(() => context.validatePrivatePhotoLocations([{
+  id: "home", name: "Home", coordinates: center, radiusMeters: 10000, mobileMetadata: "preserved"
+}]));
+assert.throws(() => context.validatePrivatePhotoLocations([{
+  id: "home", name: "Home", coordinates: center, radiusMeters: 10001
+}]), /between 25 and 10000/);
 
 console.log("spot assignment tests passed");

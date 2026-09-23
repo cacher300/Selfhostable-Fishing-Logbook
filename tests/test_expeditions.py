@@ -2,47 +2,40 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
 from backend import logbook_store
+from backend.backend_config import DEFAULT_LOGBOOK
 from server import create_app
 
 
 class ExpeditionStorageTests(unittest.TestCase):
     def minimal_payload(self, **updates):
-        payload = {
-            "schemaVersion": 1,
-            "trips": [],
-            "lures": [],
-            "flashers": [],
-            "expeditions": [],
-        }
+        payload = deepcopy(DEFAULT_LOGBOOK)
         payload.update(updates)
         return payload
 
-    def test_old_logbook_defaults_to_empty_expeditions(self) -> None:
-        normalized = logbook_store.normalize_logbook(
-            {"schemaVersion": 1, "trips": [], "lures": [], "flashers": []}
-        )
-        self.assertEqual([], normalized["expeditions"])
+    def test_new_logbook_starts_with_empty_expeditions(self) -> None:
+        self.assertEqual([], self.minimal_payload()["expeditions"])
 
-    def test_expedition_and_trip_reference_normalize(self) -> None:
-        normalized = logbook_store.normalize_logbook(self.minimal_payload(
+    def test_expedition_and_trip_reference_are_not_reshaped(self) -> None:
+        document = self.minimal_payload(
             expeditions=[{
                 "id": "exp-1",
-                "name": "  Lake Erie Week  ",
+                "name": "Lake Erie Week",
                 "startDate": "2026-07-01",
                 "endDate": "2026-07-07",
-                "destination": "  Barcelona, NY ",
-                "notes": "  Walleye week ",
-                "ignored": True,
+                "destination": "Barcelona, NY",
+                "notes": "Walleye week",
             }],
             trips=[
-                {"id": "trip-1", "expeditionId": "exp-1"},
-                {"id": "trip-2", "expeditionId": "missing"},
+                {"id": "trip-1", "expeditionId": "exp-1", "gearUsed": [], "catches": [], "lostFish": []},
             ],
-        ))
+        )
+        valid, error = logbook_store.validate_logbook(document)
+        self.assertTrue(valid, error)
         self.assertEqual({
             "id": "exp-1",
             "name": "Lake Erie Week",
@@ -50,9 +43,8 @@ class ExpeditionStorageTests(unittest.TestCase):
             "endDate": "2026-07-07",
             "destination": "Barcelona, NY",
             "notes": "Walleye week",
-        }, normalized["expeditions"][0])
-        self.assertEqual("exp-1", normalized["trips"][0]["expeditionId"])
-        self.assertEqual("", normalized["trips"][1]["expeditionId"])
+        }, document["expeditions"][0])
+        self.assertEqual("exp-1", document["trips"][0]["expeditionId"])
 
     def test_expedition_validation_requires_name_and_ordered_iso_dates(self) -> None:
         cases = [

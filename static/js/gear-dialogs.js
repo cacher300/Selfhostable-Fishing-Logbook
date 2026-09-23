@@ -40,9 +40,10 @@ function lineRowMarkup(line = {}) {
   `;
 }
 
-function collectLineRows() {
+function collectLineRows(existingEntries = []) {
   const lines = [...document.querySelectorAll("#reelLineRows .line-editor-row")]
     .map((row) => ({
+      ...(existingEntries.find((line) => line.id === row.dataset.lineId) || {}),
       id: row.dataset.lineId || createId(),
       spooledDate: row.querySelector(".line-spooled-date").value,
       type: row.querySelector(".line-type").value,
@@ -214,7 +215,7 @@ function openLureInfoDialog(lure, pendingRowId = "") {
   document.querySelector("#lureInfoTitle").textContent = lure.name || "Lure";
   els.lureInfoDialog.dataset.lureId = lure.id;
   els.lureInfoContent.innerHTML = `
-    ${lure.image ? `<div class="lure-info-media">${mediaMarkup(lure, "", { download: false })}</div>` : ""}
+    ${gearPhotos(lure).length ? `<div class="lure-info-media">${mediaMarkup(gearPhotos(lure)[0], "", { download: false })}</div>` : ""}
     <dl class="lure-info-list">
       ${details.map(([label, value]) => `
         <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>
@@ -284,7 +285,7 @@ function openFlasherInfoDialog(flasher, pendingRowId = "") {
   document.querySelector("#flasherInfoTitle").textContent = flasher.name || "Flasher";
   els.flasherInfoDialog.dataset.flasherId = flasher.id;
   els.flasherInfoContent.innerHTML = `
-    ${flasher.image ? `<div class="lure-info-media">${mediaMarkup(flasher, "", { download: false })}</div>` : ""}
+    ${gearPhotos(flasher).length ? `<div class="lure-info-media">${mediaMarkup(gearPhotos(flasher)[0], "", { download: false })}</div>` : ""}
     <dl class="lure-info-list">
       ${details.map(([label, value]) => `
         <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>
@@ -307,6 +308,7 @@ async function saveReel(event) {
       ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "reels")))
       : pendingReelImage ? [pendingReelImage] : [];
     const reel = {
+      ...(existing || {}),
       id: editingId || createId(),
       shortName: getValue("reelShortName"),
       style: getValue("reelStyle"),
@@ -325,7 +327,7 @@ async function saveReel(event) {
       quantityAvailable: getValue("reelQuantityAvailable"),
       modelGroupId,
       notes: getValue("reelNotes"),
-      lineHistory: collectLineRows(),
+      lineHistory: mergeLineHistory(existing?.lineHistory || [], collectLineRows(existing?.lineHistory || [])),
       ...gearPhotoFields(uploadedPhotos, existing, "reel")
     };
     const index = state.reels.findIndex((item) => item.id === reel.id);
@@ -358,6 +360,7 @@ async function saveRod(event) {
       ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "rods")))
       : pendingRodImage ? [pendingRodImage] : [];
     const rod = {
+      ...(existing || {}),
       id: editingId || createId(),
       shortName: getValue("rodShortName"),
       type: getValue("rodType"),
@@ -402,8 +405,11 @@ async function saveRod(event) {
 async function saveCombo(event) {
   event.preventDefault();
   try {
+    const editingId = getValue("editingComboId");
+    const existing = state.rodReelCombos.find((item) => item.id === editingId);
     const combo = {
-      id: getValue("editingComboId") || createId(),
+      ...(existing || {}),
+      id: editingId || createId(),
       shortName: getValue("comboShortName"),
       rodId: getValue("comboRod"),
       reelId: getValue("comboReel"),
@@ -429,6 +435,7 @@ async function saveLure(event) {
     const imageFile = document.querySelector("#lureImage").files[0];
     const uploadedImage = imageFile ? await uploadImageFile(imageFile, "lures") : pendingLureImage;
     const lure = {
+      ...(existing || {}),
       id: editingId || createId(),
       name: getValue("lureName"),
       type: getValue("lureType"),
@@ -491,6 +498,7 @@ async function saveFlasher(event) {
     const imageFile = document.querySelector("#flasherImage").files[0];
     const uploadedImage = imageFile ? await uploadImageFile(imageFile, "flashers") : pendingFlasherImage;
     const flasher = {
+      ...(existing || {}),
       id: editingId || createId(),
       name: getValue("flasherName"),
       type: getValue("flasherType"),

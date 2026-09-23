@@ -1,6 +1,9 @@
 # Local fishing logbook data. This can contain names, locations, notes, and photos.
 data/uploads/
 data/mobile-direct-import.zip
+data/fishing-logbook-v2-mobile-import.zip
+data/fishing-logbook-v2-mobile-import-before-may-7-trip.zip
+data/fishing-logbook-v2-mobile-import-before-retired-setting-cleanup.zip
 data/.secret_key
 data/mobile-direct-logbook.json
 data/logbook.sqlite3.bak-*

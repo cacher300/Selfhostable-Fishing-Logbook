@@ -5,7 +5,7 @@ function rememberPersistedState(value) {
 }
 
 async function saveState() {
-  const nextState = normalizeState(state);
+  const nextState = validateState(state);
 
   if (location.protocol === "file:") {
     state = nextState;

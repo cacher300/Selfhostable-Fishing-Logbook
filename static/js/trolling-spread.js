@@ -37,24 +37,22 @@ function resolveTripLineRecord(record) {
     reelId: line.reelId || record.reelId || "",
     side: line.side || record.side || "",
     lineLabel: line.lineLabel || record.lineLabel || "",
-    direction: line.direction || record.direction || "",
+    direction: record.direction || "",
     lureId: trolling
       ? (onCheater ? (line.cheaterLureId || record.lureId || "") : (line.lureId || record.lureId || ""))
       : (record.lureId || line.lureId || ""),
     flasherId: trolling ? (onCheater ? "" : (line.flasherId || record.flasherId || "")) : (record.flasherId || line.flasherId || ""),
     presentation: trolling ? (onCheater ? "Cheater" : (line.presentation || record.presentation || "")) : (record.presentation || line.presentation || ""),
-    gpsSpeed: record.gpsSpeed || record.speed || line.gpsSpeed || line.speed || "",
-    ballSpeed: record.ballSpeed || line.ballSpeed || "",
-    ballDepth: record.ballDepth || line.ballDepth || "",
-    lineBehindBoard: record.lineBehindBoard || line.lineBehindBoard || "",
-    estimatedLureDepth: record.estimatedLureDepth || line.estimatedLureDepth || "",
-    dipseySetting: record.dipseySetting || line.dipseySetting || "",
-    lineOut: record.lineOut || line.lineOut || "",
-    estimatedDepth: record.estimatedDepth || line.estimatedDepth || "",
-    // Setup-level markers are read only for older records. New records keep
-    // this on the individual main downrigger catch.
-    deepestRigger: !onCheater && ["downrigger", "Downrigger"].includes(line.presentation || record.presentation)
-      ? Boolean(record.deepestRigger || line.deepestRigger)
+    gpsSpeed: record.gpsSpeed || "",
+    ballSpeed: record.ballSpeed || "",
+    ballDepth: record.ballDepth || "",
+    lineBehindBoard: record.lineBehindBoard || "",
+    estimatedLureDepth: record.estimatedLureDepth || "",
+    dipseySetting: record.dipseySetting || "",
+    lineOut: record.lineOut || "",
+    estimatedDepth: record.estimatedDepth || "",
+    deepestRigger: !onCheater && (line.presentation || record.presentation) === "Downrigger"
+      ? Boolean(record.deepestRigger)
       : false,
     setupLine: line
   };
@@ -62,7 +60,7 @@ function resolveTripLineRecord(record) {
 
 function defaultSetupLineSide(gearItem, index) {
   if (gearItem.side) return gearItem.side;
-  if (["Chute Rod", "downrigger", "cheater"].includes(gearItem.presentation)) return "Center";
+  if (gearItem.presentation === "Chute Rod") return "Center";
   return index % 2 === 0 ? "Port" : "Starboard";
 }
 
@@ -159,33 +157,9 @@ const SLOT_LABELS = {
   starboardOutsideBoard: { xPct: 158, yPct: 144 }
 };
 
-const LEGACY_TROLLING_METHODS = {
-  downrigger: "Downrigger",
-  cheater: "Downrigger",
-  flatline: "Chute Rod",
-  "flatline-leadcore": "Outside Board",
-  "dipsey-diver": "High Diver"
-};
-
-const LEGACY_LINE_SIDES = {
-  port: "Port",
-  center: "Center",
-  starboard: "Starboard"
-};
-
-function canonicalTrollingMethod(value) {
-  const method = String(value || "");
-  return LEGACY_TROLLING_METHODS[method] || method;
-}
-
-function canonicalLineSide(value) {
-  const side = String(value || "");
-  return LEGACY_LINE_SIDES[side] || side;
-}
-
 function getSpreadSlot(rod) {
-  const method = canonicalTrollingMethod(rod?.trollingMethod ?? rod?.presentation);
-  const side = canonicalLineSide(rod?.lineSide ?? rod?.side);
+  const method = rod?.trollingMethod ?? rod?.presentation;
+  const side = rod?.lineSide ?? rod?.side;
   if (method === "Chute Rod") return "chuteRod";
 
   const slots = {
@@ -411,7 +385,7 @@ function tripRodsForSpread(trip) {
       lostCount: counts.lost,
       hasCheater: Boolean(gearItem.hasCheater),
       lureId: gearItem.lureId || "",
-      cheaterLureName: lureName(gearItem.cheaterLureId) || gearItem.cheaterLureName || "",
+      cheaterLureName: lureName(gearItem.cheaterLureId) || "",
       cheaterLureId: gearItem.cheaterLureId || "",
       cheaterFishCount: typeof setupLineCheaterFishCount === "function"
         ? setupLineCheaterFishCount(trip, gearItem)

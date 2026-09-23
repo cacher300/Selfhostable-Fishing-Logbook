@@ -26,7 +26,7 @@ function renderLurePreview(row) {
     if (preview) preview.innerHTML = "";
     return;
   }
-  const image = lure.image ? mediaMarkup(lure, "", { download: false }) : "";
+  const image = gearPhotos(lure).length ? mediaMarkup(gearPhotos(lure)[0], "", { download: false }) : "";
   const details = [lure.type, lure.brand, lure.color].filter(Boolean).join(" / ");
   preview.innerHTML = `
     <button class="lure-preview-card" type="button" data-preview-lure-id="${escapeHtml(lure.id)}" aria-label="Open preview for ${escapeHtml(lure.name || "lure")}">
@@ -47,7 +47,7 @@ function renderFlasherPreview(row) {
     if (preview) preview.innerHTML = "";
     return;
   }
-  const image = flasher.image ? mediaMarkup(flasher, "", { download: false }) : "";
+  const image = gearPhotos(flasher).length ? mediaMarkup(gearPhotos(flasher)[0], "", { download: false }) : "";
   const details = [flasher.type, flasher.brand, flasher.color].filter(Boolean).join(" / ");
   preview.innerHTML = `
     <button class="flasher-preview-card" type="button" data-preview-flasher-id="${escapeHtml(flasher.id)}" aria-label="Open preview for ${escapeHtml(flasher.name || "flasher")}">
@@ -134,9 +134,7 @@ function gearPickerMedia(item, type) {
     if (type === "lure") return "";
     return `<span class="gear-picker-photo-placeholder" aria-hidden="true">F</span>`;
   }
-  return isVideoMedia(item)
-    ? `<video src="${escapeHtml(source)}" muted preload="metadata" playsinline aria-hidden="true"></video>`
-    : `<img src="${escapeHtml(source)}" alt="" />`;
+  return `<img src="${escapeHtml(source)}" alt="" />`;
 }
 
 function closeGearPickers(except = null) {

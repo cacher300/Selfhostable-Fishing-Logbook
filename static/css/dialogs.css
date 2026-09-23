@@ -36,6 +36,11 @@
   border-bottom: 1px solid var(--line);
 }
 
+.table-row:not(.header) {
+  min-height: 88px;
+  padding-block: 16px;
+}
+
 .table-row > * {
   min-width: 0;
 }

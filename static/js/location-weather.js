@@ -8,8 +8,8 @@ function tripDraftForWeather() {
   return {
     id: els.tripId.value || "",
     date: getValue("tripDate"),
-    startTime: getValue("linesSetTime") || getValue("launchTime"),
-    endTime: getValue("linesPulledTime"),
+    launchTime: getValue("launchTime"),
+    linesPulledTime: getValue("linesPulledTime"),
     location: location?.name || "",
     locationId: location?.id || "",
     launch: launch?.name || "",
@@ -95,9 +95,11 @@ function weatherCacheKey(coordinates, startDate, endDate) {
 
 function tripEndDate(trip) {
   if (!trip.date) return "";
-  if (!trip.startTime || !trip.endTime) return trip.date;
-  const start = trip.startTime.split(":").map(Number);
-  const end = trip.endTime.split(":").map(Number);
+  const startTime = trip.launchTime || "";
+  const endTime = trip.linesPulledTime || "";
+  if (!startTime || !endTime) return trip.date;
+  const start = startTime.split(":").map(Number);
+  const end = endTime.split(":").map(Number);
   if (start.length !== 2 || end.length !== 2) return trip.date;
   if ((end[0] * 60 + end[1]) >= (start[0] * 60 + start[1])) return trip.date;
   const date = new Date(`${trip.date}T12:00:00`);
@@ -268,9 +270,11 @@ function dailyRecord(bundle) {
 }
 
 function tripWindowHours(trip, records) {
-  if (!trip.startTime || !trip.endTime) return records.filter((record) => record.time.startsWith(trip.date));
-  const start = new Date(`${trip.date}T${trip.startTime}`);
-  const end = new Date(`${tripEndDate(trip)}T${trip.endTime}`);
+  const startTime = trip.launchTime || "";
+  const endTime = trip.linesPulledTime || "";
+  if (!startTime || !endTime) return records.filter((record) => record.time.startsWith(trip.date));
+  const start = new Date(`${trip.date}T${startTime}`);
+  const end = new Date(`${tripEndDate(trip)}T${endTime}`);
   return records.filter((record) => {
     const time = new Date(record.time);
     return time >= start && time <= end;
@@ -387,7 +391,7 @@ function nearestMarineRecord(records, trip) {
   const validRecords = records.filter((record) => Number.isFinite(Number(record.waveHeightM)));
   if (!validRecords.length) return null;
   const tripDate = trip.date || validRecords[0].time?.slice(0, 10) || "";
-  const startTime = trip.startTime || "12:00";
+  const startTime = trip.launchTime || "12:00";
   const target = new Date(`${tripDate}T${startTime}`).getTime();
   if (!Number.isFinite(target)) return validRecords[0];
   return validRecords.reduce((best, record) => {
@@ -498,9 +502,11 @@ function astronomyData(payload) {
 function nearestHourlyRecord(records, trip, catchTime) {
   if (!catchTime) return null;
   let dateKey = trip.date;
-  if (trip.startTime && trip.endTime && tripEndDate(trip) !== trip.date) {
+  const startTime = trip.launchTime || "";
+  const endTime = trip.linesPulledTime || "";
+  if (startTime && endTime && tripEndDate(trip) !== trip.date) {
     const [catchHour, catchMinute] = catchTime.split(":").map(Number);
-    const [startHour, startMinute] = trip.startTime.split(":").map(Number);
+    const [startHour, startMinute] = startTime.split(":").map(Number);
     if (Number.isFinite(catchHour) && Number.isFinite(catchMinute) && Number.isFinite(startHour) && Number.isFinite(startMinute)) {
       if ((catchHour * 60 + catchMinute) < (startHour * 60 + startMinute)) dateKey = tripEndDate(trip);
     }
@@ -725,7 +731,7 @@ function weatherTagForCode(code) {
 }
 
 function weatherCardConditionsLabel() {
-  const time = formatDisplayTime(document.querySelector("#linesSetTime")?.value || document.querySelector("#launchTime")?.value || "");
+  const time = formatDisplayTime(document.querySelector("#launchTime")?.value || "");
   return time ? `Conditions at ${time}` : "Trip-window conditions";
 }
 
@@ -785,8 +791,8 @@ async function refreshTripWeatherPreview(force = false) {
   const source = tripWeatherCoordinates(trip);
   const key = JSON.stringify({
     date: trip.date,
-    startTime: trip.startTime,
-    endTime: trip.endTime,
+    launchTime: trip.launchTime,
+    linesPulledTime: trip.linesPulledTime,
     locationId: trip.locationId,
     launchId: trip.launchId,
     waveHeight: trip.waveHeight,

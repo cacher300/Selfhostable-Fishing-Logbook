@@ -77,40 +77,13 @@ def delete_upload_file(category: str, filename: str, metadata: dict | None = Non
 def media_key_from_reference(value: object) -> tuple[str, str] | None:
     if not isinstance(value, dict):
         return None
-
-    def valid_key(category: str, stored_name: str) -> tuple[str, str] | None:
-        if category not in UPLOAD_CATEGORIES or not stored_name:
-            return None
-        if Path(stored_name).name != stored_name or stored_name == PREVIEW_DIRNAME:
-            return None
-        return category, stored_name
-
-    for field in ("path", "imagePath"):
-        media_path = str(value.get(field) or "")
-        if "/" not in media_path:
-            continue
-        category, stored_name = media_path.split("/", 1)
-        media_key = valid_key(category, stored_name)
-        if media_key:
-            return media_key
-
-    for field in ("url", "image"):
-        media_path = str(value.get(field) or "")
-        if not media_path.startswith("/uploads/"):
-            continue
-        parts = media_path.removeprefix("/uploads/").split("/")
-        if len(parts) == 2:
-            media_key = valid_key(parts[0], parts[1])
-            if media_key:
-                return media_key
-
     category = str(value.get("category") or "")
-    stored_name = str(value.get("filename") or value.get("imageFilename") or "")
-    media_key = valid_key(category, stored_name)
-    if media_key:
-        return media_key
-
-    return None
+    stored_name = str(value.get("filename") or "")
+    if category not in UPLOAD_CATEGORIES or not stored_name:
+        return None
+    if Path(stored_name).name != stored_name or stored_name == PREVIEW_DIRNAME:
+        return None
+    return category, stored_name
 
 
 def referenced_uploads(value: object) -> set[tuple[str, str]]:
@@ -122,11 +95,6 @@ def referenced_uploads(value: object) -> set[tuple[str, str]]:
         media_key = media_key_from_reference(value)
         if media_key:
             references.add(media_key)
-        elif value.get("filename"):
-            filename = str(value.get("filename") or "")
-            for category in UPLOAD_CATEGORIES:
-                if (upload_category_path(category) / filename).is_file():
-                    references.add((category, filename))
         for item in value.values():
             references.update(referenced_uploads(item))
     return references
@@ -315,16 +283,11 @@ def upload_payload(category: str, filename: str, metadata: dict | None = None) -
     preview_filename = metadata.get("previewFilename") or ""
     return {
         **public_metadata,
+        "category": category,
         "filename": filename,
         "name": metadata.get("name") or filename,
-        "path": f"{category}/{filename}",
-        "url": f"/uploads/{category}/{filename}",
-        "image": f"/uploads/{category}/{filename}",
         "mediaType": metadata.get("mediaType") or "image",
         "previewFilename": preview_filename,
-        "previewPath": f"{category}/{PREVIEW_DIRNAME}/{preview_filename}" if preview_filename else "",
-        "previewUrl": f"/uploads/{category}/{PREVIEW_DIRNAME}/{preview_filename}" if preview_filename else "",
-        "previewImage": f"/uploads/{category}/{PREVIEW_DIRNAME}/{preview_filename}" if preview_filename else "",
     }
 
 

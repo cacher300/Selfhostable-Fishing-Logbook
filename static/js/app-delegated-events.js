@@ -84,7 +84,7 @@ document.addEventListener("click", (event) => {
 
   const catchDetailButton = event.target.closest("[data-summary-catch-index]");
   if (catchDetailButton) {
-    openSummaryCatchDetail(Number(catchDetailButton.dataset.summaryCatchIndex));
+    openSummaryCatchDetail(Number(catchDetailButton.dataset.summaryCatchIndex), undefined, catchDetailButton.dataset.summaryCatchType);
   }
 
   const catchMapButton = event.target.closest("[data-show-catch-map]");
@@ -132,7 +132,7 @@ document.addEventListener("click", (event) => {
   if (catchGalleryOpen) {
     const gallery = catchGalleryOpen.closest("[data-catch-media-gallery]");
     if (gallery?.dataset.galleryContext === "summary") {
-      openSummaryCatchDetail(Number(gallery.dataset.catchIndex), Number(catchGalleryOpen.dataset.openPhotoIndex || gallery.dataset.selectedIndex || 0));
+      openSummaryCatchDetail(Number(gallery.dataset.catchIndex), Number(catchGalleryOpen.dataset.openPhotoIndex || gallery.dataset.selectedIndex || 0), gallery.dataset.catchType);
     }
   }
 
@@ -252,7 +252,7 @@ document.addEventListener("click", (event) => {
   if (addPredefinedOption) {
     const group = addPredefinedOption.closest(".predefined-field-group");
     const list = group?.querySelector(".predefined-option-list");
-    const index = list?.querySelectorAll(".predefined-option-row").length || 0;
+    const index = -1;
     list?.insertAdjacentHTML("beforeend", `
       <div class="predefined-option-row" data-option-index="${index}">
         <input class="predefined-option-label" type="text" value="" aria-label="New predefined option" />
@@ -644,6 +644,17 @@ document.addEventListener("change", (event) => {
   }
 });
 
+document.addEventListener("click", (event) => {
+  if (!event.shiftKey || !gallerySelectionMode) return;
+  const selectControl = event.target.closest?.(".gallery-select-control");
+  const gallerySelect = selectControl?.querySelector("[data-gallery-select]");
+  if (!gallerySelect) return;
+  event.preventDefault();
+  event.stopPropagation();
+  gallerySelect.checked = true;
+  selectGalleryRange(gallerySelect.dataset.gallerySelect);
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && document.querySelector(".report-photo-lightbox")) {
     closeTripReportPhotoLightbox();
@@ -711,7 +722,7 @@ document.addEventListener("change", (event) => {
     renderQueuedGearImage("rod");
     previewSelectedGearUploads("rod", event.target);
   }
-  if (event.target.matches("#launchTime, #linesSetTime, #linesPulledTime")) {
+  if (event.target.matches("#launchTime, #linesPulledTime")) {
     syncTripTimesToBlankRows();
     scheduleTripWeatherPreview(true);
   }
@@ -791,7 +802,7 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("input", (event) => {
-  if (event.target.matches("#launchTime, #linesSetTime, #linesPulledTime")) {
+  if (event.target.matches("#launchTime, #linesPulledTime")) {
     syncTripTimesToBlankRows();
     scheduleTripWeatherPreview(true);
   }
@@ -848,7 +859,7 @@ document.addEventListener("keydown", (event) => {
   const catchDetailCard = event.target.closest?.(".timeline-catch-card[data-summary-catch-index]");
   if (!catchDetailCard || !["Enter", " "].includes(event.key)) return;
   event.preventDefault();
-  openSummaryCatchDetail(Number(catchDetailCard.dataset.summaryCatchIndex));
+  openSummaryCatchDetail(Number(catchDetailCard.dataset.summaryCatchIndex), undefined, catchDetailCard.dataset.summaryCatchType);
 });
 
 document.addEventListener("click", (event) => {

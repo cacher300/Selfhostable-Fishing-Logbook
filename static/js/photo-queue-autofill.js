@@ -53,9 +53,7 @@ async function copyQueuedPhotoForCatch(filename) {
   if (!trackCreatedMedia(session, photo)) throw new Error("The trip editor closed before the photo was copied.");
   return {
     id: createId(),
-    ...photo,
-    image: photo.url,
-    previewImage: photo.previewUrl || photo.url
+    ...photo
   };
 }
 
