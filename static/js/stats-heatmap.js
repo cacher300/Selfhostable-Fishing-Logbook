@@ -49,12 +49,12 @@
     }, 0);
   }
 
-  function activityLevel(trips, fish) {
+  function activityLevel(trips) {
     if (!trips) return 0;
-    if (fish <= 0) return 1;
-    if (fish === 1) return 2;
-    if (fish <= 3) return 3;
-    if (fish <= 7) return 4;
+    if (trips === 1) return 1;
+    if (trips === 2) return 2;
+    if (trips === 3) return 3;
+    if (trips === 4) return 4;
     return 5;
   }
 
@@ -84,7 +84,7 @@
           key: dateKey(date),
           trips: activity.trips,
           fish: activity.fish,
-          level: activityLevel(activity.trips, activity.fish),
+          level: activityLevel(activity.trips),
           isToday: dateKey(date) === dateKey(today),
           isFuture: date > today
         };
@@ -138,18 +138,15 @@
         <div class="activity-heatmap">
           <div class="activity-heatmap-months" aria-hidden="true">${months}</div>
           <div class="activity-heatmap-content">
+            <div class="activity-heatmap-legend" aria-label="Fishing activity legend">
+              <span>More</span><i class="activity-heatmap-level-5"></i><i class="activity-heatmap-level-4"></i><i class="activity-heatmap-level-3"></i><i class="activity-heatmap-level-2"></i><i class="activity-heatmap-level-1"></i><i class="activity-heatmap-level-0"></i><span>Less</span>
+            </div>
             <div class="activity-heatmap-weekdays" aria-hidden="true">
               ${DAY_NAMES.map((name, index) => `<span class="activity-heatmap-weekday activity-heatmap-weekday-${index}">${index % 2 ? escapeHtml(name.slice(0, 3)) : ""}</span>`).join("")}
             </div>
             <div class="activity-heatmap-calendar" role="group" aria-label="Fishing activity over the last 12 months">${days}</div>
           </div>
         </div>
-      </div>
-      <div class="activity-heatmap-footer">
-        <span class="activity-heatmap-note">Pale green marks a zero-catch trip; stronger green means more fish landed.</span>
-        <span class="activity-heatmap-legend" aria-label="Fishing activity legend">
-          <span>Less</span><i class="activity-heatmap-level-0"></i><i class="activity-heatmap-level-1"></i><i class="activity-heatmap-level-2"></i><i class="activity-heatmap-level-3"></i><i class="activity-heatmap-level-4"></i><i class="activity-heatmap-level-5"></i><span>More</span>
-        </span>
       </div>
     `;
   }

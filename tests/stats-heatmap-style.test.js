@@ -21,5 +21,7 @@ for (let level = 1; level <= 5; level += 1) {
   levelColors.push(rule[1]);
 }
 assert.equal(new Set(levelColors).size, 5, "each dark-mode activity level should have a distinct color");
+assert.equal(levelColors[0], "#8be6b5", "fewer trips should be lighter in dark mode");
+assert.equal(levelColors[4], "#1e5b43", "more trips should be darker in dark mode");
 
 console.log("stats heatmap dark-theme tests passed");

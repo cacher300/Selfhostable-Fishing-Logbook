@@ -24,7 +24,7 @@ assert.equal(model.fishCount, 4);
 const septemberFourteenth = model.weeks.flat().find((day) => day.key === "2026-09-14");
 assert.equal(septemberFourteenth.trips, 2);
 assert.equal(septemberFourteenth.fish, 4);
-assert.equal(septemberFourteenth.level, 4);
+assert.equal(septemberFourteenth.level, 2);
 assert.equal(septemberFourteenth.isToday, true);
 
 const septemberTenth = model.weeks.flat().find((day) => day.key === "2026-09-10");

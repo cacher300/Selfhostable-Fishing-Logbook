@@ -262,8 +262,7 @@ function renderStatsActivityHeatmap(trips) {
 
   if (els.statsActivitySummary) {
     const dayLabel = activity.fishedDays === 1 ? "day" : "days";
-    const tripLabel = activity.tripCount === 1 ? "trip" : "trips";
-    els.statsActivitySummary.textContent = `${activity.fishedDays} ${dayLabel} fished · ${activity.tripCount} ${tripLabel} · ${activity.fishCount} fish landed`;
+    els.statsActivitySummary.textContent = `${activity.fishedDays} ${dayLabel} fished`;
   }
 }
 

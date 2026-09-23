@@ -204,11 +204,11 @@
   background: #263442;
 }
 
-:root[data-theme="dark"] .activity-heatmap-level-1 { background: #1e5b43; }
-:root[data-theme="dark"] .activity-heatmap-level-2 { background: #297b54; }
+:root[data-theme="dark"] .activity-heatmap-level-1 { background: #8be6b5; }
+:root[data-theme="dark"] .activity-heatmap-level-2 { background: #55ca82; }
 :root[data-theme="dark"] .activity-heatmap-level-3 { background: #35a868; }
-:root[data-theme="dark"] .activity-heatmap-level-4 { background: #55ca82; }
-:root[data-theme="dark"] .activity-heatmap-level-5 { background: #8be6b5; }
+:root[data-theme="dark"] .activity-heatmap-level-4 { background: #297b54; }
+:root[data-theme="dark"] .activity-heatmap-level-5 { background: #1e5b43; }
 
 :root[data-theme="dark"] .analytics-table th,
 :root[data-theme="dark"] .inventory-table th,

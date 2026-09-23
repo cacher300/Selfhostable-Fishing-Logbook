@@ -978,11 +978,6 @@
     padding-inline: 14px;
   }
 
-  .activity-heatmap-footer {
-    align-items: flex-start;
-    flex-direction: column;
-    padding-inline: 14px;
-  }
 }
 
 @media (max-width: 390px) {
