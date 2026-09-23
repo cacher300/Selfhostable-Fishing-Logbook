@@ -969,7 +969,14 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/wiki")
     @app.get("/settings")
     def app_page() -> Response:
-        theme = storage_read_logbook().get("settings", {}).get("theme")
+        try:
+            theme = storage_read_logbook().get("settings", {}).get("theme")
+        except ValueError as error:
+            app.logger.error("Stored logbook could not be loaded: %s", error)
+            return Response(
+                render_template("database-recovery.html", error=str(error)),
+                mimetype="text/html",
+            )
         initial_theme = "dark" if theme == "dark" else "light"
         return Response(render_template("index.html", initial_theme=initial_theme), mimetype="text/html")
 

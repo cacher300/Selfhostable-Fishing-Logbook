@@ -8,7 +8,7 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
-from backend import logbook_store, media_service
+from backend import logbook_repository, logbook_store, media_service
 from backend.backend_config import DEFAULT_LOGBOOK
 from server import create_app
 
@@ -58,6 +58,32 @@ def test_archive_contains_v2_logbook_and_media_and_import_restores_it() -> None:
 
             assert imported.status_code == 200
             assert logbook_store.read_logbook()["trips"][0]["id"] == "sqlite-trip"
+
+
+def test_invalid_stored_logbook_shows_recovery_upload_page() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        database = root / "logbook.sqlite3"
+        uploads = root / "uploads"
+        with (
+            patch.object(logbook_store, "DATABASE_FILE", database),
+            patch("server.DATABASE_FILE", database),
+            patch("server.DATA_DIR", root),
+            patch.object(media_service, "UPLOADS_DIR", uploads),
+        ):
+            logbook_repository.write(
+                database,
+                v2({"schemaVersion": 1}),
+                logbook_store._COLLECTION_KEYS,
+                logbook_store._OBJECT_COLLECTION_KEYS,
+            )
+            client = create_app({"TESTING": True, "SECRET_KEY": "recovery-test"}).test_client()
+
+            response = client.get("/")
+
+            assert response.status_code == 200
+            assert b"Database recovery needed" in response.data
+            assert b"Restore Archive" in response.data
 
 
 def test_archive_round_trip_preserves_logbook_and_media() -> None:

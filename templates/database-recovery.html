@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Database Recovery · Fishing Logbook</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Roboto, system-ui, sans-serif;
+        background: #0f1720;
+        color: #e8eef5;
+      }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
+      main { width: min(560px, 100%); padding: 32px; border: 1px solid #304153; border-radius: 14px; background: #151f2a; box-shadow: 0 18px 48px rgb(0 0 0 / 28%); }
+      h1 { margin: 0 0 12px; font-size: clamp(24px, 5vw, 32px); }
+      p { color: #aebdcb; line-height: 1.55; }
+      code { color: #f6c177; }
+      form { display: grid; gap: 14px; margin-top: 24px; }
+      input[type="file"] { width: 100%; padding: 12px; box-sizing: border-box; border: 1px solid #3a4d60; border-radius: 8px; color: #e8eef5; background: #0f1720; }
+      button { justify-self: start; padding: 11px 16px; border: 0; border-radius: 8px; color: #082216; background: #45cf8a; font: 800 14px/1.2 inherit; cursor: pointer; }
+      button:disabled { opacity: .65; cursor: wait; }
+      #status { min-height: 1.5em; margin: 0; }
+      #status.error { color: #ff9b9b; }
+      #status.success { color: #75e4a8; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Database recovery needed</h1>
+      <p>The stored logbook could not be opened because it is not a supported version. Your existing database has been left in place.</p>
+      <p>Error: <code>{{ error }}</code></p>
+      <p>Upload a valid Fishing Logbook archive ZIP created with <strong>Export Archive</strong> to restore the database and uploaded media.</p>
+      <form id="recoveryForm" enctype="multipart/form-data">
+        <input id="archive" name="archive" type="file" accept=".zip,application/zip" required />
+        <button id="submit" type="submit">Restore Archive</button>
+        <p id="status" role="status" aria-live="polite"></p>
+      </form>
+    </main>
+    <script>
+      const form = document.querySelector("#recoveryForm");
+      const input = document.querySelector("#archive");
+      const button = document.querySelector("#submit");
+      const status = document.querySelector("#status");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const archive = input.files?.[0];
+        if (!archive) return;
+        button.disabled = true;
+        status.className = "";
+        status.textContent = "Validating and restoring archive...";
+        try {
+          const csrfResponse = await fetch("/api/csrf-token");
+          const { csrfToken } = await csrfResponse.json();
+          const body = new FormData();
+          body.append("archive", archive);
+          const response = await fetch("/api/archive", {
+            method: "POST",
+            headers: { "X-CSRF-Token": csrfToken },
+            body,
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.error || "Could not restore the archive.");
+          status.className = "success";
+          status.textContent = "Archive restored. Reloading the logbook...";
+          window.location.reload();
+        } catch (error) {
+          button.disabled = false;
+          status.className = "error";
+          status.textContent = error.message || "Could not restore the archive.";
+        }
+      });
+    </script>
+  </body>
+</html>
