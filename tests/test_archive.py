@@ -85,6 +85,10 @@ def test_invalid_stored_logbook_shows_recovery_upload_page() -> None:
             assert b"Database recovery needed" in response.data
             assert b"Restore Archive" in response.data
 
+            health = client.get("/healthz")
+            assert health.status_code == 200
+            assert health.get_json() == {"ok": True}
+
 
 def test_archive_round_trip_preserves_logbook_and_media() -> None:
     with tempfile.TemporaryDirectory() as directory:

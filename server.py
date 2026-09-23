@@ -287,6 +287,11 @@ def create_app(config: dict | None = None) -> Flask:
             response.headers["Cache-Control"] = "no-store"
         return response
 
+    @app.get("/healthz")
+    def healthcheck() -> Response:
+        """Report process health without requiring the persisted logbook to be valid."""
+        return jsonify({"ok": True})
+
     @app.get("/api/logbook")
     def get_logbook() -> Response:
         payload, revision = storage_read_logbook_with_revision()
