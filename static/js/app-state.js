@@ -65,9 +65,11 @@ let pendingProbeProfileImportCoordinates = null;
 let privatePhotoLocationMap = null;
 let privatePhotoLocationLayer = null;
 let activePrivatePhotoLocationId = "";
+let editingPrivatePhotoLocationId = "";
 let fishingSpotMap = null;
 let fishingSpotLayer = null;
 let activeFishingSpotId = "";
+let editingFishingSpotId = "";
 let fishingSpotNameEditId = "";
 let catchLocationPickerMap = null;
 let catchLocationPickerMarker = null;
@@ -135,6 +137,7 @@ async function loadState() {
     if (!saved) return validateState(structuredClone(defaults));
     return validateState(JSON.parse(saved));
   } catch (error) {
-    throw new Error(`Could not load the v2 logbook: ${error.message}`);
+    console.warn("Could not load the cached v2 logbook; showing an empty logbook instead.", error);
+    return validateState(structuredClone(defaults));
   }
 }

@@ -10,9 +10,11 @@ function fishingSpots() {
 function ensureActiveFishingSpot(spots = fishingSpots()) {
   if (!spots.length) {
     activeFishingSpotId = "";
+    editingFishingSpotId = "";
     return "";
   }
   if (!spots.some((spot) => spot.id === activeFishingSpotId)) activeFishingSpotId = "";
+  if (!spots.some((spot) => spot.id === editingFishingSpotId)) editingFishingSpotId = "";
   return activeFishingSpotId;
 }
 
@@ -112,6 +114,7 @@ function renderFishingSpotSettings() {
   const radiusConfig = fishingSpotRadiusSliderConfig();
   els.fishingSpotList.innerHTML = orderedSpots.length ? orderedSpots.map((spot) => {
     const count = fishingSpotCatchCount(spot.id);
+    const isEditing = spot.id === editingFishingSpotId;
     return `
       <article class="private-location-card${spot.id === activeId ? " is-selected" : ""}" data-fishing-spot-id="${escapeHtml(spot.id)}" aria-current="${spot.id === activeId ? "true" : "false"}">
         <div class="private-location-card-head">
@@ -119,7 +122,7 @@ function renderFishingSpotSettings() {
             <input class="private-location-name fishing-spot-name" type="text" value="${escapeHtml(spot.name)}" aria-label="Fishing spot name" />
           </div>
           <button class="button secondary private-location-edit-pin" type="button" data-edit-fishing-spot-pin="${escapeHtml(spot.id)}" aria-label="Edit map pin for ${escapeHtml(spot.name)}">Edit pin</button>
-          <button class="button danger" type="button" data-delete-fishing-spot="${escapeHtml(spot.id)}">Delete</button>
+          <button class="button danger${isEditing ? "" : " hidden"}" type="button" data-delete-fishing-spot="${escapeHtml(spot.id)}">Delete</button>
         </div>
         <p class="fishing-spot-assignment-count">${count} assigned ${count === 1 ? "catch" : "catches"}</p>
         <label class="settings-control private-location-radius-control">
@@ -176,6 +179,7 @@ function renderFishingSpotMap() {
     const marker = L.marker(point, { draggable: true }).addTo(fishingSpotLayer);
     marker.on("click", () => {
       activeFishingSpotId = spot.id;
+      if (editingFishingSpotId !== activeFishingSpotId) editingFishingSpotId = "";
       renderFishingSpotSettings();
     });
     marker.on("dragend", async () => {
@@ -286,10 +290,14 @@ function updateFishingSpotRadiusControl(input) {
 function ensureActivePrivatePhotoLocation(locations = privatePhotoLocations()) {
   if (!locations.length) {
     activePrivatePhotoLocationId = "";
+    editingPrivatePhotoLocationId = "";
     return "";
   }
   if (!locations.some((location) => location.id === activePrivatePhotoLocationId)) {
     activePrivatePhotoLocationId = "";
+  }
+  if (!locations.some((location) => location.id === editingPrivatePhotoLocationId)) {
+    editingPrivatePhotoLocationId = "";
   }
   return activePrivatePhotoLocationId;
 }
@@ -302,7 +310,9 @@ function renderPrivatePhotoLocationSettings() {
     ? [locations.find((location) => location.id === activeLocationId), ...locations.filter((location) => location.id !== activeLocationId)].filter(Boolean)
     : locations;
   const radiusConfig = privateLocationRadiusSliderConfig();
-  els.privatePhotoLocationList.innerHTML = orderedLocations.length ? orderedLocations.map((location) => `
+  els.privatePhotoLocationList.innerHTML = orderedLocations.length ? orderedLocations.map((location) => {
+    const isEditing = location.id === editingPrivatePhotoLocationId;
+    return `
     <article class="private-location-card${location.id === activeLocationId ? " is-selected" : ""}" data-private-location-id="${escapeHtml(location.id)}" aria-current="${location.id === activeLocationId ? "true" : "false"}">
       <div class="private-location-card-head">
           <div class="private-location-name-row">
@@ -311,14 +321,15 @@ function renderPrivatePhotoLocationSettings() {
               : `<button class="private-location-name-display" type="button" data-edit-private-location-name="${escapeHtml(location.id)}" data-private-location-name="${escapeHtml(location.name)}">${escapeHtml(location.name)}</button>`}
           </div>
           <button class="button secondary private-location-edit-pin" type="button" data-edit-private-location-pin="${escapeHtml(location.id)}" aria-label="Edit map pin for ${escapeHtml(location.name)}">Edit pin</button>
-          <button class="button danger" type="button" data-delete-private-location="${escapeHtml(location.id)}">Delete</button>
+          <button class="button danger${isEditing ? "" : " hidden"}" type="button" data-delete-private-location="${escapeHtml(location.id)}">Delete</button>
       </div>
       <label class="settings-control private-location-radius-control">
         <span>Radius <output class="private-location-radius-value">${escapeHtml(privateLocationRadiusText(location.radiusMeters))}</output></span>
         <input class="private-location-radius" type="range" min="${radiusConfig.min}" max="${radiusConfig.max}" step="${radiusConfig.step}" value="${escapeHtml(privateLocationRadiusDisplayValue(location.radiusMeters))}" aria-label="Home location radius in ${radiusConfig.unit}" style="${privateLocationRadiusStyle(location.radiusMeters)}" />
       </label>
     </article>
-  `).join("") : `<div class="empty-state compact-empty"><p>No home locations saved.</p></div>`;
+  `;
+  }).join("") : `<div class="empty-state compact-empty"><p>No home locations saved.</p></div>`;
   ensurePrivatePhotoLocationMap();
   renderPrivatePhotoLocationMap();
 }
@@ -410,6 +421,7 @@ function renderPrivatePhotoLocationMap() {
     const marker = L.marker(point, { draggable: true }).addTo(privatePhotoLocationLayer);
     marker.on("click", () => {
       activePrivatePhotoLocationId = location.id;
+      if (editingPrivatePhotoLocationId !== activePrivatePhotoLocationId) editingPrivatePhotoLocationId = "";
       renderPrivatePhotoLocationSettings();
     });
     marker.on("dragend", async () => {

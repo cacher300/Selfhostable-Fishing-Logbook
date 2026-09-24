@@ -270,11 +270,6 @@ function statsChartConfig(id, headers) {
     biteWindowStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 10 },
     moonPhaseStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 },
     moonWindowStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 },
-    tripTrendStatsTable: {
-      type: "line",
-      valueIndexes: [byHeader("Landed"), byHeader("Fish / hr")],
-      seriesLabels: ["Landed", "Fish / hr"]
-    },
     speciesOverviewStatsTable: { type: "bar", valueIndex: fishIndex, limit: 7 },
     gpsSpeedStatsTable: { type: "bar", valueIndex: fishIndex, limit: 10 },
     ballSpeedStatsTable: { type: "bar", valueIndex: fishIndex, limit: 10 },

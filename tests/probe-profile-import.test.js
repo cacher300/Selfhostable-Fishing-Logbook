@@ -130,6 +130,47 @@ const importContext = {
   greatLakesControlValue: () => "0",
   greatLakesLoadedModelsKey: "LOOFS"
 };
+
+const displayContext = {
+  convertUnitValue: (value) => Number(value),
+  unitPreference: (key) => key === "depth" ? "ft" : "F",
+  unitSymbol: (key) => key === "depth" ? "ft" : "°F",
+  trimNumber: (value) => String(Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 }))
+};
+vm.createContext(displayContext);
+[
+  "roundedProbeDisplayNumber",
+  "displayProbeDepthValue",
+  "displayProbeDepth",
+  "displayProbeTemperatureNumber",
+  "displayProbeTemperatureInput",
+  "displayProbeTemperatureMeasurement"
+].forEach((name) => vm.runInContext(functionSource(editorSource, name), displayContext));
+assert.equal(displayContext.displayProbeDepth(3.28), "3 ft", "probe depth labels use whole-number display values");
+assert.equal(displayContext.displayProbeTemperatureInput("69.895"), "70", "probe temperature inputs use whole-number display values");
+assert.equal(displayContext.displayProbeTemperatureMeasurement("69.895"), "70 °F", "probe temperature measurements use whole-number display values");
+
+const profileInputs = [
+  {
+    dataset: { probeDepthFeet: "0", probeTemperatureRaw: "69.895", probeTemperatureDisplay: "70" },
+    value: "70"
+  },
+  {
+    dataset: { probeDepthFeet: "10", probeTemperatureRaw: "61.095", probeTemperatureDisplay: "61", probeTemperatureDirty: "true" },
+    value: "62"
+  }
+];
+displayContext.document = { querySelectorAll: () => profileInputs };
+vm.runInContext(functionSource(editorSource, "collectProbeTemperatureProfile"), displayContext);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(displayContext.collectProbeTemperatureProfile())),
+  [
+    { depthFeet: 0, temperature: "69.895" },
+    { depthFeet: 10, temperature: "62" }
+  ],
+  "whole-number display values preserve untouched precision while keeping edited input"
+);
+
 vm.createContext(importContext);
 vm.runInContext(functionSource(editorSource, "probeProfileCoordinatesMatch"), importContext);
 vm.runInContext(functionSource(editorSource, "importNoaaProbeTemperatureProfile"), importContext);

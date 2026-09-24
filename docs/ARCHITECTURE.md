@@ -67,6 +67,12 @@ Media files are stored separately by category. Each file may have `<filename>.js
 4. A mutation updates in-memory state.
 5. `saveState()` validates, writes localStorage, then replaces the complete server document with `PUT /api/logbook`.
 
+If the database cannot be opened or contains an unsupported document, Flask still
+serves the normal shell with a degraded-mode warning. The browser uses its valid
+cached document when available, otherwise the browser's built-in starter state. The
+original database is left untouched, and ordinary saves return `503` until an
+explicit archive import repairs the storage.
+
 When opened via `file:`, step 5 stops after localStorage. This is fallback persistence, not feature-complete offline operation.
 
 ### Trip weather

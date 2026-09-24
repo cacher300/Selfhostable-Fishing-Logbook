@@ -53,6 +53,71 @@ const defaultChopRanges = [
   { id: "very-choppy", label: "Very Choppy", maxFeet: 2 },
   { id: "rough", label: "Rough", maxFeet: null }
 ];
+
+const defaultSpeciesMapColors = {
+  "Atlantic Salmon": "#c96a4a",
+  "Black Bullhead": "#343a40",
+  "Black Crappie": "#3d4b55",
+  Bluegill: "#3f7fa3",
+  "Brown Bullhead": "#805a43",
+  "Brown Trout": "#8a5a3b",
+  "Chinook Salmon": "#a66a2c",
+  "Coho Salmon": "#c47a43",
+  "Lake Trout": "#496b7a",
+  "Largemouth Bass": "#8dbb55",
+  Muskie: "#496b45",
+  "Northern Pike": "#7e9e55",
+  Perch: "#e58a2b",
+  "Rainbow Trout": "#b9c8d4",
+  "Rock Bass": "#9a6a4a",
+  "Smallmouth Bass": "#27643d",
+  Walleye: "#c2a34d",
+  "White Crappie": "#b9c6d1",
+  "Yellow Bullhead": "#c59a37"
+};
+
+const fallbackSpeciesMapColors = [
+  "#0b6e43",
+  "#2763a7",
+  "#bc2f2f",
+  "#9a5b00",
+  "#6f42c1",
+  "#087990",
+  "#b4236b",
+  "#4d7c0f",
+  "#795548",
+  "#344054"
+];
+
+function isValidSpeciesMapColor(value) {
+  return /^#[\da-f]{6}$/i.test(String(value || ""));
+}
+
+function fallbackSpeciesColor(species = "Fish") {
+  const value = String(species || "Fish");
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return fallbackSpeciesMapColors[hash % fallbackSpeciesMapColors.length];
+}
+
+function speciesColor(species = "Fish") {
+  const value = String(species || "Fish").trim() || "Fish";
+  const normalized = value.toLowerCase();
+  const configuredColors = typeof state !== "undefined" && state.settings?.speciesMapColors
+    && typeof state.settings.speciesMapColors === "object"
+    && !Array.isArray(state.settings.speciesMapColors)
+    ? state.settings.speciesMapColors
+    : {};
+  const configured = Object.entries(configuredColors).find(([name, color]) => (
+    String(name).trim().toLowerCase() === normalized && isValidSpeciesMapColor(color)
+  ));
+  if (configured) return configured[1];
+  const defaultColor = Object.entries(defaultSpeciesMapColors).find(([name]) => name.toLowerCase() === normalized)?.[1];
+  return defaultColor || fallbackSpeciesColor(value);
+}
+
 const defaultUnits = {
   depth: "ft",
   distance: "km",
@@ -188,6 +253,7 @@ const defaults = {
   rodReelCombos: [],
   settings: {
     theme: "light",
+    speciesMapColors: structuredClone(defaultSpeciesMapColors),
     defaultHomeLake: "",
     defaultPeople: [],
     hasFishHawk: true,

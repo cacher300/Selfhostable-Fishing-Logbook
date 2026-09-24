@@ -143,16 +143,6 @@ els.summaryEditTripButton.addEventListener("click", () => {
   els.tripSummaryDialog.close();
   openTripDialog(trip);
 });
-els.summaryDeleteTripButton.addEventListener("click", async () => {
-  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
-  if (!trip) return;
-  try {
-    await deleteTripById(trip.id, { closeSummary: true });
-  } catch (error) {
-    console.error("Could not delete trip.", error);
-    alert(error.message || "The trip could not be deleted.");
-  }
-});
 els.summaryShareTripButton?.addEventListener("click", () => {
   const trip = state.trips.find((item) => item.id === activeSummaryTripId);
   if (trip) openTripShareStudio(trip);
@@ -195,6 +185,12 @@ els.timeFormatSelect?.addEventListener("change", saveTimeFormatPreference);
 els.defaultHomeLakeSelect?.addEventListener("change", () => saveDefaultHomeLake({ autosave: true }));
 els.defaultPeopleOptions?.addEventListener("change", () => saveDefaultPeople({ autosave: true }));
 els.fishHawkToggle?.addEventListener("change", () => saveFishHawkPreference({ autosave: true }));
+els.speciesMapColorRows?.addEventListener("input", (event) => {
+  if (event.target.matches("[data-species-map-color]")) syncSpeciesMapColorPreview(event.target);
+});
+els.speciesMapColorRows?.addEventListener("change", (event) => {
+  if (event.target.matches("[data-species-map-color]")) saveSpeciesMapColors({ autosave: true }).catch(() => {});
+});
 els.gearFilterField?.addEventListener("change", updateGearFilter);
 els.gearFilterQuery?.addEventListener("input", updateGearFilter);
 els.gearFilterQuery?.addEventListener("focus", openGearFilterSuggestions);

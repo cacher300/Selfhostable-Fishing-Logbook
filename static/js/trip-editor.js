@@ -403,9 +403,41 @@ function probeTemperatureProfileEntries(profile = []) {
   return Array.isArray(profile) ? profile.filter((entry) => Number.isFinite(Number(entry?.depthFeet))) : [];
 }
 
-function displayProbeDepth(depthFeet) {
+function roundedProbeDisplayNumber(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  return trimNumber(Math.round(number));
+}
+
+function displayProbeDepthValue(depthFeet) {
   const depth = convertUnitValue(depthFeet, "ft", unitPreference("depth"));
-  return `${trimNumber(depth ?? depthFeet)} ${unitSymbol("depth")}`;
+  return roundedProbeDisplayNumber(depth ?? depthFeet);
+}
+
+function displayProbeDepth(depthFeet) {
+  return `${displayProbeDepthValue(depthFeet)} ${unitSymbol("depth")}`;
+}
+
+function displayProbeTemperatureNumber(value) {
+  return roundedProbeDisplayNumber(value);
+}
+
+function displayProbeTemperatureInput(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  const match = text.match(/^(-?(?:\d+(?:\.\d+)?|\.\d+))(?:\s*([a-zA-Z°]+))?$/);
+  if (!match) return text;
+  const rounded = displayProbeTemperatureNumber(match[1]);
+  return `${rounded}${match[2] ? ` ${match[2]}` : ""}`;
+}
+
+function displayProbeTemperatureMeasurement(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  const match = text.match(/^(-?(?:\d+(?:\.\d+)?|\.\d+))(?:\s*([a-zA-Z°]+))?$/);
+  if (!match) return text;
+  const rounded = displayProbeTemperatureNumber(match[1]);
+  return `${rounded} ${match[2] || unitSymbol("waterTemperature")}`;
 }
 
 function noaaProbeTemperatureProfileEntries(profile = {}) {
@@ -595,10 +627,12 @@ function renderProbeTemperatureProfile(profile = [], options = {}) {
     : probeProfileDisplayDepths(profileEntries);
   grid.innerHTML = displayedDepths.map((depthFeet) => {
     const depthLabel = displayProbeDepth(depthFeet);
+    const rawTemperature = String(temperaturesByDepth.get(depthFeet) ?? "").trim();
+    const displayTemperature = displayProbeTemperatureInput(rawTemperature);
     return `
       <label class="probe-temperature-cell">
         <span class="probe-temperature-depth">${escapeHtml(depthLabel)}</span>
-        <input type="text" inputmode="decimal" data-probe-depth-feet="${depthFeet}" value="${escapeHtml(temperaturesByDepth.get(depthFeet) || "")}" placeholder="—" aria-label="Probe temperature at ${escapeHtml(depthLabel)}" />
+        <input type="text" inputmode="decimal" data-probe-depth-feet="${depthFeet}" data-probe-temperature-raw="${escapeHtml(rawTemperature)}" data-probe-temperature-display="${escapeHtml(displayTemperature)}" value="${escapeHtml(displayTemperature)}" placeholder="—" aria-label="Probe temperature at ${escapeHtml(depthLabel)}" />
       </label>
     `;
   }).join("");
@@ -607,10 +641,17 @@ function renderProbeTemperatureProfile(profile = [], options = {}) {
 
 function collectProbeTemperatureProfile() {
   return [...document.querySelectorAll("#probeTemperatureGrid [data-probe-depth-feet]")]
-    .map((input) => ({
-      depthFeet: Number(input.dataset.probeDepthFeet),
-      temperature: input.value.trim()
-    }))
+    .map((input) => {
+      const displayValue = input.dataset.probeTemperatureDisplay ?? "";
+      const hasUnchangedDisplay = input.dataset.probeTemperatureDirty !== "true"
+        && input.value === displayValue;
+      return {
+        depthFeet: Number(input.dataset.probeDepthFeet),
+        temperature: hasUnchangedDisplay
+          ? (input.dataset.probeTemperatureRaw ?? input.value.trim())
+          : input.value.trim()
+      };
+    })
     .filter((entry) => entry.temperature);
 }
 
@@ -748,7 +789,7 @@ function interpolatedProbeTemperature(readings, depthFeet) {
 }
 
 function probeTemperatureChartTooltipText(temperature, depthFeet) {
-  return `Temperature: ${trimNumber(temperature)} ${unitSymbol("waterTemperature")} · Depth: ${displayProbeDepth(depthFeet)}`;
+  return `Temperature: ${displayProbeTemperatureNumber(temperature)} ${unitSymbol("waterTemperature")} · Depth: ${displayProbeDepth(depthFeet)}`;
 }
 
 function bindProbeTemperatureChartTooltip(chart) {
@@ -846,11 +887,11 @@ function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
   const verticalGrid = scale.ticks.map((tick) => `<line x1="${x(tick).toFixed(2)}" y1="${plot.top}" x2="${x(tick).toFixed(2)}" y2="${height - plot.bottom}" />`).join("");
   const xLabels = scale.ticks.map((tick) => `<text x="${x(tick).toFixed(2)}" y="18" text-anchor="middle">${escapeHtml(String(tick))}</text>`).join("");
   const yLabels = Array.from({ length: Math.floor(depthMax / 20) + 1 }, (_, index) => index * 20)
-    .map((depth) => `<text x="${plot.left - 12}" y="${(y(depth) + 4).toFixed(2)}" text-anchor="end">${escapeHtml(trimNumber(convertUnitValue(depth, "ft", unitPreference("depth")) ?? depth))}</text>`)
+    .map((depth) => `<text x="${plot.left - 12}" y="${(y(depth) + 4).toFixed(2)}" text-anchor="end">${escapeHtml(displayProbeDepthValue(depth))}</text>`)
     .join("");
   const dots = readings.map((reading) => `
     <circle class="probe-temperature-point" data-chart-point="profile" data-chart-temperature="${reading.numericTemperature}" data-chart-depth="${reading.depthFeet}" cx="${x(reading.numericTemperature).toFixed(2)}" cy="${y(reading.depthFeet).toFixed(2)}" r="5" tabindex="0">
-      <title>${escapeHtml(`${displayProbeDepth(reading.depthFeet)}: ${displayStoredMeasurement(reading.temperature, "waterTemperature")}`)}</title>
+      <title>${escapeHtml(`${displayProbeDepth(reading.depthFeet)}: ${displayProbeTemperatureMeasurement(reading.temperature)}`)}</title>
     </circle>
   `).join("");
   const catchGroups = new Map();
@@ -866,7 +907,7 @@ function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
     const profileTemperature = interpolatedProbeTemperature(readings, depthFeet);
     const species = probeCatchSpecies(entry);
     const catchLabel = `${species} caught`;
-    const profileTemperatureLabel = `${trimNumber(profileTemperature)} ${unitSymbol("waterTemperature")}`;
+    const profileTemperatureLabel = `${displayProbeTemperatureNumber(profileTemperature)} ${unitSymbol("waterTemperature")}`;
     const label = `${catchLabel} at ${displayProbeDepth(depthFeet)}; profile temperature approximately ${profileTemperatureLabel}`;
     const group = catchGroups.get(depthFeet) || [];
     const groupIndex = group.findIndex((item) => item.index === index);

@@ -95,7 +95,6 @@ function renderSavedSetupMethodSection(method, setups) {
       <div class="saved-setup-method-header">
         <div>
           <h4>${escapeHtml(method)}</h4>
-          <p>Reusable rod setups for ${escapeHtml(method)} trips.</p>
         </div>
         <div class="saved-setup-method-controls">
           <label class="settings-control">

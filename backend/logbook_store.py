@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from copy import deepcopy
 from datetime import date
 
@@ -10,6 +11,7 @@ from . import logbook_repository
 SCHEMA_VERSION = 2
 PRIVATE_PHOTO_LOCATION_RADIUS_MIN_METERS = 25
 PRIVATE_PHOTO_LOCATION_RADIUS_MAX_METERS = 10000
+SPECIES_MAP_COLOR_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
 _COLLECTION_KEYS = (
     "species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes",
     "reelStyles", "rodTypes", "lineTypes", "riggings", "structureOptions", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections",
@@ -17,6 +19,10 @@ _COLLECTION_KEYS = (
     "locations", "spots", "expeditions", "trips",
 )
 _OBJECT_COLLECTION_KEYS = {"lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips"}
+
+
+class LogbookStorageError(ValueError):
+    """A stored logbook cannot be read or is not a supported v2 document."""
 
 
 def database_exists() -> bool:
@@ -28,14 +34,20 @@ def initialize_database() -> None:
 
 
 def read_logbook_file(database_file, *, allow_empty: bool = True) -> dict:
-    loaded = logbook_repository.read(database_file, _COLLECTION_KEYS)
+    try:
+        loaded = logbook_repository.read(database_file, _COLLECTION_KEYS)
+    except Exception as error:
+        raise LogbookStorageError(f"Could not open the stored logbook database: {error}") from error
     if loaded is None:
         if not allow_empty:
-            raise ValueError("Database does not contain a Fishing Logbook.")
+            raise LogbookStorageError("Database does not contain a Fishing Logbook.")
         return deepcopy(DEFAULT_LOGBOOK)
-    is_valid, error = validate_logbook(loaded)
+    try:
+        is_valid, error = validate_logbook(loaded)
+    except Exception as validation_error:
+        raise LogbookStorageError(f"Stored logbook could not be validated: {validation_error}") from validation_error
     if not is_valid:
-        raise ValueError(f"Stored logbook is invalid: {error}")
+        raise LogbookStorageError(f"Stored logbook is invalid: {error}")
     return loaded
 
 
@@ -49,6 +61,15 @@ def write_logbook(payload: dict) -> None:
         raise ValueError(error)
 
     logbook_repository.write(DATABASE_FILE, payload, _COLLECTION_KEYS, _OBJECT_COLLECTION_KEYS)
+
+
+def replace_logbook(payload: dict) -> None:
+    """Install a valid document into a fresh database during explicit recovery."""
+    is_valid, error = validate_logbook(payload)
+    if not is_valid:
+        raise ValueError(error)
+
+    logbook_repository.replace(DATABASE_FILE, payload, _COLLECTION_KEYS, _OBJECT_COLLECTION_KEYS)
 
 
 def _error(path: str, message: str) -> tuple[bool, str]:
@@ -213,6 +234,20 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
         return _error("settings.timeFormat", 'must be "12" or "24"')
     if "defaultHomeLake" in settings and settings["defaultHomeLake"] not in ("", "Superior", "Michigan", "Huron", "Erie", "Ontario"):
         return _error("settings.defaultHomeLake", "has an unsupported lake")
+    if "speciesMapColors" in settings:
+        species_map_colors = settings["speciesMapColors"]
+        if not isinstance(species_map_colors, dict):
+            return _error("settings.speciesMapColors", "must be an object")
+        species_names: set[str] = set()
+        for species, color in species_map_colors.items():
+            if not isinstance(species, str) or not species.strip():
+                return _error("settings.speciesMapColors", "must not contain an empty species")
+            species_key = species.strip().casefold()
+            if species_key in species_names:
+                return _error("settings.speciesMapColors", "must not repeat a species")
+            species_names.add(species_key)
+            if not isinstance(color, str) or not SPECIES_MAP_COLOR_PATTERN.fullmatch(color):
+                return _error(f"settings.speciesMapColors.{species}", "must be a six-digit hex color")
     if "bathymetryLakeCalibrationsFeet" in settings:
         calibrations = settings["bathymetryLakeCalibrationsFeet"]
         if not isinstance(calibrations, dict):

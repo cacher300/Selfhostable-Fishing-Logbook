@@ -23,6 +23,8 @@ def test_frontend_template_renders_all_partials_once() -> None:
     assert "Fishing Logbook" in markup
     assert 'id="tripListPanel"' in markup
     assert 'id="tripDialog"' in markup
+    assert 'id="deleteTripButton"' in markup
+    assert 'id="summaryDeleteTripButton"' not in markup
     assert 'id="pickTrollingSpreadButton"' in markup
     assert 'id="pickSavedSetupButton"' in markup
     assert 'id="trollingSpreadPickerDialog"' in markup
@@ -41,6 +43,8 @@ def test_frontend_template_renders_all_partials_once() -> None:
     assert 'id="wikiSearch"' in markup
     assert 'id="settingsWikiButton"' in markup
     assert 'class="settings-tab" id="settingsWikiButton"' in markup
+    assert 'data-settings-tab="map-pins"' in markup
+    assert 'id="speciesMapColorRows"' in markup
     assert 'id="wikiViewButton"' not in markup
     assert 'id="wiki-mobile"' in markup
     assert 'href="#wiki-mobile"' in markup

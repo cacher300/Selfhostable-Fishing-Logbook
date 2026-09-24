@@ -8,7 +8,6 @@ function weatherNumber(record, key, source = "tripWindow") {
   }
   return null;
 }
-
 function weatherText(record, key) {
   return record.weatherData?.[key] || record.trip?.weatherData?.[key] || "";
 }
@@ -30,7 +29,6 @@ function windSpeedBucket(value) {
     { max: Infinity, label: `Heavy ${labelValue(25)}+ ${unit}` }
   ]);
 }
-
 function pressureBucket(value) {
   const unit = unitSymbol("pressure");
   const labelValue = (hpa) => trimNumber(Math.round(convertUnitValue(hpa, "hPa", unitPreference("pressure")) * 10) / 10);
@@ -679,19 +677,3 @@ function summarizeThermoclinePosition(records) {
   ]);
 }
 
-function statsTripTrendRows(trips) {
-  return [...trips].sort((a, b) => compareTripsByDateTime(a, b, "asc")).map((trip) => {
-    const landed = scopedTripFish(trip);
-    const lost = filterRecordsByStats((trip.lostFish || []).map((item) => resolveTripLineRecord({ ...item, trip }))).length;
-    const hours = tripHours(trip);
-    return [
-      formatDate(trip.date),
-      trip.launchTime ? formatDisplayTime(trip.launchTime) : "—",
-      trip.linesPulledTime ? formatDisplayTime(trip.linesPulledTime) : "—",
-      hours ? trimNumber(hours) : "n/a",
-      landed,
-      lost,
-      hours ? trimNumber(landed / hours) : "n/a"
-    ];
-  });
-}

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import sqlite3
 import shutil
 import sys
 import uuid
@@ -54,8 +55,9 @@ from backend.backend_config import (
 )
 from backend.logbook_store import (
     database_exists,
-    initialize_database,
+    LogbookStorageError,
     read_logbook,
+    replace_logbook,
     validate_logbook,
     write_logbook,
 )
@@ -281,6 +283,12 @@ def create_app(config: dict | None = None) -> Flask:
         app.logger.error("Cloud storage request failed: %s", error)
         return jsonify({"error": str(error)}), error.status
 
+    @app.errorhandler(LogbookStorageError)
+    def logbook_storage_error(error: LogbookStorageError) -> tuple[Response, int]:
+        """Keep an unreadable local database from turning the API into an HTML 500."""
+        app.logger.error("Stored logbook could not be loaded: %s", error)
+        return jsonify({"error": str(error), "databaseUnavailable": True}), 503
+
     @app.after_request
     def add_no_store_header(response: Response) -> Response:
         if request.endpoint != "static_files":
@@ -310,6 +318,17 @@ def create_app(config: dict | None = None) -> Flask:
         is_valid, error = validate_logbook(payload)
         if not is_valid:
             return jsonify({"error": error}), 400
+
+        # A normal save must never replace an unreadable database with the
+        # browser's fallback state. Archive import is the explicit recovery
+        # path and is allowed to replace the stored document.
+        try:
+            storage_read_logbook()
+        except LogbookStorageError:
+            return jsonify({
+                "error": "The stored logbook database is unavailable. Restore a valid archive before saving changes.",
+                "databaseUnavailable": True,
+            }), 503
 
         revision = storage_write_logbook(payload, request.headers.get("If-Match", ""))
         response = jsonify({"ok": True})
@@ -474,7 +493,19 @@ def create_app(config: dict | None = None) -> Flask:
                                 target.replace(backup)
                             promoted.append((target, backup))
                             staged.replace(target)
-                        write_logbook(payload)
+                        try:
+                            write_logbook(payload)
+                        except (OSError, sqlite3.Error) as write_error:
+                            # Archive import is the explicit recovery action.
+                            # If the existing SQLite file cannot accept SQL at
+                            # all, install the validated archive into a fresh
+                            # database instead of failing against the old
+                            # schema.
+                            app.logger.warning(
+                                "Could not update the existing database during archive import; replacing it: %s",
+                                write_error,
+                            )
+                            replace_logbook(payload)
                     except Exception:
                         for target, backup in reversed(promoted):
                             if target.is_file():
@@ -974,16 +1005,25 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/wiki")
     @app.get("/settings")
     def app_page() -> Response:
+        database_error = ""
         try:
             theme = storage_read_logbook().get("settings", {}).get("theme")
-        except ValueError as error:
-            app.logger.error("Stored logbook could not be loaded: %s", error)
-            return Response(
-                render_template("database-recovery.html", error=str(error)),
-                mimetype="text/html",
-            )
+        except Exception as error:
+            # Keep the complete shell available so cached browser data, the
+            # empty v2 defaults, and the archive tools can still be used.
+            # The bad database is not rewritten here.
+            database_error = str(error) or "The stored logbook database could not be opened."
+            app.logger.error("Stored logbook could not be loaded; serving degraded app shell: %s", database_error)
+            theme = None
         initial_theme = "dark" if theme == "dark" else "light"
-        return Response(render_template("index.html", initial_theme=initial_theme), mimetype="text/html")
+        return Response(
+            render_template(
+                "index.html",
+                initial_theme=initial_theme,
+                database_error=database_error,
+            ),
+            mimetype="text/html",
+        )
 
     @app.get("/static/<path:filename>")
     def static_files(filename: str) -> Response:
@@ -1003,10 +1043,19 @@ app = create_app()
 
 def main() -> None:
     DATA_DIR.mkdir(exist_ok=True)
-    if not database_exists():
-        write_logbook(DEFAULT_LOGBOOK)
-    else:
-        initialize_database()
+    try:
+        if not database_exists():
+            write_logbook(DEFAULT_LOGBOOK)
+        else:
+            # Validate an existing file without running schema-creation SQL
+            # against a possibly legacy or corrupt database. Explicit archive
+            # import is the only path that replaces incompatible storage.
+            read_logbook()
+    except Exception as error:
+        # Startup must remain available for recovery and read-only inspection
+        # when the existing SQLite file is corrupt, legacy, or incompatible.
+        app.logger.exception("Could not initialize the stored logbook database; starting in degraded mode.")
+        print(f"Warning: the logbook database could not be initialized; starting in degraded mode: {error}", file=sys.stderr)
 
     print(f"Selfhostable Fishing Logbook running at http://{HOST}:{PORT}")
     print(f"Database: {DATABASE_FILE}")

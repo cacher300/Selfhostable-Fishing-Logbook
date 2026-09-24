@@ -125,6 +125,18 @@ function validateState(document) {
   }
   if (!document.settings || typeof document.settings !== "object") throw new Error("Missing v2 settings.");
   if (document.settings.chopRanges !== undefined) validateChopRanges(document.settings.chopRanges);
+  if (document.settings.speciesMapColors !== undefined) {
+    const colors = document.settings.speciesMapColors;
+    if (!colors || typeof colors !== "object" || Array.isArray(colors)) throw new Error("Species map colors must be an object.");
+    const names = new Set();
+    for (const [species, color] of Object.entries(colors)) {
+      const name = String(species).trim().toLowerCase();
+      if (!name) throw new Error("Species map colors cannot contain an empty species.");
+      if (names.has(name)) throw new Error("Species map colors must not repeat a species.");
+      names.add(name);
+      if (!isValidSpeciesMapColor(color)) throw new Error(`Species map color for ${species} must be a six-digit hex color.`);
+    }
+  }
   const uploadCategories = new Set(["catch-photos", "trip-photos", "lures", "flashers", "reels", "rods", "queue"]);
   const checkMedia = (items, label) => {
     if (!Array.isArray(items)) throw new Error(`${label} must be a list.`);

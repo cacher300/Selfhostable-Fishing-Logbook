@@ -422,6 +422,7 @@ document.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     activePrivatePhotoLocationId = editPrivateLocationPin.dataset.editPrivateLocationPin;
+    editingPrivatePhotoLocationId = activePrivatePhotoLocationId;
     renderPrivatePhotoLocationSettings();
   }
 
@@ -430,6 +431,7 @@ document.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     activeFishingSpotId = editFishingSpotPin.dataset.editFishingSpotPin;
+    editingFishingSpotId = activeFishingSpotId;
     renderFishingSpotSettings();
   }
 
@@ -445,6 +447,7 @@ document.addEventListener("click", (event) => {
   if (deletePrivateLocationButton) {
     const next = collectPrivatePhotoLocationSettings().filter((location) => location.id !== deletePrivateLocationButton.dataset.deletePrivateLocation);
     activePrivatePhotoLocationId = "";
+    editingPrivatePhotoLocationId = "";
     if (privateLocationNameEditId === deletePrivateLocationButton.dataset.deletePrivateLocation) privateLocationNameEditId = "";
     savePrivatePhotoLocations(next);
   }
@@ -459,6 +462,7 @@ document.addEventListener("click", (event) => {
     if (confirm(`Delete “${spot?.name || "this spot"}”?${impact ? ` ${impact}.` : ""}`)) {
       const next = collectFishingSpotSettings().filter((item) => item.id !== spotId);
       activeFishingSpotId = "";
+      editingFishingSpotId = "";
       if (fishingSpotNameEditId === spotId) fishingSpotNameEditId = "";
       saveFishingSpots(next);
     }
@@ -467,6 +471,7 @@ document.addEventListener("click", (event) => {
   const editFishingSpotName = event.target.closest("[data-edit-fishing-spot-name]");
   if (editFishingSpotName) {
     activeFishingSpotId = editFishingSpotName.dataset.editFishingSpotName;
+    editingFishingSpotId = activeFishingSpotId;
     fishingSpotNameEditId = activeFishingSpotId;
     renderFishingSpotSettings();
     const input = els.fishingSpotList?.querySelector(`[data-fishing-spot-id="${CSS.escape(fishingSpotNameEditId)}"] .fishing-spot-name`);
@@ -477,12 +482,14 @@ document.addEventListener("click", (event) => {
   const fishingSpotCard = event.target.closest("[data-fishing-spot-id]");
   if (fishingSpotCard && !event.target.closest("[data-edit-fishing-spot-name], button, input, select, textarea")) {
     activeFishingSpotId = fishingSpotCard.dataset.fishingSpotId;
+    if (editingFishingSpotId !== activeFishingSpotId) editingFishingSpotId = "";
     renderFishingSpotSettings();
   }
 
   const editPrivateLocationName = event.target.closest("[data-edit-private-location-name]");
   if (editPrivateLocationName) {
     activePrivatePhotoLocationId = editPrivateLocationName.dataset.editPrivateLocationName;
+    editingPrivatePhotoLocationId = activePrivatePhotoLocationId;
     privateLocationNameEditId = activePrivatePhotoLocationId;
     renderPrivatePhotoLocationSettings();
     const input = els.privatePhotoLocationList?.querySelector(`[data-private-location-id="${CSS.escape(privateLocationNameEditId)}"] .private-location-name`);
@@ -493,6 +500,7 @@ document.addEventListener("click", (event) => {
   const privateLocationCard = event.target.closest("[data-private-location-id]");
   if (privateLocationCard && !event.target.closest("[data-edit-private-location-name], button, input, select, textarea")) {
     activePrivatePhotoLocationId = privateLocationCard.dataset.privateLocationId;
+    if (editingPrivatePhotoLocationId !== activePrivatePhotoLocationId) editingPrivatePhotoLocationId = "";
     renderPrivatePhotoLocationSettings();
   }
 
@@ -802,6 +810,9 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("input", (event) => {
+  if (event.target.matches("#probeTemperatureGrid [data-probe-depth-feet]")) {
+    event.target.dataset.probeTemperatureDirty = "true";
+  }
   if (event.target.matches("#launchTime, #linesPulledTime")) {
     syncTripTimesToBlankRows();
     scheduleTripWeatherPreview(true);

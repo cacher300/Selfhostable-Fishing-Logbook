@@ -1,6 +1,7 @@
 function renderSettings() {
   syncSettingsTabs();
   renderPreferenceSettings();
+  renderSpeciesMapColorSettings();
   renderTrollingSpreadSettings();
   renderSavedSetupSettings();
   renderUnitSettings();
@@ -319,6 +320,87 @@ function renderPreferenceSettings() {
   document.querySelectorAll("[data-time-format-option]").forEach((input) => {
     input.checked = input.value === timeFormatPreference();
   });
+}
+
+function speciesMapSettingNames() {
+  const names = [];
+  const seen = new Set();
+  const add = (value) => {
+    const name = String(value || "").trim();
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) return;
+    seen.add(key);
+    names.push(name);
+  };
+  (state.species || []).forEach(add);
+  (state.trips || []).forEach((trip) => {
+    (trip.catches || []).forEach((catchItem) => add(catchItem.species));
+    (trip.lostFish || []).forEach((fish) => add(fish.possibleSpecies || fish.species));
+  });
+  Object.keys(state.settings?.speciesMapColors || {}).forEach(add);
+  return names;
+}
+
+function renderSpeciesMapColorSettings() {
+  if (!els.speciesMapColorRows) return;
+  const species = speciesMapSettingNames();
+  els.speciesMapColorRows.innerHTML = species.length
+    ? species.map((name) => {
+      const color = speciesColor(name);
+      return `
+        <div class="map-pin-settings-row">
+          <label class="map-pin-settings-color-picker">
+            <span class="map-pin-settings-swatch" data-species-map-swatch style="--species-map-color:${color}" aria-hidden="true"></span>
+            <input type="color" data-species-map-color="${escapeHtml(name)}" value="${color}" aria-label="Map pin color for ${escapeHtml(name)}" />
+          </label>
+          <strong class="map-pin-settings-name">${escapeHtml(name)}</strong>
+        </div>
+      `;
+    }).join("")
+    : '<p class="map-pin-settings-empty">Add species under Categories before assigning map colors.</p>';
+}
+
+function syncSpeciesMapColorPreview(input) {
+  if (!input?.matches("[data-species-map-color]")) return;
+  const row = input.closest(".map-pin-settings-row");
+  const color = input.value;
+  row?.querySelector("[data-species-map-swatch]")?.style.setProperty("--species-map-color", color);
+}
+
+function collectSpeciesMapColors() {
+  const existing = state.settings?.speciesMapColors && typeof state.settings.speciesMapColors === "object"
+    && !Array.isArray(state.settings.speciesMapColors)
+    ? state.settings.speciesMapColors
+    : {};
+  const next = { ...existing };
+  els.speciesMapColorRows?.querySelectorAll("[data-species-map-color]").forEach((input) => {
+    const species = String(input.dataset.speciesMapColor || "").trim();
+    const color = String(input.value || "").toLowerCase();
+    if (species && isValidSpeciesMapColor(color)) next[species] = color;
+  });
+  return next;
+}
+
+async function saveSpeciesMapColors(options = {}) {
+  const previousState = structuredClone(state);
+  state.settings = {
+    ...(state.settings || {}),
+    speciesMapColors: collectSpeciesMapColors()
+  };
+  try {
+    await runSettingsSave(
+      async () => {
+        await saveState();
+        if (options.rerender !== false) renderSpeciesMapColorSettings();
+        if (!els.mapPanel?.classList.contains("hidden")) renderFishMap();
+      },
+      "The species map colors could not be saved.",
+      options
+    );
+  } catch (error) {
+    state = previousState;
+    renderSpeciesMapColorSettings();
+  }
 }
 
 async function saveFishHawkPreference(options = {}) {

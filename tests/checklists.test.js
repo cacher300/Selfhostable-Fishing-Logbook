@@ -23,6 +23,13 @@ const card = {
         if (field === ".checklist-item-done") return { checked: true };
         return null;
       }
+    }, {
+      dataset: { checklistItemId: "draft" },
+      querySelector(field) {
+        if (field === ".checklist-item-label") return { value: "   " };
+        if (field === ".checklist-item-done") return { checked: false };
+        return null;
+      }
     }];
   }
 };
@@ -40,6 +47,7 @@ assert.strictEqual(context.savedChecklists(), original, "reading checklists must
 const collected = JSON.parse(JSON.stringify(context.checklistsFromView()));
 assert.equal(collected[0].syncTag, "mobile");
 assert.equal(collected[0].items[0].icon, "battery");
+assert.equal(collected[0].items.length, 1, "blank checklist drafts must not be persisted");
 assert.deepEqual(original, [{
   id: "launch", name: "Launch Day", syncTag: "mobile",
   items: [{ id: "battery", label: "Charge batteries", done: true, icon: "battery" }]

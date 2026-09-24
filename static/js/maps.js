@@ -48,19 +48,6 @@ function catchMapRecords() {
   return state.trips.flatMap(mapRecordsForTrip);
 }
 
-const speciesMarkerColors = [
-  "#0b6e43",
-  "#2763a7",
-  "#bc2f2f",
-  "#9a5b00",
-  "#6f42c1",
-  "#087990",
-  "#b4236b",
-  "#4d7c0f",
-  "#795548",
-  "#344054"
-];
-
 const MAP_BASEMAP_STORAGE_KEY = "logbook.mapBasemap";
 const CARTO_BASEMAP_KEY = "cb1_2u01_1_caca99a3ff372698283bdfb0";
 const MAP_BASEMAPS = {
@@ -88,21 +75,12 @@ function savedMapBasemap() {
   }
 }
 
-function speciesColor(species = "Fish") {
-  const value = species || "Fish";
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return speciesMarkerColors[hash % speciesMarkerColors.length];
-}
-
 function mapRecordYear(record) {
   return String(record.trip?.date || "").match(/^\d{4}/)?.[0] || "Unknown year";
 }
 
 function mapYearColor(year) {
-  return speciesColor(`year-${year}`);
+  return fallbackSpeciesColor(`year-${year}`);
 }
 
 function mapRecordColor(record) {
@@ -527,6 +505,18 @@ function filteredMapRecordsByDetails(records, filters = {}) {
   });
 }
 
+function mapRecordsInViewport(map, records) {
+  if (!map?._loaded || typeof map.getBounds !== "function") return records;
+  const bounds = map.getBounds();
+  return records.filter((record) => bounds.contains([record.coordinates.latitude, record.coordinates.longitude]));
+}
+
+function mapSpotsInViewport(map, spots) {
+  if (!map?._loaded || typeof map.getBounds !== "function") return spots;
+  const bounds = map.getBounds();
+  return spots.filter((spot) => bounds.contains([spot.coordinates.latitude, spot.coordinates.longitude]));
+}
+
 function renderMapLegend(records, options = {}) {
   const species = mapRecordFilterOptions(records, { allLabel: "All species" }).slice(1);
   const mediaTypes = options.includeTripMedia
@@ -578,6 +568,25 @@ function renderMapYearLegend(records, options = {}) {
   `;
 }
 
+function renderFishMapLegend(records, spots) {
+  const visibleRecords = mapRecordsInViewport(fishMap, records);
+  const visibleSpots = mapSpotsInViewport(fishMap, spots);
+  els.mapLegend.innerHTML = renderMapYearLegend(visibleRecords, {
+    includeTripMedia: activeMapIncludeTripMedia,
+    showYearOutlines: !activeMapYearFilteringHidden,
+    spotCount: visibleSpots.length
+  });
+}
+
+function refreshFishMapLegend() {
+  const allRecords = catchMapRecords();
+  const spots = activeMapIncludeSpots ? visibleMapSpots() : [];
+  const records = filteredMapRecordsByYear(filteredMapRecordsByDetails(
+    filteredMapRecords(allRecords, activeMapSpecies, { includeTripMedia: activeMapIncludeTripMedia })
+  ));
+  renderFishMapLegend(records, spots);
+}
+
 function renderFishMap() {
   const allRecords = catchMapRecords();
   const spots = activeMapIncludeSpots ? visibleMapSpots() : [];
@@ -587,16 +596,7 @@ function renderFishMap() {
   const records = filteredMapRecordsByYear(filteredMapRecordsByDetails(
     filteredMapRecords(allRecords, activeMapSpecies, { includeTripMedia: activeMapIncludeTripMedia })
   ));
-  if (els.mapFilterSummary) {
-    const catchCount = records.filter((record) => record.type === "catch").length;
-    const mediaCount = records.length - catchCount;
-    els.mapFilterSummary.textContent = `${catchCount} ${catchCount === 1 ? "catch" : "catches"}${mediaCount ? ` · ${mediaCount} media` : ""}${spots.length ? ` · ${spots.length} ${spots.length === 1 ? "spot" : "spots"}` : ""}`;
-  }
-  els.mapLegend.innerHTML = renderMapYearLegend(allRecords, {
-    includeTripMedia: activeMapIncludeTripMedia,
-    showYearOutlines: !activeMapYearFilteringHidden,
-    spotCount: spots.length
-  });
+  renderFishMapLegend(records, spots);
   if (!window.L) {
     els.fishMap.innerHTML = `<div class="empty-state"><p>Map tiles are unavailable; saved coordinates can still be inspected from trip details.</p></div>`;
     return;
@@ -612,6 +612,7 @@ function renderFishMap() {
     ensureMapMarkerPanes(fishMap);
     fishMapMarkers = L.layerGroup().addTo(fishMap);
     fishMapSpotMarkers = L.layerGroup().addTo(fishMap);
+    fishMap.on("moveend resize", refreshFishMapLegend);
   }
   syncMapPageChartOverlay(fishMap);
   ensureMapMarkerPanes(fishMap);
@@ -622,6 +623,7 @@ function renderFishMap() {
     const homeLake = window.getGreatLakesHomeView?.();
     fishMap.setView(homeLake?.center || [43.8, -79.5], homeLake?.zoom || 6);
     settleMapLayout(fishMap);
+    renderFishMapLegend(records, spots);
     return;
   }
 
@@ -642,6 +644,7 @@ function renderFishMap() {
   if (bounds.length === 1) fishMap.setView(bounds[0], 13);
   else fishMap.fitBounds(bounds, { padding: [28, 28] });
   settleMapLayout(fishMap);
+  renderFishMapLegend(records, spots);
 }
 
 function catchMapRecordsForTrip(trip) {
@@ -663,9 +666,9 @@ function renderTripSummaryMap(trip) {
   if (!mapNode) return;
   const allRecords = catchMapRecordsForTrip(trip);
   renderTripSummaryMapFilter(allRecords);
-  const legend = document.querySelector("#tripSummaryMapLegend");
-  if (legend) legend.innerHTML = renderMapLegend(allRecords, { includeTripMedia: true });
   const records = filteredMapRecords(allRecords, activeTripSummaryMapFilter);
+  const legend = document.querySelector("#tripSummaryMapLegend");
+  if (legend) legend.innerHTML = renderMapLegend(records, { includeTripMedia: true });
 
   if (!window.L) {
     mapNode.innerHTML = `<div class="empty-state"><p>Map tiles are unavailable.</p></div>`;

@@ -1,6 +1,7 @@
 <section class="settings-page hidden" id="settingsPanel" aria-label="Settings">
           <nav class="settings-tabs" aria-label="Settings sections">
             <button class="settings-tab is-active" type="button" data-settings-tab="general" aria-selected="true">General</button>
+            <button class="settings-tab" type="button" data-settings-tab="map-pins" aria-selected="false">Map Pins</button>
             <button class="settings-tab" id="settingsWikiButton" type="button">Wiki</button>
             <button class="settings-tab" type="button" data-settings-tab="trolling-spread" aria-selected="false">Trolling Spread</button>
             <button class="settings-tab" type="button" data-settings-tab="saved-setups" aria-selected="false">Saved Setups</button>
@@ -96,6 +97,17 @@
                 </div>
               </section>
             </div>
+            <div class="settings-tab-panel" data-settings-panel="map-pins" hidden>
+              <section class="settings-section settings-section--map-pins" aria-labelledby="mapPinSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="mapPinSettingsHeading">Map pin colors</h4>
+                  <p>Choose the color used for each species on the Fish Map and in its legend. Changes save automatically.</p>
+                </div>
+                <div class="map-pin-settings-content">
+                  <div class="map-pin-settings-list" id="speciesMapColorRows"></div>
+                </div>
+              </section>
+            </div>
             <div class="settings-tab-panel" data-settings-panel="trolling-spread" hidden>
               <section class="settings-section trolling-spread-settings-section" aria-labelledby="trollingSpreadSettingsHeading">
                 <div class="settings-section-copy">
@@ -184,7 +196,6 @@
                       <input id="locationManagerSearch" type="search" placeholder="Search waterbodies..." />
                     </label>
                     <button class="button primary settings-button-with-icon" id="settingsAddLocationButton" type="button">
-                      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg>
                       Add Waterbody
                     </button>
                   </div>
