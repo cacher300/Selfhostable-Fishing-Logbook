@@ -231,11 +231,12 @@ function renderPersonalBestCard(record) {
   const lengthText = catchMeasurementText(record, "length") || "Not logged";
   const weightText = catchMeasurementText(record, "weight") || "Not logged";
   const tripTitle = record.trip?.title || record.trip?.location || "Saved trip";
+  const media = photo
+    ? `<div class="personal-best-media">${mediaMarkup(photo, "personal-best-photo")}</div>`
+    : "";
   return `
     <article class="personal-best-card">
-      <div class="personal-best-media">
-        ${photo ? mediaMarkup(photo, "personal-best-photo") : `<div class="personal-best-photo-placeholder">${escapeHtml(record.species.slice(0, 2).toUpperCase())}</div>`}
-      </div>
+      ${media}
       <div class="personal-best-body">
         <div class="personal-best-title-row">
           <div>

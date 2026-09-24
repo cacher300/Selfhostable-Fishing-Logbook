@@ -7,7 +7,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT / "data"
+configured_data_dir = os.environ.get("FISH_DATA_DIR", "").strip()
+DATA_DIR = Path(configured_data_dir or ROOT / "data").expanduser().resolve()
 DATABASE_FILE = DATA_DIR / "logbook.sqlite3"
 UPLOADS_DIR = DATA_DIR / "uploads"
 HOST = os.environ.get("HOST", "127.0.0.1")
@@ -98,6 +99,28 @@ DEFAULT_UNITS = {
     "waveHeight": "ft",
     "fishLength": "in",
     "fishWeight": "lb",
+}
+
+DEFAULT_SPECIES_MAP_COLORS = {
+    "Atlantic Salmon": "#c96a4a",
+    "Black Bullhead": "#343a40",
+    "Black Crappie": "#3d4b55",
+    "Bluegill": "#3f7fa3",
+    "Brown Bullhead": "#805a43",
+    "Brown Trout": "#8a5a3b",
+    "Chinook Salmon": "#a66a2c",
+    "Coho Salmon": "#c47a43",
+    "Lake Trout": "#496b7a",
+    "Largemouth Bass": "#8dbb55",
+    "Muskie": "#496b45",
+    "Northern Pike": "#7e9e55",
+    "Perch": "#e58a2b",
+    "Rainbow Trout": "#b9c8d4",
+    "Rock Bass": "#9a6a4a",
+    "Smallmouth Bass": "#27643d",
+    "Walleye": "#c2a34d",
+    "White Crappie": "#b9c6d1",
+    "Yellow Bullhead": "#c59a37",
 }
 
 BATHYMETRY_LAKES = ("Erie", "Ontario", "St. Clair", "Huron", "Michigan", "Superior")
@@ -218,6 +241,7 @@ DEFAULT_LOGBOOK = {
     "rodReelCombos": [],
     "settings": {
         "theme": "light",
+        "speciesMapColors": deepcopy(DEFAULT_SPECIES_MAP_COLORS),
         "defaultHomeLake": "",
         "defaultPeople": [],
         "hasFishHawk": True,

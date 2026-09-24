@@ -62,14 +62,16 @@ function checklistsFromView() {
       ...previous,
       id,
       name: card.querySelector(".checklist-name")?.value ?? previous.name ?? "",
-      items: [...card.querySelectorAll(".checklist-item")].map((item) => {
+      items: [...card.querySelectorAll(".checklist-item")].flatMap((item) => {
         const itemId = item.dataset.checklistItemId || createId();
-        return {
+        const label = item.querySelector(".checklist-item-label")?.value ?? "";
+        if (!label.trim()) return [];
+        return [{
           ...(previousItems.get(itemId) || {}),
           id: itemId,
-          label: item.querySelector(".checklist-item-label")?.value ?? "",
+          label,
           done: item.querySelector(".checklist-item-done")?.checked === true
-        };
+        }];
       })
     };
   });
@@ -123,6 +125,13 @@ async function createChecklist() {
 async function handleChecklistAction(event) {
   const card = event.target.closest(".checklist-card");
   if (!card) return;
+  if (event.target.closest("[data-delete-checklist-item]")) {
+    event.target.closest(".checklist-item")?.remove();
+    state.settings.checklists = checklistsFromView();
+    await saveState();
+    renderChecklists();
+    return;
+  }
   state.settings.checklists = checklistsFromView();
   const checklists = state.settings.checklists;
   const checklistIndex = checklists.findIndex((item) => item.id === card.dataset.checklistId);
@@ -163,17 +172,6 @@ async function handleChecklistAction(event) {
     renderChecklists();
     return;
   }
-  const itemNode = event.target.closest(".checklist-item");
-  const itemIndex = itemNode ? checklist.items.findIndex((item) => item.id === itemNode.dataset.checklistItemId) : -1;
-  if (itemIndex < 0) return;
-  if (event.target.closest("[data-delete-checklist-item]")) {
-    checklist.items.splice(itemIndex, 1);
-  } else {
-    return;
-  }
-  state.settings.checklists = checklists;
-  await saveState();
-  renderChecklists();
 }
 
 function clearChecklistDragState() {

@@ -24,8 +24,12 @@ relaunch-desktop.ps1
 .DS_Store
 Thumbs.db
 
-# Local agent instructions.
-AGENTS.md
+# Repository agent instructions are intentionally committed.
+
+# Browser test artifacts.
+node_modules/
+playwright-report/
+test-results/
 
 # Future local database/backups.
 backups/

@@ -50,7 +50,7 @@ async function saveLocationOrderFromManager() {
 }
 
 function handleLocationManagerDragStart(event) {
-  if (!event.target.closest(".location-manager-drag-handle")) {
+  if (!event.target.closest(".location-manager-heading")) {
     event.preventDefault();
     return;
   }
@@ -95,7 +95,7 @@ function renderLocationManager() {
     els.locationManagerList.innerHTML = `
       <div class="empty-state compact-empty">
         <p><strong>No waterbodies yet</strong></p>
-        <p>Save your favorite lakes and fishing spots for quick trip creation.</p>
+        <p>Add one to pick it quickly when recording a trip.</p>
       </div>
     `;
     return;
@@ -114,42 +114,34 @@ function renderLocationManager() {
   els.locationManagerList.innerHTML = locations.map((location) => {
     const launches = location.launches || [];
     return `
-    <details class="location-manager-card" data-managed-location-id="${escapeHtml(location.id)}" draggable="true" open>
-      <summary class="location-manager-heading">
+    <article class="location-manager-card" data-managed-location-id="${escapeHtml(location.id)}" draggable="true">
+      <div class="location-manager-heading">
         <div class="location-manager-title-row">
           <div>
             <strong>${escapeHtml(location.name)}</strong>
-            <span>${launches.length} saved ${launches.length === 1 ? "location" : "locations"}</span>
+            <span>${launches.length} ${launches.length === 1 ? "location" : "locations"}</span>
           </div>
         </div>
-        <details class="overflow-menu location-manager-menu">
-          <summary aria-label="${escapeHtml(`Actions for ${location.name}`)}">⋮</summary>
-          <div>
-            <button type="button" data-edit-managed-location="${escapeHtml(location.id)}">Rename</button>
-            <button type="button" data-edit-managed-location="${escapeHtml(location.id)}">Edit Pins</button>
-            <button type="button" data-delete-managed-location="${escapeHtml(location.id)}">Delete</button>
-          </div>
-        </details>
-      </summary>
+        <div class="location-manager-actions">
+          <button class="location-manager-action" type="button" data-edit-managed-location="${escapeHtml(location.id)}">Edit</button>
+        </div>
+      </div>
+      <div class="location-manager-content">
       ${launches.length ? `
         <div class="location-manager-launches">
           ${launches.map((launch) => `
             <div class="location-manager-launch-row">
               <span>${escapeHtml(launch.name)}</span>
-              <details class="overflow-menu location-manager-menu">
-                <summary aria-label="${escapeHtml(`Actions for ${launch.name}`)}">⋮</summary>
-                <div>
-                  <button type="button" data-location-id="${escapeHtml(location.id)}" data-edit-managed-launch="${escapeHtml(launch.id)}">Rename</button>
-                  <button type="button" data-location-id="${escapeHtml(location.id)}" data-edit-managed-launch="${escapeHtml(launch.id)}">Edit Pin</button>
-                  <button type="button" data-location-id="${escapeHtml(location.id)}" data-delete-managed-launch="${escapeHtml(launch.id)}">Delete</button>
-                </div>
-              </details>
+              <div class="location-manager-row-actions">
+                <button class="location-manager-action" type="button" data-location-id="${escapeHtml(location.id)}" data-edit-managed-launch="${escapeHtml(launch.id)}">Edit</button>
+              </div>
             </div>
           `).join("")}
         </div>
-      ` : `<div class="location-manager-launches empty-launch-list"><span>No saved locations yet.</span></div>`}
-      <button class="button secondary location-manager-add-launch" type="button" data-add-managed-launch="${escapeHtml(location.id)}">+ Add Location</button>
-    </details>
+      ` : `<p class="location-manager-empty">No locations yet.</p>`}
+        <button class="button secondary location-manager-add-launch" type="button" data-add-managed-launch="${escapeHtml(location.id)}">Add location</button>
+      </div>
+    </article>
   `;
   }).join("");
 }

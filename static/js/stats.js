@@ -86,10 +86,8 @@ function renderAdvancedStats() {
   renderStatsTable(els.lureTypeStatsTable, headersForPerformance("Lure Type", lureTypeItems), performanceRows(lureTypeItems, "Lure Type"));
   renderStatsTable(els.lureColorStatsTable, headersForPerformance("Lure Color", lureColorItems), performanceRows(lureColorItems, "Lure Color"));
 
-  const tripTrendRows = statsTripTrendRows(trips);
   const speciesOverviewRows = summarizeBy(records.filter((record) => record.species), (record) => record.species)
     .map((item) => [item.name, item.fish, item.trips.size, fish ? `${trimNumber((item.fish / fish) * 100)}%` : "0%"]);
-  renderStatsTable(els.tripTrendStatsTable, ["Trip", "Start", "Lines pulled", "Hours", "Landed", "Lost", "Fish / hr"], tripTrendRows);
   renderStatsTable(els.speciesOverviewStatsTable, ["Species", "Fish", "Trips", "Share"], speciesOverviewRows);
 
   let flasherItems = [];

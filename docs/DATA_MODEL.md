@@ -29,6 +29,21 @@ erDiagram
 
 Relationships are string IDs enforced primarily by UI behavior, not backend referential validation.
 
+## Desktop/Mobile Interchange
+
+The desktop SQLite file and the mobile native SQLite file are different implementation stores. Mobile also has an IndexedDB projection for web export. The canonical cross-client boundary is the validated JSON document inside a versioned archive:
+
+| Boundary | Contract |
+|---|---|
+| Full archive | `archiveVersion: 2`, `format: "fishing-logbook-archive"`, `schemaVersion: 2`, `manifest.json`, `logbook.json`, and `media/<category>/<filename>` entries. |
+| Full document | Every top-level collection in this document is required, including option lists, gear, people, locations, spots, expeditions, and trips. Unknown/additive properties must round-trip. |
+| Mobile local storage | Native SQLite and web IndexedDB are projections of the canonical document; do not copy the desktop SQLite file or depend on mobile table names. |
+| Shared Trip ZIP | `format: "fishing-logbook-shared-trip"`, version 2, containing one trip and only the required people, location/launch, spots, gear, and media. It is not a backup or whole-logbook replacement. |
+
+Mobile archive import currently validates the version and referenced media, then replaces local data only after an explicit user-confirmed operation. The clients do not have continuous synchronization. The desktop whole-document `PUT /api/logbook` is a compatibility/bootstrap path, not a safe offline multi-device sync protocol.
+
+Compatibility-sensitive fields include `settings.defaultPeople`, `units`, `timeFormat`, `chopRanges`, `savedSetups`, `defaultSavedSetupIds`, `privatePhotoLocations`, and bathymetry calibrations; trip live state and events; setup-line person/timing and gear references; catch/lost setup resolution, quantity, spot/location/photo/depth/weather context; and complete reel `lineHistory`. When changing any of these fields or an overlapping mobile workflow, update the adjacent mobile types, validator, archive/shared-trip code, tests, and parity documentation as part of the same change.
+
 ## Top-Level Logbook
 
 | Field | Type | Purpose |
@@ -49,6 +64,7 @@ Relationships are string IDs enforced primarily by UI behavior, not backend refe
 
 - `timeFormat`: `"12"` or `"24"`.
 - `theme`: `"light"` or `"dark"` (desktop display preference; preserved by mobile).
+- `speciesMapColors`: object mapping species names to six-digit `#RRGGBB` Fish Map pin colors (editable in both desktop and mobile; unspecified species use curated defaults or the fallback palette).
 - `hasFishHawk`: boolean for Fish Hawk-specific fields and preferences.
 - `defaultHomeLake`: `""`, `Superior`, `Michigan`, `Huron`, `Erie`, or `Ontario`.
 - `defaultPeople[]`: person IDs preselected for new trips.

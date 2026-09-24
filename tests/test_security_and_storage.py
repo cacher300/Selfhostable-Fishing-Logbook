@@ -38,6 +38,8 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertEqual(["Port", "Center", "Starboard"], [item["value"] for item in payload["setupLineSides"]])
         self.assertEqual("light", payload["settings"]["theme"])
         self.assertIs(payload["settings"]["hasFishHawk"], True)
+        self.assertEqual("#8dbb55", payload["settings"]["speciesMapColors"]["Largemouth Bass"])
+        self.assertEqual("#e58a2b", payload["settings"]["speciesMapColors"]["Perch"])
 
     def test_current_settings_are_validated_at_the_v2_boundary(self):
         settings = deepcopy(DEFAULT_LOGBOOK["settings"])
@@ -65,6 +67,8 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertIn("settings.bathymetryLakeCalibrationsFeet.Ontario.offshoreOffsetFeet", logbook_store.validate_logbook(document(settings=invalid_calibration))[1])
         invalid_chop = {**settings, "chopRanges": [{"id": "calm", "label": "Calm", "maxFeet": "0.5"}]}
         self.assertIn("settings.chopRanges[0].maxFeet", logbook_store.validate_logbook(document(settings=invalid_chop))[1])
+        invalid_species_map = {**settings, "speciesMapColors": {"Largemouth Bass": "green"}}
+        self.assertIn("settings.speciesMapColors.Largemouth Bass", logbook_store.validate_logbook(document(settings=invalid_species_map))[1])
 
     def test_unsupported_schema_and_missing_collection_are_rejected(self):
         payload = document(schemaVersion=3)

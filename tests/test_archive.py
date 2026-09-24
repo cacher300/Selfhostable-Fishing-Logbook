@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from backend import logbook_repository, logbook_store, media_service
 from backend.backend_config import DEFAULT_LOGBOOK
+import server
 from server import create_app
 
 
@@ -60,7 +61,7 @@ def test_archive_contains_v2_logbook_and_media_and_import_restores_it() -> None:
             assert logbook_store.read_logbook()["trips"][0]["id"] == "sqlite-trip"
 
 
-def test_invalid_stored_logbook_shows_recovery_upload_page() -> None:
+def test_invalid_stored_logbook_keeps_the_app_open_in_fallback_mode() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         database = root / "logbook.sqlite3"
@@ -82,12 +83,92 @@ def test_invalid_stored_logbook_shows_recovery_upload_page() -> None:
             response = client.get("/")
 
             assert response.status_code == 200
-            assert b"Database recovery needed" in response.data
-            assert b"Restore Archive" in response.data
+            assert b"Database unavailable" in response.data
+            assert b"safe fallback mode" in response.data
+            assert b"Open restore tools" in response.data
 
             health = client.get("/healthz")
             assert health.status_code == 200
             assert health.get_json() == {"ok": True}
+
+
+def test_unreadable_database_keeps_app_and_api_available_without_overwriting_it() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        database = root / "logbook.sqlite3"
+        database.write_bytes(b"not a sqlite database")
+        with (
+            patch.object(logbook_store, "DATABASE_FILE", database),
+            patch("server.DATABASE_FILE", database),
+            patch("server.DATA_DIR", root),
+        ):
+            client = create_app({"TESTING": True, "SECRET_KEY": "corrupt-db-test"}).test_client()
+
+            page = client.get("/")
+            assert page.status_code == 200
+            assert b"Database unavailable" in page.data
+            assert b"Fishing Logbook" in page.data
+
+            response = client.get("/api/logbook")
+            assert response.status_code == 503
+            assert response.get_json()["databaseUnavailable"] is True
+
+            csrf = client.get("/api/csrf-token").get_json()["csrfToken"]
+            save = client.put(
+                "/api/logbook",
+                json=v2({"trips": [{"id": "must-not-save"}]}),
+                headers={"X-CSRF-Token": csrf},
+            )
+            assert save.status_code == 503
+            assert database.read_bytes() == b"not a sqlite database"
+
+
+def test_archive_import_can_replace_unreadable_database() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        database = root / "logbook.sqlite3"
+        database.write_bytes(b"not a sqlite database")
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w", zipfile.ZIP_STORED) as bundle:
+            bundle.writestr(
+                "manifest.json",
+                json.dumps({"archiveVersion": 2, "schemaVersion": 2, "format": "fishing-logbook-archive"}),
+            )
+            bundle.writestr("logbook.json", json.dumps(v2({"trips": [{"id": "restored"}]})))
+        archive.seek(0)
+
+        with (
+            patch.object(logbook_store, "DATABASE_FILE", database),
+            patch("server.DATABASE_FILE", database),
+            patch("server.DATA_DIR", root),
+        ):
+            client = create_app({"TESTING": True, "SECRET_KEY": "replace-db-test"}).test_client()
+            csrf = client.get("/api/csrf-token").get_json()["csrfToken"]
+            response = client.post(
+                "/api/archive",
+                data={"archive": (archive, "logbook.zip")},
+                headers={"X-CSRF-Token": csrf},
+                content_type="multipart/form-data",
+            )
+
+            assert response.status_code == 200
+            assert logbook_store.read_logbook()["trips"][0]["id"] == "restored"
+            assert list(root.glob(".logbook.sqlite3.recovery-*"))
+
+
+def test_main_starts_when_database_initialization_fails() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        database = root / "logbook.sqlite3"
+        database.write_bytes(b"not a sqlite database")
+        with (
+            patch.object(logbook_store, "DATABASE_FILE", database),
+            patch("server.DATA_DIR", root),
+            patch("server.app.run") as app_run,
+        ):
+            server.main()
+
+        app_run.assert_called_once()
 
 
 def test_archive_round_trip_preserves_logbook_and_media() -> None:

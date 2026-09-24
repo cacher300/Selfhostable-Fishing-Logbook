@@ -28,13 +28,32 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="static/css/trip-sharing.css" />
-    <link rel="stylesheet" href="static/css/styles.css?v=20260922-target-text-1" />
+    <link rel="stylesheet" href="static/css/styles.css?v=20260924-map-pin-parity-1" />
   </head>
   <body>
     <div class="app-shell">
       {% include 'partials/layout/sidebar.html' %}
 
       <main class="main-panel">
+        {% if database_error %}
+        <aside class="database-degraded-banner" role="alert">
+          <div class="database-degraded-copy">
+            <strong>Database unavailable — safe fallback mode</strong>
+            <p>
+              The app is showing your browser's cached logbook when available, otherwise its built-in starter state.
+              Your original database was not changed, and edits are paused until it is restored.
+            </p>
+            <details>
+              <summary>Show database diagnostic</summary>
+              <code>{{ database_error }}</code>
+            </details>
+          </div>
+          <div class="database-degraded-actions">
+            <a class="button secondary" href="/settings">Open restore tools</a>
+            <button class="button secondary" type="button" onclick="window.location.reload()">Try again</button>
+          </div>
+        </aside>
+        {% endif %}
         {% include 'partials/layout/topbar.html' %}
 
         {% include 'partials/views/trips.html' %}
@@ -111,17 +130,17 @@
     <script src="https://unpkg.com/esri-leaflet@3.0.16/dist/esri-leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="static/js/app-config.js"></script>
-    <script src="static/js/app-defaults.js?v=20260909-default-spread-restore-1"></script>
+    <script src="static/js/app-defaults.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/app-state.js?v=20260909-standalone-1"></script>
-    <script src="static/js/app-normalization.js?v=20260923-trip-start-1"></script>
+    <script src="static/js/app-normalization.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/app-units.js?v=20260910-ball-temp-1"></script>
     <script src="static/js/app-persistence.js?v=20260922-orphan-prevention-1"></script>
-    <script src="static/js/app-elements.js?v=20260909-default-spread-restore-1"></script>
+    <script src="static/js/app-elements.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/app-media.js?v=20260922-orphan-prevention-1"></script>
     <script src="static/js/locations.js"></script>
     <script src="static/js/location-weather.js?v=20260923-trip-start-1"></script>
     <script src="static/js/settings-core.js?v=20260909-default-spread-restore-1"></script>
-    <script src="static/js/settings.js?v=20260918-trolling-card-controls-1"></script>
+    <script src="static/js/settings.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/saved-setups.js?v=20260916-saved-setups-1"></script>
     <script src="static/js/settings-fields.js?v=20260829-structure-split-2"></script>
     <script src="static/js/settings-locations.js?v=20260829-home-location-selection-1"></script>
@@ -141,7 +160,7 @@
     <script src="static/js/noaaCharts.js"></script>
     <script src="static/js/noaa-api.js?v=20260731-7"></script>
     <script src="static/js/great-lakes-conditions.js?v=20260731-48"></script>
-    <script src="static/js/maps.js?v=20260910-map-spots-1"></script>
+    <script src="static/js/maps.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/trip-summary.js?v=20260910-ball-temp-1"></script>
     <script src="static/js/trip-report.js?v=20260923-trip-start-1"></script>
     <script src="static/js/trip-timeline.js?v=20260829-structure-split-1"></script>
@@ -160,7 +179,7 @@
     <script src="static/js/checklists.js?v=20260909-checklists-1"></script>
     <script src="static/js/wiki.js"></script>
     <script src="static/js/trolling-spread-picker.js"></script>
-    <script src="static/js/app-control-events.js?v=20260922-orphan-prevention-1"></script>
+    <script src="static/js/app-control-events.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/app-delegated-events.js?v=20260923-trip-start-1"></script>
     <script src="static/js/app.js?v=20260922-orphan-prevention-1"></script>
   </body>

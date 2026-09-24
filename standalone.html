@@ -29,7 +29,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="static/css/trip-sharing.css" />
-    <link rel="stylesheet" href="static/css/styles.css?v=20260922-target-text-1" />
+    <link rel="stylesheet" href="static/css/styles.css?v=20260924-map-pin-parity-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -73,6 +73,7 @@
 
 
       <main class="main-panel">
+        
         <header class="topbar">
           <div>
             <h2>Trips</h2>
@@ -300,10 +301,6 @@
             <div id="statsActivityHeatmap"></div>
           </section>
           <section class="stats-overview-grid" aria-label="Stats overview">
-            <article class="analytics-card stats-overview-primary show-chart" data-default-view="chart">
-              <h3>Catch Overview</h3>
-              <div class="analytics-table" id="tripTrendStatsTable"></div>
-            </article>
             <article class="analytics-card show-chart" data-default-view="chart">
               <h3>Top Species</h3>
               <div class="analytics-table" id="speciesOverviewStatsTable"></div>
@@ -656,7 +653,6 @@
                   <div id="greatLakesConditions"></div>
                 </div>
               </details>
-              <output id="mapFilterSummary" class="map-filter-summary" aria-live="polite"></output>
             </div>
           </div>
           <div id="fishMap" class="fish-map"></div>
@@ -892,7 +888,7 @@
           </details>
           <div class="wiki-callout"><span class="wiki-label wiki-label-automatic">Automatic</span><p>When you save, the app can enrich the trip with weather, waves, sun, and moon data. Your manually entered wave height is kept; a fetched wave height fills in only when you left it blank.</p></div>
           <h4>Save, draft, warnings, and editing</h4>
-          <p><strong>Save</strong> checks the three essentials and may show non-blocking reminders for blank start/end time, method, a trip outside its expedition dates, a trolling setup that has no rods, setup rows with incomplete or implausible deployment times, and fish records missing person, species, time, or a trolling rod. You may still choose <strong>Save anyway</strong>. <strong>Save Draft</strong> skips those normal required-field checks and reminders so you can capture an unfinished record. Closing an edited trip asks before discarding unsaved changes. You can delete a saved trip from its editor or summary.</p>
+          <p><strong>Save</strong> checks the three essentials and may show non-blocking reminders for blank start/end time, method, a trip outside its expedition dates, a trolling setup that has no rods, setup rows with incomplete or implausible deployment times, and fish records missing person, species, time, or a trolling rod. You may still choose <strong>Save anyway</strong>. <strong>Save Draft</strong> skips those normal required-field checks and reminders so you can capture an unfinished record. Closing an edited trip asks before discarding unsaved changes. You can delete a saved trip from its editor.</p>
           <h4>People</h4>
           <p>Add everyone who fished. People you save become reusable choices and can be selected on catches and missed fish. Set default people in Settings to preselect them on future new trips; this does not change past trips.</p>
           <h4>Setup timeline</h4>
@@ -1024,6 +1020,7 @@
         <section class="settings-page hidden" id="settingsPanel" aria-label="Settings">
           <nav class="settings-tabs" aria-label="Settings sections">
             <button class="settings-tab is-active" type="button" data-settings-tab="general" aria-selected="true">General</button>
+            <button class="settings-tab" type="button" data-settings-tab="map-pins" aria-selected="false">Map Pins</button>
             <button class="settings-tab" id="settingsWikiButton" type="button">Wiki</button>
             <button class="settings-tab" type="button" data-settings-tab="trolling-spread" aria-selected="false">Trolling Spread</button>
             <button class="settings-tab" type="button" data-settings-tab="saved-setups" aria-selected="false">Saved Setups</button>
@@ -1119,6 +1116,17 @@
                 </div>
               </section>
             </div>
+            <div class="settings-tab-panel" data-settings-panel="map-pins" hidden>
+              <section class="settings-section settings-section--map-pins" aria-labelledby="mapPinSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="mapPinSettingsHeading">Map pin colors</h4>
+                  <p>Choose the color used for each species on the Fish Map and in its legend. Changes save automatically.</p>
+                </div>
+                <div class="map-pin-settings-content">
+                  <div class="map-pin-settings-list" id="speciesMapColorRows"></div>
+                </div>
+              </section>
+            </div>
             <div class="settings-tab-panel" data-settings-panel="trolling-spread" hidden>
               <section class="settings-section trolling-spread-settings-section" aria-labelledby="trollingSpreadSettingsHeading">
                 <div class="settings-section-copy">
@@ -1207,7 +1215,6 @@
                       <input id="locationManagerSearch" type="search" placeholder="Search waterbodies..." />
                     </label>
                     <button class="button primary settings-button-with-icon" id="settingsAddLocationButton" type="button">
-                      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg>
                       Add Waterbody
                     </button>
                   </div>
@@ -1268,8 +1275,7 @@
           <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
         <div id="tripSummaryBody" class="trip-summary-body"></div>
-        <div class="dialog-actions">
-          <button class="button danger" id="summaryDeleteTripButton" type="button">Delete</button>
+        <div class="dialog-actions end-only">
           <div>
             <button class="button secondary" id="summaryShareTripButton" type="button">Share Trip</button>
             <button class="button secondary" type="button" data-close-dialog>Close</button>
@@ -2597,17 +2603,17 @@
     <script src="https://unpkg.com/esri-leaflet@3.0.16/dist/esri-leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="static/js/app-config.js"></script>
-    <script src="static/js/app-defaults.js?v=20260909-default-spread-restore-1"></script>
+    <script src="static/js/app-defaults.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/app-state.js?v=20260909-standalone-1"></script>
-    <script src="static/js/app-normalization.js?v=20260923-trip-start-1"></script>
+    <script src="static/js/app-normalization.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/app-units.js?v=20260910-ball-temp-1"></script>
     <script src="static/js/app-persistence.js?v=20260922-orphan-prevention-1"></script>
-    <script src="static/js/app-elements.js?v=20260909-default-spread-restore-1"></script>
+    <script src="static/js/app-elements.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/app-media.js?v=20260922-orphan-prevention-1"></script>
     <script src="static/js/locations.js"></script>
     <script src="static/js/location-weather.js?v=20260923-trip-start-1"></script>
     <script src="static/js/settings-core.js?v=20260909-default-spread-restore-1"></script>
-    <script src="static/js/settings.js?v=20260918-trolling-card-controls-1"></script>
+    <script src="static/js/settings.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/saved-setups.js?v=20260916-saved-setups-1"></script>
     <script src="static/js/settings-fields.js?v=20260829-structure-split-2"></script>
     <script src="static/js/settings-locations.js?v=20260829-home-location-selection-1"></script>
@@ -2627,7 +2633,7 @@
     <script src="static/js/noaaCharts.js"></script>
     <script src="static/js/noaa-api.js?v=20260731-7"></script>
     <script src="static/js/great-lakes-conditions.js?v=20260731-48"></script>
-    <script src="static/js/maps.js?v=20260910-map-spots-1"></script>
+    <script src="static/js/maps.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/trip-summary.js?v=20260910-ball-temp-1"></script>
     <script src="static/js/trip-report.js?v=20260923-trip-start-1"></script>
     <script src="static/js/trip-timeline.js?v=20260829-structure-split-1"></script>
@@ -2646,7 +2652,7 @@
     <script src="static/js/checklists.js?v=20260909-checklists-1"></script>
     <script src="static/js/wiki.js"></script>
     <script src="static/js/trolling-spread-picker.js"></script>
-    <script src="static/js/app-control-events.js?v=20260922-orphan-prevention-1"></script>
+    <script src="static/js/app-control-events.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/app-delegated-events.js?v=20260923-trip-start-1"></script>
     <script src="static/js/app.js?v=20260922-orphan-prevention-1"></script>
   </body>

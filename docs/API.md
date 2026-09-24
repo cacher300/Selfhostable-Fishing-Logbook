@@ -6,13 +6,15 @@ Base URL defaults to `http://127.0.0.1:8080`. Application, API, and upload route
 
 ### `GET /api/logbook`
 
-Returns the complete v2 logbook reconstructed from SQLite. A missing or empty database returns the canonical v2 defaults; invalid stored data returns a server error.
+Returns the complete v2 logbook reconstructed from SQLite. A missing or empty database returns the canonical v2 defaults. If the local database is corrupt, unreadable, or incompatible, the route returns `503 {"error": "...", "databaseUnavailable": true}`; the web shell remains available in fallback mode so the browser can show cached data or its built-in starter state without changing the original database.
 
 ### `PUT /api/logbook`
 
 Replaces the complete logbook document.
 
 The request must be a complete v2 document. It is validated before replacement; ordinary reads, writes, and imports preserve the document without reshaping. Documents without `schemaVersion` and unsupported schema versions are rejected.
+
+When the existing local database cannot be read, ordinary saves return `503` with `databaseUnavailable: true` rather than replacing the unreadable file with a browser fallback. Use an explicit archive import to repair or replace that database.
 
 Required top-level JSON types:
 

@@ -145,14 +145,6 @@
 
 .map-clear-filters:hover, .map-clear-filters:focus-visible { border-color: var(--green); color: var(--green-dark); outline: none; }
 
-.map-filter-summary {
-  align-self: center;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
 .map-layers-menu-panel .map-chart-toggle {
   display: flex;
   min-height: 34px;

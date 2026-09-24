@@ -17,7 +17,7 @@ variables:
 
 test_python_app:
   stage: validate
-  image: python:3.12-slim
+  image: python:3.13-slim
   script:
     - python --version
     - pip install -r requirements.txt
@@ -34,6 +34,17 @@ test_javascript:
   script:
     - node --version
     - node --test tests/*.test.js
+
+test_browser:
+  stage: validate
+  image: mcr.microsoft.com/playwright:v1.63.0-noble
+  before_script:
+    - apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip
+    - python3 -m pip install --break-system-packages -r requirements.txt
+    - npm ci
+  script:
+    - npm run test:e2e
 
 test_cloud_worker:
   stage: validate
@@ -52,7 +63,7 @@ test_cloud_worker:
 
 smoke_test_flask_server:
   stage: smoke_test
-  image: python:3.12-slim
+  image: python:3.13-slim
   needs:
     - test_python_app
   script:

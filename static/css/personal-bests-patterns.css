@@ -52,8 +52,7 @@
   background: #edf2f5;
 }
 
-.personal-best-photo,
-.personal-best-photo-placeholder {
+.personal-best-photo {
   display: block;
   width: 100%;
   height: 100%;
@@ -62,17 +61,6 @@
 
 .personal-best-photo {
   object-fit: cover;
-}
-
-.personal-best-photo-placeholder {
-  display: grid;
-  place-items: center;
-  background:
-    linear-gradient(135deg, rgba(17, 135, 83, 0.16), rgba(39, 99, 167, 0.08)),
-    #f5f8fb;
-  color: var(--green-dark);
-  font-size: 40px;
-  font-weight: 900;
 }
 
 .personal-best-body {
@@ -119,7 +107,6 @@
 
 .personal-best-details div {
   min-width: 0;
-  border-bottom: 1px solid var(--line);
   padding-bottom: 8px;
 }
 
@@ -144,7 +131,6 @@
   justify-content: flex-start;
   margin-top: 2px;
   padding-top: 12px;
-  border-top: 1px solid var(--line);
 }
 
 .personal-best-actions .compact-action {

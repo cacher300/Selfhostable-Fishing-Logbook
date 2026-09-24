@@ -143,6 +143,15 @@
 }
 
 @media (max-width: 760px) {
+  .database-degraded-banner {
+    flex-direction: column;
+  }
+
+  .database-degraded-actions,
+  .database-degraded-actions .button {
+    width: 100%;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
   }
@@ -220,7 +229,8 @@
 
   .settings-field-grid,
   .unit-settings-grid,
-  .predefined-field-settings {
+  .predefined-field-settings,
+  .map-pin-settings-list {
     grid-template-columns: 1fr;
   }
 
@@ -744,8 +754,6 @@
 
   .map-more-filters, .map-layers-menu, .map-more-filters summary, .map-layers-menu summary { width: 100%; }
   .map-more-filters-panel, .map-layers-menu-panel { right: auto; left: 0; width: 100%; box-sizing: border-box; }
-  .map-filter-summary { align-self: flex-start; }
-
   .fish-map {
     min-height: 360px;
   }
@@ -975,6 +983,10 @@
   }
 
   .activity-heatmap-scroll {
+    padding-inline: 14px;
+  }
+
+  .activity-heatmap-footer {
     padding-inline: 14px;
   }
 

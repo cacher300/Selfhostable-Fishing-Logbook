@@ -11,6 +11,7 @@ from scripts.migrate_logbook_v2 import (
     _rewrite_archive,
     _validate_archive_media,
     audit_document,
+    legacy_trip_title_count,
     migrate_document,
 )
 
@@ -127,6 +128,61 @@ def test_legacy_fields_are_converted_outside_the_runtime_path() -> None:
 def test_canonical_v2_document_is_not_reshaped() -> None:
     canonical = deepcopy(DEFAULT_LOGBOOK)
     assert migrate_document(canonical) == canonical
+
+
+def test_date_first_default_titles_are_migrated_without_touching_custom_titles() -> None:
+    canonical = deepcopy(DEFAULT_LOGBOOK)
+    canonical["trips"] = [
+        {
+            "id": "one",
+            "title": "2026-08-23 Largemouth Bass Trip",
+            "date": "2026-08-22",
+            "targetSpecies": "Largemouth Bass",
+            "method": "Casting",
+            "catches": [],
+            "lostFish": [],
+        },
+        {
+            "id": "two",
+            "title": "Largemouth Bass Casting Trip #2",
+            "date": "2026-08-23",
+            "targetSpecies": "Largemouth Bass",
+            "method": "Casting",
+            "catches": [],
+            "lostFish": [],
+        },
+        {
+            "id": "three",
+            "title": "My date-first custom title",
+            "date": "2026-08-24",
+            "targetSpecies": "Largemouth Bass",
+            "method": "Casting",
+            "catches": [],
+            "lostFish": [],
+        },
+        {
+            "id": "four",
+            "title": "2026-08-24 Walleye Trip",
+            "date": "2026-08-24",
+            "targetSpecies": "Largemouth Bass",
+            "method": "Casting",
+            "catches": [],
+            "lostFish": [],
+        },
+    ]
+
+    migrated = migrate_document(canonical)
+
+    assert legacy_trip_title_count(canonical) == 2
+    assert legacy_trip_title_count(migrated) == 0
+    assert [trip["title"] for trip in migrated["trips"]] == [
+        "Largemouth Bass Casting Trip #1",
+        "Largemouth Bass Casting Trip #2",
+        "My date-first custom title",
+        "Largemouth Bass Casting Trip #4",
+    ]
+    assert migrated["trips"][0]["catches"] == []
+    assert validate_logbook(migrated)[0]
 
 
 def test_mobile_archive_rewrite_produces_cross_compatible_v2_archive(tmp_path) -> None:

@@ -26,30 +26,53 @@ Use this client for the complete desktop experience, server-backed media, detail
 
 ### Expo mobile app
 
-The Expo mobile app is maintained in its own repository. It is a React Native, Expo Router, and TypeScript client with local SQLite storage. It supports field-oriented trip capture, an active-trip workflow, catches and lost fish, trolling setup changes, camera/library media, GPS, maps, analytics, gear, settings, and archive import/export.
+The Expo mobile app is maintained in the adjacent `..\Mobile` repository. It is an Expo SDK 57, React Native, Expo Router, and TypeScript client with local-first SQLite storage on native platforms and IndexedDB on web. It supports field-oriented trip capture, an active-trip workflow, Quick Catch and Quick Lost, trolling setup changes, camera/library media, GPS, maps, weather/depth enrichment, analytics, personal bests, gear and line history, saved setups, expeditions, spots, checklists, wiki, settings, and archive/shared-trip import/export.
 
-The mobile app is currently standalone: it does not continuously sync with the Flask server. Move data between clients with a Fishing Logbook archive. Importing an archive replaces local data only when you choose that action.
+The mobile app is currently standalone: it does not continuously sync with the Flask server. Its local SQLite tables are projections of a canonical logbook document, not a database schema that can be copied directly from `data/logbook.sqlite3`. Move complete data between clients with a Fishing Logbook archive; importing an archive replaces local data only after explicit confirmation. A Shared Trip ZIP is a separate versioned one-trip transfer, not a full backup.
+
+## Desktop / Mobile Compatibility
+
+The web and mobile clients share a document and archive contract, not a live database or sync protocol.
+
+- The only supported runtime document is `schemaVersion: 2` with the complete v2 collection set and stable string IDs.
+- A full transfer archive is `archiveVersion: 2`, format `fishing-logbook-archive`, with `manifest.json`, `logbook.json`, and referenced media under `media/<category>/<filename>`.
+- Mobile validates the archive version and requires every referenced media file. Do not rename collection keys, change media paths/categories, or remove additive properties without updating both clients.
+- Preserve cross-client fields such as `settings.defaultPeople`, units, time format, chop ranges, saved setups, trip `idleHours`/`pausedAt`/`liveStatus`/`liveEvents`, setup-line `personId` and timing, catch/lost `setupLineId`, `personId`, `quantity`, spot/location/photo/depth/weather fields, and complete reel `lineHistory`.
+- Do not treat desktop `PUT /api/logbook` as mobile synchronization. It is a whole-document replacement and remains last-write-wins; the mobile offline strategy calls for a future authenticated, revisioned, entity-level sync protocol.
+
+When a desktop change touches the shared schema, archive behavior, media references, or an overlapping workflow, update the adjacent mobile client in the same change or document the intentional boundary. Check the mobile types/validator, archive or shared-trip code, relevant tests, and parity documentation. The mobile verification commands are:
+
+```powershell
+Set-Location ..\Mobile
+npm run typecheck
+npm test
+npm run build:web
+```
+
+Before writing mobile code, follow the exact Expo SDK 57 documentation linked in `..\Mobile\AGENTS.md`. Native camera, GPS, maps, filesystem, and SQLite behavior still needs a development-build or physical-device check; web export alone cannot prove it.
 
 ## Run the Web App
 
 ### Windows
 
-Install Python 3.11 or newer, then run:
+Install Python 3.13 and Node.js 22 or newer, then run:
 
 ```powershell
 .\scripts\run-local.ps1
 ```
 
-The script creates `.venv`, installs missing dependencies, and starts the app at [http://127.0.0.1:8080](http://127.0.0.1:8080).
+The script creates `.venv`, installs the pinned dependencies when they change,
+and starts the app at [http://127.0.0.1:8080](http://127.0.0.1:8080). Use
+`-Reset` only when the environment is genuinely broken.
 
 ### Manual setup
 
 ```sh
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-# macOS/Linux: source .venv/bin/activate
-python -m pip install -r requirements.txt
-python server.py
+py -3.13 -m venv .venv
+# Windows:
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe server.py
+# macOS/Linux: use Python 3.13 and .venv/bin/python
 ```
 
 The server binds to `127.0.0.1:8080` by default. Set `HOST` and `PORT` to override those values.
@@ -70,6 +93,25 @@ APP_PORT=8081 FISH_DATA_DIR=/srv/fishing-logbook-data docker compose up --build 
 
 At first container startup, a session secret is generated in `data/.secret_key`. Set `SECRET_KEY` yourself if you manage secrets externally.
 
+### Browser tests
+
+Install the JavaScript test dependencies and Chromium once:
+
+```powershell
+npm ci
+npm run playwright:install
+```
+
+Run the full local validation suite with:
+
+```powershell
+.\scripts\doctor.ps1
+.\scripts\check.ps1
+```
+
+Browser tests start an isolated Flask process with a temporary
+`FISH_DATA_DIR`; they do not use the personal `data/` directory.
+
 ## Data, Backups, and Portability
 
 The web app stores private runtime data under:
@@ -82,7 +124,7 @@ data/.secret_key
 
 These paths are ignored by Git. Keep the database and upload tree together when making server backups.
 
-Use the archive export for a complete backup or to transfer data between the web and mobile clients. A local Fishing Logbook archive contains:
+Use the archive export for a complete backup or to transfer data between the web and mobile clients. The archive is the cross-client boundary and contains:
 
 ```text
 manifest.json
@@ -122,9 +164,12 @@ Run the backend and browser test suites from the repository root:
 python -m pytest tests -v
 node --test tests/*.test.js
 python scripts/build-standalone.py --check
+npm run test:e2e
 ```
 
-The GitLab pipeline also compiles the Python sources, smoke-tests the Flask server, validates Docker Compose, and can deploy the default branch after all checks pass.
+The GitLab pipeline also compiles the Python sources, runs the Python and Node
+test suites, smoke-tests the Flask server, validates Docker Compose, and can
+deploy the default branch after all checks pass.
 
 ## Project Layout
 
@@ -147,6 +192,11 @@ Useful reference documents:
 - [API reference](docs/API.md)
 - [Data model](docs/DATA_MODEL.md)
 - [Deployment guide](docs/DEPLOYMENT.md)
+- [Mobile client README](../Mobile/README.md) (when the sibling repository is checked out)
+- [Mobile database field audit](../Mobile/docs/MOBILE_DATABASE_FIELDS.md)
+- [Mobile desktop parity audit](../Mobile/docs/MOBILE_DESKTOP_PARITY_AUDIT.md)
+- [Mobile feature matrix](../Mobile/docs/MOBILE_FEATURE_MATRIX.md)
+- [Mobile offline strategy](../Mobile/docs/OFFLINE_STRATEGY.md)
 
 ## License
 

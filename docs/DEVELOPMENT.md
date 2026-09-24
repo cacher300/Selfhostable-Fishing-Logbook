@@ -2,19 +2,21 @@
 
 ## Prerequisites and Run Commands
 
-Python 3.12 is used by the container. Runtime dependencies include Flask,
+Python 3.13 is used by the container and local launcher. Runtime dependencies include Flask,
 Pillow, and `pillow-heif` for HEIC/HEIF image handling.
 
 ```powershell
 .\scripts\run-local.ps1
 ```
 
-Open `http://127.0.0.1:8080`. The server creates `data/logbook.sqlite3` from defaults when started through `main()` and the database is missing.
+Open `http://127.0.0.1:8080`. The server creates `data/logbook.sqlite3` from defaults when started through `main()` and the database is missing. If an existing database is corrupt or incompatible, startup continues in degraded mode so the app shell and archive recovery tools remain available; the original file is not overwritten by ordinary saves.
 
-The launcher creates or repairs `.venv`, installs all requirements (including
-`pillow-heif` for HEIC/HEIF uploads), and starts the server with that
-environment. If the server is invoked directly, `server.py` also hands off to
-the existing project virtual environment before loading its dependencies.
+The launcher creates `.venv`, installs the pinned requirements when their hash
+changes, and starts the server with that environment. It does not silently
+delete an existing environment; use `.\scripts\run-local.ps1 -Reset` when a
+rebuild is intentional. If the server is invoked directly, `server.py` also
+hands off to the existing project virtual environment before loading its
+dependencies.
 
 Docker:
 
@@ -62,9 +64,35 @@ py scripts/migrate_logbook_v2.py --database <path-to-legacy.sqlite3> --apply
 py scripts/migrate_logbook_v2.py --archive <path-to-mobile-or-desktop.zip> --apply
 ```
 
-The apply command creates a backup, converts known v1 fields to v2 fields, validates the result, and rewrites the SQLite database or shared ZIP archive. For an older archive whose referenced files live in a neighboring upload tree, add `--media-root <uploads>` so the script can include those files. The running desktop or mobile application must receive a canonical v2 database/archive.
+The apply command creates a backup, converts known v1 fields to v2 fields, migrates date-first default trip titles to the current species/method/sequence format, validates the result, and rewrites the SQLite database or shared ZIP archive. For an older archive whose referenced files live in a neighboring upload tree, add `--media-root <uploads>` so the script can include those files. The running desktop or mobile application must receive a canonical v2 database/archive.
 
 The server performs whole-document writes inside SQLite transactions. A failed server PUT can leave localStorage ahead of server state because the browser writes localStorage first.
+
+## Cross-Client Changes
+
+The adjacent `..\Mobile` repository is a companion Expo SDK 57 client. It does
+not share the desktop SQLite tables or continuously synchronize with the server;
+the validated v2 JSON/archive format is the compatibility boundary. When a
+change touches schema fields, archive/media paths, or a workflow also present on
+mobile, update the mobile types/validator, archive or shared-trip code, tests,
+and parity documentation together. Preserve unknown/additive properties and
+stable IDs.
+
+Mobile verification from the sibling repository:
+
+```powershell
+Set-Location ..\Mobile
+npm run typecheck
+npm test
+npm run build:web
+```
+
+The mobile client currently covers offline active-trip capture, Quick Catch and
+Quick Lost, trolling setup timelines, camera/GPS/media capture, maps, weather
+and depth enrichment, expeditions/spots, stats/personal bests, gear/line
+history, saved setups, checklists, wiki, and archive/shared-trip transfer.
+Behavior changes in these areas are parity changes even when the desktop UI is
+the only surface edited.
 
 ## Manual Verification Checklist
 
@@ -105,7 +133,15 @@ Weather, marine, astronomy, Leaflet CDN, and map tiles require network access. U
 
 Application: `HOST` (default `127.0.0.1`), `PORT` (default `8080`).
 
+`FISH_DATA_DIR` overrides the local runtime data directory. Browser tests set it
+to a disposable temporary directory so they cannot touch personal logbook data.
+
 Launcher: `APP_URL`, `CONTAINER_NAME`, and `LEGACY_CONTAINER_NAME`.
+
+Browser tests use Node.js 22+ and Playwright for Chromium. Run `npm ci`,
+`npm run playwright:install`, and then `npm run test:e2e`. The Playwright
+configuration starts the Flask test server, waits for `/healthz`, captures
+failure artifacts outside the repository, and never reuses an existing server.
 
 ## Adding an API Route
 

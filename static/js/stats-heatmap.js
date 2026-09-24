@@ -138,15 +138,17 @@
         <div class="activity-heatmap">
           <div class="activity-heatmap-months" aria-hidden="true">${months}</div>
           <div class="activity-heatmap-content">
-            <div class="activity-heatmap-legend" aria-label="Fishing activity legend">
-              <span>More</span><i class="activity-heatmap-level-5"></i><i class="activity-heatmap-level-4"></i><i class="activity-heatmap-level-3"></i><i class="activity-heatmap-level-2"></i><i class="activity-heatmap-level-1"></i><i class="activity-heatmap-level-0"></i><span>Less</span>
-            </div>
             <div class="activity-heatmap-weekdays" aria-hidden="true">
               ${DAY_NAMES.map((name, index) => `<span class="activity-heatmap-weekday activity-heatmap-weekday-${index}">${index % 2 ? escapeHtml(name.slice(0, 3)) : ""}</span>`).join("")}
             </div>
             <div class="activity-heatmap-calendar" role="group" aria-label="Fishing activity over the last 12 months">${days}</div>
           </div>
         </div>
+      </div>
+      <div class="activity-heatmap-footer">
+        <span class="activity-heatmap-legend" aria-label="Fishing activity legend">
+          <span>Less</span><i class="activity-heatmap-level-0"></i><i class="activity-heatmap-level-1"></i><i class="activity-heatmap-level-2"></i><i class="activity-heatmap-level-3"></i><i class="activity-heatmap-level-4"></i><i class="activity-heatmap-level-5"></i><span>More</span>
+        </span>
       </div>
     `;
   }
