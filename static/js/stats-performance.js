@@ -131,23 +131,6 @@ function summarizeBy(records, keyFn, minutesFn = () => 0) {
   return [...map.values()].sort((a, b) => b.fish - a.fish || b.minutes - a.minutes);
 }
 
-function confidenceFor(hours, trips) {
-  return StatsAnalytics.confidence(hours, trips);
-}
-
-function performanceLabel(item, averageRate = 0) {
-  if (item.missingTime) return "Missing time data";
-  if (item.strikes >= 3 && item.landingPercentage !== null && item.landingPercentage < 0.5) return "High strikes, low landing";
-  if (item.confidence === "Low" && item.fishPerHour > averageRate) return "Promising, needs more data";
-  if (item.confidence === "Low") return "Insufficient data";
-  if (item.efficiencyIndex >= 1.5) return "High efficiency";
-  if (item.usageShare >= 15 && item.efficiencyIndex < 0.75) return "Overused, low return";
-  if (item.fish >= 2 && item.fishPerHour >= averageRate) return "Consistent producer";
-  if (item.fish >= 2 && item.fishPerHour < averageRate) return "High fish count, low rate";
-  if (item.fish > 0 && item.fishPerHour > averageRate) return "Low fish count, high rate";
-  return "Watch list";
-}
-
 function sortPerformanceItems(items) {
   const sortKey = activeStatsSort || "fishPerHour";
   const keyMap = {
@@ -197,15 +180,12 @@ function performanceRows(items, labelHeader = "Name") {
     item.hasUsableTime ? `${trimNumber(item.usageShare)}%` : "n/a",
     `${trimNumber(item.catchShare)}%`,
     item.hasUsableTime ? trimNumber(item.efficiencyIndex) : "n/a",
-    item.hasUsableTime ? (item.overperformance > 0 ? `+${trimNumber(item.overperformance)}%` : `${trimNumber(item.overperformance)}%`) : "n/a",
-    item.confidence,
-    item.label
+    item.hasUsableTime ? (item.overperformance > 0 ? `+${trimNumber(item.overperformance)}%` : `${trimNumber(item.overperformance)}%`) : "n/a"
     ];
   });
 }
 
 function makePerformanceItems(items, totalHours, totalFish) {
-  const averageRate = totalHours ? totalFish / totalHours : 0;
   return items.map((item) => {
     const hasTimeSample = item.hasTimeSample ?? (item.hours !== undefined || item.minutes !== undefined);
     const hours = item.hours ?? (item.minutes ? item.minutes / 60 : 0);
@@ -233,10 +213,8 @@ function makePerformanceItems(items, totalHours, totalFish) {
       usageShare,
       catchShare,
       efficiencyIndex,
-      overperformance,
-      confidence: confidenceFor(hours, trips)
+      overperformance
     };
-    next.label = performanceLabel(next, averageRate);
     return next;
   });
 }
@@ -414,8 +392,7 @@ function summarizeLureSpreadContext(trips, catches, gearRecords) {
       hours,
       trips: tripsUsed,
       fishPerHour: hours ? item.fish / hours : 0,
-      quietRate,
-      confidence: confidenceFor(hours, tripsUsed)
+      quietRate
     };
   }).sort((a, b) => b.quietSpreadTrips - a.quietSpreadTrips || b.soloProducerTrips - a.soloProducerTrips || b.fishPerHour - a.fishPerHour);
 }
@@ -430,8 +407,7 @@ function lureSpreadRows(items) {
     item.productiveTrips,
     item.quietSpreadTrips,
     `${trimNumber(item.quietRate * 100)}%`,
-    item.soloProducerTrips,
-    item.confidence
+    item.soloProducerTrips
   ]);
 }
 
@@ -454,7 +430,7 @@ function summarizeTripPerformance(trips, keyFn, totalHours, totalFish) {
   }));
 }
 
-function tripPerformanceRows(items, { includeLabel = true } = {}) {
+function tripPerformanceRows(items) {
   return filterPerformanceItems(sortPerformanceItems(items)).map((item) => {
     const row = [
       item.name,
@@ -463,10 +439,8 @@ function tripPerformanceRows(items, { includeLabel = true } = {}) {
       item.fish,
       item.hasUsableTime ? trimNumber(item.fishPerHour) : "n/a",
       trimNumber(item.fishPerTrip),
-      `${trimNumber((item.skunkRate || 0) * 100)}%`,
-      item.confidence
+      `${trimNumber((item.skunkRate || 0) * 100)}%`
     ];
-    if (includeLabel) row.push(item.label);
     return row;
   });
 }

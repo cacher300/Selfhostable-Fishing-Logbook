@@ -231,20 +231,9 @@
   color: #ffaaa6;
 }
 
-:root[data-theme="dark"] .rating-pill.mediocre,
-:root[data-theme="dark"] .stats-confidence-low {
+:root[data-theme="dark"] .rating-pill.mediocre {
   background: var(--warning-bg);
   color: var(--warning-text);
-}
-
-:root[data-theme="dark"] .stats-confidence-medium {
-  background: rgba(114, 167, 232, 0.15);
-  color: #acd0fb;
-}
-
-:root[data-theme="dark"] .stats-confidence-high {
-  background: var(--active-bg);
-  color: var(--active-text);
 }
 
 :root[data-theme="dark"] .stats-positive {

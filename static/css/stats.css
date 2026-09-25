@@ -596,21 +596,6 @@
   white-space: nowrap;
 }
 
-.stats-confidence-low {
-  background: #fff4dc;
-  color: #8a5a00;
-}
-
-.stats-confidence-medium {
-  background: #e8f2ff;
-  color: #245c99;
-}
-
-.stats-confidence-high {
-  background: #e3f6eb;
-  color: #11683f;
-}
-
 .stats-positive {
   color: #11683f;
   font-weight: 900;
@@ -743,6 +728,13 @@
   border-radius: 8px;
   background: var(--stats-panel);
   box-shadow: var(--shadow);
+}
+
+@media (min-width: 1181px) {
+  .stats-more-filters > div {
+    right: auto;
+    left: 0;
+  }
 }
 
 .stats-page .metric-grid {

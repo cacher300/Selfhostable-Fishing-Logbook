@@ -25,6 +25,22 @@ test.describe("application smoke", () => {
     }
   });
 
+  test("keeps the stats more filters panel inside the viewport", async ({ page }) => {
+    for (const viewport of [
+      { width: 1280, height: 900 },
+      { width: 1024, height: 900 },
+      { width: 390, height: 844 }
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/stats");
+      await page.locator("#advancedStatsPanel .stats-more-filters > summary").click();
+      const panel = await page.locator("#advancedStatsPanel .stats-more-filters > div").boundingBox();
+      expect(panel).not.toBeNull();
+      expect(panel.x).toBeGreaterThanOrEqual(0);
+      expect(panel.x + panel.width).toBeLessThanOrEqual(viewport.width);
+    }
+  });
+
   test("customizes species map pin colors from Settings", async ({ page }) => {
     const pageErrors = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
