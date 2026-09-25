@@ -5,10 +5,10 @@ The production site is served by Nginx and proxied to the Docker Compose service
 
 ## Automatic deployment
 
-`.gitlab-ci.yml` runs the tests and then deploys the default branch over SSH.
-That means a push to the default branch, including an edit made in GitLab's web
-editor, automatically rebuilds and restarts the production container after the
-tests pass. The deployment checkout must already exist on the server and have
+`.gitlab-ci.yml` is the main integration pipeline and runs validation only; it
+does not deploy any branch. Deployment belongs in a separate website pipeline.
+That pipeline should deploy only its intended website branch after its own
+checks pass. The deployment checkout must already exist on the server and have
 its `origin` set to the GitLab repository.
 
 Use a dedicated deployment directory, for example:
@@ -95,11 +95,11 @@ The Worker accesses both resources through bindings. No D1 or R2 storage key is
 stored in GitLab, the Worker source, or a browser. GitLab only stores the scoped
 Cloudflare deployment token, account ID, and D1 database ID.
 
-The `deploy_cloudflare_worker` job renders the D1 UUID into an ignored
-Wrangler configuration, applies pending migrations, and deploys
-`fish-logger-api`. It runs on the protected default branch when Worker or
-pipeline files change. The following project variables use environment scope
-`production`:
+The website pipeline's Cloudflare Worker deployment job should render the D1
+UUID into an ignored Wrangler configuration, apply pending migrations, and
+deploy `fish-logger-api`. It should run only on the protected website branch
+when Worker or website-pipeline files change. The following project variables
+should use the deployment environment scope:
 
 - `CLOUDFLARE_API_TOKEN` — protected, masked and hidden.
 - `CLOUDFLARE_ACCOUNT_ID` — protected.
