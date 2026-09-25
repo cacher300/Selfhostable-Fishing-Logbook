@@ -38,6 +38,8 @@ test_javascript:
 test_browser:
   stage: validate
   image: mcr.microsoft.com/playwright:v1.63.0-noble
+  variables:
+    PORT: "4173"
   before_script:
     - apt-get update
     - DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip
