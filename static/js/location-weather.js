@@ -683,17 +683,6 @@ function catchWeatherSummary(weatherData) {
   ].filter(Boolean).join(" · ");
 }
 
-function weatherTrendText(weatherData) {
-  const trend = weatherData?.trend;
-  if (!trend) return "";
-  return [
-    trend.pressureTrend,
-    trend.temperatureTrend,
-    trend.windTrend,
-    trend.windDirectionShiftDegrees ? `${trend.windDirectionShiftDegrees} deg wind shift` : ""
-  ].filter(Boolean).join(" / ");
-}
-
 function moonWindowForTime(time, sunMoon) {
   if (!time || !sunMoon) return "";
   const [hour, minute] = String(time).split(":").map(Number);

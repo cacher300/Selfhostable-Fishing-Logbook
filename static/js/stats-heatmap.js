@@ -7,6 +7,7 @@
     day: "numeric",
     year: "numeric"
   });
+  const HEATMAP_LEVEL_COUNT = 5;
 
   function atNoon(value) {
     if (value instanceof Date) {
@@ -49,13 +50,14 @@
     }, 0);
   }
 
-  function activityLevel(trips) {
-    if (!trips) return 0;
-    if (trips === 1) return 1;
-    if (trips === 2) return 2;
-    if (trips === 3) return 3;
-    if (trips === 4) return 4;
-    return 5;
+  function activityLevel(fish, maxFish) {
+    if (!maxFish || fish <= 0) return 0;
+    return Math.min(HEATMAP_LEVEL_COUNT, Math.max(1, Math.ceil((fish / maxFish) * HEATMAP_LEVEL_COUNT)));
+  }
+
+  function formatFishCount(value) {
+    const count = Number(value) || 0;
+    return Number.isInteger(count) ? String(count) : String(Math.round(count * 10) / 10);
   }
 
   function build(trips = [], options = {}) {
@@ -75,6 +77,8 @@
       activityByDate.set(key, activity);
     });
 
+    const maxFish = [...activityByDate.values()].reduce((maximum, activity) => Math.max(maximum, activity.fish), 0);
+
     const weeks = Array.from({ length: 53 }, (_, weekIndex) => (
       Array.from({ length: 7 }, (_, dayIndex) => {
         const date = addDays(start, (weekIndex * 7) + dayIndex);
@@ -84,7 +88,7 @@
           key: dateKey(date),
           trips: activity.trips,
           fish: activity.fish,
-          level: activityLevel(activity.trips),
+          level: activityLevel(activity.fish, maxFish),
           isToday: dateKey(date) === dateKey(today),
           isFuture: date > today
         };
@@ -107,7 +111,8 @@
       months,
       fishedDays: activeDays.length,
       tripCount: activeDays.reduce((total, activity) => total + activity.trips, 0),
-      fishCount: activeDays.reduce((total, activity) => total + activity.fish, 0)
+      fishCount: activeDays.reduce((total, activity) => total + activity.fish, 0),
+      maxFish
     };
   }
 
@@ -126,6 +131,7 @@
   }
 
   function render(model) {
+    const maxFishLabel = formatFishCount(model.maxFish);
     const months = model.months.map((month) => (
       `<span class="activity-heatmap-month" style="grid-column:${month.column}">${escapeHtml(month.label)}</span>`
     )).join("");
@@ -146,8 +152,8 @@
         </div>
       </div>
       <div class="activity-heatmap-footer">
-        <span class="activity-heatmap-legend" aria-label="Fishing activity legend">
-          <span>Less</span><i class="activity-heatmap-level-0"></i><i class="activity-heatmap-level-1"></i><i class="activity-heatmap-level-2"></i><i class="activity-heatmap-level-3"></i><i class="activity-heatmap-level-4"></i><i class="activity-heatmap-level-5"></i><span>More</span>
+        <span class="activity-heatmap-legend" aria-label="Fishing activity legend: 0 to ${escapeHtml(maxFishLabel)} fish per day">
+          <span>0 fish</span><i class="activity-heatmap-level-0"></i><i class="activity-heatmap-level-1"></i><i class="activity-heatmap-level-2"></i><i class="activity-heatmap-level-3"></i><i class="activity-heatmap-level-4"></i><i class="activity-heatmap-level-5"></i><span>${escapeHtml(maxFishLabel)} fish</span>
         </span>
       </div>
     `;

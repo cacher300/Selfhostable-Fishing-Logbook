@@ -104,7 +104,6 @@ const els = {
   cloudCoverStatsTable: document.querySelector("#cloudCoverStatsTable"),
   airTempStatsTable: document.querySelector("#airTempStatsTable"),
   sunshineStatsTable: document.querySelector("#sunshineStatsTable"),
-  weatherTrendStatsTable: document.querySelector("#weatherTrendStatsTable"),
   frontTagStatsTable: document.querySelector("#frontTagStatsTable"),
   biteWindowStatsTable: document.querySelector("#biteWindowStatsTable"),
   moonPhaseStatsTable: document.querySelector("#moonPhaseStatsTable"),

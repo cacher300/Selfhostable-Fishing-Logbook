@@ -47,7 +47,7 @@ function renderAdvancedStats() {
 
   renderStatsActivityHeatmap(trips);
 
-  const performanceHeaders = ["Name", "Landed", "Lost", "Strikes", "Hours", "Fish / hr", "Strikes / hr", "Landing %", "Trips", "Fish / trip", "Time %", "Fish %", "Efficiency", "Delta", "Confidence", "Label"];
+  const performanceHeaders = ["Name", "Landed", "Lost", "Strikes", "Hours", "Fish / hr", "Strikes / hr", "Landing %", "Trips", "Fish / trip", "Time %", "Fish %", "Efficiency", "Delta"];
   const headersForPerformance = (name, items = []) => {
     const headers = [name, ...performanceHeaders.slice(1)];
     return headers;
@@ -66,7 +66,7 @@ function renderAdvancedStats() {
   renderStatsTable(els.lureShareStatsTable, headersForPerformance("Lure", lureItems), performanceRows(lureItems, "Lure"));
   renderStatsTable(
     els.lureSpreadStatsTable,
-    ["Lure", "Fish", "Hours", "Fish / hr", "Trips", "Producing Trips", "Quiet While Others Hit", "Quiet %", "Only Producer Trips", "Confidence"],
+    ["Lure", "Fish", "Hours", "Fish / hr", "Trips", "Producing Trips", "Quiet While Others Hit", "Quiet %", "Only Producer Trips"],
     lureSpreadRows(summarizeLureSpreadContext(trips, records, gearRecords))
   );
   const lureTypeItems = summarizeEffortPerformance(
@@ -221,13 +221,13 @@ function renderAdvancedStats() {
   const intentItems = summarizeTripPerformance(locationRows, (trip) => intentLabel(tripIntent(trip)), hours, fish);
   const ratingItems = summarizeTripPerformance(locationRows, (trip) => tripRatingLabel(tripRatingValue(trip)), hours, fish);
   const monthItems = summarizeTripPerformance(locationRows, (trip) => trip.date ? tripMonthName(trip) : "", hours, fish);
-  renderStatsTable(els.locationStatsTable, ["Location", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(locationItems));
-  renderStatsTable(els.methodStatsTable, ["Method", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(methodItems));
-  renderStatsTable(els.waterClarityStatsTable, ["Water Clarity", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(clarityItems));
-  renderStatsTable(els.weatherStatsTable, ["Weather", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(weatherItems));
-  renderStatsTable(els.intentStatsTable, ["Intent", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence"], tripPerformanceRows(intentItems, { includeLabel: false }));
-  renderStatsTable(els.ratingStatsTable, ["Rating", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence"], tripPerformanceRows(ratingItems, { includeLabel: false }));
-  renderStatsTable(els.monthStatsTable, ["Month", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk", "Confidence", "Label"], tripPerformanceRows(monthItems));
+  renderStatsTable(els.locationStatsTable, ["Location", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(locationItems));
+  renderStatsTable(els.methodStatsTable, ["Method", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(methodItems));
+  renderStatsTable(els.waterClarityStatsTable, ["Water Clarity", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(clarityItems));
+  renderStatsTable(els.weatherStatsTable, ["Weather", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(weatherItems));
+  renderStatsTable(els.intentStatsTable, ["Intent", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(intentItems));
+  renderStatsTable(els.ratingStatsTable, ["Rating", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(ratingItems));
+  renderStatsTable(els.monthStatsTable, ["Month", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(monthItems));
   const personItems = makePerformanceItems(summarizePeople(records, gearRecords).map((row) => ({
     name: row[0],
     fish: statsNumericValue(row[1]) || 0,
@@ -242,7 +242,6 @@ function renderAdvancedStats() {
   renderStatsTable(els.cloudCoverStatsTable, ["Cloud Cover", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => cloudCoverBucket(weatherNumber(record, "cloudCoverPercent"))));
   renderStatsTable(els.airTempStatsTable, ["Air Temp", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => airTempBucket(weatherNumber(record, "temperatureC"))));
   renderStatsTable(els.sunshineStatsTable, ["Sunshine", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => sunshineBucket(weatherNumber(record, "sunshineDurationSeconds", "daily"))));
-  renderStatsTable(els.weatherTrendStatsTable, ["Trend", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => weatherTrendText(record.trip?.weatherData)));
   renderStatsTable(els.frontTagStatsTable, ["Front Tag", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => weatherText(record, "frontTag")));
   renderStatsTable(els.biteWindowStatsTable, ["Window", "Fish", "Trips", "Fish / trip"], summarizeBiteWindows(records));
   renderStatsTable(els.moonPhaseStatsTable, ["Moon", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => record.trip?.weatherData?.sunMoon?.phase || ""));
@@ -374,8 +373,7 @@ function highlightRow(label, row, details) {
   const caught = row.fish !== undefined ? `${row.fish} fish` : "";
   const rate = row.fishPerHour ? `, ${trimNumber(row.fishPerHour)}/hr` : "";
   const time = row.hours ? `, ${trimNumber(row.hours)} hr used` : "";
-  const confidence = row.confidence ? `, ${row.confidence} confidence` : "";
-  return [label, row.name, `${caught}${rate}${time}${confidence}` || details];
+  return [label, row.name, `${caught}${rate}${time}` || details];
 }
 
 function presentationLabel(value) {

@@ -76,8 +76,6 @@ function statsHeaderTitle(header) {
     "Quiet While Others Hit": "Trips where this lure was used, caught nothing, and another lure caught fish.",
     "Quiet %": "Percent of this lure's used trips where other lures produced but this lure did not.",
     "Only Producer Trips": "Trips where this lure caught fish and no other lure caught fish.",
-    Confidence: "Sample-size confidence based on hours and trips.",
-    Label: "Quick interpretation of rate, share, and sample size.",
     Share: "Percent share within this table.",
     "Fish Share": "Percent of selected landed fish in this range or bucket.",
     Rate: "Percent or rate for this row, depending on the table.",
@@ -99,8 +97,6 @@ function statsCellMarkup(cell, header) {
   if (cell && typeof cell === "object" && cell.html) return cell.html;
   const text = String(cell ?? "");
   const title = statsHeaderTitle(header);
-  if (header === "Confidence") return `<span class="stats-badge stats-confidence-${text.toLowerCase()}" title="${escapeHtml(title)}">${escapeHtml(text)}</span>`;
-  if (header === "Label") return `<span class="stats-badge" title="${escapeHtml(title)}">${escapeHtml(text)}</span>`;
   if (header === "Over" && text.startsWith("+")) return `<span class="stats-positive" title="${escapeHtml(title)}">${escapeHtml(text)}</span>`;
   if (header === "Over" && text.startsWith("-")) return `<span class="stats-negative" title="${escapeHtml(title)}">${escapeHtml(text)}</span>`;
   return `<span title="${escapeHtml(title)}">${escapeHtml(cell)}</span>`;
@@ -193,7 +189,7 @@ function statsChartMetricIndexes(headers, rows) {
     "Trip", "Launch", "Start", "Lines pulled", "Pattern", "Species", "Outcome", "Lure", "Lure Type", "Lure Color",
     "Flasher", "Combo", "Direction", "Line Side", "Method", "Location", "Water Clarity", "Intent", "Rating", "Person",
     "Wind", "Trend", "Front Tag", "Moon", "Moon Window", "Window", "Relationship", "Catch Class", "Position", "Field",
-    "Meaning", "Label", "Confidence", "Time", "FOW Range", "GPS Speed", "Ball Speed", "Distance"
+    "Meaning", "Time", "FOW Range", "GPS Speed", "Ball Speed", "Distance"
   ]);
   return headers
     .map((header, index) => ({ header, index }))
@@ -265,7 +261,6 @@ function statsChartConfig(id, headers) {
     cloudCoverStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 },
     airTempStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 },
     sunshineStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 },
-    weatherTrendStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 },
     frontTagStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 },
     biteWindowStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 10 },
     moonPhaseStatsTable: { type: "bar", valueIndex: tripRateIndex, limit: 8 },

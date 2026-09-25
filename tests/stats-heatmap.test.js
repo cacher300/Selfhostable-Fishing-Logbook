@@ -24,17 +24,30 @@ assert.equal(model.fishCount, 4);
 const septemberFourteenth = model.weeks.flat().find((day) => day.key === "2026-09-14");
 assert.equal(septemberFourteenth.trips, 2);
 assert.equal(septemberFourteenth.fish, 4);
-assert.equal(septemberFourteenth.level, 2);
+assert.equal(septemberFourteenth.level, 5);
 assert.equal(septemberFourteenth.isToday, true);
+assert.equal(model.maxFish, 4);
 
 const septemberTenth = model.weeks.flat().find((day) => day.key === "2026-09-10");
-assert.equal(septemberTenth.level, 1);
+assert.equal(septemberTenth.level, 0);
 const markup = StatsActivityHeatmap.render(model);
 assert.match(markup, /Fishing activity over the last 12 months/);
+assert.match(markup, /0 fish.*4 fish/);
 assert.match(markup, /is-today[^>]*aria-current="date"/);
 assert.match(markup, /tabindex="0"[^>]*September 14, 2026/);
 const emptyDayTag = markup.match(/<span[^>]*September 13, 2026[^>]*>/)[0];
 assert.doesNotMatch(emptyDayTag, /tabindex/);
+
+const dynamicScale = StatsActivityHeatmap.build([
+  { date: "2026-09-14", catches: [{ quantity: 10 }] },
+  { date: "2026-09-13", catches: [{ quantity: 5 }] },
+  { date: "2026-09-12", catches: [{ quantity: 1 }] }
+], { today: new Date("2026-09-14T12:00:00") });
+assert.equal(dynamicScale.maxFish, 10);
+assert.equal(dynamicScale.weeks.flat().find((day) => day.key === "2026-09-14").level, 5);
+assert.equal(dynamicScale.weeks.flat().find((day) => day.key === "2026-09-13").level, 3);
+assert.equal(dynamicScale.weeks.flat().find((day) => day.key === "2026-09-12").level, 1);
+assert.match(StatsActivityHeatmap.render(dynamicScale), /0 fish.*10 fish/);
 
 const quantityParity = StatsActivityHeatmap.build([
   { date: "2026-09-14", catches: [{}, { quantity: "" }, { quantity: null }, { quantity: "bad" }] }
