@@ -230,7 +230,8 @@ dependent and should be reported as such.
 
 ## Deployment and scope
 
-- The default branch deploys automatically through GitLab after validation.
+- The default branch is the integration branch and does not deploy. A separate
+  website pipeline owns deployment.
 - Production data must live outside the deployment checkout.
 - Never put deploy keys, API tokens, database IDs, or personal data in Git.
 - The Cloudflare Worker uses D1/R2 bindings and protected CI variables; do not
