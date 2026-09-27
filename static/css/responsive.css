@@ -45,6 +45,7 @@
 
   .form-grid,
   .catch-row .collapsible-row-body,
+  .catch-equipment-grid,
   .gear-used-row .collapsible-row-body,
   .catch-location-section {
     grid-template-columns: 1fr 1fr;
@@ -70,6 +71,10 @@
   #tripDialog .catch-row .catch-rigging-field,
   #tripDialog .catch-row .catch-rigging-details-field,
   #tripDialog .catch-row .catch-retrieve-field {
+    grid-column: auto;
+  }
+
+  #tripDialog .catch-row .catch-equipment-grid .catch-retrieve-field {
     grid-column: auto;
   }
 
@@ -634,6 +639,7 @@
   .controls,
   .form-grid,
   .catch-row .collapsible-row-body,
+  .catch-equipment-grid,
   .gear-used-row .collapsible-row-body,
   .person-row,
   .line-editor-row {

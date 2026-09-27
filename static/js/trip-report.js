@@ -1,6 +1,6 @@
 const reportColumnDefinitions = [
   ["number", "#"], ["type", "Record"], ["time", "Time"], ["angler", "Angler"], ["result", "Result"], ["species", "Species"], ["spot", "Spot"], ["structure", "Structure"], ["size", "Size"],
-  ["waterDepth", "Water depth"], ["depth", "Depth Down"], ["method", "Method"], ["setup", "Line"], ["lure", "Lure"], ["flasher", "Flasher"], ["direction", "Direction"],
+  ["waterDepth", "Water depth"], ["depth", "Depth Down"], ["setup", "Line"], ["lure", "Lure"], ["flasher", "Flasher"], ["direction", "Direction"],
   ["gpsSpeed", "GPS Speed"], ["ballSpeed", "Ball Speed"], ["ballTemp", "Ball Temp"], ["flatlineWeight", "Flatline Weight"],
   ["lineBehindBoard", "Line Behind Board"], ["leadcoreColors", "Leadcore Colors"], ["dipseySetting", "Dipsey Setting"],
   ["lineOut", "Line Out"], ["retrieve", "Retrieve"], ["shaker", "Shaker"], ["deepestRigger", "Deepest Rigger"],
@@ -215,7 +215,15 @@ function renderReportSetupTable(trip) {
       gearItem.lureMinutes, gearItem.flasherMinutes
     ] : []), displaySentenceText(gearItem.changeNote || "")
   ];
-  return `<section class="report-setup-section"><div class="report-section-title"><h3>Setup details</h3></div><div class="report-table-scroll" tabindex="0" aria-label="Setup details. Scroll horizontally for more columns."><table class="report-catch-table report-setup-table"><thead><tr>${columns.map((label) => `<th scope="col"><span>${escapeHtml(label)}</span></th>`).join("")}</tr></thead><tbody>${rows.length ? rows.map((gearItem, index) => `<tr>${values(gearItem, index).map((value) => `<td>${escapeHtml(reportText(value))}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${columns.length}" class="report-empty-row">No setup lines were logged for this trip.</td></tr>`}</tbody></table></div></section>`;
+  const rowValues = rows.map((gearItem, index) => values(gearItem, index));
+  const visibleIndexes = rows.length
+    ? columns.map((_, index) => index).filter((index) => rowValues.some((row) => {
+      const value = row[index];
+      return value !== null && value !== undefined && String(value).trim() !== "";
+    }))
+    : columns.map((_, index) => index);
+  const visibleColumns = visibleIndexes.map((index) => columns[index]);
+  return `<section class="report-setup-section"><div class="report-section-title"><h3>Setup details</h3></div><div class="report-table-scroll" tabindex="0" aria-label="Setup details. Scroll horizontally for more columns."><table class="report-catch-table report-setup-table"><thead><tr>${visibleColumns.map((label) => `<th scope="col"><span>${escapeHtml(label)}</span></th>`).join("")}</tr></thead><tbody>${rows.length ? rowValues.map((row) => `<tr>${visibleIndexes.map((index) => `<td>${escapeHtml(reportText(row[index]))}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${visibleColumns.length}" class="report-empty-row">No setup lines were logged for this trip.</td></tr>`}</tbody></table></div></section>`;
 }
 
 function renderTripReport(trip) {
@@ -241,7 +249,7 @@ function renderTripReport(trip) {
     ${renderReportSetupTable(trip)}
     ${renderReportTimeline(trip)}
     ${mapRecords.length ? `<section class="report-map-section"><div class="report-section-title"><h3>Fish map</h3></div><div class="summary-map-tools"><label><span>Species</span><select id="tripSummaryMapFilter"></select></label></div><div id="tripSummaryMap" class="fish-map trip-summary-map"></div></section>` : ""}
-    <section class="report-photos"><div><h3>Photos</h3><p>${escapeHtml(`${(trip.notePhotos || []).length} saved`)}</p></div>${summaryPhotoGrid(trip.notePhotos || [], "No trip photos", { compact: true, openable: true })}</section>
+    <section class="report-photos"><h3>Photos</h3>${summaryPhotoGrid(trip.notePhotos || [], "No trip photos", { compact: true, openable: true })}</section>
     <div id="catchDetailHost"></div>
   </article>`;
 }
