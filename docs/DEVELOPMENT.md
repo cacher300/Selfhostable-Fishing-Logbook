@@ -68,6 +68,12 @@ The apply command creates a backup, converts known v1 fields to v2 fields, migra
 
 The server performs whole-document writes inside SQLite transactions. A failed server PUT can leave localStorage ahead of server state because the browser writes localStorage first.
 
+Local, direct, and Docker startup runs `scripts/fix_lure_once.py`. It finds the
+exact `Whitr 3/4 ounce paddle tail` swimbait and repoints its known
+`lureId`/`cheaterLureId` references to the `White Paddle Tail` soft plastic,
+then removes the duplicate. It is idempotent and does not create a backup;
+make the normal database backup before starting the service.
+
 ## Cross-Client Changes
 
 The adjacent `..\Mobile` repository is a companion Expo SDK 57 client. It does
