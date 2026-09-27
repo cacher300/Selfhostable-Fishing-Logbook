@@ -1564,11 +1564,11 @@
               <div class="trip-time-inputs">
                 <label>
                   <span>Start time</span>
-                  <input id="launchTime" type="time" />
+                  <input id="launchTime" type="time" min="00:00" max="23:59" step="60" />
                 </label>
                 <label>
                   <span>End time</span>
-                  <input id="linesPulledTime" type="time" />
+                  <input id="linesPulledTime" type="time" min="00:00" max="23:59" step="60" />
                 </label>
                 <label>
                   <span>Idle time (hours)</span>
@@ -2298,36 +2298,38 @@
           </label>
           </div>
           <div class="row-section-title catch-detail-optional">Equipment</div>
-          <label class="trolling-catch-line-field catch-detail-optional">
-            <span>Rod</span>
-            <select class="catch-setup-line"></select>
-          </label>
-          <label class="checkbox-label trolling-param param-deepest-rigger catch-detail-optional">
-            <input class="catch-deepest-rigger" type="checkbox" />
-            <span>Deepest rigger</span>
-          </label>
-          <label class="direct-catch-gear catch-rod-field catch-detail-optional">
-            <span>Rod</span>
-            <select class="catch-rod"></select>
-          </label>
-          <label class="direct-catch-gear catch-lure-field catch-detail-optional">
-            <span>Lure</span>
-          <select class="catch-lure"></select>
-          </label>
-          <button class="button secondary add-lure-inline direct-catch-gear catch-detail-optional" type="button">New Lure</button>
-          <label class="direct-catch-gear catch-rigging-field catch-detail-optional">
-            <span>Rigging</span>
-            <select class="catch-rigging"></select>
-          </label>
-          <label class="direct-catch-gear catch-rigging-details-field catch-detail-optional">
-            <span>Rig details</span>
-            <input class="catch-rigging-details" type="text" placeholder="1/0 hook, 1/8 oz weight, weedless" />
-          </label>
-          <label class="fly-catch-field catch-detail-optional hidden"><span>Presentation</span><select class="catch-fly-presentation"></select></label>
-          <label class="casting-field catch-retrieve-field catch-detail-optional">
-            <span>Retrieve</span>
-            <input class="catch-retrieve" type="text" placeholder="Slow roll, pause-twitch, burn-stop" />
-          </label>
+          <div class="catch-equipment-grid catch-detail-optional">
+            <label class="trolling-catch-line-field catch-detail-optional">
+              <span>Rod</span>
+              <select class="catch-setup-line"></select>
+            </label>
+            <label class="checkbox-label trolling-param param-deepest-rigger catch-detail-optional">
+              <input class="catch-deepest-rigger" type="checkbox" />
+              <span>Deepest rigger</span>
+            </label>
+            <label class="direct-catch-gear catch-rod-field catch-detail-optional">
+              <span>Rod</span>
+              <select class="catch-rod"></select>
+            </label>
+            <label class="direct-catch-gear catch-lure-field catch-detail-optional">
+              <span>Lure</span>
+              <select class="catch-lure"></select>
+            </label>
+            <button class="button secondary add-lure-inline direct-catch-gear catch-detail-optional" type="button">New Lure</button>
+            <label class="direct-catch-gear catch-rigging-field catch-detail-optional">
+              <span>Rigging</span>
+              <select class="catch-rigging"></select>
+            </label>
+            <label class="direct-catch-gear catch-rigging-details-field catch-detail-optional">
+              <span>Rig details</span>
+              <input class="catch-rigging-details" type="text" placeholder="1/0 hook, 1/8 oz weight, weedless" />
+            </label>
+            <label class="fly-catch-field catch-detail-optional hidden"><span>Presentation</span><select class="catch-fly-presentation"></select></label>
+            <label class="casting-field catch-retrieve-field catch-detail-optional">
+              <span>Retrieve</span>
+              <input class="catch-retrieve" type="text" placeholder="Slow roll, pause-twitch, burn-stop" />
+            </label>
+          </div>
           <div class="row-section-title trolling-field catch-detail-optional">Details</div>
           <!-- The setup-line method is the source of truth for catches. Keep a
                synced value for existing form logic, but do not render a second
@@ -2631,7 +2633,7 @@
     <script src="static/js/great-lakes-conditions.js?v=20260731-48"></script>
     <script src="static/js/maps.js?v=20260924-species-map-colors-2"></script>
     <script src="static/js/trip-summary.js?v=20260910-ball-temp-1"></script>
-    <script src="static/js/trip-report.js?v=20260923-trip-start-1"></script>
+    <script src="static/js/trip-report.js?v=20260926-hide-method-1"></script>
     <script src="static/js/trip-timeline.js?v=20260829-structure-split-1"></script>
     <script src="static/js/trip-sharing.js?v=20260923-trip-start-1"></script>
     <script src="static/js/shared-trip-import.js?v=20260923-trip-start-1"></script>

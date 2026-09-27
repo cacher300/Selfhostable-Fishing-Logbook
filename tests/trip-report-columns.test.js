@@ -24,6 +24,7 @@ vm.runInContext(`let activeReportTimelineColumns = null; const storageKey = "fis
 const actual = context.readReportColumns();
 assert.deepEqual(Array.from(actual), storedColumns);
 assert.deepEqual(reads, ["fishing-logbook-v2-trip-report-columns-v6"]);
+assert.equal(vm.runInContext("reportColumnDefinitions.some(([key]) => key === 'method')", context), false, "Method is never offered as a timeline column");
 
 const trip = { method: "Trolling", catches: [
   { species: "Lake trout", time: "2026-09-23T08:00:00Z", leadcoreColors: "", shaker: false, deepestRigger: false, photos: [] },

@@ -717,6 +717,20 @@
   grid-template-columns: minmax(0, 1fr) 180px minmax(0, 1fr) 180px;
 }
 
+.catch-equipment-grid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(144px, 180px) minmax(200px, 240px) max-content minmax(220px, 320px);
+  gap: 12px;
+  align-items: end;
+  justify-content: start;
+  min-width: 0;
+}
+
+.catch-equipment-grid > * {
+  min-width: 0;
+}
+
 .catch-trolling-details-grid {
   display: grid;
   grid-column: 1 / -1;
