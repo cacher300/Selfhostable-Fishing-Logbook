@@ -40,7 +40,7 @@ _relaunch_in_project_venv()
 from flask import Flask, Response, abort, jsonify, render_template, request, send_from_directory
 from werkzeug.utils import secure_filename
 
-from backend import cloud_storage
+from backend import cloud_storage, logbook_store
 from backend.backend_config import (
     ALLOWED_MEDIA_EXTENSIONS,
     DATA_DIR,
@@ -61,6 +61,7 @@ from backend.logbook_store import (
     validate_logbook,
     write_logbook,
 )
+from scripts.fix_lure_once import run as run_lure_cleanup
 from backend.bathymetry_service import (
     apply_depth_result,
     lookup_depth,
@@ -1043,6 +1044,12 @@ app = create_app()
 
 def main() -> None:
     DATA_DIR.mkdir(exist_ok=True)
+    if not cloud_storage.enabled():
+        try:
+            run_lure_cleanup(logbook_store.DATABASE_FILE)
+        except Exception as error:
+            app.logger.exception("Could not run startup lure cleanup; continuing so recovery remains available.")
+            print(f"Warning: the startup lure cleanup could not be completed: {error}", file=sys.stderr)
     try:
         if not database_exists():
             write_logbook(DEFAULT_LOGBOOK)
