@@ -18,7 +18,6 @@ COPY server.py index.html ./
 COPY docker-entrypoint.sh ./
 COPY templates ./templates
 COPY backend ./backend
-COPY scripts ./scripts
 COPY static ./static
 RUN mkdir -p data/uploads
 
