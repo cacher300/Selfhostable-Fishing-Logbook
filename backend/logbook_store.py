@@ -56,16 +56,11 @@ def read_logbook() -> dict:
 
 
 def write_logbook(payload: dict) -> None:
-    write_logbook_file(DATABASE_FILE, payload)
-
-
-def write_logbook_file(database_file, payload: dict) -> None:
-    """Validate and persist a complete v2 document at an explicit path."""
     is_valid, error = validate_logbook(payload)
     if not is_valid:
         raise ValueError(error)
 
-    logbook_repository.write(database_file, payload, _COLLECTION_KEYS, _OBJECT_COLLECTION_KEYS)
+    logbook_repository.write(DATABASE_FILE, payload, _COLLECTION_KEYS, _OBJECT_COLLECTION_KEYS)
 
 
 def replace_logbook(payload: dict) -> None:
