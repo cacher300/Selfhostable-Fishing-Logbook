@@ -29,10 +29,6 @@ def database_exists() -> bool:
     return logbook_repository.exists(DATABASE_FILE)
 
 
-def initialize_database() -> None:
-    logbook_repository.initialize(DATABASE_FILE)
-
-
 def read_logbook_file(database_file, *, allow_empty: bool = True) -> dict:
     try:
         loaded = logbook_repository.read(database_file, _COLLECTION_KEYS)
@@ -169,7 +165,7 @@ def _validate_required_lists(payload: dict) -> tuple[bool, str | None]:
 def _validate_option_lists(payload: dict) -> tuple[bool, str | None]:
     keys = (
         "species", "methods", "lureTypes", "flasherTypes", "waterClarities",
-        "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "riggings", "structureOptions", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingDirections",
+        "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "riggings", "structureOptions", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "meatRigTypes", "softPlasticTypes", "trollingDirections",
     )
     for key in keys:
         if key not in payload:
@@ -180,6 +176,15 @@ def _validate_option_lists(payload: dict) -> tuple[bool, str | None]:
         for index, value in enumerate(values):
             if not isinstance(value, str):
                 return _error(f"{key}[{index}]", "must be a string")
+    return True, None
+
+
+def _validate_lure_subtypes(payload: dict) -> tuple[bool, str | None]:
+    for index, lure in enumerate(payload["lures"]):
+        if "meatRigType" in lure and not isinstance(lure["meatRigType"], str):
+            return _error(f"lures[{index}].meatRigType", "must be a string")
+        if "softPlasticType" in lure and not isinstance(lure["softPlasticType"], str):
+            return _error(f"lures[{index}].softPlasticType", "must be a string")
     return True, None
 
 
@@ -361,6 +366,8 @@ def _validate_settings(payload: dict) -> tuple[bool, str | None]:
                 for field in ("side", "presentation"):
                     if not isinstance(row.get(field), str) or not row[field].strip():
                         return _error(f"{row_path}.{field}", "must be a non-empty string")
+                if "dipseyDiverColor" in row and not isinstance(row["dipseyDiverColor"], str):
+                    return _error(f"{row_path}.dipseyDiverColor", "must be a string")
         default_spread_id = settings.get("defaultTrollingSpreadId", "")
         if not isinstance(default_spread_id, str):
             return _error("settings.defaultTrollingSpreadId", "must be a string")
@@ -538,6 +545,9 @@ def _validate_trips(payload: dict) -> tuple[bool, str | None]:
             valid, error = _validate_nested_records(trip.get(field, []), f"{path}.{field}")
             if not valid:
                 return valid, error
+        for gear_index, gear in enumerate(trip.get("gearUsed", [])):
+            if "dipseyDiverColor" in gear and not isinstance(gear["dipseyDiverColor"], str):
+                return _error(f"{path}.gearUsed[{gear_index}].dipseyDiverColor", "must be a string")
         for record_group in ("catches", "lostFish"):
             for catch_index, catch in enumerate(trip.get(record_group, [])):
                 record_path = f"{path}.{record_group}[{catch_index}]"
@@ -597,6 +607,7 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
         _validate_option_lists,
         _validate_choice_lists,
         _validate_object_lists,
+        _validate_lure_subtypes,
         _validate_settings,
         _validate_locations,
         _validate_people,

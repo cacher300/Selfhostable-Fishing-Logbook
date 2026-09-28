@@ -17,6 +17,7 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync("static/js/app-config.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/app-defaults.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/app-state.js", "utf8"), context);
+vm.runInContext(fs.readFileSync("static/js/app-units.js", "utf8"), context);
 vm.runInContext(fs.readFileSync("static/js/maps.js", "utf8"), context);
 
 vm.runInContext(`state.people = [{ id: "angler-1", name: "Alex" }]`, context);
@@ -67,5 +68,8 @@ assert.equal(vm.runInContext(`filteredMapRecordsByDetails(testRecords, { lake: "
 assert.equal(vm.runInContext(`filteredMapRecordsByDetails(testRecords, { lake: "All lakes", method: "Trolling", direction: "NE", angler: "Alex", disposition: "Kept" }).length`, context), 1);
 assert.equal(vm.runInContext(`filteredMapRecordsByDetails(testRecords, { lake: "All lakes", method: "All methods", direction: "All directions", angler: "All anglers", disposition: "Released" }).length`, context), 3);
 assert.equal(vm.runInContext(`mapRecordsInViewport(viewportMap, viewportRecords).map(record => record.catchItem.species).join(",")`, context), "Largemouth Bass");
+assert.equal(vm.runInContext(`catchSizePopupValue({ length: "20", weight: "4" })`, context), "4 lb · 20 in");
+assert.equal(vm.runInContext(`catchSizePopupValue({ length: "20" })`, context), "20 in");
+assert.equal(vm.runInContext(`catchSizePopupValue({})`, context), "");
 
 console.log("map filter tests passed");

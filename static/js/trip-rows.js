@@ -364,6 +364,7 @@ function addTripGearRow(gearItem = {}) {
   node.querySelector(".trip-gear-cheater").checked = Boolean(gearItem.hasCheater);
   node.querySelector(".trip-gear-leadcore").checked = Boolean(gearItem.hasLeadcore);
   node.querySelector(".trip-gear-distance-behind").value = gearItem.distanceBehind || "";
+  node.querySelector(".trip-gear-dipsey-diver-color").value = gearItem.dipseyDiverColor || "";
   node.querySelector(".trip-gear-attached-weight").value = gearItem.attachedWeightOz || "";
   populateLureSelect(node.querySelector(".trip-gear-lure"), gearItem.lureId || "");
   populateOptionSelect(node.querySelector(".trip-gear-rigging"), state.riggings, "Select rigging");
@@ -398,6 +399,7 @@ function applyStartupTrollingSpread() {
     comboId: item.comboId,
     side: item.side,
     presentation: item.presentation,
+    dipseyDiverColor: item.dipseyDiverColor || "",
     lureId: "",
     flasherId: "",
     cheaterLureId: "",
@@ -443,6 +445,7 @@ function lastTripSpreadGearItem(gearItem) {
     side: gearItem.side || "",
     lineLabel: gearItem.lineLabel || "",
     presentation: gearItem.presentation || "",
+    dipseyDiverColor: gearItem.dipseyDiverColor || "",
     hasLeadcore: Boolean(gearItem.hasLeadcore),
     distanceBehind: gearItem.distanceBehind || "",
     lureId: gearItem.lureId || "",

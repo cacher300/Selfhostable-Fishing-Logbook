@@ -788,7 +788,7 @@ document.addEventListener("change", (event) => {
     sortTrollingSetupRows();
     document.querySelectorAll(".catch-row, .gear-used-row").forEach(updateRowSummary);
   }
-  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-distance-behind, .trip-gear-cheater, .trip-gear-cheater-lure, .trip-gear-leadcore")) {
+  if (event.target.matches(".trip-gear-lure, .trip-gear-flasher, .trip-gear-combo, .trip-gear-rod, .trip-gear-reel, .trip-gear-side, .trip-gear-start-time, .trip-gear-end-time, .catch-presentation, .trip-gear-line-label, .trip-gear-distance-behind, .trip-gear-dipsey-diver-color, .trip-gear-cheater, .trip-gear-cheater-lure, .trip-gear-leadcore")) {
     populateSetupLineSelects();
     populateCatchRodSelects();
   }

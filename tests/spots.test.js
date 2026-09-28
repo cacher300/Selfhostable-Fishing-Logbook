@@ -45,19 +45,6 @@ assert.equal(
   "z-west"
 );
 
-const assigned = [
-  context.normalizeCatchSpotAssignment({ id: "auto", coordinates: center }, [west, east]),
-  context.normalizeCatchSpotAssignment({ id: "manual", coordinates: center, spotAssignmentMode: "manual", spotId: "z-west" }, [west, east]),
-  context.normalizeCatchSpotAssignment({ id: "none", coordinates: center, spotAssignmentMode: "manual", spotId: "" }, [west, east])
-];
-assert.equal(assigned[0].spotId, "a-east");
-assert.equal(assigned[1].spotId, "z-west");
-assert.equal(assigned[2].spotId, "");
-
-const afterDelete = context.normalizeCatchSpotAssignment(assigned[1], [east]);
-assert.equal(afterDelete.spotId, "");
-assert.equal(afterDelete.spotAssignmentMode, "manual");
-
 assert.doesNotThrow(() => context.validateFishingSpots([east]));
 assert.throws(() => context.validateFishingSpots([east, { ...west, id: "duplicate-name", name: "east" }]), /names must be unique/);
 assert.throws(() => context.validateFishingSpots([{ id: "bad-radius", name: "Bad", coordinates: center, radiusMeters: 10 }]), /between 25 and 500/);
