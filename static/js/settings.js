@@ -18,6 +18,7 @@ function trollingSpreadRowMarkup(item = {}, { disabled = false, sourceIndex = ""
   const comboId = String(item.comboId || "");
   const side = String(item.side || "");
   const presentation = String(item.presentation || "");
+  const dipseyDiverColor = String(item.dipseyDiverColor || "");
   const comboOptions = state.rodReelCombos.map((combo) => (
     `<option value="${escapeHtml(combo.id)}" ${combo.id === comboId ? "selected" : ""}>${escapeHtml(comboName(combo.id) || "Rod / reel combo")}</option>`
   )).join("");
@@ -43,9 +44,29 @@ function trollingSpreadRowMarkup(item = {}, { disabled = false, sourceIndex = ""
         <span>Method</span>
         <select class="trolling-spread-presentation"${disabled ? " disabled" : ""}>${choiceOptions("trollingPresentations", presentation, "Select method")}</select>
       </label>
+      <label class="trolling-spread-dipsey-color-field${trollingSpreadUsesDipseyDiverColor(presentation) ? "" : " hidden"}">
+        <span>Dipsey diver color</span>
+        <input class="trolling-spread-dipsey-color" type="text" value="${escapeHtml(dipseyDiverColor)}" placeholder="Purple / green"${disabled ? " disabled" : ""} />
+      </label>
       ${disabled ? "" : '<button class="button danger remove-trolling-spread-row" type="button">Remove</button>'}
     </div>
   `;
+}
+
+function trollingSpreadUsesDipseyDiverColor(value) {
+  const key = String(value || "").trim().toLowerCase().replace(/[\s_]+/g, "-");
+  return key === "high-diver" || key === "low-diver";
+}
+
+function syncTrollingSpreadRowFields(row) {
+  if (!row) return;
+  const presentation = row.querySelector(".trolling-spread-presentation")?.value || "";
+  const supportsColor = trollingSpreadUsesDipseyDiverColor(presentation);
+  row.querySelector(".trolling-spread-dipsey-color-field")?.classList.toggle("hidden", !supportsColor);
+  if (!supportsColor) {
+    const input = row.querySelector(".trolling-spread-dipsey-color");
+    if (input) input.value = "";
+  }
 }
 
 function trollingSpreadRodsForPreview(spread = []) {
@@ -90,7 +111,7 @@ function renderTrollingSpreadCard(item, { draft = false } = {}) {
           <div class="trolling-spread-card-section-heading">
             <div>
               <strong>Rod positions</strong>
-              <span>Saved spreads use combo, side, and presentation only.</span>
+              <span>Saved spreads use combo, side, presentation, and optional High/Low Diver color.</span>
             </div>
             ${editing ? '<button class="button secondary add-trolling-spread-row" type="button">Add Rod</button>' : ""}
           </div>
@@ -124,6 +145,7 @@ function renderTrollingSpreadSettings() {
       ? visibleSpreads.map((item) => renderTrollingSpreadCard(item, { draft: item === trollingSpreadDraft })).join("")
       : '<div class="trolling-spread-empty-state">No saved trolling spreads yet. Add one to make it available from the trip editor.</div>'}
   `;
+  els.defaultTrollingSpreadRows.querySelectorAll(".trolling-spread-row").forEach(syncTrollingSpreadRowFields);
   visibleSpreads.forEach((item) => {
     const card = els.defaultTrollingSpreadRows.querySelector(`[data-trolling-spread-id="${CSS.escape(item.id)}"]`);
     renderTrollingSpreadPreview(card, item.spread);
@@ -169,7 +191,10 @@ function collectTrollingSpreadCard(card) {
       ...(row.dataset.sourceIndex !== undefined ? existing?.spread?.[Number(row.dataset.sourceIndex)] : {}),
       comboId: row.querySelector(".trolling-spread-combo")?.value || "",
       side: row.querySelector(".trolling-spread-side")?.value || "",
-      presentation: row.querySelector(".trolling-spread-presentation")?.value || ""
+      presentation: row.querySelector(".trolling-spread-presentation")?.value || "",
+      dipseyDiverColor: trollingSpreadUsesDipseyDiverColor(row.querySelector(".trolling-spread-presentation")?.value)
+        ? row.querySelector(".trolling-spread-dipsey-color")?.value.trim() || ""
+        : ""
     }))
   };
 }

@@ -164,6 +164,8 @@ function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", 
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#lureBladeType"), optionLabels("lureBladeTypes"), "Select blade type");
   populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
+  populateOptionSelect(document.querySelector("#lureMeatRigType"), optionLabels("meatRigTypes"), "Select meat rig type");
+  populateOptionSelect(document.querySelector("#lureSoftPlasticType"), [...new Set([...optionLabels("softPlasticTypes"), ...(lure?.softPlasticType ? [lure.softPlasticType] : [])])], "Select soft plastic style");
   populateOptionSelect(document.querySelector("#flyCategory"), optionLabels("flyCategories"), "Select category");
   const editing = Boolean(lure);
   const gearLabel = String(lure?.type || initialType).toLowerCase() === "fly" ? "Fly" : "Lure";
@@ -175,6 +177,8 @@ function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", 
   setValue("lureDivingDepth", lure?.divingDepth || "");
   setValue("lureBladeType", lure?.bladeType || "");
   setValue("lureSpoonSize", lure?.spoonSize || "");
+  setValue("lureMeatRigType", lure?.meatRigType || "");
+  setValue("lureSoftPlasticType", lure?.softPlasticType || "");
   setValue("flyCategory", lure?.flyCategory || "");
   setValue("flyPattern", lure?.flyPattern || "");
   setValue("flyHookSize", lure?.flyHookSize || "");
@@ -197,11 +201,15 @@ function openLureInfoDialog(lure, pendingRowId = "") {
   const hasDivingDepth = ["crankbait", "jerkbait"].includes(lure.type?.toLowerCase());
   const hasBladeType = isWormHarnessType(lure.type);
   const hasSpoonSize = isSpoonType(lure.type);
+  const hasMeatRigType = isMeatRigType(lure.type);
+  const hasSoftPlasticType = isSoftPlasticType(lure.type);
   const details = [
     ["Type", lure.type],
     ["Diving depth", hasDivingDepth ? lure.divingDepth : ""],
     ["Blade type", hasBladeType ? lure.bladeType : ""],
     ["Spoon size", hasSpoonSize ? lure.spoonSize : ""],
+    ["Meat rig type", hasMeatRigType ? lure.meatRigType : ""],
+    ["Soft plastic style", hasSoftPlasticType ? lure.softPlasticType : ""],
     ["Brand", lure.brand],
     ["Model", lure.model],
     ["Color", lure.color],
@@ -233,6 +241,8 @@ function updateLureDivingDepthField() {
   document.querySelector("#lureDivingDepthField").classList.toggle("hidden", !hasDivingDepth);
   document.querySelector("#lureBladeTypeField").classList.toggle("hidden", !isWormHarnessType(lureType));
   document.querySelector("#lureSpoonSizeField").classList.toggle("hidden", !isSpoonType(lureType));
+  document.querySelector("#lureMeatRigTypeField").classList.toggle("hidden", !isMeatRigType(lureType));
+  document.querySelector("#lureSoftPlasticTypeField").classList.toggle("hidden", !isSoftPlasticType(lureType));
   document.querySelectorAll("#flyCategoryField, #flyPatternField, #flyHookSizeField").forEach((field) => field.classList.toggle("hidden", !fly));
 }
 
@@ -242,6 +252,14 @@ function isWormHarnessType(type) {
 
 function isSpoonType(type) {
   return String(type || "").trim().toLowerCase() === "spoon";
+}
+
+function isMeatRigType(type) {
+  return String(type || "").trim().toLowerCase() === "meat rig";
+}
+
+function isSoftPlasticType(type) {
+  return String(type || "").trim().toLowerCase() === "soft plastic";
 }
 
 function openFlasherDialog(flasher = null, pendingRowId = "") {
@@ -442,6 +460,8 @@ async function saveLure(event) {
       divingDepth: ["crankbait", "jerkbait"].includes(getValue("lureType").toLowerCase()) ? getValue("lureDivingDepth") : "",
       bladeType: isWormHarnessType(getValue("lureType")) ? getValue("lureBladeType") : "",
       spoonSize: isSpoonType(getValue("lureType")) ? getValue("lureSpoonSize") : "",
+      meatRigType: isMeatRigType(getValue("lureType")) ? getValue("lureMeatRigType") : "",
+      softPlasticType: isSoftPlasticType(getValue("lureType")) ? getValue("lureSoftPlasticType") : "",
       flyCategory: getValue("lureType").toLowerCase() === "fly" ? getValue("flyCategory") : "",
       flyPattern: getValue("lureType").toLowerCase() === "fly" ? getValue("flyPattern") : "",
       flyHookSize: getValue("lureType").toLowerCase() === "fly" ? getValue("flyHookSize") : "",

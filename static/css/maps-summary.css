@@ -311,6 +311,79 @@
   border-radius: 6px;
 }
 
+.map-record-popup {
+  width: min(276px, calc(100vw - 56px));
+  min-width: 0;
+  gap: 12px;
+  padding: 2px 0;
+  justify-items: stretch;
+  text-align: left;
+}
+
+.map-record-popup img,
+.map-record-popup video {
+  width: 100%;
+  border-radius: 10px;
+}
+
+.map-popup-heading {
+  display: grid;
+  gap: 4px;
+  padding: 0 2px;
+  text-align: center;
+}
+
+.map-popup-title {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.map-popup-date {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.map-popup-details {
+  display: grid;
+  width: 100%;
+  gap: 7px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.map-popup-detail {
+  display: grid;
+  grid-template-columns: minmax(70px, auto) minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+
+.map-popup-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.map-popup-value {
+  min-width: 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 .map-popup strong,
 .map-popup span,
 .map-popup a,
@@ -438,21 +511,32 @@
 }
 
 .map-popup-trip-link {
-  width: max-content;
-  justify-self: center;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--green-dark);
-  font-size: 12px;
+  width: 100%;
+  min-height: 36px;
+  justify-self: stretch;
+  border: 1px solid var(--chip-line);
+  border-radius: 9px;
+  padding: 8px 12px;
+  background: var(--active-bg);
+  color: var(--active-text);
+  cursor: pointer;
+  font-size: 13px;
   font-weight: 900;
+  line-height: 1.2;
   text-align: center;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
 .map-popup-trip-link:hover,
 .map-popup-trip-link:focus-visible {
-  color: var(--green);
-  outline: none;
+  border-color: var(--green);
+  background: var(--hover);
+  color: var(--active-text);
+}
+
+.map-popup-trip-link:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
 }
 
 .trip-summary-shell {

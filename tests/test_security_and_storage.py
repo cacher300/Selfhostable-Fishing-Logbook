@@ -28,6 +28,32 @@ def trip(**changes):
 
 
 class LogbookStoreTests(unittest.TestCase):
+    def test_meat_rig_choices_and_lure_type_are_optional_v2_additions(self):
+        old = document()
+        del old["meatRigTypes"]
+        self.assertTrue(logbook_store.validate_logbook(old)[0])
+
+        current = document(meatRigTypes=["Custom strip"], lures=[{
+            "id": "meat-1", "name": "Custom head", "type": "Meat Rig", "meatRigType": "Custom strip"
+        }])
+        self.assertTrue(logbook_store.validate_logbook(current)[0])
+        self.assertIn("meatRigTypes[0]", logbook_store.validate_logbook(document(meatRigTypes=[4]))[1])
+        current["lures"][0]["meatRigType"] = 4
+        self.assertIn("lures[0].meatRigType", logbook_store.validate_logbook(current)[1])
+
+    def test_soft_plastic_choices_and_lure_style_are_optional_v2_additions(self):
+        old = document()
+        del old["softPlasticTypes"]
+        self.assertTrue(logbook_store.validate_logbook(old)[0])
+
+        current = document(softPlasticTypes=["Custom tail"], lures=[{
+            "id": "plastic-1", "name": "Custom shad", "type": "Soft Plastic", "softPlasticType": "Custom tail"
+        }])
+        self.assertTrue(logbook_store.validate_logbook(current)[0])
+        self.assertIn("softPlasticTypes[0]", logbook_store.validate_logbook(document(softPlasticTypes=[4]))[1])
+        current["lures"][0]["softPlasticType"] = 4
+        self.assertIn("lures[0].softPlasticType", logbook_store.validate_logbook(current)[1])
+
     def test_empty_document_is_canonical_v2(self):
         payload = document()
         self.assertEqual(2, payload["schemaVersion"])
@@ -138,6 +164,30 @@ class LogbookStoreTests(unittest.TestCase):
         valid, error = logbook_store.validate_logbook(document(settings=settings))
         self.assertFalse(valid)
         self.assertEqual("settings.defaultTrollingSpreadId: must reference a saved trolling spread", error)
+
+    def test_dipsey_diver_color_is_validated_on_spreads_and_setup_lines(self):
+        settings = deepcopy(DEFAULT_LOGBOOK["settings"])
+        settings["trollingSpreads"] = [{
+            "id": "spread",
+            "name": "Morning",
+            "spread": [{"comboId": "combo", "side": "Port", "presentation": "High Diver", "dipseyDiverColor": "Purple"}],
+        }]
+        valid, error = logbook_store.validate_logbook(document(settings=settings, trips=[trip(gearUsed=[{
+            "id": "line", "startTime": "08:00", "presentation": "Low Diver", "dipseyDiverColor": "Green",
+        }])]))
+        self.assertTrue(valid, error)
+
+        invalid_spread = deepcopy(settings)
+        invalid_spread["trollingSpreads"][0]["spread"][0]["dipseyDiverColor"] = 4
+        valid, error = logbook_store.validate_logbook(document(settings=invalid_spread))
+        self.assertFalse(valid)
+        self.assertEqual("settings.trollingSpreads[0].spread[0].dipseyDiverColor: must be a string", error)
+
+        valid, error = logbook_store.validate_logbook(document(settings=settings, trips=[trip(gearUsed=[{
+            "id": "line", "startTime": "08:00", "dipseyDiverColor": 4,
+        }])]))
+        self.assertFalse(valid)
+        self.assertEqual("trips[0].gearUsed[0].dipseyDiverColor: must be a string", error)
 
     def test_saved_setup_default_must_match_its_method(self):
         settings = deepcopy(DEFAULT_LOGBOOK["settings"])

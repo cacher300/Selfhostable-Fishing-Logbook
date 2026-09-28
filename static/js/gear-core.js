@@ -74,7 +74,7 @@ function syncReelGroupQuantity(groupId, quantity) {
 }
 
 function generatedLureName(lure) {
-  return [lure?.color, lure?.spoonSize, lure?.bladeType, lure?.brand, lure?.type].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
+  return [lure?.color, lure?.spoonSize, lure?.bladeType, lure?.meatRigType, lure?.brand, lure?.type].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
 }
 
 function rodName(id) {

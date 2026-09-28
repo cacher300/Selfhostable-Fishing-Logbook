@@ -14,6 +14,4 @@ if [ -z "${SECRET_KEY:-}" ]; then
   export SECRET_KEY
 fi
 
-python /app/scripts/fix_lure_once.py
-
 exec "$@"

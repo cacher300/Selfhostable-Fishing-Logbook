@@ -93,11 +93,6 @@
   text-transform: uppercase;
 }
 
-.personal-best-title-row .stats-badge {
-  max-width: 170px;
-  white-space: normal;
-}
-
 .personal-best-details {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

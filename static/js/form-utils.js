@@ -120,6 +120,12 @@ function updatePresentationFields(row) {
       row.querySelector(".param-distance-behind")?.classList.add("visible");
       if (distanceBehindLabel) distanceBehindLabel.textContent = "Distance behind Dipsy";
     }
+    if (isDipseyDiverColorPresentation(presentation)) {
+      row.querySelector(".param-dipsey-diver-color")?.classList.add("visible");
+    } else {
+      const dipseyDiverColor = row.querySelector(".trip-gear-dipsey-diver-color");
+      if (dipseyDiverColor) dipseyDiverColor.value = "";
+    }
     if (isLeadcoreCapablePresentation(presentation)) {
       row.querySelector(".param-leadcore")?.classList.add("visible");
     } else {
@@ -187,6 +193,11 @@ function isLeadcoreCapablePresentation(presentation) {
 
 function isAttachedWeightPresentation(presentation) {
   return ["Outside Board", "Inside Board", "Chute Rod", "flatline-leadcore", "flatline"].includes(presentation);
+}
+
+function isDipseyDiverColorPresentation(presentation) {
+  const key = String(presentation || "").trim().toLowerCase().replace(/[\s_]+/g, "-");
+  return key === "high-diver" || key === "low-diver";
 }
 
 function setupRowForCatchRow(row) {

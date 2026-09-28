@@ -215,14 +215,15 @@ els.defaultTrollingSpreadRows?.addEventListener("click", (event) => {
   if (event.target.closest(".delete-trolling-spread")) deleteTrollingSpread(card.dataset.trollingSpreadId).catch(() => {});
 });
 els.defaultTrollingSpreadRows?.addEventListener("change", (event) => {
-  if (event.target.matches(".trolling-spread-combo, .trolling-spread-side, .trolling-spread-presentation")) {
+  if (event.target.matches(".trolling-spread-combo, .trolling-spread-side, .trolling-spread-presentation, .trolling-spread-dipsey-color")) {
     const card = event.target.closest(".trolling-spread-card");
+    if (event.target.matches(".trolling-spread-presentation")) syncTrollingSpreadRowFields(event.target.closest(".trolling-spread-row"));
     refreshTrollingSpreadCardPreview(card);
     scheduleTrollingSpreadAutosave(card);
   }
 });
 els.defaultTrollingSpreadRows?.addEventListener("input", (event) => {
-  if (event.target.matches(".trolling-spread-name")) {
+  if (event.target.matches(".trolling-spread-name, .trolling-spread-dipsey-color")) {
     setTrollingSpreadSettingsMessage("");
     scheduleTrollingSpreadAutosave(event.target.closest(".trolling-spread-card"));
   }

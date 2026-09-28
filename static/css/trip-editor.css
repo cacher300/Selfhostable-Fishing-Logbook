@@ -1780,6 +1780,46 @@
   white-space: nowrap;
 }
 
+#tripDialog .probe-temperature-section:not([open]) {
+  gap: 0;
+  padding: 13px 16px;
+  background: var(--panel);
+}
+
+:root[data-theme="dark"] #tripDialog .probe-temperature-section:not([open]) {
+  background: var(--field);
+  border-color: var(--line);
+}
+
+#tripDialog .probe-temperature-heading {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+#tripDialog .probe-temperature-heading::after {
+  display: none;
+  content: none;
+}
+
+#tripDialog .probe-temperature-heading .row-collapse-icon {
+  margin: 0;
+}
+
+#tripDialog .probe-temperature-section:not([open]) .row-collapse-icon,
+#tripDialog .probe-temperature-section.is-collapsed .row-collapse-icon {
+  transform: rotate(-90deg);
+}
+
+#tripDialog .probe-temperature-heading h4 {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: normal;
+}
+
 .probe-temperature-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2117,4 +2157,399 @@
 .probe-temperature-chart-empty span {
   font-size: 12px;
   line-height: 1.4;
+}
+
+/* Expanded catch editor: the section order follows the fishing record. */
+#tripDialog .catch-row .collapsible-row-body {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  padding-top: 18px;
+}
+
+#tripDialog .catch-editor-panel,
+#tripDialog .catch-location-section {
+  min-width: 0;
+}
+
+#tripDialog .catch-editor-panel {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#tripDialog .catch-location-section {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#tripDialog .catch-basic-panel,
+#tripDialog .catch-photos-panel {
+  grid-column: span 6;
+}
+
+#tripDialog .catch-panel-heading {
+  min-width: 0;
+}
+
+#tripDialog .catch-panel-heading h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+#tripDialog .catch-identity-row {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end;
+  gap: 14px 12px;
+}
+
+#tripDialog .catch-identity-row > label:first-child,
+#tripDialog .catch-identity-row .catch-species-field,
+#tripDialog .catch-identity-row .possible-species-field,
+#tripDialog .catch-identity-row .catch-spot-field,
+#tripDialog .catch-identity-row .catch-structure-field {
+  grid-column: span 6;
+  width: 100%;
+  max-width: none;
+}
+
+#tripDialog .catch-identity-row .catch-length-field {
+  grid-column: span 3;
+  min-width: 0;
+}
+
+#tripDialog .catch-identity-row .catch-length,
+#tripDialog .catch-identity-row .catch-weight {
+  width: 100%;
+  max-width: none;
+}
+
+#tripDialog .catch-identity-row .catch-weight-field {
+  grid-column: span 9;
+  width: 100%;
+  min-width: 0;
+}
+
+#tripDialog .catch-identity-row .catch-weight-field > label:not(.checkbox-label) {
+  flex: 1 1 120px;
+}
+
+#tripDialog .catch-identity-row .catch-status-options {
+  flex-wrap: wrap;
+}
+
+#tripDialog .catch-photo-title {
+  width: auto;
+}
+
+#tripDialog .catch-photo-editor {
+  display: contents;
+}
+
+#tripDialog .catch-photos-panel {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+#tripDialog .catch-photos-panel .catch-media-actions {
+  grid-column: 2;
+  grid-row: 1;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+#tripDialog .catch-photos-panel .catch-photo-grid {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 10px 0 12px;
+}
+
+#tripDialog .catch-photos-panel .catch-photo-grid:empty::before {
+  display: grid;
+  width: 100%;
+  min-height: 156px;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  content: "No photos added yet";
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#tripDialog .catch-location-section {
+  grid-column: 1 / -1;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: end;
+  gap: 16px 20px;
+}
+
+#tripDialog .catch-location-section .catch-panel-heading {
+  grid-column: 1 / -1;
+}
+
+#tripDialog .catch-location-section .catch-field-with-option {
+  grid-column: auto;
+  width: max-content;
+  min-width: 0;
+}
+
+#tripDialog .catch-location-section .catch-location-field {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+}
+
+#tripDialog .catch-location-section .catch-location-action-row {
+  width: 100%;
+}
+
+#tripDialog .catch-editor-lower {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+  gap: 16px;
+  min-width: 0;
+}
+
+#tripDialog .catch-row.details-unknown .catch-editor-lower {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#tripDialog.is-trolling .catch-row.details-unknown .catch-editor-lower {
+  display: none;
+}
+
+#tripDialog .catch-equipment-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  width: 100%;
+}
+
+#tripDialog .catch-row .catch-equipment-grid > * {
+  grid-column: auto;
+}
+
+#tripDialog .catch-row .catch-equipment-grid .trolling-catch-line-field,
+#tripDialog .catch-row .catch-equipment-grid .catch-rod-field,
+#tripDialog .catch-row .catch-equipment-grid .catch-rigging-details-field,
+#tripDialog .catch-row .catch-equipment-grid .fly-catch-field,
+#tripDialog .catch-row .catch-equipment-grid .catch-retrieve-field {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: none;
+}
+
+#tripDialog .catch-row .catch-equipment-grid .add-lure-inline {
+  grid-column: auto;
+  margin-left: 0;
+}
+
+#tripDialog .catch-rod,
+#tripDialog .catch-setup-line {
+  width: 100%;
+  min-width: 0;
+}
+
+#tripDialog .catch-depth-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#tripDialog.is-trolling .catch-depth-fields {
+  display: none;
+}
+
+#tripDialog .catch-depth-fields > label,
+#tripDialog .catch-depth-fields input {
+  width: 100%;
+  max-width: none;
+}
+
+#tripDialog .catch-row .catch-depth-fields > label {
+  grid-column: auto;
+}
+
+#tripDialog .catch-trolling-details-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  justify-content: stretch;
+  gap: 12px;
+}
+
+#tripDialog .catch-trolling-details-grid > label:first-child,
+#tripDialog .catch-trolling-details-grid .catch-direction,
+#tripDialog .catch-trolling-details-grid input {
+  width: 100%;
+  max-width: none;
+}
+
+#tripDialog .catch-trolling-details-grid .catch-fow-field {
+  width: 100%;
+}
+
+#tripDialog .catch-trolling-optional-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+}
+
+#tripDialog .catch-trolling-optional-fields > label,
+#tripDialog .catch-trolling-optional-fields input {
+  width: 100%;
+  max-width: none;
+}
+
+#tripDialog .catch-notes-panel {
+  grid-column: 1 / -1;
+}
+
+#tripDialog .catch-notes-panel .catch-notes {
+  min-height: 64px;
+}
+
+#tripDialog #tripNotes {
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+/* Setup timeline rows use the same clear panel grouping as catch cards. */
+#tripDialog .gear-used-row .collapsible-row-body {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  padding-top: 18px;
+}
+
+#tripDialog .gear-editor-panel {
+  display: grid;
+  grid-column: span 6;
+  align-content: start;
+  gap: 16px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#tripDialog .gear-panel-heading h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+#tripDialog .gear-timing-grid,
+#tripDialog .gear-method-grid,
+#tripDialog .gear-inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 14px 12px;
+  min-width: 0;
+}
+
+#tripDialog .gear-timing-grid > *,
+#tripDialog .gear-method-grid > *,
+#tripDialog .gear-inventory-grid > * {
+  grid-column: auto;
+  grid-row: auto;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  justify-self: stretch;
+}
+
+#tripDialog .gear-timing-grid .gear-change-field,
+#tripDialog .gear-inventory-grid .gear-combo-field {
+  grid-column: 1 / -1;
+}
+
+#tripDialog .gear-method-grid .gear-trolling-field {
+  grid-column: auto;
+}
+
+#tripDialog .gear-method-panel {
+  grid-column: span 6;
+}
+
+#tripDialog .gear-inventory-grid .gear-lure-field,
+#tripDialog .gear-inventory-grid .gear-flasher-field {
+  grid-column: 1;
+}
+
+#tripDialog .gear-inventory-grid .gear-lure-action,
+#tripDialog .gear-inventory-grid .gear-flasher-action {
+  grid-column: 2;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding-inline: 10px;
+}
+
+#tripDialog .gear-inventory-grid .gear-rigging-field,
+#tripDialog .gear-inventory-grid .gear-rigging-details-field {
+  grid-column: auto;
+}
+
+#tripDialog .gear-notes-panel .gear-change-field {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  width: 100%;
+}
+
+#tripDialog:not(.is-trolling) .gear-used-row .gear-inventory-grid > * {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+#tripDialog:not(.is-trolling) .gear-used-row .gear-inventory-grid .gear-combo-field {
+  grid-column: 1 / -1;
+}
+
+#tripDialog .gear-used-row .gear-method-grid > * {
+  grid-column: auto;
+  grid-row: auto;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  justify-self: stretch;
+  align-self: end;
+}
+
+#tripDialog .gear-used-row .gear-method-grid .param-cheater,
+#tripDialog .gear-used-row .gear-method-grid .param-leadcore,
+#tripDialog .gear-used-row .gear-method-grid .param-cheater-lure,
+#tripDialog .gear-used-row .gear-method-grid .param-distance-behind {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  justify-self: stretch;
+}
+
+#tripDialog .gear-used-row .gear-method-grid .param-cheater {
+  grid-column: 1 / -1;
+}
+
+#tripDialog .gear-used-row .gear-method-grid .param-cheater-lure {
+  grid-column: 1;
+}
+
+#tripDialog .gear-used-row .gear-method-grid .cheater-lure-action {
+  grid-column: 2;
+  box-sizing: border-box;
+  margin: 0;
+  padding-inline: 10px;
 }
