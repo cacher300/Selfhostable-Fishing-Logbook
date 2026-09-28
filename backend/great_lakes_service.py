@@ -230,24 +230,49 @@ def great_lakes_payload(kind: str, forecast_hour: int, depth: int, models: tuple
     return payload
 
 
+_TEMPERATURE_COLOR_STOPS = (
+    (0.00, (20, 70, 210)),
+    (0.20, (0, 105, 235)),
+    (0.40, (0, 205, 245)),
+    (0.55, (28, 185, 110)),
+    (0.70, (250, 215, 40)),
+    (0.85, (247, 130, 30)),
+    (1.00, (220, 45, 45)),
+)
+_THERMOCLINE_COLOR_STOPS = (
+    (0.00, (0, 205, 245)),
+    (0.25, (38, 190, 105)),
+    (0.50, (250, 215, 40)),
+    (0.75, (247, 130, 30)),
+    (1.00, (220, 45, 45)),
+)
+
+
+def _gradient_rgba(
+    value: float,
+    minimum: float,
+    maximum: float,
+    stops: tuple[tuple[float, tuple[int, int, int]], ...],
+    alpha: int,
+) -> tuple[int, int, int, int]:
+    position = max(0.0, min(1.0, (value - minimum) / (maximum - minimum)))
+    upper_index = next((index for index, (stop, _) in enumerate(stops) if position <= stop), len(stops) - 1)
+    lower_stop, lower_color = stops[max(0, upper_index - 1)]
+    upper_stop, upper_color = stops[upper_index]
+    fraction = 0 if lower_stop == upper_stop else (position - lower_stop) / (upper_stop - lower_stop)
+    rgb = tuple(
+        round(lower_color[index] + (upper_color[index] - lower_color[index]) * fraction)
+        for index in range(3)
+    )
+    return (*rgb, alpha)
+
+
 def _temperature_rgba(value: float, minimum: float = 0, maximum: float = 30) -> tuple[int, int, int, int]:
-    stops = ((0.00, (20, 70, 210)), (0.20, (0, 105, 235)), (0.40, (0, 205, 245)), (0.55, (28, 185, 110)), (0.70, (250, 215, 40)), (0.85, (247, 130, 30)), (1.00, (220, 45, 45)))
-    t = max(0.0, min(1.0, (value - minimum) / (maximum - minimum)))
-    upper = next((stop for stop in stops if t <= stop[0]), stops[-1])
-    lower = stops[max(0, stops.index(upper) - 1)]
-    fraction = 0 if lower[0] == upper[0] else (t - lower[0]) / (upper[0] - lower[0])
-    rgb = tuple(round(lower[1][index] + (upper[1][index] - lower[1][index]) * fraction) for index in range(3))
-    return (*rgb, 150)
+    return _gradient_rgba(value, minimum, maximum, _TEMPERATURE_COLOR_STOPS, 150)
 
 
 def _thermocline_rgba(depth: float, minimum: float = 0, maximum: float = 100) -> tuple[int, int, int, int]:
-    stops = ((0.00, (0, 205, 245)), (0.25, (38, 190, 105)), (0.50, (250, 215, 40)), (0.75, (247, 130, 30)), (1.00, (220, 45, 45)))
-    t = max(0.0, min(1.0, (depth - minimum) / (maximum - minimum)))
-    upper = next((stop for stop in stops if t <= stop[0]), stops[-1])
-    lower = stops[max(0, stops.index(upper) - 1)]
-    fraction = 0 if lower[0] == upper[0] else (t - lower[0]) / (upper[0] - lower[0])
-    rgb = tuple(round(lower[1][index] + (upper[1][index] - lower[1][index]) * fraction) for index in range(3))
-    return (*rgb, 170)
+    return _gradient_rgba(depth, minimum, maximum, _THERMOCLINE_COLOR_STOPS, 170)
 
 
 def _sustained_thermocline_pair(profile: list[tuple[float, float]]) -> tuple[tuple[float, float], tuple[float, float]] | None:

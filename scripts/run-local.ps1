@@ -57,9 +57,4 @@ if ($requirementsHash -ne $installedRequirementsHash) {
 
 Set-Location $projectRoot
 $env:PYTHONUNBUFFERED = "1"
-$cleanupScript = Join-Path $projectRoot "scripts\fix_lure_once.py"
-& $pythonPath $cleanupScript
-if ($LASTEXITCODE -ne 0) {
-  throw "The startup lure cleanup could not be completed."
-}
 & $pythonPath server.py

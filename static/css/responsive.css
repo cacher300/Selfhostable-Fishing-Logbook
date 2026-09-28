@@ -43,79 +43,25 @@
     display: none;
   }
 
-  .form-grid,
-  .catch-row .collapsible-row-body,
+  .form-grid {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .catch-trolling-details-grid,
   .catch-equipment-grid,
-  .gear-used-row .collapsible-row-body,
-  .catch-location-section {
-    grid-template-columns: 1fr 1fr;
+  .catch-location-section,
+  .gear-used-row .collapsible-row-body {
+    max-width: 100%;
   }
 
-  .catch-trolling-details-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .catch-row .catch-location-field {
-    grid-column: span 2;
-  }
-
-  #tripDialog .catch-row .catch-field-with-option,
-  #tripDialog .catch-row .catch-water-depth-field,
-  #tripDialog .catch-row .catch-depth-down-field {
-    grid-column: auto;
-  }
-
-  #tripDialog .catch-row .catch-rod-field,
-  #tripDialog .catch-row .catch-lure-field,
-  #tripDialog .catch-row .add-lure-inline,
-  #tripDialog .catch-row .catch-rigging-field,
-  #tripDialog .catch-row .catch-rigging-details-field,
-  #tripDialog .catch-row .catch-retrieve-field {
-    grid-column: auto;
-  }
-
-  #tripDialog .catch-row .catch-equipment-grid .catch-retrieve-field {
-    grid-column: auto;
-  }
-
-  #tripDialog .catch-row .fly-catch-field {
-    grid-column: 1 / -1;
-  }
-
-  .gear-used-row .gear-lure-field,
-  .gear-used-row .gear-combo-field,
-  .gear-used-row .gear-start-field,
-  .gear-used-row .gear-end-field,
-  .gear-used-row .gear-change-field,
-  .gear-used-row .gear-side-field,
-  .gear-used-row .gear-label-field,
-  .gear-used-row .gear-trolling-title,
-  .gear-used-row .gear-trolling-field,
-  .gear-used-row .gear-title,
   .gear-used-row .gear-lure-action,
-  .gear-used-row .lure-preview,
-  .gear-used-row .gear-flasher-field,
   .gear-used-row .gear-flasher-action,
-  .gear-used-row .flasher-preview,
-  .gear-used-row .param-cheater,
-  .gear-used-row .param-leadcore,
-  .gear-used-row .param-cheater-lure,
-  .gear-used-row .cheater-lure-action,
-  .gear-used-row .param-distance-behind {
-    grid-column: auto;
-    grid-row: auto;
-  }
-
-  .lure-preview,
-  .flasher-preview {
-    grid-column: 1 / -1;
-  }
-
-  .gear-used-row .gear-lure-action,
-  .gear-used-row .gear-flasher-action {
-    justify-self: stretch;
-    width: 100%;
+  .gear-used-row .cheater-lure-action {
+    flex: 0 1 auto;
+    width: max-content;
     min-width: 0;
+    max-width: 100%;
   }
 
   .metric-grid,
@@ -136,10 +82,6 @@
 
   .settings-section > :not(.settings-section-copy):not(.settings-section-header) {
     grid-column: 1;
-  }
-
-  .default-trolling-spread-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   #personalBestsMetricGrid {
@@ -520,29 +462,41 @@
   }
 
   #tripDialog .trip-section-nav {
-    width: 100%;
+    width: fit-content;
+    max-width: 100%;
     justify-content: flex-start;
+    flex-wrap: wrap;
     margin: 0;
     padding: 0;
+    overflow-x: visible;
   }
 
   #tripDialog .trip-dialog-header-actions {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
+    display: flex;
+    flex-wrap: wrap;
+    width: fit-content;
+    max-width: 100%;
   }
 
   #tripDialog .trip-dialog-header-actions .button {
-    width: 100%;
+    width: auto;
   }
 
   #tripDialog .form-grid {
-    width: 100%;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-wrap: wrap;
+    width: fit-content;
+    max-width: 100%;
   }
 
   #tripDialog .trip-overview-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: flex-start;
+  }
+
+  #tripDialog .trip-overview-main,
+  #tripDialog .trip-overview-layout > .weather-fetch-panel {
+    grid-column: 1;
   }
 
   #tripDialog .trip-overview-layout > .weather-fetch-panel {
@@ -553,16 +507,21 @@
   #tripDialog .form-grid .location-field,
   #tripDialog .intent-control,
   #tripDialog .trip-rating-control {
-    width: 100%;
-    max-width: none;
+    flex: 0 1 auto;
+    width: fit-content;
+    max-width: 100%;
   }
 
   #tripDialog .trip-basics-water-fields {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-wrap: wrap;
+    width: fit-content;
+    max-width: 100%;
   }
 
   #tripDialog .probe-temperature-layout {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   #tripDialog .probe-temperature-grid {
@@ -570,7 +529,7 @@
   }
 
   #tripDialog .probe-temperature-cell {
-    grid-template-columns: minmax(70px, .7fr) minmax(120px, 1fr);
+    grid-template-columns: max-content max-content;
     border-right: 0;
   }
 
@@ -583,23 +542,25 @@
   }
 
   #tripDialog .trip-time-inputs {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-wrap: wrap;
   }
 
   #tripDialog .catch-location-section {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-wrap: wrap;
   }
 
   #tripDialog .catch-field-with-option,
   #tripDialog .catch-location-action-row {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: flex-end;
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 
   #tripDialog .catch-identity-row {
-    grid-template-columns: 1fr;
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: flex-end;
   }
 
   #tripDialog .catch-identity-row > label:first-child,
@@ -607,9 +568,9 @@
   #tripDialog .catch-identity-row .possible-species-field,
   #tripDialog .catch-identity-row .catch-spot-field,
   #tripDialog .catch-identity-row .catch-structure-field {
-    width: 100%;
-    max-width: none;
-    flex: 1 1 auto;
+    width: fit-content;
+    max-width: 100%;
+    flex: 0 1 auto;
   }
 
   #tripDialog .inline-field-option {
@@ -637,16 +598,7 @@
   }
 
   .controls,
-  .form-grid,
-  .catch-row .collapsible-row-body,
-  .catch-equipment-grid,
-  .gear-used-row .collapsible-row-body,
-  .person-row,
   .line-editor-row {
-    grid-template-columns: 1fr;
-  }
-
-  .catch-trolling-details-grid {
     grid-template-columns: 1fr;
   }
 
@@ -720,11 +672,6 @@
   .table-row > :nth-child(7),
   .table-row > :nth-child(8) {
     display: none;
-  }
-
-  .catch-photo-grid,
-  .note-photo-grid {
-    grid-template-columns: none;
   }
 
   .map-header {
@@ -873,10 +820,6 @@
     display: grid;
   }
 
-  .personal-best-title-row .stats-badge {
-    max-width: 100%;
-  }
-
   .personal-best-progression-header,
   .personal-best-progression-card-head,
   .personal-best-timeline-topline {
@@ -1019,5 +962,93 @@
 
   #tripValidationDialog form {
     max-height: calc(100dvh - 24px);
+  }
+}
+
+@media (max-width: 1100px) {
+  #tripDialog .catch-basic-panel,
+  #tripDialog .catch-photos-panel {
+    grid-column: 1 / -1;
+  }
+
+  #tripDialog .catch-editor-lower {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  #tripDialog .catch-row .collapsible-row-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  #tripDialog .catch-editor-panel,
+  #tripDialog .catch-location-section {
+    padding: 0;
+  }
+
+  #tripDialog .catch-identity-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  #tripDialog .catch-identity-row > label:first-child,
+  #tripDialog .catch-identity-row .catch-species-field,
+  #tripDialog .catch-identity-row .possible-species-field,
+  #tripDialog .catch-identity-row .catch-spot-field,
+  #tripDialog .catch-identity-row .catch-structure-field {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  #tripDialog .catch-identity-row .catch-length-field,
+  #tripDialog .catch-identity-row .catch-weight-field {
+    grid-column: 1 / -1;
+  }
+
+  #tripDialog .catch-location-section {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #tripDialog .catch-location-section .catch-panel-heading,
+  #tripDialog .catch-location-section .catch-field-with-option,
+  #tripDialog .catch-location-section .catch-location-field {
+    grid-column: 1;
+  }
+
+  #tripDialog .catch-trolling-details-grid,
+  #tripDialog .catch-trolling-optional-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  #tripDialog .catch-photos-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #tripDialog .catch-photos-panel .catch-media-actions,
+  #tripDialog .catch-photos-panel .catch-photo-grid {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
+  }
+
+  #tripDialog .catch-trolling-details-grid,
+  #tripDialog .catch-trolling-optional-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  #tripDialog .gear-used-row .collapsible-row-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #tripDialog .gear-editor-panel {
+    grid-column: 1 / -1;
+    padding: 0;
   }
 }

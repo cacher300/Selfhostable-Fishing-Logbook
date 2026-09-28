@@ -30,11 +30,20 @@
 }
 
 .person-row {
-  display: grid;
-  grid-template-columns: minmax(180px, 280px) minmax(180px, 1fr) max-content;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   justify-content: start;
   align-items: end;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.person-row > select,
+.person-row > input {
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .person-row .person-name.hidden {
@@ -50,22 +59,22 @@
 }
 
 .note-photo-grid {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 180px;
-  grid-template-columns: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 12px;
   max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
   padding-bottom: 8px;
-  overscroll-behavior-inline: contain;
 }
 
 .note-photo-card {
   position: relative;
   overflow: hidden;
-  width: 180px;
+  flex: 0 1 calc(50% - 6px);
+  width: auto;
+  max-width: 22rem;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -75,8 +84,10 @@
 .note-photo-card video {
   display: block;
   width: 100%;
-  height: 128px;
-  object-fit: cover;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background: var(--field-soft);
   border-bottom: 1px solid var(--line);
 }
 
@@ -116,9 +127,15 @@
   padding: 8px;
 }
 
-.catch-photo-title,
+.catch-photo-title {
+  flex: 0 0 100%;
+  width: 100%;
+}
+
 .catch-photo-editor {
-  grid-column: 1 / -1;
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .catch-photo-editor {
@@ -136,7 +153,7 @@
 .catch-media-action {
   display: inline-flex;
   width: auto;
-  min-width: 132px;
+  max-width: 100%;
   min-height: 36px;
   align-items: center;
   justify-content: center;
@@ -170,22 +187,22 @@
 }
 
 .catch-photo-grid {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 180px;
-  grid-template-columns: none;
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
   max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
   padding-bottom: 8px;
-  overscroll-behavior-inline: contain;
 }
 
 .catch-photo-card {
   position: relative;
   overflow: hidden;
-  width: 180px;
+  flex: 0 1 calc(50% - 6px);
+  width: auto;
+  max-width: 22rem;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -195,8 +212,10 @@
 .catch-photo-card video {
   display: block;
   width: 100%;
-  height: 128px;
-  object-fit: cover;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background: var(--field-soft);
   border-bottom: 1px solid var(--line);
 }
 
@@ -452,3 +471,10 @@
   white-space: nowrap;
 }
 
+@media (max-width: 640px) {
+  .note-photo-card,
+  .catch-photo-card {
+    flex-basis: 100%;
+    max-width: min(100%, 22rem);
+  }
+}

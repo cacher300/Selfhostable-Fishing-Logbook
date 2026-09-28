@@ -229,6 +229,12 @@ function catchFowPopupValue(catchItem = {}) {
   return "";
 }
 
+function catchSizePopupValue(catchItem = {}) {
+  const weight = catchItem.weight ? displayStoredMeasurement(catchItem.weight, "fishWeight") : "";
+  const length = catchItem.length ? displayStoredMeasurement(catchItem.length, "fishLength") : "";
+  return [weight, length].filter(Boolean).join(" · ");
+}
+
 function mapDepthPopupHtml(coordinates, payload = null, status = "loading", overlayHtml = "") {
   const coordinateLine = coordinateText(coordinates);
   const compactClass = overlayHtml ? "" : " map-depth-popup--compact";
@@ -537,18 +543,25 @@ function mapPopupHtml(record) {
   const { trip, media, coordinates } = record;
   const title = [mapRecordTitle(record), trip.location].filter(Boolean).join(" at ");
   const fowValue = record.type === "catch" ? catchFowPopupValue(record.catchItem) : "";
+  const sizeValue = record.type === "catch" ? catchSizePopupValue(record.catchItem) : "";
   const assignedSpot = record.type === "catch" ? spotName(record.catchItem?.spotId) : "";
   const direction = mapRecordTrollingDirection(record)?.label || "";
   const method = record.type === "catch" ? mapRecordMethod(record) : "";
+  const detailRows = [
+    sizeValue ? `<div class="map-popup-detail"><span class="map-popup-label">Size</span><span class="map-popup-value">${escapeHtml(sizeValue)}</span></div>` : "",
+    fowValue ? `<div class="map-popup-detail"><span class="map-popup-label">FOW</span><span class="map-popup-value">${escapeHtml(fowValue)}</span></div>` : "",
+    method ? `<div class="map-popup-detail"><span class="map-popup-label">Method</span><span class="map-popup-value">${escapeHtml(method)}</span></div>` : "",
+    direction ? `<div class="map-popup-detail"><span class="map-popup-label">Direction</span><span class="map-popup-value">${escapeHtml(direction)}</span></div>` : "",
+    assignedSpot ? `<div class="map-popup-detail"><span class="map-popup-label">Spot</span><span class="map-popup-value">${escapeHtml(assignedSpot)}</span></div>` : ""
+  ].filter(Boolean).join("");
   return `
-    <div class="map-popup" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
+    <div class="map-popup map-record-popup" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
       ${media && previewImage(media) ? mediaMarkup(media) : ""}
-      <strong>${escapeHtml(title)}</strong>
-      <span>${escapeHtml(formatDate(trip.date))}</span>
-      ${fowValue ? `<span><strong>FOW</strong>${escapeHtml(fowValue)}</span>` : ""}
-      ${method ? `<span><strong>Method</strong>${escapeHtml(method)}</span>` : ""}
-      ${direction ? `<span><strong>Direction</strong>${escapeHtml(direction)}</span>` : ""}
-      ${assignedSpot ? `<span><strong>Spot</strong>${escapeHtml(assignedSpot)}</span>` : ""}
+      <div class="map-popup-heading">
+        <strong class="map-popup-title">${escapeHtml(title)}</strong>
+        <span class="map-popup-date">${escapeHtml(formatDate(trip.date))}</span>
+      </div>
+      ${detailRows ? `<div class="map-popup-details" aria-label="Map record details">${detailRows}</div>` : ""}
       <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
     </div>
   `;

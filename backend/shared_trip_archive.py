@@ -408,39 +408,28 @@ def _unique_spot_name(name: str, used_names: set[str]) -> str:
     return candidate
 
 
-def merge_shared_archive(
-    archive: SharedTripArchive,
-    local_logbook: dict,
-    person_mappings: dict[str, str],
-    action: str,
-    replacement_trip_id: str = "",
-) -> tuple[dict, list[str], str]:
-    """Merge a reviewed shared archive; return state, stale-media keys, and trip ID."""
-    if action not in {"add", "replace", "keep-local"}:
-        raise SharedTripArchiveError("Choose how to handle the possible duplicate trip.")
-    if action == "keep-local":
-        return _checked_logbook(local_logbook), [], ""
+def _remove_replacement_trip(local: dict, replacement_trip_id: str, candidates: set[str]) -> list[str]:
+    if not replacement_trip_id or replacement_trip_id not in candidates:
+        raise SharedTripArchiveError("Choose one of the suggested overlapping trips to replace.")
+    replacement = _record_by_id(local["trips"], replacement_trip_id)
+    if not replacement:
+        raise SharedTripArchiveError("The selected local trip no longer exists.")
+    discarded_media = [f"{category}/{filename}" for category, filename in referenced_uploads(replacement)]
+    local["trips"] = [item for item in local["trips"] if str(item.get("id") or "") != replacement_trip_id]
+    return discarded_media
 
-    local = _checked_logbook(local_logbook)
-    incoming = deepcopy(archive.logbook)
-    trip = deepcopy(incoming["trips"][0])
-    source_trip_id = str(trip.get("id") or "")
-    candidates = {item["id"] for item in likely_overlaps(trip, local)}
-    discarded_media: list[str] = []
-    if action == "replace":
-        if not replacement_trip_id or replacement_trip_id not in candidates:
-            raise SharedTripArchiveError("Choose one of the suggested overlapping trips to replace.")
-        replacement = _record_by_id(local["trips"], replacement_trip_id)
-        if not replacement:
-            raise SharedTripArchiveError("The selected local trip no longer exists.")
-        discarded_media = [f"{category}/{filename}" for category, filename in referenced_uploads(replacement)]
-        local["trips"] = [item for item in local["trips"] if str(item.get("id") or "") != replacement_trip_id]
 
-    # Map people before catches/lost fish are rewritten.
-    source_people = {str(person.get("id")): deepcopy(person) for person in incoming.get("people", []) if person.get("id") and person.get("name")}
+def _merge_people(local: dict, incoming: dict, trip: dict, person_mappings: dict[str, str]) -> None:
+    """Map shared people onto local IDs before rewriting trip records."""
+    source_people = {
+        str(person.get("id")): deepcopy(person)
+        for person in incoming.get("people", [])
+        if person.get("id") and person.get("name")
+    }
     for person in trip.get("people", []):
         if isinstance(person, dict) and person.get("id") and person.get("name"):
             source_people.setdefault(str(person["id"]), deepcopy(person))
+
     existing_people = {str(person.get("id")): person for person in local.get("people", []) if person.get("id")}
     used_person_ids = set(existing_people)
     people_map: dict[str, str] = {}
@@ -464,43 +453,93 @@ def merge_shared_archive(
             if source_person_id in people_map:
                 record["personId"] = people_map[source_person_id]
 
-    # Locations are useful context but never overwrite an existing location or launch.
+
+def _merge_source_location(local: dict, incoming: dict, trip: dict) -> None:
+    """Reuse or add the shared location and its referenced launch."""
     source_locations = incoming.get("locations", [])
     source_location = _record_by_id(source_locations, trip.get("locationId"))
     if not source_location:
-        source_location = next((item for item in source_locations if normalized_name(item.get("name")) == normalized_name(trip.get("location"))), None)
-    if source_location:
-        existing_location = next((item for item in local["locations"] if normalized_name(item.get("name")) == normalized_name(source_location.get("name"))), None)
-        if not existing_location:
-            location_ids = {str(item.get("id") or "") for item in local["locations"]}
-            existing_location = deepcopy(source_location)
-            existing_location["id"] = _unique_id(location_ids, source_location.get("id"))
-            launch_ids: set[str] = set()
-            for launch in existing_location.get("launches", []):
-                launch["id"] = _unique_id(launch_ids, launch.get("id"))
-            local["locations"].append(existing_location)
-        trip["locationId"] = str(existing_location.get("id") or "")
-        trip["location"] = str(existing_location.get("name") or trip.get("location") or "")
-        source_launch = next((item for item in source_location.get("launches", []) if str(item.get("id") or "") == str(trip.get("launchId") or "")), None)
-        if not source_launch:
-            source_launch = next((item for item in source_location.get("launches", []) if normalized_name(item.get("name")) == normalized_name(trip.get("launch"))), None)
-        if source_launch:
-            existing_launch = next((item for item in existing_location.get("launches", []) if normalized_name(item.get("name")) == normalized_name(source_launch.get("name"))), None)
-            if not existing_launch:
-                existing_launch = deepcopy(source_launch)
-                existing_launch["id"] = _unique_id({str(item.get("id") or "") for item in existing_location.get("launches", [])}, source_launch.get("id"))
-                existing_location.setdefault("launches", []).append(existing_launch)
-            trip["launchId"] = str(existing_launch.get("id") or "")
-            trip["launch"] = str(existing_launch.get("name") or trip.get("launch") or "")
+        source_location = next(
+            (
+                item for item in source_locations
+                if normalized_name(item.get("name")) == normalized_name(trip.get("location"))
+            ),
+            None,
+        )
+    if not source_location:
+        return
 
-    # Only referenced spots come across. Same name plus same geometry is reused.
+    existing_location = next(
+        (
+            item for item in local["locations"]
+            if normalized_name(item.get("name")) == normalized_name(source_location.get("name"))
+        ),
+        None,
+    )
+    if not existing_location:
+        location_ids = {str(item.get("id") or "") for item in local["locations"]}
+        existing_location = deepcopy(source_location)
+        existing_location["id"] = _unique_id(location_ids, source_location.get("id"))
+        launch_ids: set[str] = set()
+        for launch in existing_location.get("launches", []):
+            launch["id"] = _unique_id(launch_ids, launch.get("id"))
+        local["locations"].append(existing_location)
+
+    trip["locationId"] = str(existing_location.get("id") or "")
+    trip["location"] = str(existing_location.get("name") or trip.get("location") or "")
+    source_launch = next(
+        (
+            item for item in source_location.get("launches", [])
+            if str(item.get("id") or "") == str(trip.get("launchId") or "")
+        ),
+        None,
+    )
+    if not source_launch:
+        source_launch = next(
+            (
+                item for item in source_location.get("launches", [])
+                if normalized_name(item.get("name")) == normalized_name(trip.get("launch"))
+            ),
+            None,
+        )
+    if not source_launch:
+        return
+
+    existing_launch = next(
+        (
+            item for item in existing_location.get("launches", [])
+            if normalized_name(item.get("name")) == normalized_name(source_launch.get("name"))
+        ),
+        None,
+    )
+    if not existing_launch:
+        existing_launch = deepcopy(source_launch)
+        existing_launch["id"] = _unique_id(
+            {str(item.get("id") or "") for item in existing_location.get("launches", [])},
+            source_launch.get("id"),
+        )
+        existing_location.setdefault("launches", []).append(existing_launch)
+    trip["launchId"] = str(existing_launch.get("id") or "")
+    trip["launch"] = str(existing_launch.get("name") or trip.get("launch") or "")
+
+
+def _merge_referenced_spots(local: dict, incoming: dict, trip: dict) -> dict[str, set[str]]:
+    """Reuse matching spots and rewrite the trip's spot references."""
     referenced = _referenced_trip_ids(trip)
     spot_map: dict[str, str] = {}
     used_spot_ids = {str(item.get("id") or "") for item in local["spots"]}
     used_spot_names = {normalized_name(item.get("name")) for item in local["spots"]}
     for source_spot in _records_by_ids(incoming.get("spots", []), referenced["spots"]):
         source_id = str(source_spot.get("id") or "")
-        existing_spot = next((item for item in local["spots"] if normalized_name(item.get("name")) == normalized_name(source_spot.get("name")) and item.get("coordinates") == source_spot.get("coordinates") and item.get("radiusMeters") == source_spot.get("radiusMeters")), None)
+        existing_spot = next(
+            (
+                item for item in local["spots"]
+                if normalized_name(item.get("name")) == normalized_name(source_spot.get("name"))
+                and item.get("coordinates") == source_spot.get("coordinates")
+                and item.get("radiusMeters") == source_spot.get("radiusMeters")
+            ),
+            None,
+        )
         if existing_spot:
             spot_map[source_id] = str(existing_spot.get("id") or "")
             continue
@@ -508,17 +547,21 @@ def merge_shared_archive(
         source_spot["name"] = _unique_spot_name(str(source_spot.get("name") or ""), used_spot_names)
         spot_map[source_id] = source_spot["id"]
         local["spots"].append(source_spot)
+
     for record_group in ("catches", "lostFish"):
         for record in trip.get(record_group, []):
             source_spot_id = str(record.get("spotId") or "")
             if source_spot_id in spot_map:
                 record["spotId"] = spot_map[source_spot_id]
+    return referenced
 
-    # Gear is carried only when the trip references it. Existing matching IDs are reused;
-    # collisions get fresh IDs and all trip references are rewritten.
+
+def _merge_referenced_gear(local: dict, incoming: dict, trip: dict, referenced: dict[str, set[str]]) -> dict[str, list[dict]]:
+    """Copy only referenced gear, reusing exact matches and remapping collisions."""
     id_maps: dict[str, dict[str, str]] = {key: {} for key in _ID_COLLECTIONS}
     imported_gear_ids: dict[str, set[str]] = {key: set() for key in _ID_COLLECTIONS}
     used_ids = {key: {str(item.get("id") or "") for item in local[key]} for key in _ID_COLLECTIONS}
+
     for collection in ("lures", "flashers", "reels", "rods"):
         for source in incoming.get(collection, []):
             source_id = str(source.get("id") or "")
@@ -533,6 +576,7 @@ def merge_shared_archive(
             id_maps[collection][source_id] = copied["id"]
             local[collection].append(copied)
             imported_gear_ids[collection].add(copied["id"])
+
     for source in incoming.get("rodReelCombos", []):
         source_id = str(source.get("id") or "")
         if source_id not in referenced["rodReelCombos"]:
@@ -550,6 +594,7 @@ def merge_shared_archive(
         id_maps["rodReelCombos"][source_id] = copied["id"]
         local["rodReelCombos"].append(copied)
         imported_gear_ids["rodReelCombos"].add(copied["id"])
+
     for setup in trip.get("gearUsed", []):
         for collection, field in (("lures", "lureId"), ("flashers", "flasherId"), ("reels", "reelId"), ("rods", "rodId"), ("rodReelCombos", "comboId")):
             source_id = str(setup.get(field) or "")
@@ -562,13 +607,29 @@ def merge_shared_archive(
                 if source_id in id_maps[collection]:
                     record[field] = id_maps[collection][source_id]
 
-    imported_gear = {
-        collection: [item for item in local[collection] if str(item.get("id") or "") in imported_gear_ids[collection]]
+    return {
+        collection: [
+            item for item in local[collection]
+            if str(item.get("id") or "") in imported_gear_ids[collection]
+        ]
         for collection in _GEAR_COLLECTIONS
     }
+
+
+def _rewrite_imported_media(
+    archive: SharedTripArchive,
+    local: dict,
+    trip: dict,
+    imported_gear: dict[str, list[dict]],
+) -> tuple[dict, dict[tuple[str, str], ArchiveMedia]]:
+    """Give imported media fresh names and update every copied reference."""
     required_source_media = referenced_uploads([trip, *imported_gear.values()])
     media_map: dict[tuple[str, str], tuple[str, str]] = {}
     rewritten_media: dict[tuple[str, str], ArchiveMedia] = {}
+    imported_gear_ids = {
+        collection: {str(item.get("id") or "") for item in items}
+        for collection, items in imported_gear.items()
+    }
     for key in required_source_media:
         item = archive.media.get(key)
         if not item:
@@ -584,7 +645,7 @@ def merge_shared_archive(
             metadata.pop("previewFilename", None)
         media_map[key] = (category, replacement)
         rewritten_media[(category, replacement)] = ArchiveMedia(category, replacement, item.content, metadata, item.preview)
-    trip = _rewrite_media_references(trip, media_map)
+
     for collection in _GEAR_COLLECTIONS:
         local[collection] = [
             _rewrite_media_references(item, media_map)
@@ -592,14 +653,45 @@ def merge_shared_archive(
             else item
             for item in local[collection]
         ]
+    return _rewrite_media_references(trip, media_map), rewritten_media
+
+
+def merge_shared_archive(
+    archive: SharedTripArchive,
+    local_logbook: dict,
+    person_mappings: dict[str, str],
+    action: str,
+    replacement_trip_id: str = "",
+) -> tuple[dict, list[str], str]:
+    """Merge a reviewed shared archive; return state, stale-media keys, and trip ID."""
+    if action not in {"add", "replace", "keep-local"}:
+        raise SharedTripArchiveError("Choose how to handle the possible duplicate trip.")
+    if action == "keep-local":
+        return _checked_logbook(local_logbook), [], ""
+
+    local = _checked_logbook(local_logbook)
+    incoming = deepcopy(archive.logbook)
+    trip = deepcopy(incoming["trips"][0])
+    source_trip_id = str(trip.get("id") or "")
+    candidates = {item["id"] for item in likely_overlaps(trip, local)}
+    discarded_media = (
+        _remove_replacement_trip(local, replacement_trip_id, candidates)
+        if action == "replace"
+        else []
+    )
+
+    _merge_people(local, incoming, trip, person_mappings)
+    _merge_source_location(local, incoming, trip)
+    referenced = _merge_referenced_spots(local, incoming, trip)
+    imported_gear = _merge_referenced_gear(local, incoming, trip, referenced)
+    trip, rewritten_media = _rewrite_imported_media(archive, local, trip, imported_gear)
 
     trip["id"] = _unique_id({str(item.get("id") or "") for item in local["trips"]}, source_trip_id)
     trip["expeditionId"] = ""
     local["trips"].append(trip)
-    merged = local
-    valid, error = validate_logbook(merged)
+    valid, error = validate_logbook(local)
     if not valid:
         raise SharedTripArchiveError(error or "Shared trip could not be merged.")
     # The caller needs the transformed media to copy it after the merge is validated.
     archive.media = rewritten_media
-    return merged, discarded_media, str(trip["id"])
+    return local, discarded_media, str(trip["id"])

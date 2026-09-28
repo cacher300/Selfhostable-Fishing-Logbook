@@ -45,7 +45,8 @@ function applySavedTrollingSpread(spreadId) {
     cheaterLureId: "",
     hasCheater: false,
     hasLeadcore: false,
-    distanceBehind: ""
+    distanceBehind: "",
+    dipseyDiverColor: item.dipseyDiverColor || ""
   }));
   populateSetupLineSelects();
   populateCatchRodSelects();

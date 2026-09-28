@@ -70,14 +70,6 @@ def backup(source_file: Path, destination_file: Path) -> None:
                 destination.commit()
 
 
-def initialize(database_file: Path) -> None:
-    with _LOCK:
-        database_file.parent.mkdir(parents=True, exist_ok=True)
-        with closing(_connect(database_file)) as connection:
-            with connection:
-                _initialize_schema(connection)
-
-
 def read(database_file: Path, collection_keys: tuple[str, ...]) -> dict | None:
     """Read the stored document, returning ``None`` when it has no rows yet."""
     with _LOCK:

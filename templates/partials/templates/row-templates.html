@@ -14,12 +14,16 @@
           </div>
         </div>
         <div class="collapsible-row-body">
+          <section class="catch-editor-panel catch-basic-panel">
+            <div class="catch-panel-heading">
+              <h4>Basic information</h4>
+            </div>
           <div class="catch-identity-row">
             <label class="catch-detail-optional">
               <span>Person</span>
               <select class="catch-person"></select>
             </label>
-            <label class="catch-species-field catch-detail-required">
+            <label class="catch-species-field">
               <span>Species</span>
               <select class="catch-species"></select>
             </label>
@@ -27,17 +31,17 @@
               <span>Possible species</span>
               <select class="catch-possible-species"></select>
             </label>
-            <label class="catch-length-field catch-detail-required">
+            <label class="catch-length-field">
               <span data-unit-label="fishLength" data-unit-label-text="Length">Length</span>
               <input class="catch-length" type="text" inputmode="decimal" placeholder="28 in" />
             </label>
-            <div class="catch-field-with-option catch-weight-field catch-detail-required">
+            <div class="catch-field-with-option catch-weight-field">
               <label>
                 <span data-unit-label="fishWeight" data-unit-label-text="Weight">Weight</span>
                 <input class="catch-weight" type="text" inputmode="decimal" placeholder="9 lb" />
               </label>
               <div class="catch-status-options">
-                <label class="checkbox-label inline-field-option catch-shaker-field trolling-field catch-detail-optional">
+                <label class="checkbox-label inline-field-option trolling-field catch-detail-optional">
                   <input class="catch-shaker" type="checkbox" />
                   <span>Shaker</span>
                 </label>
@@ -56,23 +60,28 @@
               <select class="catch-structure"></select>
             </label>
           </div>
-          <div class="row-section-title catch-photo-title catch-detail-optional">Catch photos</div>
+          </section>
+          <section class="catch-editor-panel catch-photos-panel catch-detail-optional">
+            <div class="catch-panel-heading">
+              <h4 class="catch-photo-title">Catch photos</h4>
+            </div>
           <div class="catch-photo-editor catch-detail-optional">
             <div class="catch-media-actions">
               <label class="button file-button catch-media-action">
-                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
                 Upload Media
                 <input class="catch-photo-input" type="file" accept="image/*,.heic,.heif,video/*" multiple />
               </label>
               <button class="button use-catch-photo-queue catch-media-action" type="button">
-                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4h8v8H4zM6 2h4M6 14h4" /></svg>
                 Use Queue
               </button>
             </div>
             <div class="catch-photo-grid"></div>
           </div>
+          </section>
           <div class="catch-location-section">
-          <div class="row-section-title">Location</div>
+          <div class="catch-panel-heading">
+            <h4>Location &amp; time</h4>
+          </div>
           <div class="catch-field-with-option">
             <div class="metadata-lock-field">
               <label>
@@ -83,7 +92,7 @@
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /></svg>
               </button>
             </div>
-            <label class="checkbox-label inline-field-option catch-time-unknown-field">
+            <label class="checkbox-label inline-field-option">
               <input class="catch-time-unknown" type="checkbox" />
               <span>Unknown time</span>
             </label>
@@ -102,16 +111,12 @@
             <input class="catch-latitude" type="hidden" />
             <input class="catch-longitude" type="hidden" />
           </div>
-          <label class="catch-water-depth-field">
-            <span data-unit-label="depth" data-unit-label-text="FOW">FOW</span>
-            <input class="catch-water-depth" type="text" placeholder="80 FOW" />
-          </label>
-          <label class="catch-depth-down-field">
-            <span data-unit-label="depth" data-unit-label-text="Depth down">Depth down</span>
-            <input class="catch-depth-down" type="text" placeholder="45 ft" />
-          </label>
           </div>
-          <div class="row-section-title catch-detail-optional">Equipment</div>
+          <div class="catch-editor-lower">
+          <section class="catch-editor-panel catch-equipment-panel catch-detail-optional">
+            <div class="catch-panel-heading">
+              <h4>Equipment</h4>
+            </div>
           <div class="catch-equipment-grid catch-detail-optional">
             <label class="trolling-catch-line-field catch-detail-optional">
               <span>Rod</span>
@@ -144,7 +149,21 @@
               <input class="catch-retrieve" type="text" placeholder="Slow roll, pause-twitch, burn-stop" />
             </label>
           </div>
-          <div class="row-section-title trolling-field catch-detail-optional">Details</div>
+          </section>
+          <section class="catch-editor-panel catch-details-panel">
+            <div class="catch-panel-heading">
+              <h4>Details</h4>
+            </div>
+            <div class="catch-depth-fields">
+              <label class="catch-water-depth-field">
+                <span data-unit-label="depth" data-unit-label-text="FOW">FOW</span>
+                <input class="catch-water-depth" type="text" placeholder="80 FOW" />
+              </label>
+              <label class="catch-depth-down-field">
+                <span data-unit-label="depth" data-unit-label-text="Depth down">Depth down</span>
+                <input class="catch-depth-down" type="text" placeholder="45 ft" />
+              </label>
+            </div>
           <!-- The setup-line method is the source of truth for catches. Keep a
                synced value for existing form logic, but do not render a second
                disabled method selector in the catch details grid. -->
@@ -220,10 +239,16 @@
             <input class="catch-estimated-depth" type="text" placeholder="60 ft" />
           </label>
           </div>
-          <div class="row-section-title catch-detail-optional catch-details-unknown-allowed">Notes</div>
+          </section>
+          </div>
+          <section class="catch-editor-panel catch-notes-panel catch-detail-optional catch-details-unknown-allowed">
+            <div class="catch-panel-heading">
+              <h4>Notes</h4>
+            </div>
           <label class="catch-notes-label catch-detail-optional catch-details-unknown-allowed">
             <textarea class="catch-notes" rows="3" placeholder="Add notes about the catch: bite description, fish behavior, or weather observations"></textarea>
           </label>
+          </section>
         </div>
       </article>
     </template>
@@ -240,7 +265,9 @@
           <button class="icon-button remove-trip-gear" type="button" aria-label="Remove gear"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
         <div class="collapsible-row-body">
-          <div class="row-section-title">Timing</div>
+          <section class="gear-editor-panel gear-timing-panel">
+            <div class="gear-panel-heading"><h4>Basics</h4></div>
+            <div class="gear-timing-grid">
           <label class="gear-start-field">
             <span>Start time</span>
             <input class="trip-gear-start-time" type="time" />
@@ -248,10 +275,6 @@
           <label class="gear-end-field">
             <span>Stop time</span>
             <input class="trip-gear-end-time" type="time" />
-          </label>
-          <label class="gear-change-field">
-            <span>Note</span>
-            <input class="trip-gear-change-note" type="text" placeholder="Started spoon/flasher, changed depth, switched lure" />
           </label>
           <label class="trolling-field gear-side-field">
             <span>Line side</span>
@@ -265,8 +288,13 @@
             <span>Rod</span>
             <input class="trip-gear-line-label" type="text" placeholder="Auto number, or name this rod" />
           </label>
-          <div class="row-section-title trolling-field gear-trolling-title">Method</div>
+            </div>
+          </section>
+          <section class="gear-editor-panel gear-method-panel trolling-field">
+            <div class="gear-panel-heading"><h4>Method</h4></div>
+            <div class="gear-method-grid">
           <label class="trolling-field gear-trolling-field">
+            <span>Method</span>
             <select class="catch-presentation" aria-label="Method">
               <option value="">Select method</option>
               <option value="downrigger">Downrigger</option>
@@ -283,11 +311,28 @@
             <span class="trip-gear-distance-behind-label">Distance behind</span>
             <input class="trip-gear-distance-behind" type="text" placeholder="e.g., 20 ft" />
           </label>
+          <label class="trolling-param param-dipsey-diver-color">
+            <span>Dipsey diver color</span>
+            <input class="trip-gear-dipsey-diver-color" type="text" placeholder="e.g., purple" />
+          </label>
           <label class="trolling-param param-attached-weight">
             <span>Weight attached (oz)</span>
             <input class="trip-gear-attached-weight" type="text" placeholder="2 oz" />
           </label>
-          <div class="row-section-title gear-title">Gear</div>
+          <label class="checkbox-label trolling-param param-cheater">
+            <input class="trip-gear-cheater" type="checkbox" />
+            <span>Add cheater line</span>
+          </label>
+          <label class="trolling-param param-cheater-lure">
+            <span>Cheater lure</span>
+            <select class="trip-gear-cheater-lure"></select>
+          </label>
+          <button class="button secondary add-lure-inline cheater-lure-action trolling-param" data-lure-target="cheater" type="button">New Lure</button>
+            </div>
+          </section>
+          <section class="gear-editor-panel gear-inventory-panel">
+            <div class="gear-panel-heading"><h4>Gear &amp; Lure</h4></div>
+            <div class="gear-inventory-grid">
           <label class="gear-combo-field">
             <span>Rod/reel combo</span>
             <select class="trip-gear-combo"></select>
@@ -312,15 +357,14 @@
             <select class="trip-gear-flasher"></select>
           </label>
           <button class="button secondary add-flasher-inline gear-inline-action trolling-field gear-flasher-action" type="button">New Flasher</button>
-          <label class="checkbox-label trolling-param param-cheater">
-            <input class="trip-gear-cheater" type="checkbox" />
-            <span>Add cheater line</span>
-          </label>
-          <label class="trolling-param param-cheater-lure">
-            <span>Cheater lure</span>
-            <select class="trip-gear-cheater-lure"></select>
-          </label>
-          <button class="button secondary add-lure-inline cheater-lure-action trolling-param" data-lure-target="cheater" type="button">New Lure</button>
+            </div>
+          </section>
+          <section class="gear-editor-panel gear-notes-panel">
+            <div class="gear-panel-heading"><h4>Notes</h4></div>
+            <label class="gear-change-field" aria-label="Note">
+              <input class="trip-gear-change-note" type="text" placeholder="Started spoon/flasher, changed depth, switched lure" />
+            </label>
+          </section>
         </div>
       </article>
     </template>
