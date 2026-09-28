@@ -174,10 +174,6 @@ def _rounded_number(value: object, fallback: float = 0) -> float:
     return round(_finite_number(value, fallback), 2)
 
 
-def _slug(value: object) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", str(value or "").strip().casefold()).strip("-")
-
-
 def _basename(value: object) -> str:
     text = str(value or "").strip().replace("\\", "/")
     return text.rsplit("/", 1)[-1]
@@ -276,11 +272,15 @@ def _normalize_spread_rows(value: object) -> list[dict]:
         presentation = str(item.get("presentation") or "").strip()
         if not side or not presentation:
             continue
-        result.append({
+        row = {
             "comboId": combo_id,
             "side": side,
             "presentation": presentation,
-        })
+        }
+        dipsey_diver_color = item.get("dipseyDiverColor")
+        if isinstance(dipsey_diver_color, str):
+            row["dipseyDiverColor"] = dipsey_diver_color
+        result.append(row)
     return result
 
 

@@ -15,6 +15,8 @@ const predefinedFieldGroups = [
   { key: "waterLevels", label: "Water levels" },
   { key: "lureBladeTypes", label: "Lure blade types" },
   { key: "lureSpoonSizes", label: "Lure spoon sizes" },
+  { key: "meatRigTypes", label: "Meat rig types" },
+  { key: "softPlasticTypes", label: "Soft plastic styles" },
   { key: "trollingPresentations", label: "Trolling methods", choice: true },
   { key: "trollingDirections", label: "Trolling directions" },
   { key: "setupLineSides", label: "Setup line sides", choice: true }
@@ -173,15 +175,6 @@ async function cancelChopRangeEditing() {
   chopRangesEditing = false;
   chopRangesEditSnapshot = null;
   renderChopRangeSettings();
-}
-
-function saveCurrentSettingsTab() {
-  if (activeSettingsTab === "trolling-spread") return runSettingsSave(() => saveState(), "The trolling spread settings could not be saved.");
-  if (activeSettingsTab === "measurements" && chopRangesEditing) return saveChopRanges();
-  if (activeSettingsTab === "measurements") return saveUnitSettings();
-  if (activeSettingsTab === "lists") return savePredefinedFieldSettings();
-  if (activeSettingsTab === "waterbodies") return savePrivatePhotoLocations(collectPrivatePhotoLocationSettings());
-  return runSettingsSave(() => saveState(), "The settings could not be saved.");
 }
 
 async function saveChopRanges(options = {}) {

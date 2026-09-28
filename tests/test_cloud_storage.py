@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from PIL import Image
 
-from backend import logbook_store, media_service
+from backend import media_service
 from backend.backend_config import DEFAULT_LOGBOOK
 from server import create_app
 

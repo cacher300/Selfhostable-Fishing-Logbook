@@ -220,6 +220,8 @@ DEFAULT_LOGBOOK = {
     "waterLevels": ["Low", "Normal", "High"],
     "lureBladeTypes": ["Colorado", "Willow Leaf", "Indiana", "Butterfly"],
     "lureSpoonSizes": ["Micro", "Small", "Standard", "Magnum"],
+    "meatRigTypes": ["Herring Strip", "Sucker Belly Strip", "Whole Herring", "Whole Anchovy", "Whole Alewife", "Cut-Plug Herring"],
+    "softPlasticTypes": ["Paddle Tail", "Split/Fork Tail", "Fluke/Soft Jerkbait", "Straight Tail Minnow", "Straight Tail Worm", "Curly Tail Worm", "Stick Worm", "Grub/Curly Tail", "Tube", "Craw/Crayfish", "Creature Bait", "Lizard", "Frog/Toad", "Leech", "Shrimp", "Urchin", "Other"],
     "trollingPresentations": [
         {"value": "Outside Board", "label": "Outside Board"},
         {"value": "Inside Board", "label": "Inside Board"},

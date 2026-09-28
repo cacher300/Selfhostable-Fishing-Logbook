@@ -582,20 +582,6 @@
   stroke-width: 1.8;
 }
 
-.stats-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  max-width: 180px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: #eef3f7;
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
 .stats-positive {
   color: #11683f;
   font-weight: 900;
@@ -608,7 +594,6 @@
 
 /* Stats command center */
 .stats-page {
-  --stats-blue: #145ea8;
   --stats-teal: #009b91;
   --stats-heading: var(--text);
   --stats-soft: var(--panel-soft);

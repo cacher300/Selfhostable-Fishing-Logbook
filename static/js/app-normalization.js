@@ -31,19 +31,6 @@ function automaticSpotId(catchItem, spots = state.spots || []) {
   return matches[0]?.id || "";
 }
 
-function normalizeCatchSpotAssignment(catchItem, spots = state.spots || []) {
-  const mode = catchItem?.spotAssignmentMode === "manual" ? "manual" : "automatic";
-  const spotIds = new Set(spots.map((spot) => spot.id));
-  const requestedId = String(catchItem?.spotId || "").trim();
-  return {
-    ...catchItem,
-    spotAssignmentMode: mode,
-    spotId: mode === "manual"
-      ? (spotIds.has(requestedId) ? requestedId : "")
-      : automaticSpotId(catchItem, spots)
-  };
-}
-
 function spotName(spotId) {
   return state.spots.find((spot) => spot.id === spotId)?.name || "";
 }
@@ -112,16 +99,22 @@ function generatedTripTitle(trip, trips = []) {
   return `${labels.join(" ") || "Fishing"} Trip #${number}`;
 }
 
-function shouldGenerateTripTitle(trip) {
-  return !String(trip?.title || "").trim();
-}
-
 function validateState(document) {
   if (!document || typeof document !== "object" || document.schemaVersion !== 2) {
     throw new Error("Only v2 logbooks are supported.");
   }
   for (const key of ["species", "methods", "riggings", "lureTypes", "flasherTypes", "waterClarities", "structureOptions", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips"]) {
     if (!Array.isArray(document[key])) throw new Error(`Missing v2 collection: ${key}`);
+  }
+  if (document.meatRigTypes !== undefined && (!Array.isArray(document.meatRigTypes) || document.meatRigTypes.some((value) => typeof value !== "string"))) {
+    throw new Error("Meat rig types must be a list of strings.");
+  }
+  if (document.softPlasticTypes !== undefined && (!Array.isArray(document.softPlasticTypes) || document.softPlasticTypes.some((value) => typeof value !== "string"))) {
+    throw new Error("Soft plastic styles must be a list of strings.");
+  }
+  for (const lure of document.lures) {
+    if (lure.meatRigType !== undefined && typeof lure.meatRigType !== "string") throw new Error("Lure meat rig type must be a string.");
+    if (lure.softPlasticType !== undefined && typeof lure.softPlasticType !== "string") throw new Error("Lure soft plastic style must be a string.");
   }
   if (!document.settings || typeof document.settings !== "object") throw new Error("Missing v2 settings.");
   if (document.settings.chopRanges !== undefined) validateChopRanges(document.settings.chopRanges);
@@ -179,7 +172,7 @@ function optionChoices(key) {
 }
 
 function optionLabels(key) {
-  const values = Array.isArray(state[key]) ? state[key] : [];
+  const values = Array.isArray(state[key]) ? state[key] : ["meatRigTypes", "softPlasticTypes"].includes(key) ? defaults[key] : [];
   return values.map((item) => typeof item === "object" ? item?.label || item?.value : item);
 }
 

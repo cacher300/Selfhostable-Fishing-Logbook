@@ -53,6 +53,8 @@ Compatibility-sensitive fields include `settings.defaultPeople`, `units`, `timeF
 | `waterClarities`, `weatherTypes` | string arrays | Manual condition choices. |
 | `reelStyles`, `rodTypes`, `lineTypes`, `riggings`, `structureOptions` | string arrays | Inventory and structure choices. |
 | `flyCategories`, `flyPresentations`, `waterLevels`, `lureBladeTypes`, `lureSpoonSizes` | string arrays | Other current form choices. |
+| `meatRigTypes` | optional string array | Editable meat-rig bait/presentation choices. Older v2 documents without the array use starter choices in the editors until saved. |
+| `softPlasticTypes` | optional string array | Editable soft-plastic shape/style choices. Older v2 documents without the array use starter choices in the editors until saved. |
 | `trollingPresentations` | `{value,label}[]` | Presentation choices. |
 | `trollingDirections` | string array | Direction choices. |
 | `setupLineSides` | `{value,label}[]` | Port/center/starboard choices. |
@@ -73,7 +75,7 @@ Compatibility-sensitive fields include `settings.defaultPeople`, `units`, `timeF
 - `checklists[]`: independent named preparation lists whose item completion remains saved until reset.
 - `privatePhotoLocations[]`: `{ id, name, coordinates, radiusMeters }`; IDs are unique, coordinates are required, and the privacy radius is 25–10,000 m. Names need not be unique because multiple private pins may share a label.
 - `bathymetryLakeCalibrationsFeet`: per-Great-Lake `{ shallowOffsetFeet, offshoreOffsetFeet }` calibration values.
-- `trollingSpreads[]`: named reusable trolling setup templates. Each item is `{ id, name, spread[] }`, where each spread row contains `comboId`, `side`, and `presentation`.
+- `trollingSpreads[]`: named reusable trolling setup templates. Each item is `{ id, name, spread[] }`, where each spread row contains `comboId`, `side`, `presentation`, and the optional `dipseyDiverColor` for High Diver or Low Diver rows.
 - `defaultTrollingSpreadId`: optional ID of the saved trolling spread used to seed new trolling trips. The Settings label is `Trolling default`; it is not tied to target species.
 - `savedSetups[]`: named reusable non-trolling setup templates. Each item is `{ id, name, method, rows[] }`, where each row contains only `comboId`. Multiple setups may belong to the same method.
 - `defaultSavedSetupIds`: object mapping a non-trolling method name to the optional saved setup ID used to seed new trips for that method.
@@ -128,7 +130,7 @@ The trip start time is stored in `launchTime`; the end of fishing is stored in `
 
 ## Setup Line (`trip.gearUsed[]`)
 
-`id`, optional `personId`, `startTime`, `endTime`, `changeNote`, `side`, `lineLabel`, `comboId`, `rodId`, `reelId`, `lureId`, `flasherId`, `presentation`, `hasLeadcore`, `hasCheater`, `cheaterLureId`, `distanceBehind`, `attachedWeightOz`, `lureMinutes`, `flasherMinutes`, `rigging`, and `riggingDetails`. `attachedWeightOz` is used for Outside Board, Inside Board, and Chute Rod setup lines.
+`id`, optional `personId`, `startTime`, `endTime`, `changeNote`, `side`, `lineLabel`, `comboId`, `rodId`, `reelId`, `lureId`, `flasherId`, `presentation`, `dipseyDiverColor`, `hasLeadcore`, `hasCheater`, `cheaterLureId`, `distanceBehind`, `attachedWeightOz`, `lureMinutes`, `flasherMinutes`, `rigging`, and `riggingDetails`. `dipseyDiverColor` is a free-form string used by High Diver and Low Diver setup lines. `attachedWeightOz` is used for Outside Board, Inside Board, and Chute Rod setup lines.
 
 Setup rows intentionally do not collect fish-specific speed/depth parameters.
 
@@ -144,7 +146,7 @@ An optional numeric `quantity` is honored by analytics. The desktop form has no 
 
 ## Gear Entities
 
-- Lure: `id`, `name`, `type`, `brand`, `color`, `notes`, media fields.
+- Lure: `id`, `name`, `type`, optional `meatRigType` when `type` is `Meat Rig`, optional `softPlasticType` when `type` is `Soft Plastic`, `brand`, `color`, `notes`, media fields. Starter soft-plastic styles cover tail shapes, flukes, worms, grubs, tubes, craws, creatures, and other common bodies. Settings → Categories can edit both subtype lists. These classify the lure itself; setup/catch rigging remains separate.
 - Flasher: same core shape as lure.
 - Rod: `id`, `shortName`, `type`, `brand`, `name`, `length`, `power`, `action`, `lureRating`, `purchaseAmount`, `dateBought`, `notes`, media fields.
 - Reel: `id`, `shortName`, `style`, `brand`, `name`, `size`, `weight`, `gearRatio`, `retrieveRate`, `maxDrag`, `monoCapacity`, `braidCapacity`, `purchaseAmount`, `dateBought`, `notes`, media fields, `lineHistory[]`.

@@ -27,7 +27,7 @@ const normalized = context.validateState({
   settings: {
     ...vm.runInContext("structuredClone(defaults.settings)", context),
     checklists: [{ id: "checklist-1", name: "Launch", syncTag: "mobile", items: [{ id: "item-1", label: "Net", done: false, icon: "net" }] }],
-    trollingSpreads: [{ id: "spread-1", name: "Morning", sourceTag: "mobile", spread: [{ comboId: "combo-1", side: "port", presentation: "Downrigger", note: "inside" }] }]
+    trollingSpreads: [{ id: "spread-1", name: "Morning", sourceTag: "mobile", spread: [{ comboId: "combo-1", side: "port", presentation: "High Diver", dipseyDiverColor: "Purple", note: "inside" }] }]
   },
   waterClarities: ["Muddy"],
   trips: [{
@@ -50,6 +50,7 @@ assert.strictEqual(normalized.settings.checklists[0].syncTag, "mobile");
 assert.strictEqual(normalized.settings.checklists[0].items[0].icon, "net");
 assert.strictEqual(normalized.settings.trollingSpreads[0].sourceTag, "mobile");
 assert.strictEqual(normalized.settings.trollingSpreads[0].spread[0].note, "inside");
+assert.strictEqual(normalized.settings.trollingSpreads[0].spread[0].dipseyDiverColor, "Purple");
 
 vm.runInContext(fs.readFileSync("static/js/trip-editor.js", "utf8"), context);
 const mergedPeople = context.mergePeople(
