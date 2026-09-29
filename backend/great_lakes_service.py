@@ -36,6 +36,7 @@ THERMOCLINE_MIN_GRADIENT_C_PER_METER = 0.1
 THERMOCLINE_SPATIAL_OUTLIER_METERS = 12.0
 _temperature_field_cache: dict[tuple, list[dict]] = {}
 _current_payload_cache: dict[tuple, dict] = {}
+_current_profile_cache: dict[tuple, dict] = {}
 
 
 def _get(url: str) -> str:
@@ -204,7 +205,17 @@ def great_lakes_payload(kind: str, forecast_hour: int, depth: int, models: tuple
 
     def load_model(model: str) -> tuple[list[dict], dict, dict | None]:
         points, metadata = _sample_model(model, kind, forecast_hour, depth)
-        field = _current_grid_field(model, forecast_hour, depth) if kind == "currents" else None
+        field = None
+        if kind == "currents":
+            for point in points:
+                point["validTime"] = metadata.get("validTime")
+            try:
+                field = _current_grid_field(model, forecast_hour, depth)
+            except RuntimeError:
+                # FVCOM fields can provide sampled velocities without a regular grid.
+                # Keep those samples for static arrows and point inspection.
+                pass
+            metadata["gridAvailable"] = field is not None
         return points, metadata, field
 
     with ThreadPoolExecutor(max_workers=len(selected_models)) as executor:
@@ -604,6 +615,103 @@ def great_lakes_temperature_profile(forecast_hour: int, latitude: float, longitu
         }
         valid_time = datetime.strptime(f"{run['date']}{run['cycle']:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp() + available_hour * 3600
         return {"available": True, "model": model, "validTime": datetime.fromtimestamp(valid_time, timezone.utc).isoformat().replace("+00:00", "Z"), "requested": {"latitude": latitude, "longitude": longitude}, "modelLocation": {"latitude": latitudes[row], "longitude": longitudes[column]}, "values": values, "thermocline": thermocline}
+    return {"available": False}
+
+
+def _distance_km(latitude: float, longitude: float, other_latitude: float, other_longitude: float) -> float:
+    first, second = math.radians(latitude), math.radians(other_latitude)
+    delta_latitude = second - first
+    delta_longitude = math.radians(other_longitude - longitude)
+    value = math.sin(delta_latitude / 2) ** 2 + math.cos(first) * math.cos(second) * math.sin(delta_longitude / 2) ** 2
+    return 12742 * math.asin(min(1, math.sqrt(value)))
+
+
+def _current_profile_values(depths: list[float], east: list[float], north: list[float]) -> list[dict]:
+    if not (len(depths) == len(east) == len(north)):
+        return []
+    values = []
+    for depth, u, v in zip(depths, east, north):
+        if not all(math.isfinite(item) for item in (depth, u, v)) or depth < 0 or abs(u) > 10 or abs(v) > 10:
+            continue
+        values.append({"depthMeters": depth, "u": u, "v": v, "speedMetersPerSecond": math.hypot(u, v), "directionDegrees": (math.degrees(math.atan2(u, v)) + 360) % 360})
+    return sorted(values, key=lambda value: value["depthMeters"])
+
+
+def _current_profile_for_model(model: str, forecast_hour: int, latitude: float, longitude: float) -> dict:
+    run = discovered_runs((model,))[model]
+    if "error" in run:
+        raise RuntimeError(str(run["error"]))
+    hours = run["files"]  # type: ignore[assignment]
+    available_hour = min(hours, key=lambda candidate: abs(candidate - forecast_hour))
+    path = hours[available_hour]
+    variables = _metadata(path)
+    ny, nx, depths = _regular_grid_dimensions(path)
+    approximate_depth = not (ny and nx and depths)
+    if not approximate_depth:
+        raw_axes = _ascii(path, f"Latitude[0:1:{ny - 1}][0],Longitude[0][0:1:{nx - 1}]")
+        latitudes = _numbers(raw_axes, "Latitude")
+        longitudes = [_great_lakes_longitude(item) for item in _numbers(raw_axes, "Longitude")]
+        if len(latitudes) != ny or len(longitudes) != nx or not (min(latitudes) <= latitude <= max(latitudes) and min(longitudes) <= longitude <= max(longitudes)):
+            return {"available": False}
+        row = min(range(ny), key=lambda index: abs(latitudes[index] - latitude))
+        column = min(range(nx), key=lambda index: abs(longitudes[index] - longitude))
+        raw = _ascii(path, f"mask[{row}][{column}],{variables['u']}[0][0:1:{len(depths) - 1}][{row}][{column}],{variables['v']}[0][0:1:{len(depths) - 1}][{row}][{column}]")
+        if not _numbers(raw, "mask") or _numbers(raw, "mask")[0] <= 0:
+            return {"available": False}
+        east, north = _numbers(raw, variables["u"]), _numbers(raw, variables["v"])
+        model_latitude, model_longitude = latitudes[row], longitudes[column]
+    else:
+        nodes, faces = _field_dimensions(path)
+        dds = _get(f"{THREDDS}/dodsC/{path}.dds")
+        layer_match = re.search(rf"\b{re.escape(variables['u'])}\[time = \d+\]\[siglay = (\d+)\]\[nele = \d+\]", dds)
+        if not layer_match:
+            raise RuntimeError("NOAA current file has no sigma-layer velocities")
+        layers = int(layer_match.group(1))
+        stride = max(1, math.ceil(faces / 3000))
+        raw_axes = _ascii(path, f"latc[0:{stride}:{faces - 1}],lonc[0:{stride}:{faces - 1}]")
+        latitudes = _numbers(raw_axes, "latc")
+        longitudes = [_great_lakes_longitude(item) for item in _numbers(raw_axes, "lonc")]
+        face_indices = list(range(0, faces, stride))
+        if len(latitudes) != len(longitudes) or len(latitudes) != len(face_indices):
+            raise RuntimeError("NOAA current face coordinates were incomplete")
+        nearby = min(range(len(face_indices)), key=lambda index: _distance_km(latitude, longitude, latitudes[index], longitudes[index]))
+        model_latitude, model_longitude = latitudes[nearby], longitudes[nearby]
+        if _distance_km(latitude, longitude, model_latitude, model_longitude) > 25:
+            return {"available": False}
+        face = face_indices[nearby]
+        raw = _ascii(path, f"nv[0:2][{face}],{variables['u']}[0][0:1:{layers - 1}][{face}],{variables['v']}[0][0:1:{layers - 1}][{face}]")
+        face_nodes = _numbers(raw, "nv")
+        if len(face_nodes) != 3:
+            raise RuntimeError("NOAA current face has no node references")
+        node = int(face_nodes[0]) - 1  # FVCOM face connectivity is one-based.
+        if not 0 <= node < nodes:
+            raise RuntimeError("NOAA current face node is invalid")
+        depth_raw = _ascii(path, f"h[{node}],siglay[0:1:{layers - 1}][{node}]")
+        bathymetry = _numbers(depth_raw, "h")
+        sigma = _numbers(depth_raw, "siglay")
+        if len(bathymetry) != 1 or not math.isfinite(bathymetry[0]) or bathymetry[0] <= 0 or len(sigma) != layers:
+            raise RuntimeError("NOAA current sigma depths were incomplete")
+        depths = [abs(layer) * bathymetry[0] for layer in sigma]
+        east, north = _numbers(raw, variables["u"]), _numbers(raw, variables["v"])
+    values = _current_profile_values(depths, east, north)
+    if not values:
+        return {"available": False}
+    valid_time = datetime.strptime(f"{run['date']}{run['cycle']:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp() + available_hour * 3600
+    return {"available": True, "model": model, "validTime": datetime.fromtimestamp(valid_time, timezone.utc).isoformat().replace("+00:00", "Z"), "requested": {"latitude": latitude, "longitude": longitude}, "modelLocation": {"latitude": model_latitude, "longitude": model_longitude}, "sampleDistanceKm": _distance_km(latitude, longitude, model_latitude, model_longitude), "depthApproximate": approximate_depth, "values": values}
+
+
+def great_lakes_current_profile(forecast_hour: int, latitude: float, longitude: float, models: tuple[str, ...] = MODELS) -> dict:
+    cache_key = (forecast_hour, round(latitude, 3), round(longitude, 3), models, int(time.monotonic() // CACHE_SECONDS))
+    if cache_key in _current_profile_cache:
+        return _current_profile_cache[cache_key]
+    for model in models:
+        try:
+            profile = _current_profile_for_model(model, forecast_hour, latitude, longitude)
+        except Exception:
+            continue  # One lake's missing run must not hide another lake.
+        if profile.get("available"):
+            _current_profile_cache[cache_key] = profile
+            return profile
     return {"available": False}
 
 

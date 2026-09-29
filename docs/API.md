@@ -85,6 +85,12 @@ Returns the modelled water-column temperature profile and estimated thermocline 
 
 Returns the current model payload for `temperature` or `currents`. The optional `forecastHour`, `depth`, and `models` query values select the model view.
 
+The currents payload includes sampled `data` points and, when the NOAA run has a regular velocity grid, interpolatable `fields`. A run with only unstructured FVCOM fields can return sampled currents with an empty `fields` array; the map then shows static arrows.
+
+### `GET /api/great-lakes/current-profile`
+
+Returns modeled current speed and flow direction at each available water-column layer near numeric `latitude` and `longitude`. Optional `forecastHour` and comma-separated `models` select the forecast. The response contains `available`, `model`, `validTime`, `modelLocation`, `sampleDistanceKm`, `depthApproximate`, and ordered `values` with `depthMeters`, east/north velocity, speed, and toward-bearing. FVCOM sigma-layer depths are estimated from nearby model bathymetry; points more than 25 km from a sampled model face return `available: false`.
+
 ### `GET /api/great-lakes/temperature-raster`
 
 Returns a server-rendered temperature raster payload for the optional `forecastHour`, `depth`, `resolution`, and `models` query values.

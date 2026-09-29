@@ -415,11 +415,6 @@
   line-height: 1.25;
 }
 
-.map-depth-popup > small {
-  padding-bottom: 8px;
-  letter-spacing: .01em;
-}
-
 .map-overlay-reading {
   display: grid;
   gap: 3px;
@@ -449,6 +444,22 @@
 .map-water-reading-row span { color: var(--text); font-size: 13px; }
 .map-water-reading-row strong { font-size: 14px; text-align: right; }
 .map-water-reading .great-lakes-profile-button { margin-top: 3px; }
+.great-lakes-current-dialog { width: min(800px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+.great-lakes-current-dialog::backdrop { background: rgba(5, 18, 30, .64); }
+.great-lakes-current-dialog form { float: right; }
+.great-lakes-current-dialog h3 { margin: 3px 40px 14px 0; font-size: 24px; line-height: 1.2; }
+.great-lakes-current-meta, .great-lakes-current-empty { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.great-lakes-current-chart { display: grid; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.great-lakes-current-row { display: grid; grid-template-columns: 82px minmax(60px, 1fr) 83px 126px; align-items: center; gap: 12px; min-height: 40px; padding: 5px 9px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.great-lakes-current-row:last-child { border-bottom: 0; }
+.great-lakes-current-row.is-closest { background: var(--panel-soft); }
+.great-lakes-current-depth, .great-lakes-current-row strong { font-variant-numeric: tabular-nums; }
+.great-lakes-current-row strong { text-align: right; white-space: nowrap; }
+.great-lakes-current-track { display: block; height: 9px; overflow: hidden; border-radius: 3px; background: var(--field); }
+.great-lakes-current-track i { display: block; height: 100%; border-radius: inherit; }
+.great-lakes-current-direction { display: flex; align-items: center; gap: 5px; font-weight: 700; }
+.great-lakes-current-direction svg { width: 17px; height: 17px; flex: none; fill: none; stroke: var(--text); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+@media (max-width: 600px) { .great-lakes-current-dialog { padding: 16px; } .great-lakes-current-dialog h3 { font-size: 20px; } .great-lakes-current-row { grid-template-columns: 62px minmax(40px, 1fr) 66px 88px; gap: 5px; padding: 6px 2px; font-size: 10px; } .great-lakes-current-direction { gap: 2px; } .great-lakes-current-direction svg { width: 14px; height: 14px; } }
 
 .map-legend {
   display: flex;
