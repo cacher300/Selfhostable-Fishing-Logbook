@@ -1,6 +1,8 @@
 """Sampled NOAA currents remain available without a regular flow grid."""
 
 from backend import great_lakes_service as service
+from backend.routes import environment
+from conftest import make_app
 
 
 def test_currents_keep_samples_when_regular_grid_is_unavailable(monkeypatch):
@@ -58,11 +60,9 @@ def test_fvcom_current_profile_uses_sigma_depths(monkeypatch):
     assert profile["depthApproximate"] is True
 
 
-def test_current_profile_route_validates_coordinates(monkeypatch):
-    import server
-
-    monkeypatch.setattr(server, "great_lakes_current_profile", lambda *args: {"available": True, "values": []})
-    client = server.create_app({"TESTING": True}).test_client()
+def test_current_profile_route_validates_coordinates(monkeypatch, tmp_path):
+    monkeypatch.setattr(environment, "great_lakes_current_profile", lambda *args: {"available": True, "values": []})
+    client = make_app(tmp_path).client
 
     assert client.get("/api/great-lakes/current-profile?latitude=nan&longitude=-78").status_code == 400
     assert client.get("/api/great-lakes/current-profile?latitude=43.5&longitude=-78").json["available"] is True

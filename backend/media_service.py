@@ -4,8 +4,8 @@ import json
 import math
 import re
 from pathlib import Path
+from typing import Callable
 
-from flask import abort
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pillow_heif import register_heif_opener
 
@@ -15,63 +15,95 @@ from .backend_config import (
     PREVIEW_DIRNAME,
     PREVIEW_MAX_SIZE,
     UPLOAD_CATEGORIES,
-    UPLOADS_DIR,
 )
-from .logbook_store import read_logbook
 
 
 register_heif_opener()
 
 
-def upload_category_path(category: str) -> Path:
-    if category not in UPLOAD_CATEGORIES:
-        abort(404)
-    path = UPLOADS_DIR / category
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+class MediaNotFound(LookupError):
+    """The requested upload category or file does not exist."""
 
 
-def upload_metadata_path(category: str, filename: str) -> Path:
-    return upload_category_path(category) / f"{filename}.json"
+class UploadLibrary:
+    """Path and sidecar handling for one on-disk uploads tree.
 
+    ``logbook_reader`` supplies the current document when a legacy HEIF
+    sidecar needs its private-location scrub refreshed.
+    """
 
-def upload_preview_path(category: str, filename: str) -> Path:
-    preview_dir = upload_category_path(category) / PREVIEW_DIRNAME
-    preview_dir.mkdir(parents=True, exist_ok=True)
-    return preview_dir / f"{Path(filename).stem}.jpg"
+    def __init__(self, root: Path, logbook_reader: Callable[[], dict]):
+        self.root = Path(root)
+        self._logbook_reader = logbook_reader
 
+    def category_path(self, category: str) -> Path:
+        if category not in UPLOAD_CATEGORIES:
+            raise MediaNotFound("Upload category not found")
+        path = self.root / category
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
-def write_upload_metadata(category: str, filename: str, metadata: dict) -> None:
-    upload_metadata_path(category, filename).write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    def metadata_path(self, category: str, filename: str) -> Path:
+        return self.category_path(category) / f"{filename}.json"
 
+    def preview_dir(self, category: str) -> Path:
+        preview_dir = self.category_path(category) / PREVIEW_DIRNAME
+        preview_dir.mkdir(parents=True, exist_ok=True)
+        return preview_dir
 
-def read_upload_metadata(category: str, filename: str) -> dict:
-    metadata_path = upload_metadata_path(category, filename)
-    if not metadata_path.exists():
-        return {}
-    try:
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {}
-    if metadata.get("convertedFrom") in {"HEIC", "HEIF"} and metadata.get("_heifMetadataVersion") != 1:
-        metadata = scrub_private_photo_metadata({
-            **extract_image_metadata(category, filename),
-            **metadata,
-            "_heifMetadataVersion": 1,
-        })
-        write_upload_metadata(category, filename, metadata)
-    return metadata
+    def preview_path(self, category: str, filename: str) -> Path:
+        return self.preview_dir(category) / f"{Path(filename).stem}.jpg"
 
+    def write_metadata(self, category: str, filename: str, metadata: dict) -> Path:
+        path = self.metadata_path(category, filename)
+        path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+        return path
 
-def delete_upload_file(category: str, filename: str, metadata: dict | None = None) -> None:
-    metadata = metadata or read_upload_metadata(category, filename)
-    media_path = upload_category_path(category) / filename
-    metadata_path = upload_metadata_path(category, filename)
-    preview_filename = metadata.get("previewFilename") or upload_preview_path(category, filename).name
-    preview_path = upload_category_path(category) / PREVIEW_DIRNAME / preview_filename
-    for path in (media_path, metadata_path, preview_path):
-        if path.is_file():
-            path.unlink()
+    def read_metadata(self, category: str, filename: str) -> dict:
+        metadata_path = self.metadata_path(category, filename)
+        if not metadata_path.exists():
+            return {}
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return {}
+        if metadata.get("convertedFrom") in {"HEIC", "HEIF"} and metadata.get("_heifMetadataVersion") != 1:
+            metadata = scrub_private_photo_metadata({
+                **extract_image_metadata(self.category_path(category) / filename),
+                **metadata,
+                "_heifMetadataVersion": 1,
+            }, self._logbook_reader())
+            self.write_metadata(category, filename, metadata)
+        return metadata
+
+    def delete_file(self, category: str, filename: str, metadata: dict | None = None) -> None:
+        metadata = metadata or self.read_metadata(category, filename)
+        media_path = self.category_path(category) / filename
+        metadata_path = self.metadata_path(category, filename)
+        preview_filename = metadata.get("previewFilename") or self.preview_path(category, filename).name
+        preview_path = self.category_path(category) / PREVIEW_DIRNAME / preview_filename
+        for path in (media_path, metadata_path, preview_path):
+            if path.is_file():
+                path.unlink()
+
+    def create_preview(self, category: str, filename: str) -> str:
+        return create_preview(self.category_path(category) / filename, self.preview_path(category, filename))
+
+    def gallery_items(self, category: str) -> list[dict]:
+        directory = self.category_path(category)
+        items = []
+        for file_path in directory.iterdir():
+            if not file_path.is_file() or file_path.suffix == ".json":
+                continue
+            metadata = self.read_metadata(category, file_path.name)
+            items.append({
+                **upload_payload(category, file_path.name, metadata),
+                "category": category,
+                "size": file_path.stat().st_size,
+                "modified": file_path.stat().st_mtime,
+                "downloadUrl": f"/uploads/{category}/{file_path.name}",
+            })
+        return items
 
 
 def media_key_from_reference(value: object) -> tuple[str, str] | None:
@@ -126,9 +158,8 @@ def upload_captions(value: object) -> dict[tuple[str, str], list[str]]:
     return captions
 
 
-def create_upload_preview(category: str, filename: str) -> str:
-    source = upload_category_path(category) / filename
-    preview = upload_preview_path(category, filename)
+def create_preview(source: Path, preview: Path) -> str:
+    """Write a JPEG preview for ``source``; return its filename or "" when not an image."""
     try:
         with Image.open(source) as image:
             image = ImageOps.exif_transpose(image)
@@ -141,14 +172,12 @@ def create_upload_preview(category: str, filename: str) -> str:
     return preview.name
 
 
-def convert_heif_upload(category: str, filename: str) -> str:
+def convert_heif_upload(source: Path) -> Path:
     """Convert a browser-incompatible HEIC/HEIF upload to a displayable JPEG."""
-    source = upload_category_path(category) / filename
     if source.suffix.lower() not in {".heic", ".heif"}:
-        return filename
+        return source
 
-    converted_name = f"{source.stem}.jpg"
-    converted = source.with_name(converted_name)
+    converted = source.with_name(f"{source.stem}.jpg")
     try:
         with Image.open(source) as image:
             image.load()
@@ -166,7 +195,7 @@ def convert_heif_upload(category: str, filename: str) -> str:
         raise ValueError("The HEIC/HEIF photo could not be converted.")
 
     source.unlink()
-    return converted_name
+    return converted
 
 
 def _exif_text(value: object) -> str:
@@ -186,9 +215,8 @@ def _decimal_exif_coordinate(value: object, reference: object) -> float | None:
     return coordinate
 
 
-def extract_image_metadata(category: str, filename: str) -> dict:
+def extract_image_metadata(source: Path) -> dict:
     """Read capture time and GPS from an uploaded image's EXIF data."""
-    source = upload_category_path(category) / filename
     try:
         with Image.open(source) as image:
             exif = image.getexif()
@@ -222,7 +250,7 @@ def extract_image_metadata(category: str, filename: str) -> dict:
     return metadata
 
 
-def scrub_private_photo_metadata(metadata: dict, logbook: dict | None = None) -> dict:
+def scrub_private_photo_metadata(metadata: dict, logbook: dict) -> dict:
     """Apply the same private-location rule used by the browser metadata reader."""
     coordinates = metadata.get("coordinates")
     try:
@@ -231,8 +259,7 @@ def scrub_private_photo_metadata(metadata: dict, logbook: dict | None = None) ->
     except (KeyError, TypeError, ValueError):
         return metadata
 
-    active_logbook = logbook if logbook is not None else read_logbook()
-    for location in active_logbook.get("settings", {}).get("privatePhotoLocations", []):
+    for location in logbook.get("settings", {}).get("privatePhotoLocations", []):
         private_coordinates = location.get("coordinates") or {}
         try:
             private_latitude = float(private_coordinates["latitude"])
@@ -291,29 +318,7 @@ def upload_payload(category: str, filename: str, metadata: dict | None = None) -
     }
 
 
-def upload_gallery_items(category: str) -> list[dict]:
-    directory = upload_category_path(category)
-    items = []
-    for file_path in directory.iterdir():
-        if not file_path.is_file() or file_path.suffix == ".json":
-            continue
-        metadata = read_upload_metadata(category, file_path.name)
-        items.append({
-            **upload_payload(category, file_path.name, metadata),
-            "category": category,
-            "size": file_path.stat().st_size,
-            "modified": file_path.stat().st_mtime,
-            "downloadUrl": f"/uploads/{category}/{file_path.name}",
-        })
-    return items
-
-
-def orphaned_upload_items() -> list[dict]:
-    references = referenced_uploads(read_logbook())
-    items = []
-    for category in sorted(UPLOAD_CATEGORIES - {"queue"}):
-        for item in upload_gallery_items(category):
-            if (category, item["filename"]) not in references:
-                items.append(item)
-    items.sort(key=lambda item: item["modified"], reverse=True)
-    return items
+def orphaned_items(items: list[dict], references: set[tuple[str, str]]) -> list[dict]:
+    orphans = [item for item in items if item.get("category") != "queue" and (item.get("category"), item.get("filename")) not in references]
+    orphans.sort(key=lambda item: item["modified"], reverse=True)
+    return orphans

@@ -1,19 +1,18 @@
+"""Static application constants.
+
+Runtime settings (data directory, bind address, secret key, storage backend)
+live in :mod:`backend.config`. The ``FISH_*`` cloud values below are read here
+only because the frozen cloud client module imports them directly.
+"""
+
 from __future__ import annotations
 
 import os
-import secrets
 from copy import deepcopy
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-configured_data_dir = os.environ.get("FISH_DATA_DIR", "").strip()
-DATA_DIR = Path(configured_data_dir or ROOT / "data").expanduser().resolve()
-DATABASE_FILE = DATA_DIR / "logbook.sqlite3"
-UPLOADS_DIR = DATA_DIR / "uploads"
-HOST = os.environ.get("HOST", "127.0.0.1")
-PORT = int(os.environ.get("PORT", "8080"))
-SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 FISH_STORAGE_BACKEND = os.environ.get("FISH_STORAGE_BACKEND", "local").strip().lower()
 FISH_CLOUD_API_URL = os.environ.get("FISH_CLOUD_API_URL", "").strip()
 FISH_API_TOKEN = os.environ.get("FISH_API_TOKEN", "")
