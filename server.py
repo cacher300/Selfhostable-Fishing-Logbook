@@ -98,7 +98,7 @@ from backend.weather_service import (
     weather_archive_payload,
     weather_forecast_payload,
 )
-from backend.great_lakes_service import MODELS, great_lakes_payload, great_lakes_temperature_profile, great_lakes_temperature_rasters, great_lakes_temperature_value, great_lakes_thermocline_rasters
+from backend.great_lakes_service import MODELS, great_lakes_current_profile, great_lakes_payload, great_lakes_temperature_profile, great_lakes_temperature_rasters, great_lakes_temperature_value, great_lakes_thermocline_rasters
 
 
 def storage_read_logbook() -> dict:
@@ -640,6 +640,18 @@ def create_app(config: dict | None = None) -> Flask:
             abort(400, "forecastHour, latitude, and longitude must be numeric")
         models = tuple(model for model in request.args.get("models", "").split(",") if model in MODELS) or MODELS
         return jsonify(great_lakes_temperature_profile(forecast_hour, latitude, longitude, models))
+
+    @app.get("/api/great-lakes/current-profile")
+    def great_lakes_current_profile_at_point() -> Response:
+        try:
+            forecast_hour = min((0, 6, 12, 24, 48), key=lambda value: abs(value - int(request.args.get("forecastHour", 0))))
+        except ValueError:
+            abort(400, "forecastHour must be numeric")
+        coordinates = valid_coordinates({"latitude": request.args.get("latitude"), "longitude": request.args.get("longitude")})
+        if coordinates is None:
+            abort(400, "latitude and longitude must be valid coordinates")
+        models = tuple(model for model in request.args.get("models", "").split(",") if model in MODELS) or MODELS
+        return jsonify(great_lakes_current_profile(forecast_hour, *coordinates, models))
 
     @app.get("/api/great-lakes/<layer>")
     def great_lakes(layer: str) -> Response:

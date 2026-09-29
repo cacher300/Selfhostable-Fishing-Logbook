@@ -16,5 +16,10 @@ window.noaaGreatLakesApi = {
     const response = await fetch(`/api/great-lakes/profile?${new URLSearchParams(options)}`);
     if (!response.ok) throw new Error("NOAA profile lookup failed");
     return response.json();
+  },
+  async currentProfile(options) {
+    const response = await fetch(`/api/great-lakes/current-profile?${new URLSearchParams(options)}`);
+    if (!response.ok) throw new Error("NOAA current profile lookup failed");
+    return response.json();
   }
 };

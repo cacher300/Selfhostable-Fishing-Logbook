@@ -236,14 +236,13 @@ function catchSizePopupValue(catchItem = {}) {
 }
 
 function mapDepthPopupHtml(coordinates, payload = null, status = "loading", overlayHtml = "") {
-  const coordinateLine = coordinateText(coordinates);
   const compactClass = overlayHtml ? "" : " map-depth-popup--compact";
   if (status === "loading") {
     return `
       <div class="map-popup map-depth-popup${compactClass}">
         <strong>Depth lookup</strong>
         <span>Looking up...</span>
-        <small>${escapeHtml(coordinateLine)}</small>${overlayHtml}
+        ${overlayHtml}
       </div>
     `;
   }
@@ -252,7 +251,7 @@ function mapDepthPopupHtml(coordinates, payload = null, status = "loading", over
       <div class="map-popup map-depth-popup${compactClass}">
         <strong>Depth unavailable</strong>
         <span>Could not fetch depth here.</span>
-        <small>${escapeHtml(coordinateLine)}</small>${overlayHtml}
+        ${overlayHtml}
       </div>
     `;
   }
@@ -260,7 +259,7 @@ function mapDepthPopupHtml(coordinates, payload = null, status = "loading", over
   return `
     <div class="map-popup map-depth-popup${compactClass}">
       <strong>${escapeHtml(depthText || "No depth found")}</strong>
-      <small>${escapeHtml(coordinateLine)}</small>${overlayHtml}
+      ${overlayHtml}
     </div>
   `;
 }
@@ -276,22 +275,25 @@ async function showDepthPopupForMapClick(map, event) {
     .setLatLng(event.latlng)
     .setContent(mapDepthPopupHtml(coordinates))
     .openOn(map);
-  try {
-    const params = new URLSearchParams({
-      latitude: coordinates.latitude.toFixed(6),
-      longitude: coordinates.longitude.toFixed(6)
-    });
-    const [response, overlayHtml] = await Promise.all([
-      fetch(`/api/bathymetry/depth?${params}`),
-      window.getGreatLakesMapInspection?.(coordinates) || Promise.resolve("")
-    ]);
-    if (!response.ok) throw new Error("Depth lookup unavailable");
-    const payload = await response.json();
-    popup.setContent(mapDepthPopupHtml(coordinates, payload, "ready", overlayHtml));
-  } catch (error) {
-    console.error("Could not fetch map depth.", error);
-    popup.setContent(mapDepthPopupHtml(coordinates, null, "error"));
-  }
+  const params = new URLSearchParams({
+    latitude: coordinates.latitude.toFixed(6),
+    longitude: coordinates.longitude.toFixed(6)
+  });
+  const [depthResult, currentResult] = await Promise.allSettled([
+    fetch(`/api/bathymetry/depth?${params}`).then((response) => {
+      if (!response.ok) throw new Error("Depth lookup unavailable");
+      return response.json();
+    }),
+    window.getGreatLakesMapInspection?.(coordinates) || Promise.resolve("")
+  ]);
+  if (!map.hasLayer(popup)) return;
+  if (depthResult.status === "rejected") console.error("Could not fetch map depth.", depthResult.reason);
+  popup.setContent(mapDepthPopupHtml(
+    coordinates,
+    depthResult.status === "fulfilled" ? depthResult.value : null,
+    depthResult.status === "fulfilled" ? "ready" : "error",
+    currentResult.status === "fulfilled" ? currentResult.value : ""
+  ));
 }
 
 function bindDepthLookupPopup(map) {
@@ -764,4 +766,3 @@ function renderCatchDetailLocationMap(trip, catchItem, catchIndex, scope = "trip
   else catchDetailMap.fitBounds(bounds, { padding: [28, 28] });
   settleMapLayout(catchDetailMap);
 }
-

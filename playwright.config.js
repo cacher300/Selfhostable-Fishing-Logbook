@@ -11,7 +11,8 @@ module.exports = defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Browser tests share the web server's disposable database.
+  workers: 1,
   outputDir: path.join(artifactsRoot, "test-results"),
   reporter: [
     ["list"],
