@@ -477,20 +477,6 @@ function importLastTrollingSpread() {
   syncTripFormChrome();
 }
 
-function populateLureSelect(select, selectedId = "") {
-  select.innerHTML = `<option value="">No lure selected</option>` + state.lures.map((lure) => {
-    const label = [lure.name, lure.color].filter(Boolean).join(" - ");
-    return `<option value="${lure.id}" ${lure.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
-  }).join("");
-}
-
-function populateFlasherSelect(select, selectedId = "") {
-  select.innerHTML = `<option value="">No flasher</option>` + state.flashers.map((flasher) => {
-    const label = [flasher.name, flasher.color].filter(Boolean).join(" - ");
-    return `<option value="${flasher.id}" ${flasher.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
-  }).join("");
-}
-
 function setupLineLabelFromRow(row, index) {
   const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
   if (customLabel) return customLabel;
@@ -555,7 +541,7 @@ function populateSetupLineSelect(select, selectedId = "") {
   const selected = selectedId || select.dataset.selectedSetupLine || "";
   select.dataset.selectedSetupLine = "";
   select.innerHTML = `<option value="">Select rod</option>` + options.map((item) => (
-    `<option value="${item.id}" ${item.id === selected ? "selected" : ""}>${escapeHtml(item.label)}</option>`
+    `<option value="${escapeHtml(item.id)}" ${item.id === selected ? "selected" : ""}>${escapeHtml(item.label)}</option>`
   )).join("");
 }
 

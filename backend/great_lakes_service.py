@@ -11,6 +11,7 @@ import base64
 import bisect
 import math
 import re
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -37,6 +38,28 @@ THERMOCLINE_SPATIAL_OUTLIER_METERS = 12.0
 _temperature_field_cache: dict[tuple, list[dict]] = {}
 _current_payload_cache: dict[tuple, dict] = {}
 _current_profile_cache: dict[tuple, dict] = {}
+# Cache keys end with a CACHE_SECONDS time bucket and include client-selected
+# depth/resolution values, so both age and entry count must be bounded.
+MAX_PAYLOAD_CACHE_ENTRIES = 16
+MAX_FIELD_CACHE_ENTRIES = 8
+MAX_PROFILE_CACHE_ENTRIES = 64
+_cache_lock = threading.Lock()
+
+
+def _cache_bucket() -> int:
+    return int(time.monotonic() // CACHE_SECONDS)
+
+
+def _cache_store(cache: dict, key: tuple, value: object, max_entries: int) -> None:
+    """Store ``value`` after dropping expired buckets and the oldest overflow entries."""
+    with _cache_lock:
+        bucket = key[-1]
+        for expired in [existing for existing in cache if existing[-1] < bucket]:
+            del cache[expired]
+        cache.pop(key, None)
+        cache[key] = value
+        while len(cache) > max_entries:
+            del cache[next(iter(cache))]
 
 
 def _get(url: str) -> str:
@@ -198,9 +221,11 @@ def _sample_model(model: str, kind: str, forecast_hour: int, depth: int) -> tupl
 
 
 def great_lakes_payload(kind: str, forecast_hour: int, depth: int, models: tuple[str, ...] = MODELS) -> dict:
-    cache_key = (forecast_hour, depth, models, int(time.monotonic() // CACHE_SECONDS))
-    if kind == "currents" and cache_key in _current_payload_cache:
-        return _current_payload_cache[cache_key]
+    cache_key = (forecast_hour, depth, models, _cache_bucket())
+    if kind == "currents":
+        cached = _current_payload_cache.get(cache_key)
+        if cached is not None:
+            return cached
     selected_models, data, model_metadata, fields = models, [], [], []
 
     def load_model(model: str) -> tuple[list[dict], dict, dict | None]:
@@ -237,7 +262,7 @@ def great_lakes_payload(kind: str, forecast_hour: int, depth: int, models: tuple
             metadata["maxSpeedMetersPerSecond"] = max(speeds)
     payload = {"data": data, "fields": fields if kind == "currents" else None, "metadata": metadata}
     if kind == "currents":
-        _current_payload_cache[cache_key] = payload
+        _cache_store(_current_payload_cache, cache_key, payload, MAX_PAYLOAD_CACHE_ENTRIES)
     return payload
 
 
@@ -417,11 +442,12 @@ def _regular_temperature_raster(model: str, forecast_hour: int, depth: int, reso
 
 
 def great_lakes_temperature_rasters(forecast_hour: int, depth: int, resolution: int, models: tuple[str, ...] = MODELS) -> dict:
-    cache_key = (TEMPERATURE_RASTER_RENDER_VERSION, forecast_hour, depth, resolution, models, int(time.monotonic() // CACHE_SECONDS))
+    cache_key = (TEMPERATURE_RASTER_RENDER_VERSION, forecast_hour, depth, resolution, models, _cache_bucket())
     # The click lookup reuses the dense field generated with the raster. A
     # raster-only cache entry cannot answer those point lookups, so rebuild it.
-    if cache_key in _raster_cache and cache_key in _temperature_field_cache:
-        return _raster_cache[cache_key]
+    cached = _raster_cache.get(cache_key)
+    if cached is not None and cache_key in _temperature_field_cache:
+        return cached
     selected_models, rasters, model_metadata, fields = models, [], [], []
     # NOAA serves one independent grid per lake. Fetch and rasterize those
     # grids in parallel so first paint does not wait four times in sequence.
@@ -441,8 +467,8 @@ def great_lakes_temperature_rasters(forecast_hour: int, depth: int, resolution: 
         metadata["minC"] = min(float(raster["minC"]) for raster in rasters)
         metadata["maxC"] = max(float(raster["maxC"]) for raster in rasters)
     payload = {"rasters": rasters, "metadata": metadata}
-    _raster_cache[cache_key] = payload
-    _temperature_field_cache[cache_key] = fields
+    _cache_store(_raster_cache, cache_key, payload, MAX_FIELD_CACHE_ENTRIES)
+    _cache_store(_temperature_field_cache, cache_key, fields, MAX_FIELD_CACHE_ENTRIES)
     return payload
 
 
@@ -518,9 +544,10 @@ def _regular_thermocline_raster(model: str, forecast_hour: int, resolution: int)
 
 
 def great_lakes_thermocline_rasters(forecast_hour: int, resolution: int, models: tuple[str, ...] = MODELS) -> dict:
-    cache_key = (THERMOCLINE_RASTER_RENDER_VERSION, forecast_hour, resolution, models, int(time.monotonic() // CACHE_SECONDS))
-    if cache_key in _thermocline_raster_cache:
-        return _thermocline_raster_cache[cache_key]
+    cache_key = (THERMOCLINE_RASTER_RENDER_VERSION, forecast_hour, resolution, models, _cache_bucket())
+    cached = _thermocline_raster_cache.get(cache_key)
+    if cached is not None:
+        return cached
     rasters, model_metadata = [], []
     with ThreadPoolExecutor(max_workers=len(models)) as executor:
         futures = {model: executor.submit(_regular_thermocline_raster, model, forecast_hour, resolution) for model in models}
@@ -536,7 +563,7 @@ def great_lakes_thermocline_rasters(forecast_hour: int, resolution: int, models:
         metadata["minDepthMeters"] = min(float(raster["minDepthMeters"]) for raster in rasters)
         metadata["maxDepthMeters"] = max(float(raster["maxDepthMeters"]) for raster in rasters)
     payload = {"rasters": rasters, "metadata": metadata}
-    _thermocline_raster_cache[cache_key] = payload
+    _cache_store(_thermocline_raster_cache, cache_key, payload, MAX_PAYLOAD_CACHE_ENTRIES)
     return payload
 
 
@@ -561,10 +588,12 @@ def _temperature_at(field: dict, latitude: float, longitude: float) -> float | N
 
 
 def great_lakes_temperature_value(forecast_hour: int, depth: int, resolution: int, latitude: float, longitude: float, models: tuple[str, ...] = MODELS) -> dict:
-    cache_key = (TEMPERATURE_RASTER_RENDER_VERSION, forecast_hour, depth, resolution, models, int(time.monotonic() // CACHE_SECONDS))
-    if cache_key not in _temperature_field_cache:
+    cache_key = (TEMPERATURE_RASTER_RENDER_VERSION, forecast_hour, depth, resolution, models, _cache_bucket())
+    fields = _temperature_field_cache.get(cache_key)
+    if fields is None:
         great_lakes_temperature_rasters(forecast_hour, depth, resolution, models)
-    for field in _temperature_field_cache.get(cache_key, []):
+        fields = _temperature_field_cache.get(cache_key, [])
+    for field in fields:
         value = _temperature_at(field, latitude, longitude)
         if value is not None:
             return {"available": True, "temperatureC": value, "depthMeters": field["depthMeters"], "model": field["model"]}
@@ -701,16 +730,17 @@ def _current_profile_for_model(model: str, forecast_hour: int, latitude: float, 
 
 
 def great_lakes_current_profile(forecast_hour: int, latitude: float, longitude: float, models: tuple[str, ...] = MODELS) -> dict:
-    cache_key = (forecast_hour, round(latitude, 3), round(longitude, 3), models, int(time.monotonic() // CACHE_SECONDS))
-    if cache_key in _current_profile_cache:
-        return _current_profile_cache[cache_key]
+    cache_key = (forecast_hour, round(latitude, 3), round(longitude, 3), models, _cache_bucket())
+    cached = _current_profile_cache.get(cache_key)
+    if cached is not None:
+        return cached
     for model in models:
         try:
             profile = _current_profile_for_model(model, forecast_hour, latitude, longitude)
         except Exception:
             continue  # One lake's missing run must not hide another lake.
         if profile.get("available"):
-            _current_profile_cache[cache_key] = profile
+            _cache_store(_current_profile_cache, cache_key, profile, MAX_PROFILE_CACHE_ENTRIES)
             return profile
     return {"available": False}
 

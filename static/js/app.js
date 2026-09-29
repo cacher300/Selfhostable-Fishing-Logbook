@@ -121,12 +121,13 @@ function setView(view) {
   }
   if (showingBests) renderPersonalBests();
   if (showingExpeditions) renderExpeditions();
-  renderAdvancedStats();
+  // The leaderboard panel is rendered as part of the advanced stats pass.
+  if (showingStats || showingLeaderboard) renderAdvancedStats();
   if (showingMap) renderFishMap();
   if (showingGallery) renderGallery();
   if (showingChecklists) renderChecklists();
   if (showingSettings) renderSettings();
-  renderGearLibrary();
+  if (showingGear) renderGearLibrary();
 }
 
 function syncMobileSummaryPanel() {

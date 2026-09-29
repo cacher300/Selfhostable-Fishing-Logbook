@@ -72,7 +72,7 @@ function restoreTripDialogAfterInlineGear(type) {
 function populateGearSelect(select, items, selectedId, placeholder, labelFn) {
   if (!select) return;
   select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` + items.map((item) => (
-    `<option value="${item.id}" ${item.id === selectedId ? "selected" : ""}>${escapeHtml(labelFn(item))}</option>`
+    `<option value="${escapeHtml(item.id)}" ${item.id === selectedId ? "selected" : ""}>${escapeHtml(labelFn(item))}</option>`
   )).join("");
 }
 
@@ -286,7 +286,7 @@ function populateLureSelect(select, selectedId = "") {
   }
   select.innerHTML = `<option value="">Select lure</option>` + luresForPicker(select).map((lure) => {
     const label = [lure.name, lure.color].filter(Boolean).join(" - ");
-    return `<option value="${lure.id}" ${lure.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    return `<option value="${escapeHtml(lure.id)}" ${lure.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
   enhanceGearSelect(select, "lure");
 }
@@ -297,7 +297,7 @@ function populateLuresForType(select, type, selectedId = "") {
   const lures = lureOptionsForType(type, select);
   select.innerHTML = `<option value="">Select lure</option>` + lures.map((lure) => {
     const label = [lure.name, lure.color].filter(Boolean).join(" - ");
-    return `<option value="${lure.id}" ${lure.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    return `<option value="${escapeHtml(lure.id)}" ${lure.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
   enhanceGearSelect(select, "lure");
 }
@@ -314,7 +314,7 @@ function reopenLurePicker(select) {
 function populateFlasherSelect(select, selectedId = "") {
   select.innerHTML = `<option value="">No flasher</option>` + state.flashers.map((flasher) => {
     const label = [flasher.name, flasher.color].filter(Boolean).join(" - ");
-    return `<option value="${flasher.id}" ${flasher.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    return `<option value="${escapeHtml(flasher.id)}" ${flasher.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
   enhanceGearSelect(select, "flasher");
 }
