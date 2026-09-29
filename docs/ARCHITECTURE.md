@@ -23,10 +23,10 @@ flowchart LR
 
 ### Frontend
 
-`templates/index.html` composes routed screens, dialogs, and row templates from feature partials under `templates/partials/`. Flask renders the composition at request time. `standalone.html` is a generated copy for direct-file fallback, reached through the small root `index.html` bootstrap. Scripts are loaded as classic global scripts in dependency order; there are no modules, package manager, compilation, or bundling.
+`templates/index.html` composes routed screens, dialogs, and row templates from feature partials under `templates/partials/`. Flask renders the composition at request time. `standalone.html` is a generated copy for direct-file fallback, reached through the small root `index.html` bootstrap. Browser code in `static/js/` is authored as ES modules and bundled into `static/dist/` by esbuild.
 
 - `app-state.js`, `app-normalization.js`, `app-units.js`, `app-persistence.js`: shared state, v2 validation, measurement display, and load/save behavior.
-- `app.js`, `app-control-events.js`, `app-delegated-events.js`: route/view startup plus direct and delegated event wiring.
+- `app.js`, `router.js`, `app-control-events.js`, `app-delegated-events.js`: route/view startup, `pushState` synchronization, plus direct and delegated event wiring.
 - `trip-editor.js`, `trip-rows.js`, `trip-save.js`, `form-utils.js`, `trolling-spread.js`: trip lifecycle, repeated catch/setup rows, persistence, and method-specific fishing behavior.
 - `locations.js`, `location-weather.js`: mapped locations and environmental enrichment.
 - `photos.js`, `gallery.js`: metadata extraction, upload assignment, gallery, cleanup.
@@ -39,21 +39,23 @@ Shared mutable globals couple these files. HTML IDs/classes are effectively inte
 
 ### Backend
 
-`server.py` creates the Flask app and owns HTTP routing. Helpers are separated by concern:
+`server.py` is only the entry point: it builds an `AppConfig` from the environment once (`backend/config.py`) and calls `create_app(config)` in `backend/app_factory.py`. Tests and tools pass their own `AppConfig` instead of patching module globals.
 
-- `logbook_store.py`: v2 whole-document validation and SQLite I/O.
-- `media_service.py`: upload paths, metadata sidecars, preview generation, references, gallery, orphans.
-- `weather_service.py`: allowlisted external weather, marine, and astronomy proxies.
-- `bathymetry_service.py`: catch-depth lookup and lake-calibration support.
-- `great_lakes_service.py`: Great Lakes temperature, current, raster, and thermocline payloads.
+- `backend/routes/`: Flask blueprints ? `pages` (SPA shell, static files, health, CSRF token), `logbook` (document, record changes, archives, Shared Trip ZIPs), `media` (uploads, gallery, orphans, photo queue), `environment` (weather, marine, astronomy, bathymetry, Great Lakes). Routes contain no storage-backend branches.
+- `backend/storage/`: the `LogbookStore` and `MediaStore` interfaces (`base.py`), chosen once by `create_storage(config)`. `local.py` is SQLite plus the on-disk uploads tree; `cloud.py` holds the unchanged Cloudflare Worker behaviour and is only selected when `FISH_STORAGE_BACKEND=cloud` and `FISH_CLOUD_API_URL` are set. `media_transaction.py` stages, promotes, and rolls back file operations for archive import, Shared Trip import, and photo-queue claim/copy.
+- `logbook_store.py`: v2 validation ? the shared JSON Schema (`schema/logbook.schema.json`) plus semantic rules JSON Schema cannot express.
+- `logbook_repository.py`: SQLite I/O, revisions, and partial (row-level) writes. `logbook_changes.py`: applies record-level change operations to a document.
+- `archive_service.py`: whole-logbook archive export and import validation. `shared_trip_archive.py`: one-trip Shared Trip ZIPs.
+- `media_service.py`: `UploadLibrary` (paths, sidecars, previews for one uploads tree) and pure media helpers (references, captions, EXIF, HEIF conversion, private-location scrubbing).
+- `weather_service.py`, `bathymetry_service.py`, `great_lakes_service.py`: external data proxies. Great Lakes caches are bounded by time bucket and entry count.
 - `request_security.py`: session-backed CSRF protection for mutating requests.
-- `backend_config.py`: paths, defaults, units, media categories, external URLs, allowlists.
+- `backend_config.py`: static constants, loaded from `schema/constants.json` and `schema/default-logbook.json` where shared with the browser and mobile app. `frontend_assets.py` resolves the built bundle URLs.
 
-The Flask development server runs threaded. SQLite writes are transactional, but concurrent whole-logbook saves remain last-write-wins.
+Flask runs threaded locally and under gunicorn (2 workers) in Docker. Concurrent saves are safe: every write carries the revision it was based on and a stale write is refused with `412` instead of silently overwriting (last-write-wins no longer applies).
 
 ### Persistence
 
-The application stores its logbook in `data/logbook.sqlite3`. Top-level collections such as `lures`, `locations`, and `trips` are individual SQLite rows with ordered JSON payloads, preserving their nested setup, catches, people references, weather snapshots, and media references.
+The application stores its logbook in `data/logbook.sqlite3`. Top-level collections such as `lures`, `locations`, and `trips` are individual SQLite rows with ordered JSON payloads, preserving their nested setup, catches, people references, weather snapshots, and media references. `settings`, the schema version, a monotonically increasing `revision`, and unknown top-level properties are stored as metadata rows. Record-level saves rewrite only the affected rows. The validated document is cached in memory per revision, so reads that only need the current document (page theme, captions, reference guards) do not re-parse or re-validate SQLite.
 
 Media files are stored separately by category. Each file may have `<filename>.json` metadata and `_previews/<stem>.jpg`. Archive export includes the v2 logbook and media binaries in one ZIP.
 
@@ -65,7 +67,7 @@ Media files are stored separately by category. Each file may have `<filename>.js
 2. Flask validates the v2 SQLite document and returns it without runtime reshaping.
 3. The browser validates the v2 document and renders all views.
 4. A mutation updates in-memory state.
-5. `saveState()` validates, writes localStorage, then replaces the complete server document with `PUT /api/logbook`.
+5. `store.commit(mutate)` applies the change to a copy, validates it against the shared schema, sends only the changed records to `POST /api/logbook/changes` with `If-Match` (or the whole document with `PUT` when the change cannot be expressed as record operations), and only then installs the copy as the new state and caches it in localStorage. A `412` means another tab or device saved first; the browser keeps its last persisted state and asks the user to reload.
 
 If the database cannot be opened or contains an unsupported document, Flask still
 serves the normal shell with a degraded-mode warning. The browser uses its valid
@@ -93,7 +95,7 @@ When opened via `file:`, step 5 stops after localStorage. This is fallback persi
 
 ## Routing
 
-Flask serves the same SPA at `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, and `/settings`. The initial view is selected from `window.location.pathname`; `/` selects Trips. In-page navigation only toggles panels: it does not update the URL or handle back/forward navigation. Static files are served only through the restricted `/static/<path>` route.
+Flask serves the same SPA at `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, `/wiki`, and `/settings`. The initial view is selected from `window.location.pathname`; `/` selects Trips and is normalized into history state on load. `static/js/router.js` owns the client route table. Primary in-app navigation calls `navigate(view)`, which renders the panel and pushes the matching path when the path changes; `popstate` re-renders the matching panel without pushing. Stats filters continue to own the `/stats` query string, and same-view navigation preserves the current query. In `file://` standalone fallback mode, navigation renders panels without pushing absolute server paths. Static files are served only through the restricted `/static/<path>` route.
 
 ## Security and Trust Boundary
 
