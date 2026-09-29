@@ -1,16 +1,20 @@
 # HTTP API
 
-Base URL defaults to `http://127.0.0.1:8080`. Application, API, and upload routes are unauthenticated. Mutating requests require the CSRF token returned by `GET /api/csrf-token` in the `X-CSRF-Token` header. Every Flask response includes `Cache-Control: no-store`, except `/static/` assets (Flask's default file caching) and successful Great Lakes temperature, current, and raster layer responses (`private, max-age=600`).
+Base URL defaults to `http://127.0.0.1:8080`. Routes are grouped into Flask blueprints under `backend/routes/` (`pages`, `logbook`, `media`, `environment`) and reach storage only through the `LogbookStore`/`MediaStore` interfaces in `backend/storage/`. Application, API, and upload routes are unauthenticated. Mutating requests require the CSRF token returned by `GET /api/csrf-token` in the `X-CSRF-Token` header. Every Flask response includes `Cache-Control: no-store`, except `/static/` assets (Flask's default file caching) and successful Great Lakes temperature, current, and raster layer responses (`private, max-age=600`).
 
 ## Logbook
 
 ### `GET /api/logbook`
 
-Returns the complete v2 logbook reconstructed from SQLite. A missing or empty database returns the canonical v2 defaults. If the local database is corrupt, unreadable, or incompatible, the route returns `503 {"error": "...", "databaseUnavailable": true}`; the web shell remains available in fallback mode so the browser can show cached data or its built-in starter state without changing the original database.
+Returns the complete v2 logbook reconstructed from SQLite, with an `ETag` header carrying the document revision (for example `"12"`). A missing or empty database returns the canonical v2 defaults. If the local database is corrupt, unreadable, or incompatible, the route returns `503 {"error": "...", "databaseUnavailable": true}`; the web shell remains available in fallback mode so the browser can show cached data or its built-in starter state without changing the original database.
+
+### Revisions and `If-Match`
+
+Every successful write increments a revision stored with the document. Writes accept an optional `If-Match` header with the revision the client last read; when another client saved first, the write is refused with `412 {"error": "...", "revisionConflict": true}` and the current revision in `ETag`, and nothing is changed. Successful writes return the new revision in `ETag`. Without `If-Match` a write is unconditional.
 
 ### `PUT /api/logbook`
 
-Replaces the complete logbook document.
+Replaces the complete logbook document. The browser uses this only when a change cannot be expressed as record changes (see below).
 
 The request must be a complete v2 document. It is validated before replacement; ordinary reads, writes, and imports preserve the document without reshaping. Documents without `schemaVersion` and unsupported schema versions are rejected.
 
@@ -25,7 +29,18 @@ Required top-level JSON types:
 - `spots` must contain uniquely identified/named records with valid coordinates and a radius from 25 through 500 meters.
 - `expeditions` must contain uniquely identified records with a name and ordered ISO start/end dates.
 
-Success: `200 {"ok": true}`. Shape failure: `400 {"error": "..."}`. Validation recursively checks JSON values and known nested record structures; see `DATA_MODEL.md`.
+Success: `200 {"ok": true}` with the new `ETag`. Shape failure: `400 {"error": "..."}`. Validation uses the shared JSON Schema in `schema/logbook.schema.json` plus the semantic rules in `backend/logbook_store.py` (unique IDs and names, date order); error messages start with the failing path such as `settings.checklists[0].items[0].done`. See `DATA_MODEL.md`.
+
+### `POST /api/logbook/changes`
+
+Applies record-level changes and persists only the affected SQLite rows. Body: `{"changes": [...]}` where each change is one of:
+
+- `{"op": "upsert", "collection": "trips", "record": {...}, "index": 0}` ? replace the record with the same `id` in place, or insert a new record at `index` (appended when omitted). Only object collections (`lures`, `flashers`, `reels`, `rods`, `rodReelCombos`, `people`, `locations`, `spots`, `expeditions`, `trips`).
+- `{"op": "delete", "collection": "trips", "id": "..."}` ? remove a record; an unknown id is a `400`.
+- `{"op": "replace", "collection": "species", "items": [...]}` ? replace a whole collection (option lists, or reordered object collections).
+- `{"op": "settings", "value": {...}}` ? replace `settings`.
+
+Changes are applied in order to the current document, which must still validate as a whole. Honors `If-Match` like `PUT`. Returns `200 {"ok": true}` with the new `ETag`; malformed changes or an invalid result return `400`; an unreadable database returns `503`.
 
 ### `GET /api/archive`
 
@@ -33,7 +48,7 @@ Returns an `archiveVersion` 2 ZIP containing `manifest.json`, the canonical v2 l
 
 ### `POST /api/archive`
 
-Imports an archiveVersion 2 logbook/media archive and replaces the current logbook and media after validation.
+Imports an archiveVersion 2 logbook/media archive and replaces the current logbook and media after validation. Media files are staged and promoted as one transaction; if installing the logbook fails, every promoted file is rolled back and overwritten files are restored. When the existing database cannot accept SQL, the validated archive is installed into a fresh database and the old file is kept in a recovery folder.
 
 ### `GET /api/trips/<trip_id>/shared-archive`
 
@@ -120,7 +135,11 @@ Returns `{ "photos": [...] }`, newest modified first.
 
 ### `POST /api/photo-queue/claim`
 
-JSON body: `{ "filename": "...", "targetCategory": "..." }`. Moves a queued file, sidecar, and preview to a non-queue category under a new UUID name. Returns the new media reference.
+JSON body: `{ "filename": "...", "targetCategory": "..." }`. Moves a queued file, sidecar, and preview to a non-queue category under a new UUID name. The move is transactional: a failure restores the queued files. Returns the new media reference.
+
+### `POST /api/photo-queue/copy`
+
+Same body as claim. Copies a queued file (and preview) to a non-queue category for autofill while keeping the queue original for review. Returns the new media reference.
 
 ### `DELETE /api/photo-queue/<filename>`
 
@@ -147,6 +166,6 @@ Files are served from their category paths. Category validation occurs through t
 
 ## SPA and Static Routes
 
-- `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, and `/settings` render `templates/index.html` and its feature partials. `/` selects the Trips view.
-- `/static/<path:filename>` serves only `.css`, `.js`, `.png`, `.jpg`, `.jpeg`, `.svg`, and `.webp` files beneath `static/`.
+- `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, `/wiki`, and `/settings` render `templates/index.html` and its feature partials. `/` selects the Trips view.
+- `/static/<path:filename>` serves only `.css`, `.js`, `.map`, `.png`, `.jpg`, `.jpeg`, `.svg`, `.webp`, `.woff`, and `.woff2` files beneath `static/`. The page loads the built bundle `static/dist/app.js` and `static/dist/app-styles.css` with content-hash `?v=` query strings from `static/dist/manifest.json`.
 - `/favicon.ico` returns 204.
