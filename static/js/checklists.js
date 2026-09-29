@@ -1,11 +1,17 @@
-let checklistSaveTimer = null;
-let activeChecklistPointer = null;
+import { createId } from "./app-defaults.js";
+import { state } from "./app-state.js";
+import { saveState } from "./app-persistence.js";
+import { els } from "./app-elements.js";
+import { escapeHtml } from "./form-utils.js";
 
-function savedChecklists() {
+export let checklistSaveTimer = null;
+export let activeChecklistPointer = null;
+
+export function savedChecklists() {
   return Array.isArray(state.settings?.checklists) ? state.settings.checklists : [];
 }
 
-function checklistItemMarkup(item = {}) {
+export function checklistItemMarkup(item = {}) {
   return `
     <li class="checklist-item" data-checklist-item-id="${escapeHtml(item.id || createId())}">
       <span class="checklist-drag-handle" aria-hidden="true" title="Drag to reorder">⠿</span>
@@ -16,7 +22,7 @@ function checklistItemMarkup(item = {}) {
   `;
 }
 
-function checklistCardMarkup(checklist, index, total) {
+export function checklistCardMarkup(checklist, index, total) {
   const done = checklist.items.filter((item) => item.done).length;
   const percent = checklist.items.length ? Math.round((done / checklist.items.length) * 100) : 0;
   return `
@@ -43,7 +49,7 @@ function checklistCardMarkup(checklist, index, total) {
   `;
 }
 
-function renderChecklists({ focusChecklistId = "", focusItemId = "" } = {}) {
+export function renderChecklists({ focusChecklistId = "", focusItemId = "" } = {}) {
   if (!els.checklistList) return;
   const checklists = savedChecklists();
   els.checklistList.innerHTML = checklists.map((checklist, index) => checklistCardMarkup(checklist, index, checklists.length)).join("");
@@ -52,7 +58,7 @@ function renderChecklists({ focusChecklistId = "", focusItemId = "" } = {}) {
   else if (focusChecklistId) els.checklistList.querySelector(`[data-checklist-id="${CSS.escape(focusChecklistId)}"] .checklist-name`)?.select();
 }
 
-function checklistsFromView() {
+export function checklistsFromView() {
   const existing = savedChecklists();
   return [...els.checklistList?.querySelectorAll(".checklist-card") || []].map((card) => {
     const id = card.dataset.checklistId || createId();
@@ -77,7 +83,7 @@ function checklistsFromView() {
   });
 }
 
-function setChecklistSaveStatus(card, message, stateName = "") {
+export function setChecklistSaveStatus(card, message, stateName = "") {
   const status = card?.querySelector(".checklist-save-status");
   if (!status) return;
   status.textContent = message;
@@ -85,7 +91,7 @@ function setChecklistSaveStatus(card, message, stateName = "") {
   status.classList.toggle("is-error", stateName === "error");
 }
 
-async function persistChecklistsFromView({ rerender = false } = {}) {
+export async function persistChecklistsFromView({ rerender = false } = {}) {
   clearTimeout(checklistSaveTimer);
   const source = checklistsFromView();
   state.settings.checklists = source;
@@ -99,13 +105,13 @@ async function persistChecklistsFromView({ rerender = false } = {}) {
   }
 }
 
-function queueChecklistSave(card) {
+export function queueChecklistSave(card) {
   clearTimeout(checklistSaveTimer);
   setChecklistSaveStatus(card, "Saving…", "saving");
   checklistSaveTimer = setTimeout(() => persistChecklistsFromView(), 500);
 }
 
-function updateChecklistCardProgress(card) {
+export function updateChecklistCardProgress(card) {
   const items = [...card.querySelectorAll(".checklist-item")];
   const done = items.filter((item) => item.querySelector(".checklist-item-done")?.checked).length;
   const percent = items.length ? Math.round((done / items.length) * 100) : 0;
@@ -114,7 +120,7 @@ function updateChecklistCardProgress(card) {
   card.querySelector("[data-reset-checklist]").disabled = done === 0;
 }
 
-async function createChecklist() {
+export async function createChecklist() {
   const checklists = checklistsFromView();
   const checklist = { id: createId(), name: "New Checklist", items: [] };
   state.settings.checklists = [...checklists, checklist];
@@ -122,7 +128,7 @@ async function createChecklist() {
   renderChecklists({ focusChecklistId: checklist.id });
 }
 
-async function handleChecklistAction(event) {
+export async function handleChecklistAction(event) {
   const card = event.target.closest(".checklist-card");
   if (!card) return;
   if (event.target.closest("[data-delete-checklist-item]")) {
@@ -174,13 +180,13 @@ async function handleChecklistAction(event) {
   }
 }
 
-function clearChecklistDragState() {
+export function clearChecklistDragState() {
   els.checklistList?.querySelectorAll(".is-dragging, .is-drag-over").forEach((element) => {
     element.classList.remove("is-dragging", "is-drag-over");
   });
 }
 
-function checklistPointerTarget(event) {
+export function checklistPointerTarget(event) {
   const element = document.elementFromPoint(event.clientX, event.clientY);
   const item = element?.closest(".checklist-item");
   if (item) return { type: "item", element: item };
@@ -188,7 +194,7 @@ function checklistPointerTarget(event) {
   return card ? { type: "checklist", element: card } : null;
 }
 
-function moveChecklistDragSource(event) {
+export function moveChecklistDragSource(event) {
   const drag = activeChecklistPointer;
   const target = checklistPointerTarget(event);
   if (!drag || !target || drag.type !== target.type || drag.source === target.element) return;
@@ -203,7 +209,7 @@ function moveChecklistDragSource(event) {
   }
 }
 
-function bindChecklistDragEvents() {
+export function bindChecklistDragEvents() {
   els.checklistList?.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || event.target.closest("input, button, select, textarea")) return;
     const item = event.target.closest(".checklist-item");
@@ -244,7 +250,7 @@ function bindChecklistDragEvents() {
   els.checklistList?.addEventListener("pointercancel", finishPointerDrag);
 }
 
-function bindChecklistEvents() {
+export function bindChecklistEvents() {
   els.newChecklistButton?.addEventListener("click", () => createChecklist().catch((error) => alert(error.message || "The checklist could not be created.")));
   els.emptyNewChecklistButton?.addEventListener("click", () => createChecklist().catch((error) => alert(error.message || "The checklist could not be created.")));
   els.checklistList?.addEventListener("click", (event) => {

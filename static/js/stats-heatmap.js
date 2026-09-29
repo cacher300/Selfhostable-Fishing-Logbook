@@ -1,4 +1,4 @@
-(function () {
+export const StatsActivityHeatmap = (() => {
   const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const MONTH_FORMATTER = new Intl.DateTimeFormat(undefined, { month: "short" });
   const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -159,5 +159,5 @@
     `;
   }
 
-  globalThis.StatsActivityHeatmap = { build, render };
-}());
+  return { build, render };
+})();

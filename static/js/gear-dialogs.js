@@ -1,14 +1,30 @@
-function renderLineRows(lines = []) {
+import { createId } from "./app-defaults.js";
+import { state, ui } from "./app-state.js";
+import { optionLabels } from "./app-normalization.js";
+import { unitSymbol } from "./app-units.js";
+import { saveState } from "./app-persistence.js";
+import { els } from "./app-elements.js";
+import { beginMediaEditSession, cleanupReplacedMedia, markMediaEditSessionSaved, mediaMarkup } from "./app-media.js";
+import { populateOptionSelect, renderAll } from "./dashboard.js";
+import { uploadImageFile } from "./photos.js";
+import { getValue, setValue } from "./trip-editor.js";
+import { updateRowSummary } from "./trip-rows.js";
+import { upsertListValue } from "./trip-save.js";
+import { activeLineEntry, baitStats, comboName, duplicateMatchesSource, gearDisplayName, gearPhotoFields, gearPhotos, generatedLureName, increasedQuantity, mergeLineHistory, nextReelCopyShortName, renderExistingGearPhotos, renderQueuedGearImage, syncReelGroupQuantity } from "./gear-core.js";
+import { populateFlasherSelect, populateLureSelect, populateLuresForType, populateReelSelect, populateRodSelect, prepareInlineGearDialog, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
+import { escapeHtml } from "./form-utils.js";
+
+export function renderLineRows(lines = []) {
   const container = document.querySelector("#reelLineRows");
   if (!container) return;
   container.innerHTML = lineRowMarkup(activeLineEntry({ lineHistory: lines }) || {});
 }
 
-function lineUsesBraid(type) {
+export function lineUsesBraid(type) {
   return String(type || "").trim().toLowerCase() === "braid";
 }
 
-function updateMonoBackingVisibility(row) {
+export function updateMonoBackingVisibility(row) {
   if (!row) return;
   const backingField = row.querySelector(".line-mono-backing-field");
   const backingInput = row.querySelector(".line-mono-backing");
@@ -18,7 +34,7 @@ function updateMonoBackingVisibility(row) {
   if (!showBacking && backingInput) backingInput.checked = false;
 }
 
-function lineRowMarkup(line = {}) {
+export function lineRowMarkup(line = {}) {
   const id = line.id || createId();
   const showMonoBacking = lineUsesBraid(line.type || optionLabels("lineTypes")[0]);
   return `
@@ -40,7 +56,7 @@ function lineRowMarkup(line = {}) {
   `;
 }
 
-function collectLineRows(existingEntries = []) {
+export function collectLineRows(existingEntries = []) {
   const lines = [...document.querySelectorAll("#reelLineRows .line-editor-row")]
     .map((row) => ({
       ...(existingEntries.find((line) => line.id === row.dataset.lineId) || {}),
@@ -63,9 +79,9 @@ function collectLineRows(existingEntries = []) {
   return lines.slice(0, 1);
 }
 
-function isFlyType(type) { return String(type || "").trim().toLowerCase() === "fly"; }
+export function isFlyType(type) { return String(type || "").trim().toLowerCase() === "fly"; }
 
-function updateFlyGearVisibility() {
+export function updateFlyGearVisibility() {
   const rodFly = isFlyType(getValue("rodType"));
   const reelFly = isFlyType(getValue("reelStyle"));
   document.querySelectorAll(".fly-rod-field").forEach((field) => field.classList.toggle("hidden", !rodFly));
@@ -73,11 +89,11 @@ function updateFlyGearVisibility() {
   document.querySelectorAll(".fly-line-field").forEach((field) => field.classList.toggle("hidden", String(document.querySelector(".line-type")?.value || "").toLowerCase() !== "fly line"));
 }
 
-function openReelDialog(reel = null, { duplicate = false } = {}) {
+export function openReelDialog(reel = null, { duplicate = false } = {}) {
   beginMediaEditSession("reel");
   els.reelDialog.dataset.removedPhotoKeys = "[]";
   els.reelForm.reset();
-  pendingReelImage = null;
+  ui.pendingReelImage = null;
   renderQueuedGearImage("reel");
   renderExistingGearPhotos("reel", reel);
   populateOptionSelect(document.querySelector("#reelStyle"), optionLabels("reelStyles"), "Select style");
@@ -107,11 +123,11 @@ function openReelDialog(reel = null, { duplicate = false } = {}) {
   els.reelDialog.showModal();
 }
 
-function openRodDialog(rod = null, { duplicate = false } = {}) {
+export function openRodDialog(rod = null, { duplicate = false } = {}) {
   beginMediaEditSession("rod");
   els.rodDialog.dataset.removedPhotoKeys = "[]";
   els.rodForm.reset();
-  pendingRodImage = null;
+  ui.pendingRodImage = null;
   renderQueuedGearImage("rod");
   renderExistingGearPhotos("rod", rod);
   populateOptionSelect(document.querySelector("#rodType"), optionLabels("rodTypes"), "Select type");
@@ -138,7 +154,7 @@ function openRodDialog(rod = null, { duplicate = false } = {}) {
   els.rodDialog.showModal();
 }
 
-function openComboDialog(combo = null) {
+export function openComboDialog(combo = null) {
   els.comboForm.reset();
   const editing = Boolean(combo);
   document.querySelector("#comboDialog h2").textContent = editing ? "Edit Combo" : "Add Combo";
@@ -152,13 +168,13 @@ function openComboDialog(combo = null) {
   els.comboDialog.showModal();
 }
 
-function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", initialType = "") {
+export function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", initialType = "") {
   beginMediaEditSession("lure");
   prepareInlineGearDialog("lure", pendingRowId);
   els.lureDialog.dataset.removedPhotoKeys = "[]";
   els.lureDialog.dataset.pendingLureTarget = pendingLureTarget;
   els.lureForm.reset();
-  pendingLureImage = null;
+  ui.pendingLureImage = null;
   renderQueuedGearImage("lure");
   renderExistingGearPhotos("lure", lure);
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
@@ -194,7 +210,7 @@ function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", 
   els.lureDialog.showModal();
 }
 
-function openLureInfoDialog(lure, pendingRowId = "") {
+export function openLureInfoDialog(lure, pendingRowId = "") {
   if (!lure) return;
   prepareInlineGearDialog("lureInfo", pendingRowId);
   const stats = baitStats("lure", lure.id);
@@ -234,7 +250,7 @@ function openLureInfoDialog(lure, pendingRowId = "") {
   els.lureInfoDialog.showModal();
 }
 
-function updateLureDivingDepthField() {
+export function updateLureDivingDepthField() {
   const lureType = getValue("lureType");
   const hasDivingDepth = ["crankbait", "jerkbait"].includes(lureType.toLowerCase());
   const fly = lureType.toLowerCase() === "fly";
@@ -246,28 +262,28 @@ function updateLureDivingDepthField() {
   document.querySelectorAll("#flyCategoryField, #flyPatternField, #flyHookSizeField").forEach((field) => field.classList.toggle("hidden", !fly));
 }
 
-function isWormHarnessType(type) {
+export function isWormHarnessType(type) {
   return String(type || "").trim().toLowerCase() === "worm harness";
 }
 
-function isSpoonType(type) {
+export function isSpoonType(type) {
   return String(type || "").trim().toLowerCase() === "spoon";
 }
 
-function isMeatRigType(type) {
+export function isMeatRigType(type) {
   return String(type || "").trim().toLowerCase() === "meat rig";
 }
 
-function isSoftPlasticType(type) {
+export function isSoftPlasticType(type) {
   return String(type || "").trim().toLowerCase() === "soft plastic";
 }
 
-function openFlasherDialog(flasher = null, pendingRowId = "") {
+export function openFlasherDialog(flasher = null, pendingRowId = "") {
   beginMediaEditSession("flasher");
   prepareInlineGearDialog("flasher", pendingRowId);
   els.flasherDialog.dataset.removedPhotoKeys = "[]";
   els.flasherForm.reset();
-  pendingFlasherImage = null;
+  ui.pendingFlasherImage = null;
   renderQueuedGearImage("flasher");
   renderExistingGearPhotos("flasher", flasher);
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
@@ -286,7 +302,7 @@ function openFlasherDialog(flasher = null, pendingRowId = "") {
   els.flasherDialog.showModal();
 }
 
-function openFlasherInfoDialog(flasher, pendingRowId = "") {
+export function openFlasherInfoDialog(flasher, pendingRowId = "") {
   if (!flasher) return;
   prepareInlineGearDialog("flasherInfo", pendingRowId);
   const stats = baitStats("flasher", flasher.id);
@@ -314,7 +330,7 @@ function openFlasherInfoDialog(flasher, pendingRowId = "") {
   els.flasherInfoDialog.showModal();
 }
 
-async function saveReel(event) {
+export async function saveReel(event) {
   event.preventDefault();
   try {
     const editingId = getValue("editingReelId");
@@ -324,7 +340,7 @@ async function saveReel(event) {
     const imageFiles = [...document.querySelector("#reelImage").files];
     const uploadedPhotos = imageFiles.length
       ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "reels")))
-      : pendingReelImage ? [pendingReelImage] : [];
+      : ui.pendingReelImage ? [ui.pendingReelImage] : [];
     const reel = {
       ...(existing || {}),
       id: editingId || createId(),
@@ -360,7 +376,7 @@ async function saveReel(event) {
     els.reelDialog.close();
     els.reelForm.reset();
     els.reelDialog.dataset.duplicateFromId = "";
-    pendingReelImage = null;
+    ui.pendingReelImage = null;
     renderAll();
   } catch (error) {
     console.error("Could not save reel.", error);
@@ -368,7 +384,7 @@ async function saveReel(event) {
   }
 }
 
-async function saveRod(event) {
+export async function saveRod(event) {
   event.preventDefault();
   try {
     const editingId = getValue("editingRodId");
@@ -376,7 +392,7 @@ async function saveRod(event) {
     const imageFiles = [...document.querySelector("#rodImage").files];
     const uploadedPhotos = imageFiles.length
       ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "rods")))
-      : pendingRodImage ? [pendingRodImage] : [];
+      : ui.pendingRodImage ? [ui.pendingRodImage] : [];
     const rod = {
       ...(existing || {}),
       id: editingId || createId(),
@@ -412,7 +428,7 @@ async function saveRod(event) {
     els.rodDialog.close();
     els.rodForm.reset();
     els.rodDialog.dataset.duplicateFromId = "";
-    pendingRodImage = null;
+    ui.pendingRodImage = null;
     renderAll();
   } catch (error) {
     console.error("Could not save rod.", error);
@@ -420,7 +436,7 @@ async function saveRod(event) {
   }
 }
 
-async function saveCombo(event) {
+export async function saveCombo(event) {
   event.preventDefault();
   try {
     const editingId = getValue("editingComboId");
@@ -445,13 +461,13 @@ async function saveCombo(event) {
   }
 }
 
-async function saveLure(event) {
+export async function saveLure(event) {
   event.preventDefault();
   try {
     const editingId = getValue("editingLureId");
     const existing = state.lures.find((item) => item.id === editingId);
     const imageFile = document.querySelector("#lureImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "lures") : pendingLureImage;
+    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "lures") : ui.pendingLureImage;
     const lure = {
       ...(existing || {}),
       id: editingId || createId(),
@@ -501,7 +517,7 @@ async function saveLure(event) {
     }
     els.lureDialog.close();
     els.lureForm.reset();
-    pendingLureImage = null;
+    ui.pendingLureImage = null;
     renderQueuedGearImage("lure");
     renderAll();
   } catch (error) {
@@ -510,13 +526,13 @@ async function saveLure(event) {
   }
 }
 
-async function saveFlasher(event) {
+export async function saveFlasher(event) {
   event.preventDefault();
   try {
     const editingId = getValue("editingFlasherId");
     const existing = state.flashers.find((item) => item.id === editingId);
     const imageFile = document.querySelector("#flasherImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "flashers") : pendingFlasherImage;
+    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "flashers") : ui.pendingFlasherImage;
     const flasher = {
       ...(existing || {}),
       id: editingId || createId(),
@@ -544,7 +560,7 @@ async function saveFlasher(event) {
     if (row) updateRowSummary(row);
     els.flasherDialog.close();
     els.flasherForm.reset();
-    pendingFlasherImage = null;
+    ui.pendingFlasherImage = null;
     renderQueuedGearImage("flasher");
     renderAll();
   } catch (error) {
@@ -553,7 +569,7 @@ async function saveFlasher(event) {
   }
 }
 
-async function deleteReel() {
+export async function deleteReel() {
   const reelId = getValue("editingReelId");
   const reel = state.reels.find((item) => item.id === reelId);
   if (!reel || !confirm(`Delete ${gearDisplayName(reel, "this reel")}? This clears it from combos and trips.`)) return;
@@ -573,7 +589,7 @@ async function deleteReel() {
   renderAll();
 }
 
-async function deleteRod() {
+export async function deleteRod() {
   const rodId = getValue("editingRodId");
   const rod = state.rods.find((item) => item.id === rodId);
   if (!rod || !confirm(`Delete ${gearDisplayName(rod, "this rod")}? This clears it from combos and trips.`)) return;
@@ -590,7 +606,7 @@ async function deleteRod() {
   renderAll();
 }
 
-async function deleteCombo() {
+export async function deleteCombo() {
   const comboId = getValue("editingComboId");
   const combo = state.rodReelCombos.find((item) => item.id === comboId);
   if (!combo || !confirm(`Delete ${comboName(comboId) || "this combo"}? Trips keep their selected rod and reel.`)) return;
@@ -603,7 +619,7 @@ async function deleteCombo() {
   renderAll();
 }
 
-async function deleteLure() {
+export async function deleteLure() {
   const lureId = getValue("editingLureId");
   const lure = state.lures.find((item) => item.id === lureId);
   if (!lure || !confirm(`Delete ${lure.name}? This removes it from saved lures and clears it from catches.`)) return;
@@ -622,7 +638,7 @@ async function deleteLure() {
   renderAll();
 }
 
-async function deleteFlasher() {
+export async function deleteFlasher() {
   const flasherId = getValue("editingFlasherId");
   const flasher = state.flashers.find((item) => item.id === flasherId);
   if (!flasher || !confirm(`Delete ${flasher.name}? This removes it from saved flashers and clears it from catches.`)) return;

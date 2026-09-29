@@ -1,4 +1,14 @@
-function weatherNumber(record, key, source = "tripWindow") {
+import { state, ui } from "./app-state.js";
+import { convertUnitValue, unitPreference, unitSymbol } from "./app-units.js";
+import { moonWindowForTime, windDirectionLabel } from "./location-weather.js";
+import { fishCount, number, tripHours } from "./dashboard.js";
+import { lureName } from "./gear-core.js";
+import { StatsAnalytics } from "./stats-analytics.js";
+import { scopedTripFish } from "./stats-scope.js";
+import { calculateMinutes, formatPercent, parseFirstNumber, timeBucket } from "./stats.js";
+import { trimNumber } from "./form-utils.js";
+
+export function weatherNumber(record, key, source = "tripWindow") {
   const sources = source === "tripWindow"
     ? [record.weatherData?.hourly, record.weatherData?.tripWindow, record.trip?.weatherData?.tripWindow]
     : [record.weatherData?.[source], record.trip?.weatherData?.[source]];
@@ -8,17 +18,17 @@ function weatherNumber(record, key, source = "tripWindow") {
   }
   return null;
 }
-function weatherText(record, key) {
+export function weatherText(record, key) {
   return record.weatherData?.[key] || record.trip?.weatherData?.[key] || "";
 }
 
-function weatherBucket(value, buckets) {
+export function weatherBucket(value, buckets) {
   if (value === null || value === undefined) return "";
   const bucket = buckets.find((item) => value < item.max);
   return bucket?.label || buckets.at(-1)?.label || "";
 }
 
-function windSpeedBucket(value) {
+export function windSpeedBucket(value) {
   const unit = unitSymbol("windSpeed");
   const labelValue = (mph) => trimNumber(Math.round(convertUnitValue(mph, "mph", unitPreference("windSpeed")) * 10) / 10);
   return weatherBucket(value, [
@@ -29,7 +39,7 @@ function windSpeedBucket(value) {
     { max: Infinity, label: `Heavy ${labelValue(25)}+ ${unit}` }
   ]);
 }
-function pressureBucket(value) {
+export function pressureBucket(value) {
   const unit = unitSymbol("pressure");
   const labelValue = (hpa) => trimNumber(Math.round(convertUnitValue(hpa, "hPa", unitPreference("pressure")) * 10) / 10);
   return weatherBucket(value, [
@@ -40,7 +50,7 @@ function pressureBucket(value) {
   ]);
 }
 
-function cloudCoverBucket(value) {
+export function cloudCoverBucket(value) {
   return weatherBucket(value, [
     { max: 25, label: "Clear <25%" },
     { max: 60, label: "Broken 25-60%" },
@@ -49,7 +59,7 @@ function cloudCoverBucket(value) {
   ]);
 }
 
-function airTempBucket(value) {
+export function airTempBucket(value) {
   const unit = unitSymbol("airTemperature");
   const labelValue = (c) => trimNumber(Math.round(convertUnitValue(c, "C", unitPreference("airTemperature"))));
   return weatherBucket(value, [
@@ -61,7 +71,7 @@ function airTempBucket(value) {
   ]);
 }
 
-function sunshineBucket(value) {
+export function sunshineBucket(value) {
   if (value === null || value === undefined) return "";
   return weatherBucket(value / 3600, [
     { max: 2, label: "Low sun <2 hr" },
@@ -70,7 +80,7 @@ function sunshineBucket(value) {
   ]);
 }
 
-function summarizeWeatherBuckets(records, keyFn) {
+export function summarizeWeatherBuckets(records, keyFn) {
   const map = new Map();
   records.forEach((record) => {
     const key = keyFn(record);
@@ -85,7 +95,7 @@ function summarizeWeatherBuckets(records, keyFn) {
     .map((item) => [item.name, item.fish, item.trips.size, trimNumber(item.fish / item.trips.size)]);
 }
 
-function summarizeBiteWindows(records) {
+export function summarizeBiteWindows(records) {
   const map = new Map();
   records.forEach((record) => {
     const window = [
@@ -107,7 +117,7 @@ function summarizeBiteWindows(records) {
     .map((item) => [item.name, item.fish, item.trips.size, trimNumber(item.fish / item.trips.size)]);
 }
 
-function summarizeBy(records, keyFn, minutesFn = () => 0) {
+export function summarizeBy(records, keyFn, minutesFn = () => 0) {
   const map = new Map();
   records.forEach((record) => {
     const key = keyFn(record);
@@ -131,8 +141,8 @@ function summarizeBy(records, keyFn, minutesFn = () => 0) {
   return [...map.values()].sort((a, b) => b.fish - a.fish || b.minutes - a.minutes);
 }
 
-function sortPerformanceItems(items) {
-  const sortKey = activeStatsSort || "fishPerHour";
+export function sortPerformanceItems(items) {
+  const sortKey = ui.activeStatsSort || "fishPerHour";
   const keyMap = {
     fish: "fish",
     hours: "hours",
@@ -149,22 +159,22 @@ function sortPerformanceItems(items) {
   ));
 }
 
-function statsComparablePerformanceValue(item, key) {
+export function statsComparablePerformanceValue(item, key) {
   if (["fishPerHour", "efficiencyIndex", "overperformance", "usageShare"].includes(key) && !item.hasUsableTime) return -1;
-  if (activeStatsIncludeLost && key === "fish") return item.strikes || 0;
-  if (activeStatsIncludeLost && key === "fishPerHour") return item.strikesPerHour || 0;
+  if (ui.activeStatsIncludeLost && key === "fish") return item.strikes || 0;
+  if (ui.activeStatsIncludeLost && key === "fishPerHour") return item.strikesPerHour || 0;
   return item[key] || 0;
 }
 
-function filterPerformanceItems(items) {
+export function filterPerformanceItems(items) {
   return items.filter((item) => {
-    if (activeStatsMinTrips && item.trips < activeStatsMinTrips) return false;
-    if (activeStatsMinHours && (!item.hasUsableTime || item.hours < activeStatsMinHours)) return false;
+    if (ui.activeStatsMinTrips && item.trips < ui.activeStatsMinTrips) return false;
+    if (ui.activeStatsMinHours && (!item.hasUsableTime || item.hours < ui.activeStatsMinHours)) return false;
     return true;
   });
 }
 
-function performanceRows(items, labelHeader = "Name") {
+export function performanceRows(items, labelHeader = "Name") {
   return filterPerformanceItems(sortPerformanceItems(items)).map((item) => {
     return [
     item.name || labelHeader,
@@ -185,7 +195,7 @@ function performanceRows(items, labelHeader = "Name") {
   });
 }
 
-function makePerformanceItems(items, totalHours, totalFish) {
+export function makePerformanceItems(items, totalHours, totalFish) {
   return items.map((item) => {
     const hasTimeSample = item.hasTimeSample ?? (item.hours !== undefined || item.minutes !== undefined);
     const hours = item.hours ?? (item.minutes ? item.minutes / 60 : 0);
@@ -219,7 +229,7 @@ function makePerformanceItems(items, totalHours, totalFish) {
   });
 }
 
-function summarizeEffortPerformance(records, keyFn, minutesFn, totalHours, totalFish) {
+export function summarizeEffortPerformance(records, keyFn, minutesFn, totalHours, totalFish) {
   const map = new Map();
   records.forEach((record) => {
     const key = keyFn(record);
@@ -234,7 +244,7 @@ function summarizeEffortPerformance(records, keyFn, minutesFn, totalHours, total
   return makePerformanceItems([...map.values()], totalHours, totalFish);
 }
 
-function summarizeEffortWithCatches(effortRecords, catchRecords, keyFn, minutesFn, totalHours, totalFish, lostRecords = []) {
+export function summarizeEffortWithCatches(effortRecords, catchRecords, keyFn, minutesFn, totalHours, totalFish, lostRecords = []) {
   const map = new Map();
   const effortByLine = new Map();
   const ensure = (key) => {
@@ -288,20 +298,20 @@ function summarizeEffortWithCatches(effortRecords, catchRecords, keyFn, minutesF
   return makePerformanceItems([...map.values()], totalHours, totalFish);
 }
 
-function setupLineMinutes(record) {
+export function setupLineMinutes(record) {
   return Math.max(number(record.lureMinutes), number(record.flasherMinutes), calculateMinutes(record.startTime, record.endTime));
 }
 
-function deepestRiggerLabel(record) {
+export function deepestRiggerLabel(record) {
   if (!["downrigger", "Downrigger"].includes(record.presentation)) return "";
   return record.deepestRigger ? "Deepest rigger" : "Higher rigger";
 }
 
-function riggerMethodComparisonLabel(record) {
+export function riggerMethodComparisonLabel(record) {
   return deepestRiggerLabel(record);
 }
 
-function summarizeDownriggerCatchPositions(catchRecords = [], lostRecords = [], totalFish = 0) {
+export function summarizeDownriggerCatchPositions(catchRecords = [], lostRecords = [], totalFish = 0) {
   const map = new Map();
   const ensure = (key) => {
     const current = map.get(key) || { name: key, fish: 0, lost: 0, minutes: 0, hasTimeSample: false, trips: new Set(), uses: 0 };
@@ -327,19 +337,19 @@ function summarizeDownriggerCatchPositions(catchRecords = [], lostRecords = [], 
   return makePerformanceItems([...map.values()], 0, totalFish);
 }
 
-function lureRecord(id) {
+export function lureRecord(id) {
   return state.lures.find((lure) => lure.id === id) || null;
 }
 
-function lureTypeLabel(id) {
+export function lureTypeLabel(id) {
   return lureRecord(id)?.type || "Unknown type";
 }
 
-function lureColorLabel(id) {
+export function lureColorLabel(id) {
   return lureRecord(id)?.color || "Unknown color";
 }
 
-function summarizeLureSpreadContext(trips, catches, gearRecords) {
+export function summarizeLureSpreadContext(trips, catches, gearRecords) {
   const map = new Map();
   const ensure = (id) => {
     const lure = lureRecord(id);
@@ -397,7 +407,7 @@ function summarizeLureSpreadContext(trips, catches, gearRecords) {
   }).sort((a, b) => b.quietSpreadTrips - a.quietSpreadTrips || b.soloProducerTrips - a.soloProducerTrips || b.fishPerHour - a.fishPerHour);
 }
 
-function lureSpreadRows(items) {
+export function lureSpreadRows(items) {
   return filterPerformanceItems(items).map((item) => [
     item.name,
     item.fish,
@@ -411,7 +421,7 @@ function lureSpreadRows(items) {
   ]);
 }
 
-function summarizeTripPerformance(trips, keyFn, totalHours, totalFish) {
+export function summarizeTripPerformance(trips, keyFn, totalHours, totalFish) {
   const map = new Map();
   trips.forEach((trip) => {
     const key = keyFn(trip);
@@ -430,7 +440,7 @@ function summarizeTripPerformance(trips, keyFn, totalHours, totalFish) {
   }));
 }
 
-function tripPerformanceRows(items) {
+export function tripPerformanceRows(items) {
   return filterPerformanceItems(sortPerformanceItems(items)).map((item) => {
     const row = [
       item.name,
@@ -445,11 +455,11 @@ function tripPerformanceRows(items) {
   });
 }
 
-function catchComparisonRows(items, labelHeader = "Name") {
+export function catchComparisonRows(items, labelHeader = "Name") {
   return items
-    .filter((item) => !activeStatsMinTrips || item.trips >= activeStatsMinTrips)
+    .filter((item) => !ui.activeStatsMinTrips || item.trips >= ui.activeStatsMinTrips)
     .sort((left, right) => (
-      ((activeStatsIncludeLost ? right.strikes : right.fish) - (activeStatsIncludeLost ? left.strikes : left.fish))
+      ((ui.activeStatsIncludeLost ? right.strikes : right.fish) - (ui.activeStatsIncludeLost ? left.strikes : left.fish))
       || right.fish - left.fish
       || String(left.name).localeCompare(String(right.name))
     ))
@@ -465,7 +475,7 @@ function catchComparisonRows(items, labelHeader = "Name") {
     ]);
 }
 
-function fishShareRows(items) {
+export function fishShareRows(items) {
   return filterPerformanceItems(sortPerformanceItems(items)).map((item) => [
     item.name,
     item.fish,
@@ -474,19 +484,19 @@ function fishShareRows(items) {
   ]);
 }
 
-function saneStatsNumber(value, { min = -Infinity, max = Infinity } = {}) {
+export function saneStatsNumber(value, { min = -Infinity, max = Infinity } = {}) {
   if (value === null || value === undefined || String(value).trim() === "") return null;
   const parsed = parseFirstNumber(value);
   return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
 }
 
-function numericRangeLabel(value, step, suffix = "") {
+export function numericRangeLabel(value, step, suffix = "") {
   const start = Math.floor(value / step) * step;
   const end = start + step;
   return `${trimNumber(start)}–${trimNumber(end)}${suffix}`;
 }
 
-function summarizeCatchMeasurement(records, valueFn, { step, suffix = "", min = -Infinity, max = Infinity } = {}) {
+export function summarizeCatchMeasurement(records, valueFn, { step, suffix = "", min = -Infinity, max = Infinity } = {}) {
   const map = new Map();
   records.forEach((record) => {
     const value = saneStatsNumber(valueFn(record), { min, max });
@@ -511,7 +521,7 @@ function summarizeCatchMeasurement(records, valueFn, { step, suffix = "", min = 
     ]);
 }
 
-function summarizeSpeedDelta(records) {
+export function summarizeSpeedDelta(records) {
   const groups = new Map([
     ["Ball slower", { fish: 0, trips: new Set(), deltas: [] }],
     ["Matched", { fish: 0, trips: new Set(), deltas: [] }],
@@ -537,7 +547,7 @@ function summarizeSpeedDelta(records) {
   ]);
 }
 
-function summarizeBestSpeedByDirection(records) {
+export function summarizeBestSpeedByDirection(records) {
   const directions = new Map();
   records.forEach((record) => {
     const direction = String(record.direction || "").trim();
@@ -559,7 +569,7 @@ function summarizeBestSpeedByDirection(records) {
     .sort((a, b) => b[2] - a[2] || String(a[0]).localeCompare(String(b[0])));
 }
 
-function summarizeShakers(records) {
+export function summarizeShakers(records) {
   const shakers = records.filter((record) => Boolean(record.shaker));
   const standard = records.length - shakers.length;
   return [
@@ -568,7 +578,7 @@ function summarizeShakers(records) {
   ];
 }
 
-function summarizeDistanceBehind(gearRecords, catches) {
+export function summarizeDistanceBehind(gearRecords, catches) {
   const map = new Map();
   gearRecords.filter((record) => record.source === "trip").forEach((record) => {
     const distance = saneStatsNumber(record.distanceBehind, { min: 0, max: 1000 });
@@ -589,7 +599,7 @@ function summarizeDistanceBehind(gearRecords, catches) {
   });
 }
 
-function probeProfileEntries(trip) {
+export function probeProfileEntries(trip) {
   return (trip.probeTemperatureProfile || []).map((entry) => ({
     depth: saneStatsNumber(entry.depthFeet, { min: 0, max: 1000 }),
     temperature: saneStatsNumber(entry.temperature, { min: -5, max: 100 })
@@ -597,7 +607,7 @@ function probeProfileEntries(trip) {
     .sort((a, b) => a.depth - b.depth);
 }
 
-function tripThermoclineDepth(trip) {
+export function tripThermoclineDepth(trip) {
   const profile = probeProfileEntries(trip);
   let best = null;
   for (let index = 1; index < profile.length; index += 1) {
@@ -611,7 +621,7 @@ function tripThermoclineDepth(trip) {
   return best && best.coolingRate > 0 ? best.depth : null;
 }
 
-function summarizeProbeProfiles(trips) {
+export function summarizeProbeProfiles(trips) {
   const map = new Map();
   trips.forEach((trip) => {
     probeProfileEntries(trip).forEach((entry) => {
@@ -630,7 +640,7 @@ function summarizeProbeProfiles(trips) {
   ]);
 }
 
-function summarizeThermoclinePosition(records) {
+export function summarizeThermoclinePosition(records) {
   const groups = new Map([
     ["Above thermocline", { fish: 0, trips: new Set() }],
     ["At thermocline", { fish: 0, trips: new Set() }],

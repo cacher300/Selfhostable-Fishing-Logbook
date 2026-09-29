@@ -1,4 +1,4 @@
-(function exposeStatsAnalytics(global) {
+export const StatsAnalytics = (() => {
   "use strict";
 
   const safeDivide = (numerator, denominator) => (
@@ -38,5 +38,5 @@
     };
   }
 
-  global.StatsAnalytics = { safeDivide, confidence, performanceMetrics };
-})(typeof window === "undefined" ? globalThis : window);
+  return { safeDivide, confidence, performanceMetrics };
+})();

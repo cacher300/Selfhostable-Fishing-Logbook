@@ -2,12 +2,12 @@
 @import url("locations.css");
 @import url("dialogs.css");
 @import url("trip-media.css");
-@import url("trip-editor.css?v=20260927-catch-card-layout-9");
+@import url("trip-editor.css");
 @import url("expeditions.css");
-@import url("personal-bests-patterns.css?v=20260908-progression-cards-1");
-@import url("maps-summary.css?v=20260927-map-popup-layout-1");
+@import url("personal-bests-patterns.css");
+@import url("maps-summary.css");
 @import url("trolling-spread.css");
-@import url("timeline-detail.css?v=20260920-catch-location-map-4");
+@import url("timeline-detail.css");
 @import url("trip-report.css");
 @import url("share-report.css");
 @import url("shared-trip-import.css");
@@ -18,5 +18,5 @@
 @import url("checklists.css");
 @import url("wiki.css");
 @import url("gallery-inventory.css");
-@import url("theme-dark.css?v=20260920-catch-location-map-3");
-@import url("responsive.css?v=20260927-setup-timeline-layout-1");
+@import url("theme-dark.css");
+@import url("responsive.css");

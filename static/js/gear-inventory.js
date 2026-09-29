@@ -1,4 +1,15 @@
-function renderInventoryTable(container, headers, rows, emptyText) {
+import { state, ui } from "./app-state.js";
+import { displayStoredMeasurement, unitSymbol } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { mediaMarkup } from "./app-media.js";
+import { formatDate } from "./dashboard.js";
+import { activeLineEntry, comboName, gearDisplayName, gearPhotos, lineSummary, reelName, rodName } from "./gear-core.js";
+import { isFlyLure } from "./gear-pickers.js";
+import { openFlasherInfoDialog, openLureInfoDialog } from "./gear-dialogs.js";
+import { escapeHtml } from "./form-utils.js";
+import { gearPerformanceStats } from "./leaderboard.js";
+
+export function renderInventoryTable(container, headers, rows, emptyText) {
   if (!container) return;
   if (!rows.length) {
     container.innerHTML = `<div class="empty-state"><p>${escapeHtml(emptyText)}</p></div>`;
@@ -25,19 +36,19 @@ function renderInventoryTable(container, headers, rows, emptyText) {
   applyInventoryTableControls(container);
 }
 
-let activeGearFilter = { field: "all", query: "" };
-const inventorySortState = {};
-let gearFilterSuggestionsOpen = false;
+export let activeGearFilter = { field: "all", query: "" };
+export const inventorySortState = {};
+export let gearFilterSuggestionsOpen = false;
 
-function activeInventoryTable() {
-  return document.querySelector(`[data-gear-panel="${activeGearTab}"] .inventory-table`);
+export function activeInventoryTable() {
+  return document.querySelector(`[data-gear-panel="${ui.activeGearTab}"] .inventory-table`);
 }
 
-function inventoryHeaderLabels(container) {
+export function inventoryHeaderLabels(container) {
   return [...container.querySelectorAll("thead th")].map((header) => header.textContent.replace(/[↑↓]/g, "").trim());
 }
 
-function syncGearFilterFields() {
+export function syncGearFilterFields() {
   const container = activeInventoryTable();
   if (!container || !els.gearFilterField) return;
   const headers = inventoryHeaderLabels(container).filter((label) => label && label !== "Photo");
@@ -48,7 +59,7 @@ function syncGearFilterFields() {
   syncGearFilterSuggestions();
 }
 
-function syncGearFilterSuggestions() {
+export function syncGearFilterSuggestions() {
   const container = activeInventoryTable();
   if (!container || !els.gearFilterSuggestions) return;
   const headers = inventoryHeaderLabels(container);
@@ -62,24 +73,24 @@ function syncGearFilterSuggestions() {
   els.gearFilterSuggestions.classList.toggle("hidden", !gearFilterSuggestionsOpen || !values.length);
 }
 
-function openGearFilterSuggestions() {
+export function openGearFilterSuggestions() {
   gearFilterSuggestionsOpen = true;
   syncGearFilterSuggestions();
 }
 
-function closeGearFilterSuggestions() {
+export function closeGearFilterSuggestions() {
   gearFilterSuggestionsOpen = false;
   syncGearFilterSuggestions();
 }
 
-function selectGearFilterSuggestion(value) {
+export function selectGearFilterSuggestion(value) {
   if (els.gearFilterQuery) els.gearFilterQuery.value = value;
   activeGearFilter = { field: els.gearFilterField?.value || "all", query: value };
   closeGearFilterSuggestions();
   applyInventoryTableControls();
 }
 
-function applyInventoryTableControls(container = activeInventoryTable()) {
+export function applyInventoryTableControls(container = activeInventoryTable()) {
   if (!container) return;
   const headers = inventoryHeaderLabels(container);
   const filterIndex = activeGearFilter.field === "all" ? -1 : headers.indexOf(activeGearFilter.field);
@@ -108,7 +119,7 @@ function applyInventoryTableControls(container = activeInventoryTable()) {
   rows.forEach((row) => body.append(row));
 }
 
-function updateGearFilter() {
+export function updateGearFilter() {
   activeGearFilter = {
     field: els.gearFilterField?.value || "all",
     query: els.gearFilterQuery?.value || ""
@@ -118,7 +129,7 @@ function updateGearFilter() {
   applyInventoryTableControls();
 }
 
-function clearGearFilter() {
+export function clearGearFilter() {
   activeGearFilter = { field: "all", query: "" };
   gearFilterSuggestionsOpen = false;
   syncGearFilterFields();
@@ -126,7 +137,7 @@ function clearGearFilter() {
   applyInventoryTableControls();
 }
 
-function sortInventoryTable(tableId, index) {
+export function sortInventoryTable(tableId, index) {
   const previous = inventorySortState[tableId];
   if (previous?.index === Number(index) && previous.direction === "desc") {
     delete inventorySortState[tableId];
@@ -142,14 +153,14 @@ function sortInventoryTable(tableId, index) {
   applyInventoryTableControls(container);
 }
 
-function inventoryRow(type, item, cells) {
+export function inventoryRow(type, item, cells) {
   return {
     attributes: { "data-inventory-type": type, "data-inventory-id": item.id },
     cells
   };
 }
 
-function gearUsageCells(type, id) {
+export function gearUsageCells(type, id) {
   const stats = gearPerformanceStats(type, id);
   return [
     escapeHtml(String(stats.landed || 0)),
@@ -157,13 +168,13 @@ function gearUsageCells(type, id) {
   ];
 }
 
-function inventoryThumb(item) {
+export function inventoryThumb(item) {
   const photos = gearPhotos(item);
   if (!photos.length) return "";
   return mediaMarkup(photos[0], "inventory-thumb", { download: false });
 }
 
-function openInventoryItemInfo(type, id) {
+export function openInventoryItemInfo(type, id) {
   if (type === "lure") return openLureInfoDialog(state.lures.find((item) => item.id === id), "inventory");
   if (type === "flasher") return openFlasherInfoDialog(state.flashers.find((item) => item.id === id), "inventory");
 
@@ -187,7 +198,7 @@ function openInventoryItemInfo(type, id) {
   els.inventoryInfoDialog.showModal();
 }
 
-function renderReelInventory() {
+export function renderReelInventory() {
   const rows = state.reels.map((reel) => {
     return inventoryRow("reel", reel, [
       inventoryThumb(reel),
@@ -212,7 +223,7 @@ function renderReelInventory() {
   renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Fish caught", "Last used", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", `Max Drag (${unitSymbol("fishWeight")})`, "Mono Cap", "Braid Cap", "Purchase", "Bought", "Owned", ""], rows, "No saved reels yet.");
 }
 
-function renderRodInventory() {
+export function renderRodInventory() {
   const rows = state.rods.map((rod) => {
     return inventoryRow("rod", rod, [
       inventoryThumb(rod),
@@ -234,7 +245,7 @@ function renderRodInventory() {
   renderInventoryTable(els.rodInventoryTable, ["Photo", "Name", "Fish caught", "Last used", "Type", "Brand", "Model", "Length", "Power", "Action", "Lure Rating", "Purchase", "Bought", "Owned", ""], rows, "No saved rods yet.");
 }
 
-function renderComboInventory() {
+export function renderComboInventory() {
   const rows = state.rodReelCombos.map((combo) => {
     return inventoryRow("combo", combo, [
       escapeHtml(comboName(combo.id) || "Combo"),
@@ -248,7 +259,7 @@ function renderComboInventory() {
   renderInventoryTable(els.comboInventoryTable, ["Combo", "Fish caught", "Last used", "Rod", "Reel", "Notes", ""], rows, "No saved combos yet.");
 }
 
-function renderLineTracker() {
+export function renderLineTracker() {
   const rows = state.reels.map((reel) => {
     const line = activeLineEntry(reel);
     if (!line) return null;
@@ -269,7 +280,7 @@ function renderLineTracker() {
   renderInventoryTable(els.lineTrackerTable, ["Reel", "Spooled", "Type", "Brand", "Name", `Weight (${unitSymbol("fishWeight")})`, "Dia In", "Dia Mm", "Color", "Backing", "Notes"], rows, "No current line saved yet. Edit a reel to add current line.");
 }
 
-function renderBaitInventory() {
+export function renderBaitInventory() {
   const rows = state.lures.filter((lure) => !isFlyLure(lure)).map((lure) => {
     return inventoryRow("lure", lure, [
       inventoryThumb(lure),
@@ -286,7 +297,7 @@ function renderBaitInventory() {
   renderInventoryTable(els.baitInventoryTable, ["Photo", "Lure", "Fish caught", "Last used", "Type", "Brand", "Model", "Color", "Owned", ""], rows, "No saved lures yet.");
 }
 
-function renderFlyInventory() {
+export function renderFlyInventory() {
   const rows = state.lures.filter(isFlyLure).map((fly) => inventoryRow("lure", fly, [
     inventoryThumb(fly),
     `<button class="inventory-gear-preview-link" type="button" data-inventory-lure-id="${escapeHtml(fly.id)}" aria-label="Open preview for ${escapeHtml(fly.name || "fly")}">${escapeHtml(fly.name || "-")}</button>`,
@@ -301,7 +312,7 @@ function renderFlyInventory() {
   renderInventoryTable(els.flyInventoryTable, ["Photo", "Fly", "Fish caught", "Last used", "Category", "Pattern", "Hook size", "Color", "Owned", ""], rows, "No saved flies yet. Add a fly from any category to build your fly box.");
 }
 
-function renderFlasherInventory() {
+export function renderFlasherInventory() {
   const rows = state.flashers.map((flasher) => {
     return inventoryRow("flasher", flasher, [
       inventoryThumb(flasher),
@@ -317,8 +328,8 @@ function renderFlasherInventory() {
   renderInventoryTable(els.flasherInventoryTable, ["Photo", "Flasher", "Fish caught", "Last used", "Type", "Brand", "Model", "Color", ""], rows, "No saved flashers yet.");
 }
 
-function setGearTab(tab) {
-  activeGearTab = tab;
+export function setGearTab(tab) {
+  ui.activeGearTab = tab;
   document.querySelectorAll("[data-gear-tab]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.gearTab === tab);
   });
@@ -336,7 +347,7 @@ function setGearTab(tab) {
   applyInventoryTableControls();
 }
 
-function renderGearLibrary() {
+export function renderGearLibrary() {
   renderReelInventory();
   renderRodInventory();
   renderComboInventory();
@@ -344,5 +355,5 @@ function renderGearLibrary() {
   renderBaitInventory();
   renderFlyInventory();
   renderFlasherInventory();
-  setGearTab(activeGearTab);
+  setGearTab(ui.activeGearTab);
 }

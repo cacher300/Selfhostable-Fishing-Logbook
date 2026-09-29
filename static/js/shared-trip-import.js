@@ -1,18 +1,29 @@
-let sharedTripImportFile = null;
-let sharedTripImportPreviewData = null;
+import { replaceState } from "./store.js";
+import { protectedFetch } from "./app-config.js";
+import { logbookRevision, state } from "./app-state.js";
+import { formatDisplayTime } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { cleanupDeletedMedia } from "./app-media.js";
+import { formatDate, renderAll } from "./dashboard.js";
+import { openTripSummary } from "./trip-timeline.js";
+import { escapeHtml } from "./form-utils.js";
+import { setView } from "./app.js";
 
-function sharedTripImportStatus(message = "", type = "") {
+export let sharedTripImportFile = null;
+export let sharedTripImportPreviewData = null;
+
+export function sharedTripImportStatus(message = "", type = "") {
   if (!els.sharedTripImportStatus) return;
   els.sharedTripImportStatus.textContent = message;
   els.sharedTripImportStatus.dataset.type = type;
 }
 
-function sharedTripImportText(value, fallback = "Not logged") {
+export function sharedTripImportText(value, fallback = "Not logged") {
   const text = String(value || "").trim();
   return text || fallback;
 }
 
-function sharedTripImportSummaryHtml(trip) {
+export function sharedTripImportSummaryHtml(trip) {
   const date = trip.date ? formatDate(trip.date) : "Date not logged";
   const place = [trip.location, trip.launch].filter(Boolean).join(" · ") || "Location not logged";
   const startTime = formatDisplayTime(trip.launchTime || "") || "Not logged";
@@ -30,7 +41,7 @@ function sharedTripImportSummaryHtml(trip) {
   `;
 }
 
-function sharedTripImportPeopleHtml(people) {
+export function sharedTripImportPeopleHtml(people) {
   if (!people.length) return '<div class="shared-trip-no-candidate">This trip has no named people to match.</div>';
   const existingPeople = [...(state.people || [])].sort((first, second) => String(first.name || "").localeCompare(String(second.name || "")));
   return people.map((person) => {
@@ -53,7 +64,7 @@ function sharedTripImportPeopleHtml(people) {
   }).join("");
 }
 
-function sharedTripCandidateLabel(candidate) {
+export function sharedTripCandidateLabel(candidate) {
   const place = [candidate.location, candidate.launch].filter(Boolean).join(" · ") || "No location";
   const startTime = formatDisplayTime(candidate.launchTime || "");
   const endTime = formatDisplayTime(candidate.linesPulledTime || "");
@@ -61,7 +72,7 @@ function sharedTripCandidateLabel(candidate) {
   return `${candidate.title || "Untitled trip"} — ${place} · ${time}`;
 }
 
-function sharedTripImportDuplicateHtml(candidates) {
+export function sharedTripImportDuplicateHtml(candidates) {
   if (!candidates.length) {
     return '<div class="shared-trip-no-candidate">No likely overlap was found. This trip will be added to your logbook.</div>';
   }
@@ -82,7 +93,7 @@ function sharedTripImportDuplicateHtml(candidates) {
   `;
 }
 
-function renderSharedTripImportPreview(preview) {
+export function renderSharedTripImportPreview(preview) {
   sharedTripImportPreviewData = preview;
   document.querySelector("#sharedTripImportSummary").innerHTML = sharedTripImportSummaryHtml(preview.trip || {});
   els.sharedTripImportPeople.innerHTML = sharedTripImportPeopleHtml(preview.people || []);
@@ -91,7 +102,7 @@ function renderSharedTripImportPreview(preview) {
   els.sharedTripImportConfirmButton.disabled = false;
 }
 
-function resetSharedTripImportDialog() {
+export function resetSharedTripImportDialog() {
   sharedTripImportFile = null;
   sharedTripImportPreviewData = null;
   if (els.sharedTripImportInput) els.sharedTripImportInput.value = "";
@@ -102,14 +113,14 @@ function resetSharedTripImportDialog() {
   sharedTripImportStatus("");
 }
 
-function openSharedTripImportDialog() {
+export function openSharedTripImportDialog() {
   if (!els.sharedTripImportDialog) return;
   resetSharedTripImportDialog();
   els.sharedTripImportDialog.showModal();
   els.sharedTripImportInput?.click();
 }
 
-async function previewSharedTripImport(file) {
+export async function previewSharedTripImport(file) {
   if (!file) return;
   if (location.protocol === "file:") {
     sharedTripImportStatus("Shared Trip ZIP import needs the app server to be running.", "error");
@@ -134,12 +145,12 @@ async function previewSharedTripImport(file) {
   }
 }
 
-function sharedTripImportAction() {
+export function sharedTripImportAction() {
   if (!(sharedTripImportPreviewData?.candidates || []).length) return "add";
   return document.querySelector('input[name="sharedTripImportAction"]:checked')?.value || "add";
 }
 
-function sharedTripPersonMappings() {
+export function sharedTripPersonMappings() {
   return Object.fromEntries(
     [...els.sharedTripImportPeople.querySelectorAll("[data-shared-trip-person-id]")]
       .map((select) => [select.dataset.sharedTripPersonId, select.value])
@@ -147,7 +158,7 @@ function sharedTripPersonMappings() {
   );
 }
 
-async function confirmSharedTripImport() {
+export async function confirmSharedTripImport() {
   if (!sharedTripImportFile || !sharedTripImportPreviewData) return;
   const action = sharedTripImportAction();
   const replacementTripId = document.querySelector("#sharedTripImportCandidateSelect")?.value || "";
@@ -174,9 +185,7 @@ async function confirmSharedTripImport() {
 
     const refreshed = await fetch("/api/logbook");
     if (!refreshed.ok) throw new Error("The trip was imported, but the logbook could not be refreshed.");
-    logbookRevision = refreshed.headers.get("ETag") || response.headers.get("ETag") || "";
-    state = validateState(await refreshed.json());
-    localStorage.setItem(storageKey, JSON.stringify(state));
+    replaceState(await refreshed.json(), { revision: refreshed.headers.get("ETag") || "" });
     renderAll();
     await cleanupDeletedMedia(payload.discardedMedia || []);
     const importedTrip = state.trips.find((trip) => trip.id === payload.tripId);
@@ -194,8 +203,14 @@ async function confirmSharedTripImport() {
   }
 }
 
-els.importSharedTripButton?.addEventListener("click", openSharedTripImportDialog);
-els.sharedTripImportChooseButton?.addEventListener("click", () => els.sharedTripImportInput?.click());
-els.sharedTripImportInput?.addEventListener("change", (event) => previewSharedTripImport(event.target.files?.[0]));
-els.sharedTripImportConfirmButton?.addEventListener("click", confirmSharedTripImport);
-els.sharedTripImportDialog?.addEventListener("close", resetSharedTripImportDialog);
+export function setup() {
+  els.importSharedTripButton?.addEventListener("click", openSharedTripImportDialog);
+
+  els.sharedTripImportChooseButton?.addEventListener("click", () => els.sharedTripImportInput?.click());
+
+  els.sharedTripImportInput?.addEventListener("change", (event) => previewSharedTripImport(event.target.files?.[0]));
+
+  els.sharedTripImportConfirmButton?.addEventListener("click", confirmSharedTripImport);
+
+  els.sharedTripImportDialog?.addEventListener("close", resetSharedTripImportDialog);
+}

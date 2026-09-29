@@ -1,21 +1,30 @@
-function isTrollingTripRecord(trip) {
+import { createId } from "./app-defaults.js";
+import { choiceLabel } from "./app-normalization.js";
+import { els } from "./app-elements.js";
+import { selectedText } from "./trip-rows.js";
+import { comboName, flasherName, lureName, reelName, rodName } from "./gear-core.js";
+import { setupLineCheaterFishCount, setupLineCounts } from "./trip-timeline.js";
+import { presentationLabel } from "./stats.js";
+import { escapeHtml, isTrollingTrip } from "./form-utils.js";
+
+export function isTrollingTripRecord(trip) {
   return String(trip?.method || "").toLowerCase() === "trolling";
 }
 
-function setupLineSideLabel(value) {
+export function setupLineSideLabel(value) {
   return choiceLabel("setupLineSides", value) || "";
 }
 
-function setupLineForRecord(record) {
+export function setupLineForRecord(record) {
   if (!record?.setupLineId || !record.trip) return null;
   return (record.trip.gearUsed || []).find((gearItem) => gearItem.id === record.setupLineId) || null;
 }
 
-function gearComboName(lureId, flasherId) {
+export function gearComboName(lureId, flasherId) {
   return [lureName(lureId), flasherName(flasherId)].filter(Boolean).join(" + ");
 }
 
-function setupLineAutoLabel(gearItem, index = 0) {
+export function setupLineAutoLabel(gearItem, index = 0) {
   const pieces = [
     setupLineSideLabel(gearItem.side),
     presentationLabel(gearItem.presentation) || `Rod ${index + 1}`
@@ -25,7 +34,7 @@ function setupLineAutoLabel(gearItem, index = 0) {
   return [pieces.join(" "), rodReel || gear].filter(Boolean).join(": ") || `Rod ${index + 1}`;
 }
 
-function resolveTripLineRecord(record) {
+export function resolveTripLineRecord(record) {
   const line = setupLineForRecord(record);
   if (!line) return record;
   const onCheater = record.setupLineTarget === "cheater";
@@ -58,13 +67,13 @@ function resolveTripLineRecord(record) {
   };
 }
 
-function defaultSetupLineSide(gearItem, index) {
+export function defaultSetupLineSide(gearItem, index) {
   if (gearItem.side) return gearItem.side;
   if (gearItem.presentation === "Chute Rod") return "Center";
   return index % 2 === 0 ? "Port" : "Starboard";
 }
 
-const SPREAD_SLOT_CONFIG = {
+export const SPREAD_SLOT_CONFIG = {
   portOutsideBoard: { side: "port", order: 0, markerType: "board", label: "Outside Board" },
   portInsideBoard: { side: "port", order: 1, markerType: "board", label: "Inside Board" },
   portHighDiver: { side: "port", order: 2, markerType: "diver", label: "High Diver" },
@@ -78,7 +87,7 @@ const SPREAD_SLOT_CONFIG = {
   starboardOutsideBoard: { side: "starboard", order: 10, markerType: "board", label: "Outside Board" }
 };
 
-const SPREAD_ANCHORS = {
+export const SPREAD_ANCHORS = {
   upperHighBoard: { xPct: 25.51, yPct: 31.44 },
   upperLowBoard: { xPct: 37.97, yPct: 30.13 },
   upperHighDiver: { xPct: 47.41, yPct: 30.13 },
@@ -92,21 +101,9 @@ const SPREAD_ANCHORS = {
   chuteRod: { xPct: 60.86, yPct: 50 }
 };
 
-const SLOT_ANCHORS = {
-  portOutsideBoard: SPREAD_ANCHORS.upperHighBoard,
-  portInsideBoard: SPREAD_ANCHORS.upperLowBoard,
-  portHighDiver: SPREAD_ANCHORS.upperHighDiver,
-  portLowDiver: SPREAD_ANCHORS.upperLowDiver,
-  portDownRigger: SPREAD_ANCHORS.upperDownRigger,
-  chuteRod: SPREAD_ANCHORS.chuteRod,
-  starboardDownRigger: SPREAD_ANCHORS.lowerDownRigger,
-  starboardLowDiver: SPREAD_ANCHORS.lowerLowDiver,
-  starboardHighDiver: SPREAD_ANCHORS.lowerHighDiver,
-  starboardInsideBoard: SPREAD_ANCHORS.lowerLowBoard,
-  starboardOutsideBoard: SPREAD_ANCHORS.lowerHighBoard
-};
+export let SLOT_ANCHORS;
 
-const SLOT_ENDPOINTS = {
+export const SLOT_ENDPOINTS = {
   portOutsideBoard: { xPct: 155, yPct: -44 },
   portInsideBoard: { xPct: 155, yPct: -32 },
   portHighDiver: { xPct: 155, yPct: -20 },
@@ -117,7 +114,7 @@ const SLOT_ENDPOINTS = {
   starboardOutsideBoard: { xPct: 155, yPct: 144 }
 };
 
-const SLOT_LANES = {
+export const SLOT_LANES = {
   portOutsideBoard: { xPct: 72, yPct: -44 },
   portInsideBoard: { xPct: 72, yPct: -32 },
   portHighDiver: { xPct: 72, yPct: -20 },
@@ -128,7 +125,7 @@ const SLOT_LANES = {
   starboardOutsideBoard: { xPct: 72, yPct: 144 }
 };
 
-const DOWNRIGGER_LINES = {
+export const DOWNRIGGER_LINES = {
   portDownRigger: {
     start: { xPct: 86.78, yPct: 9.61 },
     end: { xPct: 155, yPct: 9.61 }
@@ -143,7 +140,7 @@ const DOWNRIGGER_LINES = {
   }
 };
 
-const SLOT_LABELS = {
+export const SLOT_LABELS = {
   portOutsideBoard: { xPct: 158, yPct: -44 },
   portInsideBoard: { xPct: 158, yPct: -32 },
   portHighDiver: { xPct: 158, yPct: -20 },
@@ -157,7 +154,7 @@ const SLOT_LABELS = {
   starboardOutsideBoard: { xPct: 158, yPct: 144 }
 };
 
-function getSpreadSlot(rod) {
+export function getSpreadSlot(rod) {
   const method = rod?.trollingMethod ?? rod?.presentation;
   const side = rod?.lineSide ?? rod?.side;
   if (method === "Chute Rod") return "chuteRod";
@@ -177,11 +174,11 @@ function getSpreadSlot(rod) {
   return slots[`${side}|${method}`] || null;
 }
 
-function uniqueText(values) {
+export function uniqueText(values) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))].join(", ");
 }
 
-function buildSpreadGroups(rods = []) {
+export function buildSpreadGroups(rods = []) {
   const grouped = new Map();
   rods.forEach((rod) => {
     const slot = getSpreadSlot(rod);
@@ -216,7 +213,7 @@ function buildSpreadGroups(rods = []) {
     .sort((a, b) => SPREAD_SLOT_CONFIG[a.slot].order - SPREAD_SLOT_CONFIG[b.slot].order);
 }
 
-function getSpreadLayout(groups = []) {
+export function getSpreadLayout(groups = []) {
   return groups.map((group) => {
     const specialLine = DOWNRIGGER_LINES[group.slot];
     return {
@@ -230,7 +227,7 @@ function getSpreadLayout(groups = []) {
   });
 }
 
-function spreadGroupStats(group) {
+export function spreadGroupStats(group) {
   const stats = [
     group.fishCount > 0 ? `${group.fishCount} fish` : "",
     group.lostCount > 0 ? `${group.lostCount} lost` : ""
@@ -238,7 +235,7 @@ function spreadGroupStats(group) {
   return stats;
 }
 
-function spreadGearMarkup(group) {
+export function spreadGearMarkup(group) {
   const tokens = [];
   const seen = new Set();
   group.rods.forEach((rod) => {
@@ -261,11 +258,11 @@ function spreadGearMarkup(group) {
   }).join("");
 }
 
-function percentPointStyle(point) {
+export function percentPointStyle(point) {
   return `left:${point.xPct}%;top:${point.yPct}%`;
 }
 
-function spreadCssLine(start, end, className = "") {
+export function spreadCssLine(start, end, className = "") {
   const left = Math.min(start.xPct, end.xPct);
   const top = Math.min(start.yPct, end.yPct);
   const width = Math.abs(end.xPct - start.xPct);
@@ -276,13 +273,13 @@ function spreadCssLine(start, end, className = "") {
   return `<div class="spread-css-line ${direction} ${className}" style="left:${left}%;top:${top}%;width:${width}%;height:${Math.max(height, 0.3)}%"></div>`;
 }
 
-function spreadMarkerMarkup(group) {
+export function spreadMarkerMarkup(group) {
   if (["downRigger", "chute"].includes(group.markerType)) return "";
   const markerPoint = ["board", "diver"].includes(group.markerType) ? group.bend : group.end;
   return `<span class="spread-end-marker spread-marker-${group.markerType}" style="${percentPointStyle(markerPoint)}"></span>`;
 }
 
-function renderCheater(group) {
+export function renderCheater(group) {
   if (!group.hasCheater) return "";
   const fishingLineStart = group.start;
   const midpoint = {
@@ -308,7 +305,7 @@ function renderCheater(group) {
   `;
 }
 
-function renderMainSpreadLine(group) {
+export function renderMainSpreadLine(group) {
   if (["board", "diver"].includes(group.markerType)) {
     return `
       ${spreadCssLine(group.start, group.bend, "spread-outward-line")}
@@ -318,19 +315,19 @@ function renderMainSpreadLine(group) {
   return spreadCssLine(group.start, group.end, "spread-main-line");
 }
 
-function spreadNamePoint(group) {
+export function spreadNamePoint(group) {
   return {
     xPct: (SLOT_LANES.portOutsideBoard.xPct + SLOT_ENDPOINTS.portOutsideBoard.xPct) / 2,
     yPct: group.end.yPct
   };
 }
 
-function spreadGroupComboLabel(group) {
+export function spreadGroupComboLabel(group) {
   const combos = [...new Set(group.rods.map((rod) => comboName(rod.comboId)).filter(Boolean))];
   return combos.join(", ") || group.label;
 }
 
-function renderSpreadDiagram(rods = [], options = {}) {
+export function renderSpreadDiagram(rods = [], options = {}) {
   const layouts = getSpreadLayout(buildSpreadGroups(rods));
   const renderedLines = layouts.map((group) => {
     const stats = spreadGroupStats(group);
@@ -370,7 +367,7 @@ function renderSpreadDiagram(rods = [], options = {}) {
   `;
 }
 
-function tripRodsForSpread(trip) {
+export function tripRodsForSpread(trip) {
   return (trip?.gearUsed || []).map((gearItem) => {
     const counts = typeof setupLineCounts === "function"
       ? setupLineCounts(trip, gearItem)
@@ -394,12 +391,12 @@ function tripRodsForSpread(trip) {
   });
 }
 
-function renderTrollingSpread(trip) {
+export function renderTrollingSpread(trip) {
   if (!isTrollingTripRecord(trip)) return "";
   return renderSpreadDiagram(tripRodsForSpread(trip));
 }
 
-function liveSetupLineCounts(setupLineId) {
+export function liveSetupLineCounts(setupLineId) {
   if (!setupLineId) return { fish: 0, lost: 0 };
   const fish = [...els.catchRows.querySelectorAll(".catch-row")]
     .filter((row) => row.querySelector(".catch-setup-line")?.value === setupLineId)
@@ -410,14 +407,14 @@ function liveSetupLineCounts(setupLineId) {
   return { fish, lost };
 }
 
-function liveCheaterFishCount(setupLineId) {
+export function liveCheaterFishCount(setupLineId) {
   if (!setupLineId) return 0;
   return [...els.catchRows.querySelectorAll(".catch-row")]
     .filter((row) => row.querySelector(".catch-setup-line")?.value === `${setupLineId}::cheater`)
     .length;
 }
 
-function liveTripRodsForSpread() {
+export function liveTripRodsForSpread() {
   return [...els.tripGearRows.querySelectorAll(".gear-used-row")].map((row) => {
     if (!row.dataset.gearId) row.dataset.gearId = createId();
     const counts = liveSetupLineCounts(row.dataset.gearId);
@@ -439,11 +436,27 @@ function liveTripRodsForSpread() {
   });
 }
 
-function renderLiveTrollingSpread() {
+export function renderLiveTrollingSpread() {
   const section = document.querySelector("#tripTrollingSpreadPreview");
   const canvas = document.querySelector("#tripTrollingSpreadCanvas");
   if (!section || !canvas) return;
   const trolling = isTrollingTrip();
   section.classList.toggle("hidden", !trolling);
   if (trolling) canvas.innerHTML = renderSpreadDiagram(liveTripRodsForSpread());
+}
+
+export function setup() {
+  SLOT_ANCHORS = {
+    portOutsideBoard: SPREAD_ANCHORS.upperHighBoard,
+    portInsideBoard: SPREAD_ANCHORS.upperLowBoard,
+    portHighDiver: SPREAD_ANCHORS.upperHighDiver,
+    portLowDiver: SPREAD_ANCHORS.upperLowDiver,
+    portDownRigger: SPREAD_ANCHORS.upperDownRigger,
+    chuteRod: SPREAD_ANCHORS.chuteRod,
+    starboardDownRigger: SPREAD_ANCHORS.lowerDownRigger,
+    starboardLowDiver: SPREAD_ANCHORS.lowerLowDiver,
+    starboardHighDiver: SPREAD_ANCHORS.lowerHighDiver,
+    starboardInsideBoard: SPREAD_ANCHORS.lowerLowBoard,
+    starboardOutsideBoard: SPREAD_ANCHORS.lowerHighBoard
+  };
 }

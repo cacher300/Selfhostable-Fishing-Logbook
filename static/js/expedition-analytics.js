@@ -1,4 +1,4 @@
-(function initExpeditionAnalytics(global) {
+export const ExpeditionAnalytics = (() => {
   function number(value) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -60,11 +60,11 @@
     return trips.map((trip) => trip.expeditionId === expeditionId ? { ...trip, expeditionId: "" } : trip);
   }
 
-  global.ExpeditionAnalytics = {
+  return {
     inclusiveDays,
     sortedExpeditions,
     summarize,
     tripOutsideRange,
     unassignTrips
   };
-})(typeof globalThis !== "undefined" ? globalThis : window);
+})();

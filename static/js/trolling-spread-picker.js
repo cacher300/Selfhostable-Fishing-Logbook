@@ -1,4 +1,13 @@
-function trollingSpreadPickerItemLabel(item) {
+import { ui } from "./app-state.js";
+import { choiceLabel, currentTrollingSpreads } from "./app-normalization.js";
+import { els } from "./app-elements.js";
+import { syncTripFormChrome } from "./trip-editor.js";
+import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, updateAllRowSummaries } from "./trip-rows.js";
+import { comboName } from "./gear-core.js";
+import { renderLiveTrollingSpread, setupLineSideLabel } from "./trolling-spread.js";
+import { escapeHtml, isTrollingTrip } from "./form-utils.js";
+
+export function trollingSpreadPickerItemLabel(item) {
   return item.spread.map((row, index) => {
     const combo = comboName(row.comboId) || `Rod ${index + 1}`;
     const side = setupLineSideLabel(row.side);
@@ -7,7 +16,7 @@ function trollingSpreadPickerItemLabel(item) {
   }).join(" · ");
 }
 
-function renderTrollingSpreadPicker() {
+export function renderTrollingSpreadPicker() {
   if (!els.trollingSpreadPickerList) return;
   const spreads = currentTrollingSpreads();
   els.trollingSpreadPickerList.innerHTML = spreads.length
@@ -23,13 +32,13 @@ function renderTrollingSpreadPicker() {
     : '<p class="trolling-spread-picker-empty">No saved spreads yet. Create one in Settings → Trolling Spread.</p>';
 }
 
-function openTrollingSpreadPicker() {
+export function openTrollingSpreadPicker() {
   if (!isTrollingTrip() || !els.trollingSpreadPickerDialog) return;
   renderTrollingSpreadPicker();
   els.trollingSpreadPickerDialog.showModal();
 }
 
-function applySavedTrollingSpread(spreadId) {
+export function applySavedTrollingSpread(spreadId) {
   const spread = currentTrollingSpreads().find((item) => item.id === spreadId);
   if (!spread) return;
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
@@ -53,11 +62,13 @@ function applySavedTrollingSpread(spreadId) {
   updateAllRowSummaries();
   renderLiveTrollingSpread();
   els.trollingSpreadPickerDialog?.close();
-  tripFormUserChanged = true;
+  ui.tripFormUserChanged = true;
   syncTripFormChrome();
 }
 
-els.trollingSpreadPickerList?.addEventListener("click", (event) => {
-  const option = event.target.closest("[data-pick-trolling-spread]");
-  if (option) applySavedTrollingSpread(option.dataset.pickTrollingSpread);
-});
+export function setup() {
+  els.trollingSpreadPickerList?.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-pick-trolling-spread]");
+    if (option) applySavedTrollingSpread(option.dataset.pickTrollingSpread);
+  });
+}

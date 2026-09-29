@@ -1,50 +1,68 @@
-function formatDate(value) {
+import { activeStatsFilters, state, ui } from "./app-state.js";
+import { locationNames, optionChoices, optionLabels } from "./app-normalization.js";
+import { unitSymbol } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { isVideoMedia, mediaMarkup, previewImage } from "./app-media.js";
+import { populateLocationSelect } from "./locations.js";
+import { syncUnitLabels } from "./settings.js";
+import { populateTripExpeditionSelect, renderExpeditions } from "./expeditions.js";
+import { mergePeople, tripIntent, tripRatingClass, tripRatingLabel, tripRatingValue } from "./trip-editor.js";
+import { updateAllRowSummaries } from "./trip-rows.js";
+import { flasherName, lureName } from "./gear-core.js";
+import { renderGearLibrary } from "./gear-inventory.js";
+import { resolveTripLineRecord } from "./trolling-spread.js";
+import { tripMonthName } from "./stats-scope.js";
+import { calculateHours, parseFirstNumber, renderAdvancedStats } from "./stats.js";
+import { renderPersonalBests } from "./personal-bests.js";
+import { escapeHtml, trimNumber } from "./form-utils.js";
+
+export function formatDate(value) {
   if (!value) return "";
   return new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-function number(value) {
+export function number(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function totalCaught(trip) {
+export function totalCaught(trip) {
   return (trip.catches || []).reduce((sum, catchItem) => sum + fishCount(catchItem), 0);
 }
 
-function totalWeight(trip) {
+export function totalWeight(trip) {
   return (trip.catches || []).reduce((sum, catchItem) => sum + catchWeight(catchItem), 0);
 }
 
-function catchWeight(catchItem) {
+export function catchWeight(catchItem) {
   const weight = parseFirstNumber(catchItem?.weight);
   return weight ? weight * fishCount(catchItem) : 0;
 }
 
-function fishCount(catchItem) {
+export function fishCount(catchItem) {
   if (!catchItem) return 0;
   if (catchItem.quantity !== undefined && catchItem.quantity !== "") return Math.max(0, number(catchItem.quantity));
   return 1;
 }
 
-function catchRate(trip) {
+export function catchRate(trip) {
   const hours = tripHours(trip);
   return hours > 0 ? totalCaught(trip) / hours : 0;
 }
 
-function tripHours(trip) {
+export function tripHours(trip) {
   const calculated = calculateHours(trip.launchTime, trip.linesPulledTime);
   if (calculated) return Math.max(0, calculated - number(trip.idleHours));
   return number(trip.hours);
 }
 
-function tripStartMinutes(trip) {
+export function tripStartMinutes(trip) {
   const match = String(trip?.launchTime || "").match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   return (Number(match[1]) * 60) + Number(match[2]);
 }
 
-function compareTripsByDateTime(a, b, direction = "desc") {
+export function compareTripsByDateTime(a, b, direction = "desc") {
   const dateCompare = String(a.date || "").localeCompare(String(b.date || ""));
   if (dateCompare) return direction === "asc" ? dateCompare : -dateCompare;
 
@@ -56,24 +74,24 @@ function compareTripsByDateTime(a, b, direction = "desc") {
   return direction === "asc" ? aStart - bStart : bStart - aStart;
 }
 
-function dateKeyToDayNumber(dateKey) {
+export function dateKeyToDayNumber(dateKey) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey || "")) return null;
   const [year, month, day] = dateKey.split("-").map(Number);
   return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
 }
 
-function todayDayNumber() {
+export function todayDayNumber() {
   const today = new Date();
   return Math.floor(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 86400000);
 }
 
-function uniqueSortedTripDays(trips) {
+export function uniqueSortedTripDays(trips) {
   return [...new Set(trips.map((trip) => trip.date).filter((date) => dateKeyToDayNumber(date) !== null))]
     .map((date) => dateKeyToDayNumber(date))
     .sort((a, b) => a - b);
 }
 
-function longestConsecutiveRun(dayNumbers) {
+export function longestConsecutiveRun(dayNumbers) {
   let longest = 0;
   let current = 0;
   let previous = null;
@@ -87,7 +105,7 @@ function longestConsecutiveRun(dayNumbers) {
   return longest;
 }
 
-function fishingDateMetrics(trips, hasCatch = (trip) => totalCaught(trip) > 0) {
+export function fishingDateMetrics(trips, hasCatch = (trip) => totalCaught(trip) > 0) {
   const tripDays = uniqueSortedTripDays(trips);
   const catchDays = uniqueSortedTripDays(trips.filter(hasCatch));
   const today = todayDayNumber();
@@ -113,7 +131,7 @@ function fishingDateMetrics(trips, hasCatch = (trip) => totalCaught(trip) > 0) {
   };
 }
 
-function countBy(items, getKey, getCount = () => 1) {
+export function countBy(items, getKey, getCount = () => 1) {
   return items.reduce((map, item) => {
     const key = getKey(item);
     if (!key) return map;
@@ -122,11 +140,11 @@ function countBy(items, getKey, getCount = () => 1) {
   }, new Map());
 }
 
-function topEntries(map, limit = 4) {
+export function topEntries(map, limit = 4) {
   return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
 }
 
-function renderBars(container, entries) {
+export function renderBars(container, entries) {
   container.innerHTML = "";
   if (!entries.length) {
     container.innerHTML = `<p class="muted">No data yet</p>`;
@@ -145,7 +163,7 @@ function renderBars(container, entries) {
   });
 }
 
-function renderStats() {
+export function renderStats() {
   const allCatches = state.trips.flatMap((trip) => (trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip })));
   const fish = state.trips.reduce((sum, trip) => sum + totalCaught(trip), 0);
   const hours = state.trips.reduce((sum, trip) => sum + tripHours(trip), 0);
@@ -168,10 +186,10 @@ function renderStats() {
   renderBars(els.lureBars, topEntries(lureCounts));
 }
 
-function renderBrandSpotlight() {
-  if (brandSpotlightTimer) {
-    clearInterval(brandSpotlightTimer);
-    brandSpotlightTimer = null;
+export function renderBrandSpotlight() {
+  if (ui.brandSpotlightTimer) {
+    clearInterval(ui.brandSpotlightTimer);
+    ui.brandSpotlightTimer = null;
   }
 
   const shufflePhotos = (items) => {
@@ -230,14 +248,14 @@ function renderBrandSpotlight() {
 
   let activeIndex = 0;
   const slides = [...els.brandSpotlight.querySelectorAll(".spotlight-slide")];
-  brandSpotlightTimer = setInterval(() => {
+  ui.brandSpotlightTimer = setInterval(() => {
     slides[activeIndex]?.classList.remove("is-active");
     activeIndex = (activeIndex + 1) % slides.length;
     slides[activeIndex]?.classList.add("is-active");
   }, 4200);
 }
 
-function renderFilters() {
+export function renderFilters() {
   const targets = ["All targets", ...new Set(state.trips.map((trip) => trip.targetSpecies).filter(Boolean))];
   const selectedTarget = els.targetFilter.value || "All targets";
   els.targetFilter.innerHTML = targets.map((target) => `<option ${target === selectedTarget ? "selected" : ""}>${escapeHtml(target)}</option>`).join("");
@@ -255,28 +273,28 @@ function renderFilters() {
   els.yearFilter.innerHTML = years.map((year) => `<option ${String(year) === selectedYear ? "selected" : ""}>${year}</option>`).join("");
 }
 
-function renderStatsMethodFilter() {
+export function renderStatsMethodFilter() {
   if (window.location.pathname === "/stats") {
     const params = new URLSearchParams(window.location.search);
-    activeStatsDateRange = ["all", "season", "30", "90"].includes(params.get("range")) ? params.get("range") : "all";
-    activeStatsMethod = params.get("method") || activeStatsMethod;
-    activeStatsSort = params.get("sort") || activeStatsSort;
-    activeStatsMinTrips = Math.max(0, Math.floor(Number(params.get("minTrips")) || 0));
-    activeStatsMinHours = Math.max(0, Number(params.get("minHours")) || 0);
-    activeStatsIncludeLost = params.get("outcome") === "strikes";
+    ui.activeStatsDateRange = ["all", "season", "30", "90"].includes(params.get("range")) ? params.get("range") : "all";
+    ui.activeStatsMethod = params.get("method") || ui.activeStatsMethod;
+    ui.activeStatsSort = params.get("sort") || ui.activeStatsSort;
+    ui.activeStatsMinTrips = Math.max(0, Math.floor(Number(params.get("minTrips")) || 0));
+    ui.activeStatsMinHours = Math.max(0, Number(params.get("minHours")) || 0);
+    ui.activeStatsIncludeLost = params.get("outcome") === "strikes";
     Object.keys(activeStatsFilters).forEach((key) => {
       if (params.has(key)) activeStatsFilters[key] = params.get(key);
     });
-    if (els.statsDateFilter) els.statsDateFilter.value = activeStatsDateRange;
-    if (els.statsSortFilter) els.statsSortFilter.value = activeStatsSort;
-    if (els.statsMinTripsInput) els.statsMinTripsInput.value = activeStatsMinTrips;
-    if (els.statsMinHoursInput) els.statsMinHoursInput.value = activeStatsMinHours;
-    if (els.statsIncludeLostToggle) els.statsIncludeLostToggle.checked = activeStatsIncludeLost;
+    if (els.statsDateFilter) els.statsDateFilter.value = ui.activeStatsDateRange;
+    if (els.statsSortFilter) els.statsSortFilter.value = ui.activeStatsSort;
+    if (els.statsMinTripsInput) els.statsMinTripsInput.value = ui.activeStatsMinTrips;
+    if (els.statsMinHoursInput) els.statsMinHoursInput.value = ui.activeStatsMinHours;
+    if (els.statsIncludeLostToggle) els.statsIncludeLostToggle.checked = ui.activeStatsIncludeLost;
   }
   const methods = ["All methods", ...new Set([...state.methods, ...state.trips.map((trip) => trip.method)].filter(Boolean))];
-  if (!methods.includes(activeStatsMethod)) activeStatsMethod = "All methods";
+  if (!methods.includes(ui.activeStatsMethod)) ui.activeStatsMethod = "All methods";
   els.statsMethodFilter.innerHTML = methods.map((method) => (
-    `<option value="${escapeHtml(method)}" ${method === activeStatsMethod ? "selected" : ""}>${escapeHtml(method)}</option>`
+    `<option value="${escapeHtml(method)}" ${method === ui.activeStatsMethod ? "selected" : ""}>${escapeHtml(method)}</option>`
   )).join("");
 
   const species = ["All species", ...new Set([...state.species, ...state.trips.flatMap((trip) => [
@@ -346,7 +364,7 @@ function renderStatsMethodFilter() {
   )).join("");
 }
 
-function filteredTrips() {
+export function filteredTrips() {
   const query = els.searchInput.value.trim().toLowerCase();
   const target = els.targetFilter.value;
   const method = els.methodFilter.value;
@@ -387,7 +405,7 @@ function filteredTrips() {
   return trips.sort(compareTripsByActiveSort);
 }
 
-function textTripSortValue(trip, key) {
+export function textTripSortValue(trip, key) {
   const values = {
     location: trip.location,
     launch: trip.launch,
@@ -398,18 +416,18 @@ function textTripSortValue(trip, key) {
   return String(values[key] || "").toLowerCase();
 }
 
-function compareTripText(a, b, key, direction) {
+export function compareTripText(a, b, key, direction) {
   const result = textTripSortValue(a, key).localeCompare(textTripSortValue(b, key));
   return (direction === "desc" ? -result : result) || compareTripsByDateTime(a, b, "desc");
 }
 
-function compareTripNumber(a, b, getValue, direction) {
+export function compareTripNumber(a, b, getValue, direction) {
   const result = Number(getValue(a)) - Number(getValue(b));
   return (direction === "desc" ? -result : result) || compareTripsByDateTime(a, b, "desc");
 }
 
-function compareTripsByActiveSort(a, b) {
-  const sort = activeTripSort || { key: "date", direction: "desc" };
+export function compareTripsByActiveSort(a, b) {
+  const sort = ui.activeTripSort || { key: "date", direction: "desc" };
   switch (sort.key) {
     case "location":
     case "launch":
@@ -430,7 +448,7 @@ function compareTripsByActiveSort(a, b) {
   }
 }
 
-function tripSortFromSelect(value) {
+export function tripSortFromSelect(value) {
   const sorts = {
     "date-desc": { key: "date", direction: "desc" },
     "date-asc": { key: "date", direction: "asc" },
@@ -441,7 +459,7 @@ function tripSortFromSelect(value) {
   return sorts[value] || sorts["date-desc"];
 }
 
-function tripSortSelectValue(sort = activeTripSort) {
+export function tripSortSelectValue(sort = ui.activeTripSort) {
   const key = `${sort?.key || "date"}-${sort?.direction || "desc"}`;
   const values = {
     "date-desc": "date-desc",
@@ -453,14 +471,14 @@ function tripSortSelectValue(sort = activeTripSort) {
   return values[key] || "custom";
 }
 
-function tripHeaderSortButton(key, label) {
-  const active = activeTripSort?.key === key;
-  const direction = activeTripSort?.direction === "asc" ? "asc" : "desc";
+export function tripHeaderSortButton(key, label) {
+  const active = ui.activeTripSort?.key === key;
+  const direction = ui.activeTripSort?.direction === "asc" ? "asc" : "desc";
   const ariaSort = active ? (direction === "asc" ? "ascending" : "descending") : "none";
   return `<button class="table-sort-button${active ? " is-active" : ""}" type="button" data-trip-sort="${escapeHtml(key)}" aria-sort="${ariaSort}">${escapeHtml(label)}${active ? `<span>${direction === "desc" ? "↓" : "↑"}</span>` : ""}</button>`;
 }
 
-function renderTrips() {
+export function renderTrips() {
   const trips = filteredTrips();
   const sortValue = tripSortSelectValue();
   els.sortSelect.value = sortValue;
@@ -504,7 +522,7 @@ function renderTrips() {
   els.emptyState.classList.toggle("hidden", trips.length > 0);
 }
 
-function renderSelectOptions() {
+export function renderSelectOptions() {
   populateLocationSelect();
   populateTripExpeditionSelect();
   populateDatalist(els.personOptions, state.people.map((person) => person.name).filter(Boolean));
@@ -524,12 +542,12 @@ function renderSelectOptions() {
   document.querySelectorAll(".trip-gear-side").forEach((select) => populateChoiceSelect(select, optionChoices("setupLineSides"), "Select side"));
 }
 
-function populateDatalist(datalist, options) {
+export function populateDatalist(datalist, options) {
   if (!datalist) return;
   datalist.innerHTML = options.map((item) => `<option value="${escapeHtml(item)}"></option>`).join("");
 }
 
-function populateOptionSelect(select, options, placeholder) {
+export function populateOptionSelect(select, options, placeholder) {
   if (!select) return;
   const current = select.value;
   const normalizedOptions = options.includes(current) || !current ? options : [...options, current];
@@ -538,7 +556,7 @@ function populateOptionSelect(select, options, placeholder) {
   )).join("");
 }
 
-function populateChoiceSelect(select, options, placeholder, selectedValue = "") {
+export function populateChoiceSelect(select, options, placeholder, selectedValue = "") {
   if (!select) return;
   const current = selectedValue || select.value;
   const normalizedOptions = options.some((item) => item.value === current) || !current
@@ -549,7 +567,7 @@ function populateChoiceSelect(select, options, placeholder, selectedValue = "") 
   )).join("");
 }
 
-function renderAll() {
+export function renderAll() {
   renderSelectOptions();
   renderFilters();
   renderStatsMethodFilter();

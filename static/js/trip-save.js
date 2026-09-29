@@ -1,4 +1,20 @@
-function collectTripFromForm() {
+import { createId } from "./app-defaults.js";
+import { state, ui } from "./app-state.js";
+import { findLaunchByIdOrName, generatedTripTitle } from "./app-normalization.js";
+import { saveState } from "./app-persistence.js";
+import { els } from "./app-elements.js";
+import { cleanupDeletedMedia, isUsableCoordinates, markMediaEditSessionSaved, mediaReferenceKeys } from "./app-media.js";
+import { enrichTripWithWeather, resolveTripWaveSnapshot, weatherWindText } from "./location-weather.js";
+import { chopLabelForWaveHeight } from "./settings-core.js";
+import { renderAll } from "./dashboard.js";
+import { catchMetadataLocksPayload, catchPhotoLocationById, collectCatchPhotos, collectNotePhotos, fishCoordinatesFromRow, lockedPhotoCoordinatesFromRow, manualCoordinatesFromRow, selectedCatchHeroPhoto } from "./photos.js";
+import { closeTripDialog, collectPeople, collectProbeTemperatureProfile, confirmTripSaveWarnings, deleteTripById, getTripIntent, getValue, hasCatchDepthData, mergePeople, setTripSaveLoading, setValue, showTripFormMessage, tripRatingValue, validateTripForm } from "./trip-editor.js";
+import { selectedComboForRow } from "./trip-rows.js";
+import { isSoftPlasticLureRow } from "./gear-pickers.js";
+import { calculateHours } from "./stats.js";
+import { idleHoursFromForm, isAttachedWeightPresentation, isCastingTrip, isDipseyDiverColorPresentation, isFlyFishingTrip, isLeadcoreCapablePresentation, isTrollingTrip, setupMinutesFromRow } from "./form-utils.js";
+
+export function collectTripFromForm() {
   const trolling = isTrollingTrip();
   const people = collectPeople();
   const existingTrip = state.trips.find((trip) => trip.id === getValue("tripId"));
@@ -191,7 +207,7 @@ function collectTripFromForm() {
 
   const location = state.locations.find((item) => item.id === getValue("tripLocation"));
   const launch = findLaunchByIdOrName(location, getValue("tripLaunch"), "");
-  const weatherData = activeTripWeatherData || null;
+  const weatherData = ui.activeTripWeatherData || null;
   const waveHeight = getValue("waveHeight");
   const waveChop = chopLabelForWaveHeight(waveHeight);
 
@@ -235,19 +251,19 @@ function collectTripFromForm() {
   };
 }
 
-function upsertListValue(listName, value) {
+export function upsertListValue(listName, value) {
   if (value && !state[listName].includes(value)) state[listName].push(value);
 }
 
-async function saveTrip(event) {
+export async function saveTrip(event) {
   return persistTrip(event, { draft: false });
 }
 
-async function saveTripAsDraft(event) {
+export async function saveTripAsDraft(event) {
   return persistTrip(event, { draft: true });
 }
 
-async function persistTrip(event, { draft = false } = {}) {
+export async function persistTrip(event, { draft = false } = {}) {
   event.preventDefault();
   if (!draft && !validateTripForm()) return;
   if (!draft && !confirmTripSaveWarnings()) return;
@@ -272,7 +288,7 @@ async function persistTrip(event, { draft = false } = {}) {
     trip = await enrichTripWithWeather(trip);
     trip = resolveTripWaveSnapshot(trip);
     trip.wind = weatherWindText(trip.weatherData);
-    activeTripWeatherData = trip.weatherData || null;
+    ui.activeTripWeatherData = trip.weatherData || null;
 
     const index = state.trips.findIndex((item) => item.id === trip.id);
     const previousMedia = index >= 0 ? [...mediaReferenceKeys(state.trips[index])] : [];
@@ -292,10 +308,10 @@ async function persistTrip(event, { draft = false } = {}) {
   }
 }
 
-async function deleteActiveTrip() {
-  if (!activeTripId) return;
+export async function deleteActiveTrip() {
+  if (!ui.activeTripId) return;
   try {
-    await deleteTripById(activeTripId, { closeEditor: true });
+    await deleteTripById(ui.activeTripId, { closeEditor: true });
   } catch (error) {
     console.error("Could not delete trip.", error);
     showTripFormMessage(error.message || "The trip could not be deleted.");

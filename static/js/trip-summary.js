@@ -1,4 +1,16 @@
-function tripSpeciesSummary(trip) {
+import { state } from "./app-state.js";
+import { spotName } from "./app-normalization.js";
+import { displayStoredMeasurement, formatDisplayTime, formatUnitValue } from "./app-units.js";
+import { isVideoMedia, mediaMarkup, originalMediaUrl, previewImage } from "./app-media.js";
+import { barometricTrendLabel, celsiusText, hourlyWindText, timeText, weatherValue, weatherValueWithTrend, weatherWindText } from "./location-weather.js";
+import { fishCount } from "./dashboard.js";
+import { flasherName, gearPhotos, lureName, rodName } from "./gear-core.js";
+import { isTrollingTripRecord, resolveTripLineRecord, setupLineSideLabel } from "./trolling-spread.js";
+import { reportDepthDown, reportDepthValue, reportPersonName } from "./trip-report.js";
+import { presentationLabel } from "./stats.js";
+import { escapeHtml } from "./form-utils.js";
+
+export function tripSpeciesSummary(trip) {
   const speciesCounts = new Map();
   (trip.catches || []).forEach((catchItem) => {
     const species = String(catchItem.species || "").trim();
@@ -11,9 +23,9 @@ function tripSpeciesSummary(trip) {
     top: topSpecies ? `${displayTitleText(topSpecies[0])} (${topSpecies[1]})` : "None"
   };
 }
-const displayLowercaseTokens = new Set(["mph", "hPa", "kph", "km", "mm", "cm", "lb", "lbs", "ft", "in"]);
+export const displayLowercaseTokens = new Set(["mph", "hPa", "kph", "km", "mm", "cm", "lb", "lbs", "ft", "in"]);
 
-function displayTitleText(value = "") {
+export function displayTitleText(value = "") {
   const text = String(value || "").trim();
   if (!text) return "";
   return text.replace(/\S+/g, (word) => {
@@ -26,16 +38,16 @@ function displayTitleText(value = "") {
     return `${word.slice(0, firstLetterIndex)}${word[firstLetterIndex].toUpperCase()}${word.slice(firstLetterIndex + 1)}`;
   });
 }
-function displaySentenceText(value = "") {
+export function displaySentenceText(value = "") {
   const text = String(value || "").trim();
   if (!text) return "";
   return text.replace(/(^|[.!?]\s+)([a-z])/g, (match, prefix, letter) => `${prefix}${letter.toUpperCase()}`);
 }
-function displayPhotoTitle(photo) {
+export function displayPhotoTitle(photo) {
   return displaySentenceText(photo.caption || "Trip photo");
 }
 
-function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
+export function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
   if (!photos.length) return `<div class="empty-state compact-empty"><p>${escapeHtml(emptyText)}</p></div>`;
   const className = ["summary-photo-grid", options.compact ? "compact-photo-grid" : "", options.hero ? "hero-photo-grid" : ""].filter(Boolean).join(" ");
   return `
@@ -49,14 +61,14 @@ function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
     </div>
   `;
 }
-function catchMediaAltText(speciesOrTitle = "", index = 0, options = {}) {
+export function catchMediaAltText(speciesOrTitle = "", index = 0, options = {}) {
   const label = displayTitleText(speciesOrTitle || "Catch");
   const mediaType = options.video ? "video" : "photo";
   if (options.thumbnail) return `${label} catch ${mediaType} ${index + 1}`;
   return `${label} catch ${mediaType}`;
 }
 
-function catchMediaPreview(photo, speciesOrTitle, index, options = {}) {
+export function catchMediaPreview(photo, speciesOrTitle, index, options = {}) {
   const source = previewImage(photo);
   if (!source) return "";
   const isVideo = isVideoMedia(photo);
@@ -73,7 +85,7 @@ function catchMediaPreview(photo, speciesOrTitle, index, options = {}) {
   return imageMarkup;
 }
 
-function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {}) {
+export function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {}) {
   if (!photos.length) return "";
   const photoCount = photos.length;
   const heroIndex = options.heroPhotoId
@@ -152,16 +164,16 @@ function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {})
   `;
 }
 
-function displaySpeedValue(value) {
+export function displaySpeedValue(value) {
   return displayStoredMeasurement(value, "speed");
 }
 
-function displayFowValue(value) {
+export function displayFowValue(value) {
   const text = displayStoredMeasurement(value, "depth");
   return /\bFOW\b/i.test(text) ? text : `${text} FOW`;
 }
 
-function compactSetupDisplayLabel(record = {}) {
+export function compactSetupDisplayLabel(record = {}) {
   const lineLabel = displayTitleText(record.lineLabel || "");
   const side = displayTitleText(setupLineSideLabel(record.side));
   const presentation = displayTitleText(presentationLabel(record.presentation));
@@ -170,7 +182,7 @@ function compactSetupDisplayLabel(record = {}) {
   return [side, presentation].filter(Boolean).join(" ") || rod;
 }
 
-function tripWeatherSummaryData(trip) {
+export function tripWeatherSummaryData(trip) {
   const weatherData = trip.weatherData || {};
   const window = weatherData.tripWindow || {};
   const daily = weatherData.daily || {};
@@ -179,10 +191,6 @@ function tripWeatherSummaryData(trip) {
   const barometricTrend = window.pressureTrendRateHpa3h === null || window.pressureTrendRateHpa3h === undefined
     ? ""
     : `${window.pressureTrendRateHpa3h > 0 ? "+" : ""}${formatUnitValue(Math.abs(window.pressureTrendRateHpa3h), "pressure", "hPa", { decimals: 1 })} / 3 hr / ${window.pressureTrendRateLabel || barometricTrendLabel(window.pressureTrendRateHpa3h)}`;
-  const windTrend = [
-    trend.windTrend,
-    trend.windDirectionShiftDegrees ? `${trend.windDirectionShiftDegrees} deg wind shift` : ""
-  ].filter(Boolean).join(" / ");
   const primaryWindText = (trip.wind || weatherWindText(weatherData) || formatUnitValue(daily.windSpeedMaxMph, "windSpeed", "mph"))
     .split(",")[0]
     .trim();
@@ -201,7 +209,7 @@ function tripWeatherSummaryData(trip) {
   };
 }
 
-const CATCH_DETAIL_GROUPS = Object.freeze([
+export const CATCH_DETAIL_GROUPS = Object.freeze([
   { id: "overview", label: "Catch overview" },
   { id: "tackle", label: "Tackle" },
   { id: "location", label: "Location & depth" },
@@ -211,7 +219,7 @@ const CATCH_DETAIL_GROUPS = Object.freeze([
   { id: "notes", label: "Notes", wide: true }
 ]);
 
-function catchDetailValueMarkup(row) {
+export function catchDetailValueMarkup(row) {
   if (row.kind === "lure" && row.lureId) {
     const lure = state.lures.find((item) => item.id === row.lureId);
     const preview = gearPhotos(lure)[0];
@@ -224,7 +232,7 @@ function catchDetailValueMarkup(row) {
   return escapeHtml(row.value);
 }
 
-function catchDetailRows(trip, catchItem, catchIndex, catchType = "catch") {
+export function catchDetailRows(trip, catchItem, catchIndex, catchType = "catch") {
   const record = resolveTripLineRecord({ ...catchItem, trip });
   const trollingTrip = isTrollingTripRecord(trip);
   const isLost = catchType === "lost";
@@ -291,7 +299,7 @@ function catchDetailRows(trip, catchItem, catchIndex, catchType = "catch") {
   `).join("")}</div></section>`;
 }
 
-function reportAdditionalConditionRows(trip) {
+export function reportAdditionalConditionRows(trip) {
   const {
     weatherData,
     window,
@@ -314,7 +322,7 @@ function reportAdditionalConditionRows(trip) {
   ];
 }
 
-function renderCatchDetailPopout(trip, catchItem, index, selectedIndex, catchType = "catch") {
+export function renderCatchDetailPopout(trip, catchItem, index, selectedIndex, catchType = "catch") {
   return `
     <div class="catch-detail-popout" id="catchDetailPopout" role="dialog" aria-modal="true" aria-label="Catch details">
       <div class="catch-detail-panel">
@@ -335,7 +343,7 @@ function renderCatchDetailPopout(trip, catchItem, index, selectedIndex, catchTyp
   `;
 }
 
-function renderCatchDetailLocationPopout(trip, catchItem, index) {
+export function renderCatchDetailLocationPopout(trip, catchItem, index) {
   const title = displayTitleText(catchItem.species || "Catch location");
   return `
     <div class="catch-detail-location-popout" id="catchDetailLocationPopout" data-catch-index="${index}" data-catch-location-scope="trip" role="dialog" aria-modal="true" aria-labelledby="catchDetailLocationTitle">

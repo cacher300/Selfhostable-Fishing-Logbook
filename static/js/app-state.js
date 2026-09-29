@@ -1,23 +1,30 @@
-let state = structuredClone(defaults);
-let logbookRevision = "";
-let activeTripId = null;
-let newTripStartupSpreadApplied = false;
-let newTripSavedSetupAppliedMethods = new Set();
-let activeSummaryTripId = null;
-let activeReportTimelineFilter = "all";
-let activeReportTimelineSort = { key: "time", direction: "asc" };
-let activeReportTimelineColumns = null;
-let activeNotePhotos = [];
-let activeTripSort = { key: "date", direction: "desc" };
-let activeStatsMethod = "All methods";
-let activeStatsDateRange = "all";
-let activeStatsSort = "fishPerHour";
-let activeStatsMinTrips = 0;
-let activeStatsMinHours = 0;
-let activeStatsIncludeLost = false;
-const activeStatsTableSort = {};
-const activeStatsChartMetric = {};
-const activeStatsFilters = {
+import { storageKey } from "./app-config.js";
+import { defaults } from "./app-defaults.js";
+import { validateState } from "./app-normalization.js";
+
+export const ui = {};
+
+export let state;
+
+export let logbookRevision = "";
+ui.activeTripId = null;
+ui.newTripStartupSpreadApplied = false;
+ui.newTripSavedSetupAppliedMethods = new Set();
+ui.activeSummaryTripId = null;
+ui.activeReportTimelineFilter = "all";
+ui.activeReportTimelineSort = { key: "time", direction: "asc" };
+ui.activeReportTimelineColumns = null;
+ui.activeNotePhotos = [];
+ui.activeTripSort = { key: "date", direction: "desc" };
+ui.activeStatsMethod = "All methods";
+ui.activeStatsDateRange = "all";
+ui.activeStatsSort = "fishPerHour";
+ui.activeStatsMinTrips = 0;
+ui.activeStatsMinHours = 0;
+ui.activeStatsIncludeLost = false;
+export const activeStatsTableSort = {};
+export const activeStatsChartMetric = {};
+export const activeStatsFilters = {
   species: "All species",
   person: "All people",
   location: "All locations",
@@ -29,66 +36,66 @@ const activeStatsFilters = {
   month: "All months",
   rating: "All ratings"
 };
-const activePersonalBestsFilters = {
+export const activePersonalBestsFilters = {
   year: "All years",
   month: "All months",
   rankBy: "weight"
 };
-let activeMapSpecies = "All species";
-let activeMapLake = "All lakes";
-let activeMapMethod = "All methods";
-let activeMapDirection = "All directions";
-let activeMapAngler = "All anglers";
-let activeMapYear = "All years";
-let activeMapYearFilteringHidden = true;
-let activeMapIncludeTripMedia = false;
-let activeMapIncludeSpots = true;
-let activeMapShowDirectionArrows = true;
-const mapNoaaChartsPreferenceKey = `${storageKey}-map-noaa-charts`;
-let activeMapShowNOAACharts = loadMapNoaaChartsPreference();
-let activeTripSummaryMapFilter = "All map items";
-let activeGalleryCategory = "all";
-let brandSpotlightTimer = null;
-let fishMap = null;
-let fishMapMarkers = null;
-let fishMapSpotMarkers = null;
-let tripSummaryMap = null;
-let tripSummaryMapMarkers = null;
-let catchDetailMap = null;
-let catchDetailMapMarkers = null;
-let locationPickerMap = null;
-let locationPickerMarker = null;
-let probeProfileLocationMap = null;
-let probeProfileLocationMarker = null;
-let probeProfileImportCoordinates = null;
-let pendingProbeProfileImportCoordinates = null;
-let privatePhotoLocationMap = null;
-let privatePhotoLocationLayer = null;
-let activePrivatePhotoLocationId = "";
-let editingPrivatePhotoLocationId = "";
-let fishingSpotMap = null;
-let fishingSpotLayer = null;
-let activeFishingSpotId = "";
-let editingFishingSpotId = "";
-let fishingSpotNameEditId = "";
-let catchLocationPickerMap = null;
-let catchLocationPickerMarker = null;
-let activeCatchLocationRow = null;
-let activeLocationPickerMode = "location";
-let activeLocationPickerLocationId = "";
-let activeLocationPickerLaunchId = "";
-let activeTripWeatherData = null;
-let activeTripWeatherKey = "";
-let weatherPreviewTimer = null;
-let tripFormInitialSnapshot = "";
-let tripFormUserChanged = false;
-let activePhotoQueueTarget = null;
-let pendingLureImage = null;
-let pendingFlasherImage = null;
-let pendingReelImage = null;
-let pendingRodImage = null;
-let activeGearTab = "baits";
-const returnToTripDialog = {
+ui.activeMapSpecies = "All species";
+ui.activeMapLake = "All lakes";
+ui.activeMapMethod = "All methods";
+ui.activeMapDirection = "All directions";
+ui.activeMapAngler = "All anglers";
+ui.activeMapYear = "All years";
+ui.activeMapYearFilteringHidden = true;
+ui.activeMapIncludeTripMedia = false;
+ui.activeMapIncludeSpots = true;
+ui.activeMapShowDirectionArrows = true;
+export let mapNoaaChartsPreferenceKey;
+
+ui.activeTripSummaryMapFilter = "All map items";
+ui.activeGalleryCategory = "all";
+ui.brandSpotlightTimer = null;
+ui.fishMap = null;
+ui.fishMapMarkers = null;
+ui.fishMapSpotMarkers = null;
+ui.tripSummaryMap = null;
+ui.tripSummaryMapMarkers = null;
+ui.catchDetailMap = null;
+ui.catchDetailMapMarkers = null;
+ui.locationPickerMap = null;
+ui.locationPickerMarker = null;
+ui.probeProfileLocationMap = null;
+ui.probeProfileLocationMarker = null;
+ui.probeProfileImportCoordinates = null;
+ui.pendingProbeProfileImportCoordinates = null;
+ui.privatePhotoLocationMap = null;
+ui.privatePhotoLocationLayer = null;
+ui.activePrivatePhotoLocationId = "";
+ui.editingPrivatePhotoLocationId = "";
+ui.fishingSpotMap = null;
+ui.fishingSpotLayer = null;
+ui.activeFishingSpotId = "";
+ui.editingFishingSpotId = "";
+ui.fishingSpotNameEditId = "";
+ui.catchLocationPickerMap = null;
+ui.catchLocationPickerMarker = null;
+ui.activeCatchLocationRow = null;
+ui.activeLocationPickerMode = "location";
+ui.activeLocationPickerLocationId = "";
+ui.activeLocationPickerLaunchId = "";
+ui.activeTripWeatherData = null;
+ui.activeTripWeatherKey = "";
+ui.weatherPreviewTimer = null;
+ui.tripFormInitialSnapshot = "";
+ui.tripFormUserChanged = false;
+ui.activePhotoQueueTarget = null;
+ui.pendingLureImage = null;
+ui.pendingFlasherImage = null;
+ui.pendingReelImage = null;
+ui.pendingRodImage = null;
+ui.activeGearTab = "baits";
+export const returnToTripDialog = {
   lure: false,
   lureInfo: false,
   flasher: false,
@@ -102,7 +109,7 @@ const returnToTripDialog = {
   rodImage: false
 };
 
-function loadMapNoaaChartsPreference() {
+export function loadMapNoaaChartsPreference() {
   try {
     const saved = localStorage.getItem(mapNoaaChartsPreferenceKey);
     return saved === null ? true : saved === "true";
@@ -111,7 +118,7 @@ function loadMapNoaaChartsPreference() {
   }
 }
 
-function saveMapNoaaChartsPreference(showCharts) {
+export function saveMapNoaaChartsPreference(showCharts) {
   try {
     localStorage.setItem(mapNoaaChartsPreferenceKey, String(Boolean(showCharts)));
   } catch {
@@ -119,7 +126,7 @@ function saveMapNoaaChartsPreference(showCharts) {
   }
 }
 
-async function loadState() {
+export async function loadState() {
   if (location.protocol !== "file:") {
     try {
       const response = await fetch("/api/logbook");
@@ -140,4 +147,22 @@ async function loadState() {
     console.warn("Could not load the cached v2 logbook; showing an empty logbook instead.", error);
     return validateState(structuredClone(defaults));
   }
+}
+
+export function setup() {
+  state = structuredClone(defaults);
+
+  mapNoaaChartsPreferenceKey = `${storageKey}-map-noaa-charts`;
+
+  ui.activeMapShowNOAACharts = loadMapNoaaChartsPreference();
+}
+
+export function setState(value) {
+  state = value;
+  return value;
+}
+
+export function setLogbookRevision(value) {
+  logbookRevision = value;
+  return value;
 }

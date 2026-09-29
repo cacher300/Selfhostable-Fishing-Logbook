@@ -169,7 +169,56 @@ export const constants = {
   "spotRadiusMeters": {
     "minimum": 25,
     "maximum": 500
-  }
+  },
+  "collectionKeys": [
+    "species",
+    "methods",
+    "lureTypes",
+    "flasherTypes",
+    "waterClarities",
+    "weatherTypes",
+    "reelStyles",
+    "rodTypes",
+    "lineTypes",
+    "riggings",
+    "structureOptions",
+    "flyCategories",
+    "flyPresentations",
+    "waterLevels",
+    "lureBladeTypes",
+    "lureSpoonSizes",
+    "meatRigTypes",
+    "softPlasticTypes",
+    "trollingPresentations",
+    "trollingDirections",
+    "setupLineSides",
+    "lures",
+    "flashers",
+    "reels",
+    "rods",
+    "rodReelCombos",
+    "people",
+    "locations",
+    "spots",
+    "expeditions",
+    "trips"
+  ],
+  "objectCollectionKeys": [
+    "lures",
+    "flashers",
+    "reels",
+    "rods",
+    "rodReelCombos",
+    "people",
+    "locations",
+    "spots",
+    "expeditions",
+    "trips"
+  ],
+  "optionalCollectionKeys": [
+    "meatRigTypes",
+    "softPlasticTypes"
+  ]
 };
 export const defaultLogbook = {
   "schemaVersion": 2,
@@ -521,7 +570,8 @@ export const defaultLogbook = {
   "expeditions": [],
   "trips": []
 };
-export const OBJECT_COLLECTION_KEYS = new Set(["lures","flashers","reels","rods","rodReelCombos","people","locations","spots","expeditions","trips"]);
+export const COLLECTION_KEYS = constants.collectionKeys;
+export const OBJECT_COLLECTION_KEYS = new Set(constants.objectCollectionKeys);
 
 function fail(path, message) { return { valid: false, error: path + ": " + message }; }
 function ok() { return { valid: true, error: null }; }

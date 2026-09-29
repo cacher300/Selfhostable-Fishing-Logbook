@@ -28,6 +28,7 @@ def _load_schema_json(name: str) -> object:
 
 
 _SCHEMA_CONSTANTS = _load_schema_json("constants.json")
+SCHEMA_CONSTANTS = _SCHEMA_CONSTANTS
 UPLOAD_CATEGORIES = set(_SCHEMA_CONSTANTS["uploadCategories"])
 ALLOWED_IMAGE_EXTENSIONS = set(_SCHEMA_CONSTANTS["allowedImageExtensions"])
 ALLOWED_VIDEO_EXTENSIONS = set(_SCHEMA_CONSTANTS["allowedVideoExtensions"])

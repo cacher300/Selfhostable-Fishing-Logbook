@@ -1,29 +1,40 @@
-function privatePhotoLocations() {
+import { L } from "./vendor.js";
+import { state, ui } from "./app-state.js";
+import { convertUnitValue, unitPreference } from "./app-units.js";
+import { saveState } from "./app-persistence.js";
+import { els } from "./app-elements.js";
+import { isUsableCoordinates } from "./app-media.js";
+import { coordinateText, selectedTripLocationCoordinates } from "./locations.js";
+import { runSettingsSave, settingsUi } from "./settings-core.js";
+import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
+import { escapeHtml, trimNumber } from "./form-utils.js";
+
+export function privatePhotoLocations() {
   const existing = state.settings?.privatePhotoLocations;
   return Array.isArray(existing) ? existing : [];
 }
 
-function fishingSpots() {
+export function fishingSpots() {
   return Array.isArray(state.spots) ? state.spots : [];
 }
 
-function ensureActiveFishingSpot(spots = fishingSpots()) {
+export function ensureActiveFishingSpot(spots = fishingSpots()) {
   if (!spots.length) {
-    activeFishingSpotId = "";
-    editingFishingSpotId = "";
+    ui.activeFishingSpotId = "";
+    ui.editingFishingSpotId = "";
     return "";
   }
-  if (!spots.some((spot) => spot.id === activeFishingSpotId)) activeFishingSpotId = "";
-  if (!spots.some((spot) => spot.id === editingFishingSpotId)) editingFishingSpotId = "";
-  return activeFishingSpotId;
+  if (!spots.some((spot) => spot.id === ui.activeFishingSpotId)) ui.activeFishingSpotId = "";
+  if (!spots.some((spot) => spot.id === ui.editingFishingSpotId)) ui.editingFishingSpotId = "";
+  return ui.activeFishingSpotId;
 }
 
-function fishingSpotCatchCount(spotId) {
+export function fishingSpotCatchCount(spotId) {
   return state.trips.reduce((total, trip) => total + (trip.catches || []).filter((catchItem) => catchItem.spotId === spotId).length, 0);
 }
 
-function fishingSpotDefaultCoordinates() {
-  const mapCenter = fishingSpotMap?._loaded ? fishingSpotMap.getCenter() : null;
+export function fishingSpotDefaultCoordinates() {
+  const mapCenter = ui.fishingSpotMap?._loaded ? ui.fishingSpotMap.getCenter() : null;
   if (mapCenter && isUsableCoordinates({ latitude: mapCenter.lat, longitude: mapCenter.lng })) {
     return { latitude: mapCenter.lat, longitude: mapCenter.lng };
   }
@@ -34,14 +45,14 @@ function fishingSpotDefaultCoordinates() {
   return { latitude: 43.0896, longitude: -79.0849 };
 }
 
-function nextFishingSpotName() {
+export function nextFishingSpotName() {
   const names = new Set(fishingSpots().map((spot) => spot.name.toLowerCase()));
   let number = 1;
   while (names.has(`spot ${number}`)) number += 1;
   return `Spot ${number}`;
 }
 
-function collectFishingSpotSettings() {
+export function collectFishingSpotSettings() {
   const current = new Map(fishingSpots().map((spot) => [spot.id, spot]));
   return [...els.fishingSpotList.querySelectorAll("[data-fishing-spot-id]")].map((card) => {
     const existing = current.get(card.dataset.fishingSpotId);
@@ -55,7 +66,7 @@ function collectFishingSpotSettings() {
   });
 }
 
-function validateFishingSpots(spots) {
+export function validateFishingSpots(spots) {
   if (!Array.isArray(spots)) throw new Error("Fishing spots must be a list.");
   const ids = new Set();
   const names = new Set();
@@ -74,7 +85,7 @@ function validateFishingSpots(spots) {
   });
 }
 
-function validatePrivatePhotoLocations(locations) {
+export function validatePrivatePhotoLocations(locations) {
   if (!Array.isArray(locations)) throw new Error("Private photo locations must be a list.");
   const ids = new Set();
   locations.forEach((location) => {
@@ -89,7 +100,7 @@ function validatePrivatePhotoLocations(locations) {
   });
 }
 
-async function saveFishingSpots(nextSpots, options = {}) {
+export async function saveFishingSpots(nextSpots, options = {}) {
   await runSettingsSave(
     async () => {
       validateFishingSpots(nextSpots);
@@ -104,7 +115,7 @@ async function saveFishingSpots(nextSpots, options = {}) {
   );
 }
 
-function renderFishingSpotSettings() {
+export function renderFishingSpotSettings() {
   if (!els.fishingSpotList) return;
   const spots = fishingSpots();
   const activeId = ensureActiveFishingSpot(spots);
@@ -114,7 +125,7 @@ function renderFishingSpotSettings() {
   const radiusConfig = fishingSpotRadiusSliderConfig();
   els.fishingSpotList.innerHTML = orderedSpots.length ? orderedSpots.map((spot) => {
     const count = fishingSpotCatchCount(spot.id);
-    const isEditing = spot.id === editingFishingSpotId;
+    const isEditing = spot.id === ui.editingFishingSpotId;
     return `
       <article class="private-location-card${spot.id === activeId ? " is-selected" : ""}" data-fishing-spot-id="${escapeHtml(spot.id)}" aria-current="${spot.id === activeId ? "true" : "false"}">
         <div class="private-location-card-head">
@@ -136,14 +147,14 @@ function renderFishingSpotSettings() {
   renderFishingSpotMap();
 }
 
-function ensureFishingSpotMap() {
+export function ensureFishingSpotMap() {
   if (!window.L || !els.fishingSpotMap) return;
-  const shouldInitializeView = !fishingSpotMap;
-  if (!fishingSpotMap) {
-    fishingSpotMap = L.map(els.fishingSpotMap, seamlessMapOptions());
-    addSeamlessTileLayer(fishingSpotMap);
-    fishingSpotLayer = L.featureGroup().addTo(fishingSpotMap);
-    fishingSpotMap.on("click", async (event) => {
+  const shouldInitializeView = !ui.fishingSpotMap;
+  if (!ui.fishingSpotMap) {
+    ui.fishingSpotMap = L.map(els.fishingSpotMap, seamlessMapOptions());
+    addSeamlessTileLayer(ui.fishingSpotMap);
+    ui.fishingSpotLayer = L.featureGroup().addTo(ui.fishingSpotMap);
+    ui.fishingSpotMap.on("click", async (event) => {
       const activeId = ensureActiveFishingSpot();
       if (!activeId) return;
       const next = collectFishingSpotSettings().map((spot) => spot.id === activeId
@@ -152,21 +163,21 @@ function ensureFishingSpotMap() {
       await saveFishingSpots(next);
     });
   }
-  if (shouldInitializeView || !fishingSpotMap._loaded) {
+  if (shouldInitializeView || !ui.fishingSpotMap._loaded) {
     const center = fishingSpotDefaultCoordinates();
-    fishingSpotMap.setView([center.latitude, center.longitude], fishingSpots().length ? 11 : 7);
+    ui.fishingSpotMap.setView([center.latitude, center.longitude], fishingSpots().length ? 11 : 7);
   }
-  setTimeout(() => fishingSpotMap.invalidateSize(), 50);
+  setTimeout(() => ui.fishingSpotMap.invalidateSize(), 50);
 }
 
-function renderFishingSpotMap() {
-  if (!window.L || !fishingSpotMap || !fishingSpotLayer) return;
-  fishingSpotLayer.clearLayers();
+export function renderFishingSpotMap() {
+  if (!window.L || !ui.fishingSpotMap || !ui.fishingSpotLayer) return;
+  ui.fishingSpotLayer.clearLayers();
   const spots = fishingSpots();
   spots.forEach((spot) => {
-    const active = spot.id === activeFishingSpotId;
+    const active = spot.id === ui.activeFishingSpotId;
     const point = [spot.coordinates.latitude, spot.coordinates.longitude];
-    const circle = L.circle(point, {
+    L.circle(point, {
       radius: spot.radiusMeters,
       // Let clicks pass through the visualization to the map placement handler.
       // The marker remains interactive for selecting/dragging the spot center.
@@ -175,15 +186,15 @@ function renderFishingSpotMap() {
       weight: active ? 3 : 2,
       fillColor: "#2fb875",
       fillOpacity: active ? 0.18 : 0.08
-    }).addTo(fishingSpotLayer);
-    const marker = L.marker(point, { draggable: true }).addTo(fishingSpotLayer);
+    }).addTo(ui.fishingSpotLayer);
+    const marker = L.marker(point, { draggable: true }).addTo(ui.fishingSpotLayer);
     marker.on("click", () => {
-      activeFishingSpotId = spot.id;
-      if (editingFishingSpotId !== activeFishingSpotId) editingFishingSpotId = "";
+      ui.activeFishingSpotId = spot.id;
+      if (ui.editingFishingSpotId !== ui.activeFishingSpotId) ui.editingFishingSpotId = "";
       renderFishingSpotSettings();
     });
     marker.on("dragend", async () => {
-      activeFishingSpotId = spot.id;
+      ui.activeFishingSpotId = spot.id;
       const latLng = marker.getLatLng();
       const next = collectFishingSpotSettings().map((item) => item.id === spot.id
         ? { ...item, coordinates: { latitude: latLng.lat, longitude: latLng.lng } }
@@ -191,26 +202,26 @@ function renderFishingSpotMap() {
       await saveFishingSpots(next);
     });
   });
-  const active = spots.find((spot) => spot.id === activeFishingSpotId);
-  if (active) fishingSpotMap.setView([active.coordinates.latitude, active.coordinates.longitude], fishingSpotMap.getZoom());
+  const active = spots.find((spot) => spot.id === ui.activeFishingSpotId);
+  if (active) ui.fishingSpotMap.setView([active.coordinates.latitude, active.coordinates.longitude], ui.fishingSpotMap.getZoom());
 }
 
-function privateLocationSummary(location) {
+export function privateLocationSummary(location) {
   return `${coordinateText(location.coordinates)} / ${privateLocationRadiusText(location.radiusMeters)}`;
 }
 
-function privateLocationRadiusUnit() {
+export function privateLocationRadiusUnit() {
   return unitPreference("distance") === "mi" ? "ft" : "m";
 }
 
-function privateLocationRadiusDisplayValue(radiusMeters) {
+export function privateLocationRadiusDisplayValue(radiusMeters) {
   const radius = Math.max(25, Math.min(10000, Number(radiusMeters) || 400));
   const unit = privateLocationRadiusUnit();
   const value = unit === "ft" ? convertUnitValue(radius, "m", "ft") : radius;
   return Math.round(value);
 }
 
-function fishingSpotRadiusSliderConfig() {
+export function fishingSpotRadiusSliderConfig() {
   const unit = unitPreference("distance") === "mi" ? "ft" : "m";
   if (unit === "ft") {
     return { min: Math.round(convertUnitValue(25, "m", "ft")), max: Math.round(convertUnitValue(500, "m", "ft")), step: Math.round(convertUnitValue(5, "m", "ft")), unit };
@@ -218,40 +229,40 @@ function fishingSpotRadiusSliderConfig() {
   return { min: 25, max: 500, step: 5, unit };
 }
 
-function fishingSpotRadiusDisplayValue(radiusMeters) {
+export function fishingSpotRadiusDisplayValue(radiusMeters) {
   const radius = Math.max(25, Math.min(500, Number(radiusMeters) || 100));
   return unitPreference("distance") === "mi" ? convertUnitValue(radius, "m", "ft") : radius;
 }
 
-function fishingSpotRadiusMeters(displayValue) {
+export function fishingSpotRadiusMeters(displayValue) {
   const config = fishingSpotRadiusSliderConfig();
   const value = Math.max(config.min, Math.min(config.max, Number(displayValue) || fishingSpotRadiusDisplayValue(100)));
   return unitPreference("distance") === "mi" ? convertUnitValue(value, "ft", "m") : value;
 }
 
-function fishingSpotRadiusProgress(displayValue) {
+export function fishingSpotRadiusProgress(displayValue) {
   const { min, max } = fishingSpotRadiusSliderConfig();
   const radius = Math.max(min, Math.min(max, Number(displayValue) || fishingSpotRadiusDisplayValue(100)));
   return Math.round(((radius - min) / (max - min)) * 10000) / 100;
 }
 
-function fishingSpotRadiusStyle(radiusMeters) {
+export function fishingSpotRadiusStyle(radiusMeters) {
   return `--private-location-radius-progress: ${fishingSpotRadiusProgress(fishingSpotRadiusDisplayValue(radiusMeters))}%;`;
 }
 
-function fishingSpotRadiusText(radiusMeters) {
+export function fishingSpotRadiusText(radiusMeters) {
   const unit = fishingSpotRadiusSliderConfig().unit;
   return `${trimNumber(fishingSpotRadiusDisplayValue(radiusMeters))} ${unit}`;
 }
 
-function privateLocationRadiusMeters(displayValue) {
+export function privateLocationRadiusMeters(displayValue) {
   const unit = privateLocationRadiusUnit();
   const value = Number(displayValue) || privateLocationRadiusDisplayValue(400);
   const meters = unit === "ft" ? convertUnitValue(value, "ft", "m") : value;
   return Math.max(25, Math.min(10000, meters || 400));
 }
 
-function privateLocationRadiusSliderConfig() {
+export function privateLocationRadiusSliderConfig() {
   const unit = privateLocationRadiusUnit();
   if (unit === "ft") {
     return {
@@ -264,45 +275,45 @@ function privateLocationRadiusSliderConfig() {
   return { min: 25, max: 10000, step: 25, unit };
 }
 
-function privateLocationRadiusText(radiusMeters) {
+export function privateLocationRadiusText(radiusMeters) {
   const unit = privateLocationRadiusUnit();
   return `${trimNumber(privateLocationRadiusDisplayValue(radiusMeters))} ${unit}`;
 }
 
-function privateLocationRadiusProgress(displayValue) {
+export function privateLocationRadiusProgress(displayValue) {
   const { min, max } = privateLocationRadiusSliderConfig();
   const radius = Math.max(min, Math.min(max, Number(displayValue) || privateLocationRadiusDisplayValue(400)));
   return Math.round(((radius - min) / (max - min)) * 10000) / 100;
 }
 
-function privateLocationRadiusStyle(radiusMeters) {
+export function privateLocationRadiusStyle(radiusMeters) {
   return `--private-location-radius-progress: ${privateLocationRadiusProgress(privateLocationRadiusDisplayValue(radiusMeters))}%;`;
 }
 
-function updatePrivateLocationRadiusControl(input) {
+export function updatePrivateLocationRadiusControl(input) {
   input.style.setProperty("--private-location-radius-progress", `${privateLocationRadiusProgress(input.value)}%`);
 }
 
-function updateFishingSpotRadiusControl(input) {
+export function updateFishingSpotRadiusControl(input) {
   input.style.setProperty("--private-location-radius-progress", `${fishingSpotRadiusProgress(input.value)}%`);
 }
 
-function ensureActivePrivatePhotoLocation(locations = privatePhotoLocations()) {
+export function ensureActivePrivatePhotoLocation(locations = privatePhotoLocations()) {
   if (!locations.length) {
-    activePrivatePhotoLocationId = "";
-    editingPrivatePhotoLocationId = "";
+    ui.activePrivatePhotoLocationId = "";
+    ui.editingPrivatePhotoLocationId = "";
     return "";
   }
-  if (!locations.some((location) => location.id === activePrivatePhotoLocationId)) {
-    activePrivatePhotoLocationId = "";
+  if (!locations.some((location) => location.id === ui.activePrivatePhotoLocationId)) {
+    ui.activePrivatePhotoLocationId = "";
   }
-  if (!locations.some((location) => location.id === editingPrivatePhotoLocationId)) {
-    editingPrivatePhotoLocationId = "";
+  if (!locations.some((location) => location.id === ui.editingPrivatePhotoLocationId)) {
+    ui.editingPrivatePhotoLocationId = "";
   }
-  return activePrivatePhotoLocationId;
+  return ui.activePrivatePhotoLocationId;
 }
 
-function renderPrivatePhotoLocationSettings() {
+export function renderPrivatePhotoLocationSettings() {
   if (!els.privatePhotoLocationList) return;
   const locations = privatePhotoLocations();
   const activeLocationId = ensureActivePrivatePhotoLocation(locations);
@@ -311,12 +322,12 @@ function renderPrivatePhotoLocationSettings() {
     : locations;
   const radiusConfig = privateLocationRadiusSliderConfig();
   els.privatePhotoLocationList.innerHTML = orderedLocations.length ? orderedLocations.map((location) => {
-    const isEditing = location.id === editingPrivatePhotoLocationId;
+    const isEditing = location.id === ui.editingPrivatePhotoLocationId;
     return `
     <article class="private-location-card${location.id === activeLocationId ? " is-selected" : ""}" data-private-location-id="${escapeHtml(location.id)}" aria-current="${location.id === activeLocationId ? "true" : "false"}">
       <div class="private-location-card-head">
           <div class="private-location-name-row">
-            ${privateLocationNameEditId === location.id
+            ${settingsUi.privateLocationNameEditId === location.id
               ? `<input class="private-location-name" type="text" value="${escapeHtml(location.name)}" aria-label="Home location name" />`
               : `<button class="private-location-name-display" type="button" data-edit-private-location-name="${escapeHtml(location.id)}" data-private-location-name="${escapeHtml(location.name)}">${escapeHtml(location.name)}</button>`}
           </div>
@@ -334,7 +345,7 @@ function renderPrivatePhotoLocationSettings() {
   renderPrivatePhotoLocationMap();
 }
 
-function privateLocationDefaultCoordinates() {
+export function privateLocationDefaultCoordinates() {
   const first = privatePhotoLocations()[0]?.coordinates;
   if (isUsableCoordinates(first)) return first;
   const selected = selectedTripLocationCoordinates();
@@ -342,7 +353,7 @@ function privateLocationDefaultCoordinates() {
   return { latitude: 43.7, longitude: -79.4 };
 }
 
-async function savePrivatePhotoLocations(nextLocations, options = {}) {
+export async function savePrivatePhotoLocations(nextLocations, options = {}) {
   try {
     await runSettingsSave(
       async () => {
@@ -363,7 +374,7 @@ async function savePrivatePhotoLocations(nextLocations, options = {}) {
   }
 }
 
-function collectPrivatePhotoLocationSettings() {
+export function collectPrivatePhotoLocationSettings() {
   const current = new Map(privatePhotoLocations().map((location) => [location.id, location]));
   return [...els.privatePhotoLocationList.querySelectorAll("[data-private-location-id]")].map((card) => {
     const existing = current.get(card.dataset.privateLocationId);
@@ -377,14 +388,14 @@ function collectPrivatePhotoLocationSettings() {
   });
 }
 
-function ensurePrivatePhotoLocationMap() {
+export function ensurePrivatePhotoLocationMap() {
   if (!window.L || !els.privatePhotoLocationMap) return;
-  const shouldInitializeView = !privatePhotoLocationMap;
-  if (!privatePhotoLocationMap) {
-    privatePhotoLocationMap = L.map(els.privatePhotoLocationMap, seamlessMapOptions());
-    addSeamlessTileLayer(privatePhotoLocationMap);
-    privatePhotoLocationLayer = L.featureGroup().addTo(privatePhotoLocationMap);
-    privatePhotoLocationMap.on("click", async (event) => {
+  const shouldInitializeView = !ui.privatePhotoLocationMap;
+  if (!ui.privatePhotoLocationMap) {
+    ui.privatePhotoLocationMap = L.map(els.privatePhotoLocationMap, seamlessMapOptions());
+    addSeamlessTileLayer(ui.privatePhotoLocationMap);
+    ui.privatePhotoLocationLayer = L.featureGroup().addTo(ui.privatePhotoLocationMap);
+    ui.privatePhotoLocationMap.on("click", async (event) => {
       const locations = collectPrivatePhotoLocationSettings();
       const activeLocationId = ensureActivePrivatePhotoLocation(locations);
       if (!activeLocationId) return;
@@ -396,19 +407,19 @@ function ensurePrivatePhotoLocationMap() {
       await savePrivatePhotoLocations(next);
     });
   }
-  if (shouldInitializeView || !privatePhotoLocationMap._loaded) {
+  if (shouldInitializeView || !ui.privatePhotoLocationMap._loaded) {
     const center = privateLocationDefaultCoordinates();
-    privatePhotoLocationMap.setView([center.latitude, center.longitude], privatePhotoLocations().length ? 11 : 7);
+    ui.privatePhotoLocationMap.setView([center.latitude, center.longitude], privatePhotoLocations().length ? 11 : 7);
   }
-  setTimeout(() => privatePhotoLocationMap.invalidateSize(), 50);
+  setTimeout(() => ui.privatePhotoLocationMap.invalidateSize(), 50);
 }
 
-function renderPrivatePhotoLocationMap() {
-  if (!window.L || !privatePhotoLocationMap || !privatePhotoLocationLayer) return;
-  privatePhotoLocationLayer.clearLayers();
+export function renderPrivatePhotoLocationMap() {
+  if (!window.L || !ui.privatePhotoLocationMap || !ui.privatePhotoLocationLayer) return;
+  ui.privatePhotoLocationLayer.clearLayers();
   const locations = privatePhotoLocations();
   locations.forEach((location) => {
-    const isActive = location.id === activePrivatePhotoLocationId;
+    const isActive = location.id === ui.activePrivatePhotoLocationId;
     const point = [location.coordinates.latitude, location.coordinates.longitude];
     const circle = L.circle(point, {
       radius: Number(location.radiusMeters) || 400,
@@ -416,16 +427,16 @@ function renderPrivatePhotoLocationMap() {
       weight: isActive ? 3 : 2,
       fillColor: "#2fb875",
       fillOpacity: isActive ? 0.18 : 0.08
-    }).addTo(privatePhotoLocationLayer);
+    }).addTo(ui.privatePhotoLocationLayer);
     circle.bindPopup(`${escapeHtml(location.name)}<br>${escapeHtml(privateLocationSummary(location))}`);
-    const marker = L.marker(point, { draggable: true }).addTo(privatePhotoLocationLayer);
+    const marker = L.marker(point, { draggable: true }).addTo(ui.privatePhotoLocationLayer);
     marker.on("click", () => {
-      activePrivatePhotoLocationId = location.id;
-      if (editingPrivatePhotoLocationId !== activePrivatePhotoLocationId) editingPrivatePhotoLocationId = "";
+      ui.activePrivatePhotoLocationId = location.id;
+      if (ui.editingPrivatePhotoLocationId !== ui.activePrivatePhotoLocationId) ui.editingPrivatePhotoLocationId = "";
       renderPrivatePhotoLocationSettings();
     });
     marker.on("dragend", async () => {
-      activePrivatePhotoLocationId = location.id;
+      ui.activePrivatePhotoLocationId = location.id;
       const latLng = marker.getLatLng();
       const next = collectPrivatePhotoLocationSettings().map((item) => (
         item.id === location.id
@@ -435,11 +446,11 @@ function renderPrivatePhotoLocationMap() {
       await savePrivatePhotoLocations(next);
     });
   });
-  const activeLocation = locations.find((location) => location.id === activePrivatePhotoLocationId);
+  const activeLocation = locations.find((location) => location.id === ui.activePrivatePhotoLocationId);
   if (activeLocation) {
-    privatePhotoLocationMap.setView(
+    ui.privatePhotoLocationMap.setView(
       [activeLocation.coordinates.latitude, activeLocation.coordinates.longitude],
-      privatePhotoLocationMap.getZoom()
+      ui.privatePhotoLocationMap.getZoom()
     );
   }
 }

@@ -42,3 +42,7 @@ backups/
 # Cloudflare Worker dependencies and rendered production binding config.
 cloud/worker/node_modules/
 cloud/worker/wrangler.generated.json
+
+# Generated frontend build output (npm run build / scripts/build-standalone.py).
+static/dist/
+standalone.html

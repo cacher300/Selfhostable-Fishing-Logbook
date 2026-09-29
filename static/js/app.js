@@ -1,4 +1,22 @@
-const routeViews = {
+import { createId } from "./app-defaults.js";
+import { loadState } from "./app-state.js";
+import { replaceState } from "./store.js";
+import { els } from "./app-elements.js";
+import { applyThemePreference, renderSettings } from "./settings.js";
+import { applyStartupSavedSetup } from "./saved-setups.js";
+import { renderAll } from "./dashboard.js";
+import { renderExpeditions } from "./expeditions.js";
+import { populatePersonSelects } from "./trip-editor.js";
+import { applyStartupTrollingSpread, updateAllRowSummaries, updateCatchDetailsUnknown } from "./trip-rows.js";
+import { renderGearLibrary } from "./gear-inventory.js";
+import { renderFishMap } from "./maps.js";
+import { renderAdvancedStats } from "./stats.js";
+import { renderPersonalBests } from "./personal-bests.js";
+import { isTrollingTrip, updateTrollingVisibility } from "./form-utils.js";
+import { renderGallery } from "./gallery.js";
+import { renderChecklists } from "./checklists.js";
+
+export const routeViews = {
   "/": "trips",
   "/trips": "trips",
   "/expeditions": "expeditions",
@@ -13,12 +31,12 @@ const routeViews = {
   "/settings": "settings"
 };
 
-function viewFromCurrentRoute() {
+export function viewFromCurrentRoute() {
   const pathname = window.location.pathname.replace(/\/$/, "") || "/";
   return routeViews[pathname.toLowerCase()] || "trips";
 }
 
-function updateMethodVisibility({ applyStartupSpread = false } = {}) {
+export function updateMethodVisibility({ applyStartupSpread = false } = {}) {
   updateTrollingVisibility();
   if (applyStartupSpread) {
     if (isTrollingTrip()) applyStartupTrollingSpread();
@@ -27,31 +45,7 @@ function updateMethodVisibility({ applyStartupSpread = false } = {}) {
   document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
 }
 
-document.querySelector("#method").addEventListener("change", () => updateMethodVisibility({ applyStartupSpread: true }));
-document.querySelector("#targetSpecies").addEventListener("change", () => updateMethodVisibility());
-els.personRows.addEventListener("input", () => {
-  populatePersonSelects();
-  updateAllRowSummaries();
-});
-els.personRows.addEventListener("change", (event) => {
-  const row = event.target.closest(".person-row");
-  if (event.target.matches(".person-select") && row) {
-    const input = row.querySelector(".person-name");
-    if (event.target.value === "__new__") {
-      row.dataset.personId = createId();
-      input.classList.remove("hidden");
-      input.focus();
-    } else {
-      row.dataset.personId = event.target.value || createId();
-      input.value = "";
-      input.classList.add("hidden");
-    }
-  }
-  populatePersonSelects();
-  updateAllRowSummaries();
-});
-
-function setView(view) {
+export function setView(view) {
   const showingExpeditions = view === "expeditions";
   const showingBests = view === "bests";
   const showingStats = view === "stats";
@@ -130,7 +124,7 @@ function setView(view) {
   if (showingGear) renderGearLibrary();
 }
 
-function syncMobileSummaryPanel() {
+export function syncMobileSummaryPanel() {
   const summaryPanel = document.querySelector(".mobile-summary-panel");
   if (!summaryPanel) return;
   if (window.matchMedia("(max-width: 760px)").matches) {
@@ -140,14 +134,43 @@ function syncMobileSummaryPanel() {
   }
 }
 
-async function init() {
+export async function init() {
   syncMobileSummaryPanel();
-  state = await loadState();
-  rememberPersistedState(state);
+  replaceState(await loadState());
   applyThemePreference();
   renderAll();
   setView(viewFromCurrentRoute());
 }
 
-window.addEventListener("resize", syncMobileSummaryPanel);
-init();
+export function setup() {
+  document.querySelector("#method").addEventListener("change", () => updateMethodVisibility({ applyStartupSpread: true }));
+
+  document.querySelector("#targetSpecies").addEventListener("change", () => updateMethodVisibility());
+
+  els.personRows.addEventListener("input", () => {
+    populatePersonSelects();
+    updateAllRowSummaries();
+  });
+
+  els.personRows.addEventListener("change", (event) => {
+    const row = event.target.closest(".person-row");
+    if (event.target.matches(".person-select") && row) {
+      const input = row.querySelector(".person-name");
+      if (event.target.value === "__new__") {
+        row.dataset.personId = createId();
+        input.classList.remove("hidden");
+        input.focus();
+      } else {
+        row.dataset.personId = event.target.value || createId();
+        input.value = "";
+        input.classList.add("hidden");
+      }
+    }
+    populatePersonSelects();
+    updateAllRowSummaries();
+  });
+
+  window.addEventListener("resize", syncMobileSummaryPanel);
+
+  init();
+}

@@ -1,7 +1,19 @@
-let activeSavedSetupEditorId = "";
-let savedSetupDraft = null;
+import { createId } from "./app-defaults.js";
+import { setState, state, ui } from "./app-state.js";
+import { currentSavedSetups } from "./app-normalization.js";
+import { saveState } from "./app-persistence.js";
+import { els } from "./app-elements.js";
+import { runSettingsSave, scheduleSettingsAutosave, settingsAutosaveTimer } from "./settings-core.js";
+import { getValue, syncTripFormChrome } from "./trip-editor.js";
+import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, updateAllRowSummaries } from "./trip-rows.js";
+import { comboName } from "./gear-core.js";
+import { renderLiveTrollingSpread } from "./trolling-spread.js";
+import { escapeHtml, isTrollingTrip } from "./form-utils.js";
 
-function savedSetupMethods() {
+export let activeSavedSetupEditorId = "";
+export let savedSetupDraft = null;
+
+export function savedSetupMethods() {
   const methods = [];
   const seen = new Set();
   const addMethod = (method) => {
@@ -16,19 +28,19 @@ function savedSetupMethods() {
   return methods;
 }
 
-function savedSetupsForMethod(method, setups = state.settings?.savedSetups) {
+export function savedSetupsForMethod(method, setups = state.settings?.savedSetups) {
   const methodKey = String(method || "").trim().toLowerCase();
   return currentSavedSetups(setups).filter((setup) => setup.method.toLowerCase() === methodKey);
 }
 
-function savedSetupDefaultId(method, defaults = state.settings?.defaultSavedSetupIds) {
+export function savedSetupDefaultId(method, defaults = state.settings?.defaultSavedSetupIds) {
   const methodKey = String(method || "").trim().toLowerCase();
   const entry = Object.entries(defaults && typeof defaults === "object" ? defaults : {})
     .find(([key]) => String(key || "").trim().toLowerCase() === methodKey);
   return String(entry?.[1] || "");
 }
 
-function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex = "" } = {}) {
+export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex = "" } = {}) {
   const comboId = String(item.comboId || "");
   const comboOptions = state.rodReelCombos.map((combo) => (
     `<option value="${escapeHtml(combo.id)}" ${combo.id === comboId ? "selected" : ""}>${escapeHtml(comboName(combo.id) || "Rod / reel combo")}</option>`
@@ -47,7 +59,7 @@ function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex = "" } =
   `;
 }
 
-function renderSavedSetupCard(item, { draft = false } = {}) {
+export function renderSavedSetupCard(item, { draft = false } = {}) {
   const editing = draft || activeSavedSetupEditorId === item.id;
   const rows = Array.isArray(item.rows) ? item.rows : [];
   return `
@@ -83,7 +95,7 @@ function renderSavedSetupCard(item, { draft = false } = {}) {
   `;
 }
 
-function renderSavedSetupMethodSection(method, setups) {
+export function renderSavedSetupMethodSection(method, setups) {
   const methodSetups = setups.filter((setup) => setup.method.toLowerCase() === method.toLowerCase());
   const selectableSetups = methodSetups.filter((setup) => setup.id !== savedSetupDraft?.id);
   const defaultId = savedSetupDefaultId(method);
@@ -116,7 +128,7 @@ function renderSavedSetupMethodSection(method, setups) {
   `;
 }
 
-function renderSavedSetupSettings() {
+export function renderSavedSetupSettings() {
   if (!els.savedSetupMethodSections) return;
   const setups = currentSavedSetups();
   const visibleSetups = savedSetupDraft ? [...setups, savedSetupDraft] : setups;
@@ -126,7 +138,7 @@ function renderSavedSetupSettings() {
     : '<p class="saved-setup-empty-state">Add a non-trolling method in Settings → Categories to create saved setups.</p>';
 }
 
-function addSavedSetup(method) {
+export function addSavedSetup(method) {
   if (savedSetupDraft) {
     document.querySelector(`[data-saved-setup-id="${CSS.escape(savedSetupDraft.id)}"] .saved-setup-name`)?.focus();
     return;
@@ -137,7 +149,7 @@ function addSavedSetup(method) {
   document.querySelector(`[data-saved-setup-id="${CSS.escape(savedSetupDraft.id)}"] .saved-setup-name`)?.focus();
 }
 
-function addSavedSetupRowToCard(card) {
+export function addSavedSetupRowToCard(card) {
   const list = card?.querySelector(".saved-setup-list");
   if (!list || card.dataset.savedSetupEditing !== "true") return;
   card.querySelector(".saved-setup-empty-rows")?.remove();
@@ -146,14 +158,14 @@ function addSavedSetupRowToCard(card) {
   list.querySelector(".saved-setup-row:last-child select")?.focus();
 }
 
-function editSavedSetup(setupId) {
+export function editSavedSetup(setupId) {
   if (!currentSavedSetups().some((setup) => setup.id === setupId)) return;
   activeSavedSetupEditorId = setupId;
   renderSavedSetupSettings();
   document.querySelector(`[data-saved-setup-id="${CSS.escape(setupId)}"] .saved-setup-name`)?.focus();
 }
 
-function collectSavedSetupCard(card) {
+export function collectSavedSetupCard(card) {
   const id = card?.dataset.savedSetupId || createId();
   const existing = currentSavedSetups().find((setup) => setup.id === id);
   return {
@@ -168,13 +180,13 @@ function collectSavedSetupCard(card) {
   };
 }
 
-function setSavedSetupSettingsMessage(message = "") {
+export function setSavedSetupSettingsMessage(message = "") {
   if (!els.savedSetupSettingsMessage) return;
   els.savedSetupSettingsMessage.textContent = message;
   els.savedSetupSettingsMessage.classList.toggle("hidden", !message);
 }
 
-function toggleSavedSetupCard(card, event = null) {
+export function toggleSavedSetupCard(card, event = null) {
   if (!card || card.dataset.savedSetupEditing === "true") return;
   if (event?.target?.closest("button, input, select, textarea, a")) return;
   const body = card.querySelector(".saved-setup-card-body");
@@ -183,7 +195,7 @@ function toggleSavedSetupCard(card, event = null) {
   card.setAttribute("aria-expanded", String(!body.hidden));
 }
 
-async function finishSavedSetupEdit(card) {
+export async function finishSavedSetupEdit(card) {
   const next = collectSavedSetupCard(card);
   if (!next.name) {
     setSavedSetupSettingsMessage("Enter a name for this setup before finishing.");
@@ -205,7 +217,7 @@ async function finishSavedSetupEdit(card) {
   renderSavedSetupSettings();
 }
 
-function scheduleSavedSetupAutosave(card) {
+export function scheduleSavedSetupAutosave(card) {
   if (!card || card.dataset.savedSetupEditing !== "true") return;
   scheduleSettingsAutosave(async (options = {}) => {
     const next = collectSavedSetupCard(card);
@@ -214,7 +226,7 @@ function scheduleSavedSetupAutosave(card) {
   });
 }
 
-async function saveSavedSetupCard(card, options = {}) {
+export async function saveSavedSetupCard(card, options = {}) {
   const next = collectSavedSetupCard(card);
   const wasDraft = card?.dataset.savedSetupDraft === "true";
   if (!next.name) {
@@ -253,14 +265,14 @@ async function saveSavedSetupCard(card, options = {}) {
     await runSettingsSave(() => saveState(), "The saved setup could not be saved.", options);
     renderSavedSetupSettings();
   } catch (error) {
-    state = previousState;
+    setState(previousState);
     savedSetupDraft = wasDraft ? next : null;
     activeSavedSetupEditorId = next.id;
     renderSavedSetupSettings();
   }
 }
 
-async function deleteSavedSetup(setupId) {
+export async function deleteSavedSetup(setupId) {
   const setup = currentSavedSetups().find((item) => item.id === setupId);
   if (!setup || !confirm(`Delete the ${setup.name} setup?`)) return;
   const previousState = structuredClone(state);
@@ -275,12 +287,12 @@ async function deleteSavedSetup(setupId) {
     await runSettingsSave(() => saveState(), "The saved setup could not be deleted.");
     renderSavedSetupSettings();
   } catch (error) {
-    state = previousState;
+    setState(previousState);
     renderSavedSetupSettings();
   }
 }
 
-async function saveDefaultSavedSetupId(method, select, options = {}) {
+export async function saveDefaultSavedSetupId(method, select, options = {}) {
   const nextId = select?.value || "";
   const setup = currentSavedSetups().find((item) => (
     item.id === nextId && item.method.toLowerCase() === String(method || "").trim().toLowerCase()
@@ -296,19 +308,19 @@ async function saveDefaultSavedSetupId(method, select, options = {}) {
   try {
     await runSettingsSave(() => saveState(), `The ${method} default setup could not be saved.`, options);
   } catch (error) {
-    state = previousState;
+    setState(previousState);
     renderSavedSetupSettings();
   }
 }
 
-function savedSetupForCurrentMethod(setupId) {
+export function savedSetupForCurrentMethod(setupId) {
   const method = getValue("method").trim();
   return currentSavedSetups().find((setup) => (
     setup.id === setupId && setup.method.toLowerCase() === method.toLowerCase()
   )) || null;
 }
 
-function renderSavedSetupPicker() {
+export function renderSavedSetupPicker() {
   if (!els.savedSetupPickerList) return;
   const method = getValue("method").trim();
   const setups = savedSetupsForMethod(method);
@@ -330,13 +342,13 @@ function renderSavedSetupPicker() {
     : `<p class="saved-setup-picker-empty">No saved ${escapeHtml(method || "fishing")} setups yet. Create one in Settings → Saved Setups.</p>`;
 }
 
-function openSavedSetupPicker() {
+export function openSavedSetupPicker() {
   if (isTrollingTrip() || !els.savedSetupPickerDialog) return;
   renderSavedSetupPicker();
   els.savedSetupPickerDialog.showModal();
 }
 
-function applySavedSetup(setupId) {
+export function applySavedSetup(setupId) {
   const setup = savedSetupForCurrentMethod(setupId);
   if (!setup) return;
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
@@ -356,15 +368,15 @@ function applySavedSetup(setupId) {
   updateAllRowSummaries();
   renderLiveTrollingSpread();
   els.savedSetupPickerDialog?.close();
-  tripFormUserChanged = true;
+  ui.tripFormUserChanged = true;
   syncTripFormChrome();
 }
 
-function applyStartupSavedSetup() {
+export function applyStartupSavedSetup() {
   const method = getValue("method").trim();
   const methodKey = method.toLowerCase();
-  if (activeTripId || !method || methodKey === "trolling" || newTripSavedSetupAppliedMethods.has(methodKey)) return false;
-  newTripSavedSetupAppliedMethods.add(methodKey);
+  if (ui.activeTripId || !method || methodKey === "trolling" || ui.newTripSavedSetupAppliedMethods.has(methodKey)) return false;
+  ui.newTripSavedSetupAppliedMethods.add(methodKey);
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
   if (rows.length) return false;
   const setupId = savedSetupDefaultId(method);
@@ -382,58 +394,60 @@ function applyStartupSavedSetup() {
   return true;
 }
 
-els.savedSetupMethodSections?.addEventListener("click", (event) => {
-  const card = event.target.closest(".saved-setup-card");
-  if (event.target.closest(".edit-saved-setup")) {
-    editSavedSetup(card?.dataset.savedSetupId);
-    return;
-  }
-  if (event.target.closest(".finish-saved-setup-edit")) {
-    finishSavedSetupEdit(card).catch(() => {});
-    return;
-  }
-  if (event.target.closest(".add-saved-setup-row")) {
-    addSavedSetupRowToCard(card);
-    return;
-  }
-  if (event.target.closest(".remove-saved-setup-row")) {
-    event.target.closest(".saved-setup-row")?.remove();
-    scheduleSavedSetupAutosave(card);
-    return;
-  }
-  if (event.target.closest(".cancel-saved-setup")) {
-    savedSetupDraft = null;
-    activeSavedSetupEditorId = "";
-    setSavedSetupSettingsMessage("");
-    renderSavedSetupSettings();
-    return;
-  }
-  if (event.target.closest(".delete-saved-setup")) {
-    deleteSavedSetup(card?.dataset.savedSetupId).catch(() => {});
-    return;
-  }
-  if (event.target.closest(".add-saved-setup")) {
-    addSavedSetup(event.target.closest("[data-saved-setup-new-method]")?.dataset.savedSetupNewMethod);
-    return;
-  }
-  if (card) toggleSavedSetupCard(card, event);
-});
+export function setup() {
+  els.savedSetupMethodSections?.addEventListener("click", (event) => {
+    const card = event.target.closest(".saved-setup-card");
+    if (event.target.closest(".edit-saved-setup")) {
+      editSavedSetup(card?.dataset.savedSetupId);
+      return;
+    }
+    if (event.target.closest(".finish-saved-setup-edit")) {
+      finishSavedSetupEdit(card).catch(() => {});
+      return;
+    }
+    if (event.target.closest(".add-saved-setup-row")) {
+      addSavedSetupRowToCard(card);
+      return;
+    }
+    if (event.target.closest(".remove-saved-setup-row")) {
+      event.target.closest(".saved-setup-row")?.remove();
+      scheduleSavedSetupAutosave(card);
+      return;
+    }
+    if (event.target.closest(".cancel-saved-setup")) {
+      savedSetupDraft = null;
+      activeSavedSetupEditorId = "";
+      setSavedSetupSettingsMessage("");
+      renderSavedSetupSettings();
+      return;
+    }
+    if (event.target.closest(".delete-saved-setup")) {
+      deleteSavedSetup(card?.dataset.savedSetupId).catch(() => {});
+      return;
+    }
+    if (event.target.closest(".add-saved-setup")) {
+      addSavedSetup(event.target.closest("[data-saved-setup-new-method]")?.dataset.savedSetupNewMethod);
+      return;
+    }
+    if (card) toggleSavedSetupCard(card, event);
+  });
 
-els.savedSetupMethodSections?.addEventListener("change", (event) => {
-  if (event.target.matches(".saved-setup-combo")) scheduleSavedSetupAutosave(event.target.closest(".saved-setup-card"));
-  if (event.target.matches(".saved-setup-default")) {
-    saveDefaultSavedSetupId(event.target.dataset.savedSetupMethod, event.target).catch(() => {});
-  }
-});
+  els.savedSetupMethodSections?.addEventListener("change", (event) => {
+    if (event.target.matches(".saved-setup-combo")) scheduleSavedSetupAutosave(event.target.closest(".saved-setup-card"));
+    if (event.target.matches(".saved-setup-default")) {
+      saveDefaultSavedSetupId(event.target.dataset.savedSetupMethod, event.target).catch(() => {});
+    }
+  });
 
-els.savedSetupMethodSections?.addEventListener("input", (event) => {
-  if (event.target.matches(".saved-setup-name")) {
-    setSavedSetupSettingsMessage("");
-    scheduleSavedSetupAutosave(event.target.closest(".saved-setup-card"));
-  }
-});
+  els.savedSetupMethodSections?.addEventListener("input", (event) => {
+    if (event.target.matches(".saved-setup-name")) {
+      setSavedSetupSettingsMessage("");
+      scheduleSavedSetupAutosave(event.target.closest(".saved-setup-card"));
+    }
+  });
 
-els.savedSetupPickerList?.addEventListener("click", (event) => {
-  const option = event.target.closest("[data-pick-saved-setup]");
-  if (option) applySavedSetup(option.dataset.pickSavedSetup);
-});
+  els.savedSetupPickerList?.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-pick-saved-setup]");
+    if (option) applySavedSetup(option.dataset.pickSavedSetup);
+  });
+}

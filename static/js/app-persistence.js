@@ -1,41 +1,18 @@
-let lastPersistedState = null;
+// Legacy persistence entry point kept while call sites move to store.commit().
+import { setState, state } from "./app-state.js";
+import { commit, persistedDocument } from "./store.js";
 
-function rememberPersistedState(value) {
-  lastPersistedState = structuredClone(value);
-}
-
-async function saveState() {
-  const nextState = validateState(state);
-
-  if (location.protocol === "file:") {
-    state = nextState;
-    localStorage.setItem(storageKey, JSON.stringify(state));
-    rememberPersistedState(state);
-    return;
-  }
-
-  const headers = { "Content-Type": "application/json" };
-  if (logbookRevision) headers["If-Match"] = logbookRevision;
+/**
+ * Persist in-place edits made directly to `state`.
+ * Prefer `commit((draft) => { ... })` from store.js for new code.
+ */
+export async function saveState() {
+  const edited = structuredClone(state);
   try {
-    const response = await protectedFetch("/api/logbook", {
-      method: "PUT",
-      headers,
-      body: JSON.stringify(nextState)
-    });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.error || "Could not save logbook database");
-    }
-    logbookRevision = response.headers.get("ETag") || logbookRevision;
+    await commit(() => edited);
   } catch (error) {
-    if (lastPersistedState) state = structuredClone(lastPersistedState);
+    const previous = persistedDocument();
+    if (previous) setState(structuredClone(previous));
     throw error;
-  }
-  state = nextState;
-  rememberPersistedState(state);
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(state));
-  } catch (error) {
-    console.warn("Could not cache the saved logbook in browser storage.", error);
   }
 }
