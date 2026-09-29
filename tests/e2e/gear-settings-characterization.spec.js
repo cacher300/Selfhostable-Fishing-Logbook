@@ -1,0 +1,161 @@
+const { expect, test } = require("@playwright/test");
+const {
+  freshLogbook,
+  readLogbook,
+  resetLogbook,
+  seededLocation,
+  stubExternalApis
+} = require("./helpers");
+
+async function resetEmpty(page, overrides = {}) {
+  const document = await freshLogbook(page, overrides);
+  await resetLogbook(page, document);
+  await stubExternalApis(page);
+}
+
+test.describe("gear and settings characterization", () => {
+  test.describe.configure({ timeout: 60_000 });
+  test.afterEach(async ({ page }) => {
+    await resetLogbook(page, await freshLogbook(page));
+  });
+
+  test("creates, edits, and deletes gear through inventory dialogs", async ({ page }) => {
+    await resetEmpty(page);
+    await page.goto("/gear", { waitUntil: "domcontentloaded" });
+
+    await page.getByRole("button", { name: "New Lure", exact: true }).click();
+    await page.locator("#lureName").fill("Agent Spoon");
+    await page.locator("#lureType").selectOption({ label: "Spoon" });
+    await page.locator("#lureColor").fill("Blue Chrome");
+    await page.getByRole("button", { name: "Save Lure", exact: true }).click();
+    await expect(page.locator("#lureDialog")).toBeHidden();
+
+    await page.getByRole("button", { name: "Flashers", exact: true }).click();
+    await page.getByRole("button", { name: "New Flasher", exact: true }).click();
+    await page.locator("#flasherName").fill("Green Paddle");
+    await page.locator("#flasherType").selectOption({ label: "Paddle" });
+    await page.locator("#flasherColor").fill("Green Chrome");
+    await page.getByRole("button", { name: "Save Flasher", exact: true }).click();
+    await expect(page.locator("#flasherDialog")).toBeHidden();
+
+    await page.getByRole("button", { name: "Reels", exact: true }).click();
+    await page.getByRole("button", { name: "New Reel", exact: true }).click();
+    await page.locator("#reelShortName").fill("LC 30");
+    await page.locator("#reelStyle").selectOption({ label: "Linecounter" });
+    await page.locator("#reelBrand").fill("Okuma");
+    await page.locator("#reelName").fill("Cold Water");
+    await page.locator("#reelQuantityAvailable").fill("1");
+    await page.locator("#reelForm").evaluate((form) => form.requestSubmit());
+    await expect(page.locator("#reelDialog")).toBeHidden();
+
+    await page.getByRole("button", { name: "Rods", exact: true }).click();
+    await page.getByRole("button", { name: "New Rod", exact: true }).click();
+    await page.locator("#rodShortName").fill("DR 8ft");
+    await page.locator("#rodType").selectOption({ label: "Downrigging" });
+    await page.locator("#rodBrand").fill("Daiwa");
+    await page.locator("#rodName").fill("Great Lakes");
+    await page.locator("#rodQuantityAvailable").fill("1");
+    await page.locator("#rodForm").evaluate((form) => form.requestSubmit());
+    await expect(page.locator("#rodDialog")).toBeHidden();
+
+    await page.getByRole("button", { name: "Combos", exact: true }).click();
+    await page.getByRole("button", { name: "New Combo", exact: true }).click();
+    await page.locator("#comboShortName").fill("Port rigger");
+    await page.locator("#comboRod").selectOption({ index: 1 });
+    await page.locator("#comboReel").selectOption({ index: 1 });
+    await page.locator("#comboNotes").fill("Default port downrigger combo");
+    await page.locator("#comboForm").evaluate((form) => form.requestSubmit());
+    await expect(page.locator("#comboDialog")).toBeHidden();
+
+    let saved = await readLogbook(page);
+    expect(saved.lures).toHaveLength(1);
+    expect(saved.lures[0]).toMatchObject({ name: "Agent Spoon", type: "Spoon", color: "Blue Chrome" });
+    expect(saved.flashers[0]).toMatchObject({ name: "Green Paddle", type: "Paddle", color: "Green Chrome" });
+    expect(saved.reels[0]).toMatchObject({ shortName: "LC 30", style: "Linecounter", brand: "Okuma", name: "Cold Water" });
+    expect(saved.rods[0]).toMatchObject({ shortName: "DR 8ft", type: "Downrigging", brand: "Daiwa", name: "Great Lakes" });
+    expect(saved.rodReelCombos[0]).toMatchObject({
+      shortName: "Port rigger",
+      rodId: saved.rods[0].id,
+      reelId: saved.reels[0].id,
+      notes: "Default port downrigger combo"
+    });
+
+    await page.getByRole("button", { name: "Baits", exact: true }).click();
+    await page.locator(`[data-edit-lure="${saved.lures[0].id}"]`).click();
+    await page.locator("#lureName").fill("Renamed Agent Spoon");
+    await page.getByRole("button", { name: "Save Lure", exact: true }).click();
+    await expect(page.locator("#lureDialog")).toBeHidden();
+
+    await page.getByRole("button", { name: "Flashers", exact: true }).click();
+    await page.locator(`[data-edit-flasher="${saved.flashers[0].id}"]`).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.locator("#deleteFlasherButton").click();
+    await expect(page.locator("#flasherDialog")).toBeHidden();
+
+    saved = await readLogbook(page);
+    expect(saved.lures[0].name).toBe("Renamed Agent Spoon");
+    expect(saved.flashers).toEqual([]);
+  });
+
+  test("converts depth units, stores dark theme, and persists checklist edits", async ({ page }) => {
+    await resetEmpty(page, {
+      locations: [seededLocation()],
+      trips: [{
+        id: "trip-depth",
+        title: "Depth seed",
+        date: "2026-07-01",
+        location: "Lake Erie",
+        locationId: "loc-lake-erie",
+        launchTime: "06:00",
+        linesPulledTime: "08:00",
+        hours: 2,
+        targetSpecies: "Walleye",
+        method: "Casting",
+        structure: "100 ft",
+        people: [{ id: "person-depth", name: "Depth Tester" }],
+        gearUsed: [],
+        catches: [{
+          id: "catch-depth",
+          personId: "person-depth",
+          species: "Walleye",
+          time: "07:00",
+          waterDepth: "60 ft",
+          depthDown: "30 ft",
+          photos: []
+        }],
+        lostFish: []
+      }]
+    });
+    await page.goto("/settings", { waitUntil: "domcontentloaded" });
+
+    await page.getByRole("button", { name: "Measurements", exact: true }).click();
+    await page.locator('[data-unit-setting="depth"]').selectOption("m");
+    await expect(page.locator("#settingsSaveStatus")).toHaveText("Saved");
+
+    let saved = await readLogbook(page);
+    expect(saved.settings.units.depth).toBe("m");
+    expect(saved.trips[0].structure).toBe("30.48 m");
+    expect(saved.trips[0].catches[0].waterDepth).toBe("18.288 m");
+    expect(saved.trips[0].catches[0].depthDown).toBe("9.144 m");
+
+    await page.getByRole("button", { name: "General", exact: true }).click();
+    await page.locator('input[name="themeChoice"][value="dark"]').check();
+    await expect(page.locator("#settingsSaveStatus")).toHaveText("Saved");
+    saved = await readLogbook(page);
+    expect(saved.settings.theme).toBe("dark");
+
+    await page.goto("/checklists", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "New Checklist", exact: true }).click();
+    await page.locator(".checklist-name").fill("Trip Prep");
+    await page.getByRole("button", { name: "Add Item", exact: true }).click();
+    await page.locator(".checklist-item-label").fill("Bring net");
+    await expect.poll(async () => (await readLogbook(page)).settings.checklists?.[0]?.items?.[0]?.label).toBe("Bring net");
+
+    await page.locator(".checklist-name").fill("Tournament Prep");
+    await page.locator(".checklist-item-label").fill("Bring landing net");
+    await expect.poll(async () => {
+      const checklist = (await readLogbook(page)).settings.checklists?.[0];
+      return `${checklist?.name}|${checklist?.items?.[0]?.label}`;
+    }).toBe("Tournament Prep|Bring landing net");
+  });
+});
