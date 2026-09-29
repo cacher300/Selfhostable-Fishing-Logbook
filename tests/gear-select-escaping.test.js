@@ -1,31 +1,34 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert");
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { installBrowserEnv } from "./helpers/browser-env.mjs";
+
+installBrowserEnv();
+const appState = await import("../static/js/app-state.js");
+const { populateFlasherSelect, populateGearSelect, populateLureSelect, populateLuresForType } = await import("../static/js/gear-pickers.js");
 
 const hostileId = `x"><img src=x onerror="alert(1)">`;
-const context = {
-  console,
-  document: { addEventListener() {} },
-  state: {
-    lures: [{ id: hostileId, name: "Spoon", type: "Spoon" }],
-    flashers: [{ id: hostileId, name: "Paddle" }],
-    rods: [{ id: hostileId, name: "Rod" }],
-  },
-  gearDisplayName(item) { return item.name; },
-};
-vm.createContext(context);
-vm.runInContext(fs.readFileSync("static/js/form-utils.js", "utf8"), context);
-vm.runInContext(fs.readFileSync("static/js/gear-pickers.js", "utf8"), context);
-// The custom picker needs a real DOM; this test only inspects option markup.
-vm.runInContext("enhanceGearSelect = () => {};", context);
+appState.setState({
+  lures: [{ id: hostileId, name: "Spoon", type: "Spoon" }],
+  flashers: [{ id: hostileId, name: "Paddle" }],
+  rods: [{ id: hostileId, name: "Rod" }],
+});
 
 const escapedOption = `<option value="x&quot;&gt;&lt;img src=x onerror=&quot;alert(1)&quot;&gt;"`;
-const select = () => ({ dataset: {}, closest() { return null; }, innerHTML: "" });
+const select = () => ({
+  dataset: {},
+  closest() { return null; },
+  innerHTML: "",
+  classList: { add() {} },
+  parentNode: { insertBefore() {} },
+  style: {},
+  setAttribute() {},
+  addEventListener() {},
+});
 for (const [name, call] of [
-  ["populateGearSelect", (target) => context.populateGearSelect(target, context.state.rods, "", "No rod", (item) => item.name)],
-  ["populateLureSelect", (target) => context.populateLureSelect(target)],
-  ["populateLuresForType", (target) => context.populateLuresForType(target, "Spoon")],
-  ["populateFlasherSelect", (target) => context.populateFlasherSelect(target)],
+  ["populateGearSelect", (target) => populateGearSelect(target, appState.state.rods, "", "No rod", (item) => item.name)],
+  ["populateLureSelect", (target) => populateLureSelect(target)],
+  ["populateLuresForType", (target) => populateLuresForType(target, "Spoon")],
+  ["populateFlasherSelect", (target) => populateFlasherSelect(target)],
 ]) {
   const target = select();
   call(target);
@@ -33,7 +36,5 @@ for (const [name, call] of [
   assert(!target.innerHTML.includes("<img"), `${name} must not render markup from record IDs`);
 }
 
-const tripRowsSource = fs.readFileSync("static/js/trip-rows.js", "utf8");
-assert.doesNotMatch(tripRowsSource, /^function populate(Lure|Flasher)Select\(/m, "gear selects have one owner in gear-pickers.js");
-
-console.log("gear select option values escape imported record IDs");
+const tripRowsSource = await readFile(new URL("../static/js/trip-rows.js", import.meta.url), "utf8");
+assert.doesNotMatch(tripRowsSource, /^export function populate(Lure|Flasher)Select\(/m, "gear selects have one owner in gear-pickers.js");

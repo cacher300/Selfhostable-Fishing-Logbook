@@ -1,10 +1,8 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert");
+import assert from "node:assert/strict";
+import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
-const context = { console };
-vm.createContext(context);
-vm.runInContext(fs.readFileSync("static/js/app-media.js", "utf8"), context);
+installBrowserEnv();
+const { originalMediaUrl, previewImage } = await import("../static/js/app-media.js");
 
 const gear = {
   heroMediaId: "featured",
@@ -14,8 +12,7 @@ const gear = {
     { id: "featured", category: "lures", filename: "featured.jpg", mediaType: "image" },
   ],
 };
-assert.equal(context.previewImage(gear), "/uploads/lures/featured.jpg");
-assert.equal(context.originalMediaUrl(gear), "/uploads/lures/featured.jpg");
-assert.equal(context.previewImage({ media: [gear.media[0]] }), "");
 
-console.log("v2 gear previews use the featured image and skip videos");
+assert.equal(previewImage(gear), "/uploads/lures/featured.jpg");
+assert.equal(originalMediaUrl(gear), "/uploads/lures/featured.jpg");
+assert.equal(previewImage({ media: [gear.media[0]] }), "");

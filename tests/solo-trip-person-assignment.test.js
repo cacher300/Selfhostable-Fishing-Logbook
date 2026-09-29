@@ -1,34 +1,39 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert");
+import assert from "node:assert/strict";
+import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
-const source = fs.readFileSync("static/js/trip-editor.js", "utf8");
-const match = source.match(/function populatePersonSelect\(select, selectedId = ""\) \{[\s\S]*?\n\}/);
-assert(match, "populatePersonSelect should be defined");
+installBrowserEnv();
+const { els } = await import("../static/js/app-elements.js");
+const { setState } = await import("../static/js/app-state.js");
+const { populatePersonSelect } = await import("../static/js/trip-editor.js");
 
-const context = {
-  syncPersonRowIds: () => {},
-  mergePeople: (people) => people,
-  collectPeople: () => context.people,
-  escapeHtml: (value) => value
-};
-vm.createContext(context);
-vm.runInContext(match[0], context);
+function setPeople(people) {
+  setState({ people });
+  els.personRows = {
+    querySelectorAll: () => people.map((person) => ({
+      dataset: { personId: person.id },
+      querySelector(selector) {
+        if (selector === ".person-select") return { value: person.id, selectedOptions: [{ textContent: person.name }] };
+        if (selector === ".person-name") return { value: person.name };
+        return null;
+      },
+    })),
+  };
+}
 
 function selectStub() {
   return { innerHTML: "", value: "" };
 }
 
-context.people = [{ id: "alex", name: "Alex" }];
+setPeople([{ id: "alex", name: "Alex" }]);
 const soloSelect = selectStub();
-context.populatePersonSelect(soloSelect);
+populatePersonSelect(soloSelect);
 assert.equal(soloSelect.value, "alex", "a solo trip person is assigned automatically");
 
-context.people = [{ id: "alex", name: "Alex" }, { id: "sam", name: "Sam" }];
+setPeople([{ id: "alex", name: "Alex" }, { id: "sam", name: "Sam" }]);
 const groupSelect = selectStub();
-context.populatePersonSelect(groupSelect);
+populatePersonSelect(groupSelect);
 assert.equal(groupSelect.value, "", "a multi-person trip leaves a new catch unassigned");
 
 const assignedSelect = selectStub();
-context.populatePersonSelect(assignedSelect, "sam");
+populatePersonSelect(assignedSelect, "sam");
 assert.equal(assignedSelect.value, "sam", "an explicit catch assignment is preserved");
