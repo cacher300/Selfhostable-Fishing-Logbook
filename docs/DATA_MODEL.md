@@ -53,8 +53,8 @@ Compatibility-sensitive fields include `settings.defaultPeople`, `units`, `timeF
 | `waterClarities`, `weatherTypes` | string arrays | Manual condition choices. |
 | `reelStyles`, `rodTypes`, `lineTypes`, `riggings`, `structureOptions` | string arrays | Inventory and structure choices. |
 | `flyCategories`, `flyPresentations`, `waterLevels`, `lureBladeTypes`, `lureSpoonSizes` | string arrays | Other current form choices. |
-| `meatRigTypes` | optional string array | Editable meat-rig bait/presentation choices. Older v2 documents without the array use starter choices in the editors until saved. |
-| `softPlasticTypes` | optional string array | Editable soft-plastic shape/style choices. Older v2 documents without the array use starter choices in the editors until saved. |
+| `meatRigTypes` | string array | Current editable meat-rig bait/presentation choices. |
+| `softPlasticTypes` | string array | Current editable soft-plastic shape/style choices. |
 | `trollingPresentations` | `{value,label}[]` | Presentation choices. |
 | `trollingDirections` | string array | Direction choices. |
 | `setupLineSides` | `{value,label}[]` | Port/center/starboard choices. |
