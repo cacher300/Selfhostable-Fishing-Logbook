@@ -17,6 +17,8 @@ from threading import RLock
 
 
 _LOCK = RLock()
+_OPTIONAL_COLLECTION_KEYS = {"meatRigTypes", "softPlasticTypes"}
+_OPTIONAL_COLLECTIONS_PRESENT_KEY = "optionalCollectionsPresent"
 
 
 def _connect(database_file: Path) -> sqlite3.Connection:
@@ -127,6 +129,7 @@ def read_with_revision(database_file: Path, collection_keys: tuple[str, ...]) ->
                 loaded = metadata.get("extra", {})
                 loaded["schemaVersion"] = metadata.get("schemaVersion", 0)
                 loaded["settings"] = metadata.get("settings", {})
+                optional_present = set(metadata.get(_OPTIONAL_COLLECTIONS_PRESENT_KEY, []))
                 for collection_name in collection_keys:
                     rows = [
                         json.loads(row["payload_json"])
@@ -138,6 +141,8 @@ def read_with_revision(database_file: Path, collection_keys: tuple[str, ...]) ->
                     ]
                     # Collections promoted out of "extra" keep their stored
                     # value until the next write moves them into rows.
+                    if collection_name in _OPTIONAL_COLLECTION_KEYS and not rows and collection_name not in loaded and collection_name not in optional_present:
+                        continue
                     if rows or collection_name not in loaded:
                         loaded[collection_name] = rows
                 try:
@@ -203,6 +208,10 @@ def write(
         for key, value in normalized.items()
         if key not in {*collection_keys, "schemaVersion", "settings"}
     }
+    optional_present = [
+        key for key in collection_keys
+        if key in _OPTIONAL_COLLECTION_KEYS and key in normalized
+    ]
     with _LOCK:
         database_file.parent.mkdir(parents=True, exist_ok=True)
         with closing(_connect(database_file)) as connection:
@@ -216,11 +225,13 @@ def write(
                     ("schemaVersion", normalized["schemaVersion"]),
                     ("settings", normalized["settings"]),
                     ("extra", extras),
+                    (_OPTIONAL_COLLECTIONS_PRESENT_KEY, optional_present),
                     ("revision", revision),
                 ):
                     _write_metadata(connection, key, value)
                 for collection_name in collection_keys:
-                    _insert_rows(connection, collection_name, normalized[collection_name], object_collection_keys)
+                    if collection_name in normalized:
+                        _insert_rows(connection, collection_name, normalized[collection_name], object_collection_keys)
                 connection.commit()
             except Exception:
                 connection.rollback()

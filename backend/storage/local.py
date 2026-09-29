@@ -20,7 +20,7 @@ from werkzeug.utils import secure_filename
 from .. import logbook_repository
 from ..backend_config import ALLOWED_MEDIA_EXTENSIONS, DEFAULT_LOGBOOK, PREVIEW_DIRNAME, UPLOAD_CATEGORIES
 from ..logbook_changes import LogbookChangeError, apply_changes
-from ..logbook_store import COLLECTION_KEYS, OBJECT_COLLECTION_KEYS, LogbookStorageError, validate_logbook
+from ..logbook_store import COLLECTION_KEYS, OBJECT_COLLECTION_KEYS, OPTIONAL_COLLECTION_KEYS, LogbookStorageError, validate_logbook
 from ..media_service import (
     MediaNotFound,
     UploadLibrary,
@@ -155,14 +155,23 @@ class LocalLogbookStore:
                         key: value for key, value in document.items()
                         if key not in {*COLLECTION_KEYS, "schemaVersion", "settings"}
                     },
+                    "optionalCollectionsPresent": [
+                        key for key in COLLECTION_KEYS
+                        if key in OPTIONAL_COLLECTION_KEYS and key in document
+                    ],
                 }
                 if plan.settings_changed:
                     metadata["settings"] = document["settings"]
+                rewritten_collections = set(plan.rewritten_collections)
+                rewritten_collections.update(
+                    key for key in OPTIONAL_COLLECTION_KEYS
+                    if key in document
+                )
                 revision = logbook_repository.write_partial(
                     self.database_file,
                     expected_revision=base_revision,
                     object_collection_keys=OBJECT_COLLECTION_KEYS,
-                    collections={name: document[name] for name in plan.rewritten_collections},
+                    collections={name: document[name] for name in rewritten_collections},
                     record_updates=plan.record_updates(document),
                     metadata=metadata,
                 )

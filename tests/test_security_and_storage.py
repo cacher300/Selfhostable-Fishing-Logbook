@@ -8,7 +8,7 @@ from contextlib import closing
 from copy import deepcopy
 from pathlib import Path
 
-from backend import logbook_store
+from backend import logbook_repository, logbook_store
 from backend.backend_config import DEFAULT_LOGBOOK
 from backend.storage.local import LocalLogbookStore
 
@@ -157,6 +157,49 @@ class LogbookStoreTests(unittest.TestCase):
             store.write(edited, None)
             stored = store.read().document
         self.assertEqual(fish, stored["trips"][0]["catches"][0])
+
+    def test_optional_lure_subtype_collections_preserve_presence(self):
+        absent = document()
+        del absent["meatRigTypes"]
+        del absent["softPlasticTypes"]
+        with tempfile.TemporaryDirectory() as directory:
+            store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
+            store.write(absent, None)
+            stored = store.read().document
+            self.assertNotIn("meatRigTypes", stored)
+            self.assertNotIn("softPlasticTypes", stored)
+
+            present_empty = document(meatRigTypes=[], softPlasticTypes=[])
+            store.write(present_empty, None)
+            stored = store.read().document
+            self.assertEqual([], stored["meatRigTypes"])
+            self.assertEqual([], stored["softPlasticTypes"])
+
+    def test_optional_lure_subtype_collections_migrate_from_extra_to_rows(self):
+        old_collection_keys = tuple(key for key in logbook_store.COLLECTION_KEYS if key not in {"meatRigTypes", "softPlasticTypes"})
+        payload = document(meatRigTypes=["Custom strip"], softPlasticTypes=["Custom tail"])
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / "logbook.sqlite3"
+            logbook_repository.write(file, payload, old_collection_keys, logbook_store.OBJECT_COLLECTION_KEYS)
+            store = LocalLogbookStore(file)
+            self.assertEqual(["Custom strip"], store.read().document["meatRigTypes"])
+            edited = store.read().document
+            edited["settings"]["theme"] = "dark"
+            store.write(edited, None)
+            with closing(sqlite3.connect(file)) as connection:
+                self.assertEqual(1, connection.execute("SELECT COUNT(*) FROM logbook_entries WHERE collection_name='meatRigTypes'").fetchone()[0])
+                extra = connection.execute("SELECT value_json FROM logbook_metadata WHERE key='extra'").fetchone()[0]
+                self.assertNotIn("meatRigTypes", extra)
+
+    def test_record_level_replace_supports_optional_lure_subtype_collections(self):
+        payload = document()
+        del payload["meatRigTypes"]
+        with tempfile.TemporaryDirectory() as directory:
+            store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
+            store.write(payload, None)
+            store.apply_changes([{"op": "replace", "collection": "meatRigTypes", "items": ["Custom strip"]}], None)
+            stored = store.read().document
+            self.assertEqual(["Custom strip"], stored["meatRigTypes"])
 
     def test_named_spread_default_must_reference_a_saved_spread(self):
         settings = deepcopy(DEFAULT_LOGBOOK["settings"])
