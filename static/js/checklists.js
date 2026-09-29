@@ -1,6 +1,6 @@
 import { createId } from "./app-defaults.js";
 import { state } from "./app-state.js";
-import { saveState } from "./app-persistence.js";
+import { replaceChecklists } from "./actions.js";
 import { els } from "./app-elements.js";
 import { escapeHtml } from "./form-utils.js";
 
@@ -94,9 +94,8 @@ export function setChecklistSaveStatus(card, message, stateName = "") {
 export async function persistChecklistsFromView({ rerender = false } = {}) {
   clearTimeout(checklistSaveTimer);
   const source = checklistsFromView();
-  state.settings.checklists = source;
   try {
-    await saveState();
+    await replaceChecklists(source);
     if (rerender) renderChecklists();
     else els.checklistList?.querySelectorAll(".checklist-card").forEach((card) => setChecklistSaveStatus(card, "Saved"));
   } catch (error) {
@@ -123,8 +122,7 @@ export function updateChecklistCardProgress(card) {
 export async function createChecklist() {
   const checklists = checklistsFromView();
   const checklist = { id: createId(), name: "New Checklist", items: [] };
-  state.settings.checklists = [...checklists, checklist];
-  await saveState();
+  await replaceChecklists([...checklists, checklist]);
   renderChecklists({ focusChecklistId: checklist.id });
 }
 
@@ -133,13 +131,11 @@ export async function handleChecklistAction(event) {
   if (!card) return;
   if (event.target.closest("[data-delete-checklist-item]")) {
     event.target.closest(".checklist-item")?.remove();
-    state.settings.checklists = checklistsFromView();
-    await saveState();
+    await replaceChecklists(checklistsFromView());
     renderChecklists();
     return;
   }
-  state.settings.checklists = checklistsFromView();
-  const checklists = state.settings.checklists;
+  const checklists = checklistsFromView();
   const checklistIndex = checklists.findIndex((item) => item.id === card.dataset.checklistId);
   if (checklistIndex < 0) return;
   const checklist = checklists[checklistIndex];
@@ -158,23 +154,21 @@ export async function handleChecklistAction(event) {
       items: checklist.items.map((item) => ({ ...item, id: createId(), done: false }))
     };
     checklists.splice(checklistIndex + 1, 0, copy);
-    state.settings.checklists = checklists;
-    await saveState();
+    await replaceChecklists(checklists);
     renderChecklists({ focusChecklistId: copy.id });
     return;
   }
   if (event.target.closest("[data-delete-checklist]")) {
     if (!confirm(`Delete ${checklist.name}?`)) return;
     checklists.splice(checklistIndex, 1);
-    state.settings.checklists = checklists;
-    await saveState();
+    await replaceChecklists(checklists);
     renderChecklists();
     return;
   }
   if (event.target.closest("[data-reset-checklist]")) {
     if (checklist.items.some((item) => item.done) && !confirm(`Reset all completed items in ${checklist.name}?`)) return;
     checklist.items.forEach((item) => { item.done = false; });
-    await saveState();
+    await replaceChecklists(checklists);
     renderChecklists();
     return;
   }

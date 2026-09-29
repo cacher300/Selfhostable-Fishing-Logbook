@@ -1,7 +1,7 @@
 import { createId } from "./app-defaults.js";
-import { setState, state, ui } from "./app-state.js";
+import { state, ui } from "./app-state.js";
 import { currentSavedSetups } from "./app-normalization.js";
-import { saveState } from "./app-persistence.js";
+import { updateSettings } from "./actions.js";
 import { els } from "./app-elements.js";
 import { runSettingsSave, scheduleSettingsAutosave, settingsAutosaveTimer } from "./settings-core.js";
 import { getValue, syncTripFormChrome } from "./trip-editor.js";
@@ -253,19 +253,20 @@ export async function saveSavedSetupCard(card, options = {}) {
     if (!options.silentInvalid) card?.querySelector(".saved-setup-name")?.focus();
     return;
   }
-  const previousState = structuredClone(state);
   const index = setups.findIndex((setup) => setup.id === next.id);
   if (index >= 0) setups[index] = next;
   else setups.push(next);
-  state.settings = { ...(state.settings || {}), savedSetups: setups };
   savedSetupDraft = null;
   activeSavedSetupEditorId = next.id;
   setSavedSetupSettingsMessage("");
   try {
-    await runSettingsSave(() => saveState(), "The saved setup could not be saved.", options);
+    await runSettingsSave(
+      () => updateSettings((settings) => { settings.savedSetups = setups; }),
+      "The saved setup could not be saved.",
+      options
+    );
     renderSavedSetupSettings();
   } catch (error) {
-    setState(previousState);
     savedSetupDraft = wasDraft ? next : null;
     activeSavedSetupEditorId = next.id;
     renderSavedSetupSettings();
@@ -275,19 +276,22 @@ export async function saveSavedSetupCard(card, options = {}) {
 export async function deleteSavedSetup(setupId) {
   const setup = currentSavedSetups().find((item) => item.id === setupId);
   if (!setup || !confirm(`Delete the ${setup.name} setup?`)) return;
-  const previousState = structuredClone(state);
   const setups = currentSavedSetups().filter((item) => item.id !== setupId);
   const defaults = { ...(state.settings?.defaultSavedSetupIds || {}) };
   Object.entries(defaults).forEach(([method, id]) => {
     if (id === setupId) delete defaults[method];
   });
   if (activeSavedSetupEditorId === setupId) activeSavedSetupEditorId = "";
-  state.settings = { ...(state.settings || {}), savedSetups: setups, defaultSavedSetupIds: defaults };
   try {
-    await runSettingsSave(() => saveState(), "The saved setup could not be deleted.");
+    await runSettingsSave(
+      () => updateSettings((settings) => {
+        settings.savedSetups = setups;
+        settings.defaultSavedSetupIds = defaults;
+      }),
+      "The saved setup could not be deleted."
+    );
     renderSavedSetupSettings();
   } catch (error) {
-    setState(previousState);
     renderSavedSetupSettings();
   }
 }
@@ -298,17 +302,18 @@ export async function saveDefaultSavedSetupId(method, select, options = {}) {
     item.id === nextId && item.method.toLowerCase() === String(method || "").trim().toLowerCase()
   ));
   if (nextId && !setup) return;
-  const previousState = structuredClone(state);
   const defaults = { ...(state.settings?.defaultSavedSetupIds || {}) };
   Object.keys(defaults).forEach((key) => {
     if (key.toLowerCase() === String(method || "").trim().toLowerCase()) delete defaults[key];
   });
   if (setup) defaults[setup.method] = setup.id;
-  state.settings = { ...(state.settings || {}), defaultSavedSetupIds: defaults };
   try {
-    await runSettingsSave(() => saveState(), `The ${method} default setup could not be saved.`, options);
+    await runSettingsSave(
+      () => updateSettings((settings) => { settings.defaultSavedSetupIds = defaults; }),
+      `The ${method} default setup could not be saved.`,
+      options
+    );
   } catch (error) {
-    setState(previousState);
     renderSavedSetupSettings();
   }
 }

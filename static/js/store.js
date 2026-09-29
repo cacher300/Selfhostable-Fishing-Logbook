@@ -29,6 +29,24 @@ function jsonDocument(document) {
   return JSON.parse(JSON.stringify(document));
 }
 
+function deepFreeze(value, seen = new WeakSet()) {
+  if (!value || typeof value !== "object" || seen.has(value)) return value;
+  seen.add(value);
+  Object.freeze(value);
+  for (const key of Reflect.ownKeys(value)) {
+    deepFreeze(value[key], seen);
+  }
+  return value;
+}
+
+function installState(document) {
+  const next = (typeof __STRICT_STATE__ !== "undefined" && __STRICT_STATE__)
+    ? deepFreeze(document)
+    : document;
+  setState(next);
+  return next;
+}
+
 function cacheLocally(document) {
   try {
     localStorage.setItem(storageKey, JSON.stringify(document));
@@ -62,11 +80,11 @@ export function persistedDocument() {
 export function replaceState(document, { revision } = {}) {
   const validated = validateState(document);
   if (revision !== undefined) setLogbookRevision(revision);
-  setState(validated);
+  const installed = installState(validated);
   persisted = structuredClone(validated);
   cacheLocally(validated);
   notify({ type: "replace" });
-  return validated;
+  return installed;
 }
 
 /** Reload the stored document from the server and make it current. */
@@ -109,11 +127,11 @@ export function commit(mutate) {
     const replacement = await mutate(draft);
     const next = validateState(jsonDocument(replacement === undefined ? draft : replacement));
     await persist(next);
-    setState(next);
+    const installed = installState(next);
     persisted = structuredClone(next);
     cacheLocally(next);
     notify({ type: "commit" });
-    return next;
+    return installed;
   };
   const result = queue.then(run, run);
   queue = result.catch(() => {});

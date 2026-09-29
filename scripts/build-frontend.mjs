@@ -1,7 +1,8 @@
 // Build the browser bundle: static/js/main.js + static/css/app.css -> static/dist/.
 //
-//   node scripts/build-frontend.mjs           one-off production build
+//   node scripts/build-frontend.mjs           one-off local/test build
 //   node scripts/build-frontend.mjs --watch   rebuild on change during development
+//   node scripts/build-frontend.mjs --production  production build (strict state checks off)
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,6 +11,7 @@ import * as esbuild from "esbuild";
 const root = path.resolve(import.meta.dirname, "..");
 const outdir = path.join(root, "static", "dist");
 const watch = process.argv.includes("--watch");
+const production = process.argv.includes("--production");
 
 const options = {
   absWorkingDir: root,
@@ -23,6 +25,9 @@ const options = {
   target: ["es2022"],
   minify: !watch,
   sourcemap: true,
+  define: {
+    __STRICT_STATE__: JSON.stringify(!production),
+  },
   legalComments: "linked",
   loader: {
     ".png": "file",

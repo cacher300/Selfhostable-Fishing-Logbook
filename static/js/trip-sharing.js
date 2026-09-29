@@ -1,7 +1,7 @@
 import { html2canvas } from "./vendor.js";
 import { state } from "./app-state.js";
 import { convertedMeasurementText, displayStoredMeasurement, timeFormatPreference, unitPreference } from "./app-units.js";
-import { saveState } from "./app-persistence.js";
+import { updateSettings } from "./actions.js";
 import { els } from "./app-elements.js";
 import { originalMediaUrl, previewImage } from "./app-media.js";
 import { formatDate, tripHours } from "./dashboard.js";
@@ -745,12 +745,10 @@ export async function saveShareAppearancePreset() {
     textColor: shareColor(shareControl("shareTripTextColor")?.value, "#edf3f8"),
     cardBackground: shareColor(shareControl("shareTripCardBackground")?.value, "#141f29")
   };
-  state.settings = {
-    ...(state.settings || {}),
-    shareAppearancePresets: [...existing.filter((item) => item.id !== id), preset]
-  };
   try {
-    await saveState();
+    await updateSettings((settings) => {
+      settings.shareAppearancePresets = [...existing.filter((item) => item.id !== id), preset];
+    });
     shareRenderAppearanceOptions(`preset:${id}`);
     shareControl("shareTripAppearanceName").value = "";
     shareSetStatus("Appearance saved.", "success");

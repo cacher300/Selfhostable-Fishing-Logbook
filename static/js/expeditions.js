@@ -1,6 +1,6 @@
 import { createId } from "./app-defaults.js";
 import { state } from "./app-state.js";
-import { saveState } from "./app-persistence.js";
+import { deleteExpeditionRecord, saveExpeditionRecord } from "./actions.js";
 import { els } from "./app-elements.js";
 import { catchRate, formatDate, renderAll, totalCaught, tripHours } from "./dashboard.js";
 import { ExpeditionAnalytics } from "./expedition-analytics.js";
@@ -277,12 +277,8 @@ export async function saveExpedition(event) {
   }
   const outsideTrips = expeditionMemberTrips(expedition.id).filter((trip) => ExpeditionAnalytics.tripOutsideRange(trip, expedition));
   if (outsideTrips.length && !confirm(`${outsideTrips.length} assigned ${outsideTrips.length === 1 ? "trip falls" : "trips fall"} outside this date range. Save anyway?`)) return;
-  const previous = structuredClone(state.expeditions);
-  const index = state.expeditions.findIndex((item) => item.id === expedition.id);
-  if (index >= 0) state.expeditions[index] = expedition;
-  else state.expeditions.push(expedition);
   try {
-    await saveState();
+    await saveExpeditionRecord(expedition);
     activeExpeditionId = expedition.id;
     if (returnToTripEditorAfterExpeditionSave && els.tripExpedition) {
       els.tripExpedition.value = expedition.id;
@@ -291,7 +287,6 @@ export async function saveExpedition(event) {
     els.expeditionDialog.close();
     renderAll();
   } catch (error) {
-    state.expeditions = previous;
     showExpeditionFormMessage(error.message || "The expedition could not be saved.");
   }
 }
@@ -303,18 +298,12 @@ export async function deleteActiveExpedition() {
   const memberTrips = expeditionMemberTrips(expeditionId);
   const detail = memberTrips.length ? ` Its ${memberTrips.length} ${memberTrips.length === 1 ? "trip" : "trips"} will be kept and unassigned.` : "";
   if (!confirm(`Delete “${expedition.name}”?${detail}`)) return;
-  const previousExpeditions = structuredClone(state.expeditions);
-  const previousTrips = structuredClone(state.trips);
-  state.expeditions = state.expeditions.filter((item) => item.id !== expeditionId);
-  state.trips = ExpeditionAnalytics.unassignTrips(state.trips, expeditionId);
   try {
-    await saveState();
+    await deleteExpeditionRecord(expeditionId);
     activeExpeditionId = "";
     els.expeditionDialog.close();
     renderAll();
   } catch (error) {
-    state.expeditions = previousExpeditions;
-    state.trips = previousTrips;
     showExpeditionFormMessage(error.message || "The expedition could not be deleted.");
   }
 }

@@ -7,8 +7,8 @@ const { nextReelCopyShortName, syncReelGroupQuantity } = await import("../static
 
 appState.setState({
   reels: [
-    { id: "one", shortName: "Convector", brand: "Okuma", name: "Convector" },
-    { id: "two", shortName: "Convector #2", brand: "Okuma", name: "Convector" },
+    { id: "one", shortName: "Convector", brand: "Okuma", name: "Convector", modelGroupId: "one" },
+    { id: "two", shortName: "Convector #2", brand: "Okuma", name: "Convector", modelGroupId: "one" },
   ],
 });
 
@@ -19,8 +19,6 @@ assert.equal(
   "Shimano Stradic #2",
 );
 
-appState.state.reels[0].modelGroupId = "one";
-appState.state.reels[1].modelGroupId = "one";
-syncReelGroupQuantity("one", 2);
-assert.equal(appState.state.reels[0].quantityAvailable, "2");
-assert.equal(appState.state.reels[1].quantityAvailable, "2");
+const syncedReels = syncReelGroupQuantity("one", 2);
+assert.equal(syncedReels[0].quantityAvailable, "2");
+assert.equal(syncedReels[1].quantityAvailable, "2");

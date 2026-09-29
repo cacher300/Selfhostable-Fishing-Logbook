@@ -1,7 +1,7 @@
 import { L } from "./vendor.js";
 import { state, ui } from "./app-state.js";
 import { convertUnitValue, unitPreference } from "./app-units.js";
-import { saveState } from "./app-persistence.js";
+import { replaceFishingSpots, updateSettings } from "./actions.js";
 import { els } from "./app-elements.js";
 import { isUsableCoordinates } from "./app-media.js";
 import { coordinateText, selectedTripLocationCoordinates } from "./locations.js";
@@ -104,9 +104,8 @@ export async function saveFishingSpots(nextSpots, options = {}) {
   await runSettingsSave(
     async () => {
       validateFishingSpots(nextSpots);
-      state.spots = nextSpots;
+      await replaceFishingSpots(nextSpots);
       ensureActiveFishingSpot(nextSpots);
-      await saveState();
       if (options.rerender !== false) renderFishingSpotSettings();
       else renderFishingSpotMap();
     },
@@ -358,9 +357,10 @@ export async function savePrivatePhotoLocations(nextLocations, options = {}) {
     await runSettingsSave(
       async () => {
         validatePrivatePhotoLocations(nextLocations);
-        state.settings = { ...(state.settings || {}), privatePhotoLocations: nextLocations };
+        await updateSettings((settings) => {
+          settings.privatePhotoLocations = nextLocations;
+        });
         ensureActivePrivatePhotoLocation(nextLocations);
-        await saveState();
         if (options.rerender !== false) {
           renderPrivatePhotoLocationSettings();
         } else {

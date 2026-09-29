@@ -110,7 +110,7 @@ export function displayStoredMeasurement(value, key) {
   return `${text} ${unitSymbol(key)}`;
 }
 
-export function convertStoredMeasurements(previousUnits, nextUnits) {
+export function convertStoredMeasurements(previousUnits, nextUnits, document = state) {
   const tripMeasurements = [
     ["waterTemp", "waterTemperature"],
     ["waveHeight", "waveHeight"],
@@ -140,7 +140,7 @@ export function convertStoredMeasurements(previousUnits, nextUnits) {
     });
   };
 
-  state.trips.forEach((trip) => {
+  (document.trips || []).forEach((trip) => {
     convertRecord(trip, tripMeasurements);
     if (previousUnits.waterTemperature !== nextUnits.waterTemperature) {
       (Array.isArray(trip.probeTemperatureProfile) ? trip.probeTemperatureProfile : []).forEach((entry) => {
@@ -159,7 +159,7 @@ export function convertStoredMeasurements(previousUnits, nextUnits) {
     // Older imports can put the same measurements on a setup line.
     (trip.gearUsed || []).forEach((gearItem) => convertRecord(gearItem, catchMeasurements));
   });
-  (state.reels || []).forEach((reel) => {
+  (document.reels || []).forEach((reel) => {
     convertRecord(reel, [["maxDrag", "fishWeight"]]);
     (reel.lineHistory || []).forEach((line) => convertRecord(line, [["weight", "fishWeight"]]));
   });

@@ -1,6 +1,6 @@
 import { createId } from "./app-defaults.js";
 import { activePersonalBestsFilters, activeStatsFilters, returnToTripDialog, saveMapNoaaChartsPreference, state, ui } from "./app-state.js";
-import { saveState } from "./app-persistence.js";
+import { addListValue } from "./actions.js";
 import { els } from "./app-elements.js";
 import { finishMediaEditSession } from "./app-media.js";
 import { clearActiveCatchLocation, deleteActiveLocationFromDialog, handleLocationManagerDragEnd, handleLocationManagerDragOver, handleLocationManagerDragStart, handleLocationManagerDrop, openLocationDialog, renderLocationManager, saveCatchLocationFromPicker, saveLocationPin } from "./locations.js";
@@ -14,7 +14,7 @@ import { renderTrips, tripSortFromSelect } from "./dashboard.js";
 import { addNotePhotos, addPhotosToQueue, openPhotoQueue, restoreDialogAfterPhotoQueue } from "./photos.js";
 import { addPersonRow, closeTripDialog, focusTripValidationField, getValue, isTripFormDirty, openTripDialog, updateTripRatingLabel } from "./trip-editor.js";
 import { addCatchRow, addLostFishRow, addTripGearRow, expandAndRevealTripRow, importLastTrollingSpread } from "./trip-rows.js";
-import { deleteActiveTrip, saveTrip, saveTripAsDraft, upsertListValue } from "./trip-save.js";
+import { deleteActiveTrip, saveTrip, saveTripAsDraft } from "./trip-save.js";
 import { autofillCatchesFromPhotoQueue } from "./photo-queue-autofill.js";
 import { restoreTripDialogAfterInlineGear } from "./gear-pickers.js";
 import { deleteCombo, deleteFlasher, deleteLure, deleteReel, deleteRod, openComboDialog, openFlasherDialog, openLureDialog, openReelDialog, openRodDialog, saveCombo, saveFlasher, saveLure, saveReel, saveRod, updateFlyGearVisibility, updateLureDivingDepthField, updateMonoBackingVisibility } from "./gear-dialogs.js";
@@ -65,7 +65,7 @@ export async function saveStructureOption(event) {
   }
 
   const select = activeStructureSelect;
-  upsertListValue("structureOptions", value);
+  await addListValue("structureOptions", value).catch((error) => console.error("Could not save structure option.", error));
   // The trip dialog can already contain multiple catch rows. Refresh every
   // structure selector so the newly-added option is immediately available to
   // the other catches in this trip as well, while keeping their selections.
@@ -74,7 +74,6 @@ export async function saveStructureOption(event) {
   });
   activeStructureSelect = null;
   els.structureDialog.close();
-  saveState().catch((error) => console.error("Could not save structure option.", error));
 }
 
 export function syncStatsUrl() {
