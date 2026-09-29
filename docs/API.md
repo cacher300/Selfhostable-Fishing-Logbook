@@ -1,6 +1,6 @@
 # HTTP API
 
-Base URL defaults to `http://127.0.0.1:8080`. Application, API, and upload routes are unauthenticated. Mutating requests require the CSRF token returned by `GET /api/csrf-token` in the `X-CSRF-Token` header. Every Flask response includes `Cache-Control: no-store`.
+Base URL defaults to `http://127.0.0.1:8080`. Application, API, and upload routes are unauthenticated. Mutating requests require the CSRF token returned by `GET /api/csrf-token` in the `X-CSRF-Token` header. Every Flask response includes `Cache-Control: no-store`, except `/static/` assets (Flask's default file caching) and successful Great Lakes temperature, current, and raster layer responses (`private, max-age=600`).
 
 ## Logbook
 

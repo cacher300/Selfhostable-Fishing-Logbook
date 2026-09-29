@@ -288,9 +288,18 @@ def create_app(config: dict | None = None) -> Flask:
         app.logger.error("Stored logbook could not be loaded: %s", error)
         return jsonify({"error": str(error), "databaseUnavailable": True}), 503
 
+    # Endpoints that set their own Cache-Control policy. Everything else,
+    # including private uploads, stays no-store.
+    self_cached_endpoints = {
+        "static_files",
+        "great_lakes",
+        "great_lakes_temperature_raster",
+        "great_lakes_thermocline_raster",
+    }
+
     @app.after_request
     def add_no_store_header(response: Response) -> Response:
-        if request.endpoint != "static_files":
+        if request.endpoint not in self_cached_endpoints or response.status_code >= 400:
             response.headers["Cache-Control"] = "no-store"
         return response
 

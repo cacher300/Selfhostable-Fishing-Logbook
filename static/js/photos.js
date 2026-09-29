@@ -429,7 +429,7 @@ function renderNotePhotos() {
   }
 
   els.notePhotoGrid.innerHTML = activeNotePhotos.map((photo) => `
-    <article class="note-photo-card" data-note-photo="${photo.id}">
+    <article class="note-photo-card" data-note-photo="${escapeHtml(photo.id)}">
       ${mediaMarkup(photo, "", { download: false })}
       <button class="icon-button remove-note-photo" type="button" aria-label="Remove trip photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       <div class="note-photo-body">
@@ -694,7 +694,7 @@ function renderCatchPhotos(row) {
   const selectedPhoto = selectedCatchPhotoLocation(row);
   const heroPhoto = selectedCatchHeroPhoto(row);
   grid.innerHTML = photos.map((photo) => `
-    <article class="catch-photo-card" data-catch-photo="${photo.id}">
+    <article class="catch-photo-card" data-catch-photo="${escapeHtml(photo.id)}">
       ${isVideoMedia(photo)
         ? mediaMarkup(photo, "", { download: false })
         : `<button class="catch-photo-open" type="button" data-catch-photo-open="${escapeHtml(photo.id)}" aria-label="Enlarge ${escapeHtml(displayPhotoTitle(photo))}">${mediaMarkup(photo, "", { download: false })}</button>`}

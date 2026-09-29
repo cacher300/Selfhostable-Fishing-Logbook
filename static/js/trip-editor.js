@@ -1106,7 +1106,7 @@ function populatePersonSelect(select, selectedId = "") {
   select.innerHTML = [
     `<option value="">Select person</option>`,
     ...people.map((person) => (
-    `<option value="${person.id}" ${person.id === selectedId ? "selected" : ""}>${escapeHtml(person.name)}</option>`
+    `<option value="${escapeHtml(person.id)}" ${person.id === selectedId ? "selected" : ""}>${escapeHtml(person.name)}</option>`
     ))
   ].join("");
   select.value = assignedPersonId;
