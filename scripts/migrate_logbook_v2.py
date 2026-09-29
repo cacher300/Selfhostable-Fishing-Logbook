@@ -33,11 +33,11 @@ if str(PROJECT_ROOT) not in sys.path:
 from backend import logbook_repository, logbook_store  # noqa: E402
 from backend.backend_config import (  # noqa: E402
     BATHYMETRY_LAKES,
-    DATABASE_FILE,
     DEFAULT_LOGBOOK,
     UNIT_OPTIONS,
     UPLOAD_CATEGORIES,
 )
+from backend.config import AppConfig  # noqa: E402
 from backend.media_service import referenced_uploads  # noqa: E402
 
 
@@ -908,7 +908,7 @@ def main() -> int:
     args = parser.parse_args()
 
     is_archive = args.archive is not None
-    input_path = (args.archive or args.database or DATABASE_FILE).resolve()
+    input_path = (args.archive or args.database or AppConfig.from_env().database_file).resolve()
     media_root = args.media_root.resolve() if args.media_root else None
     manifest = None
     archive_names = None

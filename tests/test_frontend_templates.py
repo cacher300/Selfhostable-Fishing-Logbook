@@ -3,19 +3,20 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+from copy import deepcopy
 from pathlib import Path
-from unittest.mock import patch
 
-from server import create_app
+from backend.backend_config import DEFAULT_LOGBOOK
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_frontend_template_renders_all_partials_once() -> None:
-    app = create_app({"TESTING": True, "SECRET_KEY": "frontend-template-test"})
-    with patch("server.read_logbook", return_value={"settings": {"theme": "dark"}}):
-        response = app.test_client().get("/trips")
+def test_frontend_template_renders_all_partials_once(fish) -> None:
+    payload = deepcopy(DEFAULT_LOGBOOK)
+    payload["settings"]["theme"] = "dark"
+    fish.logbook.write(payload, None)
+    response = fish.client.get("/trips")
 
     assert response.status_code == 200
     markup = response.get_data(as_text=True)
@@ -68,19 +69,15 @@ def test_frontend_template_renders_all_partials_once() -> None:
     assert len(ids) == len(set(ids)), "Rendered frontend contains duplicate element IDs"
 
 
-def test_checklists_route_renders_the_app() -> None:
-    app = create_app({"TESTING": True, "SECRET_KEY": "checklists-route-test"})
-    with patch("server.read_logbook", return_value={"settings": {}}):
-        response = app.test_client().get("/checklists")
+def test_checklists_route_renders_the_app(fish) -> None:
+    response = fish.client.get("/checklists")
 
     assert response.status_code == 200
     assert 'id="checklistsPanel"' in response.get_data(as_text=True)
 
 
-def test_wiki_route_renders_the_app() -> None:
-    app = create_app({"TESTING": True, "SECRET_KEY": "wiki-route-test"})
-    with patch("server.read_logbook", return_value={"settings": {}}):
-        response = app.test_client().get("/wiki")
+def test_wiki_route_renders_the_app(fish) -> None:
+    response = fish.client.get("/wiki")
 
     assert response.status_code == 200
     markup = response.get_data(as_text=True)
