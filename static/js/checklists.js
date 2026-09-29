@@ -1,8 +1,9 @@
+import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { createId } from "./app-defaults.js";
 import { state } from "./app-state.js";
 import { replaceChecklists } from "./actions.js";
 import { els } from "./app-elements.js";
-import { escapeHtml } from "./form-utils.js";
+
 
 export let checklistSaveTimer = null;
 export let activeChecklistPointer = null;
@@ -12,11 +13,11 @@ export function savedChecklists() {
 }
 
 export function checklistItemMarkup(item = {}) {
-  return `
-    <li class="checklist-item" data-checklist-item-id="${escapeHtml(item.id || createId())}">
+  return html`
+    <li class="checklist-item" data-checklist-item-id="${item.id || createId()}">
       <span class="checklist-drag-handle" aria-hidden="true" title="Drag to reorder">⠿</span>
       <input class="checklist-item-done" type="checkbox" ${item.done ? "checked" : ""} aria-label="Mark checklist item complete" />
-      <input class="checklist-item-label" type="text" maxlength="120" value="${escapeHtml(item.label || "")}" placeholder="Checklist item" aria-label="Checklist item" />
+      <input class="checklist-item-label" type="text" maxlength="120" value="${item.label || ""}" placeholder="Checklist item" aria-label="Checklist item" />
       <button class="icon-button" type="button" data-delete-checklist-item aria-label="Delete checklist item">×</button>
     </li>
   `;
@@ -25,12 +26,12 @@ export function checklistItemMarkup(item = {}) {
 export function checklistCardMarkup(checklist, index, total) {
   const done = checklist.items.filter((item) => item.done).length;
   const percent = checklist.items.length ? Math.round((done / checklist.items.length) * 100) : 0;
-  return `
-    <article class="checklist-card" data-checklist-id="${escapeHtml(checklist.id)}">
+  return html`
+    <article class="checklist-card" data-checklist-id="${checklist.id}">
       <header class="checklist-card-header">
         <span class="checklist-drag-handle" aria-hidden="true" title="Drag to reorder">⠿</span>
         <div class="checklist-title-block">
-          <input class="checklist-name" type="text" maxlength="60" value="${escapeHtml(checklist.name)}" aria-label="Checklist name" />
+          <input class="checklist-name" type="text" maxlength="60" value="${checklist.name}" aria-label="Checklist name" />
           <span class="checklist-progress-label">${done} of ${checklist.items.length} complete</span>
         </div>
         <div class="checklist-card-actions">
@@ -39,7 +40,7 @@ export function checklistCardMarkup(checklist, index, total) {
         </div>
       </header>
       <div class="checklist-progress" aria-hidden="true"><span style="width: ${percent}%"></span></div>
-      <ul class="checklist-items">${checklist.items.map(checklistItemMarkup).join("")}</ul>
+      <ul class="checklist-items">${joinHtml(checklist.items.map(checklistItemMarkup))}</ul>
       <footer class="checklist-card-footer">
         <button class="button secondary" type="button" data-add-checklist-item>Add Item</button>
         <button class="button secondary" type="button" data-reset-checklist ${done ? "" : "disabled"}>Reset Checklist</button>
@@ -52,7 +53,7 @@ export function checklistCardMarkup(checklist, index, total) {
 export function renderChecklists({ focusChecklistId = "", focusItemId = "" } = {}) {
   if (!els.checklistList) return;
   const checklists = savedChecklists();
-  els.checklistList.innerHTML = checklists.map((checklist, index) => checklistCardMarkup(checklist, index, checklists.length)).join("");
+  setHtml(els.checklistList, joinHtml(checklists.map((checklist, index) => checklistCardMarkup(checklist, index, checklists.length))));
   els.checklistsEmpty?.classList.toggle("hidden", checklists.length > 0);
   if (focusItemId) els.checklistList.querySelector(`[data-checklist-item-id="${CSS.escape(focusItemId)}"] .checklist-item-label`)?.focus();
   else if (focusChecklistId) els.checklistList.querySelector(`[data-checklist-id="${CSS.escape(focusChecklistId)}"] .checklist-name`)?.select();
@@ -142,7 +143,7 @@ export async function handleChecklistAction(event) {
 
   if (event.target.closest("[data-add-checklist-item]")) {
     const itemId = createId();
-    card.querySelector(".checklist-items").insertAdjacentHTML("beforeend", checklistItemMarkup({ id: itemId }));
+    insertHtml(card.querySelector(".checklist-items"), "beforeend", checklistItemMarkup({ id: itemId }));
     updateChecklistCardProgress(card);
     card.querySelector(`[data-checklist-item-id="${CSS.escape(itemId)}"] .checklist-item-label`)?.focus();
     return;

@@ -2,6 +2,7 @@ import { defaultChopRanges, defaultUnits, unitOptions } from "./app-defaults.js"
 import { state } from "./app-state.js";
 import { trimNumber } from "./form-utils.js";
 
+
 export function themePreference() {
   return state.settings?.theme === "dark" ? "dark" : "light";
 }

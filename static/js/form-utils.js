@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { hasFishHawk, optionLabels } from "./app-normalization.js";
 import { convertUnitValue, unitPreference, unitSymbol } from "./app-units.js";
 import { els } from "./app-elements.js";
@@ -36,11 +37,11 @@ export function populateStructureSelect(select, selectedValue = "") {
   const current = selectedValue || select.value || "";
   const options = optionLabels("structureOptions");
   const values = options.includes(current) || !current ? options : [...options, current];
-  select.innerHTML = [
-    `<option value="">Select structure</option>`,
-    ...values.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`),
-    `<option value="__new__">Add new structure...</option>`
-  ].join("");
+  setHtml(select, joinHtml([
+    html`<option value="">Select structure</option>`,
+    ...values.map((item) => html`<option value="${item}">${item}</option>`),
+    html`<option value="__new__">Add new structure...</option>`
+  ]));
   select.value = current;
 }
 
@@ -249,13 +250,4 @@ export function updateCheaterDepth(row) {
 
 export function trimNumber(value) {
   return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-export function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }

@@ -1,3 +1,4 @@
+import { html, insertHtml } from "./html.js";
 import { activeStatsChartMetric, activeStatsTableSort, state, ui } from "./app-state.js";
 import { els } from "./app-elements.js";
 import { deleteManagedLaunch, deleteManagedLocation, locationFormCoordinates, openCatchLocationDialog, openLocationDialog, populateLaunchSelect, setLocationFormCoordinates, updateCatchFowFromLocation, updateCatchLocationSummary, updateLocationControls } from "./locations.js";
@@ -19,6 +20,7 @@ import { closeSummaryCatchDetail, closeSummaryCatchLocationMap, openSummaryCatch
 import { openTripShareStudio } from "./trip-sharing.js";
 import { renderAdvancedStats } from "./stats.js";
 import { updateCheaterDepth, updateLeadcoreEstimatedDepth, updatePresentationFields } from "./form-utils.js";
+
 import { closeGalleryLightbox, deleteGalleryItems, findGalleryItem, galleryCategoryLabels, gallerySelectionMode, galleryUi, openGalleryLightbox, renderGallery, selectGalleryRange, stepGalleryLightbox, toggleGallerySelection } from "./gallery.js";
 import { openStructureDialog } from "./app-control-events.js";
 
@@ -278,7 +280,7 @@ export function setup() {
       const group = addPredefinedOption.closest(".predefined-field-group");
       const list = group?.querySelector(".predefined-option-list");
       const index = -1;
-      list?.insertAdjacentHTML("beforeend", `
+      insertHtml(list, "beforeend", html`
         <div class="predefined-option-row" data-option-index="${index}">
           <input class="predefined-option-label" type="text" value="" aria-label="New predefined option" />
           <button class="button danger remove-predefined-option" type="button">Delete</button>

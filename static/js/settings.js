@@ -1,3 +1,4 @@
+import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { createId, isValidSpeciesMapColor, speciesColor, unitOptions } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { currentTrollingSpreads, hasFishHawk, optionChoices } from "./app-normalization.js";
@@ -16,7 +17,8 @@ import { comboName } from "./gear-core.js";
 import { renderSpreadDiagram } from "./trolling-spread.js";
 import { renderFishMap } from "./maps.js";
 import { openTripSummary } from "./trip-timeline.js";
-import { escapeHtml, syncFishHawkVisibility, trimNumber } from "./form-utils.js";
+import { syncFishHawkVisibility, trimNumber } from "./form-utils.js";
+
 
 export function renderSettings() {
   syncSettingsTabs();
@@ -39,16 +41,16 @@ export function trollingSpreadRowMarkup(item = {}, { disabled = false, sourceInd
   const side = String(item.side || "");
   const presentation = String(item.presentation || "");
   const dipseyDiverColor = String(item.dipseyDiverColor || "");
-  const comboOptions = state.rodReelCombos.map((combo) => (
-    `<option value="${escapeHtml(combo.id)}" ${combo.id === comboId ? "selected" : ""}>${escapeHtml(comboName(combo.id) || "Rod / reel combo")}</option>`
-  )).join("");
+  const comboOptions = joinHtml(state.rodReelCombos.map((combo) => (
+    html`<option value="${combo.id}" ${combo.id === comboId ? "selected" : ""}>${comboName(combo.id) || "Rod / reel combo"}</option>`
+  )), "");
   const choiceOptions = (key, selectedValue, emptyLabel) => (
-    `<option value="">${escapeHtml(emptyLabel)}</option>${optionChoices(key).map((option) => (
-      `<option value="${escapeHtml(option.value)}" ${option.value === selectedValue ? "selected" : ""}>${escapeHtml(option.label)}</option>`
-    )).join("")}`
+    html`<option value="">${emptyLabel}</option>${joinHtml(optionChoices(key).map((option) => (
+      html`<option value="${option.value}" ${option.value === selectedValue ? "selected" : ""}>${option.label}</option>`
+    )), "")}`
   );
-  return `
-    <div class="trolling-spread-row"${sourceIndex === "" ? "" : ` data-source-index="${sourceIndex}"`}>
+  return html`
+    <div class="trolling-spread-row"${sourceIndex === "" ? "" : html` data-source-index="${sourceIndex}"`}>
       <label>
         <span>Rod / reel combo</span>
         <select class="trolling-spread-combo"${disabled ? " disabled" : ""}>
@@ -66,9 +68,9 @@ export function trollingSpreadRowMarkup(item = {}, { disabled = false, sourceInd
       </label>
       <label class="trolling-spread-dipsey-color-field${trollingSpreadUsesDipseyDiverColor(presentation) ? "" : " hidden"}">
         <span>Dipsey diver color</span>
-        <input class="trolling-spread-dipsey-color" type="text" value="${escapeHtml(dipseyDiverColor)}" placeholder="Purple / green"${disabled ? " disabled" : ""} />
+        <input class="trolling-spread-dipsey-color" type="text" value="${dipseyDiverColor}" placeholder="Purple / green"${disabled ? " disabled" : ""} />
       </label>
-      ${disabled ? "" : '<button class="button danger remove-trolling-spread-row" type="button">Remove</button>'}
+      ${disabled ? "" : html`<button class="button danger remove-trolling-spread-row" type="button">Remove</button>`}
     </div>
   `;
 }
@@ -106,7 +108,7 @@ export function trollingSpreadRodsForPreview(spread = []) {
 export function renderTrollingSpreadPreview(card, spread) {
   const canvas = card?.querySelector("[data-trolling-spread-preview]");
   if (!canvas || typeof renderSpreadDiagram !== "function") return;
-  canvas.innerHTML = renderSpreadDiagram(trollingSpreadRodsForPreview(spread), { labelWithCombo: true });
+  setHtml(canvas, renderSpreadDiagram(trollingSpreadRodsForPreview(spread), { labelWithCombo: true }));
 }
 
 export function renderTrollingSpreadCard(item, { draft = false } = {}) {
@@ -114,16 +116,16 @@ export function renderTrollingSpreadCard(item, { draft = false } = {}) {
   const spread = Array.isArray(item?.spread) ? item.spread : [];
   const editing = draft || settingsUi.activeTrollingSpreadEditorId === item.id;
   const expanded = editing;
-  return `
-    <article class="trolling-spread-card${draft ? " is-draft" : ""}" data-trolling-spread-id="${escapeHtml(item.id)}" data-trolling-spread-draft="${draft ? "true" : "false"}" data-trolling-spread-editing="${editing ? "true" : "false"}" data-trolling-spread-toggle aria-expanded="${expanded ? "true" : "false"}" onclick="toggleTrollingSpreadCard(this, event)">
+  return html`
+    <article class="trolling-spread-card${draft ? " is-draft" : ""}" data-trolling-spread-id="${item.id}" data-trolling-spread-draft="${draft ? "true" : "false"}" data-trolling-spread-editing="${editing ? "true" : "false"}" data-trolling-spread-toggle aria-expanded="${expanded ? "true" : "false"}" onclick="toggleTrollingSpreadCard(this, event)">
       <div class="trolling-spread-card-header">
         <label class="settings-control trolling-spread-name-control">
           <span>Spread</span>
-          <input class="trolling-spread-name" type="text" maxlength="60" value="${escapeHtml(name)}" placeholder="1 Man Spread"${editing ? "" : " readonly"} />
+          <input class="trolling-spread-name" type="text" maxlength="60" value="${name}" placeholder="1 Man Spread"${editing ? "" : " readonly"} />
         </label>
         <div class="trolling-spread-card-actions">
-          ${editing && !draft ? '<button class="button secondary finish-trolling-spread-edit" type="button">Done</button>' : !editing ? '<button class="button secondary edit-trolling-spread" type="button">Edit</button>' : ""}
-          ${editing && !draft ? '<button class="button danger delete-trolling-spread" type="button">Delete</button>' : draft ? '<button class="button secondary cancel-trolling-spread" type="button">Cancel</button>' : ""}
+          ${editing && !draft ? html`<button class="button secondary finish-trolling-spread-edit" type="button">Done</button>` : !editing ? html`<button class="button secondary edit-trolling-spread" type="button">Edit</button>` : ""}
+          ${editing && !draft ? html`<button class="button danger delete-trolling-spread" type="button">Delete</button>` : draft ? html`<button class="button secondary cancel-trolling-spread" type="button">Cancel</button>` : ""}
         </div>
       </div>
       <div class="trolling-spread-card-body"${expanded ? "" : " hidden"}>
@@ -133,10 +135,10 @@ export function renderTrollingSpreadCard(item, { draft = false } = {}) {
               <strong>Rod positions</strong>
               <span>Saved spreads use combo, side, presentation, and optional High/Low Diver color.</span>
             </div>
-            ${editing ? '<button class="button secondary add-trolling-spread-row" type="button">Add Rod</button>' : ""}
+            ${editing ? html`<button class="button secondary add-trolling-spread-row" type="button">Add Rod</button>` : ""}
           </div>
           <div class="trolling-spread-list">
-            ${spread.map((row, index) => trollingSpreadRowMarkup(row, { disabled: !editing, sourceIndex: index })).join("") || '<p class="trolling-spread-empty-rows">Add at least one rod to save this spread.</p>'}
+            ${spread.length ? joinHtml(spread.map((row, index) => trollingSpreadRowMarkup(row, { disabled: !editing, sourceIndex: index }))) : html`<p class="trolling-spread-empty-rows">Add at least one rod to save this spread.</p>`}
           </div>
         </div>
         <div class="trolling-spread-card-preview">
@@ -154,17 +156,17 @@ export function renderTrollingSpreadSettings() {
   const visibleSpreads = settingsUi.trollingSpreadDraft ? [...spreads, settingsUi.trollingSpreadDraft] : spreads;
   const defaultId = String(state.settings?.defaultTrollingSpreadId || "");
   if (els.defaultTrollingSpreadId) {
-    els.defaultTrollingSpreadId.innerHTML = [
-      '<option value="">No Trolling default</option>',
-      ...spreads.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`)
-    ].join("");
+    setHtml(els.defaultTrollingSpreadId, joinHtml([
+      html`<option value="">No Trolling default</option>`,
+      ...spreads.map((item) => html`<option value="${item.id}">${item.name}</option>`)
+    ]));
     els.defaultTrollingSpreadId.value = spreads.some((item) => item.id === defaultId) ? defaultId : "";
   }
-  els.defaultTrollingSpreadRows.innerHTML = `
+  setHtml(els.defaultTrollingSpreadRows, html`
     ${visibleSpreads.length
-      ? visibleSpreads.map((item) => renderTrollingSpreadCard(item, { draft: item === settingsUi.trollingSpreadDraft })).join("")
-      : '<div class="trolling-spread-empty-state">No saved trolling spreads yet. Add one to make it available from the trip editor.</div>'}
-  `;
+      ? joinHtml(visibleSpreads.map((item) => renderTrollingSpreadCard(item, { draft: item === settingsUi.trollingSpreadDraft })))
+      : html`<div class="trolling-spread-empty-state">No saved trolling spreads yet. Add one to make it available from the trip editor.</div>`}
+  `);
   els.defaultTrollingSpreadRows.querySelectorAll(".trolling-spread-row").forEach(syncTrollingSpreadRowFields);
   visibleSpreads.forEach((item) => {
     const card = els.defaultTrollingSpreadRows.querySelector(`[data-trolling-spread-id="${CSS.escape(item.id)}"]`);
@@ -187,7 +189,7 @@ export function addTrollingSpreadRowToCard(card) {
   const list = card?.querySelector(".trolling-spread-list");
   if (!list || card.dataset.trollingSpreadEditing !== "true") return;
   card.querySelector(".trolling-spread-empty-rows")?.remove();
-  list.insertAdjacentHTML("beforeend", trollingSpreadRowMarkup());
+  insertHtml(list, "beforeend", trollingSpreadRowMarkup());
   renderTrollingSpreadPreview(card, collectTrollingSpreadCard(card).spread);
   scheduleTrollingSpreadAutosave(card);
   list.querySelector(".trolling-spread-row:last-child select")?.focus();
@@ -390,20 +392,20 @@ export function speciesMapSettingNames() {
 export function renderSpeciesMapColorSettings() {
   if (!els.speciesMapColorRows) return;
   const species = speciesMapSettingNames();
-  els.speciesMapColorRows.innerHTML = species.length
-    ? species.map((name) => {
+  setHtml(els.speciesMapColorRows, species.length
+    ? joinHtml(species.map((name) => {
       const color = speciesColor(name);
-      return `
+      return html`
         <div class="map-pin-settings-row">
           <label class="map-pin-settings-color-picker">
             <span class="map-pin-settings-swatch" data-species-map-swatch style="--species-map-color:${color}" aria-hidden="true"></span>
-            <input type="color" data-species-map-color="${escapeHtml(name)}" value="${color}" aria-label="Map pin color for ${escapeHtml(name)}" />
+            <input type="color" data-species-map-color="${name}" value="${color}" aria-label="Map pin color for ${name}" />
           </label>
-          <strong class="map-pin-settings-name">${escapeHtml(name)}</strong>
+          <strong class="map-pin-settings-name">${name}</strong>
         </div>
       `;
-    }).join("")
-    : '<p class="map-pin-settings-empty">Add species under Categories before assigning map colors.</p>';
+    }), "")
+    : html`<p class="map-pin-settings-empty">Add species under Categories before assigning map colors.</p>`);
 }
 
 export function syncSpeciesMapColorPreview(input) {
@@ -471,14 +473,14 @@ export function renderDefaultPeopleSettings() {
   if (!els.defaultPeopleOptions) return;
   const selectedIds = new Set(Array.isArray(state.settings?.defaultPeople) ? state.settings.defaultPeople : []);
   const people = mergePeople(state.people || []);
-  els.defaultPeopleOptions.innerHTML = people.length
-    ? people.map((person) => `
+  setHtml(els.defaultPeopleOptions, people.length
+    ? joinHtml(people.map((person) => html`
         <label>
-          <input type="checkbox" value="${escapeHtml(person.id)}" ${selectedIds.has(person.id) ? "checked" : ""} />
-          <span>${escapeHtml(person.name)}</span>
+          <input type="checkbox" value="${person.id}" ${selectedIds.has(person.id) ? "checked" : ""} />
+          <span>${person.name}</span>
         </label>
-      `).join("")
-    : '<span class="default-people-empty">Add people from a trip to choose defaults.</span>';
+      `), "")
+    : html`<span class="default-people-empty">Add people from a trip to choose defaults.</span>`);
 }
 
 export async function saveDefaultPeople(options = {}) {
@@ -565,28 +567,28 @@ export function renderUnitSettings() {
     ["fishLength", "Fish Length"],
     ["fishWeight", "Fish Weight"]
   ];
-  els.unitSettingsFields.innerHTML = rows.map(([key, label]) => `
+  setHtml(els.unitSettingsFields, joinHtml(rows.map(([key, label]) => html`
     <label class="settings-control">
-      <span>${escapeHtml(label)}</span>
-      <select data-unit-setting="${escapeHtml(key)}">
-        ${(unitOptions[key] || []).map((option) => `
-          <option value="${escapeHtml(option.value)}"${units[key] === option.value ? " selected" : ""}>${escapeHtml(option.label)}</option>
-        `).join("")}
+      <span>${label}</span>
+      <select data-unit-setting="${key}">
+        ${joinHtml((unitOptions[key] || []).map((option) => html`
+          <option value="${option.value}"${units[key] === option.value ? " selected" : ""}>${option.label}</option>
+        `), "")}
       </select>
     </label>
-  `).join("");
+  `), ""));
 }
 
 export function renderFowCalibrationSettings() {
   if (!els.fowCalibrationFields) return;
   const calibrationUnit = unitPreference("depth") || "ft";
   const lakeCalibrations = state.settings?.bathymetryLakeCalibrationsFeet || {};
-  els.fowCalibrationFields.innerHTML = ["Erie", "Ontario", "St. Clair", "Huron", "Michigan", "Superior"].map((lake) => `
+  setHtml(els.fowCalibrationFields, joinHtml(["Erie", "Ontario", "St. Clair", "Huron", "Michigan", "Superior"].map((lake) => html`
     <label class="settings-control">
-      <span>${escapeHtml(lake)} FOW adjustment</span>
-      <input data-bathymetry-lake-calibration="${escapeHtml(lake)}" data-bathymetry-calibration-end="offshoreOffsetFeet" type="number" step="0.1" value="${escapeHtml(bathymetryOffsetDisplayValue(lakeCalibrations[lake]?.offshoreOffsetFeet ?? 0, calibrationUnit))}" />
+      <span>${lake} FOW adjustment</span>
+      <input data-bathymetry-lake-calibration="${lake}" data-bathymetry-calibration-end="offshoreOffsetFeet" type="number" step="0.1" value="${bathymetryOffsetDisplayValue(lakeCalibrations[lake]?.offshoreOffsetFeet ?? 0, calibrationUnit)}" />
     </label>
-  `).join("");
+  `), ""));
 }
 
 export function bathymetryOffsetDisplayValue(offsetFeet, depthUnit = unitPreference("depth")) {

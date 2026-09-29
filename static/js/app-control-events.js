@@ -24,10 +24,11 @@ import { openTripShareStudio } from "./trip-sharing.js";
 import { renderAdvancedStats } from "./stats.js";
 import { renderPersonalBests } from "./personal-bests.js";
 import { populateStructureSelect } from "./form-utils.js";
+
 import { deleteGalleryItems, downloadGalleryItems, gallerySelectionMode, galleryUi, renderGallery, selectedGalleryPayload, setGalleryPage, setGallerySelectionMode, syncGallerySearchSort, toggleGalleryOrphanScan } from "./gallery.js";
 import { bindChecklistEvents } from "./checklists.js";
 import { openTrollingSpreadPicker } from "./trolling-spread-picker.js";
-import { setView } from "./app.js";
+import { navigate } from "./router.js";
 
 export let activeStructureSelect = null;
 
@@ -260,27 +261,27 @@ export function setup() {
 
   els.deleteComboButton.addEventListener("click", deleteCombo);
 
-  els.tripsViewButton.addEventListener("click", () => setView("trips"));
+  els.tripsViewButton.addEventListener("click", () => navigate("trips"));
 
-  els.expeditionsViewButton.addEventListener("click", () => setView("expeditions"));
+  els.expeditionsViewButton.addEventListener("click", () => navigate("expeditions"));
 
-  els.bestsViewButton.addEventListener("click", () => setView("bests"));
+  els.bestsViewButton.addEventListener("click", () => navigate("bests"));
 
-  els.statsViewButton.addEventListener("click", () => setView("stats"));
+  els.statsViewButton.addEventListener("click", () => navigate("stats"));
 
-  els.leaderboardViewButton.addEventListener("click", () => setView("leaderboard"));
+  els.leaderboardViewButton.addEventListener("click", () => navigate("leaderboard"));
 
-  els.mapViewButton.addEventListener("click", () => setView("map"));
+  els.mapViewButton.addEventListener("click", () => navigate("map"));
 
-  els.gearViewButton.addEventListener("click", () => setView("gear"));
+  els.gearViewButton.addEventListener("click", () => navigate("gear"));
 
-  els.galleryViewButton.addEventListener("click", () => setView("gallery"));
+  els.galleryViewButton.addEventListener("click", () => navigate("gallery"));
 
-  els.checklistsViewButton.addEventListener("click", () => setView("checklists"));
+  els.checklistsViewButton.addEventListener("click", () => navigate("checklists"));
 
-  els.settingsWikiButton?.addEventListener("click", () => setView("wiki"));
+  els.settingsWikiButton?.addEventListener("click", () => navigate("wiki"));
 
-  els.settingsViewButton.addEventListener("click", () => setView("settings"));
+  els.settingsViewButton.addEventListener("click", () => navigate("settings"));
 
   els.newLibraryLureButton.addEventListener("click", () => openLureDialog());
 

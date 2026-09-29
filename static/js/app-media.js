@@ -1,7 +1,8 @@
+import { html, safeUrl } from "./html.js";
 import { protectedFetch } from "./app-config.js";
 import { createId } from "./app-defaults.js";
 import { state } from "./app-state.js";
-import { escapeHtml } from "./form-utils.js";
+
 
 export function displayMedia(item) {
   if (!Array.isArray(item?.media)) return item;
@@ -154,10 +155,10 @@ export function mediaMarkup(item, className = "") {
   const source = previewImage(item);
   if (!source) return "";
   if (isVideoMedia(item)) {
-    const videoSource = originalMediaUrl(item) || source;
-    return `<video class="${escapeHtml(className)}" src="${escapeHtml(videoSource)}" controls preload="metadata"></video>`;
+    const videoSource = safeUrl(originalMediaUrl(item) || source);
+    return html`<video class="${className}" src="${videoSource}" controls preload="metadata"></video>`;
   }
-  return `<img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">`;
+  return html`<img class="${className}" src="${safeUrl(source)}" alt="">`;
 }
 
 export function isUsableCoordinates(coordinates) {

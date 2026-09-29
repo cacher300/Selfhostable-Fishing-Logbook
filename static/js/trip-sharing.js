@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { html2canvas } from "./vendor.js";
 import { state } from "./app-state.js";
 import { convertedMeasurementText, displayStoredMeasurement, timeFormatPreference, unitPreference } from "./app-units.js";
@@ -8,7 +9,7 @@ import { formatDate, tripHours } from "./dashboard.js";
 import { flasherName, lureName } from "./gear-core.js";
 import { displaySentenceText, displayTitleText } from "./trip-summary.js";
 import { formatTimelineDisplayTime } from "./trip-timeline.js";
-import { escapeHtml, trimNumber } from "./form-utils.js";
+import { trimNumber } from "./form-utils.js";
 
 export let activeShareTrip = null;
 export let activeShareMode = "image";
@@ -17,10 +18,6 @@ export let shareLastPreviewFrameSize = "";
 export let shareBestLurePhotoFlipped = false;
 
 export const SHARE_REPORT_WIDTH = 1200;
-
-export function shareEscape(value = "") {
-  return escapeHtml(String(value));
-}
 
 export function shareLaunch(trip) {
   return displayTitleText(trip.launch || "Launch not logged");
@@ -76,7 +73,7 @@ export function shareRenderAppearanceOptions(selected = "deep-water") {
   const select = shareControl("shareTripTheme");
   if (!select) return;
   const presets = shareAppearancePresets();
-  select.innerHTML = `<option value="deep-water">Dark mode</option><option value="clean-light">Light mode</option>${presets.length ? `<optgroup label="Saved appearances">${presets.map((preset) => `<option value="preset:${shareEscape(preset.id)}">${shareEscape(preset.name)}</option>`).join("")}</optgroup>` : ""}`;
+  setHtml(select, html`<option value="deep-water">Dark mode</option><option value="clean-light">Light mode</option>${presets.length ? html`<optgroup label="Saved appearances">${joinHtml(presets.map((preset) => html`<option value="preset:${preset.id}">${preset.name}</option>`), "")}</optgroup>` : ""}`);
   select.value = [...select.options].some((option) => option.value === selected) ? selected : "deep-water";
 }
 
@@ -337,24 +334,24 @@ export function shareConditionItems(trip) {
 export function shareTimelineHtml(trip) {
   if (!shareChecked("shareShowTimeline")) return "";
   const events = shareEventRecords(trip);
-  const rows = events.map((fish, index) => {
+  const rows = joinHtml(events.map((fish, index) => {
     const lure = shareCatchLureName(trip, fish);
     const flasher = shareCatchFlasherName(trip, fish);
-    return `<tr class="status-${fish.eventType.toLowerCase()}">
+    return html`<tr class="status-${fish.eventType.toLowerCase()}">
       <td>${index + 1}</td>
-      <td>${shareEscape(fish.time ? formatTimelineDisplayTime(fish.time) : "—")}</td>
-      <td class="report-timeline-result">${shareEscape(fish.eventType)}</td>
-      <td>${shareEscape(fish.species || fish.possibleSpecies || "Fish")}</td>
-      <td>${shareEscape(shareFormatSize(fish) || "—")}</td>
-      <td>${shareEscape(shareFow(fish.fowCaught || fish.waterDepth) || "—")}</td>
-      <td>${shareEscape(fish.presentation || "—")}</td>
-      <td>${shareEscape(shareDepthText(fish) || "—")}</td>
-      <td>${shareEscape(fish.gpsSpeed ? displayStoredMeasurement(fish.gpsSpeed, "speed") : "—")}</td>
-      <td>${shareEscape(lure || "—")}</td>
-      <td>${shareEscape(flasher || "—")}</td>
+      <td>${fish.time ? formatTimelineDisplayTime(fish.time) : "—"}</td>
+      <td class="report-timeline-result">${fish.eventType}</td>
+      <td>${fish.species || fish.possibleSpecies || "Fish"}</td>
+      <td>${shareFormatSize(fish) || "—"}</td>
+      <td>${shareFow(fish.fowCaught || fish.waterDepth) || "—"}</td>
+      <td>${fish.presentation || "—"}</td>
+      <td>${shareDepthText(fish) || "—"}</td>
+      <td>${fish.gpsSpeed ? displayStoredMeasurement(fish.gpsSpeed, "speed") : "—"}</td>
+      <td>${lure || "—"}</td>
+      <td>${flasher || "—"}</td>
     </tr>`;
-  }).join("");
-  return `<section class="report-timeline report-timeline-grid"><div class="report-section-heading"><h4>Trip Timeline</h4></div><table><colgroup><col class="timeline-number" /><col class="timeline-time" /><col class="timeline-result" /><col class="timeline-species" /><col class="timeline-size" /><col class="timeline-fow" /><col class="timeline-method" /><col class="timeline-depth" /><col class="timeline-speed" /><col class="timeline-lure" /><col class="timeline-flasher" /></colgroup><thead><tr><th>#</th><th>Time</th><th>Result</th><th>Species</th><th>Size</th><th>Water depth</th><th>Method</th><th>Depth</th><th>Speed</th><th>Lure</th><th>Flasher</th></tr></thead><tbody>${rows || '<tr><td colspan="11" class="report-timeline-empty">No events recorded</td></tr>'}</tbody></table></section>`;
+  }), "");
+  return html`<section class="report-timeline report-timeline-grid"><div class="report-section-heading"><h4>Trip Timeline</h4></div><table><colgroup><col class="timeline-number" /><col class="timeline-time" /><col class="timeline-result" /><col class="timeline-species" /><col class="timeline-size" /><col class="timeline-fow" /><col class="timeline-method" /><col class="timeline-depth" /><col class="timeline-speed" /><col class="timeline-lure" /><col class="timeline-flasher" /></colgroup><thead><tr><th>#</th><th>Time</th><th>Result</th><th>Species</th><th>Size</th><th>Water depth</th><th>Method</th><th>Depth</th><th>Speed</th><th>Lure</th><th>Flasher</th></tr></thead><tbody>${rows || html`<tr><td colspan="11" class="report-timeline-empty">No events recorded</td></tr>`}</tbody></table></section>`;
 }
 
 export function shareReportHtml(trip) {
@@ -374,7 +371,7 @@ export function shareReportHtml(trip) {
   const heroUrl = sharePhotoUrl(selectedPhoto);
   const heroFallback = selectedPhoto ? previewImage(selectedPhoto) : "";
   const hero = heroUrl
-    ? `<figure class="report-hero"><img src="${shareEscape(heroUrl)}" data-fallback="${shareEscape(heroFallback)}" alt="Selected trip photo" /></figure>`
+    ? html`<figure class="report-hero"><img src="${heroUrl}" data-fallback="${heroFallback}" alt="Selected trip photo" /></figure>`
     : "";
   const overview = shareOverviewItems(trip);
   const conditionItems = shareChecked("shareShowConditions") ? shareConditionItems(trip) : [];
@@ -405,23 +402,23 @@ export function shareReportHtml(trip) {
     ["Best presentation", bestMethods.join(" / ")]
   ].filter(([, value]) => value);
   const notesText = shareChecked("shareShowNotes") ? displaySentenceText(trip.notes || "") : "";
-  const notes = notesText ? `<section class="report-notes"><h4>Trip Notes</h4><p>${shareEscape(notesText)}</p></section>` : "";
-  const branding = `<footer>Fishing Logbook</footer>`;
-  return `<article class="share-report layout-complete theme-${theme}" data-dynamic="true" style="--report-accent:${shareEscape(shareControl("shareTripAccent")?.value || "#42c98a")};--report-bg:${shareEscape(shareControl("shareTripBackground")?.value || "#131b24")};--report-text:${shareEscape(shareControl("shareTripTextColor")?.value || "#edf3f8")};--report-surface-2:${shareEscape(shareControl("shareTripCardBackground")?.value || "#141f29")};--report-surface:color-mix(in srgb, var(--report-surface-2) 97%, #fff)">
+  const notes = notesText ? html`<section class="report-notes"><h4>Trip Notes</h4><p>${notesText}</p></section>` : "";
+  const branding = html`<footer>Fishing Logbook</footer>`;
+  return html`<article class="share-report layout-complete theme-${theme}" data-dynamic="true" style="--report-accent:${shareControl("shareTripAccent")?.value || "#42c98a"};--report-bg:${shareControl("shareTripBackground")?.value || "#131b24"};--report-text:${shareControl("shareTripTextColor")?.value || "#edf3f8"};--report-surface-2:${shareControl("shareTripCardBackground")?.value || "#141f29"};--report-surface:color-mix(in srgb, var(--report-surface-2) 97%, #fff)">
     <header class="report-header">
-      <div class="report-title"><p class="report-meta">${shareEscape(headerMeta)}</p><h3>${shareEscape(headline)}</h3>${subtitle ? `<p class="report-subtitle">${shareEscape(subtitle)}</p>` : ""}</div>
+      <div class="report-title"><p class="report-meta">${headerMeta}</p><h3>${headline}</h3>${subtitle ? html`<p class="report-subtitle">${subtitle}</p>` : ""}</div>
       ${hero}
     </header>
-    ${topMetrics.length ? `<section class="report-metrics" style="--report-metric-count:${topMetrics.length}">${topMetrics.map(([, label, value]) => `<div${label === "Start / end" ? " class=\"report-metric-time\"" : ""}><strong>${shareEscape(String(value))}</strong><span>${shareEscape(label)}</span></div>`).join("")}</section>` : ""}
+    ${topMetrics.length ? html`<section class="report-metrics" style="--report-metric-count:${topMetrics.length}">${joinHtml(topMetrics.map(([, label, value]) => html`<div${label === "Start / end" ? html` class="report-metric-time"` : ""}><strong>${String(value)}</strong><span>${label}</span></div>`), "")}</section>` : ""}
     <div class="report-body">${notes}</div>
     ${shareTimelineHtml(trip)}
-    ${(conditionItems.length || showHighlights) ? `<section class="report-highlights${conditionItems.length && showHighlights ? "" : " is-single"}">
-      ${conditionItems.length ? `<section class="report-highlight-group report-conditions"><h4>Conditions</h4><dl>${conditionItems.map(([label, value]) => `<div><dt>${shareEscape(label)}</dt><dd>${shareEscape(value || "Not logged")}</dd></div>`).join("")}</dl></section>` : ""}
-      ${showHighlights ? `<section class="report-highlight-group"><h4>Trip Highlights</h4><dl>${highlightItems.map(([label, value]) => `<div><dt>${shareEscape(label)}</dt><dd>${shareEscape(value || "Not logged")}</dd></div>`).join("") || "<div><dd>No highlights logged</dd></div>"}</dl>${species.length ? `<table class="report-species-table"><thead><tr><th>Species</th><th>Count</th></tr></thead><tbody>${species.map(([name, count]) => `<tr><td>${shareEscape(name)}</td><td>${shareEscape(String(count))}</td></tr>`).join("")}</tbody></table>` : ""}</section>` : ""}
+    ${(conditionItems.length || showHighlights) ? html`<section class="report-highlights${conditionItems.length && showHighlights ? "" : " is-single"}">
+      ${conditionItems.length ? html`<section class="report-highlight-group report-conditions"><h4>Conditions</h4><dl>${joinHtml(conditionItems.map(([label, value]) => html`<div><dt>${label}</dt><dd>${value || "Not logged"}</dd></div>`), "")}</dl></section>` : ""}
+      ${showHighlights ? html`<section class="report-highlight-group"><h4>Trip Highlights</h4><dl>${highlightItems.length ? joinHtml(highlightItems.map(([label, value]) => html`<div><dt>${label}</dt><dd>${value || "Not logged"}</dd></div>`), "") : html`<div><dd>No highlights logged</dd></div>`}</dl>${species.length ? html`<table class="report-species-table"><thead><tr><th>Species</th><th>Count</th></tr></thead><tbody>${joinHtml(species.map(([name, count]) => html`<tr><td>${name}</td><td>${String(count)}</td></tr>`), "")}</tbody></table>` : ""}</section>` : ""}
     </section>` : ""}
-    ${(showBestLure || showBestFlasher) ? `<section class="report-best-gear-row">
-      ${showBestLure ? `<section class="report-best-gear-section"><div class="report-best-gear-copy"><h4>Best lure</h4><p>${shareEscape(bestLures.join(" / "))}</p></div>${bestLurePhoto ? `<figure class="report-best-lure-photo" style="--best-lure-rotation:${shareBestLurePhotoFlipped ? "-90deg" : "90deg"}"><img src="${shareEscape(sharePhotoUrl(bestLurePhoto))}" alt="${shareEscape(bestLurePhoto.name)}" /></figure>` : ""}</section>` : ""}
-      ${showBestFlasher ? `<section class="report-best-gear-section"><div class="report-best-gear-copy"><h4>Best flasher</h4><p>${shareEscape(bestFlashers.join(" / "))}</p></div>${bestFlasherPhoto ? `<figure class="report-best-lure-photo"><img src="${shareEscape(sharePhotoUrl(bestFlasherPhoto))}" alt="${shareEscape(bestFlasherPhoto.name)}" /></figure>` : ""}</section>` : ""}
+    ${(showBestLure || showBestFlasher) ? html`<section class="report-best-gear-row">
+      ${showBestLure ? html`<section class="report-best-gear-section"><div class="report-best-gear-copy"><h4>Best lure</h4><p>${bestLures.join(" / ")}</p></div>${bestLurePhoto ? html`<figure class="report-best-lure-photo" style="--best-lure-rotation:${shareBestLurePhotoFlipped ? "-90deg" : "90deg"}"><img src="${sharePhotoUrl(bestLurePhoto)}" alt="${bestLurePhoto.name}" /></figure>` : ""}</section>` : ""}
+      ${showBestFlasher ? html`<section class="report-best-gear-section"><div class="report-best-gear-copy"><h4>Best flasher</h4><p>${bestFlashers.join(" / ")}</p></div>${bestFlasherPhoto ? html`<figure class="report-best-lure-photo"><img src="${sharePhotoUrl(bestFlasherPhoto)}" alt="${bestFlasherPhoto.name}" /></figure>` : ""}</section>` : ""}
     </section>` : ""}
     ${branding}
   </article>`;
@@ -505,7 +502,7 @@ export function sharePreview() {
   if (frame) {
     frame.classList.add("is-dynamic");
   }
-  shareControl("shareTripPreview").innerHTML = shareReportHtml(activeShareTrip);
+  setHtml(shareControl("shareTripPreview"), shareReportHtml(activeShareTrip));
   shareFitReport();
   shareValidatePreviewImages();
   document.fonts?.ready.then(shareFitReport);
@@ -572,7 +569,7 @@ export function openTripShareStudio(trip) {
   activeShareTrip = trip;
   shareTextDirty = false;
   const options = shareFishPhotoOptions(trip);
-  shareControl("shareTripPhoto").innerHTML = `<option value="">No photo</option>${options.map((item, index) => `<option value="${index}">${shareEscape(item.label)}</option>`).join("")}`;
+  setHtml(shareControl("shareTripPhoto"), html`<option value="">No photo</option>${joinHtml(options.map((item, index) => html`<option value="${index}">${item.label}</option>`), "")}`);
   shareControl("shareTripPhoto").value = String(defaultSharePhotoIndex(trip));
   shareRenderAppearanceOptions();
   shareControl("shareTripTheme").value = "deep-water";

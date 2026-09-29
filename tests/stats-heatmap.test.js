@@ -30,7 +30,7 @@ assert.equal(model.maxFish, 4);
 
 const septemberTenth = model.weeks.flat().find((day) => day.key === "2026-09-10");
 assert.equal(septemberTenth.level, 0);
-const markup = StatsActivityHeatmap.render(model);
+const markup = String(StatsActivityHeatmap.render(model));
 assert.match(markup, /Fishing activity over the last 12 months/);
 assert.match(markup, /0 fish.*4 fish/);
 assert.match(markup, /is-today[^>]*aria-current="date"/);
@@ -47,7 +47,7 @@ assert.equal(dynamicScale.maxFish, 10);
 assert.equal(dynamicScale.weeks.flat().find((day) => day.key === "2026-09-14").level, 5);
 assert.equal(dynamicScale.weeks.flat().find((day) => day.key === "2026-09-13").level, 3);
 assert.equal(dynamicScale.weeks.flat().find((day) => day.key === "2026-09-12").level, 1);
-assert.match(StatsActivityHeatmap.render(dynamicScale), /0 fish.*10 fish/);
+assert.match(String(StatsActivityHeatmap.render(dynamicScale)), /0 fish.*10 fish/);
 
 const quantityParity = StatsActivityHeatmap.build([
   { date: "2026-09-14", catches: [{}, { quantity: "" }, { quantity: null }, { quantity: "bad" }] },

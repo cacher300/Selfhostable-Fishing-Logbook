@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { activePersonalBestsFilters, state } from "./app-state.js";
 import { unitSymbol } from "./app-units.js";
 import { els } from "./app-elements.js";
@@ -6,7 +7,8 @@ import { formatDate } from "./dashboard.js";
 import { lureName } from "./gear-core.js";
 import { resolveTripLineRecord } from "./trolling-spread.js";
 import { parseFirstNumber } from "./stats.js";
-import { escapeHtml, trimNumber } from "./form-utils.js";
+import { trimNumber } from "./form-utils.js";
+
 
 export const personalBestMonths = [
   { value: "1", label: "January" },
@@ -109,9 +111,9 @@ export function renderPersonalBestFilters() {
     })
     .map(String);
   if (!yearOptions.includes(activePersonalBestsFilters.year)) activePersonalBestsFilters.year = "All years";
-  els.bestsYearFilter.innerHTML = yearOptions.map((year) => (
-    `<option value="${escapeHtml(year)}" ${year === activePersonalBestsFilters.year ? "selected" : ""}>${escapeHtml(year)}</option>`
-  )).join("");
+  setHtml(els.bestsYearFilter, joinHtml(yearOptions.map((year) => (
+    html`<option value="${year}" ${year === activePersonalBestsFilters.year ? "selected" : ""}>${year}</option>`
+  )), ""));
 
   const availableMonths = new Set(measuredCatchRecords()
     .filter((record) => activePersonalBestsFilters.year === "All years" || String(record.dateParts?.year) === activePersonalBestsFilters.year)
@@ -125,9 +127,9 @@ export function renderPersonalBestFilters() {
   if (!monthOptions.some((month) => month.value === activePersonalBestsFilters.month)) {
     activePersonalBestsFilters.month = "All months";
   }
-  els.bestsMonthFilter.innerHTML = monthOptions.map((month) => (
-    `<option value="${escapeHtml(month.value)}" ${month.value === activePersonalBestsFilters.month ? "selected" : ""}>${escapeHtml(month.label)}</option>`
-  )).join("");
+  setHtml(els.bestsMonthFilter, joinHtml(monthOptions.map((month) => (
+    html`<option value="${month.value}" ${month.value === activePersonalBestsFilters.month ? "selected" : ""}>${month.label}</option>`
+  )), ""));
 
   if (els.bestsRankFilter) {
     els.bestsRankFilter.value = activePersonalBestsFilters.rankBy;
@@ -223,17 +225,17 @@ export function renderPersonalBestMetrics(items, records) {
   const heaviest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best, "weight") > 0 ? item : best), null);
   const longest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best, "length") > 0 ? item : best), null);
   const newest = items.reduce((best, item) => (!best || personalBestDateValue(item) > personalBestDateValue(best) ? item : best), null);
-  els.personalBestsMetricGrid.innerHTML = [
+  setHtml(els.personalBestsMetricGrid, joinHtml([
     ["Species With PBs", items.length],
     ["Heaviest PB", heaviest ? `${heaviest.species} ${catchMeasurementText(heaviest, "weight") || catchMeasurementText(heaviest, "length")}` : "-"],
     ["Longest PB", longest ? `${longest.species} ${catchMeasurementText(longest, "length") || catchMeasurementText(longest, "weight")}` : "-"],
     ["Newest PB", newest ? `${newest.species} ${formatDate(newest.trip?.date) || "Date not logged"}` : "-"]
-  ].map(([label, value]) => `
+  ].map(([label, value]) => html`
     <article class="metric-card">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
+      <span>${label}</span>
+      <strong>${value}</strong>
     </article>
-  `).join("");
+  `), ""));
 }
 
 export function renderPersonalBestCard(record) {
@@ -242,28 +244,28 @@ export function renderPersonalBestCard(record) {
   const weightText = catchMeasurementText(record, "weight") || "Not logged";
   const tripTitle = record.trip?.title || record.trip?.location || "Saved trip";
   const media = photo
-    ? `<div class="personal-best-media">${mediaMarkup(photo, "personal-best-photo")}</div>`
+    ? html`<div class="personal-best-media">${mediaMarkup(photo, "personal-best-photo")}</div>`
     : "";
-  return `
+  return html`
     <article class="personal-best-card">
       ${media}
       <div class="personal-best-body">
         <div class="personal-best-title-row">
           <div>
             <span class="pattern-rank">Personal best</span>
-            <h4>${escapeHtml(record.species)}</h4>
+            <h4>${record.species}</h4>
           </div>
         </div>
         <dl class="personal-best-details">
-          <div><dt>Weight</dt><dd>${escapeHtml(weightText)}</dd></div>
-          <div><dt>Length</dt><dd>${escapeHtml(lengthText)}</dd></div>
-          <div><dt>Date</dt><dd>${escapeHtml(formatDate(record.trip?.date))}</dd></div>
-          <div><dt>Trip</dt><dd>${escapeHtml(tripTitle)}</dd></div>
-          <div><dt>Location</dt><dd>${escapeHtml(record.trip?.location || "Not logged")}</dd></div>
-          <div><dt>Lure</dt><dd>${escapeHtml(lureName(record.lureId) || "Not logged")}</dd></div>
+          <div><dt>Weight</dt><dd>${weightText}</dd></div>
+          <div><dt>Length</dt><dd>${lengthText}</dd></div>
+          <div><dt>Date</dt><dd>${formatDate(record.trip?.date)}</dd></div>
+          <div><dt>Trip</dt><dd>${tripTitle}</dd></div>
+          <div><dt>Location</dt><dd>${record.trip?.location || "Not logged"}</dd></div>
+          <div><dt>Lure</dt><dd>${lureName(record.lureId) || "Not logged"}</dd></div>
         </dl>
         <div class="personal-best-actions">
-          <button class="button secondary compact-action" type="button" data-view-trip="${escapeHtml(record.trip?.id || "")}">View Trip</button>
+          <button class="button secondary compact-action" type="button" data-view-trip="${record.trip?.id || ""}">View Trip</button>
         </div>
       </div>
     </article>
@@ -274,47 +276,47 @@ export function renderPersonalBestProgression(records) {
   if (!els.personalBestProgression) return;
   const progressions = personalBestProgressions(records);
   if (!progressions.length) {
-    els.personalBestProgression.innerHTML = "";
+    setHtml(els.personalBestProgression, html``);
     return;
   }
 
-  els.personalBestProgression.innerHTML = `
+  setHtml(els.personalBestProgression, html`
     <div class="personal-best-progression-header">
       <div>
         <h4>Progression of Personal Bests</h4>
       </div>
     </div>
     <div class="personal-best-progression-grid">
-      ${progressions.map(({ species, milestones }) => `
+      ${joinHtml(progressions.map(({ species, milestones }) => html`
         <article class="personal-best-progression-card">
           <div class="personal-best-progression-card-head">
-            <h5>${escapeHtml(species)}</h5>
-            <span>${escapeHtml(milestones.length)} ${milestones.length === 1 ? "step" : "steps"}</span>
+            <h5>${species}</h5>
+            <span>${milestones.length} ${milestones.length === 1 ? "step" : "steps"}</span>
           </div>
           <ol class="personal-best-timeline">
-            ${milestones.map(({ record, previous }) => {
+            ${joinHtml(milestones.map(({ record, previous }) => {
               const tripTitle = record.trip?.title || record.trip?.location || "Saved trip";
-              return `
+              return html`
                 <li>
                   <div class="personal-best-timeline-point" aria-hidden="true"></div>
                   <div class="personal-best-timeline-body">
                     <div class="personal-best-timeline-topline">
-                      <strong>${escapeHtml(personalBestMeasurementSummary(record))}</strong>
-                      <span>${escapeHtml(personalBestImprovementText(record, previous))}</span>
+                      <strong>${personalBestMeasurementSummary(record)}</strong>
+                      <span>${personalBestImprovementText(record, previous)}</span>
                     </div>
                     <div class="personal-best-timeline-meta">
-                      ${escapeHtml(formatDate(record.trip?.date) || "Date not logged")} / ${escapeHtml(tripTitle)}
+                      ${formatDate(record.trip?.date) || "Date not logged"} / ${tripTitle}
                     </div>
-                    <button class="button secondary compact-action" type="button" data-view-trip="${escapeHtml(record.trip?.id || "")}">View Trip</button>
+                    <button class="button secondary compact-action" type="button" data-view-trip="${record.trip?.id || ""}">View Trip</button>
                   </div>
                 </li>
               `;
-            }).join("")}
+            }), "")}
           </ol>
         </article>
-      `).join("")}
+      `), "")}
     </div>
-  `;
+  `);
 }
 
 export function renderPersonalBests() {
@@ -325,13 +327,13 @@ export function renderPersonalBests() {
   renderPersonalBestMetrics(items, records);
   renderPersonalBestProgression(records);
   if (!items.length) {
-    els.personalBestsGrid.innerHTML = `
+    setHtml(els.personalBestsGrid, html`
       <div class="empty-state table-card">
         <h3>No measured catches for this period</h3>
         <p>Add length or weight to catches, or adjust the year and month filters.</p>
       </div>
-    `;
+    `);
     return;
   }
-  els.personalBestsGrid.innerHTML = items.map(renderPersonalBestCard).join("");
+  setHtml(els.personalBestsGrid, joinHtml(items.map(renderPersonalBestCard)));
 }

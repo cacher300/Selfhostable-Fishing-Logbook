@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { createId, defaultTimeValue } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { automaticSpotId, choiceLabel, optionChoices, optionLabels, spotName, trollingSpreadById } from "./app-normalization.js";
@@ -12,7 +13,8 @@ import { getValue, populatePersonSelect, syncTripFormChrome } from "./trip-edito
 import { comboName, lureName, rodName } from "./gear-core.js";
 import { populateComboSelect, populateFlasherSelect, populateLureSelect, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
 import { defaultSetupLineSide, renderLiveTrollingSpread, setupLineAutoLabel, setupLineSideLabel } from "./trolling-spread.js";
-import { escapeHtml, isTrollingTrip, populateStructureSelect, updateCheaterDepth, updateLeadcoreEstimatedDepth, updatePresentationFields, updateTrollingVisibility } from "./form-utils.js";
+import { isTrollingTrip, populateStructureSelect, updateCheaterDepth, updateLeadcoreEstimatedDepth, updatePresentationFields, updateTrollingVisibility } from "./form-utils.js";
+
 
 export function addCatchRow(catchItem = {}) {
   return addFishRow(catchItem, { container: els.catchRows, lost: false });
@@ -48,11 +50,11 @@ export function populateCatchSpotSelect(row, catchItem = {}) {
   });
   const automaticName = spotName(automaticId);
   const automaticLabel = automaticName || "No spot match";
-  select.innerHTML = [
-    `<option value="__automatic__">${escapeHtml(automaticLabel)}</option>`,
-    `<option value="__none__">No spot</option>`,
-    ...state.spots.map((spot) => `<option value="${escapeHtml(spot.id)}">${escapeHtml(spot.name)}</option>`)
-  ].join("");
+  setHtml(select, joinHtml([
+    html`<option value="__automatic__">${automaticLabel}</option>`,
+    html`<option value="__none__">No spot</option>`,
+    ...state.spots.map((spot) => html`<option value="${spot.id}">${spot.name}</option>`)
+  ]));
   select.value = mode === "automatic" ? "__automatic__" : (state.spots.some((spot) => spot.id === requestedSpotId) ? requestedSpotId : "__none__");
 }
 
@@ -339,7 +341,7 @@ export function duplicateCatchRow(sourceRow) {
 
   duplicate.querySelector(".catch-time").value = "";
   duplicate.querySelector(".catch-time-unknown").checked = false;
-  duplicate.querySelector(".catch-photo-grid").innerHTML = "";
+  setHtml(duplicate.querySelector(".catch-photo-grid"), html``);
   duplicate.classList.add("collapsed");
   duplicate.querySelector("[data-toggle-row]")?.setAttribute("aria-expanded", "false");
   sourceRow.after(duplicate);
@@ -556,9 +558,9 @@ export function populateSetupLineSelect(select, selectedId = "") {
   const options = setupLineOptionsFromForm().filter((option) => setupLineIsActiveAtTime(option, catchTime));
   const selected = selectedId || select.dataset.selectedSetupLine || "";
   select.dataset.selectedSetupLine = "";
-  select.innerHTML = `<option value="">Select rod</option>` + options.map((item) => (
-    `<option value="${escapeHtml(item.id)}" ${item.id === selected ? "selected" : ""}>${escapeHtml(item.label)}</option>`
-  )).join("");
+  setHtml(select, html`<option value="">Select rod</option>${joinHtml(options.map((item) => (
+    html`<option value="${item.id}" ${item.id === selected ? "selected" : ""}>${item.label}</option>`
+  )), "")}`);
 }
 
 export function populateSetupLineSelects() {
@@ -633,9 +635,9 @@ export function populateCatchRodSelect(select, selectedRodId = "", selectedOptio
     || options.find((item) => item.rodId === selected)?.id
     || "";
   select.dataset.selectedRodId = "";
-  select.innerHTML = `<option value="">Select rod</option>` + options.map((item) => (
-    `<option value="${escapeHtml(item.id)}" data-rod-id="${escapeHtml(item.rodId)}" data-lure-id="${escapeHtml(item.lureId)}" ${item.id === selectedOption ? "selected" : ""}>${escapeHtml(item.label)}</option>`
-  )).join("");
+  setHtml(select, html`<option value="">Select rod</option>${joinHtml(options.map((item) => (
+    html`<option value="${item.id}" data-rod-id="${item.rodId}" data-lure-id="${item.lureId}" ${item.id === selectedOption ? "selected" : ""}>${item.label}</option>`
+  )), "")}`);
 }
 
 export function populateCatchRodSelects() {

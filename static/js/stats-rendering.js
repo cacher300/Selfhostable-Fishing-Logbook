@@ -1,6 +1,7 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { activeStatsChartMetric, activeStatsTableSort } from "./app-state.js";
 import { statsNumericValue } from "./stats.js";
-import { escapeHtml } from "./form-utils.js";
+
 
 export function renderStatsTable(container, headers, rows) {
   const displayRows = sortedStatsRows(container, headers, rows);
@@ -8,19 +9,19 @@ export function renderStatsTable(container, headers, rows) {
   const chartMarkup = statsChartMarkup(container, headers, displayRows, metricIndexes);
   ensureStatsCardControls(container, chartMarkup, headers, metricIndexes);
   if (!displayRows.length) {
-    container.innerHTML = `<div class="empty-state"><p>No data yet</p></div>`;
+    setHtml(container, html`<div class="empty-state"><p>No data yet</p></div>`);
     return;
   }
 
-  container.innerHTML = `
+  setHtml(container, html`
     <table>
-      <thead><tr>${headers.map((header, index) => statsHeaderMarkup(container, header, index)).join("")}</tr></thead>
+      <thead><tr>${joinHtml(headers.map((header, index) => statsHeaderMarkup(container, header, index)))}</tr></thead>
       <tbody>
-        ${displayRows.map((row) => `<tr>${row.map((cell, index) => `<td>${statsCellMarkup(cell, headers[index])}</td>`).join("")}</tr>`).join("")}
+        ${joinHtml(displayRows.map((row) => html`<tr>${joinHtml(row.map((cell, index) => html`<td>${statsCellMarkup(cell, headers[index])}</td>`), "")}</tr>`), "")}
       </tbody>
     </table>
     ${chartMarkup}
-  `;
+  `);
 }
 
 export function sortedStatsRows(container, headers, rows) {
@@ -50,12 +51,12 @@ export function statsHeaderMarkup(container, header, index) {
   const direction = active && sort.direction === "asc" ? "low to high" : "high to low";
   const title = statsHeaderTitle(header);
   const marker = active
-    ? `<svg class="stats-sort-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3m0 0L4.5 6.5M8 3l3.5 3.5"${sort.direction === "asc" ? "" : " transform=\"rotate(180 8 8)\""}></path></svg>`
+    ? html`<svg class="stats-sort-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3m0 0L4.5 6.5M8 3l3.5 3.5"${sort.direction === "asc" ? "" : html` transform="rotate(180 8 8)"`}></path></svg>`
     : "";
-  return `
-    <th title="${escapeHtml(title)}">
-      <button class="stats-sort-heading" type="button" data-stats-sort="${index}" title="${escapeHtml(title)}" aria-label="Sort ${escapeHtml(header)} ${escapeHtml(direction)}">
-        <span>${escapeHtml(header)}</span>
+  return html`
+    <th title="${title}">
+      <button class="stats-sort-heading" type="button" data-stats-sort="${index}" title="${title}" aria-label="Sort ${header} ${direction}">
+        <span>${header}</span>
         ${marker}
       </button>
     </th>
@@ -100,14 +101,14 @@ export function statsCellMarkup(cell, header) {
   if (cell && typeof cell === "object" && cell.html) return cell.html;
   const text = String(cell ?? "");
   const title = statsHeaderTitle(header);
-  if (header === "Over" && text.startsWith("+")) return `<span class="stats-positive" title="${escapeHtml(title)}">${escapeHtml(text)}</span>`;
-  if (header === "Over" && text.startsWith("-")) return `<span class="stats-negative" title="${escapeHtml(title)}">${escapeHtml(text)}</span>`;
-  return `<span title="${escapeHtml(title)}">${escapeHtml(cell)}</span>`;
+  if (header === "Over" && text.startsWith("+")) return html`<span class="stats-positive" title="${title}">${text}</span>`;
+  if (header === "Over" && text.startsWith("-")) return html`<span class="stats-negative" title="${title}">${text}</span>`;
+  return html`<span title="${title}">${cell}</span>`;
 }
 
 export function renderStatsMessage(container, message) {
   ensureStatsCardControls(container, "", [], []);
-  container.innerHTML = `<div class="empty-state"><p>${escapeHtml(message)}</p></div>`;
+  setHtml(container, html`<div class="empty-state"><p>${message}</p></div>`);
 }
 
 export function ensureStatsCardControls(container, chartMarkup, headers, metricIndexes) {
@@ -126,10 +127,10 @@ export function ensureStatsCardControls(container, chartMarkup, headers, metricI
   if (!toggle) {
     toggle = document.createElement("div");
     toggle.className = "stats-view-toggle";
-    toggle.innerHTML = `
+    setHtml(toggle, html`
       <button class="is-active" type="button" data-stats-view="table">Table</button>
       <button type="button" data-stats-view="chart">Chart</button>
-    `;
+    `);
     header.appendChild(toggle);
   }
   const canChart = Boolean(chartMarkup);
@@ -147,12 +148,12 @@ export function ensureStatsCardControls(container, chartMarkup, headers, metricI
     const selectedIndex = metricIndexes.includes(activeStatsChartMetric[container.id])
       ? activeStatsChartMetric[container.id]
       : defaultIndex;
-    metricControl.innerHTML = `
+    setHtml(metricControl, html`
       <span>Chart by</span>
-      <select data-stats-chart-metric="${escapeHtml(container.id)}" aria-label="Chart ${escapeHtml(heading.textContent.trim())} by metric">
-        ${metricIndexes.map((index) => `<option value="${index}" ${index === selectedIndex ? "selected" : ""}>${escapeHtml(headers[index])}</option>`).join("")}
+      <select data-stats-chart-metric="${container.id}" aria-label="Chart ${heading.textContent.trim()} by metric">
+        ${joinHtml(metricIndexes.map((index) => html`<option value="${index}" ${index === selectedIndex ? "selected" : ""}>${headers[index]}</option>`), "")}
       </select>
-    `;
+    `);
     metricControl.hidden = false;
   } else if (metricControl) {
     metricControl.hidden = true;
@@ -177,7 +178,7 @@ export function statsChartMarkup(container, headers, rows, metricIndexes = stats
       : config.type === "stacked" ? stackedBarChartMarkup(headers, rows, config)
         : config.type === "grouped" ? groupedBarChartMarkup(headers, rows, config)
           : barChartMarkup(headers, rows, config);
-  return description ? `<p class="stats-chart-description">${escapeHtml(description)}</p>${chart}` : chart;
+  return description ? html`<p class="stats-chart-description">${description}</p>${chart}` : chart;
 }
 
 export function statsChartDescription(id) {
@@ -300,17 +301,17 @@ export function barChartMarkup(headers, rows, config) {
   const chartRows = chartRowsFor(headers, rows, config);
   if (!chartRows.length) return "";
   const max = Math.max(...chartRows.map((row) => row.value), 1);
-  return `
+  return html`
     <div class="stats-chart stats-chart-bars" aria-label="Bar chart view">
-      ${chartRows.map((row, index) => `
+      ${joinHtml(chartRows.map((row, index) => html`
         <div class="stats-chart-row">
-          <span class="stats-chart-label" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span>
+          <span class="stats-chart-label" title="${row.label}">${row.label}</span>
           <span class="stats-chart-track" aria-hidden="true">
             <span class="stats-chart-bar stats-chart-color-${index % 8}" style="width: ${Math.max(4, (row.value / max) * 100)}%"></span>
           </span>
-          <span class="stats-chart-value">${escapeHtml(row.valueLabel)} ${escapeHtml(row.metric)}</span>
+          <span class="stats-chart-value">${row.valueLabel} ${row.metric}</span>
         </div>
-      `).join("")}
+      `), "")}
     </div>
   `;
 }
@@ -325,20 +326,20 @@ export function stackedBarChartMarkup(headers, rows, config) {
     .sort((a, b) => b.total - a.total)
     .slice(0, config.limit || 10);
   if (!chartRows.length) return "";
-  return `
+  return html`
     <div class="stats-chart stats-chart-stacked" aria-label="Stacked bar chart view">
       <div class="stats-chart-legend">
-        ${config.seriesLabels.map((label, index) => `<span><i class="stats-chart-color-${index}"></i>${escapeHtml(label)}</span>`).join("")}
+        ${joinHtml(config.seriesLabels.map((label, index) => html`<span><i class="stats-chart-color-${index}"></i>${label}</span>`), "")}
       </div>
-      ${chartRows.map((row) => `
+      ${joinHtml(chartRows.map((row) => html`
         <div class="stats-chart-row">
-          <span class="stats-chart-label" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span>
+          <span class="stats-chart-label" title="${row.label}">${row.label}</span>
           <span class="stats-chart-track" aria-hidden="true">
-            ${row.values.map((value, index) => value ? `<span class="stats-chart-bar stats-chart-segment stats-chart-color-${index}" style="width: ${(value / row.total) * 100}%"></span>` : "").join("")}
+            ${joinHtml(row.values.map((value, index) => value ? html`<span class="stats-chart-bar stats-chart-segment stats-chart-color-${index}" style="width: ${(value / row.total) * 100}%"></span>` : ""), "")}
           </span>
-          <span class="stats-chart-value">${escapeHtml(row.valueLabels.join(" / "))}</span>
+          <span class="stats-chart-value">${row.valueLabels.join(" / ")}</span>
         </div>
-      `).join("")}
+      `), "")}
     </div>
   `;
 }
@@ -353,24 +354,24 @@ export function groupedBarChartMarkup(headers, rows, config) {
     .slice(0, config.limit || 10);
   if (!chartRows.length) return "";
   const max = Math.max(...chartRows.flatMap((row) => row.values.map((value) => value || 0)), 1);
-  return `
+  return html`
     <div class="stats-chart stats-chart-grouped" aria-label="Grouped bar chart view">
       <div class="stats-chart-legend">
-        ${config.seriesLabels.map((label, index) => `<span><i class="stats-chart-color-${index}"></i>${escapeHtml(label)}</span>`).join("")}
+        ${joinHtml(config.seriesLabels.map((label, index) => html`<span><i class="stats-chart-color-${index}"></i>${label}</span>`), "")}
       </div>
-      ${chartRows.map((row) => `
+      ${joinHtml(chartRows.map((row) => html`
         <div class="stats-chart-row stats-chart-grouped-row">
-          <span class="stats-chart-label" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span>
+          <span class="stats-chart-label" title="${row.label}">${row.label}</span>
           <span class="stats-chart-group" aria-hidden="true">
-            ${row.values.map((value, index) => `
+            ${joinHtml(row.values.map((value, index) => html`
               <span class="stats-chart-track">
                 <span class="stats-chart-bar stats-chart-color-${index}" style="width: ${Math.max(3, ((value || 0) / max) * 100)}%"></span>
               </span>
-            `).join("")}
+            `), "")}
           </span>
-          <span class="stats-chart-value">${escapeHtml(row.valueLabels.join(" / "))}</span>
+          <span class="stats-chart-value">${row.valueLabels.join(" / ")}</span>
         </div>
-      `).join("")}
+      `), "")}
     </div>
   `;
 }
@@ -385,20 +386,20 @@ export function donutChartMarkup(headers, rows, config) {
   let offset = 25;
   const segments = chartRows.map((row, index) => {
     const length = (row.value / total) * 100;
-    const segment = `<circle class="stats-donut-segment stats-chart-stroke-${index % 8}" cx="21" cy="21" r="15.915" stroke-dasharray="${length} ${100 - length}" stroke-dashoffset="${offset}"></circle>`;
+    const segment = html`<circle class="stats-donut-segment stats-chart-stroke-${index % 8}" cx="21" cy="21" r="15.915" stroke-dasharray="${length} ${100 - length}" stroke-dashoffset="${offset}"></circle>`;
     offset -= length;
     return segment;
-  }).join("");
-  return `
+  });
+  return html`
     <div class="stats-chart stats-donut-chart" aria-label="Donut chart view">
-      <svg viewBox="0 0 42 42" role="img" aria-label="${escapeHtml(headers[config.valueIndex])} share">
+      <svg viewBox="0 0 42 42" role="img" aria-label="${headers[config.valueIndex]} share">
         <circle class="stats-donut-bg" cx="21" cy="21" r="15.915"></circle>
-        ${segments}
-        <text x="21" y="20" text-anchor="middle">${escapeHtml(total)}</text>
-        <text x="21" y="25" text-anchor="middle">${escapeHtml(headers[config.valueIndex])}</text>
+        ${joinHtml(segments)}
+        <text x="21" y="20" text-anchor="middle">${total}</text>
+        <text x="21" y="25" text-anchor="middle">${headers[config.valueIndex]}</text>
       </svg>
       <div class="stats-chart-legend">
-        ${chartRows.map((row, index) => `<span><i class="stats-chart-color-${index % 8}"></i>${escapeHtml(row.label)}: ${escapeHtml(row.valueLabel)}</span>`).join("")}
+        ${joinHtml(chartRows.map((row, index) => html`<span><i class="stats-chart-color-${index % 8}"></i>${row.label}: ${row.valueLabel}</span>`), "")}
       </div>
     </div>
   `;
@@ -424,25 +425,24 @@ export function lineChartMarkup(headers, rows, config) {
   const polylines = valueIndexes.map((_, seriesIndex) => chartRows.map((row, index) => `${xFor(index)},${yFor(row.values[seriesIndex])}`).join(" "));
   const xLabelInterval = Math.max(1, Math.ceil(chartRows.length / 5));
   const shortLabel = (label) => String(label).replace(/,\s*\d{4}$/, "");
-  return `
+  return html`
     <div class="stats-chart stats-line-chart" aria-label="Line chart view">
-      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(`${headers[0]} by ${config.seriesLabels.join(" and ")}`)}">
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${`${headers[0]} by ${config.seriesLabels.join(" and ")}`}">
         <line class="stats-line-axis" x1="${plot.left}" y1="${height - plot.bottom}" x2="${width - plot.right}" y2="${height - plot.bottom}"></line>
         <line class="stats-line-axis" x1="${plot.left}" y1="${plot.top}" x2="${plot.left}" y2="${height - plot.bottom}"></line>
-        <text class="stats-line-axis-label stats-line-axis-label-y" x="${plot.left - 6}" y="${plot.top + 4}" text-anchor="end">${escapeHtml(String(max))}</text>
+        <text class="stats-line-axis-label stats-line-axis-label-y" x="${plot.left - 6}" y="${plot.top + 4}" text-anchor="end">${String(max)}</text>
         <text class="stats-line-axis-label stats-line-axis-label-y" x="${plot.left - 6}" y="${height - plot.bottom + 4}" text-anchor="end">0</text>
         <text class="stats-line-axis-title" x="${plot.left}" y="11">Fish</text>
-        ${polylines.map((points, index) => `<polyline class="stats-line stats-chart-stroke-${index}" points="${points}"></polyline>`).join("")}
-        ${chartRows.map((row, rowIndex) => valueIndexes.map((_, seriesIndex) => `<circle class="stats-line-point stats-chart-fill-${seriesIndex}" cx="${xFor(rowIndex)}" cy="${yFor(row.values[seriesIndex])}" r="3"><title>${escapeHtml(`${row.label}: ${config.seriesLabels[seriesIndex]} ${row.values[seriesIndex]}`)}</title></circle>`).join("")).join("")}
-        ${chartRows.map((row, index) => (index % xLabelInterval === 0 || index === chartRows.length - 1)
-          ? `<text class="stats-line-axis-label stats-line-axis-label-x" x="${xFor(index)}" y="${height - 18}" text-anchor="middle">${escapeHtml(shortLabel(row.label))}</text>`
-          : "").join("")}
-        <text class="stats-line-axis-title stats-line-axis-title-x" x="${(plot.left + width - plot.right) / 2}" y="${height - 3}" text-anchor="middle">${escapeHtml(headers[0])}</text>
+        ${joinHtml(polylines.map((points, index) => html`<polyline class="stats-line stats-chart-stroke-${index}" points="${points}"></polyline>`), "")}
+        ${joinHtml(chartRows.map((row, rowIndex) => joinHtml(valueIndexes.map((_, seriesIndex) => html`<circle class="stats-line-point stats-chart-fill-${seriesIndex}" cx="${xFor(rowIndex)}" cy="${yFor(row.values[seriesIndex])}" r="3"><title>${`${row.label}: ${config.seriesLabels[seriesIndex]} ${row.values[seriesIndex]}`}</title></circle>`))))}
+        ${joinHtml(chartRows.map((row, index) => (index % xLabelInterval === 0 || index === chartRows.length - 1)
+          ? html`<text class="stats-line-axis-label stats-line-axis-label-x" x="${xFor(index)}" y="${height - 18}" text-anchor="middle">${shortLabel(row.label)}</text>`
+          : ""), "")}
+        <text class="stats-line-axis-title stats-line-axis-title-x" x="${(plot.left + width - plot.right) / 2}" y="${height - 3}" text-anchor="middle">${headers[0]}</text>
       </svg>
       <div class="stats-chart-legend">
-        ${config.seriesLabels.map((label, index) => `<span><i class="stats-chart-color-${index}"></i>${escapeHtml(label)}</span>`).join("")}
+        ${joinHtml(config.seriesLabels.map((label, index) => html`<span><i class="stats-chart-color-${index}"></i>${label}</span>`), "")}
       </div>
     </div>
   `;
 }
-

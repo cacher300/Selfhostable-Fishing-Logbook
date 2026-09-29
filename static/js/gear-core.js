@@ -1,3 +1,4 @@
+import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { state, ui } from "./app-state.js";
 import { displayStoredMeasurement } from "./app-units.js";
 import { els } from "./app-elements.js";
@@ -5,7 +6,7 @@ import { canonicalMediaRef, isVideoMedia, mediaMarkup, mediaReferenceKey, origin
 import { fishCount } from "./dashboard.js";
 import { getValue } from "./trip-editor.js";
 import { resolveTripLineRecord } from "./trolling-spread.js";
-import { escapeHtml } from "./form-utils.js";
+
 
 export function gearPhotos(item) {
   return Array.isArray(item?.media) ? item.media : [];
@@ -182,15 +183,15 @@ export function renderQueuedGearImage(type) {
   }[type]);
   if (!container) return;
   container.classList.toggle("hidden", !pending);
-  container.innerHTML = pending ? `
+  setHtml(container, pending ? html`
     ${isVideoMedia(pending)
       ? mediaMarkup(pending, "", { download: false })
-      : `<button class="queued-gear-image-preview" type="button" data-open-queued-gear-preview="${escapeHtml(type)}" aria-label="Enlarge queued photo">
+      : html`<button class="queued-gear-image-preview" type="button" data-open-queued-gear-preview="${type}" aria-label="Enlarge queued photo">
           ${mediaMarkup(pending, "", { download: false })}
           <span>Queued photo selected</span>
         </button>`}
-    ${isVideoMedia(pending) ? `<span>Queued video selected</span>` : ""}
-  ` : "";
+    ${isVideoMedia(pending) ? html`<span>Queued video selected</span>` : ""}
+  ` : html``);
 }
 
 export function renderExistingGearPhotos(type, item = null, localFiles = []) {
@@ -216,20 +217,20 @@ export function renderExistingGearPhotos(type, item = null, localFiles = []) {
   const removed = removedGearPhotoKeys(type);
   const photos = gearPhotos(item).filter((photo, index) => !removed.has(gearPhotoKey(photo, index)));
   container.classList.toggle("hidden", !photos.length && !localPhotos.length);
-  container.innerHTML = `
-    ${photos.length ? `
+  setHtml(container, html`
+    ${photos.length ? html`
       <div class="gear-editor-photos-heading">Current ${photos.length === 1 ? "photo" : "photos"}</div>
       <div class="gear-editor-photo-grid">
-        ${photos.map((photo, index) => `<div class="gear-editor-photo">${mediaMarkup(photo, "", { download: false })}<button class="icon-button gear-editor-photo-remove" type="button" data-remove-gear-photo="${escapeHtml(gearPhotoKey(photo, index))}" data-gear-photo-type="${escapeHtml(type)}" aria-label="Remove photo">×</button></div>`).join("")}
+        ${joinHtml(photos.map((photo, index) => html`<div class="gear-editor-photo">${mediaMarkup(photo, "", { download: false })}<button class="icon-button gear-editor-photo-remove" type="button" data-remove-gear-photo="${gearPhotoKey(photo, index)}" data-gear-photo-type="${type}" aria-label="Remove photo">×</button></div>`), "")}
       </div>
     ` : ""}
-    ${localPhotos.length ? `
+    ${localPhotos.length ? html`
       <div class="gear-editor-photos-heading">Selected ${localPhotos.length === 1 ? "upload" : "uploads"}</div>
       <div class="gear-editor-photo-grid">
-        ${localPhotos.map((photo) => `<div class="gear-editor-photo">${mediaMarkup(photo, "", { download: false })}</div>`).join("")}
+        ${joinHtml(localPhotos.map((photo) => html`<div class="gear-editor-photo">${mediaMarkup(photo, "", { download: false })}</div>`), "")}
       </div>
     ` : ""}
-  `;
+  `);
 }
 
 export function previewSelectedGearUploads(type, input) {
@@ -265,10 +266,10 @@ export function openQueuedGearImagePreview(type) {
   document.querySelector(".queued-gear-photo-lightbox")?.remove();
   const dialog = gearDialogForType(type);
   const lightboxHost = dialog?.open ? dialog : document.body;
-  lightboxHost.insertAdjacentHTML("beforeend", `
+  insertHtml(lightboxHost, "beforeend", html`
     <div class="report-photo-lightbox queued-gear-photo-lightbox" role="dialog" aria-modal="true" aria-label="Queued gear photo">
       <button type="button" class="report-photo-lightbox-close" data-close-report-photo aria-label="Close photo">×</button>
-      <img src="${escapeHtml(source)}" alt="Queued gear photo">
+      <img src="${source}" alt="Queued gear photo">
     </div>
   `);
   document.body.classList.add("report-photo-lightbox-open");

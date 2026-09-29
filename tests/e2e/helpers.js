@@ -99,7 +99,16 @@ async function fillDate(page, selector, displayValue) {
   await page.locator(selector).blur();
 }
 
+function failOnHtmlEscapedMarkup(page) {
+  page.on("console", (message) => {
+    if (message.type() === "error" && message.text().includes("html: markup-like string was escaped")) {
+      throw new Error(message.text());
+    }
+  });
+}
+
 module.exports = {
+  failOnHtmlEscapedMarkup,
   freshLogbook,
   readLogbook,
   resetLogbook,

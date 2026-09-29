@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { protectedFetch } from "./app-config.js";
 import { createId } from "./app-defaults.js";
 import { returnToTripDialog, state, ui } from "./app-state.js";
@@ -10,7 +11,7 @@ import { markTripFormChanged, showTripFormMessage } from "./trip-editor.js";
 import { updateRowSummary, updateUnknownTimeField } from "./trip-rows.js";
 import { renderQueuedGearImage } from "./gear-core.js";
 import { displayPhotoTitle } from "./trip-summary.js";
-import { escapeHtml } from "./form-utils.js";
+
 
 export function getExifAscii(view, offset, count) {
   let value = "";
@@ -438,19 +439,19 @@ export async function addNotePhotos(event) {
 
 export function renderNotePhotos() {
   if (!ui.activeNotePhotos.length) {
-    els.notePhotoGrid.innerHTML = `<div class="empty-state"><p>No note photos attached.</p></div>`;
+    setHtml(els.notePhotoGrid, html`<div class="empty-state"><p>No note photos attached.</p></div>`);
     return;
   }
 
-  els.notePhotoGrid.innerHTML = ui.activeNotePhotos.map((photo) => `
-    <article class="note-photo-card" data-note-photo="${escapeHtml(photo.id)}">
+  setHtml(els.notePhotoGrid, joinHtml(ui.activeNotePhotos.map((photo) => html`
+    <article class="note-photo-card" data-note-photo="${photo.id}">
       ${mediaMarkup(photo, "", { download: false })}
       <button class="icon-button remove-note-photo" type="button" aria-label="Remove trip photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       <div class="note-photo-body">
-        <input class="note-photo-caption" type="text" value="${escapeHtml(photo.caption || "")}" placeholder="Caption, like fishfinder, launch, rig" />
+        <input class="note-photo-caption" type="text" value="${photo.caption || ""}" placeholder="Caption, like fishfinder, launch, rig" />
       </div>
     </article>
-  `).join("");
+  `), ""));
 }
 
 export function collectNotePhotos() {
@@ -491,8 +492,8 @@ export function lockedPhotoCoordinatesFromRow(row) {
 
 export function metadataLockIconMarkup(locked) {
   return locked
-    ? `<path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />`
-    : `<path d="M4.5 7V5.2a3.5 3.5 0 0 1 6.5-1.8" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />`;
+    ? html`<path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />`
+    : html`<path d="M4.5 7V5.2a3.5 3.5 0 0 1 6.5-1.8" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />`;
 }
 
 export function metadataLockFieldLabel(field) {
@@ -528,7 +529,7 @@ export function updateMetadataLockButtons(row) {
       : `Unlocked: future photo metadata can update this catch ${label} when photos are added or selected. Click to lock the current value.`;
     button.dataset.tooltip = button.title;
     const icon = button.querySelector("svg");
-    if (icon) icon.innerHTML = metadataLockIconMarkup(locked);
+    if (icon) setHtml(icon, metadataLockIconMarkup(locked));
   });
 }
 
@@ -580,7 +581,7 @@ export function photoCaptureTimeValue(photo) {
 export function catchPhotoCaptureTimeMarkup(photo) {
   const captureTime = photoCaptureTimeValue(photo);
   if (!captureTime) return "";
-  return `<time class="catch-photo-capture-time" datetime="${escapeHtml(captureTime)}">${escapeHtml(formatDisplayTime(captureTime))}</time>`;
+  return html`<time class="catch-photo-capture-time" datetime="${captureTime}">${formatDisplayTime(captureTime)}</time>`;
 }
 
 export function applyPhotoCaptureTimeToCatch(row, photos) {
@@ -706,36 +707,36 @@ export function renderCatchPhotos(row) {
   const taggedPhotos = gpsTaggedCatchPhotos(row);
   const selectedPhoto = selectedCatchPhotoLocation(row);
   const heroPhoto = selectedCatchHeroPhoto(row);
-  grid.innerHTML = photos.map((photo) => `
-    <article class="catch-photo-card" data-catch-photo="${escapeHtml(photo.id)}">
+  setHtml(grid, joinHtml(photos.map((photo) => html`
+    <article class="catch-photo-card" data-catch-photo="${photo.id}">
       ${isVideoMedia(photo)
         ? mediaMarkup(photo, "", { download: false })
-        : `<button class="catch-photo-open" type="button" data-catch-photo-open="${escapeHtml(photo.id)}" aria-label="Enlarge ${escapeHtml(displayPhotoTitle(photo))}">${mediaMarkup(photo, "", { download: false })}</button>`}
+        : html`<button class="catch-photo-open" type="button" data-catch-photo-open="${photo.id}" aria-label="Enlarge ${displayPhotoTitle(photo)}">${mediaMarkup(photo, "", { download: false })}</button>`}
       <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch media"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       ${isUsableCoordinates(photo.coordinates) ? `
-        ${taggedPhotos.length > 1 ? `
+        ${taggedPhotos.length > 1 ? html`
           <label class="catch-photo-gps-choice">
             <input
               type="radio"
-              name="catch-photo-gps-${escapeHtml(row.dataset.rowId || "row")}"
-              value="${escapeHtml(photo.id)}"
+              name="catch-photo-gps-${row.dataset.rowId || "row"}"
+              value="${photo.id}"
               ${selectedPhoto?.id === photo.id ? "checked" : ""}
             />
             <span class="catch-photo-gps-copy">Use time and location${catchPhotoCaptureTimeMarkup(photo)}</span>
           </label>
-        ` : `<span class="catch-photo-gps-label"><span>GPS tagged</span>${catchPhotoCaptureTimeMarkup(photo)}</span>`}
-      ` : `<small>${photo.gpsIgnoredReason === "home" ? "Home location: GPS ignored" : "No GPS metadata"}</small>`}
+        ` : html`<span class="catch-photo-gps-label"><span>GPS tagged</span>${catchPhotoCaptureTimeMarkup(photo)}</span>`}
+      ` : html`<small>${photo.gpsIgnoredReason === "home" ? "Home location: GPS ignored" : "No GPS metadata"}</small>`}
       <label class="catch-photo-hero-choice">
         <input
           type="radio"
-          name="catch-photo-hero-${escapeHtml(row.dataset.rowId || "row")}"
-          value="${escapeHtml(photo.id)}"
+          name="catch-photo-hero-${row.dataset.rowId || "row"}"
+          value="${photo.id}"
           ${heroPhoto?.id === photo.id ? "checked" : ""}
         />
         <span>Hero photo</span>
       </label>
     </article>
-  `).join("");
+  `), ""));
 }
 
 export function collectCatchPhotos(row) {
@@ -793,31 +794,31 @@ export function photoQueueMetadataMarkup(photo) {
   if (!metadata.length) {
     metadata.push(photo.gpsIgnoredReason === "home" ? "Location hidden for privacy" : "No capture metadata");
   }
-  return metadata.map((value) => `<span>${escapeHtml(value)}</span>`).join("");
+  return joinHtml(metadata.map((value) => html`<span>${value}</span>`), "");
 }
 
 export async function renderPhotoQueue() {
   const photos = await loadPhotoQueue();
   els.photoQueueStatus.textContent = photos.length === 1 ? "1 queued photo" : `${photos.length} queued photos`;
   if (!photos.length) {
-    els.photoQueueGrid.innerHTML = `<div class="empty-state"><p>No queued photos. Upload from your phone, then pick them here while logging.</p></div>`;
+    setHtml(els.photoQueueGrid, html`<div class="empty-state"><p>No queued photos. Upload from your phone, then pick them here while logging.</p></div>`);
     return;
   }
 
-  els.photoQueueGrid.innerHTML = photos.map((photo) => `
-    <article class="photo-queue-card" data-queue-photo="${escapeHtml(photo.filename)}" ${ui.activePhotoQueueTarget ? `data-select-queued-photo="${escapeHtml(photo.filename)}" tabindex="0" role="button"` : ""}>
+  setHtml(els.photoQueueGrid, joinHtml(photos.map((photo) => html`
+    <article class="photo-queue-card" data-queue-photo="${photo.filename}" ${ui.activePhotoQueueTarget ? html`data-select-queued-photo="${photo.filename}" tabindex="0" role="button"` : ""}>
       <div class="photo-queue-image-wrap">
         ${mediaMarkup(photo, "", { download: false })}
-        <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${escapeHtml(photo.filename)}" aria-label="Remove queued photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${photo.filename}" aria-label="Remove queued photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       </div>
       <div class="photo-queue-metadata">
         ${photoQueueMetadataMarkup(photo)}
       </div>
       <div class="photo-queue-card-actions">
-        ${ui.activePhotoQueueTarget ? `<button class="button primary" type="button" data-select-queued-photo="${escapeHtml(photo.filename)}">Use Photo</button>` : ""}
+        ${ui.activePhotoQueueTarget ? html`<button class="button primary" type="button" data-select-queued-photo="${photo.filename}">Use Photo</button>` : ""}
       </div>
     </article>
-  `).join("");
+  `), ""));
 }
 
 export async function openPhotoQueue(target = null) {

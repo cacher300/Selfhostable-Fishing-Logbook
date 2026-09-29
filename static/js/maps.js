@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { L } from "./vendor.js";
 import { fallbackSpeciesColor, speciesColor } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
@@ -7,9 +8,10 @@ import { els } from "./app-elements.js";
 import { isUsableCoordinates, isVideoMedia, mediaMarkup, previewImage } from "./app-media.js";
 import { coordinateText } from "./locations.js";
 import { fishingSpotRadiusText } from "./settings-locations.js";
+import { ensureGreatLakesConditions } from "./great-lakes-conditions.js";
 import { formatDate } from "./dashboard.js";
 import { displayFowValue } from "./trip-summary.js";
-import { escapeHtml } from "./form-utils.js";
+
 
 export function catchMapRecordForTrip(trip, catchItem, catchIndex) {
   const selectedPhoto = catchItem.photoLocationId
@@ -116,14 +118,14 @@ export function mapDirectionMarker(record, color, fillColor, popupHtml, popupOpt
     className: "map-catch-direction-icon",
     iconSize: [18, 18],
     iconAnchor: [9, 9],
-    html: `<span class="map-catch-direction-dot" style="--marker-color:${color};--marker-fill:${fillColor}" aria-hidden="true"><svg viewBox="0 0 16 16" style="transform:rotate(${direction.degrees}deg)"><path d="M8 2.25 12.4 9 8.95 8.1 8.95 13.75 7.05 13.75 7.05 8.1 3.6 9Z" /></svg></span>`
+    html: html`<span class="map-catch-direction-dot" style="--marker-color:${color};--marker-fill:${fillColor}" aria-hidden="true"><svg viewBox="0 0 16 16" style="transform:rotate(${direction.degrees}deg)"><path d="M8 2.25 12.4 9 8.95 8.1 8.95 13.75 7.05 13.75 7.05 8.1 3.6 9Z" /></svg></span>`
   });
   return L.marker([record.coordinates.latitude, record.coordinates.longitude], {
     icon,
     bubblingMouseEvents: false,
     pane: "fishMarkers",
     title: `${mapRecordTitle(record)} — trolling ${direction.label}`
-  }).bindPopup(popupHtml, popupOptions);
+  }).bindPopup(String(popupHtml), popupOptions);
 }
 
 export function shouldShowMapDirectionArrow(record, options = {}) {
@@ -146,7 +148,7 @@ export function addMapMarker(layerGroup, record, options = {}) {
     weight: options.colorByYear ? 3 : 2,
     bubblingMouseEvents: false,
     pane: record.type === "catch" ? "fishMarkers" : "tripMediaMarkers"
-  }).bindPopup(popupHtml, popupOptions).addTo(layerGroup);
+  }).bindPopup(String(popupHtml), popupOptions).addTo(layerGroup);
 }
 
 export function ensureMapMarkerPanes(map) {
@@ -239,7 +241,7 @@ export function catchSizePopupValue(catchItem = {}) {
 export function mapDepthPopupHtml(coordinates, payload = null, status = "loading", overlayHtml = "") {
   const compactClass = overlayHtml ? "" : " map-depth-popup--compact";
   if (status === "loading") {
-    return `
+    return html`
       <div class="map-popup map-depth-popup${compactClass}">
         <strong>Depth lookup</strong>
         <span>Looking up...</span>
@@ -248,7 +250,7 @@ export function mapDepthPopupHtml(coordinates, payload = null, status = "loading
     `;
   }
   if (status === "error") {
-    return `
+    return html`
       <div class="map-popup map-depth-popup${compactClass}">
         <strong>Depth unavailable</strong>
         <span>Could not fetch depth here.</span>
@@ -257,9 +259,9 @@ export function mapDepthPopupHtml(coordinates, payload = null, status = "loading
     `;
   }
   const depthText = mapDepthText(payload);
-  return `
+  return html`
     <div class="map-popup map-depth-popup${compactClass}">
-      <strong>${escapeHtml(depthText || "No depth found")}</strong>
+      <strong>${depthText || "No depth found"}</strong>
       ${overlayHtml}
     </div>
   `;
@@ -274,7 +276,7 @@ export async function showDepthPopupForMapClick(map, event) {
   if (!Number.isFinite(coordinates.latitude) || !Number.isFinite(coordinates.longitude)) return;
   const popup = L.popup()
     .setLatLng(event.latlng)
-    .setContent(mapDepthPopupHtml(coordinates))
+    .setContent(String(mapDepthPopupHtml(coordinates)))
     .openOn(map);
   const params = new URLSearchParams({
     latitude: coordinates.latitude.toFixed(6),
@@ -289,12 +291,12 @@ export async function showDepthPopupForMapClick(map, event) {
   ]);
   if (!map.hasLayer(popup)) return;
   if (depthResult.status === "rejected") console.error("Could not fetch map depth.", depthResult.reason);
-  popup.setContent(mapDepthPopupHtml(
+  popup.setContent(String(mapDepthPopupHtml(
     coordinates,
     depthResult.status === "fulfilled" ? depthResult.value : null,
     depthResult.status === "fulfilled" ? "ready" : "error",
     currentResult.status === "fulfilled" ? currentResult.value : ""
-  ));
+  )));
 }
 
 export function bindDepthLookupPopup(map) {
@@ -362,9 +364,9 @@ export function mapRecordFilterOptions(records, options = {}) {
 export function renderMapSpeciesFilter(records) {
   const options = mapRecordFilterOptions(records, { allLabel: "All species" });
   if (!options.includes(ui.activeMapSpecies)) ui.activeMapSpecies = "All species";
-  els.mapSpeciesFilter.innerHTML = options.map((option) => (
-    `<option value="${escapeHtml(option)}" ${option === ui.activeMapSpecies ? "selected" : ""}>${escapeHtml(option)}</option>`
-  )).join("");
+  setHtml(els.mapSpeciesFilter, joinHtml(options.map((option) => (
+    html`<option value="${option}" ${option === ui.activeMapSpecies ? "selected" : ""}>${option}</option>`
+  )), ""));
   if (els.mapTripPhotosToggle) els.mapTripPhotosToggle.checked = ui.activeMapIncludeTripMedia;
 }
 
@@ -399,11 +401,11 @@ export function mapSpotPopupHtml(spot) {
   const radiusText = Number.isFinite(radius) && radius > 0
     ? `${typeof fishingSpotRadiusText === "function" ? fishingSpotRadiusText(radius) : `${Math.round(radius)} m`} radius`
     : "";
-  return `
+  return html`
     <div class="map-popup map-spot-popup">
-      <strong>${escapeHtml(spot.name || "Fishing spot")}</strong>
-      ${radiusText ? `<span>${escapeHtml(radiusText)}</span>` : ""}
-      <small>${escapeHtml(coordinateText(spot.coordinates))}</small>
+      <strong>${spot.name || "Fishing spot"}</strong>
+      ${radiusText ? html`<span>${radiusText}</span>` : ""}
+      <small>${coordinateText(spot.coordinates)}</small>
     </div>
   `;
 }
@@ -431,7 +433,7 @@ export function addMapSpotMarker(layerGroup, spot) {
     weight: 3,
     pane: "spotMarkers",
     title: spot.name || "Fishing spot"
-  }).bindPopup(popupHtml).addTo(layerGroup);
+  }).bindPopup(String(popupHtml)).addTo(layerGroup);
 }
 
 export function sortedMapValues(records, getValue) {
@@ -442,9 +444,9 @@ export function renderMapSelect(select, records, getValue, allLabel, activeValue
   if (!select) return activeValue;
   const values = sortedMapValues(records, getValue);
   const nextValue = [allLabel, ...values].includes(activeValue) ? activeValue : allLabel;
-  select.innerHTML = [allLabel, ...values].map((value) => (
-    `<option value="${escapeHtml(value)}" ${value === nextValue ? "selected" : ""}>${escapeHtml(value)}</option>`
-  )).join("");
+  setHtml(select, joinHtml([allLabel, ...values].map((value) => (
+    html`<option value="${value}" ${value === nextValue ? "selected" : ""}>${value}</option>`
+  )), ""));
   select.closest("label")?.classList.toggle("hidden", Boolean(options.hideWhenEmpty && !values.length));
   return nextValue;
 }
@@ -472,9 +474,9 @@ export function mapYearFilterOptions(records) {
 export function renderMapYearFilter(records) {
   const options = mapYearFilterOptions(records);
   if (!options.includes(ui.activeMapYear)) ui.activeMapYear = "All years";
-  els.mapYearFilter.innerHTML = options.map((option) => (
-    `<option value="${escapeHtml(option)}" ${option === ui.activeMapYear ? "selected" : ""}>${escapeHtml(option)}</option>`
-  )).join("");
+  setHtml(els.mapYearFilter, joinHtml(options.map((option) => (
+    html`<option value="${option}" ${option === ui.activeMapYear ? "selected" : ""}>${option}</option>`
+  )), ""));
   els.mapYearFilter.disabled = ui.activeMapYearFilteringHidden;
   els.mapYearFilterControl?.classList.toggle("hidden", ui.activeMapYearFilteringHidden);
   if (els.mapHideYearFilterToggle) els.mapHideYearFilterToggle.checked = ui.activeMapYearFilteringHidden;
@@ -533,11 +535,11 @@ export function renderMapLegend(records, options = {}) {
     : [];
   const legendItems = [...species, ...mediaTypes];
   if (!legendItems.length) return "";
-  return `
+  return html`
     <div class="map-legend">
-      ${legendItems.map((name) => `
-        <span><i style="--pin-color:${name === "Trip Photos" ? "#2763a7" : name === "Trip Videos" ? "#9a5b00" : speciesColor(name)}"></i>${escapeHtml(name)}</span>
-      `).join("")}
+      ${joinHtml(legendItems.map((name) => html`
+        <span><i style="--pin-color:${name === "Trip Photos" ? "#2763a7" : name === "Trip Videos" ? "#9a5b00" : speciesColor(name)}"></i>${name}</span>
+      `), "")}
     </div>
   `;
 }
@@ -551,21 +553,21 @@ export function mapPopupHtml(record) {
   const direction = mapRecordTrollingDirection(record)?.label || "";
   const method = record.type === "catch" ? mapRecordMethod(record) : "";
   const detailRows = [
-    sizeValue ? `<div class="map-popup-detail"><span class="map-popup-label">Size</span><span class="map-popup-value">${escapeHtml(sizeValue)}</span></div>` : "",
-    fowValue ? `<div class="map-popup-detail"><span class="map-popup-label">FOW</span><span class="map-popup-value">${escapeHtml(fowValue)}</span></div>` : "",
-    method ? `<div class="map-popup-detail"><span class="map-popup-label">Method</span><span class="map-popup-value">${escapeHtml(method)}</span></div>` : "",
-    direction ? `<div class="map-popup-detail"><span class="map-popup-label">Direction</span><span class="map-popup-value">${escapeHtml(direction)}</span></div>` : "",
-    assignedSpot ? `<div class="map-popup-detail"><span class="map-popup-label">Spot</span><span class="map-popup-value">${escapeHtml(assignedSpot)}</span></div>` : ""
-  ].filter(Boolean).join("");
-  return `
-    <div class="map-popup map-record-popup" data-map-view-trip="${escapeHtml(trip.id)}" role="button" tabindex="0">
+    sizeValue ? html`<div class="map-popup-detail"><span class="map-popup-label">Size</span><span class="map-popup-value">${sizeValue}</span></div>` : "",
+    fowValue ? html`<div class="map-popup-detail"><span class="map-popup-label">FOW</span><span class="map-popup-value">${fowValue}</span></div>` : "",
+    method ? html`<div class="map-popup-detail"><span class="map-popup-label">Method</span><span class="map-popup-value">${method}</span></div>` : "",
+    direction ? html`<div class="map-popup-detail"><span class="map-popup-label">Direction</span><span class="map-popup-value">${direction}</span></div>` : "",
+    assignedSpot ? html`<div class="map-popup-detail"><span class="map-popup-label">Spot</span><span class="map-popup-value">${assignedSpot}</span></div>` : ""
+  ].filter(Boolean);
+  return html`
+    <div class="map-popup map-record-popup" data-map-view-trip="${trip.id}" role="button" tabindex="0">
       ${media && previewImage(media) ? mediaMarkup(media) : ""}
       <div class="map-popup-heading">
-        <strong class="map-popup-title">${escapeHtml(title)}</strong>
-        <span class="map-popup-date">${escapeHtml(formatDate(trip.date))}</span>
+        <strong class="map-popup-title">${title}</strong>
+        <span class="map-popup-date">${formatDate(trip.date)}</span>
       </div>
-      ${detailRows ? `<div class="map-popup-details" aria-label="Map record details">${detailRows}</div>` : ""}
-      <button class="map-popup-trip-link" type="button" data-view-trip="${escapeHtml(trip.id)}">View Trip</button>
+      ${detailRows.length ? html`<div class="map-popup-details" aria-label="Map record details">${joinHtml(detailRows)}</div>` : ""}
+      <button class="map-popup-trip-link" type="button" data-view-trip="${trip.id}">View Trip</button>
     </div>
   `;
 }
@@ -574,12 +576,12 @@ export function renderMapYearLegend(records, options = {}) {
   const legendItems = mapRecordFilterOptions(records, { allLabel: "All species", includeTripMedia: options.includeTripMedia }).slice(1);
   const years = options.showYearOutlines ? mapYearFilterOptions(records).slice(1) : [];
   if (!years.length && !legendItems.length) return "";
-  return `
+  return html`
     <div class="map-legend map-dual-legend">
-      ${legendItems.length ? `<strong>Species</strong>${legendItems.map((name) => `<span><i style="--pin-color:${name === "Trip Photos" ? "#2763a7" : name === "Trip Videos" ? "#9a5b00" : speciesColor(name)}"></i>${escapeHtml(name)}</span>`).join("")}` : ""}
-      ${options.spotCount ? `<strong>Layers</strong><span><i class="map-spot-key"></i>${escapeHtml(`${options.spotCount} saved ${options.spotCount === 1 ? "spot" : "spots"}`)}</span>` : ""}
-      ${years.length ? `<strong>Year outline</strong>${years.map((year) => `<span><i class="map-year-key" style="--pin-color:${mapYearColor(year)}"></i>${escapeHtml(year)}</span>`).join("")}` : ""}
-      ${records.some(mapRecordTrollingDirection) ? `<span class="map-direction-key"><i>↑</i>Trolling direction</span>` : ""}
+      ${legendItems.length ? html`<strong>Species</strong>${joinHtml(legendItems.map((name) => html`<span><i style="--pin-color:${name === "Trip Photos" ? "#2763a7" : name === "Trip Videos" ? "#9a5b00" : speciesColor(name)}"></i>${name}</span>`), "")}` : ""}
+      ${options.spotCount ? html`<strong>Layers</strong><span><i class="map-spot-key"></i>${`${options.spotCount} saved ${options.spotCount === 1 ? "spot" : "spots"}`}</span>` : ""}
+      ${years.length ? html`<strong>Year outline</strong>${joinHtml(years.map((year) => html`<span><i class="map-year-key" style="--pin-color:${mapYearColor(year)}"></i>${year}</span>`), "")}` : ""}
+      ${records.some(mapRecordTrollingDirection) ? html`<span class="map-direction-key"><i>↑</i>Trolling direction</span>` : ""}
     </div>
   `;
 }
@@ -587,11 +589,11 @@ export function renderMapYearLegend(records, options = {}) {
 export function renderFishMapLegend(records, spots) {
   const visibleRecords = mapRecordsInViewport(ui.fishMap, records);
   const visibleSpots = mapSpotsInViewport(ui.fishMap, spots);
-  els.mapLegend.innerHTML = renderMapYearLegend(visibleRecords, {
+  setHtml(els.mapLegend, renderMapYearLegend(visibleRecords, {
     includeTripMedia: ui.activeMapIncludeTripMedia,
     showYearOutlines: !ui.activeMapYearFilteringHidden,
     spotCount: visibleSpots.length
-  });
+  }));
 }
 
 export function refreshFishMapLegend() {
@@ -613,8 +615,8 @@ export function renderFishMap() {
     filteredMapRecords(allRecords, ui.activeMapSpecies, { includeTripMedia: ui.activeMapIncludeTripMedia })
   ));
   renderFishMapLegend(records, spots);
-  if (!window.L) {
-    els.fishMap.innerHTML = `<div class="empty-state"><p>Map tiles are unavailable; saved coordinates can still be inspected from trip details.</p></div>`;
+  if (!L) {
+    setHtml(els.fishMap, html`<div class="empty-state"><p>Map tiles are unavailable; saved coordinates can still be inspected from trip details.</p></div>`);
     return;
   }
 
@@ -623,13 +625,14 @@ export function renderFishMap() {
     fishMapBasemapLayer = addSeamlessTileLayer(ui.fishMap, savedMapBasemap());
     ensureFishMapBasemapControl();
     bindDepthLookupPopup(ui.fishMap);
+    ensureGreatLakesConditions(ui.fishMap);
     syncMapPageChartOverlay(ui.fishMap);
-    window.ensureGreatLakesConditions?.(ui.fishMap);
     ensureMapMarkerPanes(ui.fishMap);
     ui.fishMapMarkers = L.layerGroup().addTo(ui.fishMap);
     ui.fishMapSpotMarkers = L.layerGroup().addTo(ui.fishMap);
     ui.fishMap.on("moveend resize", refreshFishMapLegend);
   }
+  ensureGreatLakesConditions(ui.fishMap);
   syncMapPageChartOverlay(ui.fishMap);
   ensureMapMarkerPanes(ui.fishMap);
 
@@ -672,9 +675,9 @@ export function renderTripSummaryMapFilter(records) {
   if (!filter) return;
   const options = mapRecordFilterOptions(records, { allLabel: "All map items", includeTripMedia: true });
   if (!options.includes(ui.activeTripSummaryMapFilter)) ui.activeTripSummaryMapFilter = "All map items";
-  filter.innerHTML = options.map((option) => (
-    `<option value="${escapeHtml(option)}" ${option === ui.activeTripSummaryMapFilter ? "selected" : ""}>${escapeHtml(option === "All map items" ? "All" : option)}</option>`
-  )).join("");
+  setHtml(filter, joinHtml(options.map((option) => (
+    html`<option value="${option}" ${option === ui.activeTripSummaryMapFilter ? "selected" : ""}>${option === "All map items" ? "All" : option}</option>`
+  )), ""));
 }
 
 export function renderTripSummaryMap(trip) {
@@ -684,10 +687,10 @@ export function renderTripSummaryMap(trip) {
   renderTripSummaryMapFilter(allRecords);
   const records = filteredMapRecords(allRecords, ui.activeTripSummaryMapFilter);
   const legend = document.querySelector("#tripSummaryMapLegend");
-  if (legend) legend.innerHTML = renderMapLegend(records, { includeTripMedia: true });
+  if (legend) setHtml(legend, renderMapLegend(records, { includeTripMedia: true }));
 
-  if (!window.L) {
-    mapNode.innerHTML = `<div class="empty-state"><p>Map tiles are unavailable.</p></div>`;
+  if (!L) {
+    setHtml(mapNode, html`<div class="empty-state"><p>Map tiles are unavailable.</p></div>`);
     return;
   }
 
@@ -743,13 +746,13 @@ export function renderCatchDetailLocationMap(trip, catchItem, catchIndex, scope 
   destroyCatchDetailLocationMap();
   const records = catchDetailLocationRecords(trip, scope);
   const legendNode = document.querySelector("#catchDetailLocationLegend");
-  if (legendNode) legendNode.innerHTML = renderMapYearLegend(records, { includeTripMedia: false });
-  if (!window.L) {
-    mapNode.innerHTML = `<div class="empty-state catch-detail-location-empty"><p>Map tiles are unavailable.</p></div>`;
+  if (legendNode) setHtml(legendNode, renderMapYearLegend(records, { includeTripMedia: false }));
+  if (!L) {
+    setHtml(mapNode, html`<div class="empty-state catch-detail-location-empty"><p>Map tiles are unavailable.</p></div>`);
     return;
   }
   if (!records.length) {
-    mapNode.innerHTML = `<div class="empty-state catch-detail-location-empty"><p>No saved coordinates are available for these catches.</p></div>`;
+    setHtml(mapNode, html`<div class="empty-state catch-detail-location-empty"><p>No saved coordinates are available for these catches.</p></div>`);
     return;
   }
   ui.catchDetailMap = L.map(mapNode, seamlessMapOptions());

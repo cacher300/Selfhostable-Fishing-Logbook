@@ -72,6 +72,66 @@ const noStateMutationRule = {
   },
 };
 
+const noDomHtmlSinksRule = {
+  meta: {
+    type: "problem",
+    docs: {
+      description: "require SafeHtml helpers for DOM HTML insertion",
+    },
+    schema: [],
+    messages: {
+      assign: "Use setHtml()/setOuterHtml() from static/js/html.js instead of assigning to {{property}}.",
+      insert: "Use insertHtml() from static/js/html.js instead of insertAdjacentHTML().",
+    },
+  },
+  create(context) {
+    return {
+      AssignmentExpression(node) {
+        const left = unwrapChain(node.left);
+        if (left?.type !== "MemberExpression") return;
+        const property = memberPropertyName(left);
+        if (property === "innerHTML" || property === "outerHTML") {
+          context.report({ node: left.property, messageId: "assign", data: { property } });
+        }
+      },
+      CallExpression(node) {
+        const callee = unwrapChain(node.callee);
+        if (callee?.type !== "MemberExpression") return;
+        if (memberPropertyName(callee) === "insertAdjacentHTML") {
+          context.report({ node: callee.property, messageId: "insert" });
+        }
+      },
+    };
+  },
+};
+
+const noDynamicRawHtmlRule = {
+  meta: {
+    type: "problem",
+    docs: {
+      description: "disallow raw() for dynamic markup",
+    },
+    schema: [],
+    messages: {
+      dynamic: "raw() is only for trusted constant markup; pass data through html interpolation instead.",
+    },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        const callee = unwrapChain(node.callee);
+        if (callee?.type !== "Identifier" || callee.name !== "raw") return;
+        const [argument] = node.arguments;
+        const constantString = argument?.type === "Literal" && typeof argument.value === "string";
+        const constantTemplate = argument?.type === "TemplateLiteral" && argument.expressions.length === 0;
+        if (!constantString && !constantTemplate) {
+          context.report({ node, messageId: "dynamic" });
+        }
+      },
+    };
+  },
+};
+
 export default [
   {
     ignores: ["static/dist/**", "static/js/generated/**", "node_modules/**", "cloud/**", "standalone.html"],
@@ -89,6 +149,22 @@ export default [
       "no-dupe-keys": "error",
       "no-redeclare": "error",
       "no-import-assign": "error",
+    },
+  },
+  {
+    files: ["static/js/**/*.js"],
+    ignores: ["static/js/html.js"],
+    plugins: {
+      "safe-html": {
+        rules: {
+          "no-dom-html-sinks": noDomHtmlSinksRule,
+          "no-dynamic-raw-html": noDynamicRawHtmlRule,
+        },
+      },
+    },
+    rules: {
+      "safe-html/no-dom-html-sinks": "error",
+      "safe-html/no-dynamic-raw-html": "error",
     },
   },
   {

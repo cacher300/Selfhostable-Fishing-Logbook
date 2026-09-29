@@ -1,10 +1,11 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { state } from "./app-state.js";
 import { previewImage } from "./app-media.js";
 import { fishCount } from "./dashboard.js";
 import { openFlasherInfoDialog, openLureInfoDialog } from "./gear-dialogs.js";
 import { openInventoryItemInfo } from "./gear-inventory.js";
 import { resolveTripLineRecord } from "./trolling-spread.js";
-import { escapeHtml } from "./form-utils.js";
+
 
 export function leaderboardRate(landed, lost) {
   const opportunities = landed + lost;
@@ -176,16 +177,16 @@ export function leaderboardGearAvatar(row) {
     ? previewImage(row.item)
     : "";
   if (source) {
-    return `<button class="leaderboard-avatar leaderboard-equipment-avatar leaderboard-preview-button" type="button" data-leaderboard-preview-type="${escapeHtml(row.gearType)}" data-leaderboard-preview-id="${escapeHtml(row.id)}" aria-label="Open details for ${escapeHtml(row.name)}"><img src="${escapeHtml(source)}" alt=""></button>`;
+    return html`<button class="leaderboard-avatar leaderboard-equipment-avatar leaderboard-preview-button" type="button" data-leaderboard-preview-type="${row.gearType}" data-leaderboard-preview-id="${row.id}" aria-label="Open details for ${row.name}"><img src="${source}" alt=""></button>`;
   }
   return "";
 }
 
 export function leaderboardEmpty(message, detail) {
-  return `
+  return html`
     <div class="leaderboard-empty">
-      <strong>${escapeHtml(message)}</strong>
-      <span>${escapeHtml(detail)}</span>
+      <strong>${message}</strong>
+      <span>${detail}</span>
     </div>
   `;
 }
@@ -215,14 +216,14 @@ export function leaderboardRowMarkup(row, rank, kind) {
   const subtitle = kind === "gear" ? "" : tripsLabel;
   const avatar = kind === "gear" ? leaderboardGearAvatar(row) : "";
 
-  return `
+  return html`
     <article class="leaderboard-row" style="--leaderboard-delay: ${Math.min(rank, 8) * 35}ms">
       <span class="leaderboard-rank" aria-label="Rank ${rank}">${String(rank).padStart(2, "0")}</span>
       <div class="leaderboard-identity${avatar ? "" : " leaderboard-identity--text-only"}">
         ${avatar}
         <div>
-          <strong>${escapeHtml(row.name)}</strong>
-          ${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ""}
+          <strong>${row.name}</strong>
+          ${subtitle ? html`<span>${subtitle}</span>` : ""}
         </div>
       </div>
       <div class="leaderboard-performance">
@@ -323,24 +324,24 @@ export function renderStatsLeaderboard(trips = state.trips, recordFilter = () =>
   const lureRows = allGearRows.filter((row) => row.gearType === "lure");
   const flasherRows = allGearRows.filter((row) => row.gearType === "flasher");
   const anglerRows = anglerLeaderboardRows(trips, state.people, { recordFilter });
-  rodContainer.innerHTML = rodRows.length
-    ? rodRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
-    : leaderboardEmpty("No rods in this scope", "Add rods to your setup lines to rank them here.");
-  reelContainer.innerHTML = reelRows.length
-    ? reelRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
-    : leaderboardEmpty("No reels in this scope", "Add reels to your setup lines to rank them here.");
-  comboContainer.innerHTML = comboRows.length
-    ? comboRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
-    : leaderboardEmpty("No combos in this scope", "Add rod and reel combos to rank them here.");
-  lureContainer.innerHTML = lureRows.length
-    ? lureRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
-    : leaderboardEmpty("No lures in this scope", "Add lures to your setup lines to rank them here.");
-  flasherContainer.innerHTML = flasherRows.length
-    ? flasherRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")).join("")
-    : leaderboardEmpty("No flashers in this scope", "Add flashers to your setup lines to rank them here.");
-  anglerContainer.innerHTML = anglerRows.length
-    ? anglerRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "angler")).join("")
-    : leaderboardEmpty("No attributed anglers in this scope", "Choose an angler on catches and missed fish.");
+  setHtml(rodContainer, rodRows.length
+    ? joinHtml(rodRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")))
+    : leaderboardEmpty("No rods in this scope", "Add rods to your setup lines to rank them here."));
+  setHtml(reelContainer, reelRows.length
+    ? joinHtml(reelRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")))
+    : leaderboardEmpty("No reels in this scope", "Add reels to your setup lines to rank them here."));
+  setHtml(comboContainer, comboRows.length
+    ? joinHtml(comboRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")))
+    : leaderboardEmpty("No combos in this scope", "Add rod and reel combos to rank them here."));
+  setHtml(lureContainer, lureRows.length
+    ? joinHtml(lureRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")))
+    : leaderboardEmpty("No lures in this scope", "Add lures to your setup lines to rank them here."));
+  setHtml(flasherContainer, flasherRows.length
+    ? joinHtml(flasherRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")))
+    : leaderboardEmpty("No flashers in this scope", "Add flashers to your setup lines to rank them here."));
+  setHtml(anglerContainer, anglerRows.length
+    ? joinHtml(anglerRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "angler")))
+    : leaderboardEmpty("No attributed anglers in this scope", "Choose an angler on catches and missed fish."));
 }
 
 export function setup() {

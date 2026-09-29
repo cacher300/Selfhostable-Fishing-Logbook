@@ -10,8 +10,7 @@ Audit date: 2026-09-23. Findings are source-verified against the canonical code 
 | Desktop has no catch `quantity` control. | Analytics honors the field and trip editing now preserves existing values. | Desktop-created catches default to one; mobile/imported multi-fish records remain intact. | Decide whether to expose a desktop quantity control. |
 | Seasonal analysis is month aggregation only. | Month Patterns exists; no season/year comparison engine. | Historical trend questions require manual filtering. | Add year/season comparison after measurement normalization. |
 | Local-file fallback is not offline feature parity. | localStorage works on `file:`, but upload/weather/gallery APIs do not. | Users may mistake it for a complete offline mode. | Label it fallback mode or implement a service worker and deferred sync. |
-| Routed navigation is one-way. | Direct URLs select a view, but nav buttons do not update history and there is no `popstate` listener. | Refresh/share/back behavior can disagree with the visible panel. | Synchronize panel changes with `pushState` and handle back/forward. |
-| External environmental integrations are code-complete but environment-dependent. | Open-Meteo, SunriseSunset.io, CDN, and tile calls require network/provider behavior. | Weather/maps may fail outside tested networks or provider limits. | Add integration smoke tests and graceful-status monitoring. Verification Required. |
+| External environmental integrations are code-complete but environment-dependent. | Open-Meteo, SunriseSunset.io, NOAA, and tile calls require network/provider behavior (Leaflet and fonts are bundled). | Weather/maps may fail outside tested networks or provider limits. | Add integration smoke tests and graceful-status monitoring. Verification Required. |
 
 ## Referenced but Not Implemented
 
@@ -50,7 +49,7 @@ No unused public API route was found; the current archive, media, weather, bathy
 - No Flask `MAX_CONTENT_LENGTH`; upload size is unbounded in application code.
 - File acceptance relies primarily on extension, with MIME used only as a fallback classifier; content is not malware-scanned.
 - Recursive logbook validation, uniqueness checks, and coordinate/reference checks exist; array/text size limits and some field-level constraints remain limited.
-- SQLite writes are serialized and atomic within a transaction, but concurrent browser saves remain whole-document last-write-wins.
+- SQLite writes are atomic within a transaction and revision-checked: a browser save based on an outdated revision is refused with `412` instead of overwriting newer data. There is still no automatic merge; the user reloads and repeats the edit.
 - Missing or empty SQLite storage falls back to defaults; invalid stored data raises an error rather than silently resetting it.
 - Browser localStorage is updated before server persistence; a failed PUT creates divergent copies.
 - Queue delete is idempotent but does not report “not found,” reducing auditability.
