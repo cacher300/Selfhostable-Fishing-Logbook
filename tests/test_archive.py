@@ -61,6 +61,27 @@ def test_archive_contains_v2_logbook_and_media_and_import_restores_it() -> None:
             assert logbook_store.read_logbook()["trips"][0]["id"] == "sqlite-trip"
 
 
+def test_cloud_archive_export_creates_missing_data_directory() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory) / "not-created-yet"
+        payload = v2({"trips": [{"id": "cloud-trip", "title": "Cloud Trip", "catches": [], "lostFish": []}]})
+
+        with (
+            patch("server.DATA_DIR", root),
+            patch("server.DATABASE_FILE", root / "logbook.sqlite3"),
+            patch("server.cloud_storage.enabled", return_value=True),
+            patch("server.cloud_storage.get_logbook", return_value=(payload, "cloud-revision")),
+            patch("server.cloud_storage.list_media", return_value=[]),
+        ):
+            client = create_app({"TESTING": True, "SECRET_KEY": "cloud-archive-test"}).test_client()
+            exported = client.get("/api/archive")
+
+            assert exported.status_code == 200
+            with zipfile.ZipFile(io.BytesIO(exported.data)) as bundle:
+                assert json.loads(bundle.read("logbook.json")) == payload
+            assert root.is_dir()
+
+
 def test_invalid_stored_logbook_keeps_the_app_open_in_fallback_mode() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)

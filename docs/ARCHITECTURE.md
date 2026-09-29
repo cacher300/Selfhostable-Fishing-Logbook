@@ -83,6 +83,13 @@ When opened via `file:`, step 5 stops after localStorage. This is fallback persi
 4. The browser reduces raw series to trip-window summaries, trends, marine snapshot, sun/moon, and nearest-hour catch weather.
 5. Trip save remains successful if enrichment fails; an error/missing status is stored.
 
+### Great Lakes current inspection
+
+1. The operator selects a lake, the Underwater currents layer, a forecast time, and a map depth. `great-lakes-conditions.js` renders the available flow overlay.
+2. A map press opens the depth popup in `maps.js`. Bathymetry fills in FOW when available; the popup also offers **View current profile** and omits the point's coordinates.
+3. That button requests `GET /api/great-lakes/current-profile` for the selected point and forecast. `great_lakes_service.py` chooses a nearby model point and returns available depths, velocity, speed, and flow direction.
+4. The dialog orders the readings from shallow to deep and shades the row nearest the selected map depth. The popup and profile are derived views; they do not change the logbook document.
+
 ### Media
 
 1. The browser parses supported EXIF/QuickTime metadata.

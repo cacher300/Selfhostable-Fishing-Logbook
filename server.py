@@ -342,6 +342,7 @@ def create_app(config: dict | None = None) -> Flask:
             return jsonify({"error": "The local SQLite database does not exist yet."}), 404
         logbook = storage_read_logbook()
 
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
         with NamedTemporaryFile(prefix="logbook-export-", suffix=".zip", dir=DATA_DIR, delete=False) as temporary:
             archive_path = Path(temporary.name)
         try:

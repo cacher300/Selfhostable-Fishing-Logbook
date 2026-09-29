@@ -89,7 +89,7 @@ The currents payload includes sampled `data` points and, when the NOAA run has a
 
 ### `GET /api/great-lakes/current-profile`
 
-Returns modeled current speed and flow direction at each available water-column layer near numeric `latitude` and `longitude`. Optional `forecastHour` and comma-separated `models` select the forecast. The response contains `available`, `model`, `validTime`, `modelLocation`, `sampleDistanceKm`, `depthApproximate`, and ordered `values` with `depthMeters`, east/north velocity, speed, and toward-bearing. FVCOM sigma-layer depths are estimated from nearby model bathymetry; points more than 25 km from a sampled model face return `available: false`.
+Returns modeled current speed and flow direction at each available water-column layer near numeric `latitude` and `longitude`. Optional `forecastHour` and comma-separated `models` select the forecast. An available response contains `model`, `validTime`, `requested`, `modelLocation`, `sampleDistanceKm`, `depthApproximate`, and shallow-to-deep `values`. Each value has `depthMeters`, eastward `u` and northward `v` in m/s, `speedMetersPerSecond`, and `directionDegrees` (the direction water flows, clockwise from north). FVCOM sigma-layer depths are estimated from nearby model bathymetry. A point without usable nearby data returns `{ "available": false }`; unstructured model faces more than 25 km away are excluded. The Map requests this endpoint when **View current profile** is pressed in the depth popup.
 
 ### `GET /api/great-lakes/temperature-raster`
 
