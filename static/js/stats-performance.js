@@ -8,6 +8,7 @@ import { scopedTripFish } from "./stats-scope.js";
 import { calculateMinutes, formatPercent, parseFirstNumber, timeBucket } from "./stats.js";
 import { trimNumber } from "./form-utils.js";
 
+
 export function weatherNumber(record, key, source = "tripWindow") {
   const sources = source === "tripWindow"
     ? [record.weatherData?.hourly, record.weatherData?.tripWindow, record.trip?.weatherData?.tripWindow]

@@ -1,10 +1,12 @@
+import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { protectedFetch } from "./app-config.js";
 import { state, ui } from "./app-state.js";
 import { formatDisplayTime } from "./app-units.js";
 import { els } from "./app-elements.js";
 import { isVideoMedia, originalMediaUrl, previewImage } from "./app-media.js";
 import { formatDate } from "./dashboard.js";
-import { escapeHtml, trimNumber } from "./form-utils.js";
+import { trimNumber } from "./form-utils.js";
+
 
 export const galleryUi = {};
 
@@ -132,15 +134,15 @@ export function galleryCaptionText(item) {
 
 export function renderGalleryFilters() {
   const options = Object.entries(galleryCategoryLabels);
-  els.galleryCategoryFilter.innerHTML = options.map(([value, label]) => (
-    `<option value="${escapeHtml(value)}" ${value === ui.activeGalleryCategory ? "selected" : ""}>${escapeHtml(label)}</option>`
-  )).join("");
+  setHtml(els.galleryCategoryFilter, joinHtml(options.map(([value, label]) => (
+    html`<option value="${value}" ${value === ui.activeGalleryCategory ? "selected" : ""}>${label}</option>`
+  )), ""));
 
-  els.galleryQuickFilters.innerHTML = galleryQuickFilters.map((filter) => `
-    <button class="gallery-filter-chip${filter.value === galleryUi.activeGalleryQuickFilter ? " is-active" : ""}" type="button" data-gallery-quick-filter="${escapeHtml(filter.value)}" aria-pressed="${filter.value === galleryUi.activeGalleryQuickFilter}">
-      ${escapeHtml(filter.label)}
+  setHtml(els.galleryQuickFilters, joinHtml(galleryQuickFilters.map((filter) => html`
+    <button class="gallery-filter-chip${filter.value === galleryUi.activeGalleryQuickFilter ? " is-active" : ""}" type="button" data-gallery-quick-filter="${filter.value}" aria-pressed="${filter.value === galleryUi.activeGalleryQuickFilter}">
+      ${filter.label}
     </button>
-  `).join("");
+  `), ""));
 }
 
 export function galleryFilteredItems(items) {
@@ -191,10 +193,10 @@ export function setGalleryPage(page) {
 export function galleryPreviewMarkup(item) {
   if (isVideoMedia(item)) {
     const videoSource = originalMediaUrl(item);
-    return `<video src="${escapeHtml(videoSource)}" muted playsinline preload="metadata" aria-hidden="true"></video>`;
+    return html`<video src="${videoSource}" muted playsinline preload="metadata" aria-hidden="true"></video>`;
   }
   const source = previewImage(item);
-  return `<img src="${escapeHtml(source)}" alt="">`;
+  return html`<img src="${source}" alt="">`;
 }
 
 export function galleryCard(item, index) {
@@ -202,36 +204,36 @@ export function galleryCard(item, index) {
   const selected = selectedGalleryItems.has(key);
   const downloadName = item.name || item.filename || "download";
   const caption = galleryCaptionText(item);
-  return `
-    <article class="gallery-card${selected ? " is-selected" : ""}${gallerySelectionMode ? " is-selecting" : ""}" data-gallery-key="${escapeHtml(key)}">
-      <label class="gallery-select-control" aria-label="Select ${escapeHtml(downloadName)}">
-        <input type="checkbox" data-gallery-select="${escapeHtml(key)}" ${selected ? "checked" : ""}>
+  return html`
+    <article class="gallery-card${selected ? " is-selected" : ""}${gallerySelectionMode ? " is-selecting" : ""}" data-gallery-key="${key}">
+      <label class="gallery-select-control" aria-label="Select ${downloadName}">
+        <input type="checkbox" data-gallery-select="${key}" ${selected ? "checked" : ""}>
         <span></span>
       </label>
-      <button class="gallery-thumb-button" type="button" data-gallery-open="${escapeHtml(String(index))}" aria-label="Open ${escapeHtml(downloadName)}">
+      <button class="gallery-thumb-button" type="button" data-gallery-open="${String(index)}" aria-label="Open ${downloadName}">
         <span class="gallery-media">
           ${galleryPreviewMarkup(item)}
-          ${caption ? `<span class="gallery-caption">${escapeHtml(caption)}</span>` : ""}
-          ${isVideoMedia(item) ? `
+          ${caption ? html`<span class="gallery-caption">${caption}</span>` : ""}
+          ${isVideoMedia(item) ? html`
             <span class="gallery-play-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7.5v9l7-4.5z" /></svg></span>
           ` : ""}
         </span>
       </button>
       <div class="gallery-hover-overlay" aria-hidden="true">
-        <button type="button" data-gallery-open="${escapeHtml(String(index))}" title="View" aria-label="View"><svg viewBox="0 0 16 16"><path d="M1.5 8s2.25-4 6.5-4 6.5 4 6.5 4-2.25 4-6.5 4-6.5-4-6.5-4z" /><circle cx="8" cy="8" r="2" /></svg></button>
-        <a href="${escapeHtml(item.downloadUrl || originalMediaUrl(item))}" download="${escapeHtml(downloadName)}" title="Download Original" aria-label="Download Original"><svg viewBox="0 0 16 16"><path d="M8 2v7m0 0 3-3m-3 3L5 6M3 12.5h10" /></svg></a>
-        <button type="button" data-gallery-delete="${escapeHtml(key)}" title="Delete" aria-label="Delete"><svg viewBox="0 0 16 16"><path d="M3 4h10M6 4V2.75h4V4m-5 2v6m3-6v6m3-6v6M4.5 4l.5 9h6l.5-9" /></svg></button>
+        <button type="button" data-gallery-open="${String(index)}" title="View" aria-label="View"><svg viewBox="0 0 16 16"><path d="M1.5 8s2.25-4 6.5-4 6.5 4 6.5 4-2.25 4-6.5 4-6.5-4-6.5-4z" /><circle cx="8" cy="8" r="2" /></svg></button>
+        <a href="${item.downloadUrl || originalMediaUrl(item)}" download="${downloadName}" title="Download Original" aria-label="Download Original"><svg viewBox="0 0 16 16"><path d="M8 2v7m0 0 3-3m-3 3L5 6M3 12.5h10" /></svg></a>
+        <button type="button" data-gallery-delete="${key}" title="Delete" aria-label="Delete"><svg viewBox="0 0 16 16"><path d="M3 4h10M6 4V2.75h4V4m-5 2v6m3-6v6m3-6v6M4.5 4l.5 9h6l.5-9" /></svg></button>
       </div>
       <details class="gallery-more-actions">
         <summary aria-label="More actions"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1" /><circle cx="8" cy="8" r="1" /><circle cx="12.5" cy="8" r="1" /></svg></summary>
         <div>
-          <button type="button" data-gallery-open="${escapeHtml(String(index))}">View</button>
-          <a href="${escapeHtml(item.downloadUrl || originalMediaUrl(item))}" download="${escapeHtml(downloadName)}">Download Original</a>
-          <button type="button" data-gallery-delete="${escapeHtml(key)}">Delete</button>
+          <button type="button" data-gallery-open="${String(index)}">View</button>
+          <a href="${item.downloadUrl || originalMediaUrl(item)}" download="${downloadName}">Download Original</a>
+          <button type="button" data-gallery-delete="${key}">Delete</button>
         </div>
       </details>
       <div class="gallery-card-body">
-        <span>${escapeHtml(galleryCaptureText(item))}</span>
+        <span>${galleryCaptureText(item)}</span>
       </div>
     </article>
   `;
@@ -282,10 +284,10 @@ export function renderGalleryItems() {
   if (els.galleryPageStatus) els.galleryPageStatus.textContent = `Page ${galleryUi.activeGalleryPage} of ${pageCount}`;
   updateGallerySelectionBar();
   if (!galleryVisibleItems.length) {
-    els.galleryGrid.innerHTML = `<div class="empty-state"><p>${galleryOrphanScanActive ? "No orphaned media matches these filters." : "No uploaded media matches these filters."}</p></div>`;
+    setHtml(els.galleryGrid, html`<div class="empty-state"><p>${galleryOrphanScanActive ? "No orphaned media matches these filters." : "No uploaded media matches these filters."}</p></div>`);
     return;
   }
-  els.galleryGrid.innerHTML = galleryVisibleItems.map(galleryCard).join("");
+  setHtml(els.galleryGrid, joinHtml(galleryVisibleItems.map(galleryCard)));
 }
 
 export async function renderGallery() {
@@ -298,7 +300,7 @@ export async function renderGallery() {
   els.galleryStatus.textContent = "Loading gallery...";
   els.galleryStatus.classList.remove("hidden");
   els.galleryPagination?.classList.add("hidden");
-  els.galleryGrid.innerHTML = "";
+  setHtml(els.galleryGrid, html``);
   try {
     galleryItems = await loadGalleryItems();
     renderGalleryItems();
@@ -307,7 +309,7 @@ export async function renderGallery() {
     els.galleryStatus.textContent = error.message || "Could not load gallery.";
     els.galleryStatus.classList.remove("hidden");
     els.galleryPagination?.classList.add("hidden");
-    els.galleryGrid.innerHTML = `<div class="empty-state"><p>The gallery could not be loaded.</p></div>`;
+    setHtml(els.galleryGrid, html`<div class="empty-state"><p>The gallery could not be loaded.</p></div>`);
   }
 }
 
@@ -330,26 +332,26 @@ export function galleryLightboxMarkup(item, index) {
     ["Filename", item.filename || "Not available"],
     ["MIME type", item.mimeType || "Not available"]
   ];
-  return `
+  return html`
     <div class="gallery-lightbox" role="dialog" aria-modal="true" aria-label="Media viewer">
       <button class="gallery-lightbox-close" type="button" data-gallery-lightbox-close aria-label="Close"><svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       <button class="gallery-lightbox-nav previous" type="button" data-gallery-lightbox-prev aria-label="Previous media" ${index <= 0 ? "disabled" : ""}><svg viewBox="0 0 16 16"><path d="M10 3 5 8l5 5" /></svg></button>
       <figure class="gallery-lightbox-stage">
         ${isVideoMedia(item)
-          ? `<video src="${escapeHtml(originalMediaUrl(item))}" controls autoplay playsinline></video>`
-          : `<img src="${escapeHtml(originalMediaUrl(item))}" alt="">`}
+          ? html`<video src="${originalMediaUrl(item)}" controls autoplay playsinline></video>`
+          : html`<img src="${originalMediaUrl(item)}" alt="">`}
       </figure>
       <button class="gallery-lightbox-nav next" type="button" data-gallery-lightbox-next aria-label="Next media" ${index >= galleryVisibleItems.length - 1 ? "disabled" : ""}><svg viewBox="0 0 16 16"><path d="m6 3 5 5-5 5" /></svg></button>
       <aside class="gallery-lightbox-details">
         <div>
-          <p>${escapeHtml(`${index + 1} of ${galleryVisibleItems.length}`)}</p>
-          <h4>${escapeHtml(downloadName)}</h4>
+          <p>${`${index + 1} of ${galleryVisibleItems.length}`}</p>
+          <h4>${downloadName}</h4>
         </div>
         <dl>
-          ${details.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
+          ${joinHtml(details.map(([label, value]) => html`<div><dt>${label}</dt><dd>${value}</dd></div>`), "")}
         </dl>
         <div class="gallery-lightbox-actions">
-          <button class="button danger" type="button" data-gallery-delete="${escapeHtml(galleryItemKey(item))}">Delete</button>
+          <button class="button danger" type="button" data-gallery-delete="${galleryItemKey(item)}">Delete</button>
         </div>
       </aside>
     </div>
@@ -361,7 +363,7 @@ export function openGalleryLightbox(index) {
   if (!item) return;
   closeGalleryLightbox();
   activeGalleryLightboxIndex = index;
-  document.body.insertAdjacentHTML("beforeend", galleryLightboxMarkup(item, index));
+  insertHtml(document.body, "beforeend", galleryLightboxMarkup(item, index));
   document.body.classList.add("gallery-lightbox-open");
   document.querySelector("[data-gallery-lightbox-close]")?.focus();
 }

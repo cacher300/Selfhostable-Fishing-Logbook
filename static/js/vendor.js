@@ -5,4 +5,5 @@ import html2canvas from "html2canvas";
 
 // esri-leaflet's UMD build used to attach itself to the global L.
 export const L = { ...Leaflet, esri };
+if (typeof window !== "undefined") window.L ??= L;
 export { html2canvas };

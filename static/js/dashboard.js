@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { activeStatsFilters, state, ui } from "./app-state.js";
 import { locationNames, optionChoices, optionLabels } from "./app-normalization.js";
 import { unitSymbol } from "./app-units.js";
@@ -14,7 +15,8 @@ import { resolveTripLineRecord } from "./trolling-spread.js";
 import { tripMonthName } from "./stats-scope.js";
 import { calculateHours, parseFirstNumber, renderAdvancedStats } from "./stats.js";
 import { renderPersonalBests } from "./personal-bests.js";
-import { escapeHtml, trimNumber } from "./form-utils.js";
+import { trimNumber } from "./form-utils.js";
+
 
 export function formatDate(value) {
   if (!value) return "";
@@ -145,9 +147,9 @@ export function topEntries(map, limit = 4) {
 }
 
 export function renderBars(container, entries) {
-  container.innerHTML = "";
+  setHtml(container, html``);
   if (!entries.length) {
-    container.innerHTML = `<p class="muted">No data yet</p>`;
+    setHtml(container, html`<p class="muted">No data yet</p>`);
     return;
   }
 
@@ -155,10 +157,10 @@ export function renderBars(container, entries) {
   entries.forEach(([label, count]) => {
     const row = document.createElement("div");
     row.className = "bar-item";
-    row.innerHTML = `
-      <div class="bar-meta"><span>${escapeHtml(label)}</span><strong>${count}</strong></div>
+    setHtml(row, html`
+      <div class="bar-meta"><span>${label}</span><strong>${count}</strong></div>
       <div class="bar-track"><div class="bar-fill" style="width:${(count / max) * 100}%"></div></div>
-    `;
+    `);
     container.append(row);
   });
 }
@@ -221,28 +223,28 @@ export function renderBrandSpotlight() {
     .filter((photo) => previewImage(photo) && !isVideoMedia(photo)));
 
   if (!photos.length) {
-    els.brandSpotlight.innerHTML = `
+    setHtml(els.brandSpotlight, html`
       <div class="brand-spotlight-empty">
         <span>Trip, gear, catch, and pattern tracker</span>
       </div>
-    `;
+    `);
     return;
   }
 
-  els.brandSpotlight.innerHTML = `
+  setHtml(els.brandSpotlight, html`
     <div class="spotlight-slides">
-      ${photos.map((photo, index) => `
+      ${joinHtml(photos.map((photo, index) => html`
         <figure class="spotlight-slide ${index === 0 ? "is-active" : ""}">
           ${mediaMarkup(photo)}
-          ${photo.spotlightTitle ? `
+          ${photo.spotlightTitle ? html`
             <figcaption>
-              <strong>${escapeHtml(photo.spotlightTitle)}</strong>
+              <strong>${photo.spotlightTitle}</strong>
             </figcaption>
           ` : ""}
         </figure>
-      `).join("")}
+      `), "")}
     </div>
-  `;
+  `);
 
   if (photos.length < 2) return;
 
@@ -258,11 +260,11 @@ export function renderBrandSpotlight() {
 export function renderFilters() {
   const targets = ["All targets", ...new Set(state.trips.map((trip) => trip.targetSpecies).filter(Boolean))];
   const selectedTarget = els.targetFilter.value || "All targets";
-  els.targetFilter.innerHTML = targets.map((target) => `<option ${target === selectedTarget ? "selected" : ""}>${escapeHtml(target)}</option>`).join("");
+  setHtml(els.targetFilter, joinHtml(targets.map((target) => html`<option ${target === selectedTarget ? "selected" : ""}>${target}</option>`), ""));
 
   const methods = ["All methods", ...new Set([...state.methods, ...state.trips.map((trip) => trip.method)].filter(Boolean))];
   const selectedMethod = methods.includes(els.methodFilter.value) ? els.methodFilter.value : "All methods";
-  els.methodFilter.innerHTML = methods.map((method) => `<option ${method === selectedMethod ? "selected" : ""}>${escapeHtml(method)}</option>`).join("");
+  setHtml(els.methodFilter, joinHtml(methods.map((method) => html`<option ${method === selectedMethod ? "selected" : ""}>${method}</option>`), ""));
 
   const years = ["All years", ...new Set(state.trips.map((trip) => new Date(`${trip.date}T12:00:00`).getFullYear()).filter(Boolean))].sort((a, b) => {
     if (a === "All years") return -1;
@@ -270,7 +272,7 @@ export function renderFilters() {
     return b - a;
   });
   const selectedYear = els.yearFilter.value || "All years";
-  els.yearFilter.innerHTML = years.map((year) => `<option ${String(year) === selectedYear ? "selected" : ""}>${year}</option>`).join("");
+  setHtml(els.yearFilter, joinHtml(years.map((year) => html`<option ${String(year) === selectedYear ? "selected" : ""}>${year}</option>`), ""));
 }
 
 export function renderStatsMethodFilter() {
@@ -293,75 +295,75 @@ export function renderStatsMethodFilter() {
   }
   const methods = ["All methods", ...new Set([...state.methods, ...state.trips.map((trip) => trip.method)].filter(Boolean))];
   if (!methods.includes(ui.activeStatsMethod)) ui.activeStatsMethod = "All methods";
-  els.statsMethodFilter.innerHTML = methods.map((method) => (
-    `<option value="${escapeHtml(method)}" ${method === ui.activeStatsMethod ? "selected" : ""}>${escapeHtml(method)}</option>`
-  )).join("");
+  setHtml(els.statsMethodFilter, joinHtml(methods.map((method) => (
+    html`<option value="${method}" ${method === ui.activeStatsMethod ? "selected" : ""}>${method}</option>`
+  )), ""));
 
   const species = ["All species", ...new Set([...state.species, ...state.trips.flatMap((trip) => [
     ...(trip.catches || []).map((catchItem) => catchItem.species),
     ...(trip.lostFish || []).map((fish) => fish.possibleSpecies || fish.species)
   ])].filter(Boolean))];
   if (!species.includes(activeStatsFilters.species)) activeStatsFilters.species = "All species";
-  els.statsSpeciesFilter.innerHTML = species.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.species ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsSpeciesFilter, joinHtml(species.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.species ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const people = ["All people", ...mergePeople(
     state.people,
     state.trips.flatMap((trip) => trip.people || [])
   ).map((person) => person.name)];
   if (!people.includes(activeStatsFilters.person)) activeStatsFilters.person = "All people";
-  els.statsPersonFilter.innerHTML = people.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.person ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsPersonFilter, joinHtml(people.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.person ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const locations = ["All locations", ...new Set([...locationNames(), ...state.trips.map((trip) => trip.location)].filter(Boolean))];
   if (!locations.includes(activeStatsFilters.location)) activeStatsFilters.location = "All locations";
-  els.statsLocationFilter.innerHTML = locations.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.location ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsLocationFilter, joinHtml(locations.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.location ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const launches = ["All launches", ...new Set(state.trips.map((trip) => trip.launch).filter(Boolean))];
   if (!launches.includes(activeStatsFilters.launch)) activeStatsFilters.launch = "All launches";
-  els.statsLaunchFilter.innerHTML = launches.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.launch ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsLaunchFilter, joinHtml(launches.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.launch ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const lures = ["All lures", ...state.lures.map((lure) => lure.name).filter(Boolean)];
   if (!lures.includes(activeStatsFilters.lure)) activeStatsFilters.lure = "All lures";
-  els.statsLureFilter.innerHTML = lures.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.lure ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsLureFilter, joinHtml(lures.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.lure ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const flashers = ["All flashers", ...state.flashers.map((flasher) => flasher.name).filter(Boolean)];
   if (!flashers.includes(activeStatsFilters.flasher)) activeStatsFilters.flasher = "All flashers";
-  els.statsFlasherFilter.innerHTML = flashers.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.flasher ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsFlasherFilter, joinHtml(flashers.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.flasher ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const clarity = ["All clarity", ...optionLabels("waterClarities")];
   if (!clarity.includes(activeStatsFilters.waterClarity)) activeStatsFilters.waterClarity = "All clarity";
-  els.statsWaterClarityFilter.innerHTML = clarity.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.waterClarity ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsWaterClarityFilter, joinHtml(clarity.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.waterClarity ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const weather = ["All weather", ...optionLabels("weatherTypes")];
   if (!weather.includes(activeStatsFilters.weather)) activeStatsFilters.weather = "All weather";
-  els.statsWeatherFilter.innerHTML = weather.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.weather ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsWeatherFilter, joinHtml(weather.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.weather ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const months = ["All months", ...new Set(state.trips.map((trip) => tripMonthName(trip)).filter(Boolean))];
   if (!months.includes(activeStatsFilters.month)) activeStatsFilters.month = "All months";
-  els.statsMonthFilter.innerHTML = months.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.month ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsMonthFilter, joinHtml(months.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.month ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const ratings = ["All ratings", "Bad", "Mediocre", "Good", "Outstanding"];
   if (!ratings.includes(activeStatsFilters.rating)) activeStatsFilters.rating = "All ratings";
-  els.statsRatingFilter.innerHTML = ratings.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.rating ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsRatingFilter, joinHtml(ratings.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.rating ? "selected" : ""}>${item}</option>`
+  )), ""));
 }
 
 export function filteredTrips() {
@@ -475,14 +477,14 @@ export function tripHeaderSortButton(key, label) {
   const active = ui.activeTripSort?.key === key;
   const direction = ui.activeTripSort?.direction === "asc" ? "asc" : "desc";
   const ariaSort = active ? (direction === "asc" ? "ascending" : "descending") : "none";
-  return `<button class="table-sort-button${active ? " is-active" : ""}" type="button" data-trip-sort="${escapeHtml(key)}" aria-sort="${ariaSort}">${escapeHtml(label)}${active ? `<span>${direction === "desc" ? "↓" : "↑"}</span>` : ""}</button>`;
+  return html`<button class="table-sort-button${active ? " is-active" : ""}" type="button" data-trip-sort="${key}" aria-sort="${ariaSort}">${label}${active ? html`<span>${direction === "desc" ? "↓" : "↑"}</span>` : ""}</button>`;
 }
 
 export function renderTrips() {
   const trips = filteredTrips();
   const sortValue = tripSortSelectValue();
   els.sortSelect.value = sortValue;
-  els.tripTable.innerHTML = `
+  setHtml(els.tripTable, html`
     <div class="table-row header">
       ${tripHeaderSortButton("date", "Date")}
       ${tripHeaderSortButton("location", "Location")}
@@ -493,29 +495,29 @@ export function renderTrips() {
       ${tripHeaderSortButton("caught", "Fish")}
       ${tripHeaderSortButton("catchRate", "Rate")}
     </div>
-  `;
+  `);
 
   trips.forEach((trip) => {
     const row = document.createElement("div");
     row.className = `table-row${trip.isDraft ? " is-draft" : ""}`;
     row.dataset.viewTrip = trip.id;
-    row.innerHTML = `
+    setHtml(row, html`
       <span>${formatDate(trip.date)}</span>
       <span class="trip-location-cell">
-        <button class="location-link" type="button">${escapeHtml(trip.location)}</button>
-        ${trip.launch ? `<small>${escapeHtml(trip.launch)}</small>` : ""}
+        <button class="location-link" type="button">${trip.location}</button>
+        ${trip.launch ? html`<small>${trip.launch}</small>` : ""}
       </span>
-      <span>${escapeHtml(trip.title || "")}</span>
+      <span>${trip.title || ""}</span>
       <span class="trip-pill-stack">
-        <span class="trip-target-text">${escapeHtml(trip.targetSpecies)}</span>
-        ${tripIntent(trip) === "experimental" ? '<span class="intent-pill experimental">Experimental</span>' : ""}
-        <span class="rating-pill ${escapeHtml(tripRatingClass(tripRatingValue(trip)))}">${escapeHtml(tripRatingLabel(tripRatingValue(trip)))}</span>
+        <span class="trip-target-text">${trip.targetSpecies}</span>
+        ${tripIntent(trip) === "experimental" ? html`<span class="intent-pill experimental">Experimental</span>` : ""}
+        <span class="rating-pill ${tripRatingClass(tripRatingValue(trip))}">${tripRatingLabel(tripRatingValue(trip))}</span>
       </span>
-      <span class="method-pill">${escapeHtml(trip.method || "Unknown")}</span>
+      <span class="method-pill">${trip.method || "Unknown"}</span>
       <span>${trimNumber(tripHours(trip))}</span>
       <span>${totalCaught(trip)}</span>
       <span>${trimNumber(catchRate(trip))}</span>
-    `;
+    `);
     els.tripTable.append(row);
   });
 
@@ -544,16 +546,16 @@ export function renderSelectOptions() {
 
 export function populateDatalist(datalist, options) {
   if (!datalist) return;
-  datalist.innerHTML = options.map((item) => `<option value="${escapeHtml(item)}"></option>`).join("");
+  setHtml(datalist, joinHtml(options.map((item) => html`<option value="${item}"></option>`), ""));
 }
 
 export function populateOptionSelect(select, options, placeholder) {
   if (!select) return;
   const current = select.value;
   const normalizedOptions = options.includes(current) || !current ? options : [...options, current];
-  select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` + normalizedOptions.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === current ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(select, html`<option value="">${placeholder}</option>${joinHtml(normalizedOptions.map((item) => (
+    html`<option value="${item}" ${item === current ? "selected" : ""}>${item}</option>`
+  )), "")}`);
 }
 
 export function populateChoiceSelect(select, options, placeholder, selectedValue = "") {
@@ -562,9 +564,9 @@ export function populateChoiceSelect(select, options, placeholder, selectedValue
   const normalizedOptions = options.some((item) => item.value === current) || !current
     ? options
     : [...options, { value: current, label: current }];
-  select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` + normalizedOptions.map((item) => (
-    `<option value="${escapeHtml(item.value)}" ${item.value === current ? "selected" : ""}>${escapeHtml(item.label)}</option>`
-  )).join("");
+  setHtml(select, html`<option value="">${placeholder}</option>${joinHtml(normalizedOptions.map((item) => (
+    html`<option value="${item.value}" ${item.value === current ? "selected" : ""}>${item.label}</option>`
+  )), "")}`);
 }
 
 export function renderAll() {

@@ -16,7 +16,7 @@ const profile = {
     { depthMeters: 10, speedMetersPerSecond: 0.4, directionDegrees: 90 },
   ],
 };
-const html = currentProfileHtml(profile, 5);
+const html = String(currentProfileHtml(profile, 5));
 assert.match(html, /Current speed and direction by depth/);
 assert.match(html, /Surface/);
 assert.match(html, /5(?:\.0)? m/);
@@ -28,4 +28,4 @@ assert.doesNotMatch(html, /Each bar shows current speed|Depths are approximate|t
 assert.equal((html.match(/role="listitem"/g) || []).length, 3);
 assert.equal((html.match(/is-closest/g) || []).length, 1);
 assert.doesNotMatch(html, /compass/i);
-assert.match(currentProfileHtml({ values: [] }, 0), /No current profile is available/);
+assert.match(String(currentProfileHtml({ values: [] }, 0)), /No current profile is available/);

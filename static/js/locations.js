@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { L } from "./vendor.js";
 import { state, ui } from "./app-state.js";
 import { findLaunchByIdOrName, slugId } from "./app-normalization.js";
@@ -10,7 +11,7 @@ import { firstCatchCoordinates, fishCoordinatesFromRow, isCatchMetadataLocked } 
 import { refreshCatchSpotSelect, updateRowSummary } from "./trip-rows.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
-import { escapeHtml } from "./form-utils.js";
+
 
 export const LOCATION_FOCUS_ZOOM = 15;
 
@@ -23,9 +24,9 @@ export function populateLocationSelect(selectedId = els.tripLocation?.value || "
   if (!els.tripLocation) return;
   const selectedLocation = state.locations.find((location) => location.id === selectedId)
     || state.locations.find((location) => location.name === selectedId);
-  els.tripLocation.innerHTML = `<option value="">Select location</option>` + state.locations.map((location) => (
-    `<option value="${escapeHtml(location.id)}" ${location.id === selectedLocation?.id ? "selected" : ""}>${escapeHtml(location.name)}</option>`
-  )).join("");
+  setHtml(els.tripLocation, html`<option value="">Select location</option>${joinHtml(state.locations.map((location) => (
+    html`<option value="${location.id}" ${location.id === selectedLocation?.id ? "selected" : ""}>${location.name}</option>`
+  )), "")}`);
   populateLaunchSelect(els.tripLaunch?.value || "");
   updateLocationControls();
 }
@@ -35,9 +36,9 @@ export function populateLaunchSelect(selectedId = "") {
   const location = state.locations.find((item) => item.id === els.tripLocation.value);
   const selectedLaunch = findLaunchByIdOrName(location, selectedId, selectedId);
   const launches = location?.launches || [];
-  els.tripLaunch.innerHTML = `<option value="">No launch / area selected</option>` + launches.map((launch) => (
-    `<option value="${escapeHtml(launch.id)}" ${launch.id === selectedLaunch?.id ? "selected" : ""}>${escapeHtml(launch.name)}</option>`
-  )).join("");
+  setHtml(els.tripLaunch, html`<option value="">No launch / area selected</option>${joinHtml(launches.map((launch) => (
+    html`<option value="${launch.id}" ${launch.id === selectedLaunch?.id ? "selected" : ""}>${launch.name}</option>`
+  )), "")}`);
   updateLocationControls();
 }
 
@@ -100,12 +101,12 @@ export function handleLocationManagerDragEnd() {
 export function renderLocationManager() {
   if (!els.locationManagerList) return;
   if (!state.locations.length) {
-    els.locationManagerList.innerHTML = `
+    setHtml(els.locationManagerList, html`
       <div class="empty-state compact-empty">
         <p><strong>No waterbodies yet</strong></p>
         <p>Add one to pick it quickly when recording a trip.</p>
       </div>
-    `;
+    `);
     return;
   }
   const query = String(els.locationManagerSearch?.value || "").trim().toLowerCase();
@@ -116,42 +117,42 @@ export function renderLocationManager() {
     ].some((value) => String(value || "").toLowerCase().includes(query)))
     : state.locations;
   if (!locations.length) {
-    els.locationManagerList.innerHTML = `<div class="empty-state compact-empty"><p>No waterbodies match that search.</p></div>`;
+    setHtml(els.locationManagerList, html`<div class="empty-state compact-empty"><p>No waterbodies match that search.</p></div>`);
     return;
   }
-  els.locationManagerList.innerHTML = locations.map((location) => {
+  setHtml(els.locationManagerList, joinHtml(locations.map((location) => {
     const launches = location.launches || [];
-    return `
-    <article class="location-manager-card" data-managed-location-id="${escapeHtml(location.id)}" draggable="true">
+    return html`
+    <article class="location-manager-card" data-managed-location-id="${location.id}" draggable="true">
       <div class="location-manager-heading">
         <div class="location-manager-title-row">
           <div>
-            <strong>${escapeHtml(location.name)}</strong>
+            <strong>${location.name}</strong>
             <span>${launches.length} ${launches.length === 1 ? "location" : "locations"}</span>
           </div>
         </div>
         <div class="location-manager-actions">
-          <button class="location-manager-action" type="button" data-edit-managed-location="${escapeHtml(location.id)}">Edit</button>
+          <button class="location-manager-action" type="button" data-edit-managed-location="${location.id}">Edit</button>
         </div>
       </div>
       <div class="location-manager-content">
-      ${launches.length ? `
+      ${launches.length ? html`
         <div class="location-manager-launches">
-          ${launches.map((launch) => `
+          ${joinHtml(launches.map((launch) => html`
             <div class="location-manager-launch-row">
-              <span>${escapeHtml(launch.name)}</span>
+              <span>${launch.name}</span>
               <div class="location-manager-row-actions">
-                <button class="location-manager-action" type="button" data-location-id="${escapeHtml(location.id)}" data-edit-managed-launch="${escapeHtml(launch.id)}">Edit</button>
+                <button class="location-manager-action" type="button" data-location-id="${location.id}" data-edit-managed-launch="${launch.id}">Edit</button>
               </div>
             </div>
-          `).join("")}
+          `), "")}
         </div>
-      ` : `<p class="location-manager-empty">No locations yet.</p>`}
-        <button class="button secondary location-manager-add-launch" type="button" data-add-managed-launch="${escapeHtml(location.id)}">Add location</button>
+      ` : html`<p class="location-manager-empty">No locations yet.</p>`}
+        <button class="button secondary location-manager-add-launch" type="button" data-add-managed-launch="${location.id}">Add location</button>
       </div>
     </article>
   `;
-  }).join("");
+  }), ""));
 }
 
 export function locationFormCoordinates() {

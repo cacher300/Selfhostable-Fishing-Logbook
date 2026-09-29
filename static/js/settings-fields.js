@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { optionChoices, optionLabels, slugOptionValue } from "./app-normalization.js";
 import { currentChopRanges, validateChopRanges } from "./app-units.js";
 import { replacePredefinedFields, updateSettings } from "./actions.js";
@@ -5,7 +6,8 @@ import { els } from "./app-elements.js";
 import { runSettingsSave, settingsAutosaveTimer, settingsUi } from "./settings-core.js";
 import { renderSettings } from "./settings.js";
 import { renderAll, renderTrips } from "./dashboard.js";
-import { escapeHtml, trimNumber } from "./form-utils.js";
+import { trimNumber } from "./form-utils.js";
+
 
 export const predefinedFieldGroups = [
   { key: "species", label: "Species" },
@@ -41,25 +43,25 @@ export function predefinedFieldValue(item) {
 
 export function renderPredefinedFieldSettings() {
   if (!els.predefinedFieldSettings) return;
-  els.predefinedFieldSettings.innerHTML = predefinedFieldGroups.map((group) => {
+  setHtml(els.predefinedFieldSettings, joinHtml(predefinedFieldGroups.map((group) => {
     const items = predefinedFieldItems(group);
-    return `
-      <details class="predefined-field-group" data-predefined-key="${escapeHtml(group.key)}">
+    return html`
+      <details class="predefined-field-group" data-predefined-key="${group.key}">
         <summary class="predefined-field-summary">
           <span>
-            <strong>${escapeHtml(group.label)}</strong>
-            <small>${items.slice(0, 3).map((item) => escapeHtml(predefinedFieldValue(item))).join(", ")}${items.length > 3 ? "..." : ""}</small>
+            <strong>${group.label}</strong>
+            <small>${items.slice(0, 3).map((item) => predefinedFieldValue(item)).join(", ")}${items.length > 3 ? "..." : ""}</small>
           </span>
           <span class="predefined-field-count">${items.length} ${items.length === 1 ? "item" : "items"}</span>
         </summary>
         <div class="predefined-field-body">
           <div class="predefined-option-list">
-            ${items.map((item, index) => `
+            ${joinHtml(items.map((item, index) => html`
               <div class="predefined-option-row" data-option-index="${index}">
-                <input class="predefined-option-label" type="text" value="${escapeHtml(predefinedFieldValue(item))}" aria-label="${escapeHtml(group.label)} option" />
+                <input class="predefined-option-label" type="text" value="${predefinedFieldValue(item)}" aria-label="${group.label} option" />
                 <button class="button danger remove-predefined-option" type="button">Delete</button>
               </div>
-            `).join("")}
+            `), "")}
             </div>
           <div class="predefined-field-header">
             <button class="button secondary add-predefined-option" type="button">Add</button>
@@ -67,7 +69,7 @@ export function renderPredefinedFieldSettings() {
         </div>
       </details>
     `;
-  }).join("");
+  }), ""));
 }
 
 export function updatePredefinedFieldCount(group) {
@@ -128,19 +130,19 @@ export function renderChopRangeSettings() {
   if (!settingsUi.chopRangesEditing) {
     const lastBoundedRange = [...ranges].reverse().find((range) => range.maxFeet !== null);
     const overflowText = lastBoundedRange ? `> ${trimNumber(lastBoundedRange.maxFeet)} ft` : "Above previous range";
-    els.chopRangeRows.innerHTML = `
+    setHtml(els.chopRangeRows, html`
       <div class="chop-range-list">
-        ${ranges.map((range) => `
+        ${joinHtml(ranges.map((range) => html`
           <div class="chop-range-display-row">
-            <strong>${escapeHtml(range.label)}</strong>
-            <span>${range.maxFeet === null ? escapeHtml(overflowText) : `&le; ${escapeHtml(trimNumber(range.maxFeet))} ft`}</span>
+            <strong>${range.label}</strong>
+            <span>${range.maxFeet === null ? overflowText : `&le; ${trimNumber(range.maxFeet)} ft`}</span>
           </div>
-        `).join("")}
+        `), "")}
       </div>
-    `;
+    `);
     return;
   }
-  els.chopRangeRows.innerHTML = `
+  setHtml(els.chopRangeRows, html`
     <table>
       <thead>
         <tr>
@@ -149,21 +151,21 @@ export function renderChopRangeSettings() {
         </tr>
       </thead>
       <tbody>
-        ${ranges.map((range, index) => `
+        ${joinHtml(ranges.map((range, index) => html`
           <tr class="chop-range-row" data-range-index="${index}">
             <td>
-              <input class="chop-range-label" type="text" value="${escapeHtml(range.label)}" aria-label="Chop condition label" />
+              <input class="chop-range-label" type="text" value="${range.label}" aria-label="Chop condition label" />
             </td>
             <td>
               ${range.maxFeet === null
-                ? `<span class="range-overflow-label">Above previous range</span>`
-                : `<div class="unit-input"><input class="chop-range-max" type="number" min="0" step="0.1" value="${escapeHtml(range.maxFeet)}" aria-label="Maximum wave height in feet" /><span>ft</span></div>`}
+                ? html`<span class="range-overflow-label">Above previous range</span>`
+                : html`<div class="unit-input"><input class="chop-range-max" type="number" min="0" step="0.1" value="${range.maxFeet}" aria-label="Maximum wave height in feet" /><span>ft</span></div>`}
             </td>
           </tr>
-        `).join("")}
+        `), "")}
       </tbody>
     </table>
-  `;
+  `);
 }
 
 export async function toggleChopRangeEditing() {

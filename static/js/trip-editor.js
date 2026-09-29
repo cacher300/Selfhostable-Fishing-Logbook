@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { L } from "./vendor.js";
 import { createId, defaultTimeValue } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
@@ -18,7 +19,7 @@ import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { greatLakesControlValue, greatLakesLoadedModelsKey } from "./great-lakes-conditions.js";
 import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
 import { calculateMinutes } from "./stats.js";
-import { escapeHtml, isTrollingTrip, trimNumber } from "./form-utils.js";
+import { isTrollingTrip, trimNumber } from "./form-utils.js";
 import { updateMethodVisibility } from "./app.js";
 
 export function clearTripFormMessage() {
@@ -43,15 +44,15 @@ export function showTripValidationDialog({ intro, items }) {
   if (!els.tripValidationDialog || !els.tripValidationList) return;
 
   els.tripValidationDialogIntro.textContent = intro;
-  els.tripValidationList.innerHTML = items.map((item) => `
-    <button class="trip-validation-field" type="button" data-validation-field="${escapeHtml(item.field.id)}">
+  setHtml(els.tripValidationList, joinHtml(items.map((item) => html`
+    <button class="trip-validation-field" type="button" data-validation-field="${item.field.id}">
       <span class="trip-validation-field-copy">
-        <strong>${escapeHtml(item.label)}</strong>
-        <small>${escapeHtml(item.detail || "Required")}</small>
+        <strong>${item.label}</strong>
+        <small>${item.detail || "Required"}</small>
       </span>
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
     </button>
-  `).join("");
+  `), ""));
   els.tripValidationDialog.showModal();
 }
 
@@ -326,10 +327,10 @@ export function openTripDialog(trip = null) {
   els.tripForm.reset();
   setTripSaveLoading(false);
   clearTripFormMessage();
-  els.catchRows.innerHTML = "";
-  els.lostFishRows.innerHTML = "";
-  els.tripGearRows.innerHTML = "";
-  els.personRows.innerHTML = "";
+  setHtml(els.catchRows, html``);
+  setHtml(els.lostFishRows, html``);
+  setHtml(els.tripGearRows, html``);
+  setHtml(els.personRows, html``);
   ui.activeNotePhotos = structuredClone(trip?.notePhotos || []);
 
   const today = localDateInputValue();
@@ -647,17 +648,17 @@ export function renderProbeTemperatureProfile(profile = [], options = {}) {
   const displayedDepths = options.exactDepths
     ? profileEntries.map((entry) => Number(entry.depthFeet))
     : probeProfileDisplayDepths(profileEntries);
-  grid.innerHTML = displayedDepths.map((depthFeet) => {
+  setHtml(grid, joinHtml(displayedDepths.map((depthFeet) => {
     const depthLabel = displayProbeDepth(depthFeet);
     const rawTemperature = String(temperaturesByDepth.get(depthFeet) ?? "").trim();
     const displayTemperature = displayProbeTemperatureInput(rawTemperature);
-    return `
+    return html`
       <label class="probe-temperature-cell">
-        <span class="probe-temperature-depth">${escapeHtml(depthLabel)}</span>
-        <input type="text" inputmode="decimal" data-probe-depth-feet="${depthFeet}" data-probe-temperature-raw="${escapeHtml(rawTemperature)}" data-probe-temperature-display="${escapeHtml(displayTemperature)}" value="${escapeHtml(displayTemperature)}" placeholder="—" aria-label="Probe temperature at ${escapeHtml(depthLabel)}" />
+        <span class="probe-temperature-depth">${depthLabel}</span>
+        <input type="text" inputmode="decimal" data-probe-depth-feet="${depthFeet}" data-probe-temperature-raw="${rawTemperature}" data-probe-temperature-display="${displayTemperature}" value="${displayTemperature}" placeholder="—" aria-label="Probe temperature at ${depthLabel}" />
       </label>
     `;
-  }).join("");
+  }), ""));
   renderProbeTemperatureProfileChart(profile);
 }
 
@@ -757,13 +758,13 @@ export function probeCatchColor(species, speciesList = []) {
 
 export function probeTemperatureChartLegendItemsMarkup(catchDepths = []) {
   const species = [...new Set(catchDepths.map(probeCatchSpecies))];
-  return `<span><i class="probe-temperature-legend-line" aria-hidden="true"></i>Temperature profile</span>${species.length
-    ? species.map((name) => `<span><i class="probe-temperature-legend-dot" style="--probe-catch-color: ${probeCatchColor(name, species)}" aria-hidden="true"></i>${escapeHtml(name)}</span>`).join("")
-    : `<span><i class="probe-temperature-legend-dot" aria-hidden="true"></i>Fish caught depth</span>`}`;
+  return html`<span><i class="probe-temperature-legend-line" aria-hidden="true"></i>Temperature profile</span>${species.length
+    ? joinHtml(species.map((name) => html`<span><i class="probe-temperature-legend-dot" style="--probe-catch-color: ${probeCatchColor(name, species)}" aria-hidden="true"></i>${name}</span>`), "")
+    : html`<span><i class="probe-temperature-legend-dot" aria-hidden="true"></i>Fish caught depth</span>`}`;
 }
 
 export function probeTemperatureChartLegendMarkup(catchDepths = []) {
-  return `<div class="probe-temperature-chart-legend" aria-label="Chart legend">${probeTemperatureChartLegendItemsMarkup(catchDepths)}</div>`;
+  return html`<div class="probe-temperature-chart-legend" aria-label="Chart legend">${probeTemperatureChartLegendItemsMarkup(catchDepths)}</div>`;
 }
 
 export function probeTemperatureReadings(profile = []) {
@@ -903,19 +904,17 @@ export function renderProbeTemperatureProfileChartMarkup(readings, options = {})
   const y = (depthFeet) => plot.top + (depthFeet / depthMax) * plotHeight;
   const points = readings.map((reading) => `${x(reading.numericTemperature).toFixed(2)},${y(reading.depthFeet).toFixed(2)}`).join(" ");
   const areaPoints = `${plot.left},${y(readings[0].depthFeet).toFixed(2)} ${points} ${plot.left},${y(readings.at(-1).depthFeet).toFixed(2)}`;
-  const horizontalGrid = Array.from({ length: Math.floor(depthMax / 20) + 1 }, (_, index) => index * 20)
-    .map((depth) => `<line x1="${plot.left}" y1="${y(depth).toFixed(2)}" x2="${width - plot.right}" y2="${y(depth).toFixed(2)}" />`)
-    .join("");
-  const verticalGrid = scale.ticks.map((tick) => `<line x1="${x(tick).toFixed(2)}" y1="${plot.top}" x2="${x(tick).toFixed(2)}" y2="${height - plot.bottom}" />`).join("");
-  const xLabels = scale.ticks.map((tick) => `<text x="${x(tick).toFixed(2)}" y="18" text-anchor="middle">${escapeHtml(String(tick))}</text>`).join("");
-  const yLabels = Array.from({ length: Math.floor(depthMax / 20) + 1 }, (_, index) => index * 20)
-    .map((depth) => `<text x="${plot.left - 12}" y="${(y(depth) + 4).toFixed(2)}" text-anchor="end">${escapeHtml(displayProbeDepthValue(depth))}</text>`)
-    .join("");
-  const dots = readings.map((reading) => `
+  const horizontalGrid = joinHtml(Array.from({ length: Math.floor(depthMax / 20) + 1 }, (_, index) => index * 20)
+    .map((depth) => html`<line x1="${plot.left}" y1="${y(depth).toFixed(2)}" x2="${width - plot.right}" y2="${y(depth).toFixed(2)}" />`), "");
+  const verticalGrid = joinHtml(scale.ticks.map((tick) => html`<line x1="${x(tick).toFixed(2)}" y1="${plot.top}" x2="${x(tick).toFixed(2)}" y2="${height - plot.bottom}" />`), "");
+  const xLabels = joinHtml(scale.ticks.map((tick) => html`<text x="${x(tick).toFixed(2)}" y="18" text-anchor="middle">${String(tick)}</text>`), "");
+  const yLabels = joinHtml(Array.from({ length: Math.floor(depthMax / 20) + 1 }, (_, index) => index * 20)
+    .map((depth) => html`<text x="${plot.left - 12}" y="${(y(depth) + 4).toFixed(2)}" text-anchor="end">${displayProbeDepthValue(depth)}</text>`), "");
+  const dots = joinHtml(readings.map((reading) => html`
     <circle class="probe-temperature-point" data-chart-point="profile" data-chart-temperature="${reading.numericTemperature}" data-chart-depth="${reading.depthFeet}" cx="${x(reading.numericTemperature).toFixed(2)}" cy="${y(reading.depthFeet).toFixed(2)}" r="5" tabindex="0">
-      <title>${escapeHtml(`${displayProbeDepth(reading.depthFeet)}: ${displayProbeTemperatureMeasurement(reading.temperature)}`)}</title>
+      <title>${`${displayProbeDepth(reading.depthFeet)}: ${displayProbeTemperatureMeasurement(reading.temperature)}`}</title>
     </circle>
-  `).join("");
+  `), "");
   const catchGroups = new Map();
   const speciesList = [...new Set(catchDepths.map(probeCatchSpecies))];
   catchDepths.forEach((entry, index) => {
@@ -924,7 +923,7 @@ export function renderProbeTemperatureProfileChartMarkup(readings, options = {})
     group.push({ entry, index });
     catchGroups.set(depthFeet, group);
   });
-  const catchMarkers = catchDepths.map((entry, index) => {
+  const catchMarkers = joinHtml(catchDepths.map((entry, index) => {
     const depthFeet = Number(entry.depthFeet);
     const profileTemperature = interpolatedProbeTemperature(readings, depthFeet);
     const species = probeCatchSpecies(entry);
@@ -936,15 +935,15 @@ export function renderProbeTemperatureProfileChartMarkup(readings, options = {})
     const spread = group.length > 1 ? (groupIndex - ((group.length - 1) / 2)) * 11 : 0;
     const markerX = Math.max(plot.left + 6, Math.min(width - plot.right - 6, x(profileTemperature) + spread));
     const color = probeCatchColor(species, speciesList);
-    return `<line class="probe-catch-depth-connector" x1="${x(profileTemperature).toFixed(2)}" y1="${y(depthFeet).toFixed(2)}" x2="${markerX.toFixed(2)}" y2="${y(depthFeet).toFixed(2)}" style="--probe-catch-color: ${color}" aria-hidden="true" />
-      <circle class="probe-catch-depth-marker" data-chart-point="catch" data-chart-temperature="${profileTemperature}" data-chart-depth="${depthFeet}" cx="${markerX.toFixed(2)}" cy="${y(depthFeet).toFixed(2)}" r="6" tabindex="0" style="--probe-catch-color: ${color}"><title>${escapeHtml(label)}</title></circle>`;
-  }).join("");
-  const axisUnit = escapeHtml(unitSymbol("waterTemperature"));
-  const depthUnit = escapeHtml(unitSymbol("depth"));
+    return html`<line class="probe-catch-depth-connector" x1="${x(profileTemperature).toFixed(2)}" y1="${y(depthFeet).toFixed(2)}" x2="${markerX.toFixed(2)}" y2="${y(depthFeet).toFixed(2)}" style="--probe-catch-color: ${color}" aria-hidden="true" />
+      <circle class="probe-catch-depth-marker" data-chart-point="catch" data-chart-temperature="${profileTemperature}" data-chart-depth="${depthFeet}" cx="${markerX.toFixed(2)}" cy="${y(depthFeet).toFixed(2)}" r="6" tabindex="0" style="--probe-catch-color: ${color}"><title>${label}</title></circle>`;
+  }), "");
+  const axisUnit = unitSymbol("waterTemperature");
+  const depthUnit = unitSymbol("depth");
   const titleId = `${options.idPrefix || "probeTemperatureChart"}Title`;
   const descriptionId = `${options.idPrefix || "probeTemperatureChart"}Description`;
   const catchDescription = catchDepths.length ? ` ${catchDepths.length} fish catch marker${catchDepths.length === 1 ? "" : "s"} appear on the temperature profile at their recorded depth.` : "";
-  return `
+  return html`
     <svg class="probe-temperature-chart-svg" viewBox="0 0 ${width} ${height}" data-chart-scale-min="${scale.min}" data-chart-scale-max="${scale.max}" data-chart-depth-max="${depthMax}" data-chart-plot-left="${plot.left}" data-chart-plot-top="${plot.top}" data-chart-plot-width="${plotWidth}" data-chart-plot-height="${plotHeight}" role="img" aria-labelledby="${titleId} ${descriptionId}">
       <title id="${titleId}">Probe temperature profile</title>
       <desc id="${descriptionId}">Water temperature in ${axisUnit} plotted against depth in ${depthUnit}; depth increases downward.${catchDescription}</desc>
@@ -954,8 +953,8 @@ export function renderProbeTemperatureProfileChartMarkup(readings, options = {})
       <g class="probe-temperature-axis-labels">${xLabels}${yLabels}</g>
       <text class="probe-temperature-axis-title" x="${width / 2}" y="${height - 7}" text-anchor="middle">Temperature (${axisUnit})</text>
       <text class="probe-temperature-axis-title" transform="translate(14 ${height / 2}) rotate(-90)" text-anchor="middle">Depth (${depthUnit})</text>
-      ${readings.length > 1 ? `<polygon class="probe-temperature-area" points="${areaPoints}" />` : ""}
-      ${readings.length > 1 ? `<polyline class="probe-temperature-line" data-chart-line="true" points="${points}" />` : ""}
+      ${readings.length > 1 ? html`<polygon class="probe-temperature-area" points="${areaPoints}" />` : ""}
+      ${readings.length > 1 ? html`<polyline class="probe-temperature-line" data-chart-line="true" points="${points}" />` : ""}
       <g class="probe-temperature-points">${dots}</g>
       <g class="probe-catch-depth-points" aria-label="Fish caught depths">${catchMarkers}</g>
     </svg>
@@ -969,7 +968,7 @@ export function renderProbeTemperatureProfileChart(profile = []) {
   const readings = probeTemperatureReadings(profile);
   const catchDepths = collectProbeCatchDepths();
   const legend = document.querySelector("#probeTemperatureChartLegend");
-  if (legend) legend.innerHTML = probeTemperatureChartLegendItemsMarkup(catchDepths);
+  if (legend) setHtml(legend, probeTemperatureChartLegendItemsMarkup(catchDepths));
   const summary = document.querySelector("#probeTemperatureChartSummary");
   if (summary) {
     summary.textContent = readings.length
@@ -977,14 +976,14 @@ export function renderProbeTemperatureProfileChart(profile = []) {
       : "Add probe temperatures to see the profile chart.";
   }
   if (!readings.length) {
-    chart.innerHTML = `
+    setHtml(chart, html`
       <div class="probe-temperature-chart-empty">
         <span>Add at least two readings to see the temperature line.</span>
       </div>
-    `;
+    `);
     return;
   }
-  chart.innerHTML = `${renderProbeTemperatureProfileChartMarkup(readings, { catchDepths })}<div class="probe-temperature-chart-tooltip" role="status" aria-live="polite" hidden></div>`;
+  setHtml(chart, html`${renderProbeTemperatureProfileChartMarkup(readings, { catchDepths })}<div class="probe-temperature-chart-tooltip" role="status" aria-live="polite" hidden></div>`);
 }
 
 export function getTripIntent() {
@@ -1125,12 +1124,12 @@ export function populatePersonSelect(select, selectedId = "") {
   syncPersonRowIds();
   const people = mergePeople(collectPeople());
   const assignedPersonId = selectedId || (people.length === 1 ? people[0].id : "");
-  select.innerHTML = [
-    `<option value="">Select person</option>`,
+  setHtml(select, joinHtml([
+    html`<option value="">Select person</option>`,
     ...people.map((person) => (
-    `<option value="${escapeHtml(person.id)}" ${person.id === selectedId ? "selected" : ""}>${escapeHtml(person.name)}</option>`
+    html`<option value="${person.id}" ${person.id === selectedId ? "selected" : ""}>${person.name}</option>`
     ))
-  ].join("");
+  ]));
   select.value = assignedPersonId;
 }
 
@@ -1152,13 +1151,13 @@ export function populatePersonRowSelects() {
     const selectedId = row.dataset.personId || "";
     const hasExistingSelection = allPeople.some((person) => person.id === selectedId);
     const addingNew = isAddingNew || (!hasExistingSelection && customName);
-    select.innerHTML = [
-      `<option value="">Select person</option>`,
+    setHtml(select, joinHtml([
+      html`<option value="">Select person</option>`,
       ...allPeople.map((person) => (
-        `<option value="${escapeHtml(person.id)}" ${person.id === selectedId ? "selected" : ""}>${escapeHtml(person.name)}</option>`
+        html`<option value="${person.id}" ${person.id === selectedId ? "selected" : ""}>${person.name}</option>`
       )),
-      `<option value="__new__" ${addingNew ? "selected" : ""}>Add new person...</option>`
-    ].join("");
+      html`<option value="__new__" ${addingNew ? "selected" : ""}>Add new person...</option>`
+    ]));
     input.classList.toggle("hidden", select.value !== "__new__");
   });
 }

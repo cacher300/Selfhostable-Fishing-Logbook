@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { activeStatsFilters, state, ui } from "./app-state.js";
 import { choiceLabel } from "./app-normalization.js";
 import { unitPreference, unitSymbol } from "./app-units.js";
@@ -11,7 +12,8 @@ import { catchRecords, filterGearRecordsByStats, filterRecordsByStats, filteredC
 import { airTempBucket, catchComparisonRows, cloudCoverBucket, fishShareRows, lureColorLabel, lureSpreadRows, lureTypeLabel, makePerformanceItems, performanceRows, pressureBucket, setupLineMinutes, summarizeBestSpeedByDirection, summarizeBiteWindows, summarizeBy, summarizeCatchMeasurement, summarizeDistanceBehind, summarizeDownriggerCatchPositions, summarizeEffortPerformance, summarizeEffortWithCatches, summarizeLureSpreadContext, summarizeProbeProfiles, summarizeShakers, summarizeSpeedDelta, summarizeThermoclinePosition, summarizeTripPerformance, summarizeWeatherBuckets, sunshineBucket, tripPerformanceRows, weatherNumber, weatherText, windSpeedBucket } from "./stats-performance.js";
 import { StatsActivityHeatmap } from "./stats-heatmap.js";
 import { renderStatsMessage, renderStatsTable } from "./stats-rendering.js";
-import { escapeHtml, trimNumber } from "./form-utils.js";
+import { trimNumber } from "./form-utils.js";
+
 import { renderStatsLeaderboard } from "./leaderboard.js";
 
 export function renderAdvancedStats() {
@@ -44,7 +46,7 @@ export function renderAdvancedStats() {
     els.statsActiveScope.textContent = [dateLabel, ...(scopeBits.length ? scopeBits : ["All methods"])].join(" / ");
   }
 
-  els.advancedMetricGrid.innerHTML = [
+  setHtml(els.advancedMetricGrid, joinHtml([
     ["Trips", trips.length],
     ["Landed fish", fish],
     ["Fish / hour", hours ? trimNumber(fish / hours) : "0"],
@@ -58,8 +60,8 @@ export function renderAdvancedStats() {
       : index === 3 ? `${lostFish} lost fish`
       : index === 4 ? ""
       : (bestTrip ? formatDate(bestTrip.date) : "No trips in scope");
-    return `<article class="metric-card metric-card-${index}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${detail ? `<small>${detail}</small>` : ""}</article>`;
-  }).join("");
+    return html`<article class="metric-card metric-card-${index}"><span>${label}</span><strong>${value}</strong>${detail ? html`<small>${detail}</small>` : ""}</article>`;
+  }), ""));
 
   renderStatsActivityHeatmap(trips);
 
@@ -271,7 +273,7 @@ export function renderStatsActivityHeatmap(trips) {
     fishForTrip: (trip) => filteredCatchRecordsForTrip(trip)
       .reduce((sum, catchItem) => sum + fishCount(catchItem), 0)
   });
-  els.statsActivityHeatmap.innerHTML = StatsActivityHeatmap.render(activity);
+  setHtml(els.statsActivityHeatmap, StatsActivityHeatmap.render(activity));
 
   if (els.statsActivitySummary) {
     const dayLabel = activity.fishedDays === 1 ? "day" : "days";

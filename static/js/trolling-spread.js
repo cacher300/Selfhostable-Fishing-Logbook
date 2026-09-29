@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { createId } from "./app-defaults.js";
 import { choiceLabel } from "./app-normalization.js";
 import { els } from "./app-elements.js";
@@ -5,7 +6,7 @@ import { selectedText } from "./trip-rows.js";
 import { comboName, flasherName, lureName, reelName, rodName } from "./gear-core.js";
 import { setupLineCheaterFishCount, setupLineCounts } from "./trip-timeline.js";
 import { presentationLabel } from "./stats.js";
-import { escapeHtml, isTrollingTrip } from "./form-utils.js";
+import { isTrollingTrip } from "./form-utils.js";
 
 export function isTrollingTripRecord(trip) {
   return String(trip?.method || "").toLowerCase() === "trolling";
@@ -250,12 +251,12 @@ export function spreadGearMarkup(group) {
       tokens.push(gear);
     });
   });
-  return tokens.map((gear, index) => {
-    const separator = index ? `<span class="spread-gear-separator"> + </span>` : "";
-    if (!gear.id) return `${separator}<span>${escapeHtml(gear.name)}</span>`;
+  return joinHtml(tokens.map((gear, index) => {
+    const separator = index ? html`<span class="spread-gear-separator"> + </span>` : "";
+    if (!gear.id) return html`${separator}<span>${gear.name}</span>`;
     const attribute = gear.type === "flasher" ? "data-spread-flasher-id" : "data-spread-lure-id";
-    return `${separator}<button class="spread-lure-link" type="button" ${attribute}="${escapeHtml(gear.id)}">${escapeHtml(gear.name)}</button>`;
-  }).join("");
+    return html`${separator}<button class="spread-lure-link" type="button" ${attribute}="${gear.id}">${gear.name}</button>`;
+  }), "");
 }
 
 export function percentPointStyle(point) {
@@ -270,13 +271,13 @@ export function spreadCssLine(start, end, className = "") {
   const dx = end.xPct - start.xPct;
   const dy = end.yPct - start.yPct;
   const direction = height < 0.3 ? "is-horizontal" : dx * dy < 0 ? "is-rising" : "is-falling";
-  return `<div class="spread-css-line ${direction} ${className}" style="left:${left}%;top:${top}%;width:${width}%;height:${Math.max(height, 0.3)}%"></div>`;
+  return html`<div class="spread-css-line ${direction} ${className}" style="left:${left}%;top:${top}%;width:${width}%;height:${Math.max(height, 0.3)}%"></div>`;
 }
 
 export function spreadMarkerMarkup(group) {
   if (["downRigger", "chute"].includes(group.markerType)) return "";
   const markerPoint = ["board", "diver"].includes(group.markerType) ? group.bend : group.end;
-  return `<span class="spread-end-marker spread-marker-${group.markerType}" style="${percentPointStyle(markerPoint)}"></span>`;
+  return html`<span class="spread-end-marker spread-marker-${group.markerType}" style="${percentPointStyle(markerPoint)}"></span>`;
 }
 
 export function renderCheater(group) {
@@ -295,9 +296,9 @@ export function renderCheater(group) {
     group.cheaterFishCount > 0 ? `${group.cheaterFishCount} fish` : ""
   ].filter(Boolean).join(" \u00b7 ");
   const cheaterContent = group.cheaterLureIds.length === 1
-    ? `<button class="spread-lure-link" type="button" data-spread-lure-id="${escapeHtml(group.cheaterLureIds[0])}">${escapeHtml(cheaterText)}</button>`
-    : escapeHtml(cheaterText);
-  return `
+    ? html`<button class="spread-lure-link" type="button" data-spread-lure-id="${group.cheaterLureIds[0]}">${cheaterText}</button>`
+    : html`${cheaterText}`;
+  return html`
     ${spreadCssLine(midpoint, cheaterEnd, "spread-cheater-line")}
     <span class="spread-cheater-label" style="${percentPointStyle(cheaterEnd)}">
       ${cheaterContent}
@@ -329,31 +330,31 @@ export function spreadGroupComboLabel(group) {
 
 export function renderSpreadDiagram(rods = [], options = {}) {
   const layouts = getSpreadLayout(buildSpreadGroups(rods));
-  const renderedLines = layouts.map((group) => {
+  const renderedLines = joinHtml(layouts.map((group) => {
     const stats = spreadGroupStats(group);
     const gearMarkup = spreadGearMarkup(group);
     const hasDetails = group.rods.length > 1 || gearMarkup || stats;
     const lineLabel = options.labelWithCombo ? spreadGroupComboLabel(group) : group.label;
-    return `
+    return html`
       <div class="spread-group spread-${group.side} spread-${group.markerType}" data-spread-slot="${group.slot}">
         ${group.boomStart ? spreadCssLine(group.boomStart, group.start, "spread-downrigger-boom") : ""}
         ${renderMainSpreadLine(group)}
         ${renderCheater(group)}
         ${spreadMarkerMarkup(group)}
-        <strong class="spread-inline-name" style="${percentPointStyle(spreadNamePoint(group))}">${escapeHtml(lineLabel)}</strong>
-        ${hasDetails ? `
+        <strong class="spread-inline-name" style="${percentPointStyle(spreadNamePoint(group))}">${lineLabel}</strong>
+        ${hasDetails ? html`
           <div class="spread-html-label" style="${percentPointStyle(group.labelPoint)}">
-            ${group.rods.length > 1 ? `<span>${group.rods.length} rods</span>` : ""}
-            ${group.rods.length > 1 && gearMarkup ? `<span class="spread-detail-separator">·</span>` : ""}
-            ${gearMarkup ? `<span class="spread-gear-list">${gearMarkup}</span>` : ""}
-            ${stats ? `<span class="spread-stat-text">${escapeHtml(stats)}</span>` : ""}
+            ${group.rods.length > 1 ? html`<span>${group.rods.length} rods</span>` : ""}
+            ${group.rods.length > 1 && gearMarkup ? html`<span class="spread-detail-separator">·</span>` : ""}
+            ${gearMarkup ? html`<span class="spread-gear-list">${gearMarkup}</span>` : ""}
+            ${stats ? html`<span class="spread-stat-text">${stats}</span>` : ""}
           </div>
         ` : ""}
       </div>
     `;
-  }).join("");
+  }), "");
 
-  return `
+  return html`
     <div class="spread-diagram-wrap">
       <div class="spread-diagram" role="img" aria-label="Trolling spread diagram">
         <div class="spread-water">
@@ -442,7 +443,7 @@ export function renderLiveTrollingSpread() {
   if (!section || !canvas) return;
   const trolling = isTrollingTrip();
   section.classList.toggle("hidden", !trolling);
-  if (trolling) canvas.innerHTML = renderSpreadDiagram(liveTripRodsForSpread());
+  if (trolling) setHtml(canvas, renderSpreadDiagram(liveTripRodsForSpread()));
 }
 
 export function setup() {

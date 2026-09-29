@@ -15,26 +15,9 @@ import { renderPersonalBests } from "./personal-bests.js";
 import { isTrollingTrip, updateTrollingVisibility } from "./form-utils.js";
 import { renderGallery } from "./gallery.js";
 import { renderChecklists } from "./checklists.js";
+import { initRouter, replaceInitialRoute, routeViews, viewFromCurrentRoute } from "./router.js";
 
-export const routeViews = {
-  "/": "trips",
-  "/trips": "trips",
-  "/expeditions": "expeditions",
-  "/bests": "bests",
-  "/stats": "stats",
-  "/leaderboard": "leaderboard",
-  "/map": "map",
-  "/gear": "gear",
-  "/gallery": "gallery",
-  "/checklists": "checklists",
-  "/wiki": "wiki",
-  "/settings": "settings"
-};
-
-export function viewFromCurrentRoute() {
-  const pathname = window.location.pathname.replace(/\/$/, "") || "/";
-  return routeViews[pathname.toLowerCase()] || "trips";
-}
+export { routeViews, viewFromCurrentRoute };
 
 export function updateMethodVisibility({ applyStartupSpread = false } = {}) {
   updateTrollingVisibility();
@@ -139,7 +122,8 @@ export async function init() {
   replaceState(await loadState());
   applyThemePreference();
   renderAll();
-  setView(viewFromCurrentRoute());
+  initRouter(setView);
+  setView(replaceInitialRoute());
 }
 
 export function setup() {

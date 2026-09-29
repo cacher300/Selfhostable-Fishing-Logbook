@@ -14,6 +14,7 @@ import { isSoftPlasticLureRow } from "./gear-pickers.js";
 import { calculateHours } from "./stats.js";
 import { idleHoursFromForm, isAttachedWeightPresentation, isCastingTrip, isDipseyDiverColorPresentation, isFlyFishingTrip, isLeadcoreCapablePresentation, isTrollingTrip, setupMinutesFromRow } from "./form-utils.js";
 
+
 export function collectTripFromForm() {
   const trolling = isTrollingTrip();
   const people = collectPeople();

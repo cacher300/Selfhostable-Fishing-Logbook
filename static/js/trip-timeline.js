@@ -1,3 +1,4 @@
+import { html, setHtml } from "./html.js";
 import { state, ui } from "./app-state.js";
 import { els } from "./app-elements.js";
 import { fishCount } from "./dashboard.js";
@@ -39,14 +40,14 @@ export function refreshCatchMediaGallery(gallery, selectedIndex = 0) {
   const catchItem = trip?.[catchType]?.[catchIndex];
   if (!trip || !catchItem || Number.isNaN(catchIndex)) return;
   const wrapper = document.createElement("div");
-  wrapper.innerHTML = renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${catchIndex + 1}`, {
+  setHtml(wrapper, renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${catchIndex + 1}`, {
     catchIndex,
     catchType: catchType === "lostFish" ? "lost" : "catch",
     selectedIndex,
     heroPhotoId: catchItem.heroPhotoId,
     context: gallery.dataset.galleryContext || "summary",
     showAllThumbnails: gallery.dataset.showAllThumbnails === "true"
-  }).trim();
+  }).trim());
   const nextGallery = wrapper.firstElementChild;
   if (nextGallery) gallery.replaceWith(nextGallery);
 }
@@ -57,7 +58,7 @@ export function openSummaryCatchDetail(catchIndex, selectedIndex, catchType = "c
   const catchItem = trip?.[isLost ? "lostFish" : "catches"]?.[catchIndex];
   const host = document.querySelector("#catchDetailHost");
   if (!trip || !catchItem || !host) return;
-  host.innerHTML = renderCatchDetailPopout(trip, catchItem, catchIndex, selectedIndex, isLost ? "lost" : "catch");
+  setHtml(host, renderCatchDetailPopout(trip, catchItem, catchIndex, selectedIndex, isLost ? "lost" : "catch"));
   document.querySelector("#tripSummaryDialog")?.classList.add("catch-detail-open");
   host.querySelector(".catch-detail-close")?.focus();
 }
@@ -67,7 +68,7 @@ export function openSummaryCatchLocationMap(catchIndex) {
   const catchItem = trip?.catches?.[catchIndex];
   const host = document.querySelector("#catchDetailLocationHost");
   if (!trip || !catchItem || !host) return;
-  host.innerHTML = renderCatchDetailLocationPopout(trip, catchItem, catchIndex);
+  setHtml(host, renderCatchDetailLocationPopout(trip, catchItem, catchIndex));
   renderCatchDetailLocationMap(trip, catchItem, catchIndex, "trip");
   host.querySelector("[data-close-catch-map]")?.focus();
 }
@@ -91,7 +92,7 @@ export function setSummaryCatchLocationScope(scope) {
 export function closeSummaryCatchLocationMap() {
   destroyCatchDetailLocationMap();
   const host = document.querySelector("#catchDetailLocationHost");
-  if (host) host.innerHTML = "";
+  if (host) setHtml(host, html``);
 }
 
 export function toggleSummaryCatchLocationMap(catchIndex) {
@@ -102,7 +103,7 @@ export function toggleSummaryCatchLocationMap(catchIndex) {
 export function closeSummaryCatchDetail() {
   closeSummaryCatchLocationMap();
   const host = document.querySelector("#catchDetailHost");
-  if (host) host.innerHTML = "";
+  if (host) setHtml(host, html``);
   document.querySelector("#tripSummaryDialog")?.classList.remove("catch-detail-open");
 }
 
@@ -111,7 +112,7 @@ export function openTripSummary(trip) {
   ui.activeReportTimelineFilter = "all";
   ui.activeReportTimelineSort = { key: "time", direction: "asc" };
   els.tripSummaryTitle.textContent = displayTitleText(trip.title || trip.location || "Trip Summary");
-  els.tripSummaryBody.innerHTML = renderTripReport(trip);
+  setHtml(els.tripSummaryBody, renderTripReport(trip));
   els.tripSummaryDialog.showModal();
   if (catchMapRecordsForTrip(trip).length) renderTripSummaryMap(trip);
 }

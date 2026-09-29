@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { ui } from "./app-state.js";
 import { choiceLabel, currentTrollingSpreads } from "./app-normalization.js";
 import { els } from "./app-elements.js";
@@ -5,7 +6,8 @@ import { syncTripFormChrome } from "./trip-editor.js";
 import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, updateAllRowSummaries } from "./trip-rows.js";
 import { comboName } from "./gear-core.js";
 import { renderLiveTrollingSpread, setupLineSideLabel } from "./trolling-spread.js";
-import { escapeHtml, isTrollingTrip } from "./form-utils.js";
+import { isTrollingTrip } from "./form-utils.js";
+
 
 export function trollingSpreadPickerItemLabel(item) {
   return item.spread.map((row, index) => {
@@ -19,17 +21,17 @@ export function trollingSpreadPickerItemLabel(item) {
 export function renderTrollingSpreadPicker() {
   if (!els.trollingSpreadPickerList) return;
   const spreads = currentTrollingSpreads();
-  els.trollingSpreadPickerList.innerHTML = spreads.length
-    ? spreads.map((item) => `
-        <button class="trolling-spread-picker-option" type="button" data-pick-trolling-spread="${escapeHtml(item.id)}">
+  setHtml(els.trollingSpreadPickerList, spreads.length
+    ? joinHtml(spreads.map((item) => html`
+        <button class="trolling-spread-picker-option" type="button" data-pick-trolling-spread="${item.id}">
           <span class="trolling-spread-picker-option-copy">
-            <strong>${escapeHtml(item.name)}</strong>
-            <small>${escapeHtml(`${item.spread.length} rod${item.spread.length === 1 ? "" : "s"} · ${trollingSpreadPickerItemLabel(item)}`)}</small>
+            <strong>${item.name}</strong>
+            <small>${`${item.spread.length} rod${item.spread.length === 1 ? "" : "s"} · ${trollingSpreadPickerItemLabel(item)}`}</small>
           </span>
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
         </button>
-      `).join("")
-    : '<p class="trolling-spread-picker-empty">No saved spreads yet. Create one in Settings → Trolling Spread.</p>';
+      `), "")
+    : html`<p class="trolling-spread-picker-empty">No saved spreads yet. Create one in Settings → Trolling Spread.</p>`);
 }
 
 export function openTrollingSpreadPicker() {

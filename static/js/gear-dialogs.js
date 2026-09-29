@@ -1,3 +1,4 @@
+import { html, joinHtml, setHtml } from "./html.js";
 import { createId } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { optionLabels } from "./app-normalization.js";
@@ -11,12 +12,12 @@ import { getValue, setValue } from "./trip-editor.js";
 import { updateRowSummary } from "./trip-rows.js";
 import { activeLineEntry, baitStats, comboName, duplicateMatchesSource, gearDisplayName, gearPhotoFields, gearPhotos, generatedLureName, increasedQuantity, mergeLineHistory, nextReelCopyShortName, renderExistingGearPhotos, renderQueuedGearImage } from "./gear-core.js";
 import { populateFlasherSelect, populateLureSelect, populateLuresForType, populateReelSelect, populateRodSelect, prepareInlineGearDialog, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
-import { escapeHtml } from "./form-utils.js";
+
 
 export function renderLineRows(lines = []) {
   const container = document.querySelector("#reelLineRows");
   if (!container) return;
-  container.innerHTML = lineRowMarkup(activeLineEntry({ lineHistory: lines }) || {});
+  setHtml(container, lineRowMarkup(activeLineEntry({ lineHistory: lines }) || {}));
 }
 
 function syncReelGroupQuantityInDraft(reels, groupId, quantity) {
@@ -47,21 +48,21 @@ export function updateMonoBackingVisibility(row) {
 export function lineRowMarkup(line = {}) {
   const id = line.id || createId();
   const showMonoBacking = lineUsesBraid(line.type || optionLabels("lineTypes")[0]);
-  return `
-    <article class="line-editor-row" data-line-id="${escapeHtml(id)}">
-      <label><span>Spooled date</span><input class="line-spooled-date" type="date" value="${escapeHtml(line.spooledDate || "")}" /></label>
-      <label><span>Type</span><select class="line-type">${optionLabels("lineTypes").map((type) => `<option value="${escapeHtml(type)}" ${type === line.type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
-      <label><span>Brand</span><input class="line-brand" type="text" value="${escapeHtml(line.brand || "")}" placeholder="Berkley" /></label>
-      <label><span>Name</span><input class="line-name" type="text" value="${escapeHtml(line.name || "")}" placeholder="X5" /></label>
-      <label><span>Weight (${unitSymbol("fishWeight")})</span><input class="line-weight" type="text" value="${escapeHtml(line.weight || "")}" placeholder="30" /></label>
-      <label class="fly-line-field hidden"><span>Fly line weight</span><input class="line-fly-weight" type="number" min="0" max="16" step="1" value="${escapeHtml(line.flyWeight || "")}" placeholder="5" /></label>
-      <label class="fly-line-field hidden"><span>Taper</span><input class="line-fly-taper" type="text" value="${escapeHtml(line.flyTaper || "")}" placeholder="Weight forward" /></label>
-      <label class="fly-line-field hidden"><span>Density / sink rate</span><input class="line-fly-density" type="text" value="${escapeHtml(line.flyDensity || "")}" placeholder="Floating, 3 ips" /></label>
-      <label><span>Diameter in</span><input class="line-diameter-in" type="text" value="${escapeHtml(line.diameterIn || "")}" placeholder="0.008" /></label>
-      <label><span>Diameter mm</span><input class="line-diameter-mm" type="text" value="${escapeHtml(line.diameterMm || "")}" placeholder="0.20" /></label>
-      <label><span>Color</span><input class="line-color" type="text" value="${escapeHtml(line.color || "")}" placeholder="Lo-Vis" /></label>
+  return html`
+    <article class="line-editor-row" data-line-id="${id}">
+      <label><span>Spooled date</span><input class="line-spooled-date" type="date" value="${line.spooledDate || ""}" /></label>
+      <label><span>Type</span><select class="line-type">${joinHtml(optionLabels("lineTypes").map((type) => html`<option value="${type}" ${type === line.type ? "selected" : ""}>${type}</option>`), "")}</select></label>
+      <label><span>Brand</span><input class="line-brand" type="text" value="${line.brand || ""}" placeholder="Berkley" /></label>
+      <label><span>Name</span><input class="line-name" type="text" value="${line.name || ""}" placeholder="X5" /></label>
+      <label><span>Weight (${unitSymbol("fishWeight")})</span><input class="line-weight" type="text" value="${line.weight || ""}" placeholder="30" /></label>
+      <label class="fly-line-field hidden"><span>Fly line weight</span><input class="line-fly-weight" type="number" min="0" max="16" step="1" value="${line.flyWeight || ""}" placeholder="5" /></label>
+      <label class="fly-line-field hidden"><span>Taper</span><input class="line-fly-taper" type="text" value="${line.flyTaper || ""}" placeholder="Weight forward" /></label>
+      <label class="fly-line-field hidden"><span>Density / sink rate</span><input class="line-fly-density" type="text" value="${line.flyDensity || ""}" placeholder="Floating, 3 ips" /></label>
+      <label><span>Diameter in</span><input class="line-diameter-in" type="text" value="${line.diameterIn || ""}" placeholder="0.008" /></label>
+      <label><span>Diameter mm</span><input class="line-diameter-mm" type="text" value="${line.diameterMm || ""}" placeholder="0.20" /></label>
+      <label><span>Color</span><input class="line-color" type="text" value="${line.color || ""}" placeholder="Lo-Vis" /></label>
       <label class="checkbox-label line-mono-backing-field ${showMonoBacking ? "" : "hidden"}"><input class="line-mono-backing" type="checkbox" ${line.monoBacking && showMonoBacking ? "checked" : ""} /><span>Mono backing</span></label>
-      <label class="line-notes-field"><span>Notes</span><input class="line-notes" type="text" value="${escapeHtml(line.notes || "")}" placeholder="Spooling notes" /></label>
+      <label class="line-notes-field"><span>Notes</span><input class="line-notes" type="text" value="${line.notes || ""}" placeholder="Spooling notes" /></label>
     </article>
   `;
 }
@@ -248,15 +249,15 @@ export function openLureInfoDialog(lure, pendingRowId = "") {
   ].filter(([, value]) => value !== "" && value !== null && value !== undefined);
   document.querySelector("#lureInfoTitle").textContent = lure.name || "Lure";
   els.lureInfoDialog.dataset.lureId = lure.id;
-  els.lureInfoContent.innerHTML = `
-    ${gearPhotos(lure).length ? `<div class="lure-info-media">${mediaMarkup(gearPhotos(lure)[0], "", { download: false })}</div>` : ""}
+  setHtml(els.lureInfoContent, html`
+    ${gearPhotos(lure).length ? html`<div class="lure-info-media">${mediaMarkup(gearPhotos(lure)[0], "", { download: false })}</div>` : ""}
     <dl class="lure-info-list">
-      ${details.map(([label, value]) => `
-        <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>
-      `).join("")}
+      ${joinHtml(details.map(([label, value]) => html`
+        <div><dt>${label}</dt><dd>${String(value)}</dd></div>
+      `), "")}
     </dl>
-    ${lure.notes ? `<div class="lure-info-notes"><strong>Notes</strong><p>${escapeHtml(lure.notes)}</p></div>` : ""}
-  `;
+    ${lure.notes ? html`<div class="lure-info-notes"><strong>Notes</strong><p>${lure.notes}</p></div>` : ""}
+  `);
   els.lureInfoDialog.showModal();
 }
 
@@ -328,15 +329,15 @@ export function openFlasherInfoDialog(flasher, pendingRowId = "") {
   ].filter(([, value]) => value !== "" && value !== null && value !== undefined);
   document.querySelector("#flasherInfoTitle").textContent = flasher.name || "Flasher";
   els.flasherInfoDialog.dataset.flasherId = flasher.id;
-  els.flasherInfoContent.innerHTML = `
-    ${gearPhotos(flasher).length ? `<div class="lure-info-media">${mediaMarkup(gearPhotos(flasher)[0], "", { download: false })}</div>` : ""}
+  setHtml(els.flasherInfoContent, html`
+    ${gearPhotos(flasher).length ? html`<div class="lure-info-media">${mediaMarkup(gearPhotos(flasher)[0], "", { download: false })}</div>` : ""}
     <dl class="lure-info-list">
-      ${details.map(([label, value]) => `
-        <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>
-      `).join("")}
+      ${joinHtml(details.map(([label, value]) => html`
+        <div><dt>${label}</dt><dd>${String(value)}</dd></div>
+      `), "")}
     </dl>
-    ${flasher.notes ? `<div class="lure-info-notes"><strong>Notes</strong><p>${escapeHtml(flasher.notes)}</p></div>` : ""}
-  `;
+    ${flasher.notes ? html`<div class="lure-info-notes"><strong>Notes</strong><p>${flasher.notes}</p></div>` : ""}
+  `);
   els.flasherInfoDialog.showModal();
 }
 

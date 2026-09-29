@@ -24,7 +24,7 @@ const trip = {
     changeNote: "",
   }],
 };
-const html = renderReportSetupTable(trip);
+const html = String(renderReportSetupTable(trip));
 const headers = [...html.matchAll(/<th[^>]*><span>(.*?)<\/span><\/th>/g)].map((match) => match[1]);
 
 assert.deepEqual(headers, ["#", "Start", "End", "Combo", "Rod", "Reel"]);

@@ -1,3 +1,4 @@
+import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { createId } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { currentSavedSetups } from "./app-normalization.js";
@@ -8,7 +9,8 @@ import { getValue, syncTripFormChrome } from "./trip-editor.js";
 import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, updateAllRowSummaries } from "./trip-rows.js";
 import { comboName } from "./gear-core.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
-import { escapeHtml, isTrollingTrip } from "./form-utils.js";
+import { isTrollingTrip } from "./form-utils.js";
+
 
 export let activeSavedSetupEditorId = "";
 export let savedSetupDraft = null;
@@ -42,11 +44,11 @@ export function savedSetupDefaultId(method, defaults = state.settings?.defaultSa
 
 export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex = "" } = {}) {
   const comboId = String(item.comboId || "");
-  const comboOptions = state.rodReelCombos.map((combo) => (
-    `<option value="${escapeHtml(combo.id)}" ${combo.id === comboId ? "selected" : ""}>${escapeHtml(comboName(combo.id) || "Rod / reel combo")}</option>`
-  )).join("");
-  return `
-    <div class="saved-setup-row"${sourceIndex === "" ? "" : ` data-source-index="${sourceIndex}"`}>
+  const comboOptions = joinHtml(state.rodReelCombos.map((combo) => (
+    html`<option value="${combo.id}" ${combo.id === comboId ? "selected" : ""}>${comboName(combo.id) || "Rod / reel combo"}</option>`
+  )), "");
+  return html`
+    <div class="saved-setup-row"${sourceIndex === "" ? "" : html` data-source-index="${sourceIndex}"`}>
       <label>
         <span>Rod / reel combo</span>
         <select class="saved-setup-combo"${disabled ? " disabled" : ""}>
@@ -54,7 +56,7 @@ export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex =
           ${comboOptions}
         </select>
       </label>
-      ${disabled ? "" : '<button class="button danger remove-saved-setup-row" type="button">Remove</button>'}
+      ${disabled ? "" : html`<button class="button danger remove-saved-setup-row" type="button">Remove</button>`}
     </div>
   `;
 }
@@ -62,21 +64,21 @@ export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex =
 export function renderSavedSetupCard(item, { draft = false } = {}) {
   const editing = draft || activeSavedSetupEditorId === item.id;
   const rows = Array.isArray(item.rows) ? item.rows : [];
-  return `
+  return html`
     <article class="saved-setup-card${draft ? " is-draft" : ""}"
-      data-saved-setup-id="${escapeHtml(item.id)}"
-      data-saved-setup-method="${escapeHtml(item.method)}"
+      data-saved-setup-id="${item.id}"
+      data-saved-setup-method="${item.method}"
       data-saved-setup-draft="${draft ? "true" : "false"}"
       data-saved-setup-editing="${editing ? "true" : "false"}"
       data-saved-setup-toggle>
       <div class="saved-setup-card-header">
         <label class="settings-control saved-setup-name-control">
           <span>Setup name</span>
-          <input class="saved-setup-name" type="text" maxlength="60" value="${escapeHtml(item.name || "")}" placeholder="Light Jigging"${editing ? "" : " readonly"} />
+          <input class="saved-setup-name" type="text" maxlength="60" value="${item.name || ""}" placeholder="Light Jigging"${editing ? "" : " readonly"} />
         </label>
         <div class="saved-setup-card-actions">
-          ${editing && !draft ? '<button class="button secondary finish-saved-setup-edit" type="button">Done</button>' : !editing ? '<button class="button secondary edit-saved-setup" type="button">Edit</button>' : ""}
-          ${draft ? '<button class="button secondary cancel-saved-setup" type="button">Cancel</button>' : '<button class="button danger delete-saved-setup" type="button">Delete</button>'}
+          ${editing && !draft ? html`<button class="button secondary finish-saved-setup-edit" type="button">Done</button>` : !editing ? html`<button class="button secondary edit-saved-setup" type="button">Edit</button>` : ""}
+          ${draft ? html`<button class="button secondary cancel-saved-setup" type="button">Cancel</button>` : html`<button class="button danger delete-saved-setup" type="button">Delete</button>`}
         </div>
       </div>
       <div class="saved-setup-card-body"${editing ? "" : " hidden"}>
@@ -85,10 +87,10 @@ export function renderSavedSetupCard(item, { draft = false } = {}) {
             <strong>Rod positions</strong>
             <span>Saved setups use rod / reel combos only.</span>
           </div>
-          ${editing ? '<button class="button secondary add-saved-setup-row" type="button">Add Rod</button>' : ""}
+          ${editing ? html`<button class="button secondary add-saved-setup-row" type="button">Add Rod</button>` : ""}
         </div>
         <div class="saved-setup-list">
-          ${rows.map((row, index) => savedSetupRowMarkup(row, { disabled: !editing, sourceIndex: index })).join("") || '<p class="saved-setup-empty-rows">Add at least one rod to save this setup.</p>'}
+          ${rows.length ? joinHtml(rows.map((row, index) => savedSetupRowMarkup(row, { disabled: !editing, sourceIndex: index }))) : html`<p class="saved-setup-empty-rows">Add at least one rod to save this setup.</p>`}
         </div>
       </div>
     </article>
@@ -99,30 +101,30 @@ export function renderSavedSetupMethodSection(method, setups) {
   const methodSetups = setups.filter((setup) => setup.method.toLowerCase() === method.toLowerCase());
   const selectableSetups = methodSetups.filter((setup) => setup.id !== savedSetupDraft?.id);
   const defaultId = savedSetupDefaultId(method);
-  const methodOptions = selectableSetups.map((setup) => (
-    `<option value="${escapeHtml(setup.id)}" ${setup.id === defaultId ? "selected" : ""}>${escapeHtml(setup.name)}</option>`
-  )).join("");
-  return `
-    <section class="saved-setup-method-section" data-saved-setup-method-section="${escapeHtml(method)}">
+  const methodOptions = joinHtml(selectableSetups.map((setup) => (
+    html`<option value="${setup.id}" ${setup.id === defaultId ? "selected" : ""}>${setup.name}</option>`
+  )), "");
+  return html`
+    <section class="saved-setup-method-section" data-saved-setup-method-section="${method}">
       <div class="saved-setup-method-header">
         <div>
-          <h4>${escapeHtml(method)}</h4>
+          <h4>${method}</h4>
         </div>
         <div class="saved-setup-method-controls">
           <label class="settings-control">
-            <span>${escapeHtml(method)} default</span>
-            <select class="saved-setup-default" data-saved-setup-method="${escapeHtml(method)}">
-              <option value="">No ${escapeHtml(method)} default</option>
+            <span>${method} default</span>
+            <select class="saved-setup-default" data-saved-setup-method="${method}">
+              <option value="">No ${method} default</option>
               ${methodOptions}
             </select>
           </label>
-          <button class="button secondary add-saved-setup" type="button" data-saved-setup-new-method="${escapeHtml(method)}">New Setup</button>
+          <button class="button secondary add-saved-setup" type="button" data-saved-setup-new-method="${method}">New Setup</button>
         </div>
       </div>
-      <div class="saved-setup-list" data-saved-setup-list="${escapeHtml(method)}">
+      <div class="saved-setup-list" data-saved-setup-list="${method}">
         ${methodSetups.length
-          ? methodSetups.map((setup) => renderSavedSetupCard(setup, { draft: setup === savedSetupDraft })).join("")
-          : '<p class="saved-setup-empty-state">No saved setups for this method yet.</p>'}
+          ? joinHtml(methodSetups.map((setup) => renderSavedSetupCard(setup, { draft: setup === savedSetupDraft })))
+          : html`<p class="saved-setup-empty-state">No saved setups for this method yet.</p>`}
       </div>
     </section>
   `;
@@ -133,9 +135,9 @@ export function renderSavedSetupSettings() {
   const setups = currentSavedSetups();
   const visibleSetups = savedSetupDraft ? [...setups, savedSetupDraft] : setups;
   const methods = savedSetupMethods();
-  els.savedSetupMethodSections.innerHTML = methods.length
-    ? methods.map((method) => renderSavedSetupMethodSection(method, visibleSetups)).join("")
-    : '<p class="saved-setup-empty-state">Add a non-trolling method in Settings → Categories to create saved setups.</p>';
+  setHtml(els.savedSetupMethodSections, methods.length
+    ? joinHtml(methods.map((method) => renderSavedSetupMethodSection(method, visibleSetups)))
+    : html`<p class="saved-setup-empty-state">Add a non-trolling method in Settings → Categories to create saved setups.</p>`);
 }
 
 export function addSavedSetup(method) {
@@ -153,7 +155,7 @@ export function addSavedSetupRowToCard(card) {
   const list = card?.querySelector(".saved-setup-list");
   if (!list || card.dataset.savedSetupEditing !== "true") return;
   card.querySelector(".saved-setup-empty-rows")?.remove();
-  list.insertAdjacentHTML("beforeend", savedSetupRowMarkup());
+  insertHtml(list, "beforeend", savedSetupRowMarkup());
   scheduleSavedSetupAutosave(card);
   list.querySelector(".saved-setup-row:last-child select")?.focus();
 }
@@ -332,19 +334,19 @@ export function renderSavedSetupPicker() {
   const renderOption = (setup) => {
     const rodSummary = setup.rows.map((row, index) => comboName(row.comboId) || `Rod ${index + 1}`).join(" · ");
     const summary = `${setup.rows.length} rod${setup.rows.length === 1 ? "" : "s"} · ${rodSummary}`;
-    return `
-        <button class="saved-setup-picker-option" type="button" data-pick-saved-setup="${escapeHtml(setup.id)}">
+    return html`
+        <button class="saved-setup-picker-option" type="button" data-pick-saved-setup="${setup.id}">
           <span class="saved-setup-picker-option-copy">
-            <strong>${escapeHtml(setup.name)}</strong>
-            <small>${escapeHtml(summary)}</small>
+            <strong>${setup.name}</strong>
+            <small>${summary}</small>
           </span>
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
         </button>
       `;
   };
-  els.savedSetupPickerList.innerHTML = setups.length
-    ? setups.map(renderOption).join("")
-    : `<p class="saved-setup-picker-empty">No saved ${escapeHtml(method || "fishing")} setups yet. Create one in Settings → Saved Setups.</p>`;
+  setHtml(els.savedSetupPickerList, setups.length
+    ? joinHtml(setups.map(renderOption))
+    : html`<p class="saved-setup-picker-empty">No saved ${method || "fishing"} setups yet. Create one in Settings → Saved Setups.</p>`);
 }
 
 export function openSavedSetupPicker() {
