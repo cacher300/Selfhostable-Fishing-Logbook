@@ -1,8 +1,8 @@
 import { createId, isValidSpeciesMapColor, speciesColor, unitOptions } from "./app-defaults.js";
-import { setState, state, ui } from "./app-state.js";
+import { state, ui } from "./app-state.js";
 import { currentTrollingSpreads, hasFishHawk, optionChoices } from "./app-normalization.js";
 import { convertStoredMeasurements, convertUnitValue, normalizeUnits, themePreference, timeFormatPreference, unitPreference, unitSymbol } from "./app-units.js";
-import { saveState } from "./app-persistence.js";
+import { updateLogbook, updateSettings } from "./actions.js";
 import { els } from "./app-elements.js";
 import { renderLocationManager } from "./locations.js";
 import { marineRequestCache, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel, weatherRequestCache } from "./location-weather.js";
@@ -288,20 +288,21 @@ export async function saveTrollingSpreadCard(card, options = {}) {
     if (!options.silentInvalid) card?.querySelector(".trolling-spread-name")?.focus();
     return;
   }
-  const previousState = structuredClone(state);
   const spreads = [...currentTrollingSpreads()];
   const index = spreads.findIndex((item) => item.id === next.id);
   if (index >= 0) spreads[index] = next;
   else spreads.push(next);
-  state.settings = { ...(state.settings || {}), trollingSpreads: spreads };
   settingsUi.trollingSpreadDraft = null;
   settingsUi.activeTrollingSpreadEditorId = next.id;
   setTrollingSpreadSettingsMessage("");
   try {
-    await runSettingsSave(() => saveState(), "The trolling spread could not be saved.", options);
+    await runSettingsSave(
+      () => updateSettings((settings) => { settings.trollingSpreads = spreads; }),
+      "The trolling spread could not be saved.",
+      options
+    );
     renderTrollingSpreadSettings();
   } catch (error) {
-    setState(previousState);
     settingsUi.trollingSpreadDraft = wasDraft ? next : null;
     settingsUi.activeTrollingSpreadEditorId = next.id;
     renderTrollingSpreadSettings();
@@ -311,33 +312,33 @@ export async function saveTrollingSpreadCard(card, options = {}) {
 export async function deleteTrollingSpread(spreadId) {
   const spread = currentTrollingSpreads().find((item) => item.id === spreadId);
   if (!spread || !confirm(`Delete the ${spread.name} spread?`)) return;
-  const previousState = structuredClone(state);
   if (settingsUi.activeTrollingSpreadEditorId === spreadId) settingsUi.activeTrollingSpreadEditorId = "";
   const spreads = currentTrollingSpreads().filter((item) => item.id !== spreadId);
-  state.settings = {
-    ...(state.settings || {}),
-    trollingSpreads: spreads,
-    defaultTrollingSpreadId: state.settings?.defaultTrollingSpreadId === spreadId ? "" : state.settings?.defaultTrollingSpreadId || ""
-  };
   try {
-    await runSettingsSave(() => saveState(), "The trolling spread could not be deleted.");
+    await runSettingsSave(
+      () => updateSettings((settings) => {
+        settings.trollingSpreads = spreads;
+        settings.defaultTrollingSpreadId = settings.defaultTrollingSpreadId === spreadId ? "" : settings.defaultTrollingSpreadId || "";
+      }),
+      "The trolling spread could not be deleted."
+    );
     renderTrollingSpreadSettings();
   } catch (error) {
-    setState(previousState);
     renderTrollingSpreadSettings();
   }
 }
 
 export async function saveDefaultTrollingSpreadId(options = {}) {
-  const previousId = state.settings?.defaultTrollingSpreadId || "";
   const nextId = els.defaultTrollingSpreadId?.value || "";
   const validId = !nextId || currentTrollingSpreads().some((item) => item.id === nextId);
   if (!validId) return;
-  state.settings = { ...(state.settings || {}), defaultTrollingSpreadId: nextId };
   try {
-    await runSettingsSave(() => saveState(), "The Trolling default could not be saved.", options);
+    await runSettingsSave(
+      () => updateSettings((settings) => { settings.defaultTrollingSpreadId = nextId; }),
+      "The Trolling default could not be saved.",
+      options
+    );
   } catch (error) {
-    state.settings = { ...(state.settings || {}), defaultTrollingSpreadId: previousId };
     renderTrollingSpreadSettings();
   }
 }
@@ -427,15 +428,13 @@ export function collectSpeciesMapColors() {
 }
 
 export async function saveSpeciesMapColors(options = {}) {
-  const previousState = structuredClone(state);
-  state.settings = {
-    ...(state.settings || {}),
-    speciesMapColors: collectSpeciesMapColors()
-  };
+  const speciesMapColors = collectSpeciesMapColors();
   try {
     await runSettingsSave(
       async () => {
-        await saveState();
+        await updateSettings((settings) => {
+          settings.speciesMapColors = speciesMapColors;
+        });
         if (options.rerender !== false) renderSpeciesMapColorSettings();
         if (!els.mapPanel?.classList.contains("hidden")) renderFishMap();
       },
@@ -443,19 +442,18 @@ export async function saveSpeciesMapColors(options = {}) {
       options
     );
   } catch (error) {
-    setState(previousState);
     renderSpeciesMapColorSettings();
   }
 }
 
 export async function saveFishHawkPreference(options = {}) {
-  const previousSetting = hasFishHawk();
   const nextSetting = Boolean(els.fishHawkToggle?.checked);
-  state.settings = { ...(state.settings || {}), hasFishHawk: nextSetting };
   try {
     await runSettingsSave(
       async () => {
-        await saveState();
+        await updateSettings((settings) => {
+          settings.hasFishHawk = nextSetting;
+        });
         syncFishHawkVisibility();
         const summaryTrip = state.trips.find((trip) => trip.id === ui.activeSummaryTripId);
         if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
@@ -464,7 +462,6 @@ export async function saveFishHawkPreference(options = {}) {
       options
     );
   } catch (error) {
-    state.settings = { ...(state.settings || {}), hasFishHawk: previousSetting };
     renderPreferenceSettings();
     syncFishHawkVisibility();
   }
@@ -489,14 +486,20 @@ export async function saveDefaultPeople(options = {}) {
   const defaultPeople = [...els.defaultPeopleOptions?.querySelectorAll('input[type="checkbox"]:checked') || []]
     .map((input) => input.value)
     .filter((id) => availableIds.has(id));
-  state.settings = { ...(state.settings || {}), defaultPeople };
-  await runSettingsSave(() => saveState(), "The default people could not be saved.", options);
+  await runSettingsSave(
+    () => updateSettings((settings) => { settings.defaultPeople = defaultPeople; }),
+    "The default people could not be saved.",
+    options
+  );
 }
 
 export async function saveDefaultHomeLake(options = {}) {
   const defaultHomeLake = els.defaultHomeLakeSelect?.value || "";
-  state.settings = { ...(state.settings || {}), defaultHomeLake };
-  await runSettingsSave(() => saveState(), "The default home lake could not be saved.", options);
+  await runSettingsSave(
+    () => updateSettings((settings) => { settings.defaultHomeLake = defaultHomeLake; }),
+    "The default home lake could not be saved.",
+    options
+  );
 }
 
 export function setSettingsTab(tab = "general") {
@@ -534,13 +537,9 @@ export async function saveThemePreference(options = {}) {
   const selectedTheme = document.querySelector("[data-theme-option]:checked")?.value;
   const theme = selectedTheme === "dark" ? "dark" : "light";
   applyThemePreference(theme);
-  state.settings = {
-    ...(state.settings || {}),
-    theme
-  };
   try {
     await runSettingsSave(
-      () => saveState(),
+      () => updateSettings((settings) => { settings.theme = theme; }),
       "The theme could not be saved.",
       options
     );
@@ -606,7 +605,6 @@ export function bathymetryOffsetFeetFromDisplay(value, depthUnit = unitPreferenc
 }
 
 export async function saveUnitSettings(options = {}) {
-  const previousState = structuredClone(state);
   const previousUnits = normalizeUnits(state.settings?.units);
   const units = { ...previousUnits };
   document.querySelectorAll("[data-unit-setting]").forEach((select) => {
@@ -627,16 +625,17 @@ export async function saveUnitSettings(options = {}) {
     };
   });
   const nextUnits = normalizeUnits(units);
-  convertStoredMeasurements(previousUnits, nextUnits);
-  state.settings = {
-    ...(state.settings || {}),
-    units: nextUnits,
-    bathymetryLakeCalibrationsFeet: lakeCalibrations
-  };
   try {
     await runSettingsSave(
       async () => {
-        await saveState();
+        await updateLogbook((draft) => {
+          convertStoredMeasurements(previousUnits, nextUnits, draft);
+          draft.settings = {
+            ...(draft.settings || {}),
+            units: nextUnits,
+            bathymetryLakeCalibrationsFeet: lakeCalibrations
+          };
+        });
         weatherRequestCache.clear();
         marineRequestCache.clear();
         renderAll();
@@ -649,7 +648,6 @@ export async function saveUnitSettings(options = {}) {
       options
     );
   } catch (error) {
-    setState(previousState);
     renderAll();
     if (options.rerender !== false && !els.settingsPanel?.classList.contains("hidden")) renderSettings();
   }
@@ -702,14 +700,13 @@ export async function saveTimeFormatPreference(options = {}) {
   const checked = document.querySelector("[data-time-format-option]:checked");
   const nextTimeFormat = checked?.value || els.timeFormatSelect?.value || "24";
   if (els.timeFormatSelect) els.timeFormatSelect.value = nextTimeFormat === "12" ? "12" : "24";
-  state.settings = {
-    ...(state.settings || {}),
-    timeFormat: nextTimeFormat === "12" ? "12" : "24"
-  };
+  const timeFormat = nextTimeFormat === "12" ? "12" : "24";
   try {
     await runSettingsSave(
       async () => {
-        await saveState();
+        await updateSettings((settings) => {
+          settings.timeFormat = timeFormat;
+        });
         renderAll();
         syncUnitLabels();
         if (ui.activeTripWeatherData?.daily) setWeatherStatus(weatherCardConditionsLabel());

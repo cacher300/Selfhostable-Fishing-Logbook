@@ -2,15 +2,14 @@ import { createId } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { optionLabels } from "./app-normalization.js";
 import { unitSymbol } from "./app-units.js";
-import { saveState } from "./app-persistence.js";
+import { deleteCombo as deleteComboRecord, deleteFlasher as deleteFlasherRecord, deleteLure as deleteLureRecord, deleteReel as deleteReelRecord, deleteRod as deleteRodRecord, saveRecord, updateLogbook, upsertListValueInDraft } from "./actions.js";
 import { els } from "./app-elements.js";
 import { beginMediaEditSession, cleanupReplacedMedia, markMediaEditSessionSaved, mediaMarkup } from "./app-media.js";
 import { populateOptionSelect, renderAll } from "./dashboard.js";
 import { uploadImageFile } from "./photos.js";
 import { getValue, setValue } from "./trip-editor.js";
 import { updateRowSummary } from "./trip-rows.js";
-import { upsertListValue } from "./trip-save.js";
-import { activeLineEntry, baitStats, comboName, duplicateMatchesSource, gearDisplayName, gearPhotoFields, gearPhotos, generatedLureName, increasedQuantity, mergeLineHistory, nextReelCopyShortName, renderExistingGearPhotos, renderQueuedGearImage, syncReelGroupQuantity } from "./gear-core.js";
+import { activeLineEntry, baitStats, comboName, duplicateMatchesSource, gearDisplayName, gearPhotoFields, gearPhotos, generatedLureName, increasedQuantity, mergeLineHistory, nextReelCopyShortName, renderExistingGearPhotos, renderQueuedGearImage } from "./gear-core.js";
 import { populateFlasherSelect, populateLureSelect, populateLuresForType, populateReelSelect, populateRodSelect, prepareInlineGearDialog, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
 import { escapeHtml } from "./form-utils.js";
 
@@ -18,6 +17,17 @@ export function renderLineRows(lines = []) {
   const container = document.querySelector("#reelLineRows");
   if (!container) return;
   container.innerHTML = lineRowMarkup(activeLineEntry({ lineHistory: lines }) || {});
+}
+
+function syncReelGroupQuantityInDraft(reels, groupId, quantity) {
+  if (!groupId) return;
+  reels.forEach((item) => {
+    const itemGroupId = String(item?.modelGroupId || item?.id || "");
+    if (item.id === groupId || itemGroupId === groupId) {
+      item.modelGroupId = groupId;
+      item.quantityAvailable = String(quantity ?? "");
+    }
+  });
 }
 
 export function lineUsesBraid(type) {
@@ -364,13 +374,14 @@ export async function saveReel(event) {
       lineHistory: mergeLineHistory(existing?.lineHistory || [], collectLineRows(existing?.lineHistory || [])),
       ...gearPhotoFields(uploadedPhotos, existing, "reel")
     };
-    const index = state.reels.findIndex((item) => item.id === reel.id);
-    if (index >= 0) state.reels[index] = reel;
-    else state.reels.push(reel);
-    if (modelGroupId) syncReelGroupQuantity(modelGroupId, reel.quantityAvailable);
-    upsertListValue("reelStyles", reel.style);
-    reel.lineHistory.forEach((line) => upsertListValue("lineTypes", line.type));
-    await saveState();
+    await updateLogbook((draft) => {
+      const index = draft.reels.findIndex((item) => item.id === reel.id);
+      if (index >= 0) draft.reels[index] = reel;
+      else draft.reels.push(reel);
+      if (modelGroupId) syncReelGroupQuantityInDraft(draft.reels, modelGroupId, reel.quantityAvailable);
+      upsertListValueInDraft(draft, "reelStyles", reel.style);
+      reel.lineHistory.forEach((line) => upsertListValueInDraft(draft, "lineTypes", line.type));
+    });
     markMediaEditSessionSaved("reel");
     await cleanupReplacedMedia(editingId ? existing : null, reel);
     els.reelDialog.close();
@@ -417,12 +428,15 @@ export async function saveRod(event) {
         "shortName", "type", "brand", "name", "length", "power", "action", "lureRating",
         "purchaseAmount", "dateBought", "quantityAvailable", "notes"
       ]);
-    const index = state.rods.findIndex((item) => item.id === rod.id);
-    if (duplicatedUnchanged) existing.quantityAvailable = increasedQuantity(existing.quantityAvailable);
-    else if (index >= 0) state.rods[index] = rod;
-    else state.rods.push(rod);
-    upsertListValue("rodTypes", rod.type);
-    await saveState();
+    await updateLogbook((draft) => {
+      const index = draft.rods.findIndex((item) => item.id === rod.id);
+      if (duplicatedUnchanged) {
+        const draftExisting = draft.rods.find((item) => item.id === existing.id);
+        if (draftExisting) draftExisting.quantityAvailable = increasedQuantity(draftExisting.quantityAvailable);
+      } else if (index >= 0) draft.rods[index] = rod;
+      else draft.rods.push(rod);
+      upsertListValueInDraft(draft, "rodTypes", rod.type);
+    });
     markMediaEditSessionSaved("rod");
     await cleanupReplacedMedia(editingId ? existing : null, rod);
     els.rodDialog.close();
@@ -449,10 +463,7 @@ export async function saveCombo(event) {
       reelId: getValue("comboReel"),
       notes: getValue("comboNotes")
     };
-    const index = state.rodReelCombos.findIndex((item) => item.id === combo.id);
-    if (index >= 0) state.rodReelCombos[index] = combo;
-    else state.rodReelCombos.push(combo);
-    await saveState();
+    await saveRecord("rodReelCombos", combo);
     els.comboDialog.close();
     renderAll();
   } catch (error) {
@@ -491,12 +502,13 @@ export async function saveLure(event) {
       ...gearPhotoFields(uploadedImage ? [uploadedImage] : [], existing, "lure")
     };
     lure.name = lure.name || generatedLureName(lure) || "Unnamed Lure";
-    const lureIndex = state.lures.findIndex((item) => item.id === lure.id);
-    if (lureIndex >= 0) state.lures[lureIndex] = lure;
-    else state.lures.push(lure);
-    upsertListValue("lureTypes", lure.type);
-    upsertListValue("flyCategories", lure.flyCategory);
-    await saveState();
+    await updateLogbook((draft) => {
+      const lureIndex = draft.lures.findIndex((item) => item.id === lure.id);
+      if (lureIndex >= 0) draft.lures[lureIndex] = lure;
+      else draft.lures.push(lure);
+      upsertListValueInDraft(draft, "lureTypes", lure.type);
+      upsertListValueInDraft(draft, "flyCategories", lure.flyCategory);
+    });
     markMediaEditSessionSaved("lure");
     await cleanupReplacedMedia(existing, lure);
     [...document.querySelectorAll(".catch-lure, .trip-gear-lure, .trip-gear-cheater-lure")].forEach((select) => populateLureSelect(select, select.value));
@@ -545,11 +557,12 @@ export async function saveFlasher(event) {
       notes: getValue("flasherNotes"),
       ...gearPhotoFields(uploadedImage ? [uploadedImage] : [], existing, "flasher")
     };
-    const flasherIndex = state.flashers.findIndex((item) => item.id === flasher.id);
-    if (flasherIndex >= 0) state.flashers[flasherIndex] = flasher;
-    else state.flashers.push(flasher);
-    upsertListValue("flasherTypes", flasher.type);
-    await saveState();
+    await updateLogbook((draft) => {
+      const flasherIndex = draft.flashers.findIndex((item) => item.id === flasher.id);
+      if (flasherIndex >= 0) draft.flashers[flasherIndex] = flasher;
+      else draft.flashers.push(flasher);
+      upsertListValueInDraft(draft, "flasherTypes", flasher.type);
+    });
     markMediaEditSessionSaved("flasher");
     await cleanupReplacedMedia(existing, flasher);
     [...document.querySelectorAll(".catch-flasher, .trip-gear-flasher")].forEach((select) => populateFlasherSelect(select, select.value));
@@ -575,15 +588,7 @@ export async function deleteReel() {
   if (!reel || !confirm(`Delete ${gearDisplayName(reel, "this reel")}? This clears it from combos and trips.`)) return;
   const modelGroupId = reel.modelGroupId || "";
   const nextGroupQuantity = Math.max(0, (Number(reel.quantityAvailable) || 1) - 1);
-  state.reels = state.reels.filter((item) => item.id !== reelId);
-  if (modelGroupId) syncReelGroupQuantity(modelGroupId, nextGroupQuantity);
-  state.rodReelCombos.forEach((combo) => {
-    if (combo.reelId === reelId) combo.reelId = "";
-  });
-  state.trips.forEach((trip) => (trip.gearUsed || []).forEach((gearItem) => {
-    if (gearItem.reelId === reelId) gearItem.reelId = "";
-  }));
-  await saveState();
+  await deleteReelRecord(reelId, modelGroupId, nextGroupQuantity);
   await cleanupReplacedMedia(reel, null);
   els.reelDialog.close();
   renderAll();
@@ -593,14 +598,7 @@ export async function deleteRod() {
   const rodId = getValue("editingRodId");
   const rod = state.rods.find((item) => item.id === rodId);
   if (!rod || !confirm(`Delete ${gearDisplayName(rod, "this rod")}? This clears it from combos and trips.`)) return;
-  state.rods = state.rods.filter((item) => item.id !== rodId);
-  state.rodReelCombos.forEach((combo) => {
-    if (combo.rodId === rodId) combo.rodId = "";
-  });
-  state.trips.forEach((trip) => (trip.gearUsed || []).forEach((gearItem) => {
-    if (gearItem.rodId === rodId) gearItem.rodId = "";
-  }));
-  await saveState();
+  await deleteRodRecord(rodId);
   await cleanupReplacedMedia(rod, null);
   els.rodDialog.close();
   renderAll();
@@ -610,11 +608,7 @@ export async function deleteCombo() {
   const comboId = getValue("editingComboId");
   const combo = state.rodReelCombos.find((item) => item.id === comboId);
   if (!combo || !confirm(`Delete ${comboName(comboId) || "this combo"}? Trips keep their selected rod and reel.`)) return;
-  state.rodReelCombos = state.rodReelCombos.filter((item) => item.id !== comboId);
-  state.trips.forEach((trip) => (trip.gearUsed || []).forEach((gearItem) => {
-    if (gearItem.comboId === comboId) gearItem.comboId = "";
-  }));
-  await saveState();
+  await deleteComboRecord(comboId);
   els.comboDialog.close();
   renderAll();
 }
@@ -623,16 +617,7 @@ export async function deleteLure() {
   const lureId = getValue("editingLureId");
   const lure = state.lures.find((item) => item.id === lureId);
   if (!lure || !confirm(`Delete ${lure.name}? This removes it from saved lures and clears it from catches.`)) return;
-  state.lures = state.lures.filter((item) => item.id !== lureId);
-  state.trips.forEach((trip) => {
-    (trip.gearUsed || []).forEach((gearItem) => {
-      if (gearItem.lureId === lureId) gearItem.lureId = "";
-      if (gearItem.cheaterLureId === lureId) gearItem.cheaterLureId = "";
-    });
-    (trip.catches || []).forEach((catchItem) => { if (catchItem.lureId === lureId) catchItem.lureId = ""; });
-    (trip.lostFish || []).forEach((fish) => { if (fish.lureId === lureId) fish.lureId = ""; });
-  });
-  await saveState();
+  await deleteLureRecord(lureId);
   await cleanupReplacedMedia(lure, null);
   els.lureDialog.close();
   renderAll();
@@ -642,13 +627,7 @@ export async function deleteFlasher() {
   const flasherId = getValue("editingFlasherId");
   const flasher = state.flashers.find((item) => item.id === flasherId);
   if (!flasher || !confirm(`Delete ${flasher.name}? This removes it from saved flashers and clears it from catches.`)) return;
-  state.flashers = state.flashers.filter((item) => item.id !== flasherId);
-  state.trips.forEach((trip) => {
-    (trip.gearUsed || []).forEach((gearItem) => { if (gearItem.flasherId === flasherId) gearItem.flasherId = ""; });
-    (trip.catches || []).forEach((catchItem) => { if (catchItem.flasherId === flasherId) catchItem.flasherId = ""; });
-    (trip.lostFish || []).forEach((fish) => { if (fish.flasherId === flasherId) fish.flasherId = ""; });
-  });
-  await saveState();
+  await deleteFlasherRecord(flasherId);
   await cleanupReplacedMedia(flasher, null);
   els.flasherDialog.close();
   renderAll();

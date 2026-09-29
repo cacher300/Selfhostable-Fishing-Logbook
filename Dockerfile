@@ -7,7 +7,7 @@ RUN npm ci --no-audit --no-fund
 COPY scripts/build-frontend.mjs ./scripts/
 COPY schema ./schema
 COPY static ./static
-RUN node scripts/build-frontend.mjs
+RUN node scripts/build-frontend.mjs --production
 
 
 FROM python:3.13-slim

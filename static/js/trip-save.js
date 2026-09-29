@@ -1,7 +1,7 @@
 import { createId } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { findLaunchByIdOrName, generatedTripTitle } from "./app-normalization.js";
-import { saveState } from "./app-persistence.js";
+import { saveTripRecord, upsertListValueInDraft } from "./actions.js";
 import { els } from "./app-elements.js";
 import { cleanupDeletedMedia, isUsableCoordinates, markMediaEditSessionSaved, mediaReferenceKeys } from "./app-media.js";
 import { enrichTripWithWeather, resolveTripWaveSnapshot, weatherWindText } from "./location-weather.js";
@@ -251,10 +251,6 @@ export function collectTripFromForm() {
   };
 }
 
-export function upsertListValue(listName, value) {
-  if (value && !state[listName].includes(value)) state[listName].push(value);
-}
-
 export async function saveTrip(event) {
   return persistTrip(event, { draft: false });
 }
@@ -276,15 +272,6 @@ export async function persistTrip(event, { draft = false } = {}) {
     setValue("tripId", trip.id);
     trip.isDraft = draft;
     trip.title = trip.title || generatedTripTitle(trip, state.trips);
-    state.people = mergePeople(state.people, trip.people);
-    upsertListValue("species", trip.targetSpecies);
-    upsertListValue("methods", trip.method);
-    upsertListValue("waterClarities", trip.waterClarity);
-    upsertListValue("waterLevels", trip.waterLevel);
-    trip.catches.forEach((catchItem) => upsertListValue("flyPresentations", catchItem.flyPresentation));
-    upsertListValue("weatherTypes", trip.weather);
-    trip.catches.forEach((catchItem) => upsertListValue("species", catchItem.species));
-    trip.lostFish.forEach((fish) => upsertListValue("species", fish.possibleSpecies));
     trip = await enrichTripWithWeather(trip);
     trip = resolveTripWaveSnapshot(trip);
     trip.wind = weatherWindText(trip.weatherData);
@@ -292,10 +279,18 @@ export async function persistTrip(event, { draft = false } = {}) {
 
     const index = state.trips.findIndex((item) => item.id === trip.id);
     const previousMedia = index >= 0 ? [...mediaReferenceKeys(state.trips[index])] : [];
-    if (index >= 0) state.trips[index] = trip;
-    else state.trips.push(trip);
 
-    await saveState();
+    await saveTripRecord(trip, (draft) => {
+      draft.people = mergePeople(draft.people, trip.people);
+      upsertListValueInDraft(draft, "species", trip.targetSpecies);
+      upsertListValueInDraft(draft, "methods", trip.method);
+      upsertListValueInDraft(draft, "waterClarities", trip.waterClarity);
+      upsertListValueInDraft(draft, "waterLevels", trip.waterLevel);
+      trip.catches.forEach((catchItem) => upsertListValueInDraft(draft, "flyPresentations", catchItem.flyPresentation));
+      upsertListValueInDraft(draft, "weatherTypes", trip.weather);
+      trip.catches.forEach((catchItem) => upsertListValueInDraft(draft, "species", catchItem.species));
+      trip.lostFish.forEach((fish) => upsertListValueInDraft(draft, "species", fish.possibleSpecies));
+    });
     markMediaEditSessionSaved("trip");
     const currentMedia = mediaReferenceKeys(trip);
     await cleanupDeletedMedia(previousMedia.filter((key) => !currentMedia.has(key)));

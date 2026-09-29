@@ -73,12 +73,12 @@ export function reelModelGroupId(reel) {
 }
 
 export function syncReelGroupQuantity(groupId, quantity) {
-  if (!groupId) return;
-  state.reels.forEach((item) => {
+  if (!groupId) return state.reels;
+  return state.reels.map((item) => {
     if (item.id === groupId || reelModelGroupId(item) === groupId) {
-      item.modelGroupId = groupId;
-      item.quantityAvailable = String(quantity ?? "");
+      return { ...item, modelGroupId: groupId, quantityAvailable: String(quantity ?? "") };
     }
+    return item;
   });
 }
 

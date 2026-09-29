@@ -1,7 +1,7 @@
 import { L } from "./vendor.js";
 import { state, ui } from "./app-state.js";
 import { findLaunchByIdOrName, slugId } from "./app-normalization.js";
-import { saveState } from "./app-persistence.js";
+import { deleteLaunch, deleteLocation, reorderLocations, saveLocation } from "./actions.js";
 import { els } from "./app-elements.js";
 import { isUsableCoordinates } from "./app-media.js";
 import { scheduleTripWeatherPreview } from "./location-weather.js";
@@ -53,14 +53,8 @@ export async function saveLocationOrderFromManager() {
   const orderedIds = [...els.locationManagerList.querySelectorAll("[data-managed-location-id]")]
     .map((card) => card.dataset.managedLocationId);
   if (!orderedIds.length) return;
-  const order = new Map(orderedIds.map((id, index) => [id, index]));
-  state.locations = [...state.locations].sort((a, b) => {
-    const aOrder = order.has(a.id) ? order.get(a.id) : Number.MAX_SAFE_INTEGER;
-    const bOrder = order.has(b.id) ? order.get(b.id) : Number.MAX_SAFE_INTEGER;
-    return aOrder - bOrder;
-  });
+  await reorderLocations(orderedIds);
   populateLocationSelect();
-  await saveState();
 }
 
 export function handleLocationManagerDragStart(event) {
@@ -427,16 +421,16 @@ export async function saveLocationPin(event) {
       name,
       coordinates
     };
-    location.launches = existing
-      ? location.launches.map((item) => item.id === existing.id ? launch : item)
-      : [...(location.launches || []), launch];
-    state.trips = state.trips.map((trip) => (
-      trip.locationId === location.id && trip.launchId === launch.id
-        ? { ...trip, launch: launch.name }
-        : trip
-    ));
-    populateLocationSelect(location.id);
-    populateLaunchSelect(launch.id);
+    try {
+      await saveLocation(location, { mode: "launch", launch: { existingId: existing?.id || "", record: launch } });
+      populateLocationSelect(location.id);
+      populateLaunchSelect(launch.id);
+      renderLocationManager();
+      els.locationDialog.close();
+      renderFilters();
+    } catch (error) {
+      console.error("Could not save location pin.", error);
+    }
   } else {
     const existing = state.locations.find((item) => item.id === ui.activeLocationPickerLocationId)
       || state.locations.find((item) => item.name.toLowerCase() === name.toLowerCase());
@@ -446,22 +440,15 @@ export async function saveLocationPin(event) {
       coordinates,
       launches: existing?.launches || []
     };
-    state.locations = existing
-      ? state.locations.map((item) => item.id === existing.id ? location : item)
-      : [...state.locations, location].sort((a, b) => a.name.localeCompare(b.name));
-    state.trips = state.trips.map((trip) => (
-      trip.locationId === location.id ? { ...trip, location: location.name } : trip
-    ));
-    populateLocationSelect(location.id);
-  }
-
-  renderLocationManager();
-  els.locationDialog.close();
-  try {
-    await saveState();
-    renderFilters();
-  } catch (error) {
-    console.error("Could not save location pin.", error);
+    try {
+      await saveLocation(location);
+      populateLocationSelect(location.id);
+      renderLocationManager();
+      els.locationDialog.close();
+      renderFilters();
+    } catch (error) {
+      console.error("Could not save location pin.", error);
+    }
   }
   scheduleTripWeatherPreview(true);
 }
@@ -486,10 +473,9 @@ export async function deleteManagedLocation(locationId) {
     return false;
   }
   if (!confirm(`Delete ${location.name}?`)) return false;
-  state.locations = state.locations.filter((item) => item.id !== location.id);
+  await deleteLocation(location.id);
   populateLocationSelect();
   renderLocationManager();
-  await saveState();
   renderFilters();
   return true;
 }
@@ -504,11 +490,10 @@ export async function deleteManagedLaunch(locationId, launchId) {
     return false;
   }
   if (!confirm(`Delete ${launch.name}?`)) return false;
-  location.launches = (location.launches || []).filter((item) => item.id !== launch.id);
+  await deleteLaunch(location.id, launch.id);
   populateLocationSelect(location.id);
   populateLaunchSelect();
   renderLocationManager();
-  await saveState();
   renderFilters();
   return true;
 }

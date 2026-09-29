@@ -3,7 +3,7 @@ import { createId, defaultTimeValue } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { findLaunchByIdOrName, findLocationByIdOrName, generatedTripTitle, optionLabels } from "./app-normalization.js";
 import { convertUnitValue, explicitMeasurementUnit, unitPreference, unitSymbol } from "./app-units.js";
-import { saveState } from "./app-persistence.js";
+import { deleteTrip } from "./actions.js";
 import { els } from "./app-elements.js";
 import { beginMediaEditSession, cleanupDeletedMedia, isUsableCoordinates, mediaReferenceKeys } from "./app-media.js";
 import { LOCATION_FOCUS_ZOOM, coordinateText, populateLaunchSelect, populateLocationSelect, selectedTripLocationCoordinates } from "./locations.js";
@@ -253,8 +253,7 @@ export async function deleteTripById(tripId, options = {}) {
   const trip = state.trips.find((item) => item.id === tripId);
   if (!trip || !confirmTripDeletion(trip)) return false;
   const deletedTripMedia = [...mediaReferenceKeys(trip)];
-  state.trips = state.trips.filter((item) => item.id !== tripId);
-  await saveState();
+  await deleteTrip(tripId);
   await cleanupDeletedMedia(deletedTripMedia);
   if (options.closeEditor) closeTripDialog({ force: true });
   if (options.closeSummary) {

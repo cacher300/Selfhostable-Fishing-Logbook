@@ -1,7 +1,6 @@
-import { state } from "./app-state.js";
 import { optionChoices, optionLabels, slugOptionValue } from "./app-normalization.js";
 import { currentChopRanges, validateChopRanges } from "./app-units.js";
-import { saveState } from "./app-persistence.js";
+import { replacePredefinedFields, updateSettings } from "./actions.js";
 import { els } from "./app-elements.js";
 import { runSettingsSave, settingsAutosaveTimer, settingsUi } from "./settings-core.js";
 import { renderSettings } from "./settings.js";
@@ -104,11 +103,11 @@ export function collectPredefinedFieldSettings() {
 }
 
 export async function savePredefinedFieldSettings(options = {}) {
-  Object.assign(state, collectPredefinedFieldSettings());
+  const fields = collectPredefinedFieldSettings();
   try {
     await runSettingsSave(
       async () => {
-        await saveState();
+        await replacePredefinedFields(fields);
         renderAll();
         if (options.rerender !== false) renderSettings();
       },
@@ -204,14 +203,12 @@ export async function saveChopRanges(options = {}) {
     alert(error.message || "Check the chop ranges before saving.");
     return;
   }
-  state.settings = {
-    ...(state.settings || {}),
-    chopRanges: ranges
-  };
   try {
     await runSettingsSave(
       async () => {
-        await saveState();
+        await updateSettings((settings) => {
+          settings.chopRanges = ranges;
+        });
         if (options.rerender !== false) {
           settingsUi.chopRangesEditing = false;
           settingsUi.chopRangesEditSnapshot = null;
