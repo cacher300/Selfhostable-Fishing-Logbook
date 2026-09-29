@@ -35,7 +35,8 @@ import { validateSchema } from "./logbook-validator.js";
 
 export const constants = ${stable(constants)};
 export const defaultLogbook = ${stable(defaultLogbook)};
-export const OBJECT_COLLECTION_KEYS = new Set(["lures","flashers","reels","rods","rodReelCombos","people","locations","spots","expeditions","trips"]);
+export const COLLECTION_KEYS = constants.collectionKeys;
+export const OBJECT_COLLECTION_KEYS = new Set(constants.objectCollectionKeys);
 
 function fail(path, message) { return { valid: false, error: path + ": " + message }; }
 function ok() { return { valid: true, error: null }; }

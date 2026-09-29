@@ -166,5 +166,54 @@
   "spotRadiusMeters": {
     "minimum": 25,
     "maximum": 500
-  }
+  },
+  "collectionKeys": [
+    "species",
+    "methods",
+    "lureTypes",
+    "flasherTypes",
+    "waterClarities",
+    "weatherTypes",
+    "reelStyles",
+    "rodTypes",
+    "lineTypes",
+    "riggings",
+    "structureOptions",
+    "flyCategories",
+    "flyPresentations",
+    "waterLevels",
+    "lureBladeTypes",
+    "lureSpoonSizes",
+    "meatRigTypes",
+    "softPlasticTypes",
+    "trollingPresentations",
+    "trollingDirections",
+    "setupLineSides",
+    "lures",
+    "flashers",
+    "reels",
+    "rods",
+    "rodReelCombos",
+    "people",
+    "locations",
+    "spots",
+    "expeditions",
+    "trips"
+  ],
+  "objectCollectionKeys": [
+    "lures",
+    "flashers",
+    "reels",
+    "rods",
+    "rodReelCombos",
+    "people",
+    "locations",
+    "spots",
+    "expeditions",
+    "trips"
+  ],
+  "optionalCollectionKeys": [
+    "meatRigTypes",
+    "softPlasticTypes"
+  ]
 }

@@ -1,4 +1,24 @@
-function renderSettings() {
+import { createId, isValidSpeciesMapColor, speciesColor, unitOptions } from "./app-defaults.js";
+import { setState, state, ui } from "./app-state.js";
+import { currentTrollingSpreads, hasFishHawk, optionChoices } from "./app-normalization.js";
+import { convertStoredMeasurements, convertUnitValue, normalizeUnits, themePreference, timeFormatPreference, unitPreference, unitSymbol } from "./app-units.js";
+import { saveState } from "./app-persistence.js";
+import { els } from "./app-elements.js";
+import { renderLocationManager } from "./locations.js";
+import { marineRequestCache, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel, weatherRequestCache } from "./location-weather.js";
+import { runSettingsSave, scheduleSettingsAutosave, settingsAutosaveTimer, settingsUi } from "./settings-core.js";
+import { renderSavedSetupSettings } from "./saved-setups.js";
+import { renderChopRangeSettings, renderPredefinedFieldSettings } from "./settings-fields.js";
+import { renderFishingSpotSettings, renderPrivatePhotoLocationSettings } from "./settings-locations.js";
+import { renderAll } from "./dashboard.js";
+import { mergePeople } from "./trip-editor.js";
+import { comboName } from "./gear-core.js";
+import { renderSpreadDiagram } from "./trolling-spread.js";
+import { renderFishMap } from "./maps.js";
+import { openTripSummary } from "./trip-timeline.js";
+import { escapeHtml, syncFishHawkVisibility, trimNumber } from "./form-utils.js";
+
+export function renderSettings() {
   syncSettingsTabs();
   renderPreferenceSettings();
   renderSpeciesMapColorSettings();
@@ -14,7 +34,7 @@ function renderSettings() {
   renderLocationManager();
 }
 
-function trollingSpreadRowMarkup(item = {}, { disabled = false, sourceIndex = "" } = {}) {
+export function trollingSpreadRowMarkup(item = {}, { disabled = false, sourceIndex = "" } = {}) {
   const comboId = String(item.comboId || "");
   const side = String(item.side || "");
   const presentation = String(item.presentation || "");
@@ -53,12 +73,12 @@ function trollingSpreadRowMarkup(item = {}, { disabled = false, sourceIndex = ""
   `;
 }
 
-function trollingSpreadUsesDipseyDiverColor(value) {
+export function trollingSpreadUsesDipseyDiverColor(value) {
   const key = String(value || "").trim().toLowerCase().replace(/[\s_]+/g, "-");
   return key === "high-diver" || key === "low-diver";
 }
 
-function syncTrollingSpreadRowFields(row) {
+export function syncTrollingSpreadRowFields(row) {
   if (!row) return;
   const presentation = row.querySelector(".trolling-spread-presentation")?.value || "";
   const supportsColor = trollingSpreadUsesDipseyDiverColor(presentation);
@@ -69,7 +89,7 @@ function syncTrollingSpreadRowFields(row) {
   }
 }
 
-function trollingSpreadRodsForPreview(spread = []) {
+export function trollingSpreadRodsForPreview(spread = []) {
   return (Array.isArray(spread) ? spread : []).map((item, index) => ({
     ...(state.rodReelCombos.find((combo) => combo.id === item.comboId) || {}),
     id: `trolling-spread-${index}`,
@@ -83,16 +103,16 @@ function trollingSpreadRodsForPreview(spread = []) {
   }));
 }
 
-function renderTrollingSpreadPreview(card, spread) {
+export function renderTrollingSpreadPreview(card, spread) {
   const canvas = card?.querySelector("[data-trolling-spread-preview]");
   if (!canvas || typeof renderSpreadDiagram !== "function") return;
   canvas.innerHTML = renderSpreadDiagram(trollingSpreadRodsForPreview(spread), { labelWithCombo: true });
 }
 
-function renderTrollingSpreadCard(item, { draft = false } = {}) {
+export function renderTrollingSpreadCard(item, { draft = false } = {}) {
   const name = String(item?.name || "");
   const spread = Array.isArray(item?.spread) ? item.spread : [];
-  const editing = draft || activeTrollingSpreadEditorId === item.id;
+  const editing = draft || settingsUi.activeTrollingSpreadEditorId === item.id;
   const expanded = editing;
   return `
     <article class="trolling-spread-card${draft ? " is-draft" : ""}" data-trolling-spread-id="${escapeHtml(item.id)}" data-trolling-spread-draft="${draft ? "true" : "false"}" data-trolling-spread-editing="${editing ? "true" : "false"}" data-trolling-spread-toggle aria-expanded="${expanded ? "true" : "false"}" onclick="toggleTrollingSpreadCard(this, event)">
@@ -128,10 +148,10 @@ function renderTrollingSpreadCard(item, { draft = false } = {}) {
   `;
 }
 
-function renderTrollingSpreadSettings() {
+export function renderTrollingSpreadSettings() {
   if (!els.defaultTrollingSpreadRows) return;
   const spreads = currentTrollingSpreads();
-  const visibleSpreads = trollingSpreadDraft ? [...spreads, trollingSpreadDraft] : spreads;
+  const visibleSpreads = settingsUi.trollingSpreadDraft ? [...spreads, settingsUi.trollingSpreadDraft] : spreads;
   const defaultId = String(state.settings?.defaultTrollingSpreadId || "");
   if (els.defaultTrollingSpreadId) {
     els.defaultTrollingSpreadId.innerHTML = [
@@ -142,7 +162,7 @@ function renderTrollingSpreadSettings() {
   }
   els.defaultTrollingSpreadRows.innerHTML = `
     ${visibleSpreads.length
-      ? visibleSpreads.map((item) => renderTrollingSpreadCard(item, { draft: item === trollingSpreadDraft })).join("")
+      ? visibleSpreads.map((item) => renderTrollingSpreadCard(item, { draft: item === settingsUi.trollingSpreadDraft })).join("")
       : '<div class="trolling-spread-empty-state">No saved trolling spreads yet. Add one to make it available from the trip editor.</div>'}
   `;
   els.defaultTrollingSpreadRows.querySelectorAll(".trolling-spread-row").forEach(syncTrollingSpreadRowFields);
@@ -152,18 +172,18 @@ function renderTrollingSpreadSettings() {
   });
 }
 
-function addTrollingSpread() {
-  if (trollingSpreadDraft) {
-    document.querySelector(`[data-trolling-spread-id="${CSS.escape(trollingSpreadDraft.id)}"] .trolling-spread-name`)?.focus();
+export function addTrollingSpread() {
+  if (settingsUi.trollingSpreadDraft) {
+    document.querySelector(`[data-trolling-spread-id="${CSS.escape(settingsUi.trollingSpreadDraft.id)}"] .trolling-spread-name`)?.focus();
     return;
   }
-  trollingSpreadDraft = { id: createId(), name: "", spread: [] };
-  activeTrollingSpreadEditorId = trollingSpreadDraft.id;
+  settingsUi.trollingSpreadDraft = { id: createId(), name: "", spread: [] };
+  settingsUi.activeTrollingSpreadEditorId = settingsUi.trollingSpreadDraft.id;
   renderTrollingSpreadSettings();
-  document.querySelector(`[data-trolling-spread-id="${CSS.escape(trollingSpreadDraft.id)}"] .trolling-spread-name`)?.focus();
+  document.querySelector(`[data-trolling-spread-id="${CSS.escape(settingsUi.trollingSpreadDraft.id)}"] .trolling-spread-name`)?.focus();
 }
 
-function addTrollingSpreadRowToCard(card) {
+export function addTrollingSpreadRowToCard(card) {
   const list = card?.querySelector(".trolling-spread-list");
   if (!list || card.dataset.trollingSpreadEditing !== "true") return;
   card.querySelector(".trolling-spread-empty-rows")?.remove();
@@ -173,14 +193,14 @@ function addTrollingSpreadRowToCard(card) {
   list.querySelector(".trolling-spread-row:last-child select")?.focus();
 }
 
-function editTrollingSpread(spreadId) {
+export function editTrollingSpread(spreadId) {
   if (!currentTrollingSpreads().some((item) => item.id === spreadId)) return;
-  activeTrollingSpreadEditorId = spreadId;
+  settingsUi.activeTrollingSpreadEditorId = spreadId;
   renderTrollingSpreadSettings();
   document.querySelector(`[data-trolling-spread-id="${CSS.escape(spreadId)}"] .trolling-spread-name`)?.focus();
 }
 
-function collectTrollingSpreadCard(card) {
+export function collectTrollingSpreadCard(card) {
   const id = card?.dataset.trollingSpreadId || createId();
   const existing = currentTrollingSpreads().find((item) => item.id === id);
   return {
@@ -199,13 +219,13 @@ function collectTrollingSpreadCard(card) {
   };
 }
 
-function setTrollingSpreadSettingsMessage(message = "") {
+export function setTrollingSpreadSettingsMessage(message = "") {
   if (!els.trollingSpreadSettingsMessage) return;
   els.trollingSpreadSettingsMessage.textContent = message;
   els.trollingSpreadSettingsMessage.classList.toggle("hidden", !message);
 }
 
-function toggleTrollingSpreadCard(card, event = null) {
+export function toggleTrollingSpreadCard(card, event = null) {
   if (!card) return;
   const clickedName = event?.target?.matches(".trolling-spread-name");
   if (event?.target?.closest("button, input, select, textarea, a") && !clickedName) return;
@@ -218,7 +238,7 @@ function toggleTrollingSpreadCard(card, event = null) {
   }
 }
 
-async function finishTrollingSpreadEdit(card) {
+export async function finishTrollingSpreadEdit(card) {
   const next = collectTrollingSpreadCard(card);
   if (!next.name) {
     setTrollingSpreadSettingsMessage("Enter a name for this spread before finishing.");
@@ -231,12 +251,12 @@ async function finishTrollingSpreadEdit(card) {
   }
   clearTimeout(settingsAutosaveTimer);
   await saveTrollingSpreadCard(card, { autosave: true });
-  activeTrollingSpreadEditorId = "";
+  settingsUi.activeTrollingSpreadEditorId = "";
   setTrollingSpreadSettingsMessage("");
   renderTrollingSpreadSettings();
 }
 
-function scheduleTrollingSpreadAutosave(card) {
+export function scheduleTrollingSpreadAutosave(card) {
   if (!card || card.dataset.trollingSpreadEditing !== "true") return;
   scheduleSettingsAutosave(async (options = {}) => {
     const next = collectTrollingSpreadCard(card);
@@ -245,7 +265,7 @@ function scheduleTrollingSpreadAutosave(card) {
   });
 }
 
-async function saveTrollingSpreadCard(card, options = {}) {
+export async function saveTrollingSpreadCard(card, options = {}) {
   const next = collectTrollingSpreadCard(card);
   const wasDraft = card?.dataset.trollingSpreadDraft === "true";
   if (!next.name) {
@@ -274,25 +294,25 @@ async function saveTrollingSpreadCard(card, options = {}) {
   if (index >= 0) spreads[index] = next;
   else spreads.push(next);
   state.settings = { ...(state.settings || {}), trollingSpreads: spreads };
-  trollingSpreadDraft = null;
-  activeTrollingSpreadEditorId = next.id;
+  settingsUi.trollingSpreadDraft = null;
+  settingsUi.activeTrollingSpreadEditorId = next.id;
   setTrollingSpreadSettingsMessage("");
   try {
     await runSettingsSave(() => saveState(), "The trolling spread could not be saved.", options);
     renderTrollingSpreadSettings();
   } catch (error) {
-    state = previousState;
-    trollingSpreadDraft = wasDraft ? next : null;
-    activeTrollingSpreadEditorId = next.id;
+    setState(previousState);
+    settingsUi.trollingSpreadDraft = wasDraft ? next : null;
+    settingsUi.activeTrollingSpreadEditorId = next.id;
     renderTrollingSpreadSettings();
   }
 }
 
-async function deleteTrollingSpread(spreadId) {
+export async function deleteTrollingSpread(spreadId) {
   const spread = currentTrollingSpreads().find((item) => item.id === spreadId);
   if (!spread || !confirm(`Delete the ${spread.name} spread?`)) return;
   const previousState = structuredClone(state);
-  if (activeTrollingSpreadEditorId === spreadId) activeTrollingSpreadEditorId = "";
+  if (settingsUi.activeTrollingSpreadEditorId === spreadId) settingsUi.activeTrollingSpreadEditorId = "";
   const spreads = currentTrollingSpreads().filter((item) => item.id !== spreadId);
   state.settings = {
     ...(state.settings || {}),
@@ -303,12 +323,12 @@ async function deleteTrollingSpread(spreadId) {
     await runSettingsSave(() => saveState(), "The trolling spread could not be deleted.");
     renderTrollingSpreadSettings();
   } catch (error) {
-    state = previousState;
+    setState(previousState);
     renderTrollingSpreadSettings();
   }
 }
 
-async function saveDefaultTrollingSpreadId(options = {}) {
+export async function saveDefaultTrollingSpreadId(options = {}) {
   const previousId = state.settings?.defaultTrollingSpreadId || "";
   const nextId = els.defaultTrollingSpreadId?.value || "";
   const validId = !nextId || currentTrollingSpreads().some((item) => item.id === nextId);
@@ -322,18 +342,18 @@ async function saveDefaultTrollingSpreadId(options = {}) {
   }
 }
 
-function refreshTrollingSpreadCardPreview(card) {
+export function refreshTrollingSpreadCardPreview(card) {
   renderTrollingSpreadPreview(card, collectTrollingSpreadCard(card).spread);
 }
 
-function cancelTrollingSpreadDraft() {
-  trollingSpreadDraft = null;
-  activeTrollingSpreadEditorId = "";
+export function cancelTrollingSpreadDraft() {
+  settingsUi.trollingSpreadDraft = null;
+  settingsUi.activeTrollingSpreadEditorId = "";
   setTrollingSpreadSettingsMessage("");
   renderTrollingSpreadSettings();
 }
 
-function renderPreferenceSettings() {
+export function renderPreferenceSettings() {
   applyThemePreference();
   document.querySelectorAll("[data-theme-option]").forEach((input) => {
     input.checked = input.value === themePreference();
@@ -347,7 +367,7 @@ function renderPreferenceSettings() {
   });
 }
 
-function speciesMapSettingNames() {
+export function speciesMapSettingNames() {
   const names = [];
   const seen = new Set();
   const add = (value) => {
@@ -366,7 +386,7 @@ function speciesMapSettingNames() {
   return names;
 }
 
-function renderSpeciesMapColorSettings() {
+export function renderSpeciesMapColorSettings() {
   if (!els.speciesMapColorRows) return;
   const species = speciesMapSettingNames();
   els.speciesMapColorRows.innerHTML = species.length
@@ -385,14 +405,14 @@ function renderSpeciesMapColorSettings() {
     : '<p class="map-pin-settings-empty">Add species under Categories before assigning map colors.</p>';
 }
 
-function syncSpeciesMapColorPreview(input) {
+export function syncSpeciesMapColorPreview(input) {
   if (!input?.matches("[data-species-map-color]")) return;
   const row = input.closest(".map-pin-settings-row");
   const color = input.value;
   row?.querySelector("[data-species-map-swatch]")?.style.setProperty("--species-map-color", color);
 }
 
-function collectSpeciesMapColors() {
+export function collectSpeciesMapColors() {
   const existing = state.settings?.speciesMapColors && typeof state.settings.speciesMapColors === "object"
     && !Array.isArray(state.settings.speciesMapColors)
     ? state.settings.speciesMapColors
@@ -406,7 +426,7 @@ function collectSpeciesMapColors() {
   return next;
 }
 
-async function saveSpeciesMapColors(options = {}) {
+export async function saveSpeciesMapColors(options = {}) {
   const previousState = structuredClone(state);
   state.settings = {
     ...(state.settings || {}),
@@ -423,12 +443,12 @@ async function saveSpeciesMapColors(options = {}) {
       options
     );
   } catch (error) {
-    state = previousState;
+    setState(previousState);
     renderSpeciesMapColorSettings();
   }
 }
 
-async function saveFishHawkPreference(options = {}) {
+export async function saveFishHawkPreference(options = {}) {
   const previousSetting = hasFishHawk();
   const nextSetting = Boolean(els.fishHawkToggle?.checked);
   state.settings = { ...(state.settings || {}), hasFishHawk: nextSetting };
@@ -437,7 +457,7 @@ async function saveFishHawkPreference(options = {}) {
       async () => {
         await saveState();
         syncFishHawkVisibility();
-        const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
+        const summaryTrip = state.trips.find((trip) => trip.id === ui.activeSummaryTripId);
         if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
       },
       "The Fish Hawk setting could not be saved.",
@@ -450,7 +470,7 @@ async function saveFishHawkPreference(options = {}) {
   }
 }
 
-function renderDefaultPeopleSettings() {
+export function renderDefaultPeopleSettings() {
   if (!els.defaultPeopleOptions) return;
   const selectedIds = new Set(Array.isArray(state.settings?.defaultPeople) ? state.settings.defaultPeople : []);
   const people = mergePeople(state.people || []);
@@ -464,7 +484,7 @@ function renderDefaultPeopleSettings() {
     : '<span class="default-people-empty">Add people from a trip to choose defaults.</span>';
 }
 
-async function saveDefaultPeople(options = {}) {
+export async function saveDefaultPeople(options = {}) {
   const availableIds = new Set((state.people || []).map((person) => person.id));
   const defaultPeople = [...els.defaultPeopleOptions?.querySelectorAll('input[type="checkbox"]:checked') || []]
     .map((input) => input.value)
@@ -473,44 +493,44 @@ async function saveDefaultPeople(options = {}) {
   await runSettingsSave(() => saveState(), "The default people could not be saved.", options);
 }
 
-async function saveDefaultHomeLake(options = {}) {
+export async function saveDefaultHomeLake(options = {}) {
   const defaultHomeLake = els.defaultHomeLakeSelect?.value || "";
   state.settings = { ...(state.settings || {}), defaultHomeLake };
   await runSettingsSave(() => saveState(), "The default home lake could not be saved.", options);
 }
 
-function setSettingsTab(tab = "general") {
-  activeSettingsTab = tab;
+export function setSettingsTab(tab = "general") {
+  settingsUi.activeSettingsTab = tab;
   syncSettingsTabs();
   if (tab === "waterbodies") {
-    setTimeout(() => privatePhotoLocationMap?.invalidateSize(), 80);
-    setTimeout(() => fishingSpotMap?.invalidateSize(), 80);
+    setTimeout(() => ui.privatePhotoLocationMap?.invalidateSize(), 80);
+    setTimeout(() => ui.fishingSpotMap?.invalidateSize(), 80);
   }
 }
 
-function syncSettingsTabs() {
+export function syncSettingsTabs() {
   const tabs = document.querySelectorAll("[data-settings-tab]");
   const panels = document.querySelectorAll("[data-settings-panel]");
-  if (![...tabs].some((tab) => tab.dataset.settingsTab === activeSettingsTab)) activeSettingsTab = "general";
+  if (![...tabs].some((tab) => tab.dataset.settingsTab === settingsUi.activeSettingsTab)) settingsUi.activeSettingsTab = "general";
   tabs.forEach((tab) => {
-    const active = tab.dataset.settingsTab === activeSettingsTab;
+    const active = tab.dataset.settingsTab === settingsUi.activeSettingsTab;
     tab.classList.toggle("is-active", active);
     tab.setAttribute("aria-selected", active ? "true" : "false");
   });
   panels.forEach((panel) => {
-    const active = panel.dataset.settingsPanel === activeSettingsTab;
+    const active = panel.dataset.settingsPanel === settingsUi.activeSettingsTab;
     panel.classList.toggle("is-active", active);
     panel.hidden = !active;
   });
 }
 
-function applyThemePreference(theme = themePreference()) {
+export function applyThemePreference(theme = themePreference()) {
   const normalizedTheme = theme === "dark" ? "dark" : "light";
   document.documentElement.dataset.theme = normalizedTheme;
   document.documentElement.style.colorScheme = normalizedTheme;
 }
 
-async function saveThemePreference(options = {}) {
+export async function saveThemePreference(options = {}) {
   const selectedTheme = document.querySelector("[data-theme-option]:checked")?.value;
   const theme = selectedTheme === "dark" ? "dark" : "light";
   applyThemePreference(theme);
@@ -530,7 +550,7 @@ async function saveThemePreference(options = {}) {
   }
 }
 
-function renderUnitSettings() {
+export function renderUnitSettings() {
   if (!els.unitSettingsFields) return;
   const units = normalizeUnits(state.settings?.units);
   const rows = [
@@ -558,7 +578,7 @@ function renderUnitSettings() {
   `).join("");
 }
 
-function renderFowCalibrationSettings() {
+export function renderFowCalibrationSettings() {
   if (!els.fowCalibrationFields) return;
   const calibrationUnit = unitPreference("depth") || "ft";
   const lakeCalibrations = state.settings?.bathymetryLakeCalibrationsFeet || {};
@@ -570,7 +590,7 @@ function renderFowCalibrationSettings() {
   `).join("");
 }
 
-function bathymetryOffsetDisplayValue(offsetFeet, depthUnit = unitPreference("depth")) {
+export function bathymetryOffsetDisplayValue(offsetFeet, depthUnit = unitPreference("depth")) {
   const offset = Number(offsetFeet);
   if (!Number.isFinite(offset)) return "0";
   const converted = convertUnitValue(offset, "ft", depthUnit || "ft");
@@ -578,14 +598,14 @@ function bathymetryOffsetDisplayValue(offsetFeet, depthUnit = unitPreference("de
   return trimNumber(Math.round(converted * 100) / 100);
 }
 
-function bathymetryOffsetFeetFromDisplay(value, depthUnit = unitPreference("depth")) {
+export function bathymetryOffsetFeetFromDisplay(value, depthUnit = unitPreference("depth")) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
   const converted = convertUnitValue(number, depthUnit || "ft", "ft");
   return converted === null ? 0 : Math.round(converted * 100) / 100;
 }
 
-async function saveUnitSettings(options = {}) {
+export async function saveUnitSettings(options = {}) {
   const previousState = structuredClone(state);
   const previousUnits = normalizeUnits(state.settings?.units);
   const units = { ...previousUnits };
@@ -622,30 +642,30 @@ async function saveUnitSettings(options = {}) {
         renderAll();
         if (options.rerender !== false && !els.settingsPanel?.classList.contains("hidden")) renderSettings();
         syncUnitLabels();
-        const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
+        const summaryTrip = state.trips.find((trip) => trip.id === ui.activeSummaryTripId);
         if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
       },
       "The unit settings could not be saved.",
       options
     );
   } catch (error) {
-    state = previousState;
+    setState(previousState);
     renderAll();
     if (options.rerender !== false && !els.settingsPanel?.classList.contains("hidden")) renderSettings();
   }
 }
 
-function unitLabelText(baseText, key) {
+export function unitLabelText(baseText, key) {
   return `${baseText} (${unitSymbol(key)})`;
 }
 
-function syncUnitLabels(root = document) {
+export function syncUnitLabels(root = document) {
   root.querySelectorAll("[data-unit-label]").forEach((label) => {
     label.textContent = unitLabelText(label.dataset.unitLabelText || label.textContent, label.dataset.unitLabel);
   });
   if (els.waterTemp) els.waterTemp.placeholder = unitPreference("waterTemperature") === "C" ? "8 C" : "47 F";
   if (els.structure) els.structure.placeholder = `40-60 FOW (${unitSymbol("depth")})`;
-  if (els.waveHeight) updateMarineWaveHeightPlaceholder(activeTripWeatherData);
+  if (els.waveHeight) updateMarineWaveHeightPlaceholder(ui.activeTripWeatherData);
   root.querySelectorAll(".catch-length").forEach((input) => {
     input.placeholder = unitPreference("fishLength") === "cm" ? "71 cm" : "28 in";
   });
@@ -678,7 +698,7 @@ function syncUnitLabels(root = document) {
   });
 }
 
-async function saveTimeFormatPreference(options = {}) {
+export async function saveTimeFormatPreference(options = {}) {
   const checked = document.querySelector("[data-time-format-option]:checked");
   const nextTimeFormat = checked?.value || els.timeFormatSelect?.value || "24";
   if (els.timeFormatSelect) els.timeFormatSelect.value = nextTimeFormat === "12" ? "12" : "24";
@@ -692,8 +712,8 @@ async function saveTimeFormatPreference(options = {}) {
         await saveState();
         renderAll();
         syncUnitLabels();
-        if (activeTripWeatherData?.daily) setWeatherStatus(weatherCardConditionsLabel());
-        const summaryTrip = state.trips.find((trip) => trip.id === activeSummaryTripId);
+        if (ui.activeTripWeatherData?.daily) setWeatherStatus(weatherCardConditionsLabel());
+        const summaryTrip = state.trips.find((trip) => trip.id === ui.activeSummaryTripId);
         if (summaryTrip && els.tripSummaryDialog?.open) openTripSummary(summaryTrip);
       },
       "The time format could not be saved.",

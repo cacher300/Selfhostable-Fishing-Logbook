@@ -1,0 +1,60 @@
+// Application entry point. Modules are evaluated by import order; their
+// load-time work runs in setup(), called here in the original script order.
+import "./vendor.js";
+import * as module0 from "./app-config.js";
+import * as module1 from "./app-defaults.js";
+import * as module2 from "./app-state.js";
+import * as module3 from "./app-normalization.js";
+import * as module4 from "./app-units.js";
+import * as module5 from "./app-persistence.js";
+import * as module6 from "./app-elements.js";
+import * as module7 from "./app-media.js";
+import * as module8 from "./locations.js";
+import * as module9 from "./location-weather.js";
+import * as module10 from "./settings-core.js";
+import * as module11 from "./settings.js";
+import * as module12 from "./saved-setups.js";
+import * as module13 from "./settings-fields.js";
+import * as module14 from "./settings-locations.js";
+import * as module15 from "./dashboard.js";
+import * as module16 from "./expedition-analytics.js";
+import * as module17 from "./expeditions.js";
+import * as module18 from "./photos.js";
+import * as module19 from "./trip-editor.js";
+import * as module20 from "./trip-rows.js";
+import * as module21 from "./trip-save.js";
+import * as module22 from "./photo-queue-autofill.js";
+import * as module23 from "./gear-core.js";
+import * as module24 from "./gear-pickers.js";
+import * as module25 from "./gear-dialogs.js";
+import * as module26 from "./gear-inventory.js";
+import * as module27 from "./trolling-spread.js";
+import * as module28 from "./noaaCharts.js";
+import * as module29 from "./noaa-api.js";
+import * as module30 from "./great-lakes-conditions.js";
+import * as module31 from "./maps.js";
+import * as module32 from "./trip-summary.js";
+import * as module33 from "./trip-report.js";
+import * as module34 from "./trip-timeline.js";
+import * as module35 from "./trip-sharing.js";
+import * as module36 from "./shared-trip-import.js";
+import * as module37 from "./stats-analytics.js";
+import * as module38 from "./stats-scope.js";
+import * as module39 from "./stats-performance.js";
+import * as module40 from "./stats-heatmap.js";
+import * as module41 from "./stats.js";
+import * as module42 from "./stats-rendering.js";
+import * as module43 from "./personal-bests.js";
+import * as module44 from "./form-utils.js";
+import * as module45 from "./gallery.js";
+import * as module46 from "./leaderboard.js";
+import * as module47 from "./checklists.js";
+import * as module48 from "./wiki.js";
+import * as module49 from "./trolling-spread-picker.js";
+import * as module50 from "./app-control-events.js";
+import * as module51 from "./app-delegated-events.js";
+import * as module52 from "./app.js";
+
+for (const module of [module0, module1, module2, module3, module4, module5, module6, module7, module8, module9, module10, module11, module12, module13, module14, module15, module16, module17, module18, module19, module20, module21, module22, module23, module24, module25, module26, module27, module28, module29, module30, module31, module32, module33, module34, module35, module36, module37, module38, module39, module40, module41, module42, module43, module44, module45, module46, module47, module48, module49, module50, module51, module52]) {
+  if (typeof module.setup === "function") module.setup();
+}

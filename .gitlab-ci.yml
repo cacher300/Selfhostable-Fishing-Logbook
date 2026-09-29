@@ -1,5 +1,6 @@
 stages:
   - validate
+  - build
   - smoke_test
   - docker_check
 
@@ -9,6 +10,7 @@ default:
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  npm_config_cache: "$CI_PROJECT_DIR/.cache/npm"
   PYTHONUNBUFFERED: "1"
   HOST: "127.0.0.1"
   PORT: "8080"
@@ -19,35 +21,72 @@ test_python_app:
   image: python:3.13-slim
   script:
     - python --version
-    - pip install -r requirements.txt
-    - python -m compileall server.py backend
+    - pip install -r requirements-dev.txt
+    - python -m compileall -q server.py backend scripts
     - python -m pytest tests -v
-    - test -f server.py
-    - test -f requirements.txt
-    - test -f index.html
-    - test -f templates/index.html
 
 test_javascript:
   stage: validate
-  image: node:22-alpine
+  image: node:22
   script:
     - node --version
-    - node --test tests/*.test.js
+    - npm ci --no-audit --no-fund
+    - npm run schema:check
+    - npm test
 
-smoke_test_flask_server:
-  stage: smoke_test
-  image: python:3.13-slim
-  needs:
-    - test_python_app
+cloud_worker_tests:
+  stage: validate
+  image: node:22
+  # The Cloudflare Worker is not actively developed; keep its own tests
+  # visible without blocking web-client pipelines.
+  allow_failure: true
   script:
+    - cd cloud/worker
+    - npm ci --no-audit --no-fund
+    - npm test
+
+build_frontend:
+  stage: build
+  image: python:3.13-slim
+  needs: []
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates gnupg
+    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    - apt-get install -y --no-install-recommends nodejs
+  script:
+    - npm ci --no-audit --no-fund
+    - npm run build
     - pip install -r requirements.txt
-    - mkdir -p data/uploads backups
-    - python server.py &
-    - SERVER_PID=$!
-    - sleep 5
-    - >-
-      python -c "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8080', timeout=10); print('Status:', r.status); exit(0 if r.status < 400 else 1)"
-    - kill "$SERVER_PID"
+    - python scripts/build-standalone.py
+    - test -f static/dist/app.js
+    - test -f static/dist/manifest.json
+    - test -f standalone.html
+  artifacts:
+    paths:
+      - static/dist/
+      - standalone.html
+    expire_in: 1 day
+
+browser_smoke_tests:
+  stage: smoke_test
+  image: python:3.13
+  needs:
+    - build_frontend
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates gnupg
+    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    - apt-get install -y --no-install-recommends nodejs
+  script:
+    - python -m venv .venv
+    - .venv/bin/pip install -r requirements.txt
+    - npm ci --no-audit --no-fund
+    - npx playwright install --with-deps chromium
+    - CI=1 npm run test:e2e
+  artifacts:
+    when: on_failure
+    paths:
+      - /tmp/fishing-logbook-playwright/
+    expire_in: 3 days
 
 docker_compose_config_check:
   stage: docker_check

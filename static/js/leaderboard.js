@@ -1,9 +1,17 @@
-function leaderboardRate(landed, lost) {
+import { state } from "./app-state.js";
+import { previewImage } from "./app-media.js";
+import { fishCount } from "./dashboard.js";
+import { openFlasherInfoDialog, openLureInfoDialog } from "./gear-dialogs.js";
+import { openInventoryItemInfo } from "./gear-inventory.js";
+import { resolveTripLineRecord } from "./trolling-spread.js";
+import { escapeHtml } from "./form-utils.js";
+
+export function leaderboardRate(landed, lost) {
   const opportunities = landed + lost;
   return opportunities ? (landed / opportunities) * 100 : 0;
 }
 
-function finalizeLeaderboardRows(rows, { shareGroup = () => "all" } = {}) {
+export function finalizeLeaderboardRows(rows, { shareGroup = () => "all" } = {}) {
   const attributedCatches = new Map();
   rows.forEach((row) => {
     const group = shareGroup(row);
@@ -30,7 +38,7 @@ function finalizeLeaderboardRows(rows, { shareGroup = () => "all" } = {}) {
     ));
 }
 
-function leaderboardGearName(item, type, collections) {
+export function leaderboardGearName(item, type, collections) {
   const fallbackByType = {
     lure: "Unnamed lure",
     flasher: "Unnamed flasher",
@@ -55,7 +63,7 @@ function leaderboardGearName(item, type, collections) {
     || String(item.shortName || fallbackByType[type] || "Fishing gear");
 }
 
-function fishingGearLeaderboardRows(trips = [], collections = {}, { recordFilter = () => true } = {}) {
+export function fishingGearLeaderboardRows(trips = [], collections = {}, { recordFilter = () => true } = {}) {
   const gearTypes = [
     { collection: "lures", type: "lure", field: "lureId", label: "Lure" },
     { collection: "flashers", type: "flasher", field: "flasherId", label: "Flasher" },
@@ -116,7 +124,7 @@ function fishingGearLeaderboardRows(trips = [], collections = {}, { recordFilter
   );
 }
 
-function anglerLeaderboardRows(trips = [], people = [], { recordFilter = () => true } = {}) {
+export function anglerLeaderboardRows(trips = [], people = [], { recordFilter = () => true } = {}) {
   const rowsById = new Map();
   const ensurePerson = (person) => {
     const id = String(person?.id || "");
@@ -155,15 +163,15 @@ function anglerLeaderboardRows(trips = [], people = [], { recordFilter = () => t
   return finalizeLeaderboardRows([...rowsById.values()]);
 }
 
-function leaderboardPercent(value) {
+export function leaderboardPercent(value) {
   return `${Math.round(value)}%`;
 }
 
-function leaderboardDecimal(value) {
+export function leaderboardDecimal(value) {
   return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
 }
 
-function leaderboardGearAvatar(row) {
+export function leaderboardGearAvatar(row) {
   const source = typeof previewImage === "function"
     ? previewImage(row.item)
     : "";
@@ -173,7 +181,7 @@ function leaderboardGearAvatar(row) {
   return "";
 }
 
-function leaderboardEmpty(message, detail) {
+export function leaderboardEmpty(message, detail) {
   return `
     <div class="leaderboard-empty">
       <strong>${escapeHtml(message)}</strong>
@@ -182,7 +190,7 @@ function leaderboardEmpty(message, detail) {
   `;
 }
 
-function bindLeaderboardPreviews() {
+export function bindLeaderboardPreviews() {
   document.addEventListener("click", (event) => {
     const previewButton = event.target.closest("[data-leaderboard-preview-type]");
     if (!previewButton) return;
@@ -202,7 +210,7 @@ function bindLeaderboardPreviews() {
   });
 }
 
-function leaderboardRowMarkup(row, rank, kind) {
+export function leaderboardRowMarkup(row, rank, kind) {
   const tripsLabel = `${row.trips} trip${row.trips === 1 ? "" : "s"}`;
   const subtitle = kind === "gear" ? "" : tripsLabel;
   const avatar = kind === "gear" ? leaderboardGearAvatar(row) : "";
@@ -231,7 +239,7 @@ function leaderboardRowMarkup(row, rank, kind) {
   `;
 }
 
-function gearPerformanceStats(type, id, trips = state.trips) {
+export function gearPerformanceStats(type, id, trips = state.trips) {
   const fieldByType = {
     lure: "lureId",
     flasher: "flasherId",
@@ -300,7 +308,7 @@ function gearPerformanceStats(type, id, trips = state.trips) {
   };
 }
 
-function renderStatsLeaderboard(trips = state.trips, recordFilter = () => true) {
+export function renderStatsLeaderboard(trips = state.trips, recordFilter = () => true) {
   const rodContainer = document.querySelector("#statsRodLeaderboard");
   const reelContainer = document.querySelector("#statsReelLeaderboard");
   const comboContainer = document.querySelector("#statsComboLeaderboard");
@@ -335,6 +343,8 @@ function renderStatsLeaderboard(trips = state.trips, recordFilter = () => true) 
     : leaderboardEmpty("No attributed anglers in this scope", "Choose an angler on catches and missed fish.");
 }
 
-if (typeof document !== "undefined") {
-  bindLeaderboardPreviews();
+export function setup() {
+  if (typeof document !== "undefined") {
+    bindLeaderboardPreviews();
+  }
 }

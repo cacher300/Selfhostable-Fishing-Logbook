@@ -1,4 +1,14 @@
-const predefinedFieldGroups = [
+import { state } from "./app-state.js";
+import { optionChoices, optionLabels, slugOptionValue } from "./app-normalization.js";
+import { currentChopRanges, validateChopRanges } from "./app-units.js";
+import { saveState } from "./app-persistence.js";
+import { els } from "./app-elements.js";
+import { runSettingsSave, settingsAutosaveTimer, settingsUi } from "./settings-core.js";
+import { renderSettings } from "./settings.js";
+import { renderAll, renderTrips } from "./dashboard.js";
+import { escapeHtml, trimNumber } from "./form-utils.js";
+
+export const predefinedFieldGroups = [
   { key: "species", label: "Species" },
   { key: "methods", label: "Methods" },
   { key: "riggings", label: "Rigging options" },
@@ -22,15 +32,15 @@ const predefinedFieldGroups = [
   { key: "setupLineSides", label: "Setup line sides", choice: true }
 ];
 
-function predefinedFieldItems(group) {
+export function predefinedFieldItems(group) {
   return group.choice ? optionChoices(group.key) : optionLabels(group.key);
 }
 
-function predefinedFieldValue(item) {
+export function predefinedFieldValue(item) {
   return typeof item === "object" ? item.label : item;
 }
 
-function renderPredefinedFieldSettings() {
+export function renderPredefinedFieldSettings() {
   if (!els.predefinedFieldSettings) return;
   els.predefinedFieldSettings.innerHTML = predefinedFieldGroups.map((group) => {
     const items = predefinedFieldItems(group);
@@ -61,14 +71,14 @@ function renderPredefinedFieldSettings() {
   }).join("");
 }
 
-function updatePredefinedFieldCount(group) {
+export function updatePredefinedFieldCount(group) {
   if (!group) return;
   const count = group.querySelectorAll(".predefined-option-row").length;
   const label = group.querySelector(".predefined-field-count");
   if (label) label.textContent = `${count} ${count === 1 ? "item" : "items"}`;
 }
 
-function collectPredefinedFieldSettings() {
+export function collectPredefinedFieldSettings() {
   const next = {};
   els.predefinedFieldSettings?.querySelectorAll(".predefined-field-group").forEach((section) => {
     const group = predefinedFieldGroups.find((item) => item.key === section.dataset.predefinedKey);
@@ -93,7 +103,7 @@ function collectPredefinedFieldSettings() {
   return next;
 }
 
-async function savePredefinedFieldSettings(options = {}) {
+export async function savePredefinedFieldSettings(options = {}) {
   Object.assign(state, collectPredefinedFieldSettings());
   try {
     await runSettingsSave(
@@ -109,14 +119,14 @@ async function savePredefinedFieldSettings(options = {}) {
   }
 }
 
-function renderChopRangeSettings() {
+export function renderChopRangeSettings() {
   if (!els.chopRangeRows) return;
   const ranges = currentChopRanges();
   if (els.editChopRangesButton) {
-    els.editChopRangesButton.textContent = chopRangesEditing ? "Done Editing" : "Edit Chop Ranges";
+    els.editChopRangesButton.textContent = settingsUi.chopRangesEditing ? "Done Editing" : "Edit Chop Ranges";
   }
-  els.cancelChopRangesButton?.classList.toggle("hidden", !chopRangesEditing);
-  if (!chopRangesEditing) {
+  els.cancelChopRangesButton?.classList.toggle("hidden", !settingsUi.chopRangesEditing);
+  if (!settingsUi.chopRangesEditing) {
     const lastBoundedRange = [...ranges].reverse().find((range) => range.maxFeet !== null);
     const overflowText = lastBoundedRange ? `> ${trimNumber(lastBoundedRange.maxFeet)} ft` : "Above previous range";
     els.chopRangeRows.innerHTML = `
@@ -157,27 +167,27 @@ function renderChopRangeSettings() {
   `;
 }
 
-async function toggleChopRangeEditing() {
-  if (chopRangesEditing) {
+export async function toggleChopRangeEditing() {
+  if (settingsUi.chopRangesEditing) {
     await saveChopRanges();
-    chopRangesEditing = false;
-    chopRangesEditSnapshot = null;
+    settingsUi.chopRangesEditing = false;
+    settingsUi.chopRangesEditSnapshot = null;
     renderChopRangeSettings();
     return;
   }
-  chopRangesEditSnapshot = currentChopRanges();
-  chopRangesEditing = true;
+  settingsUi.chopRangesEditSnapshot = currentChopRanges();
+  settingsUi.chopRangesEditing = true;
   renderChopRangeSettings();
 }
 
-async function cancelChopRangeEditing() {
+export async function cancelChopRangeEditing() {
   clearTimeout(settingsAutosaveTimer);
-  chopRangesEditing = false;
-  chopRangesEditSnapshot = null;
+  settingsUi.chopRangesEditing = false;
+  settingsUi.chopRangesEditSnapshot = null;
   renderChopRangeSettings();
 }
 
-async function saveChopRanges(options = {}) {
+export async function saveChopRanges(options = {}) {
   const current = currentChopRanges();
   const ranges = [...document.querySelectorAll(".chop-range-row")].map((row, index) => {
     const maxInput = row.querySelector(".chop-range-max");
@@ -203,8 +213,8 @@ async function saveChopRanges(options = {}) {
       async () => {
         await saveState();
         if (options.rerender !== false) {
-          chopRangesEditing = false;
-          chopRangesEditSnapshot = null;
+          settingsUi.chopRangesEditing = false;
+          settingsUi.chopRangesEditSnapshot = null;
           renderSettings();
         }
         renderTrips();

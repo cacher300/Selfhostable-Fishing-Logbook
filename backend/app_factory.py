@@ -6,6 +6,7 @@ from flask import Flask, Response, jsonify, request
 
 from . import cloud_storage
 from .config import PROJECT_ROOT, AppConfig
+from .frontend_assets import asset_url
 from .logbook_changes import LogbookChangeError
 from .logbook_store import LogbookStorageError
 from .media_service import MediaNotFound
@@ -31,6 +32,7 @@ def create_app(config: AppConfig | None = None, *, storage: Storage | None = Non
     )
     app.extensions["fish.config"] = config
     app.extensions["fish.storage"] = storage or create_storage(config)
+    app.jinja_env.globals["asset_url"] = asset_url
     configure_request_security(app)
     _register_error_handlers(app)
 

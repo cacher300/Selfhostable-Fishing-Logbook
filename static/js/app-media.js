@@ -1,10 +1,15 @@
-function displayMedia(item) {
+import { protectedFetch } from "./app-config.js";
+import { createId } from "./app-defaults.js";
+import { state } from "./app-state.js";
+import { escapeHtml } from "./form-utils.js";
+
+export function displayMedia(item) {
   if (!Array.isArray(item?.media)) return item;
   const photos = item.media.filter((media) => media && !isVideoMedia(media));
   return photos.find((media) => media.id && media.id === item.heroMediaId) || photos[0] || null;
 }
 
-function previewImage(item) {
+export function previewImage(item) {
   const media = displayMedia(item);
   if (media?.uri) return media.uri;
   if (media?.category && media?.previewFilename) return `/uploads/${encodeURIComponent(media.category)}/_previews/${encodeURIComponent(media.previewFilename)}`;
@@ -12,18 +17,18 @@ function previewImage(item) {
   return "";
 }
 
-function isVideoMedia(item) {
+export function isVideoMedia(item) {
   return item?.mediaType === "video" || item?.mimeType?.startsWith?.("video/");
 }
 
-function originalMediaUrl(item) {
+export function originalMediaUrl(item) {
   const media = displayMedia(item);
   if (media?.uri) return media.uri;
   if (media?.category && media?.filename) return `/uploads/${encodeURIComponent(media.category)}/${encodeURIComponent(media.filename)}`;
   return "";
 }
 
-const uploadMediaCategories = new Set([
+export const uploadMediaCategories = new Set([
   "catch-photos",
   "trip-photos",
   "lures",
@@ -33,7 +38,7 @@ const uploadMediaCategories = new Set([
   "queue"
 ]);
 
-function mediaReferenceKey(item) {
+export function mediaReferenceKey(item) {
   if (!item || typeof item !== "object") return "";
   const category = String(item.category || "").trim();
   const filename = String(item.filename || "").trim();
@@ -41,14 +46,14 @@ function mediaReferenceKey(item) {
   return `${category}/${filename}`;
 }
 
-function canonicalMediaRef(item) {
+export function canonicalMediaRef(item) {
   if (!item || typeof item !== "object") return null;
   const key = mediaReferenceKey(item);
   if (!key) return null;
   return { ...item, id: item.id || createId() };
 }
 
-function mediaReferenceKeys(value, keys = new Set(), seen = new Set()) {
+export function mediaReferenceKeys(value, keys = new Set(), seen = new Set()) {
   if (!value || typeof value !== "object") return keys;
   if (seen.has(value)) return keys;
   seen.add(value);
@@ -59,7 +64,7 @@ function mediaReferenceKeys(value, keys = new Set(), seen = new Set()) {
   return keys;
 }
 
-async function cleanupDeletedMedia(mediaKeys) {
+export async function cleanupDeletedMedia(mediaKeys) {
   if (typeof location === "undefined" || location.protocol === "file:") {
     return { deleted: 0, retained: 0, failed: 0 };
   }
@@ -90,24 +95,24 @@ async function cleanupDeletedMedia(mediaKeys) {
   };
 }
 
-async function cleanupReplacedMedia(previous, current) {
+export async function cleanupReplacedMedia(previous, current) {
   const retained = mediaReferenceKeys(current);
   return cleanupDeletedMedia([...mediaReferenceKeys(previous)].filter((key) => !retained.has(key)));
 }
 
-const mediaEditSessions = new Map();
+export const mediaEditSessions = new Map();
 
-function beginMediaEditSession(scope) {
+export function beginMediaEditSession(scope) {
   const session = { active: true, saved: false, keys: new Set(), claimedQueue: new Map() };
   mediaEditSessions.set(scope, session);
   return session;
 }
 
-function mediaEditSession(scope) {
+export function mediaEditSession(scope) {
   return mediaEditSessions.get(scope) || null;
 }
 
-function trackCreatedMedia(session, item, queueFilename = "") {
+export function trackCreatedMedia(session, item, queueFilename = "") {
   const key = mediaReferenceKey(item);
   if (!session || !key || key.startsWith("queue/")) return true;
   if (!session.active) {
@@ -119,12 +124,12 @@ function trackCreatedMedia(session, item, queueFilename = "") {
   return true;
 }
 
-function markMediaEditSessionSaved(scope) {
+export function markMediaEditSessionSaved(scope) {
   const session = mediaEditSession(scope);
   if (session) session.saved = true;
 }
 
-async function finishMediaEditSession(scope) {
+export async function finishMediaEditSession(scope) {
   const session = mediaEditSession(scope);
   if (!session) return;
   session.active = false;
@@ -145,7 +150,7 @@ async function finishMediaEditSession(scope) {
   }
 }
 
-function mediaMarkup(item, className = "") {
+export function mediaMarkup(item, className = "") {
   const source = previewImage(item);
   if (!source) return "";
   if (isVideoMedia(item)) {
@@ -155,7 +160,7 @@ function mediaMarkup(item, className = "") {
   return `<img class="${escapeHtml(className)}" src="${escapeHtml(source)}" alt="">`;
 }
 
-function isUsableCoordinates(coordinates) {
+export function isUsableCoordinates(coordinates) {
   if (!coordinates) return false;
   const latitude = Number(coordinates.latitude);
   const longitude = Number(coordinates.longitude);

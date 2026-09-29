@@ -10,17 +10,12 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
-from .backend_config import ROOT
+from .backend_config import ROOT, SCHEMA_CONSTANTS
 
 SCHEMA_VERSION = 2
-COLLECTION_KEYS = (
-    "species", "methods", "lureTypes", "flasherTypes", "waterClarities", "weatherTypes", "reelStyles", "rodTypes",
-    "lineTypes", "riggings", "structureOptions", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes",
-    "lureSpoonSizes", "meatRigTypes", "softPlasticTypes", "trollingPresentations", "trollingDirections", "setupLineSides",
-    "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips",
-)
-OBJECT_COLLECTION_KEYS = {"lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips"}
-OPTIONAL_COLLECTION_KEYS = {"meatRigTypes", "softPlasticTypes"}
+COLLECTION_KEYS = tuple(SCHEMA_CONSTANTS["collectionKeys"])
+OBJECT_COLLECTION_KEYS = set(SCHEMA_CONSTANTS["objectCollectionKeys"])
+OPTIONAL_COLLECTION_KEYS = set(SCHEMA_CONSTANTS["optionalCollectionKeys"])
 _COLLECTION_KEYS = COLLECTION_KEYS
 _OBJECT_COLLECTION_KEYS = OBJECT_COLLECTION_KEYS
 

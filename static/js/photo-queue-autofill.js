@@ -1,19 +1,29 @@
-const PHOTO_QUEUE_CATCH_GAP_MS = 3 * 60 * 1000;
+import { protectedFetch } from "./app-config.js";
+import { createId } from "./app-defaults.js";
+import { els } from "./app-elements.js";
+import { mediaEditSession, trackCreatedMedia } from "./app-media.js";
+import { updateCatchFowFromLocation, updateCatchLocationSummary } from "./locations.js";
+import { formatDate } from "./dashboard.js";
+import { applyPhotoCaptureTimeToCatch, applyPhotoLocationToCatch, loadPhotoQueue, renderCatchPhotos, selectedCatchPhotoLocation } from "./photos.js";
+import { getValue, markTripFormChanged } from "./trip-editor.js";
+import { addCatchRow, updateRowSummary } from "./trip-rows.js";
 
-function photoQueueAutofillDate(photo) {
+export const PHOTO_QUEUE_CATCH_GAP_MS = 3 * 60 * 1000;
+
+export function photoQueueAutofillDate(photo) {
   const raw = String(photo?.captureDate || photo?.capturedAt || "");
   const match = raw.match(/(\d{4})[-:](\d{2})[-:](\d{2})/);
   return match ? `${match[1]}-${match[2]}-${match[3]}` : "";
 }
 
-function photoQueueAutofillTimestamp(photo) {
+export function photoQueueAutofillTimestamp(photo) {
   const timestamp = photo?.capturedAt
     || (photo?.captureDate && photo?.captureTime ? `${photo.captureDate}T${photo.captureTime}` : "");
   const value = timestamp ? Date.parse(timestamp) : NaN;
   return Number.isFinite(value) ? value : null;
 }
 
-function photoQueueCatchGroups(photos = [], tripDate = "") {
+export function photoQueueCatchGroups(photos = [], tripDate = "") {
   const timestamped = photos
     .map((photo, index) => ({
       photo,
@@ -37,7 +47,7 @@ function photoQueueCatchGroups(photos = [], tripDate = "") {
   return groups.map((group) => group.map((item) => item.photo));
 }
 
-async function copyQueuedPhotoForCatch(filename) {
+export async function copyQueuedPhotoForCatch(filename) {
   const session = mediaEditSession("trip");
   if (!session) throw new Error("Open the trip editor before copying queued photos.");
   const response = await protectedFetch("/api/photo-queue/copy", {
@@ -57,7 +67,7 @@ async function copyQueuedPhotoForCatch(filename) {
   };
 }
 
-async function attachPhotoGroupToCatch(row, photos) {
+export async function attachPhotoGroupToCatch(row, photos) {
   row.catchPhotos = photos;
   const selectedPhoto = selectedCatchPhotoLocation(row);
   if (selectedPhoto) applyPhotoLocationToCatch(row, selectedPhoto);
@@ -68,11 +78,11 @@ async function attachPhotoGroupToCatch(row, photos) {
   updateRowSummary(row);
 }
 
-function setCatchQueueAutofillStatus(message = "") {
+export function setCatchQueueAutofillStatus(message = "") {
   if (els.catchQueueAutofillStatus) els.catchQueueAutofillStatus.textContent = message;
 }
 
-async function autofillCatchesFromPhotoQueue() {
+export async function autofillCatchesFromPhotoQueue() {
   const button = els.autofillQueueCatchesButton;
   const tripDate = getValue("tripDate");
   if (!tripDate) {

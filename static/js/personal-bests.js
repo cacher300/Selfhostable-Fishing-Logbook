@@ -1,4 +1,14 @@
-const personalBestMonths = [
+import { activePersonalBestsFilters, state } from "./app-state.js";
+import { unitSymbol } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { isVideoMedia, mediaMarkup, previewImage } from "./app-media.js";
+import { formatDate } from "./dashboard.js";
+import { lureName } from "./gear-core.js";
+import { resolveTripLineRecord } from "./trolling-spread.js";
+import { parseFirstNumber } from "./stats.js";
+import { escapeHtml, trimNumber } from "./form-utils.js";
+
+export const personalBestMonths = [
   { value: "1", label: "January" },
   { value: "2", label: "February" },
   { value: "3", label: "March" },
@@ -13,18 +23,18 @@ const personalBestMonths = [
   { value: "12", label: "December" }
 ];
 
-function tripDateParts(trip) {
+export function tripDateParts(trip) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(trip?.date || "")) return null;
   const [year, month, day] = trip.date.split("-").map(Number);
   return { year, month, day };
 }
 
-function catchMeasurementValue(catchItem, key) {
+export function catchMeasurementValue(catchItem, key) {
   const value = parseFirstNumber(catchItem?.[key]);
   return value > 0 ? value : null;
 }
 
-function catchMeasurementText(catchItem, key) {
+export function catchMeasurementText(catchItem, key) {
   const value = String(catchItem?.[key] || "").trim();
   const unit = unitSymbol(key === "weight" ? "fishWeight" : "fishLength");
   if (value) return /[a-zA-Z]/.test(value) ? value : `${value} ${unit}`;
@@ -33,20 +43,20 @@ function catchMeasurementText(catchItem, key) {
   return `${trimNumber(numberValue)} ${unit}`;
 }
 
-function personalBestScore(catchItem) {
+export function personalBestScore(catchItem) {
   return {
     weight: catchMeasurementValue(catchItem, "weight"),
     length: catchMeasurementValue(catchItem, "length")
   };
 }
 
-function personalBestDateValue(record) {
+export function personalBestDateValue(record) {
   const parts = record?.dateParts;
   if (!parts) return Number.MAX_SAFE_INTEGER;
   return (parts.year * 10000) + (parts.month * 100) + parts.day;
 }
 
-function comparePersonalBestCatches(a, b, rankBy = activePersonalBestsFilters.rankBy) {
+export function comparePersonalBestCatches(a, b, rankBy = activePersonalBestsFilters.rankBy) {
   const aScore = personalBestScore(a);
   const bScore = personalBestScore(b);
   if (rankBy === "length") {
@@ -61,7 +71,7 @@ function comparePersonalBestCatches(a, b, rankBy = activePersonalBestsFilters.ra
   return (aScore.length ?? -1) - (bScore.length ?? -1);
 }
 
-function measuredCatchRecords() {
+export function measuredCatchRecords() {
   return state.trips.flatMap((trip) => {
     const dateParts = tripDateParts(trip);
     return (trip.catches || []).map((catchItem, catchIndex) => ({
@@ -77,7 +87,7 @@ function measuredCatchRecords() {
   });
 }
 
-function filteredPersonalBestRecords() {
+export function filteredPersonalBestRecords() {
   return measuredCatchRecords().filter((record) => {
     const parts = record.dateParts;
     const matchesYear = activePersonalBestsFilters.year === "All years"
@@ -88,7 +98,7 @@ function filteredPersonalBestRecords() {
   });
 }
 
-function renderPersonalBestFilters() {
+export function renderPersonalBestFilters() {
   const yearOptions = ["All years", ...new Set(measuredCatchRecords()
     .map((record) => record.dateParts?.year)
     .filter(Boolean))]
@@ -124,7 +134,7 @@ function renderPersonalBestFilters() {
   }
 }
 
-function personalBestItems() {
+export function personalBestItems() {
   const bySpecies = new Map();
   filteredPersonalBestRecords().forEach((record) => {
     const species = String(record.species || "").trim();
@@ -136,13 +146,13 @@ function personalBestItems() {
   ));
 }
 
-function comparePersonalBestTimeline(a, b) {
+export function comparePersonalBestTimeline(a, b) {
   const dateDelta = personalBestDateValue(a) - personalBestDateValue(b);
   if (dateDelta) return dateDelta;
   return (a.catchIndex || 0) - (b.catchIndex || 0);
 }
 
-function personalBestProgressions(records) {
+export function personalBestProgressions(records) {
   const bySpecies = new Map();
   records.forEach((record) => {
     const species = String(record.species || "").trim();
@@ -166,7 +176,7 @@ function personalBestProgressions(records) {
     .sort((a, b) => a.species.localeCompare(b.species));
 }
 
-function personalBestMeasurementSummary(record) {
+export function personalBestMeasurementSummary(record) {
   if (activePersonalBestsFilters.rankBy === "length") {
     return [
       catchMeasurementText(record, "length"),
@@ -179,7 +189,7 @@ function personalBestMeasurementSummary(record) {
   ].filter(Boolean).join(" / ") || "Measured catch";
 }
 
-function personalBestImprovementText(record, previous) {
+export function personalBestImprovementText(record, previous) {
   if (!previous) return "First personal best";
   const current = personalBestScore(record);
   const last = personalBestScore(previous);
@@ -209,7 +219,7 @@ function personalBestImprovementText(record, previous) {
   return "New best";
 }
 
-function renderPersonalBestMetrics(items, records) {
+export function renderPersonalBestMetrics(items, records) {
   const heaviest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best, "weight") > 0 ? item : best), null);
   const longest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best, "length") > 0 ? item : best), null);
   const newest = items.reduce((best, item) => (!best || personalBestDateValue(item) > personalBestDateValue(best) ? item : best), null);
@@ -226,7 +236,7 @@ function renderPersonalBestMetrics(items, records) {
   `).join("");
 }
 
-function renderPersonalBestCard(record) {
+export function renderPersonalBestCard(record) {
   const photo = (record.photos || []).find((item) => previewImage(item) && !isVideoMedia(item));
   const lengthText = catchMeasurementText(record, "length") || "Not logged";
   const weightText = catchMeasurementText(record, "weight") || "Not logged";
@@ -260,7 +270,7 @@ function renderPersonalBestCard(record) {
   `;
 }
 
-function renderPersonalBestProgression(records) {
+export function renderPersonalBestProgression(records) {
   if (!els.personalBestProgression) return;
   const progressions = personalBestProgressions(records);
   if (!progressions.length) {
@@ -307,7 +317,7 @@ function renderPersonalBestProgression(records) {
   `;
 }
 
-function renderPersonalBests() {
+export function renderPersonalBests() {
   if (!els.personalBestsPanel) return;
   renderPersonalBestFilters();
   const records = filteredPersonalBestRecords();

@@ -10,19 +10,18 @@ if (-not (Test-Path -LiteralPath $pythonPath)) {
 
 Set-Location $projectRoot
 
-& $pythonPath -m compileall server.py backend
-if ($LASTEXITCODE -ne 0) { throw "Python compilation failed." }
+function Invoke-Step([string]$Name, [scriptblock]$Command) {
+  & $Command
+  if ($LASTEXITCODE -ne 0) { throw "$Name failed." }
+}
 
-& $pythonPath -m pytest tests -q
-if ($LASTEXITCODE -ne 0) { throw "Python tests failed." }
-
-& npm.cmd test
-if ($LASTEXITCODE -ne 0) { throw "Node tests failed." }
-
-& $pythonPath scripts/build-standalone.py --check
-if ($LASTEXITCODE -ne 0) { throw "Generated standalone.html is stale." }
-
-& npm.cmd run test:e2e
-if ($LASTEXITCODE -ne 0) { throw "Playwright smoke tests failed." }
+Invoke-Step "Python compilation" { & $pythonPath -m compileall -q server.py backend scripts }
+Invoke-Step "Python tests" { & $pythonPath -m pytest tests -q }
+Invoke-Step "Schema artifact freshness" { & npm.cmd run schema:check }
+Invoke-Step "Lint" { & npm.cmd run lint }
+Invoke-Step "Node tests" { & npm.cmd test }
+Invoke-Step "Frontend build" { & npm.cmd run build }
+Invoke-Step "Standalone build" { & $pythonPath scripts/build-standalone.py }
+Invoke-Step "Playwright tests" { & npm.cmd run test:e2e }
 
 Write-Output "All project checks passed."

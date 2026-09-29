@@ -1,42 +1,54 @@
-let activeShareTrip = null;
-let activeShareMode = "image";
-let shareTextDirty = false;
-let shareLastPreviewFrameSize = "";
-let shareBestLurePhotoFlipped = false;
+import { html2canvas } from "./vendor.js";
+import { state } from "./app-state.js";
+import { convertedMeasurementText, displayStoredMeasurement, timeFormatPreference, unitPreference } from "./app-units.js";
+import { saveState } from "./app-persistence.js";
+import { els } from "./app-elements.js";
+import { originalMediaUrl, previewImage } from "./app-media.js";
+import { formatDate, tripHours } from "./dashboard.js";
+import { flasherName, lureName } from "./gear-core.js";
+import { displaySentenceText, displayTitleText } from "./trip-summary.js";
+import { formatTimelineDisplayTime } from "./trip-timeline.js";
+import { escapeHtml, trimNumber } from "./form-utils.js";
 
-const SHARE_REPORT_WIDTH = 1200;
+export let activeShareTrip = null;
+export let activeShareMode = "image";
+export let shareTextDirty = false;
+export let shareLastPreviewFrameSize = "";
+export let shareBestLurePhotoFlipped = false;
 
-function shareEscape(value = "") {
+export const SHARE_REPORT_WIDTH = 1200;
+
+export function shareEscape(value = "") {
   return escapeHtml(String(value));
 }
 
-function shareLaunch(trip) {
+export function shareLaunch(trip) {
   return displayTitleText(trip.launch || "Launch not logged");
 }
 
-function sharePhotoUrl(media) {
+export function sharePhotoUrl(media) {
   return originalMediaUrl(media) || previewImage(media);
 }
 
-function shareFow(value) {
+export function shareFow(value) {
   const numeric = Number.parseFloat(value);
   return Number.isFinite(numeric) ? String(Math.round(numeric)) : (value || "—");
 }
 
-function shareNumber(value) {
+export function shareNumber(value) {
   const numeric = Number.parseFloat(value);
   return Number.isFinite(numeric) ? numeric : null;
 }
 
-function shareControl(id) {
+export function shareControl(id) {
   return document.querySelector(`#${id}`);
 }
 
-function shareColor(value, fallback) {
+export function shareColor(value, fallback) {
   return /^#[\da-f]{6}$/i.test(String(value || "")) ? value : fallback;
 }
 
-function shareAppearancePresets() {
+export function shareAppearancePresets() {
   return (Array.isArray(state.settings?.shareAppearancePresets) ? state.settings.shareAppearancePresets : [])
     .map((preset) => ({
       id: String(preset?.id || "").trim(),
@@ -50,17 +62,17 @@ function shareAppearancePresets() {
     .filter((preset) => preset.id && preset.name);
 }
 
-function shareSelectedAppearancePreset() {
+export function shareSelectedAppearancePreset() {
   const value = shareControl("shareTripTheme")?.value || "";
   if (!value.startsWith("preset:")) return null;
   return shareAppearancePresets().find((preset) => preset.id === value.slice(7)) || null;
 }
 
-function shareAppearanceTheme() {
+export function shareAppearanceTheme() {
   return shareSelectedAppearancePreset()?.theme || shareControl("shareTripTheme")?.value || "deep-water";
 }
 
-function shareRenderAppearanceOptions(selected = "deep-water") {
+export function shareRenderAppearanceOptions(selected = "deep-water") {
   const select = shareControl("shareTripTheme");
   if (!select) return;
   const presets = shareAppearancePresets();
@@ -68,7 +80,7 @@ function shareRenderAppearanceOptions(selected = "deep-water") {
   select.value = [...select.options].some((option) => option.value === selected) ? selected : "deep-water";
 }
 
-function shareApplyAppearance(value = shareControl("shareTripTheme")?.value || "deep-water") {
+export function shareApplyAppearance(value = shareControl("shareTripTheme")?.value || "deep-water") {
   const preset = value.startsWith("preset:") ? shareAppearancePresets().find((item) => item.id === value.slice(7)) : null;
   const lightTheme = (preset?.theme || value) === "clean-light";
   shareControl("shareTripAccent").value = preset?.accent || "#42c98a";
@@ -77,11 +89,11 @@ function shareApplyAppearance(value = shareControl("shareTripTheme")?.value || "
   shareControl("shareTripCardBackground").value = preset?.cardBackground || (lightTheme ? "#ffffff" : "#141f29");
 }
 
-function shareChecked(id) {
+export function shareChecked(id) {
   return Boolean(shareControl(id)?.checked);
 }
 
-function shareFishPhotoOptions(trip) {
+export function shareFishPhotoOptions(trip) {
   const tripPhotos = (trip.notePhotos || []).map((photo, index) => ({
     label: photo.caption?.trim() || `Trip photo ${index + 1}`,
     media: photo,
@@ -98,7 +110,7 @@ function shareFishPhotoOptions(trip) {
   return [...catchPhotos, ...tripPhotos];
 }
 
-function defaultSharePhotoIndex(trip) {
+export function defaultSharePhotoIndex(trip) {
   const options = shareFishPhotoOptions(trip);
   const biggest = options
     .filter((item) => item.kind === "catch")
@@ -110,13 +122,13 @@ function defaultSharePhotoIndex(trip) {
   return firstTrip ? options.indexOf(firstTrip) : "";
 }
 
-function shareSelectedPhoto() {
+export function shareSelectedPhoto() {
   const selected = shareControl("shareTripPhoto")?.value ?? "";
   if (selected === "" || !activeShareTrip) return null;
   return shareFishPhotoOptions(activeShareTrip)[Number(selected)]?.media || null;
 }
 
-function shareEventRecords(trip, includeMisses = shareChecked("shareIncludeMisses")) {
+export function shareEventRecords(trip, includeMisses = shareChecked("shareIncludeMisses")) {
   const landed = (trip.catches || []).map((item, index) => ({
     ...item,
     eventType: item.released ? "Released" : "Landed",
@@ -134,7 +146,7 @@ function shareEventRecords(trip, includeMisses = shareChecked("shareIncludeMisse
   return [...landed, ...misses].sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")) || a.number - b.number);
 }
 
-function shareSpecies(trip) {
+export function shareSpecies(trip) {
   return Object.entries((trip.catches || []).reduce((counts, fish) => {
     const name = displayTitleText(fish.species || "Unspecified");
     counts[name] = (counts[name] || 0) + 1;
@@ -142,7 +154,7 @@ function shareSpecies(trip) {
   }, {})).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
 
-function shareBiggestFish(trip) {
+export function shareBiggestFish(trip) {
   const catches = Array.isArray(trip.catches) ? trip.catches : [];
   const weighted = catches.filter((fish) => shareNumber(fish.weight) > 0);
   const candidates = weighted.length ? weighted : catches.filter((fish) => shareNumber(fish.length) > 0);
@@ -151,7 +163,7 @@ function shareBiggestFish(trip) {
   ))[0] || null;
 }
 
-function shareRankedValues(trip, getter) {
+export function shareRankedValues(trip, getter) {
   const scores = new Map();
   const add = (fish, landed) => {
     const value = getter(fish);
@@ -174,19 +186,19 @@ function shareRankedValues(trip, getter) {
   return ranked.filter((item) => item.landed === best.landed && item.encounters === best.encounters && item.score === best.score);
 }
 
-function shareCatchLureName(trip, fish) {
+export function shareCatchLureName(trip, fish) {
   const setupLineId = String(fish?.setupLineId || "").split("::")[0];
   const setup = (trip.gearUsed || []).find((item) => item.id === setupLineId);
   return lureName(fish?.lureId) || lureName(setup?.lureId);
 }
 
-function shareCatchFlasherName(trip, fish) {
+export function shareCatchFlasherName(trip, fish) {
   const setupLineId = String(fish?.setupLineId || "").split("::")[0];
   const setup = (trip.gearUsed || []).find((item) => item.id === setupLineId);
   return flasherName(fish?.flasherId) || flasherName(setup?.flasherId);
 }
 
-function shareBestLures(trip) {
+export function shareBestLures(trip) {
   const counts = new Map();
   (trip.catches || []).forEach((fish) => {
     const lure = shareCatchLureName(trip, fish);
@@ -199,7 +211,7 @@ function shareBestLures(trip) {
   return ranked.filter(([, count]) => count === bestCount).map(([name]) => name);
 }
 
-function shareBestFlashers(trip) {
+export function shareBestFlashers(trip) {
   const counts = new Map();
   (trip.catches || []).forEach((fish) => {
     const flasher = shareCatchFlasherName(trip, fish);
@@ -212,17 +224,17 @@ function shareBestFlashers(trip) {
   return ranked.filter(([, count]) => count === bestCount).map(([name]) => name);
 }
 
-function shareBestMethods(trip) {
+export function shareBestMethods(trip) {
   return shareRankedValues(trip, (fish) => fish.presentation || "").map((item) => item.value);
 }
 
-function shareLocationText(trip) {
+export function shareLocationText(trip) {
   const pieces = [shareLaunch(trip)];
   if (trip.location) pieces.push(displayTitleText(trip.location));
   return pieces.filter(Boolean).join(" · ");
 }
 
-function shareWeatherParts(trip) {
+export function shareWeatherParts(trip) {
   const weather = trip.weatherData?.tripWindow || {};
   return [
     trip.weather,
@@ -235,13 +247,13 @@ function shareWeatherParts(trip) {
   ].filter(Boolean);
 }
 
-function shareFormatSize(fish) {
+export function shareFormatSize(fish) {
   const weight = fish?.weight ? displayStoredMeasurement(fish.weight, "fishWeight") : "";
   const length = fish?.length ? displayStoredMeasurement(fish.length, "fishLength") : "";
   return [weight, length].filter(Boolean).join(" · ");
 }
 
-function shareDepthText(fish) {
+export function shareDepthText(fish) {
   const depth = fish.depthDown || fish.estimatedDepth;
   if (depth) return `${depth} down`;
   if (fish.lineOut) return `${fish.lineOut} back`;
@@ -249,7 +261,7 @@ function shareDepthText(fish) {
   return "";
 }
 
-function shareTextMeasurement(value, key) {
+export function shareTextMeasurement(value, key) {
   if (value === null || value === undefined || value === "") return "";
   const fromUnit = unitPreference(key);
   const toUnit = unitPreference(key);
@@ -257,14 +269,14 @@ function shareTextMeasurement(value, key) {
   return `${converted} ${toUnit}`.replace(new RegExp(`\\s+${toUnit}\\s+${toUnit}$`, "i"), ` ${toUnit}`);
 }
 
-function shareTextFishSize(fish) {
+export function shareTextFishSize(fish) {
   return [
     fish.weight ? shareTextMeasurement(fish.weight, "fishWeight") : "",
     fish.length ? shareTextMeasurement(fish.length, "fishLength") : ""
   ].filter(Boolean).join(" · ");
 }
 
-function shareTextDepth(fish) {
+export function shareTextDepth(fish) {
   const depth = fish.depthDown || fish.estimatedDepth;
   if (depth) return `${shareTextMeasurement(depth, "depth")} down`;
   if (fish.lineOut) return `${shareTextMeasurement(fish.lineOut, "depth")} back`;
@@ -272,15 +284,15 @@ function shareTextDepth(fish) {
   return "";
 }
 
-function shareStartTime(trip) {
+export function shareStartTime(trip) {
   return trip.launchTime || "";
 }
 
-function shareEndTime(trip) {
+export function shareEndTime(trip) {
   return trip.linesPulledTime || "";
 }
 
-function shareOverviewItems(trip) {
+export function shareOverviewItems(trip) {
   const directions = [...new Set((trip.catches || []).map((fish) => fish.direction).filter(Boolean))].join(", ");
   const fows = (trip.catches || []).map((fish) => shareNumber(fish.fowCaught || fish.waterDepth)).filter((value) => value != null);
   const items = [
@@ -290,12 +302,12 @@ function shareOverviewItems(trip) {
   return items.filter(([, value]) => value);
 }
 
-function shareStatTime(value) {
+export function shareStatTime(value) {
   const formatted = formatTimelineDisplayTime(value);
   return timeFormatPreference() === "12" ? formatted.replace(/\s(?:AM|PM)$/, "") : formatted;
 }
 
-function shareMetricData(trip) {
+export function shareMetricData(trip) {
   const landed = (trip.catches || []).length;
   const misses = (trip.lostFish || []).length;
   const encounters = landed + misses;
@@ -308,7 +320,7 @@ function shareMetricData(trip) {
   };
 }
 
-function shareConditionItems(trip) {
+export function shareConditionItems(trip) {
   const weather = trip.weatherData?.tripWindow || {};
   const items = [
     ["Weather", trip.weather],
@@ -322,7 +334,7 @@ function shareConditionItems(trip) {
   return items.filter(([, value]) => value);
 }
 
-function shareTimelineHtml(trip) {
+export function shareTimelineHtml(trip) {
   if (!shareChecked("shareShowTimeline")) return "";
   const events = shareEventRecords(trip);
   const rows = events.map((fish, index) => {
@@ -345,7 +357,7 @@ function shareTimelineHtml(trip) {
   return `<section class="report-timeline report-timeline-grid"><div class="report-section-heading"><h4>Trip Timeline</h4></div><table><colgroup><col class="timeline-number" /><col class="timeline-time" /><col class="timeline-result" /><col class="timeline-species" /><col class="timeline-size" /><col class="timeline-fow" /><col class="timeline-method" /><col class="timeline-depth" /><col class="timeline-speed" /><col class="timeline-lure" /><col class="timeline-flasher" /></colgroup><thead><tr><th>#</th><th>Time</th><th>Result</th><th>Species</th><th>Size</th><th>Water depth</th><th>Method</th><th>Depth</th><th>Speed</th><th>Lure</th><th>Flasher</th></tr></thead><tbody>${rows || '<tr><td colspan="11" class="report-timeline-empty">No events recorded</td></tr>'}</tbody></table></section>`;
 }
 
-function shareReportHtml(trip) {
+export function shareReportHtml(trip) {
   const theme = shareAppearanceTheme();
   const headline = shareControl("shareTripHeadline")?.value.trim() || `${shareLaunch(trip)} fishing report`;
   const subtitle = shareControl("shareTripSubtitle")?.value.trim() || "";
@@ -415,7 +427,7 @@ function shareReportHtml(trip) {
   </article>`;
 }
 
-function shareFormatEventSentence(trip, fish, index) {
+export function shareFormatEventSentence(trip, fish, index) {
   const details = [];
   if (shareChecked("shareTextTimelineTime") && fish.time) details.push(formatTimelineDisplayTime(fish.time));
   if (shareChecked("shareTextTimelineWaterDepth") && (fish.fowCaught || fish.waterDepth)) {
@@ -449,13 +461,13 @@ function shareFormatEventSentence(trip, fish, index) {
   return [lead, outcome, notes].filter(Boolean).join(" ").replace(/\.\./g, ".");
 }
 
-function shareGroupedEventParagraphs(trip) {
+export function shareGroupedEventParagraphs(trip) {
   return shareEventRecords(trip, shareChecked("shareTextIncludeMisses"))
     .map((event, index) => shareFormatEventSentence(trip, event, index))
     .filter(Boolean);
 }
 
-function shareTextReport(trip) {
+export function shareTextReport(trip) {
   const headline = shareControl("shareTripHeadline")?.value.trim() || `${shareLaunch(trip)} fishing report`;
   const subtitle = shareControl("shareTripSubtitle")?.value.trim();
   const metrics = shareMetricData(trip);
@@ -487,7 +499,7 @@ function shareTextReport(trip) {
   ].filter(Boolean).join("\n\n");
 }
 
-function sharePreview() {
+export function sharePreview() {
   if (!activeShareTrip) return;
   const frame = shareControl("shareTripPreviewFrame");
   if (frame) {
@@ -500,7 +512,7 @@ function sharePreview() {
   if (!shareTextDirty) shareControl("shareTripTextEditor").value = shareTextReport(activeShareTrip);
 }
 
-function shareFitReport() {
+export function shareFitReport() {
   const report = shareControl("shareTripPreview")?.querySelector(".share-report");
   if (!report) return;
   const frame = shareControl("shareTripPreviewFrame");
@@ -508,7 +520,7 @@ function shareFitReport() {
   frame?.classList.toggle("is-dynamic", dynamic);
 }
 
-function shareValidatePreviewImages() {
+export function shareValidatePreviewImages() {
   const hero = shareControl("shareTripPreview")?.querySelector(".report-hero img");
   if (hero) {
     const applyNaturalAspectRatio = () => {
@@ -535,7 +547,7 @@ function shareValidatePreviewImages() {
   }
 }
 
-function setShareMode(mode) {
+export function setShareMode(mode) {
   activeShareMode = mode;
   document.querySelectorAll("[data-share-mode]").forEach((button) => {
     const selected = button.dataset.shareMode === mode;
@@ -556,7 +568,7 @@ function setShareMode(mode) {
   sharePreview();
 }
 
-function openTripShareStudio(trip) {
+export function openTripShareStudio(trip) {
   activeShareTrip = trip;
   shareTextDirty = false;
   const options = shareFishPhotoOptions(trip);
@@ -607,14 +619,14 @@ function openTripShareStudio(trip) {
   els.shareTripDialog.showModal();
 }
 
-function shareSetStatus(message, type = "") {
+export function shareSetStatus(message, type = "") {
   const status = shareControl("shareTripStatus");
   if (!status) return;
   status.textContent = message;
   status.dataset.type = type;
 }
 
-async function shareWithStatus(button, action, successMessage) {
+export async function shareWithStatus(button, action, successMessage) {
   const original = button.textContent;
   button.disabled = true;
   button.classList.add("is-loading");
@@ -632,10 +644,9 @@ async function shareWithStatus(button, action, successMessage) {
   }
 }
 
-async function shareReportCanvas() {
+export async function shareReportCanvas() {
   const report = shareControl("shareTripPreview")?.querySelector(".share-report");
   if (!report) throw new Error("The report preview is unavailable.");
-  if (!window.html2canvas) throw new Error("The image exporter is still loading.");
   await document.fonts?.ready;
   await Promise.all([...report.querySelectorAll("img")].map((image) => {
     if (image.complete) return Promise.resolve();
@@ -647,7 +658,7 @@ async function shareReportCanvas() {
   shareFitReport();
   const scale = SHARE_REPORT_WIDTH / report.getBoundingClientRect().width;
   const targetHeight = Math.ceil(report.getBoundingClientRect().height * scale);
-  const canvas = await window.html2canvas(report, {
+  const canvas = await html2canvas(report, {
     backgroundColor: null,
     scale,
     useCORS: true,
@@ -664,7 +675,7 @@ async function shareReportCanvas() {
   return exact;
 }
 
-function shareDownloadBlob(blob, extension) {
+export function shareDownloadBlob(blob, extension) {
   const link = document.createElement("a");
   link.download = `trip-report-${activeShareTrip?.date || "share"}.${extension}`;
   link.href = URL.createObjectURL(blob);
@@ -672,7 +683,7 @@ function shareDownloadBlob(blob, extension) {
   window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
-async function shareDownloadImage(format) {
+export async function shareDownloadImage(format) {
   const canvas = await shareReportCanvas();
   const mime = format === "jpg" ? "image/jpeg" : "image/png";
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, format === "jpg" ? 0.93 : 1));
@@ -680,25 +691,25 @@ async function shareDownloadImage(format) {
   shareDownloadBlob(blob, format);
 }
 
-async function shareCopyImage() {
+export async function shareCopyImage() {
   if (!(window.ClipboardItem && navigator.clipboard?.write)) throw new Error("Copy Image is not supported in this browser.");
   const canvas = await shareReportCanvas();
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
   await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
 }
 
-async function shareCopyText() {
+export async function shareCopyText() {
   if (!navigator.clipboard?.writeText) throw new Error("Copy Text is not supported in this browser.");
   const editor = shareControl("shareTripTextEditor");
   await navigator.clipboard.writeText(editor.value);
 }
 
-function shareDownloadText() {
+export function shareDownloadText() {
   const blob = new Blob([shareControl("shareTripTextEditor").value], { type: "text/plain;charset=utf-8" });
   shareDownloadBlob(blob, "txt");
 }
 
-async function shareDownloadTripArchive() {
+export async function shareDownloadTripArchive() {
   if (!activeShareTrip?.id) throw new Error("This trip is no longer available to share.");
   if (location.protocol === "file:") throw new Error("Shared Trip ZIP export needs the app server to be running.");
   const response = await fetch(`/api/trips/${encodeURIComponent(activeShareTrip.id)}/shared-archive`);
@@ -716,7 +727,7 @@ async function shareDownloadTripArchive() {
   window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
-async function saveShareAppearancePreset() {
+export async function saveShareAppearancePreset() {
   const name = shareControl("shareTripAppearanceName")?.value.trim();
   if (!name) {
     shareSetStatus("Name the appearance before saving.", "error");
@@ -749,41 +760,55 @@ async function saveShareAppearancePreset() {
   }
 }
 
-shareControl("shareTripForm")?.addEventListener("input", () => {
-  shareTextDirty = false;
-  sharePreview();
-});
-shareControl("shareTripForm")?.addEventListener("change", () => {
-  shareTextDirty = false;
-  sharePreview();
-});
-shareControl("shareTripTheme")?.addEventListener("change", (event) => {
-  shareApplyAppearance(event.currentTarget.value);
-});
-shareControl("shareTripTextEditor")?.addEventListener("input", () => {
-  shareTextDirty = true;
-});
-document.querySelectorAll("[data-share-mode]").forEach((button) => button.addEventListener("click", () => setShareMode(button.dataset.shareMode)));
-shareControl("shareTripDownloadPng")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, () => shareDownloadImage("png"), "PNG downloaded"));
-shareControl("shareTripDownloadJpg")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, () => shareDownloadImage("jpg"), "JPG downloaded"));
-shareControl("shareTripCopyImage")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, shareCopyImage, "Image copied"));
-shareControl("shareTripCopyText")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, shareCopyText, "Text copied"));
-shareControl("shareTripDownloadText")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, async () => shareDownloadText(), "Text downloaded"));
-shareControl("shareTripDownloadArchive")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, shareDownloadTripArchive, "Shared Trip ZIP downloaded"));
-shareControl("shareSaveAppearance")?.addEventListener("click", saveShareAppearancePreset);
-shareControl("shareFlipBestLurePhoto")?.addEventListener("click", () => {
-  shareBestLurePhotoFlipped = !shareBestLurePhotoFlipped;
-  sharePreview();
-});
-
-if (window.ResizeObserver && shareControl("shareTripPreviewFrame")) {
-  const sharePreviewResizeObserver = new ResizeObserver(([entry]) => {
-    const width = Math.round(entry?.contentRect.width || 0);
-    const height = Math.round(entry?.contentRect.height || 0);
-    const sizeKey = `${width}x${height}`;
-    if (!width || !height || sizeKey === shareLastPreviewFrameSize) return;
-    shareLastPreviewFrameSize = sizeKey;
-    if (activeShareTrip && activeShareMode === "image") window.requestAnimationFrame(sharePreview);
+export function setup() {
+  shareControl("shareTripForm")?.addEventListener("input", () => {
+    shareTextDirty = false;
+    sharePreview();
   });
-  sharePreviewResizeObserver.observe(shareControl("shareTripPreviewFrame"));
+
+  shareControl("shareTripForm")?.addEventListener("change", () => {
+    shareTextDirty = false;
+    sharePreview();
+  });
+
+  shareControl("shareTripTheme")?.addEventListener("change", (event) => {
+    shareApplyAppearance(event.currentTarget.value);
+  });
+
+  shareControl("shareTripTextEditor")?.addEventListener("input", () => {
+    shareTextDirty = true;
+  });
+
+  document.querySelectorAll("[data-share-mode]").forEach((button) => button.addEventListener("click", () => setShareMode(button.dataset.shareMode)));
+
+  shareControl("shareTripDownloadPng")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, () => shareDownloadImage("png"), "PNG downloaded"));
+
+  shareControl("shareTripDownloadJpg")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, () => shareDownloadImage("jpg"), "JPG downloaded"));
+
+  shareControl("shareTripCopyImage")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, shareCopyImage, "Image copied"));
+
+  shareControl("shareTripCopyText")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, shareCopyText, "Text copied"));
+
+  shareControl("shareTripDownloadText")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, async () => shareDownloadText(), "Text downloaded"));
+
+  shareControl("shareTripDownloadArchive")?.addEventListener("click", (event) => shareWithStatus(event.currentTarget, shareDownloadTripArchive, "Shared Trip ZIP downloaded"));
+
+  shareControl("shareSaveAppearance")?.addEventListener("click", saveShareAppearancePreset);
+
+  shareControl("shareFlipBestLurePhoto")?.addEventListener("click", () => {
+    shareBestLurePhotoFlipped = !shareBestLurePhotoFlipped;
+    sharePreview();
+  });
+
+  if (window.ResizeObserver && shareControl("shareTripPreviewFrame")) {
+    const sharePreviewResizeObserver = new ResizeObserver(([entry]) => {
+      const width = Math.round(entry?.contentRect.width || 0);
+      const height = Math.round(entry?.contentRect.height || 0);
+      const sizeKey = `${width}x${height}`;
+      if (!width || !height || sizeKey === shareLastPreviewFrameSize) return;
+      shareLastPreviewFrameSize = sizeKey;
+      if (activeShareTrip && activeShareMode === "image") window.requestAnimationFrame(sharePreview);
+    });
+    sharePreviewResizeObserver.observe(shareControl("shareTripPreviewFrame"));
+  }
 }

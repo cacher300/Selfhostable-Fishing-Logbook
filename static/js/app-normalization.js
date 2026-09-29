@@ -1,4 +1,9 @@
-function normalizeCoordinates(coordinates) {
+import { validateLogbook } from "./generated/logbook-schema-rules.js";
+import { createId, defaults } from "./app-defaults.js";
+import { state } from "./app-state.js";
+import { isUsableCoordinates } from "./app-media.js";
+
+export function normalizeCoordinates(coordinates) {
   if (!coordinates || typeof coordinates !== "object") return null;
   const normalized = {
     latitude: Number(coordinates.latitude),
@@ -7,7 +12,7 @@ function normalizeCoordinates(coordinates) {
   return isUsableCoordinates(normalized) ? normalized : null;
 }
 
-function coordinateDistanceMeters(first, second) {
+export function coordinateDistanceMeters(first, second) {
   if (!isUsableCoordinates(first) || !isUsableCoordinates(second)) return Number.POSITIVE_INFINITY;
   const earthRadius = 6371000;
   const toRadians = (value) => (Number(value) * Math.PI) / 180;
@@ -20,7 +25,7 @@ function coordinateDistanceMeters(first, second) {
   return earthRadius * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 }
 
-function automaticSpotId(catchItem, spots = state.spots || []) {
+export function automaticSpotId(catchItem, spots = state.spots || []) {
   const coordinates = normalizeCoordinates(catchItem?.manualCoordinates) || normalizeCoordinates(catchItem?.coordinates);
   if (!coordinates) return "";
   const matches = spots.flatMap((spot) => {
@@ -31,11 +36,11 @@ function automaticSpotId(catchItem, spots = state.spots || []) {
   return matches[0]?.id || "";
 }
 
-function spotName(spotId) {
+export function spotName(spotId) {
   return state.spots.find((spot) => spot.id === spotId)?.name || "";
 }
 
-function slugId(prefix, value) {
+export function slugId(prefix, value) {
   const slug = String(value || "")
     .trim()
     .toLowerCase()
@@ -44,32 +49,32 @@ function slugId(prefix, value) {
   return slug ? `${prefix}-${slug}` : createId();
 }
 
-function locationNames() {
+export function locationNames() {
   return state.locations.map((location) => location.name).filter(Boolean);
 }
 
-function findLocationByIdOrName(id, name) {
+export function findLocationByIdOrName(id, name) {
   return state.locations.find((location) => location.id === id)
     || state.locations.find((location) => location.name.toLowerCase() === String(name || "").trim().toLowerCase())
     || null;
 }
 
-function findLaunchByIdOrName(location, id, name) {
+export function findLaunchByIdOrName(location, id, name) {
   if (!location) return null;
   return (location.launches || []).find((launch) => launch.id === id)
     || (location.launches || []).find((launch) => launch.name.toLowerCase() === String(name || "").trim().toLowerCase())
     || null;
 }
 
-function tripLocationRecord(trip) {
+export function tripLocationRecord(trip) {
   return findLocationByIdOrName(trip?.locationId, trip?.location);
 }
 
-function tripLaunchRecord(trip) {
+export function tripLaunchRecord(trip) {
   return findLaunchByIdOrName(tripLocationRecord(trip), trip?.launchId, trip?.launch);
 }
 
-function tripWeatherCoordinates(trip) {
+export function tripWeatherCoordinates(trip) {
   const launch = tripLaunchRecord(trip);
   if (isUsableCoordinates(launch?.coordinates)) {
     return { type: "launch", name: launch.name, coordinates: launch.coordinates };
@@ -81,13 +86,13 @@ function tripWeatherCoordinates(trip) {
   return null;
 }
 
-function tripNamingKey(trip) {
+export function tripNamingKey(trip) {
   return [trip?.targetSpecies, trip?.method]
     .map((value) => String(value || "").trim().toLowerCase())
     .join("\u0000");
 }
 
-function generatedTripTitle(trip, trips = []) {
+export function generatedTripTitle(trip, trips = []) {
   const records = Array.isArray(trips) ? trips : [];
   const currentIndex = records.findIndex((item) => item === trip
     || (String(item?.id || "") && String(item?.id || "") === String(trip?.id || "")));
@@ -99,63 +104,14 @@ function generatedTripTitle(trip, trips = []) {
   return `${labels.join(" ") || "Fishing"} Trip #${number}`;
 }
 
-function validateState(document) {
-  if (!document || typeof document !== "object" || document.schemaVersion !== 2) {
-    throw new Error("Only v2 logbooks are supported.");
-  }
-  for (const key of ["species", "methods", "riggings", "lureTypes", "flasherTypes", "waterClarities", "structureOptions", "weatherTypes", "reelStyles", "rodTypes", "lineTypes", "flyCategories", "flyPresentations", "waterLevels", "lureBladeTypes", "lureSpoonSizes", "trollingPresentations", "trollingDirections", "setupLineSides", "lures", "flashers", "reels", "rods", "rodReelCombos", "people", "locations", "spots", "expeditions", "trips"]) {
-    if (!Array.isArray(document[key])) throw new Error(`Missing v2 collection: ${key}`);
-  }
-  if (document.meatRigTypes !== undefined && (!Array.isArray(document.meatRigTypes) || document.meatRigTypes.some((value) => typeof value !== "string"))) {
-    throw new Error("Meat rig types must be a list of strings.");
-  }
-  if (document.softPlasticTypes !== undefined && (!Array.isArray(document.softPlasticTypes) || document.softPlasticTypes.some((value) => typeof value !== "string"))) {
-    throw new Error("Soft plastic styles must be a list of strings.");
-  }
-  for (const lure of document.lures) {
-    if (lure.meatRigType !== undefined && typeof lure.meatRigType !== "string") throw new Error("Lure meat rig type must be a string.");
-    if (lure.softPlasticType !== undefined && typeof lure.softPlasticType !== "string") throw new Error("Lure soft plastic style must be a string.");
-  }
-  if (!document.settings || typeof document.settings !== "object") throw new Error("Missing v2 settings.");
-  if (document.settings.chopRanges !== undefined) validateChopRanges(document.settings.chopRanges);
-  if (document.settings.speciesMapColors !== undefined) {
-    const colors = document.settings.speciesMapColors;
-    if (!colors || typeof colors !== "object" || Array.isArray(colors)) throw new Error("Species map colors must be an object.");
-    const names = new Set();
-    for (const [species, color] of Object.entries(colors)) {
-      const name = String(species).trim().toLowerCase();
-      if (!name) throw new Error("Species map colors cannot contain an empty species.");
-      if (names.has(name)) throw new Error("Species map colors must not repeat a species.");
-      names.add(name);
-      if (!isValidSpeciesMapColor(color)) throw new Error(`Species map color for ${species} must be a six-digit hex color.`);
-    }
-  }
-  const uploadCategories = new Set(["catch-photos", "trip-photos", "lures", "flashers", "reels", "rods", "queue"]);
-  const checkMedia = (items, label) => {
-    if (!Array.isArray(items)) throw new Error(`${label} must be a list.`);
-    for (const item of items) {
-      if (!item || typeof item !== "object" || typeof item.id !== "string" || !item.id
-        || !uploadCategories.has(item.category) || typeof item.filename !== "string" || !item.filename
-        || /[/\\]/.test(item.filename)) {
-        throw new Error(`${label} contains an invalid v2 media reference.`);
-      }
-    }
-  };
-  for (const key of ["lures", "flashers", "reels", "rods"]) {
-    for (const gear of document[key]) {
-      checkMedia(gear.media || [], `${key} media`);
-    }
-  }
-  for (const trip of document.trips) {
-    checkMedia(trip.notePhotos || [], "Trip note photos");
-    for (const fish of [...(trip.catches || []), ...(trip.lostFish || [])]) {
-      checkMedia(fish.photos || [], "Fish photos");
-    }
-  }
+/** Throw unless `document` is a valid v2 logbook (shared schema + semantic rules). */
+export function validateState(document) {
+  const { valid, error } = validateLogbook(document);
+  if (!valid) throw new Error(error || "The logbook is not a valid v2 document.");
   return document;
 }
 
-function slugOptionValue(label) {
+export function slugOptionValue(label) {
   return String(label || "")
     .trim()
     .toLowerCase()
@@ -163,7 +119,7 @@ function slugOptionValue(label) {
     .replace(/^-+|-+$/g, "");
 }
 
-function optionChoices(key) {
+export function optionChoices(key) {
   const choices = Array.isArray(state[key]) ? state[key] : [];
   if (key !== "trollingPresentations") return choices;
   return choices.filter((item) => (
@@ -171,29 +127,28 @@ function optionChoices(key) {
   ));
 }
 
-function optionLabels(key) {
+export function optionLabels(key) {
   const values = Array.isArray(state[key]) ? state[key] : ["meatRigTypes", "softPlasticTypes"].includes(key) ? defaults[key] : [];
   return values.map((item) => typeof item === "object" ? item?.label || item?.value : item);
 }
 
-function choiceLabel(key, value) {
+export function choiceLabel(key, value) {
   const text = String(value || "");
   return optionChoices(key).find((item) => item.value === text)?.label || text;
 }
 
-
-function hasFishHawk() {
+export function hasFishHawk() {
   return state.settings?.hasFishHawk !== false;
 }
 
-function currentTrollingSpreads() {
+export function currentTrollingSpreads() {
   return Array.isArray(state.settings?.trollingSpreads) ? state.settings.trollingSpreads : [];
 }
 
-function currentSavedSetups(setups = state.settings?.savedSetups) {
+export function currentSavedSetups(setups = state.settings?.savedSetups) {
   return Array.isArray(setups) ? setups : [];
 }
 
-function trollingSpreadById(spreadId = "", spreads = state.settings?.trollingSpreads) {
+export function trollingSpreadById(spreadId = "", spreads = state.settings?.trollingSpreads) {
   return (Array.isArray(spreads) ? spreads : []).find((item) => item?.id === spreadId)?.spread || [];
 }

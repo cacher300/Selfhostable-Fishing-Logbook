@@ -1,4 +1,8 @@
-function renderStatsTable(container, headers, rows) {
+import { activeStatsChartMetric, activeStatsTableSort } from "./app-state.js";
+import { statsNumericValue } from "./stats.js";
+import { escapeHtml } from "./form-utils.js";
+
+export function renderStatsTable(container, headers, rows) {
   const displayRows = sortedStatsRows(container, headers, rows);
   const metricIndexes = statsChartMetricIndexes(headers, displayRows);
   const chartMarkup = statsChartMarkup(container, headers, displayRows, metricIndexes);
@@ -19,7 +23,7 @@ function renderStatsTable(container, headers, rows) {
   `;
 }
 
-function sortedStatsRows(container, headers, rows) {
+export function sortedStatsRows(container, headers, rows) {
   const sort = activeStatsTableSort[container.id];
   if (!sort || !Number.isInteger(sort.index)) return rows;
   const direction = sort.direction === "asc" ? 1 : -1;
@@ -33,15 +37,14 @@ function sortedStatsRows(container, headers, rows) {
   });
 }
 
-function statsSortValue(value) {
+export function statsSortValue(value) {
   if (value && typeof value === "object") return statsSortValue(value.text ?? value.value ?? "");
   const numeric = statsNumericValue(value);
   if (numeric !== null) return numeric;
   return String(value || "").toLowerCase();
 }
 
-
-function statsHeaderMarkup(container, header, index) {
+export function statsHeaderMarkup(container, header, index) {
   const sort = activeStatsTableSort[container.id];
   const active = sort?.index === index;
   const direction = active && sort.direction === "asc" ? "low to high" : "high to low";
@@ -59,7 +62,7 @@ function statsHeaderMarkup(container, header, index) {
   `;
 }
 
-function statsHeaderTitle(header) {
+export function statsHeaderTitle(header) {
   const titles = {
     Fish: "Landed fish counted in the current stats scope.",
     Hours: "Logged fishing time, lure time, flasher time, or setup time when available.",
@@ -93,7 +96,7 @@ function statsHeaderTitle(header) {
   return titles[header] || `Sort by ${header}`;
 }
 
-function statsCellMarkup(cell, header) {
+export function statsCellMarkup(cell, header) {
   if (cell && typeof cell === "object" && cell.html) return cell.html;
   const text = String(cell ?? "");
   const title = statsHeaderTitle(header);
@@ -102,12 +105,12 @@ function statsCellMarkup(cell, header) {
   return `<span title="${escapeHtml(title)}">${escapeHtml(cell)}</span>`;
 }
 
-function renderStatsMessage(container, message) {
+export function renderStatsMessage(container, message) {
   ensureStatsCardControls(container, "", [], []);
   container.innerHTML = `<div class="empty-state"><p>${escapeHtml(message)}</p></div>`;
 }
 
-function ensureStatsCardControls(container, chartMarkup, headers, metricIndexes) {
+export function ensureStatsCardControls(container, chartMarkup, headers, metricIndexes) {
   const card = container.closest(".analytics-card");
   if (!card) return;
   const heading = card.querySelector(":scope > h3, :scope > .analytics-card-header h3");
@@ -164,7 +167,7 @@ function ensureStatsCardControls(container, chartMarkup, headers, metricIndexes)
   }
 }
 
-function statsChartMarkup(container, headers, rows, metricIndexes = statsChartMetricIndexes(headers, rows)) {
+export function statsChartMarkup(container, headers, rows, metricIndexes = statsChartMetricIndexes(headers, rows)) {
   if (!rows.length) return "";
   const config = selectedStatsChartConfig(container.id, headers, metricIndexes);
   if (!config) return "";
@@ -177,14 +180,14 @@ function statsChartMarkup(container, headers, rows, metricIndexes = statsChartMe
   return description ? `<p class="stats-chart-description">${escapeHtml(description)}</p>${chart}` : chart;
 }
 
-function statsChartDescription(id) {
+export function statsChartDescription(id) {
   if (id === "lureShareStatsTable") {
     return "Compare time on the water with fish produced. When Fish % is higher than Time %, that lure produced more than its share of the catch.";
   }
   return "";
 }
 
-function statsChartMetricIndexes(headers, rows) {
+export function statsChartMetricIndexes(headers, rows) {
   const nonMetricHeaders = new Set([
     "Trip", "Launch", "Start", "Lines pulled", "Pattern", "Species", "Outcome", "Lure", "Lure Type", "Lure Color",
     "Flasher", "Combo", "Direction", "Line Side", "Method", "Location", "Water Clarity", "Intent", "Rating", "Person",
@@ -198,7 +201,7 @@ function statsChartMetricIndexes(headers, rows) {
     .map(({ index }) => index);
 }
 
-function selectedStatsChartConfig(id, headers, metricIndexes) {
+export function selectedStatsChartConfig(id, headers, metricIndexes) {
   const config = statsChartConfig(id, headers);
   if (!config) return null;
   if (config.lockMetric) return config;
@@ -213,7 +216,7 @@ function selectedStatsChartConfig(id, headers, metricIndexes) {
   };
 }
 
-function statsChartConfig(id, headers) {
+export function statsChartConfig(id, headers) {
   const byHeader = (name) => headers.findIndex((header) => header.toLowerCase() === name.toLowerCase());
   const fishIndex = byHeader("Fish");
   const rateIndex = byHeader("Fish / hr");
@@ -279,7 +282,7 @@ function statsChartConfig(id, headers) {
   return config;
 }
 
-function chartRowsFor(headers, rows, config) {
+export function chartRowsFor(headers, rows, config) {
   const valueIndex = config.valueIndex;
   return rows
     .map((row) => ({
@@ -293,7 +296,7 @@ function chartRowsFor(headers, rows, config) {
     .slice(0, config.limit || 10);
 }
 
-function barChartMarkup(headers, rows, config) {
+export function barChartMarkup(headers, rows, config) {
   const chartRows = chartRowsFor(headers, rows, config);
   if (!chartRows.length) return "";
   const max = Math.max(...chartRows.map((row) => row.value), 1);
@@ -312,7 +315,7 @@ function barChartMarkup(headers, rows, config) {
   `;
 }
 
-function stackedBarChartMarkup(headers, rows, config) {
+export function stackedBarChartMarkup(headers, rows, config) {
   const chartRows = rows.map((row) => {
     const values = config.valueIndexes.map((index) => statsNumericValue(row[index]) || 0);
     const valueLabels = config.valueIndexes.map((index) => row[index]);
@@ -340,7 +343,7 @@ function stackedBarChartMarkup(headers, rows, config) {
   `;
 }
 
-function groupedBarChartMarkup(headers, rows, config) {
+export function groupedBarChartMarkup(headers, rows, config) {
   const chartRows = rows.map((row) => {
     const values = config.valueIndexes.map((index) => statsNumericValue(row[index]));
     const valueLabels = config.valueIndexes.map((index) => row[index]);
@@ -372,7 +375,7 @@ function groupedBarChartMarkup(headers, rows, config) {
   `;
 }
 
-function donutChartMarkup(headers, rows, config) {
+export function donutChartMarkup(headers, rows, config) {
   const excludedLabels = new Set(config.excludeLabels || []);
   const chartRows = chartRowsFor(headers, rows, config)
     .filter((row) => row.value > 0 && !excludedLabels.has(String(row.label)))
@@ -401,7 +404,7 @@ function donutChartMarkup(headers, rows, config) {
   `;
 }
 
-function lineChartMarkup(headers, rows, config) {
+export function lineChartMarkup(headers, rows, config) {
   const valueIndexes = config.valueIndexes;
   let chartRows = rows.map((row) => ({
     label: row[0],

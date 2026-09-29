@@ -1,19 +1,29 @@
-let activeExpeditionId = "";
-let activeCalendarInputId = "";
-let activeCalendarMonth = null;
-let returnToTripEditorAfterExpeditionSave = false;
+import { createId } from "./app-defaults.js";
+import { state } from "./app-state.js";
+import { saveState } from "./app-persistence.js";
+import { els } from "./app-elements.js";
+import { catchRate, formatDate, renderAll, totalCaught, tripHours } from "./dashboard.js";
+import { ExpeditionAnalytics } from "./expedition-analytics.js";
+import { openTripSummary } from "./trip-timeline.js";
+import { escapeHtml, trimNumber } from "./form-utils.js";
+import { setView } from "./app.js";
 
-function calendarIsoDateParts(value) {
+export let activeExpeditionId = "";
+export let activeCalendarInputId = "";
+export let activeCalendarMonth = null;
+export let returnToTripEditorAfterExpeditionSave = false;
+
+export function calendarIsoDateParts(value) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
   return match ? { year: Number(match[1]), month: Number(match[2]) - 1, day: Number(match[3]) } : null;
 }
 
-function displayDateForCalendar(value) {
+export function displayDateForCalendar(value) {
   const parts = calendarIsoDateParts(value);
   return parts ? `${String(parts.month + 1).padStart(2, "0")}/${String(parts.day).padStart(2, "0")}/${parts.year}` : "";
 }
 
-function isoDateFromDisplay(value) {
+export function isoDateFromDisplay(value) {
   const match = /^(\d{1,2})[\\/.-](\d{1,2})[\\/.-](\d{4})$/.exec(String(value || "").trim());
   if (!match) return "";
   const month = Number(match[1]);
@@ -24,7 +34,7 @@ function isoDateFromDisplay(value) {
     ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
 }
 
-function syncCalendarDate(inputId) {
+export function syncCalendarDate(inputId) {
   const valueInput = document.querySelector(`#${inputId}`);
   const displayInput = document.querySelector(`[data-calendar-field="${inputId}"] .styled-date-display`);
   if (!valueInput || !displayInput) return "";
@@ -34,7 +44,7 @@ function syncCalendarDate(inputId) {
   return parsed;
 }
 
-function renderCalendar(inputId) {
+export function renderCalendar(inputId) {
   const valueInput = document.querySelector(`#${inputId}`);
   const popover = document.querySelector(`[data-calendar-popover="${inputId}"]`);
   if (!valueInput || !popover) return;
@@ -65,13 +75,13 @@ function renderCalendar(inputId) {
     <div class="calendar-footer"><button type="button" data-calendar-clear>Clear</button><button type="button" data-calendar-today>Today</button></div>`;
 }
 
-function closeCalendars() {
+export function closeCalendars() {
   document.querySelectorAll(".calendar-popover:not(.hidden)").forEach((popover) => popover.classList.add("hidden"));
   activeCalendarInputId = "";
   activeCalendarMonth = null;
 }
 
-function openCalendar(inputId) {
+export function openCalendar(inputId) {
   closeCalendars();
   activeCalendarInputId = inputId;
   const value = document.querySelector(`#${inputId}`)?.value;
@@ -83,15 +93,15 @@ function openCalendar(inputId) {
   popover.classList.remove("hidden");
 }
 
-function expeditionDateRange(expedition) {
+export function expeditionDateRange(expedition) {
   return `${formatDate(expedition.startDate)} – ${formatDate(expedition.endDate)}`;
 }
 
-function expeditionMemberTrips(expeditionId) {
+export function expeditionMemberTrips(expeditionId) {
   return state.trips.filter((trip) => trip.expeditionId === expeditionId);
 }
 
-function populateTripExpeditionSelect(selectedValue = els.tripExpedition?.value || "") {
+export function populateTripExpeditionSelect(selectedValue = els.tripExpedition?.value || "") {
   if (!els.tripExpedition) return;
   const expeditions = ExpeditionAnalytics.sortedExpeditions(state.expeditions, "start-desc");
   els.tripExpedition.innerHTML = `<option value="">No expedition</option>${expeditions.map((expedition) => (
@@ -99,7 +109,7 @@ function populateTripExpeditionSelect(selectedValue = els.tripExpedition?.value 
   )).join("")}`;
 }
 
-function renderExpeditionList(expeditions) {
+export function renderExpeditionList(expeditions) {
   els.expeditionListEmpty.classList.toggle("hidden", state.expeditions.length > 0);
   els.expeditionList.classList.toggle("hidden", state.expeditions.length === 0);
   if (!state.expeditions.length) {
@@ -127,11 +137,11 @@ function renderExpeditionList(expeditions) {
   }).join("");
 }
 
-function expeditionMetric(label, value, detail = "") {
+export function expeditionMetric(label, value, detail = "") {
   return `<div class="expedition-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${detail ? `<small>${escapeHtml(detail)}</small>` : ""}</div>`;
 }
 
-function renderExpeditionTripTable(trips) {
+export function renderExpeditionTripTable(trips) {
   if (!trips.length) {
     return `
       <div class="expedition-member-empty">
@@ -162,7 +172,7 @@ function renderExpeditionTripTable(trips) {
     </div>`;
 }
 
-function bindExpeditionTripRows() {
+export function bindExpeditionTripRows() {
   document.querySelectorAll(".expedition-trip-table tbody tr[data-expedition-open-trip]").forEach((row) => {
     const openTrip = (event) => {
       if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
@@ -176,7 +186,7 @@ function bindExpeditionTripRows() {
   });
 }
 
-function renderExpeditionDetail(expedition) {
+export function renderExpeditionDetail(expedition) {
   if (!expedition) {
     els.expeditionDetail.innerHTML = `
       <div class="expedition-detail-empty">
@@ -211,7 +221,7 @@ function renderExpeditionDetail(expedition) {
   bindExpeditionTripRows();
 }
 
-function renderExpeditions() {
+export function renderExpeditions() {
   if (!els.expeditionsPanel) return;
   const query = String(els.expeditionSearchInput?.value || "").trim().toLowerCase();
   const sort = els.expeditionSortSelect?.value || "start-desc";
@@ -225,12 +235,12 @@ function renderExpeditions() {
   renderExpeditionDetail(state.expeditions.find((expedition) => expedition.id === activeExpeditionId));
 }
 
-function showExpeditionFormMessage(message) {
+export function showExpeditionFormMessage(message) {
   els.expeditionFormMessage.textContent = message;
   els.expeditionFormMessage.classList.toggle("hidden", !message);
 }
 
-function openExpeditionDialog(expedition = null, options = {}) {
+export function openExpeditionDialog(expedition = null, options = {}) {
   returnToTripEditorAfterExpeditionSave = Boolean(options.fromTripEditor && !expedition);
   els.expeditionForm.reset();
   showExpeditionFormMessage("");
@@ -248,7 +258,7 @@ function openExpeditionDialog(expedition = null, options = {}) {
   els.expeditionName.focus();
 }
 
-async function saveExpedition(event) {
+export async function saveExpedition(event) {
   event.preventDefault();
   syncCalendarDate("expeditionStartDateValue");
   syncCalendarDate("expeditionEndDateValue");
@@ -286,7 +296,7 @@ async function saveExpedition(event) {
   }
 }
 
-async function deleteActiveExpedition() {
+export async function deleteActiveExpedition() {
   const expeditionId = els.expeditionId.value;
   const expedition = state.expeditions.find((item) => item.id === expeditionId);
   if (!expedition) return;
@@ -309,80 +319,87 @@ async function deleteActiveExpedition() {
   }
 }
 
-els.expeditionSearchInput?.addEventListener("input", renderExpeditions);
-els.expeditionSortSelect?.addEventListener("change", renderExpeditions);
-els.expeditionForm?.addEventListener("submit", saveExpedition);
-els.deleteExpeditionButton?.addEventListener("click", deleteActiveExpedition);
-els.newExpeditionButton?.addEventListener("click", () => openExpeditionDialog());
-els.addExpeditionFromTripButton?.addEventListener("click", () => openExpeditionDialog(null, { fromTripEditor: true }));
+export function setup() {
+  els.expeditionSearchInput?.addEventListener("input", renderExpeditions);
 
-document.addEventListener("click", (event) => {
-  const calendarTrigger = event.target.closest("[data-calendar-trigger]");
-  if (calendarTrigger) {
-    event.preventDefault();
-    openCalendar(calendarTrigger.dataset.calendarTrigger);
-    return;
-  }
-  const calendarPopover = event.target.closest(".calendar-popover");
-  if (calendarPopover && activeCalendarInputId) {
-    const step = event.target.closest("[data-calendar-step]");
-    if (step) {
-      activeCalendarMonth.setUTCMonth(activeCalendarMonth.getUTCMonth() + Number(step.dataset.calendarStep));
-      renderCalendar(activeCalendarInputId);
-      return;
-    }
-    const day = event.target.closest("[data-calendar-date]");
-    if (day) {
-      const valueInput = document.querySelector(`#${activeCalendarInputId}`);
-      const displayInput = document.querySelector(`[data-calendar-field="${activeCalendarInputId}"] .styled-date-display`);
-      valueInput.value = day.dataset.calendarDate;
-      displayInput.value = displayDateForCalendar(valueInput.value);
-      displayInput.setCustomValidity("");
-      displayInput.dispatchEvent(new Event("input", { bubbles: true }));
-      closeCalendars();
-      return;
-    }
-    if (event.target.closest("[data-calendar-clear]")) {
-      const valueInput = document.querySelector(`#${activeCalendarInputId}`);
-      const displayInput = document.querySelector(`[data-calendar-field="${activeCalendarInputId}"] .styled-date-display`);
-      valueInput.value = "";
-      displayInput.value = "";
-      displayInput.dispatchEvent(new Event("input", { bubbles: true }));
-      closeCalendars();
-      return;
-    }
-    if (event.target.closest("[data-calendar-today]")) {
-      const valueInput = document.querySelector(`#${activeCalendarInputId}`);
-      const displayInput = document.querySelector(`[data-calendar-field="${activeCalendarInputId}"] .styled-date-display`);
-      valueInput.value = new Date().toISOString().slice(0, 10);
-      displayInput.value = displayDateForCalendar(valueInput.value);
-      displayInput.setCustomValidity("");
-      displayInput.dispatchEvent(new Event("input", { bubbles: true }));
-      closeCalendars();
-      return;
-    }
-    return;
-  }
-  if (activeCalendarInputId && !event.target.closest(".styled-date-field")) closeCalendars();
-  const newButton = event.target.closest("[data-new-expedition]");
-  if (newButton) openExpeditionDialog();
-  const selectButton = event.target.closest("[data-select-expedition]");
-  if (selectButton) {
-    activeExpeditionId = selectButton.dataset.selectExpedition;
-    renderExpeditions();
-  }
-  const editButton = event.target.closest("[data-edit-expedition]");
-  if (editButton) openExpeditionDialog(state.expeditions.find((item) => item.id === editButton.dataset.editExpedition));
-  if (event.target.closest("[data-go-to-trips]")) setView("trips");
-});
+  els.expeditionSortSelect?.addEventListener("change", renderExpeditions);
 
-document.querySelectorAll(".styled-date-display").forEach((input) => {
-  input.addEventListener("input", () => syncCalendarDate(input.closest(".styled-date-field")?.dataset.calendarField));
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
+  els.expeditionForm?.addEventListener("submit", saveExpedition);
+
+  els.deleteExpeditionButton?.addEventListener("click", deleteActiveExpedition);
+
+  els.newExpeditionButton?.addEventListener("click", () => openExpeditionDialog());
+
+  els.addExpeditionFromTripButton?.addEventListener("click", () => openExpeditionDialog(null, { fromTripEditor: true }));
+
+  document.addEventListener("click", (event) => {
+    const calendarTrigger = event.target.closest("[data-calendar-trigger]");
+    if (calendarTrigger) {
       event.preventDefault();
-      syncCalendarDate(input.closest(".styled-date-field")?.dataset.calendarField);
-      closeCalendars();
+      openCalendar(calendarTrigger.dataset.calendarTrigger);
+      return;
     }
+    const calendarPopover = event.target.closest(".calendar-popover");
+    if (calendarPopover && activeCalendarInputId) {
+      const step = event.target.closest("[data-calendar-step]");
+      if (step) {
+        activeCalendarMonth.setUTCMonth(activeCalendarMonth.getUTCMonth() + Number(step.dataset.calendarStep));
+        renderCalendar(activeCalendarInputId);
+        return;
+      }
+      const day = event.target.closest("[data-calendar-date]");
+      if (day) {
+        const valueInput = document.querySelector(`#${activeCalendarInputId}`);
+        const displayInput = document.querySelector(`[data-calendar-field="${activeCalendarInputId}"] .styled-date-display`);
+        valueInput.value = day.dataset.calendarDate;
+        displayInput.value = displayDateForCalendar(valueInput.value);
+        displayInput.setCustomValidity("");
+        displayInput.dispatchEvent(new Event("input", { bubbles: true }));
+        closeCalendars();
+        return;
+      }
+      if (event.target.closest("[data-calendar-clear]")) {
+        const valueInput = document.querySelector(`#${activeCalendarInputId}`);
+        const displayInput = document.querySelector(`[data-calendar-field="${activeCalendarInputId}"] .styled-date-display`);
+        valueInput.value = "";
+        displayInput.value = "";
+        displayInput.dispatchEvent(new Event("input", { bubbles: true }));
+        closeCalendars();
+        return;
+      }
+      if (event.target.closest("[data-calendar-today]")) {
+        const valueInput = document.querySelector(`#${activeCalendarInputId}`);
+        const displayInput = document.querySelector(`[data-calendar-field="${activeCalendarInputId}"] .styled-date-display`);
+        valueInput.value = new Date().toISOString().slice(0, 10);
+        displayInput.value = displayDateForCalendar(valueInput.value);
+        displayInput.setCustomValidity("");
+        displayInput.dispatchEvent(new Event("input", { bubbles: true }));
+        closeCalendars();
+        return;
+      }
+      return;
+    }
+    if (activeCalendarInputId && !event.target.closest(".styled-date-field")) closeCalendars();
+    const newButton = event.target.closest("[data-new-expedition]");
+    if (newButton) openExpeditionDialog();
+    const selectButton = event.target.closest("[data-select-expedition]");
+    if (selectButton) {
+      activeExpeditionId = selectButton.dataset.selectExpedition;
+      renderExpeditions();
+    }
+    const editButton = event.target.closest("[data-edit-expedition]");
+    if (editButton) openExpeditionDialog(state.expeditions.find((item) => item.id === editButton.dataset.editExpedition));
+    if (event.target.closest("[data-go-to-trips]")) setView("trips");
   });
-});
+
+  document.querySelectorAll(".styled-date-display").forEach((input) => {
+    input.addEventListener("input", () => syncCalendarDate(input.closest(".styled-date-field")?.dataset.calendarField));
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        syncCalendarDate(input.closest(".styled-date-field")?.dataset.calendarField);
+        closeCalendars();
+      }
+    });
+  });
+}

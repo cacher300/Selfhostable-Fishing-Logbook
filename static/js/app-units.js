@@ -1,12 +1,16 @@
-function themePreference() {
+import { defaultChopRanges, defaultUnits, unitOptions } from "./app-defaults.js";
+import { state } from "./app-state.js";
+import { trimNumber } from "./form-utils.js";
+
+export function themePreference() {
   return state.settings?.theme === "dark" ? "dark" : "light";
 }
 
-function timeFormatPreference() {
+export function timeFormatPreference() {
   return state.settings?.timeFormat === "12" ? "12" : "24";
 }
 
-function normalizeUnits(units = {}) {
+export function normalizeUnits(units = {}) {
   const normalized = { ...defaultUnits };
   Object.keys(defaultUnits).forEach((key) => {
     const allowed = unitOptions[key]?.map((item) => item.value) || [];
@@ -16,17 +20,17 @@ function normalizeUnits(units = {}) {
   return normalized;
 }
 
-function unitPreference(key) {
+export function unitPreference(key) {
   return normalizeUnits(state.settings?.units)[key] || defaultUnits[key] || "";
 }
 
-function unitSymbol(key) {
+export function unitSymbol(key) {
   const unit = unitPreference(key);
   if (unit === "C" || unit === "F") return `\u00b0${unit}`;
   return unit;
 }
 
-function convertUnitValue(value, fromUnit, toUnit) {
+export function convertUnitValue(value, fromUnit, toUnit) {
   const number = Number(value);
   if (!Number.isFinite(number)) return null;
   if (fromUnit === toUnit) return number;
@@ -43,7 +47,7 @@ function convertUnitValue(value, fromUnit, toUnit) {
   return number;
 }
 
-const measurementUnitAliases = {
+export const measurementUnitAliases = {
   feet: "ft", foot: "ft", ft: "ft",
   meter: "m", meters: "m", metre: "m", metres: "m", m: "m",
   kilometer: "km", kilometers: "km", kilometre: "km", kilometres: "km", km: "km",
@@ -57,11 +61,11 @@ const measurementUnitAliases = {
   hpa: "hPa", kpa: "kPa", inhg: "inHg", mmhg: "mmHg"
 };
 
-function explicitMeasurementUnit(suffix) {
+export function explicitMeasurementUnit(suffix) {
   return measurementUnitAliases[String(suffix || "").trim().replace(/^°/, "").toLowerCase()] || "";
 }
 
-function convertedMeasurementText(value, fromUnit, toUnit) {
+export function convertedMeasurementText(value, fromUnit, toUnit) {
   if (value === null || value === undefined || value === "" || fromUnit === toUnit) return value;
   const text = String(value).trim();
   const range = text.match(/^(-?(?:\d+(?:\.\d+)?|\.\d+))\s*-\s*(-?(?:\d+(?:\.\d+)?|\.\d+))(?:\s*([a-zA-Z°]+))?$/);
@@ -83,15 +87,15 @@ function convertedMeasurementText(value, fromUnit, toUnit) {
   return match[2] ? `${number} ${match[2]}` : number;
 }
 
-function unitSymbolForValue(unit) {
+export function unitSymbolForValue(unit) {
   return unit === "C" || unit === "F" ? `°${unit}` : unit;
 }
 
-function trimConvertedMeasurement(value) {
+export function trimConvertedMeasurement(value) {
   return String(Math.round(Number(value) * 1000) / 1000);
 }
 
-function displayStoredMeasurement(value, key) {
+export function displayStoredMeasurement(value, key) {
   const text = String(value || "").trim();
   if (!text) return "";
   const range = text.match(/^-?(?:\d+(?:\.\d+)?|\.\d+)\s*-\s*-?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*([a-zA-Z°]+))?$/);
@@ -106,7 +110,7 @@ function displayStoredMeasurement(value, key) {
   return `${text} ${unitSymbol(key)}`;
 }
 
-function convertStoredMeasurements(previousUnits, nextUnits) {
+export function convertStoredMeasurements(previousUnits, nextUnits) {
   const tripMeasurements = [
     ["waterTemp", "waterTemperature"],
     ["waveHeight", "waveHeight"],
@@ -161,7 +165,7 @@ function convertStoredMeasurements(previousUnits, nextUnits) {
   });
 }
 
-function formatUnitValue(value, key, fromUnit, options = {}) {
+export function formatUnitValue(value, key, fromUnit, options = {}) {
   const toUnit = unitPreference(key);
   const converted = convertUnitValue(value, fromUnit, toUnit);
   if (converted === null) return "Not logged";
@@ -169,7 +173,7 @@ function formatUnitValue(value, key, fromUnit, options = {}) {
   return `${trimNumber(Math.round(converted * (10 ** decimals)) / (10 ** decimals))} ${unitSymbol(key)}`;
 }
 
-function formatDisplayTime(value, format = timeFormatPreference()) {
+export function formatDisplayTime(value, format = timeFormatPreference()) {
   const match = String(value || "").match(/(\d{1,2}):(\d{2})/);
   if (!match) return "";
   const hour = Number(match[1]);
@@ -182,11 +186,11 @@ function formatDisplayTime(value, format = timeFormatPreference()) {
   return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
-function currentChopRanges(ranges = state.settings?.chopRanges) {
+export function currentChopRanges(ranges = state.settings?.chopRanges) {
   return Array.isArray(ranges) ? ranges : defaultChopRanges;
 }
 
-function validateChopRanges(ranges) {
+export function validateChopRanges(ranges) {
   if (!Array.isArray(ranges)) throw new Error("Chop ranges must be a list.");
   const ids = new Set();
   for (const range of ranges) {

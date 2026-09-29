@@ -1,4 +1,4 @@
-const els = {
+export const els = {
   brandSpotlight: document.querySelector("#brandSpotlight"),
   personOptions: document.querySelector("#personOptions"),
   statTrips: document.querySelector("#statTrips"),

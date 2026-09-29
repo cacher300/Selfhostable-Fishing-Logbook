@@ -1,4 +1,27 @@
-function clearTripFormMessage() {
+import { L } from "./vendor.js";
+import { createId, defaultTimeValue } from "./app-defaults.js";
+import { state, ui } from "./app-state.js";
+import { findLaunchByIdOrName, findLocationByIdOrName, generatedTripTitle, optionLabels } from "./app-normalization.js";
+import { convertUnitValue, explicitMeasurementUnit, unitPreference, unitSymbol } from "./app-units.js";
+import { saveState } from "./app-persistence.js";
+import { els } from "./app-elements.js";
+import { beginMediaEditSession, cleanupDeletedMedia, isUsableCoordinates, mediaReferenceKeys } from "./app-media.js";
+import { LOCATION_FOCUS_ZOOM, coordinateText, populateLaunchSelect, populateLocationSelect, selectedTripLocationCoordinates } from "./locations.js";
+import { renderWeatherSummary, scheduleTripWeatherPreview, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel } from "./location-weather.js";
+import { syncUnitLabels } from "./settings.js";
+import { populateDatalist, populateOptionSelect, renderAll } from "./dashboard.js";
+import { ExpeditionAnalytics } from "./expedition-analytics.js";
+import { displayDateForCalendar, expeditionDateRange, populateTripExpeditionSelect, syncCalendarDate } from "./expeditions.js";
+import { renderNotePhotos } from "./photos.js";
+import { addCatchRow, addLostFishRow, addTripGearRow, fishRowLabel, populateSetupLineSelects, selectedText, setupLineLabelFromRow } from "./trip-rows.js";
+import { renderLiveTrollingSpread } from "./trolling-spread.js";
+import { greatLakesControlValue, greatLakesLoadedModelsKey } from "./great-lakes-conditions.js";
+import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
+import { calculateMinutes } from "./stats.js";
+import { escapeHtml, isTrollingTrip, trimNumber } from "./form-utils.js";
+import { updateMethodVisibility } from "./app.js";
+
+export function clearTripFormMessage() {
   els.tripFormMessage.classList.add("hidden");
   els.tripFormMessage.textContent = "";
   els.tripForm.querySelectorAll("[aria-invalid='true']").forEach((field) => {
@@ -6,7 +29,7 @@ function clearTripFormMessage() {
   });
 }
 
-function showTripFormMessage(message, fields = []) {
+export function showTripFormMessage(message, fields = []) {
   els.tripFormMessage.textContent = message;
   els.tripFormMessage.classList.remove("hidden");
   fields.forEach((field) => field.setAttribute("aria-invalid", "true"));
@@ -14,7 +37,7 @@ function showTripFormMessage(message, fields = []) {
   fields[0]?.focus({ preventScroll: true });
 }
 
-function showTripValidationDialog({ intro, items }) {
+export function showTripValidationDialog({ intro, items }) {
   clearTripFormMessage();
   items.forEach((item) => item.field?.setAttribute("aria-invalid", "true"));
   if (!els.tripValidationDialog || !els.tripValidationList) return;
@@ -32,7 +55,7 @@ function showTripValidationDialog({ intro, items }) {
   els.tripValidationDialog.showModal();
 }
 
-function focusTripValidationField(fieldId) {
+export function focusTripValidationField(fieldId) {
   const field = document.getElementById(fieldId);
   els.tripValidationDialog?.close();
   if (!field) return;
@@ -42,7 +65,7 @@ function focusTripValidationField(fieldId) {
   });
 }
 
-function setTripSaveLoading(saving, action = "") {
+export function setTripSaveLoading(saving, action = "") {
   const loadingSelector = action === "draft"
     ? "[data-trip-draft-save]"
     : action === "save"
@@ -55,7 +78,7 @@ function setTripSaveLoading(saving, action = "") {
   });
 }
 
-function tripFormSnapshot() {
+export function tripFormSnapshot() {
   if (!els.tripForm) return "";
   const controls = [...els.tripForm.querySelectorAll("input, select, textarea")]
     .filter((control) => control.type !== "file")
@@ -65,7 +88,7 @@ function tripFormSnapshot() {
     }));
   return JSON.stringify({
     controls,
-    notePhotos: activeNotePhotos.map((photo) => photo.id || photo.filename || ""),
+    notePhotos: ui.activeNotePhotos.map((photo) => photo.id || photo.filename || ""),
     catchPhotos: [...els.catchRows.querySelectorAll(".catch-row")].map((row) => (row.catchPhotos || []).map((photo) => photo.id || photo.filename || "")),
     lostFishPhotos: [...els.lostFishRows.querySelectorAll(".catch-row")].map((row) => (row.catchPhotos || []).map((photo) => photo.id || photo.filename || "")),
     lostCount: els.lostFishRows.querySelectorAll(".catch-row").length,
@@ -74,17 +97,17 @@ function tripFormSnapshot() {
   });
 }
 
-function resetTripFormSnapshot() {
-  tripFormInitialSnapshot = tripFormSnapshot();
-  tripFormUserChanged = false;
+export function resetTripFormSnapshot() {
+  ui.tripFormInitialSnapshot = tripFormSnapshot();
+  ui.tripFormUserChanged = false;
   syncTripFormChrome();
 }
 
-function isTripFormDirty() {
-  return els.tripDialog?.open && tripFormSnapshot() !== tripFormInitialSnapshot;
+export function isTripFormDirty() {
+  return els.tripDialog?.open && tripFormSnapshot() !== ui.tripFormInitialSnapshot;
 }
 
-function tripDateLabel(value) {
+export function tripDateLabel(value) {
   if (!value) return "";
   const date = new Date(`${value}T12:00:00`);
   return Number.isNaN(date.valueOf())
@@ -92,8 +115,8 @@ function tripDateLabel(value) {
     : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-function updateTripDialogHeader() {
-  const title = getValue("tripTitle") || (activeTripId ? "Untitled Trip" : "New Trip");
+export function updateTripDialogHeader() {
+  const title = getValue("tripTitle") || (ui.activeTripId ? "Untitled Trip" : "New Trip");
   const date = tripDateLabel(document.querySelector("#tripDateValue")?.value || document.querySelector("#tripDate")?.value);
   const location = selectedText(els.tripLocation);
   els.tripDialogTitle.textContent = title;
@@ -102,28 +125,28 @@ function updateTripDialogHeader() {
   }
 }
 
-function syncTripFormChrome() {
-  els.tripSaveBar?.classList.toggle("is-dirty", tripFormUserChanged && isTripFormDirty());
+export function syncTripFormChrome() {
+  els.tripSaveBar?.classList.toggle("is-dirty", ui.tripFormUserChanged && isTripFormDirty());
   updateTripDialogHeader();
 }
 
-function markTripFormChanged() {
-  tripFormUserChanged = true;
+export function markTripFormChanged() {
+  ui.tripFormUserChanged = true;
   syncTripFormChrome();
 }
 
-function closeTripDialog({ force = false } = {}) {
+export function closeTripDialog({ force = false } = {}) {
   if (!els.tripDialog.open) return true;
   if (!force && isTripFormDirty() && !confirm("Discard unsaved trip changes?")) return false;
-  tripFormInitialSnapshot = "";
-  tripFormUserChanged = false;
+  ui.tripFormInitialSnapshot = "";
+  ui.tripFormUserChanged = false;
   els.tripDialog.close();
   els.tripSaveBar?.classList.remove("is-dirty");
   els.tripSaveBar?.classList.remove("is-existing-trip");
   return true;
 }
 
-function validateTripForm() {
+export function validateTripForm() {
   clearTripFormMessage();
   const tripDateDisplay = document.querySelector("#tripDate");
   if (tripDateDisplay && typeof syncCalendarDate === "function") syncCalendarDate("tripDateValue");
@@ -150,7 +173,7 @@ function validateTripForm() {
   return false;
 }
 
-function tripSaveWarnings() {
+export function tripSaveWarnings() {
   const warnings = [];
   const importantFields = [
     { field: document.querySelector("#launchTime"), label: "Start time" },
@@ -204,17 +227,17 @@ function tripSaveWarnings() {
   return warnings;
 }
 
-function confirmTripSaveWarnings() {
+export function confirmTripSaveWarnings() {
   const warnings = tripSaveWarnings();
   if (!warnings.length) return true;
   return confirm(`Please review before saving:\n\n${warnings.map((warning) => `• ${warning}`).join("\n")}\n\nSave anyway?`);
 }
 
-function tripDeleteTitle(trip) {
+export function tripDeleteTitle(trip) {
   return String(trip?.title || generatedTripTitle(trip || {}, state.trips) || trip?.location || "Untitled trip").trim();
 }
 
-function confirmTripDeletion(trip) {
+export function confirmTripDeletion(trip) {
   const title = tripDeleteTitle(trip);
   if (!confirm(`Delete "${title}"?\n\nThis permanently removes the trip, catches, notes, and saved trip media references.`)) return false;
   if (!confirm(`Second check: are you absolutely sure you want to delete "${title}"?`)) return false;
@@ -226,7 +249,7 @@ function confirmTripDeletion(trip) {
   return true;
 }
 
-async function deleteTripById(tripId, options = {}) {
+export async function deleteTripById(tripId, options = {}) {
   const trip = state.trips.find((item) => item.id === tripId);
   if (!trip || !confirmTripDeletion(trip)) return false;
   const deletedTripMedia = [...mediaReferenceKeys(trip)];
@@ -235,21 +258,21 @@ async function deleteTripById(tripId, options = {}) {
   await cleanupDeletedMedia(deletedTripMedia);
   if (options.closeEditor) closeTripDialog({ force: true });
   if (options.closeSummary) {
-    activeSummaryTripId = null;
+    ui.activeSummaryTripId = null;
     els.tripSummaryDialog.close();
   }
   renderAll();
   return true;
 }
 
-function localDateInputValue(date = new Date()) {
+export function localDateInputValue(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
-function ensureProbeTemperatureProfileDisclosure() {
+export function ensureProbeTemperatureProfileDisclosure() {
   const section = document.querySelector(".trip-probe-temperature-section");
   // Fresh templates use the native details/summary disclosure. This fallback
   // keeps the control functional when a running server still has the older
@@ -294,11 +317,11 @@ function ensureProbeTemperatureProfileDisclosure() {
   });
 }
 
-function openTripDialog(trip = null) {
+export function openTripDialog(trip = null) {
   beginMediaEditSession("trip");
-  activeTripId = trip?.id || null;
-  newTripStartupSpreadApplied = false;
-  newTripSavedSetupAppliedMethods = new Set();
+  ui.activeTripId = trip?.id || null;
+  ui.newTripStartupSpreadApplied = false;
+  ui.newTripSavedSetupAppliedMethods = new Set();
   els.deleteTripButton.classList.toggle("hidden", !trip);
   els.tripSaveBar?.classList.toggle("is-existing-trip", Boolean(trip));
   els.tripForm.reset();
@@ -308,7 +331,7 @@ function openTripDialog(trip = null) {
   els.lostFishRows.innerHTML = "";
   els.tripGearRows.innerHTML = "";
   els.personRows.innerHTML = "";
-  activeNotePhotos = structuredClone(trip?.notePhotos || []);
+  ui.activeNotePhotos = structuredClone(trip?.notePhotos || []);
 
   const today = localDateInputValue();
   setValue("tripId", trip?.id || "");
@@ -334,10 +357,10 @@ function openTripDialog(trip = null) {
   setValue("waterLevel", trip?.waterLevel || "");
   setValue("weather", trip?.weather || "");
   setValue("waveHeight", trip?.waveHeight || "");
-  updateMarineWaveHeightPlaceholder(trip?.weatherData || activeTripWeatherData);
+  updateMarineWaveHeightPlaceholder(trip?.weatherData || ui.activeTripWeatherData);
   setValue("structure", trip?.structure || "");
-  probeProfileImportCoordinates = null;
-  pendingProbeProfileImportCoordinates = null;
+  ui.probeProfileImportCoordinates = null;
+  ui.pendingProbeProfileImportCoordinates = null;
   syncProbeProfileImportSourceNote();
   setProbeProfileImportStatus("");
   ensureProbeTemperatureProfileDisclosure();
@@ -353,10 +376,10 @@ function openTripDialog(trip = null) {
   }
   renderProbeTemperatureProfile(savedProbeProfile, { exactDepths: savedProbeProfile.length > 0 });
   setValue("tripNotes", trip?.notes || "");
-  activeTripWeatherData = trip?.weatherData || null;
-  activeTripWeatherKey = "";
-  setWeatherStatus(activeTripWeatherData?.daily ? weatherCardConditionsLabel() : "Choose a mapped location and date");
-  renderWeatherSummary(activeTripWeatherData);
+  ui.activeTripWeatherData = trip?.weatherData || null;
+  ui.activeTripWeatherKey = "";
+  setWeatherStatus(ui.activeTripWeatherData?.daily ? weatherCardConditionsLabel() : "Choose a mapped location and date");
+  renderWeatherSummary(ui.activeTripWeatherData);
   renderNotePhotos();
 
   const tripPeople = trip?.people || [];
@@ -387,42 +410,42 @@ function openTripDialog(trip = null) {
   if (!trip) scheduleTripWeatherPreview(true);
 }
 
-function setValue(id, value) {
+export function setValue(id, value) {
   const input = document.querySelector(`#${id}`);
   if (input) input.value = value;
 }
 
-function getValue(id) {
+export function getValue(id) {
   const valueId = id === "tripDate" && document.querySelector("#tripDateValue") ? "tripDateValue" : id;
   return document.querySelector(`#${valueId}`).value.trim();
 }
 
-let probeProfileDepthsFeet = Array.from({ length: 12 }, (_, index) => index * 10);
+export let probeProfileDepthsFeet = Array.from({ length: 12 }, (_, index) => index * 10);
 
-function probeTemperatureProfileEntries(profile = []) {
+export function probeTemperatureProfileEntries(profile = []) {
   return Array.isArray(profile) ? profile.filter((entry) => Number.isFinite(Number(entry?.depthFeet))) : [];
 }
 
-function roundedProbeDisplayNumber(value) {
+export function roundedProbeDisplayNumber(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "";
   return trimNumber(Math.round(number));
 }
 
-function displayProbeDepthValue(depthFeet) {
+export function displayProbeDepthValue(depthFeet) {
   const depth = convertUnitValue(depthFeet, "ft", unitPreference("depth"));
   return roundedProbeDisplayNumber(depth ?? depthFeet);
 }
 
-function displayProbeDepth(depthFeet) {
+export function displayProbeDepth(depthFeet) {
   return `${displayProbeDepthValue(depthFeet)} ${unitSymbol("depth")}`;
 }
 
-function displayProbeTemperatureNumber(value) {
+export function displayProbeTemperatureNumber(value) {
   return roundedProbeDisplayNumber(value);
 }
 
-function displayProbeTemperatureInput(value) {
+export function displayProbeTemperatureInput(value) {
   const text = String(value ?? "").trim();
   if (!text) return "";
   const match = text.match(/^(-?(?:\d+(?:\.\d+)?|\.\d+))(?:\s*([a-zA-Z°]+))?$/);
@@ -431,7 +454,7 @@ function displayProbeTemperatureInput(value) {
   return `${rounded}${match[2] ? ` ${match[2]}` : ""}`;
 }
 
-function displayProbeTemperatureMeasurement(value) {
+export function displayProbeTemperatureMeasurement(value) {
   const text = String(value ?? "").trim();
   if (!text) return "";
   const match = text.match(/^(-?(?:\d+(?:\.\d+)?|\.\d+))(?:\s*([a-zA-Z°]+))?$/);
@@ -440,7 +463,7 @@ function displayProbeTemperatureMeasurement(value) {
   return `${rounded} ${match[2] || unitSymbol("waterTemperature")}`;
 }
 
-function noaaProbeTemperatureProfileEntries(profile = {}) {
+export function noaaProbeTemperatureProfileEntries(profile = {}) {
   const temperaturesByDepth = new Map();
   const temperatureUnit = unitPreference("waterTemperature");
   (Array.isArray(profile?.values) ? profile.values : []).forEach((value) => {
@@ -459,111 +482,111 @@ function noaaProbeTemperatureProfileEntries(profile = {}) {
   return [...temperaturesByDepth.values()].sort((first, second) => first.depthFeet - second.depthFeet);
 }
 
-function setProbeProfileImportStatus(message = "", isError = false) {
+export function setProbeProfileImportStatus(message = "", isError = false) {
   const status = document.querySelector("#probeProfileImportStatus");
   if (!status) return;
   status.textContent = message;
   status.classList.toggle("is-error", Boolean(message) && isError);
 }
 
-function probeProfileImportSource() {
-  if (isUsableCoordinates(probeProfileImportCoordinates)) {
-    return { coordinates: probeProfileImportCoordinates, type: "map-point" };
+export function probeProfileImportSource() {
+  if (isUsableCoordinates(ui.probeProfileImportCoordinates)) {
+    return { coordinates: ui.probeProfileImportCoordinates, type: "map-point" };
   }
   const coordinates = selectedTripLocationCoordinates();
   return isUsableCoordinates(coordinates) ? { coordinates, type: "launch" } : null;
 }
 
-function syncProbeProfileImportSourceNote() {
+export function syncProbeProfileImportSourceNote() {
   const note = document.querySelector("#probeProfileSourceNote");
   const resetButton = document.querySelector("[data-clear-probe-profile-location]");
-  const hasMapPoint = isUsableCoordinates(probeProfileImportCoordinates);
+  const hasMapPoint = isUsableCoordinates(ui.probeProfileImportCoordinates);
   if (note) {
     note.textContent = hasMapPoint
-      ? `NOAA will use your selected map point (${coordinateText(probeProfileImportCoordinates)}) instead of the launch pin.`
+      ? `NOAA will use your selected map point (${coordinateText(ui.probeProfileImportCoordinates)}) instead of the launch pin.`
       : "NOAA uses the selected launch / area fished pin by default. If it has no pin, it uses the waterbody pin.";
   }
   resetButton?.classList.toggle("hidden", !hasMapPoint);
 }
 
-function setPendingProbeProfileImportCoordinates(coordinates) {
-  pendingProbeProfileImportCoordinates = isUsableCoordinates(coordinates) ? coordinates : null;
+export function setPendingProbeProfileImportCoordinates(coordinates) {
+  ui.pendingProbeProfileImportCoordinates = isUsableCoordinates(coordinates) ? coordinates : null;
   if (els.probeProfileLocationCoordinates) {
-    els.probeProfileLocationCoordinates.textContent = pendingProbeProfileImportCoordinates
-      ? `Selected point: ${coordinateText(pendingProbeProfileImportCoordinates)}`
+    els.probeProfileLocationCoordinates.textContent = ui.pendingProbeProfileImportCoordinates
+      ? `Selected point: ${coordinateText(ui.pendingProbeProfileImportCoordinates)}`
       : "Choose a point on the map.";
   }
   if (els.saveProbeProfileLocationButton) {
-    els.saveProbeProfileLocationButton.disabled = !pendingProbeProfileImportCoordinates;
+    els.saveProbeProfileLocationButton.disabled = !ui.pendingProbeProfileImportCoordinates;
   }
-  if (!window.L || !probeProfileLocationMap || !pendingProbeProfileImportCoordinates) return;
-  const point = [pendingProbeProfileImportCoordinates.latitude, pendingProbeProfileImportCoordinates.longitude];
-  if (!probeProfileLocationMarker) {
-    probeProfileLocationMarker = L.marker(point, { draggable: true }).addTo(probeProfileLocationMap);
-    probeProfileLocationMarker.on("dragend", () => {
-      const latLng = probeProfileLocationMarker.getLatLng();
+  if (!window.L || !ui.probeProfileLocationMap || !ui.pendingProbeProfileImportCoordinates) return;
+  const point = [ui.pendingProbeProfileImportCoordinates.latitude, ui.pendingProbeProfileImportCoordinates.longitude];
+  if (!ui.probeProfileLocationMarker) {
+    ui.probeProfileLocationMarker = L.marker(point, { draggable: true }).addTo(ui.probeProfileLocationMap);
+    ui.probeProfileLocationMarker.on("dragend", () => {
+      const latLng = ui.probeProfileLocationMarker.getLatLng();
       setPendingProbeProfileImportCoordinates({ latitude: latLng.lat, longitude: latLng.lng });
     });
   } else {
-    probeProfileLocationMarker.setLatLng(point);
+    ui.probeProfileLocationMarker.setLatLng(point);
   }
-  probeProfileLocationMap.setView(point, Math.max(probeProfileLocationMap.getZoom(), LOCATION_FOCUS_ZOOM));
+  ui.probeProfileLocationMap.setView(point, Math.max(ui.probeProfileLocationMap.getZoom(), LOCATION_FOCUS_ZOOM));
 }
 
-function ensureProbeProfileLocationMap(coordinates) {
+export function ensureProbeProfileLocationMap(coordinates) {
   if (!window.L || !els.probeProfileLocationMap) return;
-  if (!probeProfileLocationMap) {
-    probeProfileLocationMap = L.map(els.probeProfileLocationMap, seamlessMapOptions());
-    addSeamlessTileLayer(probeProfileLocationMap);
-    probeProfileLocationMap.on("click", (event) => {
+  if (!ui.probeProfileLocationMap) {
+    ui.probeProfileLocationMap = L.map(els.probeProfileLocationMap, seamlessMapOptions());
+    addSeamlessTileLayer(ui.probeProfileLocationMap);
+    ui.probeProfileLocationMap.on("click", (event) => {
       setPendingProbeProfileImportCoordinates({ latitude: event.latlng.lat, longitude: event.latlng.lng });
     });
   }
   const hasCoordinates = isUsableCoordinates(coordinates);
   const center = hasCoordinates ? [coordinates.latitude, coordinates.longitude] : [43.7, -79.4];
-  probeProfileLocationMap.setView(center, hasCoordinates ? LOCATION_FOCUS_ZOOM : 7);
-  setTimeout(() => probeProfileLocationMap.invalidateSize(), 50);
+  ui.probeProfileLocationMap.setView(center, hasCoordinates ? LOCATION_FOCUS_ZOOM : 7);
+  setTimeout(() => ui.probeProfileLocationMap.invalidateSize(), 50);
   if (hasCoordinates) setPendingProbeProfileImportCoordinates(coordinates);
   else {
     setPendingProbeProfileImportCoordinates(null);
-    probeProfileLocationMarker?.remove();
-    probeProfileLocationMarker = null;
+    ui.probeProfileLocationMarker?.remove();
+    ui.probeProfileLocationMarker = null;
   }
 }
 
-function openProbeProfileLocationDialog() {
+export function openProbeProfileLocationDialog() {
   if (!els.probeProfileLocationDialog) return;
   const source = probeProfileImportSource();
   els.probeProfileLocationDialog.showModal();
   ensureProbeProfileLocationMap(source?.coordinates || null);
 }
 
-function saveProbeProfileLocation() {
-  if (!isUsableCoordinates(pendingProbeProfileImportCoordinates)) return;
-  probeProfileImportCoordinates = { ...pendingProbeProfileImportCoordinates };
+export function saveProbeProfileLocation() {
+  if (!isUsableCoordinates(ui.pendingProbeProfileImportCoordinates)) return;
+  ui.probeProfileImportCoordinates = { ...ui.pendingProbeProfileImportCoordinates };
   syncProbeProfileImportSourceNote();
   els.probeProfileLocationDialog?.close();
 }
 
-function clearProbeProfileLocation() {
-  probeProfileImportCoordinates = null;
-  pendingProbeProfileImportCoordinates = null;
+export function clearProbeProfileLocation() {
+  ui.probeProfileImportCoordinates = null;
+  ui.pendingProbeProfileImportCoordinates = null;
   syncProbeProfileImportSourceNote();
 }
 
-function probeProfileCoordinatesMatch(first, second) {
+export function probeProfileCoordinatesMatch(first, second) {
   return Number(first?.latitude) === Number(second?.latitude)
     && Number(first?.longitude) === Number(second?.longitude);
 }
 
-function probeProfileDisplayDepths(profile = []) {
+export function probeProfileDisplayDepths(profile = []) {
   return [...new Set([
     ...probeProfileDepthsFeet,
     ...probeTemperatureProfileEntries(profile).map((entry) => Number(entry.depthFeet))
   ])].sort((first, second) => first - second);
 }
 
-async function importNoaaProbeTemperatureProfile(button) {
+export async function importNoaaProbeTemperatureProfile(button) {
   const source = probeProfileImportSource();
   if (!source) {
     setProbeProfileImportStatus("Choose a map point, or select a launch or waterbody with a saved map pin before importing NOAA data.", true);
@@ -613,7 +636,7 @@ async function importNoaaProbeTemperatureProfile(button) {
   }
 }
 
-function renderProbeTemperatureProfile(profile = [], options = {}) {
+export function renderProbeTemperatureProfile(profile = [], options = {}) {
   const grid = document.querySelector("#probeTemperatureGrid");
   if (!grid) return;
   const profileEntries = probeTemperatureProfileEntries(profile);
@@ -639,7 +662,7 @@ function renderProbeTemperatureProfile(profile = [], options = {}) {
   renderProbeTemperatureProfileChart(profile);
 }
 
-function collectProbeTemperatureProfile() {
+export function collectProbeTemperatureProfile() {
   return [...document.querySelectorAll("#probeTemperatureGrid [data-probe-depth-feet]")]
     .map((input) => {
       const displayValue = input.dataset.probeTemperatureDisplay ?? "";
@@ -655,7 +678,7 @@ function collectProbeTemperatureProfile() {
     .filter((entry) => entry.temperature);
 }
 
-function addProbeProfileDepth() {
+export function addProbeProfileDepth() {
   const profile = collectProbeTemperatureProfile();
   probeProfileDepthsFeet.push(probeProfileDepthsFeet.at(-1) + 10);
   renderProbeTemperatureProfile(profile);
@@ -665,7 +688,7 @@ function addProbeProfileDepth() {
   markTripFormChanged();
 }
 
-function numericProbeTemperature(value) {
+export function numericProbeTemperature(value) {
   const match = String(value || "").trim().match(/-?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*([a-zA-Z°]+))?/);
   if (!match) return null;
   const number = Number(match[0].match(/-?(?:\d+(?:\.\d+)?|\.\d+)/)?.[0]);
@@ -674,7 +697,7 @@ function numericProbeTemperature(value) {
   return convertUnitValue(number, fromUnit, unitPreference("waterTemperature"));
 }
 
-function numericProbeDepth(value) {
+export function numericProbeDepth(value) {
   const match = String(value || "").trim().match(/-?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*([a-zA-Z°]+))?/);
   if (!match) return null;
   const number = Number(match[0].match(/-?(?:\d+(?:\.\d+)?|\.\d+)/)?.[0]);
@@ -683,7 +706,7 @@ function numericProbeDepth(value) {
   return convertUnitValue(number, fromUnit, "ft");
 }
 
-function probeCatchDepthEntry(record = {}) {
+export function probeCatchDepthEntry(record = {}) {
   if (!record || record.detailsUnknown) return null;
   const ballDepth = numericProbeDepth(record.ballDepth);
   const cheater = String(record.presentation || "").toLowerCase() === "cheater"
@@ -698,14 +721,14 @@ function probeCatchDepthEntry(record = {}) {
   return null;
 }
 
-function probeCatchDepths(catches = []) {
+export function probeCatchDepths(catches = []) {
   return (Array.isArray(catches) ? catches : [])
     .map(probeCatchDepthEntry)
     .filter((entry) => entry && Number.isFinite(entry.depthFeet))
     .sort((a, b) => a.depthFeet - b.depthFeet);
 }
 
-function collectProbeCatchDepths() {
+export function collectProbeCatchDepths() {
   return probeCatchDepths([...document.querySelectorAll("#catchRows .catch-row")].map((row) => ({
     detailsUnknown: Boolean(row.querySelector(".catch-details-unknown")?.checked),
     species: row.querySelector(".catch-species")?.value || "",
@@ -718,13 +741,13 @@ function collectProbeCatchDepths() {
   })));
 }
 
-const probeCatchColors = ["#f0b35b", "#e879f9", "#60a5fa", "#f87171", "#a3e635", "#c084fc", "#2dd4bf", "#fb7185"];
+export const probeCatchColors = ["#f0b35b", "#e879f9", "#60a5fa", "#f87171", "#a3e635", "#c084fc", "#2dd4bf", "#fb7185"];
 
-function probeCatchSpecies(entry) {
+export function probeCatchSpecies(entry) {
   return String(entry?.species || "").trim() || "Unknown species";
 }
 
-function probeCatchColor(species, speciesList = []) {
+export function probeCatchColor(species, speciesList = []) {
   const value = String(species || "Unknown species");
   const knownIndex = speciesList.indexOf(value);
   if (knownIndex >= 0) return probeCatchColors[knownIndex % probeCatchColors.length];
@@ -733,18 +756,18 @@ function probeCatchColor(species, speciesList = []) {
   return probeCatchColors[Math.abs(hash) % probeCatchColors.length];
 }
 
-function probeTemperatureChartLegendItemsMarkup(catchDepths = []) {
+export function probeTemperatureChartLegendItemsMarkup(catchDepths = []) {
   const species = [...new Set(catchDepths.map(probeCatchSpecies))];
   return `<span><i class="probe-temperature-legend-line" aria-hidden="true"></i>Temperature profile</span>${species.length
     ? species.map((name) => `<span><i class="probe-temperature-legend-dot" style="--probe-catch-color: ${probeCatchColor(name, species)}" aria-hidden="true"></i>${escapeHtml(name)}</span>`).join("")
     : `<span><i class="probe-temperature-legend-dot" aria-hidden="true"></i>Fish caught depth</span>`}`;
 }
 
-function probeTemperatureChartLegendMarkup(catchDepths = []) {
+export function probeTemperatureChartLegendMarkup(catchDepths = []) {
   return `<div class="probe-temperature-chart-legend" aria-label="Chart legend">${probeTemperatureChartLegendItemsMarkup(catchDepths)}</div>`;
 }
 
-function probeTemperatureReadings(profile = []) {
+export function probeTemperatureReadings(profile = []) {
   return probeTemperatureProfileEntries(profile)
     .map((entry) => ({
       depthFeet: Number(entry.depthFeet),
@@ -755,7 +778,7 @@ function probeTemperatureReadings(profile = []) {
     .sort((a, b) => a.depthFeet - b.depthFeet);
 }
 
-function probeChartScale(readings) {
+export function probeChartScale(readings) {
   const values = readings.map((reading) => reading.numericTemperature);
   if (!values.length) return { min: 0, max: 100, step: 20, ticks: [0, 20, 40, 60, 80, 100] };
   const minimum = Math.min(...values);
@@ -772,7 +795,7 @@ function probeChartScale(readings) {
   };
 }
 
-function interpolatedProbeTemperature(readings, depthFeet) {
+export function interpolatedProbeTemperature(readings, depthFeet) {
   if (!readings.length) return null;
   if (depthFeet <= readings[0].depthFeet) return readings[0].numericTemperature;
   if (depthFeet >= readings.at(-1).depthFeet) return readings.at(-1).numericTemperature;
@@ -788,11 +811,11 @@ function interpolatedProbeTemperature(readings, depthFeet) {
   return readings.at(-1).numericTemperature;
 }
 
-function probeTemperatureChartTooltipText(temperature, depthFeet) {
+export function probeTemperatureChartTooltipText(temperature, depthFeet) {
   return `Temperature: ${displayProbeTemperatureNumber(temperature)} ${unitSymbol("waterTemperature")} · Depth: ${displayProbeDepth(depthFeet)}`;
 }
 
-function bindProbeTemperatureChartTooltip(chart) {
+export function bindProbeTemperatureChartTooltip(chart) {
   if (!chart || chart.dataset.tooltipBound) return;
   chart.dataset.tooltipBound = "true";
   const hideTooltip = () => {
@@ -859,7 +882,7 @@ function bindProbeTemperatureChartTooltip(chart) {
   chart.addEventListener("pointerleave", hideTooltip);
 }
 
-function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
+export function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
   const width = 620;
   const plot = { left: 58, right: 20, top: 34, bottom: 38 };
   const catchDepths = (Array.isArray(options.catchDepths) ? options.catchDepths : [])
@@ -940,7 +963,7 @@ function renderProbeTemperatureProfileChartMarkup(readings, options = {}) {
   `;
 }
 
-function renderProbeTemperatureProfileChart(profile = []) {
+export function renderProbeTemperatureProfileChart(profile = []) {
   const chart = document.querySelector("#probeTemperatureChart");
   if (!chart) return;
   bindProbeTemperatureChartTooltip(chart);
@@ -965,17 +988,17 @@ function renderProbeTemperatureProfileChart(profile = []) {
   chart.innerHTML = `${renderProbeTemperatureProfileChartMarkup(readings, { catchDepths })}<div class="probe-temperature-chart-tooltip" role="status" aria-live="polite" hidden></div>`;
 }
 
-function getTripIntent() {
+export function getTripIntent() {
   return document.querySelector('input[name="tripIntent"]:checked')?.value || "serious";
 }
 
-function setTripIntent(value) {
+export function setTripIntent(value) {
   const normalized = value === "experimental" ? "experimental" : "serious";
   const input = document.querySelector(`input[name="tripIntent"][value="${normalized}"]`);
   if (input) input.checked = true;
 }
 
-function tripRatingValue(trip) {
+export function tripRatingValue(trip) {
   if (trip?.tripRating === null || trip?.tripRating === undefined || trip?.tripRating === "") return 1;
   const value = Number(trip.tripRating);
   if (!Number.isFinite(value)) return 1;
@@ -983,25 +1006,25 @@ function tripRatingValue(trip) {
   return Math.min(4, Math.max(1, Math.round(value)));
 }
 
-function setTripRating(value) {
+export function setTripRating(value) {
   els.tripRating.value = String(tripRatingValue({ tripRating: value }));
   updateTripRatingLabel();
 }
 
-function updateTripRatingLabel() {
+export function updateTripRatingLabel() {
   els.tripRatingLabel.textContent = tripRatingLabel(tripRatingValue({ tripRating: els.tripRating.value }));
 }
 
-function tripRatingLabel(value) {
+export function tripRatingLabel(value) {
   const rating = tripRatingValue({ tripRating: value });
   return ["Bad", "Mediocre", "Good", "Outstanding"][rating - 1];
 }
 
-function tripRatingClass(value) {
+export function tripRatingClass(value) {
   return tripRatingLabel(value).toLowerCase().replaceAll(" ", "-");
 }
 
-function mergePeople(...personLists) {
+export function mergePeople(...personLists) {
   const peopleById = new Map();
   const idsByName = new Map();
   personLists.flat().forEach((person) => {
@@ -1019,19 +1042,19 @@ function mergePeople(...personLists) {
   return [...peopleById.values()].filter((person) => person.name);
 }
 
-function tripIntent(trip) {
+export function tripIntent(trip) {
   return trip?.intent === "experimental" ? "experimental" : "serious";
 }
 
-function intentLabel(value) {
+export function intentLabel(value) {
   return value === "experimental" ? "Experimental" : "Serious";
 }
 
-function hasCatchDepthData(depthData) {
+export function hasCatchDepthData(depthData) {
   return Boolean(depthData && Object.values(depthData).some((value) => value !== null && value !== undefined && value !== ""));
 }
 
-function addPersonRow(person = {}, { editNew = false } = {}) {
+export function addPersonRow(person = {}, { editNew = false } = {}) {
   const template = document.querySelector("#personRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.personId = person.id || createId();
@@ -1047,13 +1070,13 @@ function addPersonRow(person = {}, { editNew = false } = {}) {
   }
 }
 
-function collectPeople() {
+export function collectPeople() {
   return [...els.personRows.querySelectorAll(".person-row")]
     .map((row) => personFromRow(row))
     .filter((person) => person.name);
 }
 
-function personFromRow(row) {
+export function personFromRow(row) {
   const select = row.querySelector(".person-select");
   const input = row.querySelector(".person-name");
   const selected = select?.value || "";
@@ -1072,7 +1095,7 @@ function personFromRow(row) {
   };
 }
 
-function collectNewPeople({ excludeRow = null } = {}) {
+export function collectNewPeople({ excludeRow = null } = {}) {
   return [...els.personRows.querySelectorAll(".person-row")]
     .filter((row) => row !== excludeRow)
     .map((row) => {
@@ -1085,7 +1108,7 @@ function collectNewPeople({ excludeRow = null } = {}) {
     .filter(Boolean);
 }
 
-function syncPersonRowIds() {
+export function syncPersonRowIds() {
   els.personRows.querySelectorAll(".person-row").forEach((row) => {
     const person = personFromRow(row);
     const name = person.name.trim().toLowerCase();
@@ -1094,12 +1117,12 @@ function syncPersonRowIds() {
   });
 }
 
-function currentPeople() {
+export function currentPeople() {
   syncPersonRowIds();
   return mergePeople(state.people, collectPeople());
 }
 
-function populatePersonSelect(select, selectedId = "") {
+export function populatePersonSelect(select, selectedId = "") {
   syncPersonRowIds();
   const people = mergePeople(collectPeople());
   const assignedPersonId = selectedId || (people.length === 1 ? people[0].id : "");
@@ -1112,7 +1135,7 @@ function populatePersonSelect(select, selectedId = "") {
   select.value = assignedPersonId;
 }
 
-function populatePersonSelects() {
+export function populatePersonSelects() {
   populateDatalist(els.personOptions, currentPeople().map((person) => person.name).filter(Boolean));
   populatePersonRowSelects();
   document.querySelectorAll(".catch-person").forEach((select) => {
@@ -1120,7 +1143,7 @@ function populatePersonSelects() {
   });
 }
 
-function populatePersonRowSelects() {
+export function populatePersonRowSelects() {
   const allPeople = currentPeople();
   els.personRows.querySelectorAll(".person-row").forEach((row) => {
     const select = row.querySelector(".person-select");

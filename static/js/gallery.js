@@ -1,4 +1,14 @@
-const galleryCategoryLabels = {
+import { protectedFetch } from "./app-config.js";
+import { state, ui } from "./app-state.js";
+import { formatDisplayTime } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { isVideoMedia, originalMediaUrl, previewImage } from "./app-media.js";
+import { formatDate } from "./dashboard.js";
+import { escapeHtml, trimNumber } from "./form-utils.js";
+
+export const galleryUi = {};
+
+export const galleryCategoryLabels = {
   all: "All uploads",
   "catch-photos": "Catch photos",
   "trip-photos": "Trip photos",
@@ -9,7 +19,7 @@ const galleryCategoryLabels = {
   queue: "Photo queue"
 };
 
-const galleryQuickFilters = [
+export const galleryQuickFilters = [
   { value: "all", label: "All" },
   { value: "photos", label: "Photos" },
   { value: "videos", label: "Videos" },
@@ -21,23 +31,23 @@ const galleryQuickFilters = [
   { value: "rods", label: "Rods" }
 ];
 
-let galleryItems = [];
-let galleryVisibleItems = [];
-let activeGalleryQuickFilter = "all";
-let activeGallerySearch = "";
-let activeGallerySort = "newest";
-let activeGalleryPageSize = "50";
-let activeGalleryPage = 1;
-let gallerySelectionMode = false;
-let galleryOrphanScanActive = false;
-let selectedGalleryItems = new Set();
-let gallerySelectionAnchorKey = "";
-let activeGalleryLightboxIndex = -1;
+export let galleryItems = [];
+export let galleryVisibleItems = [];
+galleryUi.activeGalleryQuickFilter = "all";
+export let activeGallerySearch = "";
+export let activeGallerySort = "newest";
+export let activeGalleryPageSize = "50";
+galleryUi.activeGalleryPage = 1;
+export let gallerySelectionMode = false;
+export let galleryOrphanScanActive = false;
+export let selectedGalleryItems = new Set();
+export let gallerySelectionAnchorKey = "";
+export let activeGalleryLightboxIndex = -1;
 
-async function loadGalleryItems() {
+export async function loadGalleryItems() {
   const url = galleryOrphanScanActive
     ? "/api/orphaned-media"
-    : `/api/gallery?category=${encodeURIComponent(activeGalleryCategory)}`;
+    : `/api/gallery?category=${encodeURIComponent(ui.activeGalleryCategory)}`;
   const response = await fetch(url);
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
@@ -47,50 +57,50 @@ async function loadGalleryItems() {
   return payload.media || [];
 }
 
-function galleryItemKey(item) {
+export function galleryItemKey(item) {
   return `${item.category}/${item.filename}`;
 }
 
-function findGalleryItem(key) {
+export function findGalleryItem(key) {
   return galleryItems.find((item) => galleryItemKey(item) === key) || null;
 }
 
-function formatFileSize(bytes) {
+export function formatFileSize(bytes) {
   const value = Number(bytes);
   if (!Number.isFinite(value) || value <= 0) return "";
   if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
   return `${trimNumber(value / (1024 * 1024))} MB`;
 }
 
-function galleryCaptureText(item, fallback = "No capture time") {
+export function galleryCaptureText(item, fallback = "No capture time") {
   const date = item.captureDate ? formatDate(item.captureDate) : "";
   const time = item.captureTime ? formatDisplayTime(item.captureTime) : "";
   return [date, time].filter(Boolean).join(" ") || fallback;
 }
 
-function galleryMediaTypeLabel(item) {
+export function galleryMediaTypeLabel(item) {
   return isVideoMedia(item) ? "Video" : "Photo";
 }
 
-function gallerySourceLabel(item) {
+export function gallerySourceLabel(item) {
   return galleryCategoryLabels[item.category] || item.category || "Uploads";
 }
 
-function gallerySortValue(item) {
+export function gallerySortValue(item) {
   const capture = `${item.captureDate || ""}T${item.captureTime || ""}`;
   const captureTime = Date.parse(capture);
   if (Number.isFinite(captureTime)) return captureTime;
   return Number(item.modified || 0) * 1000;
 }
 
-function galleryMediaKey(item) {
+export function galleryMediaKey(item) {
   const category = String(item?.category || "");
   const filename = String(item?.filename || "");
   if (category && filename) return `${category}/${filename}`;
   return "";
 }
 
-function galleryStateCaptions(item) {
+export function galleryStateCaptions(item) {
   const key = galleryMediaKey(item);
   if (!key) return [];
   const captions = [];
@@ -111,7 +121,7 @@ function galleryStateCaptions(item) {
   return captions;
 }
 
-function galleryCaptionText(item) {
+export function galleryCaptionText(item) {
   const captions = [
     item.caption,
     ...(Array.isArray(item.captions) ? item.captions : []),
@@ -120,26 +130,26 @@ function galleryCaptionText(item) {
   return String(captions.find((caption) => String(caption || "").trim()) || "").trim();
 }
 
-function renderGalleryFilters() {
+export function renderGalleryFilters() {
   const options = Object.entries(galleryCategoryLabels);
   els.galleryCategoryFilter.innerHTML = options.map(([value, label]) => (
-    `<option value="${escapeHtml(value)}" ${value === activeGalleryCategory ? "selected" : ""}>${escapeHtml(label)}</option>`
+    `<option value="${escapeHtml(value)}" ${value === ui.activeGalleryCategory ? "selected" : ""}>${escapeHtml(label)}</option>`
   )).join("");
 
   els.galleryQuickFilters.innerHTML = galleryQuickFilters.map((filter) => `
-    <button class="gallery-filter-chip${filter.value === activeGalleryQuickFilter ? " is-active" : ""}" type="button" data-gallery-quick-filter="${escapeHtml(filter.value)}" aria-pressed="${filter.value === activeGalleryQuickFilter}">
+    <button class="gallery-filter-chip${filter.value === galleryUi.activeGalleryQuickFilter ? " is-active" : ""}" type="button" data-gallery-quick-filter="${escapeHtml(filter.value)}" aria-pressed="${filter.value === galleryUi.activeGalleryQuickFilter}">
       ${escapeHtml(filter.label)}
     </button>
   `).join("");
 }
 
-function galleryFilteredItems(items) {
+export function galleryFilteredItems(items) {
   const query = activeGallerySearch.trim().toLowerCase();
   return items.filter((item) => {
-    const quickMatch = activeGalleryQuickFilter === "all"
-      || (activeGalleryQuickFilter === "photos" && !isVideoMedia(item))
-      || (activeGalleryQuickFilter === "videos" && isVideoMedia(item))
-      || item.category === activeGalleryQuickFilter;
+    const quickMatch = galleryUi.activeGalleryQuickFilter === "all"
+      || (galleryUi.activeGalleryQuickFilter === "photos" && !isVideoMedia(item))
+      || (galleryUi.activeGalleryQuickFilter === "videos" && isVideoMedia(item))
+      || item.category === galleryUi.activeGalleryQuickFilter;
     if (!quickMatch) return false;
     if (!query) return true;
     return [
@@ -161,24 +171,24 @@ function galleryFilteredItems(items) {
   });
 }
 
-function galleryPageLimit() {
+export function galleryPageLimit() {
   if (activeGalleryPageSize === "all") return Infinity;
   const limit = Number(activeGalleryPageSize);
   return Number.isFinite(limit) && limit > 0 ? limit : 50;
 }
 
-function galleryPageCount(totalItems) {
+export function galleryPageCount(totalItems) {
   const limit = galleryPageLimit();
   if (!Number.isFinite(limit)) return 1;
   return Math.max(1, Math.ceil(totalItems / limit));
 }
 
-function setGalleryPage(page) {
-  activeGalleryPage = Math.max(1, Number(page) || 1);
+export function setGalleryPage(page) {
+  galleryUi.activeGalleryPage = Math.max(1, Number(page) || 1);
   renderGalleryItems();
 }
 
-function galleryPreviewMarkup(item) {
+export function galleryPreviewMarkup(item) {
   if (isVideoMedia(item)) {
     const videoSource = originalMediaUrl(item);
     return `<video src="${escapeHtml(videoSource)}" muted playsinline preload="metadata" aria-hidden="true"></video>`;
@@ -187,7 +197,7 @@ function galleryPreviewMarkup(item) {
   return `<img src="${escapeHtml(source)}" alt="">`;
 }
 
-function galleryCard(item, index) {
+export function galleryCard(item, index) {
   const key = galleryItemKey(item);
   const selected = selectedGalleryItems.has(key);
   const downloadName = item.name || item.filename || "download";
@@ -227,7 +237,7 @@ function galleryCard(item, index) {
   `;
 }
 
-function updateGallerySelectionBar() {
+export function updateGallerySelectionBar() {
   const count = selectedGalleryItems.size;
   els.gallerySelectionBar?.classList.toggle("hidden", !gallerySelectionMode);
   els.galleryBatchDownloadButton?.toggleAttribute("disabled", count === 0);
@@ -241,7 +251,7 @@ function updateGallerySelectionBar() {
   }
 }
 
-function setGallerySelectionMode(active) {
+export function setGallerySelectionMode(active) {
   gallerySelectionMode = Boolean(active);
   if (!gallerySelectionMode) {
     selectedGalleryItems.clear();
@@ -250,12 +260,12 @@ function setGallerySelectionMode(active) {
   renderGalleryItems();
 }
 
-function renderGalleryItems() {
+export function renderGalleryItems() {
   const matchedItems = galleryFilteredItems(galleryItems);
   const limit = galleryPageLimit();
   const pageCount = galleryPageCount(matchedItems.length);
-  activeGalleryPage = Math.min(Math.max(1, activeGalleryPage), pageCount);
-  const startIndex = Number.isFinite(limit) ? (activeGalleryPage - 1) * limit : 0;
+  galleryUi.activeGalleryPage = Math.min(Math.max(1, galleryUi.activeGalleryPage), pageCount);
+  const startIndex = Number.isFinite(limit) ? (galleryUi.activeGalleryPage - 1) * limit : 0;
   const endIndex = Number.isFinite(limit) ? startIndex + limit : matchedItems.length;
   galleryVisibleItems = matchedItems.slice(startIndex, endIndex);
   if (!galleryVisibleItems.some((item) => galleryItemKey(item) === gallerySelectionAnchorKey)) {
@@ -267,9 +277,9 @@ function renderGalleryItems() {
     : "";
   els.galleryStatus.classList.toggle("hidden", !galleryOrphanScanActive);
   els.galleryPagination?.classList.toggle("hidden", pageCount <= 1);
-  els.galleryPreviousPageButton?.toggleAttribute("disabled", activeGalleryPage <= 1);
-  els.galleryNextPageButton?.toggleAttribute("disabled", activeGalleryPage >= pageCount);
-  if (els.galleryPageStatus) els.galleryPageStatus.textContent = `Page ${activeGalleryPage} of ${pageCount}`;
+  els.galleryPreviousPageButton?.toggleAttribute("disabled", galleryUi.activeGalleryPage <= 1);
+  els.galleryNextPageButton?.toggleAttribute("disabled", galleryUi.activeGalleryPage >= pageCount);
+  if (els.galleryPageStatus) els.galleryPageStatus.textContent = `Page ${galleryUi.activeGalleryPage} of ${pageCount}`;
   updateGallerySelectionBar();
   if (!galleryVisibleItems.length) {
     els.galleryGrid.innerHTML = `<div class="empty-state"><p>${galleryOrphanScanActive ? "No orphaned media matches these filters." : "No uploaded media matches these filters."}</p></div>`;
@@ -278,7 +288,7 @@ function renderGalleryItems() {
   els.galleryGrid.innerHTML = galleryVisibleItems.map(galleryCard).join("");
 }
 
-async function renderGallery() {
+export async function renderGallery() {
   renderGalleryFilters();
   if (els.galleryOrphanScanButton) {
     els.galleryOrphanScanButton.textContent = galleryOrphanScanActive ? "Show all media" : "Scan orphaned media";
@@ -301,16 +311,16 @@ async function renderGallery() {
   }
 }
 
-async function toggleGalleryOrphanScan() {
+export async function toggleGalleryOrphanScan() {
   galleryOrphanScanActive = !galleryOrphanScanActive;
-  activeGalleryCategory = "all";
-  activeGalleryQuickFilter = "all";
-  activeGalleryPage = 1;
+  ui.activeGalleryCategory = "all";
+  galleryUi.activeGalleryQuickFilter = "all";
+  galleryUi.activeGalleryPage = 1;
   setGallerySelectionMode(false);
   await renderGallery();
 }
 
-function galleryLightboxMarkup(item, index) {
+export function galleryLightboxMarkup(item, index) {
   const downloadName = item.name || item.filename || "download";
   const details = [
     ["Type", galleryMediaTypeLabel(item)],
@@ -346,7 +356,7 @@ function galleryLightboxMarkup(item, index) {
   `;
 }
 
-function openGalleryLightbox(index) {
+export function openGalleryLightbox(index) {
   const item = galleryVisibleItems[index];
   if (!item) return;
   closeGalleryLightbox();
@@ -356,23 +366,23 @@ function openGalleryLightbox(index) {
   document.querySelector("[data-gallery-lightbox-close]")?.focus();
 }
 
-function closeGalleryLightbox() {
+export function closeGalleryLightbox() {
   document.querySelector(".gallery-lightbox")?.remove();
   document.body.classList.remove("gallery-lightbox-open");
   activeGalleryLightboxIndex = -1;
 }
 
-function stepGalleryLightbox(direction) {
+export function stepGalleryLightbox(direction) {
   const nextIndex = activeGalleryLightboxIndex + direction;
   if (nextIndex < 0 || nextIndex >= galleryVisibleItems.length) return;
   openGalleryLightbox(nextIndex);
 }
 
-function selectedGalleryPayload() {
+export function selectedGalleryPayload() {
   return [...selectedGalleryItems].map(findGalleryItem).filter(Boolean);
 }
 
-function downloadGalleryItems(items) {
+export function downloadGalleryItems(items) {
   items.forEach((item, index) => {
     setTimeout(() => {
       const link = document.createElement("a");
@@ -385,7 +395,7 @@ function downloadGalleryItems(items) {
   });
 }
 
-async function deleteGalleryItems(items) {
+export async function deleteGalleryItems(items) {
   const deletable = items.filter((item) => item.category !== "queue");
   if (!deletable.length) {
     alert("Queue media can be removed from the Photo Queue.");
@@ -405,7 +415,7 @@ async function deleteGalleryItems(items) {
   await renderGallery();
 }
 
-function toggleGallerySelection(key, selected) {
+export function toggleGallerySelection(key, selected) {
   if (!gallerySelectionMode) return;
   gallerySelectionAnchorKey = key;
   if (selected) selectedGalleryItems.add(key);
@@ -415,7 +425,7 @@ function toggleGallerySelection(key, selected) {
   updateGallerySelectionBar();
 }
 
-function selectGalleryRange(key) {
+export function selectGalleryRange(key) {
   if (!gallerySelectionMode) return;
   const targetIndex = galleryVisibleItems.findIndex((item) => galleryItemKey(item) === key);
   if (targetIndex < 0) return;
@@ -433,10 +443,10 @@ function selectGalleryRange(key) {
   updateGallerySelectionBar();
 }
 
-function syncGallerySearchSort() {
+export function syncGallerySearchSort() {
   activeGallerySearch = els.gallerySearchInput?.value || "";
   activeGallerySort = els.gallerySortSelect?.value || "newest";
   activeGalleryPageSize = els.galleryPageSizeSelect?.value || "50";
-  activeGalleryPage = 1;
+  galleryUi.activeGalleryPage = 1;
   renderGalleryItems();
 }

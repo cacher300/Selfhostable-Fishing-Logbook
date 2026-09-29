@@ -1,0 +1,8 @@
+/* Stylesheet entry point bundled by scripts/build-frontend.mjs. */
+@import "leaflet/dist/leaflet.css";
+@import "@fontsource/roboto/400.css";
+@import "@fontsource/roboto/500.css";
+@import "@fontsource/roboto/700.css";
+@import "@fontsource/roboto/900.css";
+@import "./trip-sharing.css";
+@import "./styles.css";

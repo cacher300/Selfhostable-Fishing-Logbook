@@ -1,4 +1,17 @@
-function catchMapRecordForTrip(trip, catchItem, catchIndex) {
+import { L } from "./vendor.js";
+import { fallbackSpeciesColor, speciesColor } from "./app-defaults.js";
+import { state, ui } from "./app-state.js";
+import { spotName, tripWeatherCoordinates } from "./app-normalization.js";
+import { displayStoredMeasurement, formatUnitValue } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { isUsableCoordinates, isVideoMedia, mediaMarkup, previewImage } from "./app-media.js";
+import { coordinateText } from "./locations.js";
+import { fishingSpotRadiusText } from "./settings-locations.js";
+import { formatDate } from "./dashboard.js";
+import { displayFowValue } from "./trip-summary.js";
+import { escapeHtml } from "./form-utils.js";
+
+export function catchMapRecordForTrip(trip, catchItem, catchIndex) {
   const selectedPhoto = catchItem.photoLocationId
     ? (catchItem.photos || []).find((photo) => photo.id === catchItem.photoLocationId && isUsableCoordinates(photo.coordinates))
     : null;
@@ -16,7 +29,7 @@ function catchMapRecordForTrip(trip, catchItem, catchIndex) {
   };
 }
 
-function tripMediaMapRecordsForTrip(trip) {
+export function tripMediaMapRecordsForTrip(trip) {
   const tripSource = tripWeatherCoordinates(trip);
   return (trip.notePhotos || []).map((media, index) => {
     const video = isVideoMedia(media);
@@ -37,36 +50,24 @@ function tripMediaMapRecordsForTrip(trip) {
   }).filter(Boolean);
 }
 
-function mapRecordsForTrip(trip) {
+export function mapRecordsForTrip(trip) {
   return [
     ...(trip.catches || []).map((catchItem, catchIndex) => catchMapRecordForTrip(trip, catchItem, catchIndex)).filter(Boolean),
     ...tripMediaMapRecordsForTrip(trip)
   ];
 }
 
-function catchMapRecords() {
+export function catchMapRecords() {
   return state.trips.flatMap(mapRecordsForTrip);
 }
 
-const MAP_BASEMAP_STORAGE_KEY = "logbook.mapBasemap";
-const CARTO_BASEMAP_KEY = "cb1_2u01_1_caca99a3ff372698283bdfb0";
-const MAP_BASEMAPS = {
-  standard: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    options: { attribution: "&copy; OpenStreetMap contributors" }
-  },
-  dark: {
-    url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${CARTO_BASEMAP_KEY}`,
-    options: { attribution: "&copy; OpenStreetMap contributors &copy; CARTO", subdomains: "abcd", maxZoom: 20 }
-  },
-  minimal: {
-    url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${CARTO_BASEMAP_KEY}`,
-    options: { attribution: "&copy; OpenStreetMap contributors &copy; CARTO", subdomains: "abcd", maxZoom: 20 }
-  }
-};
-let fishMapBasemapLayer = null;
+export const MAP_BASEMAP_STORAGE_KEY = "logbook.mapBasemap";
+export const CARTO_BASEMAP_KEY = "cb1_2u01_1_caca99a3ff372698283bdfb0";
+export let MAP_BASEMAPS;
 
-function savedMapBasemap() {
+export let fishMapBasemapLayer = null;
+
+export function savedMapBasemap() {
   try {
     const saved = localStorage.getItem(MAP_BASEMAP_STORAGE_KEY);
     return MAP_BASEMAPS[saved] ? saved : "standard";
@@ -75,21 +76,21 @@ function savedMapBasemap() {
   }
 }
 
-function mapRecordYear(record) {
+export function mapRecordYear(record) {
   return String(record.trip?.date || "").match(/^\d{4}/)?.[0] || "Unknown year";
 }
 
-function mapYearColor(year) {
+export function mapYearColor(year) {
   return fallbackSpeciesColor(`year-${year}`);
 }
 
-function mapRecordColor(record) {
+export function mapRecordColor(record) {
   if (record.type === "trip-photo") return "#2763a7";
   if (record.type === "trip-video") return "#9a5b00";
   return speciesColor(record.catchItem?.species);
 }
 
-const trollingDirectionDegrees = {
+export const trollingDirectionDegrees = {
   N: 0,
   NE: 45,
   E: 90,
@@ -100,7 +101,7 @@ const trollingDirectionDegrees = {
   NW: 315
 };
 
-function mapRecordTrollingDirection(record) {
+export function mapRecordTrollingDirection(record) {
   if (record.type !== "catch" || String(record.trip?.method || "").toLowerCase() !== "trolling") return null;
   const raw = String(record.catchItem?.direction || "").trim().toUpperCase();
   if (!raw) return null;
@@ -109,7 +110,7 @@ function mapRecordTrollingDirection(record) {
   return Number.isFinite(numeric) ? { label: `${Math.round(numeric)}°`, degrees: ((numeric % 360) + 360) % 360 } : null;
 }
 
-function mapDirectionMarker(record, color, fillColor, popupHtml, popupOptions) {
+export function mapDirectionMarker(record, color, fillColor, popupHtml, popupOptions) {
   const direction = mapRecordTrollingDirection(record);
   const icon = L.divIcon({
     className: "map-catch-direction-icon",
@@ -125,11 +126,11 @@ function mapDirectionMarker(record, color, fillColor, popupHtml, popupOptions) {
   }).bindPopup(popupHtml, popupOptions);
 }
 
-function shouldShowMapDirectionArrow(record, options = {}) {
+export function shouldShowMapDirectionArrow(record, options = {}) {
   return Boolean(mapRecordTrollingDirection(record)) && options.showDirectionArrows !== false;
 }
 
-function addMapMarker(layerGroup, record, options = {}) {
+export function addMapMarker(layerGroup, record, options = {}) {
   const fillColor = mapRecordColor(record);
   const color = options.colorByYear ? mapYearColor(mapRecordYear(record)) : fillColor;
   const popupHtml = mapPopupHtml(record);
@@ -148,7 +149,7 @@ function addMapMarker(layerGroup, record, options = {}) {
   }).bindPopup(popupHtml, popupOptions).addTo(layerGroup);
 }
 
-function ensureMapMarkerPanes(map) {
+export function ensureMapMarkerPanes(map) {
   if (!map.getPane("spotMarkers")) {
     map.createPane("spotMarkers");
     map.getPane("spotMarkers").style.zIndex = 600;
@@ -163,14 +164,14 @@ function ensureMapMarkerPanes(map) {
   }
 }
 
-function seamlessMapOptions() {
+export function seamlessMapOptions() {
   return {
     zoomSnap: 1,
     zoomDelta: 1
   };
 }
 
-function snapMapTilePane(map) {
+export function snapMapTilePane(map) {
   const tilePane = map?.getPane?.("tilePane");
   if (!tilePane) return;
   tilePane.style.marginLeft = "0px";
@@ -184,13 +185,13 @@ function snapMapTilePane(map) {
   tilePane.style.marginTop = `${snappedTop - rect.top}px`;
 }
 
-function bindMapTilePaneSnapping(map) {
+export function bindMapTilePaneSnapping(map) {
   if (!map || map._logbookTilePaneSnapping) return;
   map._logbookTilePaneSnapping = true;
   map.on("moveend zoomend resize", () => requestAnimationFrame(() => snapMapTilePane(map)));
 }
 
-function addSeamlessTileLayer(map, basemap = "standard") {
+export function addSeamlessTileLayer(map, basemap = "standard") {
   const config = MAP_BASEMAPS[basemap] || MAP_BASEMAPS.standard;
   const tileLayer = L.tileLayer(config.url, config.options).addTo(map);
   tileLayer.on("load tileload", () => requestAnimationFrame(() => snapMapTilePane(map)));
@@ -198,15 +199,15 @@ function addSeamlessTileLayer(map, basemap = "standard") {
   return tileLayer;
 }
 
-function setFishMapBasemap(basemap) {
+export function setFishMapBasemap(basemap) {
   const key = MAP_BASEMAPS[basemap] ? basemap : "standard";
-  if (!fishMap) return;
-  if (fishMapBasemapLayer) fishMap.removeLayer(fishMapBasemapLayer);
-  fishMapBasemapLayer = addSeamlessTileLayer(fishMap, key);
+  if (!ui.fishMap) return;
+  if (fishMapBasemapLayer) ui.fishMap.removeLayer(fishMapBasemapLayer);
+  fishMapBasemapLayer = addSeamlessTileLayer(ui.fishMap, key);
   try { localStorage.setItem(MAP_BASEMAP_STORAGE_KEY, key); } catch {}
 }
 
-function ensureFishMapBasemapControl() {
+export function ensureFishMapBasemapControl() {
   const control = document.querySelector("#mapBasemap");
   if (!control || control.dataset.bound) return;
   control.value = savedMapBasemap();
@@ -214,14 +215,14 @@ function ensureFishMapBasemapControl() {
   control.addEventListener("change", () => setFishMapBasemap(control.value));
 }
 
-function mapDepthText(payload = {}) {
+export function mapDepthText(payload = {}) {
   if (payload.depth_ft !== null && payload.depth_ft !== undefined && Number(payload.depth_ft) !== 0) return `${formatUnitValue(payload.depth_ft, "depth", "ft", { decimals: 1 })} FOW`;
   if (payload.depth_m !== null && payload.depth_m !== undefined && Number(payload.depth_m) !== 0) return `${formatUnitValue(payload.depth_m, "depth", "m", { decimals: 1 })} FOW`;
   if (payload.fowCaught) return displayFowValue(payload.fowCaught);
   return "";
 }
 
-function catchFowPopupValue(catchItem = {}) {
+export function catchFowPopupValue(catchItem = {}) {
   const fow = String(catchItem.fowCaught || catchItem.waterDepth || "").trim();
   if (fow) return displayFowValue(fow);
   if (catchItem.depth_ft !== null && catchItem.depth_ft !== undefined) return formatUnitValue(catchItem.depth_ft, "depth", "ft", { decimals: 1 });
@@ -229,13 +230,13 @@ function catchFowPopupValue(catchItem = {}) {
   return "";
 }
 
-function catchSizePopupValue(catchItem = {}) {
+export function catchSizePopupValue(catchItem = {}) {
   const weight = catchItem.weight ? displayStoredMeasurement(catchItem.weight, "fishWeight") : "";
   const length = catchItem.length ? displayStoredMeasurement(catchItem.length, "fishLength") : "";
   return [weight, length].filter(Boolean).join(" · ");
 }
 
-function mapDepthPopupHtml(coordinates, payload = null, status = "loading", overlayHtml = "") {
+export function mapDepthPopupHtml(coordinates, payload = null, status = "loading", overlayHtml = "") {
   const compactClass = overlayHtml ? "" : " map-depth-popup--compact";
   if (status === "loading") {
     return `
@@ -264,7 +265,7 @@ function mapDepthPopupHtml(coordinates, payload = null, status = "loading", over
   `;
 }
 
-async function showDepthPopupForMapClick(map, event) {
+export async function showDepthPopupForMapClick(map, event) {
   if (!map) return;
   const coordinates = {
     latitude: Number(event.latlng?.lat),
@@ -296,13 +297,13 @@ async function showDepthPopupForMapClick(map, event) {
   ));
 }
 
-function bindDepthLookupPopup(map) {
+export function bindDepthLookupPopup(map) {
   if (!map || map._logbookDepthLookupBound) return;
   map._logbookDepthLookupBound = true;
   map.on("click", (event) => showDepthPopupForMapClick(map, event));
 }
 
-function ensureMapPageChartOverlay(map) {
+export function ensureMapPageChartOverlay(map) {
   if (!map || map._logbookNoaaLayer || map._logbookNoaaLayerUnavailable) return;
   const noaaLayer = window.createNOAAChartLayer?.();
   if (!noaaLayer) {
@@ -316,18 +317,18 @@ function ensureMapPageChartOverlay(map) {
   map._logbookNoaaLayer = noaaLayer;
 }
 
-function syncMapPageChartOverlay(map) {
+export function syncMapPageChartOverlay(map) {
   if (!map) return;
   ensureMapPageChartOverlay(map);
   const noaaLayer = map._logbookNoaaLayer;
   if (!noaaLayer) return;
 
   if (els.mapNoaaChartsToggle) {
-    els.mapNoaaChartsToggle.checked = activeMapShowNOAACharts;
+    els.mapNoaaChartsToggle.checked = ui.activeMapShowNOAACharts;
     els.mapNoaaChartsToggle.disabled = false;
   }
 
-  if (activeMapShowNOAACharts) {
+  if (ui.activeMapShowNOAACharts) {
     if (!map.hasLayer(noaaLayer)) noaaLayer.addTo(map);
     noaaLayer.bringToFront?.();
   } else if (map.hasLayer(noaaLayer)) {
@@ -335,20 +336,20 @@ function syncMapPageChartOverlay(map) {
   }
 }
 
-function settleMapLayout(map) {
+export function settleMapLayout(map) {
   setTimeout(() => {
     map.invalidateSize();
     snapMapTilePane(map);
   }, 0);
 }
 
-function mapRecordTitle(record) {
+export function mapRecordTitle(record) {
   if (record.type === "trip-photo") return record.media.caption || "Trip photo";
   if (record.type === "trip-video") return record.media.caption || "Trip video";
   return record.catchItem?.species || "Fish";
 }
 
-function mapRecordFilterOptions(records, options = {}) {
+export function mapRecordFilterOptions(records, options = {}) {
   const species = records
     .filter((record) => record.type === "catch")
     .map((record) => record.catchItem.species || "Unknown species");
@@ -358,16 +359,16 @@ function mapRecordFilterOptions(records, options = {}) {
   return [options.allLabel || "All species", ...new Set([...species, ...mediaTypes])];
 }
 
-function renderMapSpeciesFilter(records) {
+export function renderMapSpeciesFilter(records) {
   const options = mapRecordFilterOptions(records, { allLabel: "All species" });
-  if (!options.includes(activeMapSpecies)) activeMapSpecies = "All species";
+  if (!options.includes(ui.activeMapSpecies)) ui.activeMapSpecies = "All species";
   els.mapSpeciesFilter.innerHTML = options.map((option) => (
-    `<option value="${escapeHtml(option)}" ${option === activeMapSpecies ? "selected" : ""}>${escapeHtml(option)}</option>`
+    `<option value="${escapeHtml(option)}" ${option === ui.activeMapSpecies ? "selected" : ""}>${escapeHtml(option)}</option>`
   )).join("");
-  if (els.mapTripPhotosToggle) els.mapTripPhotosToggle.checked = activeMapIncludeTripMedia;
+  if (els.mapTripPhotosToggle) els.mapTripPhotosToggle.checked = ui.activeMapIncludeTripMedia;
 }
 
-function mapRecordLake(record) {
+export function mapRecordLake(record) {
   const catchLake = String(record.catchItem?.lake_name || "").trim();
   const tripLake = String(record.trip?.location || "").trim();
   if (catchLake && tripLake.toLowerCase().includes(catchLake.toLowerCase())) return tripLake;
@@ -376,11 +377,11 @@ function mapRecordLake(record) {
   return catchLake || tripLake || "Unknown lake";
 }
 
-function mapRecordMethod(record) {
+export function mapRecordMethod(record) {
   return String(record.trip?.method || "Unknown method").trim() || "Unknown method";
 }
 
-function mapRecordAngler(record) {
+export function mapRecordAngler(record) {
   if (record.type !== "catch") return "";
   const personId = record.catchItem?.personId;
   if (!personId) return "Unknown angler";
@@ -389,11 +390,11 @@ function mapRecordAngler(record) {
     || "Unknown angler";
 }
 
-function visibleMapSpots() {
+export function visibleMapSpots() {
   return (state.spots || []).filter((spot) => isUsableCoordinates(spot?.coordinates));
 }
 
-function mapSpotPopupHtml(spot) {
+export function mapSpotPopupHtml(spot) {
   const radius = Number(spot.radiusMeters);
   const radiusText = Number.isFinite(radius) && radius > 0
     ? `${typeof fishingSpotRadiusText === "function" ? fishingSpotRadiusText(radius) : `${Math.round(radius)} m`} radius`
@@ -407,7 +408,7 @@ function mapSpotPopupHtml(spot) {
   `;
 }
 
-function addMapSpotMarker(layerGroup, spot) {
+export function addMapSpotMarker(layerGroup, spot) {
   const point = [spot.coordinates.latitude, spot.coordinates.longitude];
   const popupHtml = mapSpotPopupHtml(spot);
   const radius = Number(spot.radiusMeters);
@@ -433,11 +434,11 @@ function addMapSpotMarker(layerGroup, spot) {
   }).bindPopup(popupHtml).addTo(layerGroup);
 }
 
-function sortedMapValues(records, getValue) {
+export function sortedMapValues(records, getValue) {
   return [...new Set(records.map(getValue).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
-function renderMapSelect(select, records, getValue, allLabel, activeValue, options = {}) {
+export function renderMapSelect(select, records, getValue, allLabel, activeValue, options = {}) {
   if (!select) return activeValue;
   const values = sortedMapValues(records, getValue);
   const nextValue = [allLabel, ...values].includes(activeValue) ? activeValue : allLabel;
@@ -448,18 +449,18 @@ function renderMapSelect(select, records, getValue, allLabel, activeValue, optio
   return nextValue;
 }
 
-function renderAdditionalMapFilters(records) {
+export function renderAdditionalMapFilters(records) {
   const catches = records.filter((record) => record.type === "catch");
-  const filterableRecords = activeMapIncludeTripMedia ? records : catches;
-  activeMapLake = renderMapSelect(els.mapLakeFilter, filterableRecords, mapRecordLake, "All lakes", activeMapLake);
-  activeMapMethod = renderMapSelect(els.mapMethodFilter, filterableRecords, mapRecordMethod, "All methods", activeMapMethod);
-  activeMapDirection = renderMapSelect(els.mapDirectionFilter, catches, (record) => mapRecordTrollingDirection(record)?.label, "All directions", activeMapDirection);
-  activeMapAngler = renderMapSelect(els.mapAnglerFilter, catches, mapRecordAngler, "All anglers", activeMapAngler);
-  if (els.mapSpotsToggle) els.mapSpotsToggle.checked = activeMapIncludeSpots;
-  if (els.mapDirectionArrowsToggle) els.mapDirectionArrowsToggle.checked = activeMapShowDirectionArrows;
+  const filterableRecords = ui.activeMapIncludeTripMedia ? records : catches;
+  ui.activeMapLake = renderMapSelect(els.mapLakeFilter, filterableRecords, mapRecordLake, "All lakes", ui.activeMapLake);
+  ui.activeMapMethod = renderMapSelect(els.mapMethodFilter, filterableRecords, mapRecordMethod, "All methods", ui.activeMapMethod);
+  ui.activeMapDirection = renderMapSelect(els.mapDirectionFilter, catches, (record) => mapRecordTrollingDirection(record)?.label, "All directions", ui.activeMapDirection);
+  ui.activeMapAngler = renderMapSelect(els.mapAnglerFilter, catches, mapRecordAngler, "All anglers", ui.activeMapAngler);
+  if (els.mapSpotsToggle) els.mapSpotsToggle.checked = ui.activeMapIncludeSpots;
+  if (els.mapDirectionArrowsToggle) els.mapDirectionArrowsToggle.checked = ui.activeMapShowDirectionArrows;
 }
 
-function mapYearFilterOptions(records) {
+export function mapYearFilterOptions(records) {
   const years = [...new Set(records.map(mapRecordYear))];
   return ["All years", ...years.sort((a, b) => {
     if (a === "Unknown year") return 1;
@@ -468,24 +469,24 @@ function mapYearFilterOptions(records) {
   })];
 }
 
-function renderMapYearFilter(records) {
+export function renderMapYearFilter(records) {
   const options = mapYearFilterOptions(records);
-  if (!options.includes(activeMapYear)) activeMapYear = "All years";
+  if (!options.includes(ui.activeMapYear)) ui.activeMapYear = "All years";
   els.mapYearFilter.innerHTML = options.map((option) => (
-    `<option value="${escapeHtml(option)}" ${option === activeMapYear ? "selected" : ""}>${escapeHtml(option)}</option>`
+    `<option value="${escapeHtml(option)}" ${option === ui.activeMapYear ? "selected" : ""}>${escapeHtml(option)}</option>`
   )).join("");
-  els.mapYearFilter.disabled = activeMapYearFilteringHidden;
-  els.mapYearFilterControl?.classList.toggle("hidden", activeMapYearFilteringHidden);
-  if (els.mapHideYearFilterToggle) els.mapHideYearFilterToggle.checked = activeMapYearFilteringHidden;
+  els.mapYearFilter.disabled = ui.activeMapYearFilteringHidden;
+  els.mapYearFilterControl?.classList.toggle("hidden", ui.activeMapYearFilteringHidden);
+  if (els.mapHideYearFilterToggle) els.mapHideYearFilterToggle.checked = ui.activeMapYearFilteringHidden;
 }
 
-function filteredCatchMapRecords(records, filterValue = activeMapSpecies) {
+export function filteredCatchMapRecords(records, filterValue = ui.activeMapSpecies) {
   const catches = records.filter((record) => record.type === "catch");
   if (filterValue === "All species") return catches;
   return catches.filter((record) => record.filterValue === filterValue);
 }
 
-function filteredMapRecords(records, filterValue = activeMapSpecies, options = {}) {
+export function filteredMapRecords(records, filterValue = ui.activeMapSpecies, options = {}) {
   if (filterValue === "All map items") return records;
   const catches = filteredCatchMapRecords(records, filterValue);
   const media = options.includeTripMedia
@@ -494,16 +495,16 @@ function filteredMapRecords(records, filterValue = activeMapSpecies, options = {
   return [...catches, ...media];
 }
 
-function filteredMapRecordsByYear(records, year = activeMapYear) {
-  if (activeMapYearFilteringHidden || year === "All years") return records;
+export function filteredMapRecordsByYear(records, year = ui.activeMapYear) {
+  if (ui.activeMapYearFilteringHidden || year === "All years") return records;
   return records.filter((record) => mapRecordYear(record) === year);
 }
 
-function filteredMapRecordsByDetails(records, filters = {}) {
-  const lake = filters.lake || activeMapLake;
-  const method = filters.method || activeMapMethod;
-  const direction = filters.direction || activeMapDirection;
-  const angler = filters.angler || activeMapAngler;
+export function filteredMapRecordsByDetails(records, filters = {}) {
+  const lake = filters.lake || ui.activeMapLake;
+  const method = filters.method || ui.activeMapMethod;
+  const direction = filters.direction || ui.activeMapDirection;
+  const angler = filters.angler || ui.activeMapAngler;
   return records.filter((record) => {
     if (lake !== "All lakes" && mapRecordLake(record) !== lake) return false;
     if (method !== "All methods" && mapRecordMethod(record) !== method) return false;
@@ -513,19 +514,19 @@ function filteredMapRecordsByDetails(records, filters = {}) {
   });
 }
 
-function mapRecordsInViewport(map, records) {
+export function mapRecordsInViewport(map, records) {
   if (!map?._loaded || typeof map.getBounds !== "function") return records;
   const bounds = map.getBounds();
   return records.filter((record) => bounds.contains([record.coordinates.latitude, record.coordinates.longitude]));
 }
 
-function mapSpotsInViewport(map, spots) {
+export function mapSpotsInViewport(map, spots) {
   if (!map?._loaded || typeof map.getBounds !== "function") return spots;
   const bounds = map.getBounds();
   return spots.filter((spot) => bounds.contains([spot.coordinates.latitude, spot.coordinates.longitude]));
 }
 
-function renderMapLegend(records, options = {}) {
+export function renderMapLegend(records, options = {}) {
   const species = mapRecordFilterOptions(records, { allLabel: "All species" }).slice(1);
   const mediaTypes = options.includeTripMedia
     ? [...new Set(records.filter((record) => record.type !== "catch").map((record) => record.filterValue))]
@@ -541,8 +542,8 @@ function renderMapLegend(records, options = {}) {
   `;
 }
 
-function mapPopupHtml(record) {
-  const { trip, media, coordinates } = record;
+export function mapPopupHtml(record) {
+  const { trip, media } = record;
   const title = [mapRecordTitle(record), trip.location].filter(Boolean).join(" at ");
   const fowValue = record.type === "catch" ? catchFowPopupValue(record.catchItem) : "";
   const sizeValue = record.type === "catch" ? catchSizePopupValue(record.catchItem) : "";
@@ -569,7 +570,7 @@ function mapPopupHtml(record) {
   `;
 }
 
-function renderMapYearLegend(records, options = {}) {
+export function renderMapYearLegend(records, options = {}) {
   const legendItems = mapRecordFilterOptions(records, { allLabel: "All species", includeTripMedia: options.includeTripMedia }).slice(1);
   const years = options.showYearOutlines ? mapYearFilterOptions(records).slice(1) : [];
   if (!years.length && !legendItems.length) return "";
@@ -583,33 +584,33 @@ function renderMapYearLegend(records, options = {}) {
   `;
 }
 
-function renderFishMapLegend(records, spots) {
-  const visibleRecords = mapRecordsInViewport(fishMap, records);
-  const visibleSpots = mapSpotsInViewport(fishMap, spots);
+export function renderFishMapLegend(records, spots) {
+  const visibleRecords = mapRecordsInViewport(ui.fishMap, records);
+  const visibleSpots = mapSpotsInViewport(ui.fishMap, spots);
   els.mapLegend.innerHTML = renderMapYearLegend(visibleRecords, {
-    includeTripMedia: activeMapIncludeTripMedia,
-    showYearOutlines: !activeMapYearFilteringHidden,
+    includeTripMedia: ui.activeMapIncludeTripMedia,
+    showYearOutlines: !ui.activeMapYearFilteringHidden,
     spotCount: visibleSpots.length
   });
 }
 
-function refreshFishMapLegend() {
+export function refreshFishMapLegend() {
   const allRecords = catchMapRecords();
-  const spots = activeMapIncludeSpots ? visibleMapSpots() : [];
+  const spots = ui.activeMapIncludeSpots ? visibleMapSpots() : [];
   const records = filteredMapRecordsByYear(filteredMapRecordsByDetails(
-    filteredMapRecords(allRecords, activeMapSpecies, { includeTripMedia: activeMapIncludeTripMedia })
+    filteredMapRecords(allRecords, ui.activeMapSpecies, { includeTripMedia: ui.activeMapIncludeTripMedia })
   ));
   renderFishMapLegend(records, spots);
 }
 
-function renderFishMap() {
+export function renderFishMap() {
   const allRecords = catchMapRecords();
-  const spots = activeMapIncludeSpots ? visibleMapSpots() : [];
+  const spots = ui.activeMapIncludeSpots ? visibleMapSpots() : [];
   renderMapSpeciesFilter(allRecords);
   renderAdditionalMapFilters(allRecords);
   renderMapYearFilter(allRecords);
   const records = filteredMapRecordsByYear(filteredMapRecordsByDetails(
-    filteredMapRecords(allRecords, activeMapSpecies, { includeTripMedia: activeMapIncludeTripMedia })
+    filteredMapRecords(allRecords, ui.activeMapSpecies, { includeTripMedia: ui.activeMapIncludeTripMedia })
   ));
   renderFishMapLegend(records, spots);
   if (!window.L) {
@@ -617,27 +618,27 @@ function renderFishMap() {
     return;
   }
 
-  if (!fishMap) {
-    fishMap = L.map(els.fishMap, seamlessMapOptions());
-    fishMapBasemapLayer = addSeamlessTileLayer(fishMap, savedMapBasemap());
+  if (!ui.fishMap) {
+    ui.fishMap = L.map(els.fishMap, seamlessMapOptions());
+    fishMapBasemapLayer = addSeamlessTileLayer(ui.fishMap, savedMapBasemap());
     ensureFishMapBasemapControl();
-    bindDepthLookupPopup(fishMap);
-    syncMapPageChartOverlay(fishMap);
-    window.ensureGreatLakesConditions?.(fishMap);
-    ensureMapMarkerPanes(fishMap);
-    fishMapMarkers = L.layerGroup().addTo(fishMap);
-    fishMapSpotMarkers = L.layerGroup().addTo(fishMap);
-    fishMap.on("moveend resize", refreshFishMapLegend);
+    bindDepthLookupPopup(ui.fishMap);
+    syncMapPageChartOverlay(ui.fishMap);
+    window.ensureGreatLakesConditions?.(ui.fishMap);
+    ensureMapMarkerPanes(ui.fishMap);
+    ui.fishMapMarkers = L.layerGroup().addTo(ui.fishMap);
+    ui.fishMapSpotMarkers = L.layerGroup().addTo(ui.fishMap);
+    ui.fishMap.on("moveend resize", refreshFishMapLegend);
   }
-  syncMapPageChartOverlay(fishMap);
-  ensureMapMarkerPanes(fishMap);
+  syncMapPageChartOverlay(ui.fishMap);
+  ensureMapMarkerPanes(ui.fishMap);
 
-  fishMapMarkers.clearLayers();
-  fishMapSpotMarkers.clearLayers();
+  ui.fishMapMarkers.clearLayers();
+  ui.fishMapSpotMarkers.clearLayers();
   if (!records.length && !spots.length) {
     const homeLake = window.getGreatLakesHomeView?.();
-    fishMap.setView(homeLake?.center || [43.8, -79.5], homeLake?.zoom || 6);
-    settleMapLayout(fishMap);
+    ui.fishMap.setView(homeLake?.center || [43.8, -79.5], homeLake?.zoom || 6);
+    settleMapLayout(ui.fishMap);
     renderFishMapLegend(records, spots);
     return;
   }
@@ -646,42 +647,42 @@ function renderFishMap() {
   records.forEach((record) => {
     const point = [record.coordinates.latitude, record.coordinates.longitude];
     bounds.push(point);
-    addMapMarker(fishMapMarkers, record, {
-      colorByYear: !activeMapYearFilteringHidden,
-      showDirectionArrows: activeMapShowDirectionArrows
+    addMapMarker(ui.fishMapMarkers, record, {
+      colorByYear: !ui.activeMapYearFilteringHidden,
+      showDirectionArrows: ui.activeMapShowDirectionArrows
     });
   });
   spots.forEach((spot) => {
     bounds.push([spot.coordinates.latitude, spot.coordinates.longitude]);
-    addMapSpotMarker(fishMapSpotMarkers, spot);
+    addMapSpotMarker(ui.fishMapSpotMarkers, spot);
   });
 
-  if (bounds.length === 1) fishMap.setView(bounds[0], 13);
-  else fishMap.fitBounds(bounds, { padding: [28, 28] });
-  settleMapLayout(fishMap);
+  if (bounds.length === 1) ui.fishMap.setView(bounds[0], 13);
+  else ui.fishMap.fitBounds(bounds, { padding: [28, 28] });
+  settleMapLayout(ui.fishMap);
   renderFishMapLegend(records, spots);
 }
 
-function catchMapRecordsForTrip(trip) {
+export function catchMapRecordsForTrip(trip) {
   return mapRecordsForTrip(trip);
 }
 
-function renderTripSummaryMapFilter(records) {
+export function renderTripSummaryMapFilter(records) {
   const filter = document.querySelector("#tripSummaryMapFilter");
   if (!filter) return;
   const options = mapRecordFilterOptions(records, { allLabel: "All map items", includeTripMedia: true });
-  if (!options.includes(activeTripSummaryMapFilter)) activeTripSummaryMapFilter = "All map items";
+  if (!options.includes(ui.activeTripSummaryMapFilter)) ui.activeTripSummaryMapFilter = "All map items";
   filter.innerHTML = options.map((option) => (
-    `<option value="${escapeHtml(option)}" ${option === activeTripSummaryMapFilter ? "selected" : ""}>${escapeHtml(option === "All map items" ? "All" : option)}</option>`
+    `<option value="${escapeHtml(option)}" ${option === ui.activeTripSummaryMapFilter ? "selected" : ""}>${escapeHtml(option === "All map items" ? "All" : option)}</option>`
   )).join("");
 }
 
-function renderTripSummaryMap(trip) {
+export function renderTripSummaryMap(trip) {
   const mapNode = document.querySelector("#tripSummaryMap");
   if (!mapNode) return;
   const allRecords = catchMapRecordsForTrip(trip);
   renderTripSummaryMapFilter(allRecords);
-  const records = filteredMapRecords(allRecords, activeTripSummaryMapFilter);
+  const records = filteredMapRecords(allRecords, ui.activeTripSummaryMapFilter);
   const legend = document.querySelector("#tripSummaryMapLegend");
   if (legend) legend.innerHTML = renderMapLegend(records, { includeTripMedia: true });
 
@@ -690,26 +691,26 @@ function renderTripSummaryMap(trip) {
     return;
   }
 
-  if (!tripSummaryMap) {
-    tripSummaryMap = L.map(mapNode, seamlessMapOptions());
-    addSeamlessTileLayer(tripSummaryMap);
-    bindDepthLookupPopup(tripSummaryMap);
-    ensureMapMarkerPanes(tripSummaryMap);
-    tripSummaryMapMarkers = L.layerGroup().addTo(tripSummaryMap);
-  } else if (tripSummaryMap.getContainer() !== mapNode) {
-    tripSummaryMap.remove();
-    tripSummaryMap = L.map(mapNode, seamlessMapOptions());
-    addSeamlessTileLayer(tripSummaryMap);
-    bindDepthLookupPopup(tripSummaryMap);
-    ensureMapMarkerPanes(tripSummaryMap);
-    tripSummaryMapMarkers = L.layerGroup().addTo(tripSummaryMap);
+  if (!ui.tripSummaryMap) {
+    ui.tripSummaryMap = L.map(mapNode, seamlessMapOptions());
+    addSeamlessTileLayer(ui.tripSummaryMap);
+    bindDepthLookupPopup(ui.tripSummaryMap);
+    ensureMapMarkerPanes(ui.tripSummaryMap);
+    ui.tripSummaryMapMarkers = L.layerGroup().addTo(ui.tripSummaryMap);
+  } else if (ui.tripSummaryMap.getContainer() !== mapNode) {
+    ui.tripSummaryMap.remove();
+    ui.tripSummaryMap = L.map(mapNode, seamlessMapOptions());
+    addSeamlessTileLayer(ui.tripSummaryMap);
+    bindDepthLookupPopup(ui.tripSummaryMap);
+    ensureMapMarkerPanes(ui.tripSummaryMap);
+    ui.tripSummaryMapMarkers = L.layerGroup().addTo(ui.tripSummaryMap);
   }
-  ensureMapMarkerPanes(tripSummaryMap);
+  ensureMapMarkerPanes(ui.tripSummaryMap);
 
-  tripSummaryMapMarkers.clearLayers();
+  ui.tripSummaryMapMarkers.clearLayers();
   if (!records.length) {
-    tripSummaryMap.setView([43.8, -79.5], 6);
-    settleMapLayout(tripSummaryMap);
+    ui.tripSummaryMap.setView([43.8, -79.5], 6);
+    settleMapLayout(ui.tripSummaryMap);
     return;
   }
 
@@ -717,26 +718,26 @@ function renderTripSummaryMap(trip) {
   records.forEach((record) => {
     const point = [record.coordinates.latitude, record.coordinates.longitude];
     bounds.push(point);
-    addMapMarker(tripSummaryMapMarkers, record);
+    addMapMarker(ui.tripSummaryMapMarkers, record);
   });
 
-  if (bounds.length === 1) tripSummaryMap.setView(bounds[0], 13);
-  else tripSummaryMap.fitBounds(bounds, { padding: [24, 24] });
-  settleMapLayout(tripSummaryMap);
+  if (bounds.length === 1) ui.tripSummaryMap.setView(bounds[0], 13);
+  else ui.tripSummaryMap.fitBounds(bounds, { padding: [24, 24] });
+  settleMapLayout(ui.tripSummaryMap);
 }
 
-function destroyCatchDetailLocationMap() {
-  if (catchDetailMap) catchDetailMap.remove();
-  catchDetailMap = null;
-  catchDetailMapMarkers = null;
+export function destroyCatchDetailLocationMap() {
+  if (ui.catchDetailMap) ui.catchDetailMap.remove();
+  ui.catchDetailMap = null;
+  ui.catchDetailMapMarkers = null;
 }
 
-function catchDetailLocationRecords(trip, scope) {
+export function catchDetailLocationRecords(trip, scope) {
   const records = scope === "all" ? catchMapRecords() : catchMapRecordsForTrip(trip);
   return records.filter((record) => record.type === "catch");
 }
 
-function renderCatchDetailLocationMap(trip, catchItem, catchIndex, scope = "trip") {
+export function renderCatchDetailLocationMap(trip, catchItem, catchIndex, scope = "trip") {
   const mapNode = document.querySelector("#catchDetailLocationMap");
   if (!mapNode) return;
   destroyCatchDetailLocationMap();
@@ -751,18 +752,35 @@ function renderCatchDetailLocationMap(trip, catchItem, catchIndex, scope = "trip
     mapNode.innerHTML = `<div class="empty-state catch-detail-location-empty"><p>No saved coordinates are available for these catches.</p></div>`;
     return;
   }
-  catchDetailMap = L.map(mapNode, seamlessMapOptions());
-  addSeamlessTileLayer(catchDetailMap, savedMapBasemap());
-  bindDepthLookupPopup(catchDetailMap);
-  ensureMapMarkerPanes(catchDetailMap);
-  catchDetailMapMarkers = L.layerGroup().addTo(catchDetailMap);
+  ui.catchDetailMap = L.map(mapNode, seamlessMapOptions());
+  addSeamlessTileLayer(ui.catchDetailMap, savedMapBasemap());
+  bindDepthLookupPopup(ui.catchDetailMap);
+  ensureMapMarkerPanes(ui.catchDetailMap);
+  ui.catchDetailMapMarkers = L.layerGroup().addTo(ui.catchDetailMap);
   const bounds = [];
   records.forEach((mapRecord) => {
     const point = [mapRecord.coordinates.latitude, mapRecord.coordinates.longitude];
     bounds.push(point);
-    addMapMarker(catchDetailMapMarkers, mapRecord, { autoPanPopup: false });
+    addMapMarker(ui.catchDetailMapMarkers, mapRecord, { autoPanPopup: false });
   });
-  if (bounds.length === 1) catchDetailMap.setView(bounds[0], 13);
-  else catchDetailMap.fitBounds(bounds, { padding: [28, 28] });
-  settleMapLayout(catchDetailMap);
+  if (bounds.length === 1) ui.catchDetailMap.setView(bounds[0], 13);
+  else ui.catchDetailMap.fitBounds(bounds, { padding: [28, 28] });
+  settleMapLayout(ui.catchDetailMap);
+}
+
+export function setup() {
+  MAP_BASEMAPS = {
+    standard: {
+      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      options: { attribution: "&copy; OpenStreetMap contributors" }
+    },
+    dark: {
+      url: `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${CARTO_BASEMAP_KEY}`,
+      options: { attribution: "&copy; OpenStreetMap contributors &copy; CARTO", subdomains: "abcd", maxZoom: 20 }
+    },
+    minimal: {
+      url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${CARTO_BASEMAP_KEY}`,
+      options: { attribution: "&copy; OpenStreetMap contributors &copy; CARTO", subdomains: "abcd", maxZoom: 20 }
+    }
+  };
 }

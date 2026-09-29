@@ -1,20 +1,29 @@
-function gearPhotos(item) {
+import { state, ui } from "./app-state.js";
+import { displayStoredMeasurement } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { canonicalMediaRef, isVideoMedia, mediaMarkup, mediaReferenceKey, originalMediaUrl } from "./app-media.js";
+import { fishCount } from "./dashboard.js";
+import { getValue } from "./trip-editor.js";
+import { resolveTripLineRecord } from "./trolling-spread.js";
+import { escapeHtml } from "./form-utils.js";
+
+export function gearPhotos(item) {
   return Array.isArray(item?.media) ? item.media : [];
 }
 
-function gearPhotoKey(photo, index = 0) {
+export function gearPhotoKey(photo, index = 0) {
   return String(photo?.id || mediaReferenceKey(photo) || `photo-${index}`);
 }
 
-function gearDialogForType(type) {
+export function gearDialogForType(type) {
   return { lure: els.lureDialog, flasher: els.flasherDialog, reel: els.reelDialog, rod: els.rodDialog }[type];
 }
 
-function removedGearPhotoKeys(type) {
+export function removedGearPhotoKeys(type) {
   try { return new Set(JSON.parse(gearDialogForType(type)?.dataset.removedPhotoKeys || "[]")); } catch { return new Set(); }
 }
 
-function gearPhotoFields(uploadedPhotos = [], existing = {}, type = "") {
+export function gearPhotoFields(uploadedPhotos = [], existing = {}, type = "") {
   const removed = removedGearPhotoKeys(type);
   const media = [...gearPhotos(existing).filter((photo, index) => !removed.has(gearPhotoKey(photo, index))), ...uploadedPhotos]
     .map(canonicalMediaRef).filter(Boolean);
@@ -23,7 +32,7 @@ function gearPhotoFields(uploadedPhotos = [], existing = {}, type = "") {
   return { media, heroMediaId };
 }
 
-function gearPhotoSignature(item) {
+export function gearPhotoSignature(item) {
   return gearPhotos(item).map((photo) => [
     photo.category || "",
     photo.filename || "",
@@ -31,7 +40,7 @@ function gearPhotoSignature(item) {
   ]);
 }
 
-function duplicateMatchesSource(source, duplicate, fields) {
+export function duplicateMatchesSource(source, duplicate, fields) {
   return fields.every((field) => {
     const sourceValue = Array.isArray(source?.[field]) ? JSON.stringify(source[field]) : String(source?.[field] ?? "");
     const duplicateValue = Array.isArray(duplicate?.[field]) ? JSON.stringify(duplicate[field]) : String(duplicate?.[field] ?? "");
@@ -39,18 +48,18 @@ function duplicateMatchesSource(source, duplicate, fields) {
   }) && JSON.stringify(gearPhotoSignature(source)) === JSON.stringify(gearPhotoSignature(duplicate));
 }
 
-function increasedQuantity(value) {
+export function increasedQuantity(value) {
   if (String(value ?? "").trim() === "") return "2";
   return String(Math.max(0, Number(value) || 0) + 1);
 }
 
-function gearDisplayName(item, fallback = "Gear") {
+export function gearDisplayName(item, fallback = "Gear") {
   return [item?.brand, item?.name].map((value) => String(value || "").trim()).filter(Boolean).join(" ")
     || item?.shortName
     || fallback;
 }
 
-function nextReelCopyShortName(reel) {
+export function nextReelCopyShortName(reel) {
   const currentName = String(reel?.shortName || gearDisplayName(reel, "Reel")).trim();
   const baseName = currentName.replace(/\s+#\d+$/i, "") || "Reel";
   const usedNames = new Set(state.reels.map((item) => String(item.shortName || "").trim().toLowerCase()));
@@ -59,11 +68,11 @@ function nextReelCopyShortName(reel) {
   return `${baseName} #${copyNumber}`;
 }
 
-function reelModelGroupId(reel) {
+export function reelModelGroupId(reel) {
   return String(reel?.modelGroupId || reel?.id || "");
 }
 
-function syncReelGroupQuantity(groupId, quantity) {
+export function syncReelGroupQuantity(groupId, quantity) {
   if (!groupId) return;
   state.reels.forEach((item) => {
     if (item.id === groupId || reelModelGroupId(item) === groupId) {
@@ -73,44 +82,44 @@ function syncReelGroupQuantity(groupId, quantity) {
   });
 }
 
-function generatedLureName(lure) {
+export function generatedLureName(lure) {
   return [lure?.color, lure?.spoonSize, lure?.bladeType, lure?.meatRigType, lure?.brand, lure?.type].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
 }
 
-function rodName(id) {
+export function rodName(id) {
   if (!id) return "";
   return gearDisplayName(state.rods.find((rod) => rod.id === id), "");
 }
 
-function reelName(id) {
+export function reelName(id) {
   if (!id) return "";
   const reel = state.reels.find((item) => item.id === id);
   return reel?.shortName || gearDisplayName(reel, "");
 }
 
-function comboName(id) {
+export function comboName(id) {
   if (!id) return "";
   const combo = state.rodReelCombos.find((item) => item.id === id);
   if (!combo) return "";
   return combo.shortName || [rodName(combo.rodId), reelName(combo.reelId)].filter(Boolean).join(" + ");
 }
 
-function lureName(id) {
+export function lureName(id) {
   if (!id) return "";
   return state.lures.find((lure) => lure.id === id)?.name || "";
 }
 
-function flasherName(id) {
+export function flasherName(id) {
   if (!id) return "";
   return state.flashers.find((flasher) => flasher.id === id)?.name || "";
 }
 
-function activeLineEntry(reel) {
+export function activeLineEntry(reel) {
   return [...(reel?.lineHistory || [])]
     .sort((a, b) => String(b.spooledDate || "").localeCompare(String(a.spooledDate || "")))[0] || null;
 }
 
-function mergeLineHistory(existingEntries = [], editedEntries = []) {
+export function mergeLineHistory(existingEntries = [], editedEntries = []) {
   const originals = Array.isArray(existingEntries) ? existingEntries : [];
   const changes = Array.isArray(editedEntries) ? editedEntries : [];
   const editedById = new Map(changes.filter((entry) => entry?.id).map((entry) => [entry.id, entry]));
@@ -124,7 +133,7 @@ function mergeLineHistory(existingEntries = [], editedEntries = []) {
   return merged;
 }
 
-function lineSummary(line) {
+export function lineSummary(line) {
   if (!line) return "";
   return [
     [line.type, displayStoredMeasurement(line.weight, "fishWeight")].filter(Boolean).join(" "),
@@ -133,7 +142,7 @@ function lineSummary(line) {
   ].filter(Boolean).join(" / ");
 }
 
-function baitStats(type, id) {
+export function baitStats(type, id) {
   const key = type === "flasher" ? "flasherId" : "lureId";
   let landed = 0;
   let lost = 0;
@@ -158,12 +167,12 @@ function baitStats(type, id) {
   return { landed, lost, trips: trips.size, lastUsed };
 }
 
-function renderQueuedGearImage(type) {
+export function renderQueuedGearImage(type) {
   const pending = {
-    lure: pendingLureImage,
-    flasher: pendingFlasherImage,
-    reel: pendingReelImage,
-    rod: pendingRodImage
+    lure: ui.pendingLureImage,
+    flasher: ui.pendingFlasherImage,
+    reel: ui.pendingReelImage,
+    rod: ui.pendingRodImage
   }[type];
   const container = document.querySelector({
     lure: "#lureQueuedImage",
@@ -184,7 +193,7 @@ function renderQueuedGearImage(type) {
   ` : "";
 }
 
-function renderExistingGearPhotos(type, item = null, localFiles = []) {
+export function renderExistingGearPhotos(type, item = null, localFiles = []) {
   const container = document.querySelector({
     lure: "#lureExistingPhotos",
     flasher: "#flasherExistingPhotos",
@@ -223,7 +232,7 @@ function renderExistingGearPhotos(type, item = null, localFiles = []) {
   `;
 }
 
-function previewSelectedGearUploads(type, input) {
+export function previewSelectedGearUploads(type, input) {
   const items = { lure: state.lures, flasher: state.flashers, reel: state.reels, rod: state.rods }[type] || [];
   const id = {
     lure: getValue("editingLureId"),
@@ -234,7 +243,7 @@ function previewSelectedGearUploads(type, input) {
   renderExistingGearPhotos(type, items.find((item) => item.id === id) || null, input?.files || []);
 }
 
-function removeExistingGearPhoto(type, key) {
+export function removeExistingGearPhoto(type, key) {
   const dialog = gearDialogForType(type);
   if (!dialog) return;
   const keys = removedGearPhotoKeys(type);
@@ -244,12 +253,12 @@ function removeExistingGearPhoto(type, key) {
   previewSelectedGearUploads(type, input);
 }
 
-function openQueuedGearImagePreview(type) {
+export function openQueuedGearImagePreview(type) {
   const pending = {
-    lure: pendingLureImage,
-    flasher: pendingFlasherImage,
-    reel: pendingReelImage,
-    rod: pendingRodImage
+    lure: ui.pendingLureImage,
+    flasher: ui.pendingFlasherImage,
+    reel: ui.pendingReelImage,
+    rod: ui.pendingRodImage
   }[type];
   const source = originalMediaUrl(pending);
   if (!source || isVideoMedia(pending)) return;

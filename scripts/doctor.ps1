@@ -35,8 +35,8 @@ if ($venvExists) {
   $venvVersion = (& $venvPython -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null).Trim()
   Write-Check "Virtualenv version" ($venvVersion -eq $expectedPython) $venvVersion -Required
 
-  & $venvPython -c "import flask, PIL, pillow_heif, pytest, gunicorn" 2>$null
-  Write-Check "Python dependencies" ($LASTEXITCODE -eq 0) "Flask/Pillow/pillow-heif/pytest/gunicorn" -Required
+  & $venvPython -c "import flask, jsonschema, PIL, pillow_heif, pytest, gunicorn" 2>$null
+  Write-Check "Python dependencies" ($LASTEXITCODE -eq 0) "Flask/jsonschema/Pillow/pillow-heif/pytest/gunicorn" -Required
 }
 
 $node = Get-Command node -ErrorAction SilentlyContinue
@@ -47,6 +47,9 @@ Write-Check "npm" ($null -ne $npm) $(if ($npm) { (& $npm.Source --version).Trim(
 
 $packageLock = Test-Path -LiteralPath (Join-Path $projectRoot "package-lock.json")
 Write-Check "Root package lock" $packageLock "package-lock.json" -Required
+
+$esbuildPackage = Test-Path -LiteralPath (Join-Path $projectRoot "node_modules\esbuild")
+Write-Check "Frontend build tooling" $esbuildPackage "node_modules/esbuild (npm ci)" -Required
 
 $playwrightPackage = Test-Path -LiteralPath (Join-Path $projectRoot "node_modules\@playwright\test")
 Write-Check "Playwright package" $playwrightPackage "node_modules/@playwright/test" -Required

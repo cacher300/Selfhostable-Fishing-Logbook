@@ -1,12 +1,28 @@
-function addCatchRow(catchItem = {}) {
+import { createId, defaultTimeValue } from "./app-defaults.js";
+import { state, ui } from "./app-state.js";
+import { automaticSpotId, choiceLabel, optionChoices, optionLabels, spotName, trollingSpreadById } from "./app-normalization.js";
+import { formatDisplayTime } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { isUsableCoordinates } from "./app-media.js";
+import { flashAutoFilledField, updateCatchLocationSummary } from "./locations.js";
+import { syncUnitLabels } from "./settings.js";
+import { formatDate, populateChoiceSelect, populateOptionSelect } from "./dashboard.js";
+import { fishCoordinatesFromRow, manualCoordinatesFromRow, renderCatchPhotos, updateMetadataLockButtons } from "./photos.js";
+import { getValue, populatePersonSelect, syncTripFormChrome } from "./trip-editor.js";
+import { comboName, lureName, rodName } from "./gear-core.js";
+import { populateComboSelect, populateFlasherSelect, populateLureSelect, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
+import { defaultSetupLineSide, renderLiveTrollingSpread, setupLineAutoLabel, setupLineSideLabel } from "./trolling-spread.js";
+import { escapeHtml, isTrollingTrip, populateStructureSelect, updateCheaterDepth, updateLeadcoreEstimatedDepth, updatePresentationFields, updateTrollingVisibility } from "./form-utils.js";
+
+export function addCatchRow(catchItem = {}) {
   return addFishRow(catchItem, { container: els.catchRows, lost: false });
 }
 
-function addLostFishRow(fishItem = {}) {
+export function addLostFishRow(fishItem = {}) {
   return addFishRow(fishItem, { container: els.lostFishRows, lost: true });
 }
 
-function expandAndRevealTripRow(row) {
+export function expandAndRevealTripRow(row) {
   if (!row) return;
   row.classList.remove("collapsed");
   row.querySelector("[data-toggle-row]")?.setAttribute("aria-expanded", "true");
@@ -16,11 +32,11 @@ function expandAndRevealTripRow(row) {
   });
 }
 
-function defaultFishTime(catchItem = {}) {
+export function defaultFishTime(catchItem = {}) {
   return catchItem.timeUnknown ? "" : (catchItem.time ?? (getValue("launchTime") || defaultTimeValue));
 }
 
-function populateCatchSpotSelect(row, catchItem = {}) {
+export function populateCatchSpotSelect(row, catchItem = {}) {
   const select = row?.querySelector(".catch-spot");
   if (!select) return;
   const mode = catchItem.spotAssignmentMode === "manual" ? "manual" : "automatic";
@@ -40,7 +56,7 @@ function populateCatchSpotSelect(row, catchItem = {}) {
   select.value = mode === "automatic" ? "__automatic__" : (state.spots.some((spot) => spot.id === requestedSpotId) ? requestedSpotId : "__none__");
 }
 
-function refreshCatchSpotSelect(row) {
+export function refreshCatchSpotSelect(row) {
   const select = row?.querySelector(".catch-spot");
   if (!select) return;
   const value = select.value || "__automatic__";
@@ -50,7 +66,7 @@ function refreshCatchSpotSelect(row) {
   });
 }
 
-function updateUnknownTimeField(row) {
+export function updateUnknownTimeField(row) {
   const unknown = row.querySelector(".catch-time-unknown")?.checked;
   const timeInput = row.querySelector(".catch-time");
   if (!timeInput) return;
@@ -58,7 +74,7 @@ function updateUnknownTimeField(row) {
   timeInput.disabled = Boolean(unknown);
 }
 
-function setControlValue(control, value = "") {
+export function setControlValue(control, value = "") {
   if (!control) return;
   if (control.type === "checkbox" || control.type === "radio") {
     control.checked = Boolean(value);
@@ -67,7 +83,7 @@ function setControlValue(control, value = "") {
   control.value = value;
 }
 
-function clearUnknownCatchDetails(row) {
+export function clearUnknownCatchDetails(row) {
   [
     ".catch-person",
     ".catch-time",
@@ -116,7 +132,7 @@ function clearUnknownCatchDetails(row) {
   updateCatchLocationSummary(row);
 }
 
-function updateCatchDetailsUnknown(row, { clear = false } = {}) {
+export function updateCatchDetailsUnknown(row, { clear = false } = {}) {
   if (!row) return;
   const detailsUnknown = Boolean(row.querySelector(".catch-details-unknown")?.checked);
   if (detailsUnknown && clear) clearUnknownCatchDetails(row);
@@ -131,15 +147,15 @@ function updateCatchDetailsUnknown(row, { clear = false } = {}) {
   renderLiveTrollingSpread();
 }
 
-function defaultSetupStartTime(gearItem = {}) {
+export function defaultSetupStartTime(gearItem = {}) {
   return gearItem.startTime ?? (getValue("launchTime") || defaultTimeValue);
 }
 
-function defaultSetupEndTime(gearItem = {}) {
+export function defaultSetupEndTime(gearItem = {}) {
   return gearItem.endTime ?? (getValue("linesPulledTime") || defaultTimeValue);
 }
 
-function syncTripTimesToBlankRows() {
+export function syncTripTimesToBlankRows() {
   const startTime = getValue("launchTime");
   const endTime = getValue("linesPulledTime");
   if (startTime) {
@@ -162,7 +178,7 @@ function syncTripTimesToBlankRows() {
   updateAllRowSummaries();
 }
 
-function addFishRow(catchItem = {}, { container, lost }) {
+export function addFishRow(catchItem = {}, { container, lost }) {
   const template = document.querySelector("#catchRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
   if (lost) node.classList.add("lost-fish-row");
@@ -284,7 +300,7 @@ function addFishRow(catchItem = {}, { container, lost }) {
   return node;
 }
 
-function duplicateCatchRow(sourceRow) {
+export function duplicateCatchRow(sourceRow) {
   if (!sourceRow || sourceRow.classList.contains("lost-fish-row")) return null;
 
   const sourceCoordinates = fishCoordinatesFromRow(sourceRow);
@@ -341,7 +357,7 @@ function duplicateCatchRow(sourceRow) {
   return duplicate;
 }
 
-function addTripGearRow(gearItem = {}) {
+export function addTripGearRow(gearItem = {}) {
   const template = document.querySelector("#tripGearRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.rowId = createId();
@@ -388,10 +404,10 @@ function addTripGearRow(gearItem = {}) {
   return node;
 }
 
-function applyStartupTrollingSpread() {
-  if (activeTripId || !isTrollingTrip() || newTripStartupSpreadApplied) return false;
+export function applyStartupTrollingSpread() {
+  if (ui.activeTripId || !isTrollingTrip() || ui.newTripStartupSpreadApplied) return false;
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
-  newTripStartupSpreadApplied = true;
+  ui.newTripStartupSpreadApplied = true;
   if (rows.length) return false;
   const spread = trollingSpreadById(state.settings?.defaultTrollingSpreadId);
   if (!spread.length) return false;
@@ -411,13 +427,13 @@ function applyStartupTrollingSpread() {
   return true;
 }
 
-function previousTrollingTripForTargetSpecies() {
+export function previousTrollingTripForTargetSpecies() {
   const targetSpecies = getValue("targetSpecies").trim();
   const tripDate = getValue("tripDate");
   if (!targetSpecies) return null;
   return state.trips
     .filter((trip) => (
-      trip.id !== activeTripId
+      trip.id !== ui.activeTripId
       && String(trip.method || "").toLowerCase() === "trolling"
       && String(trip.targetSpecies || "").trim() === targetSpecies
       && Array.isArray(trip.gearUsed)
@@ -427,7 +443,7 @@ function previousTrollingTripForTargetSpecies() {
     .sort((first, second) => String(second.date || "").localeCompare(String(first.date || "")))[0] || null;
 }
 
-function syncLastTrollingSpreadImportButton() {
+export function syncLastTrollingSpreadImportButton() {
   const button = els.importLastTrollingSpreadButton;
   if (!button) return;
   const sourceTrip = isTrollingTrip() ? previousTrollingTripForTargetSpecies() : null;
@@ -437,7 +453,7 @@ function syncLastTrollingSpreadImportButton() {
     : "Choose a target species with a previous trolling trip to import its spread.";
 }
 
-function lastTripSpreadGearItem(gearItem) {
+export function lastTripSpreadGearItem(gearItem) {
   return {
     comboId: gearItem.comboId || "",
     rodId: gearItem.rodId || "",
@@ -457,7 +473,7 @@ function lastTripSpreadGearItem(gearItem) {
   };
 }
 
-function importLastTrollingSpread() {
+export function importLastTrollingSpread() {
   const sourceTrip = previousTrollingTripForTargetSpecies();
   if (!sourceTrip) {
     alert("No previous trolling trip with this target species has a spread to import.");
@@ -473,11 +489,11 @@ function importLastTrollingSpread() {
   populateCatchRodSelects();
   updateAllRowSummaries();
   renderLiveTrollingSpread();
-  tripFormUserChanged = true;
+  ui.tripFormUserChanged = true;
   syncTripFormChrome();
 }
 
-function setupLineLabelFromRow(row, index) {
+export function setupLineLabelFromRow(row, index) {
   const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
   if (customLabel) return customLabel;
   return setupLineAutoLabel({
@@ -489,7 +505,7 @@ function setupLineLabelFromRow(row, index) {
   }, index);
 }
 
-function catchRodPickerLabelFromRow(row, index, { cheater = false } = {}) {
+export function catchRodPickerLabelFromRow(row, index, { cheater = false } = {}) {
   const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
   const identity = customLabel || [
     isTrollingTrip() ? setupLineSideLabel(row.querySelector(".trip-gear-side")?.value) : "",
@@ -502,7 +518,7 @@ function catchRodPickerLabelFromRow(row, index, { cheater = false } = {}) {
   return [cheater ? `${identity} — Cheater` : identity, lure].filter(Boolean).join(" / ");
 }
 
-function setupLineOptionsFromForm() {
+export function setupLineOptionsFromForm() {
   return [...els.tripGearRows.querySelectorAll(".gear-used-row")].flatMap((row, index) => {
     if (!row.dataset.gearId) row.dataset.gearId = createId();
     const startTime = row.querySelector(".trip-gear-start-time")?.value || "";
@@ -526,13 +542,13 @@ function setupLineOptionsFromForm() {
   });
 }
 
-function setupLineIsActiveAtTime(option, catchTime) {
+export function setupLineIsActiveAtTime(option, catchTime) {
   if (!catchTime || !option.startTime || !option.endTime) return true;
   if (option.startTime <= option.endTime) return catchTime >= option.startTime && catchTime <= option.endTime;
   return catchTime >= option.startTime || catchTime <= option.endTime;
 }
 
-function populateSetupLineSelect(select, selectedId = "") {
+export function populateSetupLineSelect(select, selectedId = "") {
   const catchRow = select.closest(".catch-row");
   const catchTime = catchRow?.querySelector(".catch-time-unknown")?.checked
     ? ""
@@ -545,14 +561,14 @@ function populateSetupLineSelect(select, selectedId = "") {
   )).join("");
 }
 
-function populateSetupLineSelects() {
+export function populateSetupLineSelects() {
   document.querySelectorAll(".catch-setup-line").forEach((select) => {
     populateSetupLineSelect(select, select.value);
   });
   document.querySelectorAll("#catchRows .catch-row").forEach(syncCatchMethodToSetupLine);
 }
 
-const TROLLING_SETUP_ROW_ORDER = [
+export const TROLLING_SETUP_ROW_ORDER = [
   "starboard|outside board",
   "starboard|inside board",
   "starboard|high diver",
@@ -566,7 +582,7 @@ const TROLLING_SETUP_ROW_ORDER = [
   "port|outside board"
 ];
 
-function sortTrollingSetupRows() {
+export function sortTrollingSetupRows() {
   if (!isTrollingTrip() || !els.tripGearRows) return;
   const order = new Map(TROLLING_SETUP_ROW_ORDER.map((value, index) => [value, index]));
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
@@ -582,7 +598,7 @@ function sortTrollingSetupRows() {
   rows.forEach((row) => els.tripGearRows.append(row));
 }
 
-function rodOptionFromGearRow(row, index) {
+export function rodOptionFromGearRow(row, index) {
   const combo = selectedComboForRow(row);
   const rodId = combo?.rodId || "";
   const lureSelect = row.querySelector(".trip-gear-lure");
@@ -600,7 +616,7 @@ function rodOptionFromGearRow(row, index) {
   };
 }
 
-function catchRodOptionsFromForm(selectedRodId = "") {
+export function catchRodOptionsFromForm(selectedRodId = "") {
   return [...els.tripGearRows.querySelectorAll(".gear-used-row")]
     .map((row, index) => {
       if (!row.dataset.gearId) row.dataset.gearId = createId();
@@ -609,7 +625,7 @@ function catchRodOptionsFromForm(selectedRodId = "") {
     .filter((item) => item.rodId);
 }
 
-function populateCatchRodSelect(select, selectedRodId = "", selectedOptionId = "") {
+export function populateCatchRodSelect(select, selectedRodId = "", selectedOptionId = "") {
   if (!select) return;
   const selected = selectedRodId || select.dataset.selectedRodId || "";
   const options = catchRodOptionsFromForm(selected);
@@ -622,14 +638,14 @@ function populateCatchRodSelect(select, selectedRodId = "", selectedOptionId = "
   )).join("");
 }
 
-function populateCatchRodSelects() {
+export function populateCatchRodSelects() {
   document.querySelectorAll(".catch-rod").forEach((select) => {
     const selectedRodId = select.selectedOptions?.[0]?.dataset.rodId || select.dataset.selectedRodId || "";
     populateCatchRodSelect(select, selectedRodId, select.value);
   });
 }
 
-function syncDirectCatchRodToLure(row) {
+export function syncDirectCatchRodToLure(row) {
   if (!row) return;
   const option = row.querySelector(".catch-rod")?.selectedOptions?.[0];
   const lureId = option?.dataset.lureId || "";
@@ -642,7 +658,7 @@ function syncDirectCatchRodToLure(row) {
   updateRowSummary(row);
 }
 
-function syncCatchRiggingFromSetupLine(row) {
+export function syncCatchRiggingFromSetupLine(row) {
   if (!row) return;
   const setupLineId = row.querySelector(".catch-rod")?.value || "";
   const setupRow = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
@@ -655,7 +671,7 @@ function syncCatchRiggingFromSetupLine(row) {
   if (riggingDetails) riggingDetails.value = setupRow.querySelector(".trip-gear-rigging-details")?.value || "";
 }
 
-function syncCatchMethodToSetupLine(row) {
+export function syncCatchMethodToSetupLine(row) {
   const selectedValue = row.querySelector(".catch-setup-line")?.value || "";
   const presentationSelect = row.querySelector(".catch-presentation");
   if (!presentationSelect) return;
@@ -675,25 +691,25 @@ function syncCatchMethodToSetupLine(row) {
   updateLeadcoreEstimatedDepth(row);
 }
 
-function selectedText(select) {
+export function selectedText(select) {
   return select?.selectedOptions?.[0]?.textContent?.trim() || "";
 }
 
-function summaryOption(select, placeholders = []) {
+export function summaryOption(select, placeholders = []) {
   const text = selectedText(select);
   return placeholders.includes(text) ? "" : text;
 }
 
-function rowNumber(row, selector) {
+export function rowNumber(row, selector) {
   return [...row.parentElement.querySelectorAll(selector)].indexOf(row) + 1;
 }
 
-function fishRowLabel(row) {
+export function fishRowLabel(row) {
   if (row.classList.contains("lost-fish-row")) return `Lost Fish ${rowNumber(row, ".lost-fish-row")}`;
   return `Catch ${rowNumber(row, ".catch-row:not(.lost-fish-row)")}`;
 }
 
-function catchSetupSummary(row) {
+export function catchSetupSummary(row) {
   const selectedValue = row.querySelector(".catch-setup-line")?.value || "";
   if (!selectedValue) return "";
   const setupLineId = selectedValue.split("::")[0];
@@ -707,13 +723,13 @@ function catchSetupSummary(row) {
   return selectedValue.endsWith("::cheater") ? `${label} Cheater` : label;
 }
 
-function catchLurePreviewName(row) {
+export function catchLurePreviewName(row) {
   const lureId = row.querySelector(".catch-lure")?.value || "";
   const lure = state.lures.find((item) => item.id === lureId);
   return lure?.name || summaryOption(row.querySelector(".catch-lure"), ["No lure selected"]);
 }
 
-function updateRowSummary(row) {
+export function updateRowSummary(row) {
   const summary = row.querySelector(".collapsible-row-summary");
   if (!summary) return;
 
@@ -746,37 +762,42 @@ function updateRowSummary(row) {
   summary.textContent = pieces.join(" / ");
 }
 
-const baseUpdateRowSummary = updateRowSummary;
-updateRowSummary = function updateRowSummaryWithDetails(row) {
-  baseUpdateRowSummary(row);
-  if (!row.classList.contains("catch-row")) return;
+export let baseUpdateRowSummary;
 
-  const summary = row.querySelector(".collapsible-row-summary");
-  const detail = row.querySelector(".collapsible-row-detail");
-  if (!summary || !detail) return;
-
-  const species = row.classList.contains("lost-fish-row")
-    ? summaryOption(row.querySelector(".catch-possible-species"), ["Select possible species"])
-    : summaryOption(row.querySelector(".catch-species"), ["Select species"]);
-  const size = row.classList.contains("lost-fish-row")
-    ? ""
-    : [row.querySelector(".catch-length")?.value.trim(), row.querySelector(".catch-weight")?.value.trim()].filter(Boolean).join(" / ");
-  const time = row.querySelector(".catch-time-unknown")?.checked
-    ? "Unknown time"
-    : formatDisplayTime(row.querySelector(".catch-time")?.value || "");
-  const lure = isTrollingTrip()
-    ? catchSetupSummary(row)
-    : catchLurePreviewName(row);
-
-  summary.textContent = fishRowLabel(row);
-  detail.textContent = [species, size, time, lure].filter(Boolean).join(" \u2022 ");
-};
-
-function updateAllRowSummaries() {
+export function updateAllRowSummaries() {
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updateRowSummary);
 }
 
-function selectedComboForRow(row) {
+export function selectedComboForRow(row) {
   const comboId = row.querySelector(".trip-gear-combo")?.value || "";
   return state.rodReelCombos.find((combo) => combo.id === comboId);
+}
+
+export function setup() {
+  baseUpdateRowSummary = updateRowSummary;
+
+  updateRowSummary = function updateRowSummaryWithDetails(row) {
+    baseUpdateRowSummary(row);
+    if (!row.classList.contains("catch-row")) return;
+  
+    const summary = row.querySelector(".collapsible-row-summary");
+    const detail = row.querySelector(".collapsible-row-detail");
+    if (!summary || !detail) return;
+  
+    const species = row.classList.contains("lost-fish-row")
+      ? summaryOption(row.querySelector(".catch-possible-species"), ["Select possible species"])
+      : summaryOption(row.querySelector(".catch-species"), ["Select species"]);
+    const size = row.classList.contains("lost-fish-row")
+      ? ""
+      : [row.querySelector(".catch-length")?.value.trim(), row.querySelector(".catch-weight")?.value.trim()].filter(Boolean).join(" / ");
+    const time = row.querySelector(".catch-time-unknown")?.checked
+      ? "Unknown time"
+      : formatDisplayTime(row.querySelector(".catch-time")?.value || "");
+    const lure = isTrollingTrip()
+      ? catchSetupSummary(row)
+      : catchLurePreviewName(row);
+  
+    summary.textContent = fishRowLabel(row);
+    detail.textContent = [species, size, time, lure].filter(Boolean).join(" \u2022 ");
+  };
 }
