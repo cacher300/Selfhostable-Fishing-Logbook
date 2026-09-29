@@ -1,13 +1,11 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert");
+import assert from "node:assert/strict";
+import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
-const context = { structuredClone };
-vm.createContext(context);
-vm.runInContext(fs.readFileSync("static/js/app-defaults.js", "utf8"), context);
+installBrowserEnv();
+const { defaults } = await import("../static/js/app-defaults.js");
 
-const species = vm.runInContext("defaults.species", context);
+const species = defaults.species;
 assert(species.includes("Atlantic Salmon"));
+assert.equal(new Set(species).size, species.length);
+assert(species.includes("Walleye"));
 assert.deepEqual(species, [...species].sort((a, b) => a.localeCompare(b)));
-
-console.log("default species tests passed");

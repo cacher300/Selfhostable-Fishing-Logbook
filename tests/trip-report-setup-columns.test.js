@@ -1,22 +1,15 @@
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const vm = require("node:vm");
+import assert from "node:assert/strict";
+import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
-const context = {
-  localStorage: { getItem: () => null },
-  storageKey: "fishing-logbook-v2",
-  isTrollingTripRecord: () => false,
-  formatTimelineDisplayTime: (value) => value,
-  setupLineSideLabel: (value) => value || "",
-  comboName: (value) => value || "",
-  rodName: (value) => value || "",
-  reelName: (value) => value || "",
-  lureName: (value) => value || "",
-  displaySentenceText: (value) => value,
-  escapeHtml: (value) => String(value),
-};
-vm.createContext(context);
-vm.runInContext(fs.readFileSync("static/js/trip-report.js", "utf8"), context);
+installBrowserEnv();
+const { defaults } = await import("../static/js/app-defaults.js");
+const { setState } = await import("../static/js/app-state.js");
+const { renderReportSetupTable } = await import("../static/js/trip-report.js");
+setState(structuredClone(defaults));
+const reportState = await import("../static/js/app-state.js");
+reportState.state.rodReelCombos = [{ id: "Lake trout jigging 2", shortName: "Lake trout jigging 2" }];
+reportState.state.rods = [{ id: "Lake trout jigging rod 2", name: "Lake trout jigging rod 2" }];
+reportState.state.reels = [{ id: "Okuma Avenger #2", name: "Okuma Avenger #2" }];
 
 const trip = {
   gearUsed: [{
@@ -31,7 +24,7 @@ const trip = {
     changeNote: "",
   }],
 };
-const html = context.renderReportSetupTable(trip);
+const html = renderReportSetupTable(trip);
 const headers = [...html.matchAll(/<th[^>]*><span>(.*?)<\/span><\/th>/g)].map((match) => match[1]);
 
 assert.deepEqual(headers, ["#", "Start", "End", "Combo", "Rod", "Reel"]);
@@ -39,5 +32,3 @@ assert.doesNotMatch(html, />Side<\/span>/);
 assert.doesNotMatch(html, />Line<\/span>/);
 assert.doesNotMatch(html, />Lure<\/span>/);
 assert.doesNotMatch(html, />Change Note<\/span>/);
-
-console.log("setup report hides columns that are empty for every row");

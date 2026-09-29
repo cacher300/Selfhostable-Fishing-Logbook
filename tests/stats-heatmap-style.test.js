@@ -1,17 +1,17 @@
-const fs = require("fs");
-const assert = require("assert");
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
-const darkCss = fs.readFileSync("static/css/theme-dark.css", "utf8");
+const darkCss = await readFile(new URL("../static/css/theme-dark.css", import.meta.url), "utf8");
 
 assert.match(
   darkCss,
   /:root\[data-theme="dark"\] \.activity-heatmap-day\.activity-heatmap-level-0,[\s\S]*?background:\s*#263442;/,
-  "the dark base color should apply only to level-zero day cells"
+  "the dark base color should apply only to level-zero day cells",
 );
 assert.doesNotMatch(
   darkCss,
   /:root\[data-theme="dark"\] \.activity-heatmap-day\s*\{[^}]*background:/,
-  "a generic dark day background would override every heatmap intensity"
+  "a generic dark day background would override every heatmap intensity",
 );
 
 const levelColors = [];
@@ -23,5 +23,3 @@ for (let level = 1; level <= 5; level += 1) {
 assert.equal(new Set(levelColors).size, 5, "each dark-mode activity level should have a distinct color");
 assert.equal(levelColors[0], "#8be6b5", "fewer catches should be lighter in dark mode");
 assert.equal(levelColors[4], "#1e5b43", "more catches should be darker in dark mode");
-
-console.log("stats heatmap dark-theme tests passed");
