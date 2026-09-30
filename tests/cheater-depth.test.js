@@ -8,13 +8,16 @@ globalThis.Option = function Option(label, value) {
 };
 const { updateCheaterDepth } = await import("../static/js/form-utils.js");
 const { els } = await import("../static/js/app-elements.js");
+const { ui } = await import("../static/js/app-state.js");
 const tripRows = await import("../static/js/trip-rows.js");
 
 const output = { value: "", readOnly: false };
-const ballDepth = { value: "55 ft" };
+ui.tripDraft = { catches: [{ id: "catch-1", ballDepth: "55 ft" }], lostFish: [], gearUsed: [] };
 const row = {
+  dataset: { catchId: "catch-1" },
+  classList: { contains: () => false },
   querySelector(selector) {
-    return selector === ".catch-estimated-lure-depth" ? output : ballDepth;
+    return selector === ".catch-estimated-lure-depth" ? output : null;
   },
 };
 
@@ -22,7 +25,7 @@ updateCheaterDepth(row);
 assert.equal(output.value, "27.5");
 assert.equal(output.readOnly, true);
 
-ballDepth.value = "";
+ui.tripDraft.catches[0].ballDepth = "";
 updateCheaterDepth(row);
 assert.equal(output.value, "");
 
@@ -47,17 +50,19 @@ const presentation = {
     this.options.push(option);
   },
 };
-const setupLine = { value: "line-1::cheater" };
 const lureDepth = { value: "", readOnly: false };
-const leadcoreColors = { value: "" };
+ui.tripDraft = {
+  catches: [{ id: "catch-2", setupLineValue: "line-1::cheater" }],
+  lostFish: [],
+  gearUsed: [{ id: "line-1", presentation: "Downrigger" }]
+};
 const cheaterRow = {
   classList: { contains: (className) => className === "catch-row" },
+  dataset: { catchId: "catch-2" },
   querySelectorAll: () => [],
   querySelector(selector) {
-    if (selector === ".catch-setup-line") return setupLine;
     if (selector === ".catch-presentation") return presentation;
     if (selector === ".catch-estimated-lure-depth") return lureDepth;
-    if (selector === ".catch-leadcore-colors") return leadcoreColors;
     return null;
   },
 };

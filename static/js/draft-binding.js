@@ -156,7 +156,7 @@ export function applyTripDraftBindings(root) {
   bindControls(root);
 }
 
-export function draftCollection(name) {
+function draftCollection(name) {
   if (!ui.tripDraft) return [];
   if (!Array.isArray(ui.tripDraft[name])) ui.tripDraft[name] = [];
   return ui.tripDraft[name];
@@ -171,7 +171,7 @@ function cloneDraftValue(value) {
   return structuredClone(value);
 }
 
-export function ensureDraftRecord(collection, id, defaults = {}) {
+function ensureDraftRecord(collection, id, defaults = {}) {
   const items = draftCollection(collection);
   let record = items.find((item) => String(item.id) === String(id));
   if (!record) {
@@ -184,10 +184,6 @@ export function ensureDraftRecord(collection, id, defaults = {}) {
 export function removeDraftRecord(collection, id) {
   if (!ui.tripDraft || !Array.isArray(ui.tripDraft[collection])) return;
   ui.tripDraft[collection] = ui.tripDraft[collection].filter((item) => String(item.id) !== String(id));
-}
-
-export function removeTripRow(collection, rowId) {
-  removeDraftRecord(collection, rowId);
 }
 
 export function replaceDraftRecord(collection, record) {
@@ -395,12 +391,6 @@ export function setGearDraftContext(context = {}) {
   return ui.gearDraftContext;
 }
 
-export function updateGearField(field, value) {
-  if (!ui.gearDraft || !field) return null;
-  setPath(ui.gearDraft, field, cloneDraftValue(value));
-  return ui.gearDraft;
-}
-
 export function applyGearDraftBindings(root) {
   if (!root) return;
   controlsUnder(root).forEach((control) => {
@@ -440,7 +430,7 @@ export function updateGearLineEntry(rowOrId, patch = {}) {
   return line;
 }
 
-export function updateGearDraftFromControl(control) {
+function updateGearDraftFromControl(control) {
   if (!control || !ui.gearDraft) return false;
   const id = control.getAttribute("id") || "";
   const inferredLine = lineBindings.find(([className]) => control.classList.contains(className));
@@ -466,19 +456,13 @@ export function handleGearDraftControlEvent(event) {
   updateGearDraftFromControl(control);
 }
 
-export function flushGearDraftBindings(root) {
-  if (!root) return;
-  applyGearDraftBindings(root);
-  controlsUnder(root).forEach(updateGearDraftFromControl);
-}
-
-export function updateSettingsDraftPath(draftName, path, value) {
+function updateSettingsDraftPath(draftName, path, value) {
   if (!draftName || !path || !settingsUi[draftName]) return null;
   setPath(settingsUi[draftName], path, cloneDraftValue(value));
   return settingsUi[draftName];
 }
 
-export function updateSettingsDraftList(draftName, path, value, selected) {
+function updateSettingsDraftList(draftName, path, value, selected) {
   if (!draftName || !path || !settingsUi[draftName]) return null;
   const parts = String(path || "").split(".").filter(Boolean);
   const field = parts.pop();

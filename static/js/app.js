@@ -15,10 +15,8 @@ import { renderPersonalBests } from "./personal-bests.js";
 import { isTrollingTrip, updateTrollingVisibility } from "./form-utils.js";
 import { renderGallery } from "./gallery.js";
 import { renderChecklists } from "./checklists.js";
-import { initRouter, replaceInitialRoute, routeViews, viewFromCurrentRoute } from "./router.js";
+import { initRouter, replaceInitialRoute } from "./router.js";
 import { updateTripRow } from "./draft-binding.js";
-
-export { routeViews, viewFromCurrentRoute };
 
 export function updateMethodVisibility({ applyStartupSpread = false } = {}) {
   updateTrollingVisibility();

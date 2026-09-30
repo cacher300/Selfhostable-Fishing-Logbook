@@ -1,11 +1,9 @@
 import { html, joinHtml, setHtml } from "./html.js";
 import { hasFishHawk, optionLabels } from "./app-normalization.js";
 import { convertUnitValue, unitPreference, unitSymbol } from "./app-units.js";
-import { els } from "./app-elements.js";
 import { sortTrollingSetupRows, syncLastTrollingSpreadImportButton, updateRowSummary } from "./trip-rows.js";
 import { updateRiggingVisibility } from "./gear-pickers.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
-import { calculateMinutes } from "./stats.js";
 import { findDraftRecord, updateTripRow } from "./draft-binding.js";
 import { ui } from "./app-state.js";
 
@@ -15,19 +13,6 @@ function draftCollectionForFishRow(row) {
 
 function draftIdForRow(row) {
   return row?.dataset?.catchId || row?.dataset?.rowId || "";
-}
-
-export function idleHoursFromForm() {
-  const value = Number(ui.tripDraft?.idleHours || 0);
-  return Number.isFinite(value) ? Math.max(0, value) : 0;
-}
-
-export function setupMinutesFromRow(row) {
-  const record = findDraftRecord("gearUsed", row?.dataset?.gearId || "");
-  return Math.max(0, calculateMinutes(
-    record?.startTime || "",
-    record?.endTime || ""
-  ));
 }
 
 export function isTrollingTrip() {
@@ -228,14 +213,6 @@ export function isDipseyDiverColorPresentation(presentation) {
   return key === "high-diver" || key === "low-diver";
 }
 
-export function setupRowForCatchRow(row) {
-  const record = findDraftRecord(draftCollectionForFishRow(row), draftIdForRow(row)) || {};
-  const selectedValue = record.setupLineValue || record.setupLineId || "";
-  const setupLineId = selectedValue.split("::")[0];
-  return [...els.tripGearRows.querySelectorAll(".gear-used-row")]
-    .find((gearRow) => gearRow.dataset.gearId === setupLineId);
-}
-
 export function catchRowUsesLeadcore(row) {
   const selectedValue = findDraftRecord(draftCollectionForFishRow(row), draftIdForRow(row))?.setupLineValue
     || "";
@@ -256,7 +233,7 @@ export function leadcoreDepthLabel(colors) {
 
 export function updateLeadcoreEstimatedDepth(row) {
   const record = findDraftRecord(draftCollectionForFishRow(row), draftIdForRow(row));
-  const colors = Number(record?.leadcoreColors ?? row.querySelector(".catch-leadcore-colors")?.value);
+  const colors = Number(record?.leadcoreColors);
   const output = row.querySelector(".catch-estimated-lure-depth");
   if (!output) return;
   output.readOnly = true;
@@ -270,7 +247,7 @@ export function updateCheaterDepth(row) {
   if (!output) return;
   output.readOnly = true;
   const record = findDraftRecord(draftCollectionForFishRow(row), draftIdForRow(row));
-  const ballDepth = Number.parseFloat(record?.ballDepth ?? row.querySelector(".catch-ball-depth")?.value);
+  const ballDepth = Number.parseFloat(record?.ballDepth);
   const value = Number.isFinite(ballDepth) ? trimNumber(ballDepth / 2) : "";
   output.value = value;
   updateTripRow(draftCollectionForFishRow(row), draftIdForRow(row), { estimatedLureDepth: value });

@@ -61,18 +61,6 @@ export function unitsFromDraft(draft = {}, current = {}) {
   return normalizeUnits({ ...current, ...asObject(draft) });
 }
 
-export function bathymetryCalibrationsDraftFromSettings(settings = {}) {
-  return clone(settings.bathymetryLakeCalibrationsFeet || {});
-}
-
-export function bathymetryCalibrationsFromDraft(draft = {}, current = {}) {
-  const next = { ...asObject(current) };
-  Object.entries(asObject(draft)).forEach(([lake, calibration]) => {
-    next[lake] = { ...asObject(next[lake]), ...asObject(calibration) };
-  });
-  return next;
-}
-
 export function preferencesDraftFromSettings(settings = {}) {
   return {
     theme: settings.theme === "dark" ? "dark" : "light",
@@ -131,10 +119,6 @@ export function savedSetupFromDraft(draft = {}, existing = {}) {
   };
 }
 
-export function savedSetupsFromDraft(draft = [], current = []) {
-  return asArray(draft).map((setup, index) => savedSetupFromDraft(setup, current[index] || {}));
-}
-
 export function trollingSpreadFromDraft(draft = {}, existing = {}) {
   return {
     ...existing,
@@ -157,10 +141,6 @@ export function trollingSpreadFromDraft(draft = {}, existing = {}) {
       };
     })
   };
-}
-
-export function trollingSpreadsFromDraft(draft = [], current = []) {
-  return asArray(draft).map((spread, index) => trollingSpreadFromDraft(spread, current[index] || {}));
 }
 
 export function checklistDraftFromSettings(settings = {}) {
@@ -190,14 +170,4 @@ export function checklistsFromDraft(draft = [], current = []) {
       })
     };
   });
-}
-
-export function locationsFromDraft(draft = [], current = []) {
-  return asArray(draft).map((location, index) => ({
-    ...(current[index] || {}),
-    ...location,
-    id: text(location?.id || current[index]?.id) || createId(),
-    name: text(location?.name) || text(current[index]?.name) || "Home",
-    radiusMeters: Number(location?.radiusMeters ?? current[index]?.radiusMeters)
-  }));
 }

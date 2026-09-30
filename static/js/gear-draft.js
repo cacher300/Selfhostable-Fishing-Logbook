@@ -76,27 +76,27 @@ function cleanSourceAware(normalized, draft = {}, source = null) {
   return next;
 }
 
-export function isWormHarnessType(type) {
+function isWormHarnessType(type) {
   return lower(type) === "worm harness";
 }
 
-export function isSpoonType(type) {
+function isSpoonType(type) {
   return lower(type) === "spoon";
 }
 
-export function isMeatRigType(type) {
+function isMeatRigType(type) {
   return lower(type) === "meat rig";
 }
 
-export function isSoftPlasticType(type) {
+function isSoftPlasticType(type) {
   return lower(type) === "soft plastic";
 }
 
-export function isFlyType(type) {
+function isFlyType(type) {
   return lower(type) === "fly";
 }
 
-export function normalizeLineEntry(line = {}) {
+function normalizeLineEntry(line = {}) {
   const type = text(line.type);
   const braid = lower(type) === "braid";
   return {
@@ -118,11 +118,11 @@ export function normalizeLineEntry(line = {}) {
   };
 }
 
-export function lineEntryIsNotEmpty(line = {}) {
+function lineEntryIsNotEmpty(line = {}) {
   return Boolean(line.spooledDate || line.type || line.brand || line.name || line.weight || line.flyWeight || line.flyTaper || line.flyDensity || line.diameterIn || line.diameterMm || line.color || line.monoBacking || line.notes);
 }
 
-export function lineHistoryFromDraft(lines = [], existingEntries = []) {
+function lineHistoryFromDraft(lines = [], existingEntries = []) {
   const normalized = (Array.isArray(lines) ? lines : []).map(normalizeLineEntry).filter(lineEntryIsNotEmpty);
   const latest = activeLineEntry({ lineHistory: normalized });
   return mergeLineHistory(existingEntries, latest ? [latest] : []);
@@ -235,13 +235,4 @@ export function comboFromDraft(draft = {}, context = {}) {
     reelId: text(draft.reelId),
     notes: text(draft.notes)
   }, draft, existing);
-}
-
-export function syncReelGroupQuantity(reels = [], groupId = "", quantity = "") {
-  if (!groupId) return reels;
-  return reels.map((item) => {
-    const itemGroupId = String(item?.modelGroupId || item?.id || "");
-    if (item.id !== groupId && itemGroupId !== groupId) return item;
-    return { ...item, modelGroupId: groupId, quantityAvailable: String(quantity ?? "") };
-  });
 }

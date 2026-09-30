@@ -4,7 +4,7 @@ import { resetDom } from "./helpers/browser-env.mjs";
 
 globalThis.__STRICT_STATE__ = true;
 
-const { html, insertHtml, raw, safeUrl, setHtml } = await import("../static/js/html.js");
+const { html, insertHtml, safeUrl, setHtml } = await import("../static/js/html.js");
 
 test("html escapes special characters in text and attributes", () => {
   const hostile = "&<>\"'`";
@@ -12,10 +12,10 @@ test("html escapes special characters in text and attributes", () => {
   assert.equal(String(html`<button data-name="${hostile}">${hostile}</button>`), "<button data-name=\"&amp;&lt;&gt;&quot;&#039;&#096;\">&amp;&lt;&gt;&quot;&#039;&#096;</button>");
 });
 
-test("html renders arrays, nested SafeHtml, raw markup, and empty sentinels", () => {
+test("html renders arrays, nested SafeHtml, and empty sentinels", () => {
   const nested = html`<strong>${"Tom's & Co."}</strong>`;
-  const result = html`<div>${[nested, " <plain>", raw("<em>trusted</em>"), null, undefined, false]}</div>`;
-  assert.equal(String(result), "<div><strong>Tom&#039;s &amp; Co.</strong> &lt;plain&gt;<em>trusted</em></div>");
+  const result = html`<div>${[nested, " <plain>", null, undefined, false]}</div>`;
+  assert.equal(String(result), "<div><strong>Tom&#039;s &amp; Co.</strong> &lt;plain&gt;</div>");
 });
 
 test("setHtml and insertHtml require SafeHtml values", () => {

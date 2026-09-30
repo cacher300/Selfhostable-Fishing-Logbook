@@ -158,11 +158,12 @@ export function lineRowMarkup(line = {}) {
 export function isFlyType(type) { return String(type || "").trim().toLowerCase() === "fly"; }
 
 export function updateFlyGearVisibility() {
-  const rodFly = isFlyType(getValue("rodType"));
-  const reelFly = isFlyType(getValue("reelStyle"));
+  const rodFly = isFlyType(ui.gearDraft?.type);
+  const reelFly = isFlyType(ui.gearDraft?.style);
+  const lineType = activeLineEntry(ui.gearDraft || {})?.type || optionLabels("lineTypes")[0];
   document.querySelectorAll(".fly-rod-field").forEach((field) => field.classList.toggle("hidden", !rodFly));
   document.querySelectorAll(".fly-reel-field").forEach((field) => field.classList.toggle("hidden", !reelFly));
-  document.querySelectorAll(".fly-line-field").forEach((field) => field.classList.toggle("hidden", String(document.querySelector(".line-type")?.value || "").toLowerCase() !== "fly line"));
+  document.querySelectorAll(".fly-line-field").forEach((field) => field.classList.toggle("hidden", String(lineType).toLowerCase() !== "fly line"));
 }
 
 export function openReelDialog(reel = null, { duplicate = false } = {}) {

@@ -2,7 +2,7 @@ import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { state, ui } from "./app-state.js";
 import { displayStoredMeasurement } from "./app-units.js";
 import { els } from "./app-elements.js";
-import { canonicalMediaRef, isVideoMedia, mediaMarkup, mediaReferenceKey, originalMediaUrl } from "./app-media.js";
+import { isVideoMedia, mediaMarkup, mediaReferenceKey, originalMediaUrl } from "./app-media.js";
 import { fishCount } from "./dashboard.js";
 import { getValue } from "./trip-editor.js";
 import { resolveTripLineRecord } from "./trolling-spread.js";
@@ -22,15 +22,6 @@ export function gearDialogForType(type) {
 
 export function removedGearPhotoKeys(type) {
   try { return new Set(JSON.parse(gearDialogForType(type)?.dataset.removedPhotoKeys || "[]")); } catch { return new Set(); }
-}
-
-export function gearPhotoFields(uploadedPhotos = [], existing = {}, type = "") {
-  const removed = removedGearPhotoKeys(type);
-  const media = [...gearPhotos(existing).filter((photo, index) => !removed.has(gearPhotoKey(photo, index))), ...uploadedPhotos]
-    .map(canonicalMediaRef).filter(Boolean);
-  const requestedHero = String(existing?.heroMediaId || "");
-  const heroMediaId = media.some((photo) => photo.id === requestedHero && !isVideoMedia(photo)) ? requestedHero : "";
-  return { media, heroMediaId };
 }
 
 export function gearPhotoSignature(item) {

@@ -70,20 +70,13 @@ const allowedReadPatterns = [
   /closest\("\[data-saved-setup-new-method\]"\)\?\.dataset/,
 
   // Control reads that are only used to preserve a user's current selection
-  // while repopulating options, or for legacy tests where no draft exists.
+  // while repopulating options.
   /populate(Lure|Flasher)Select\(select, select\.value\)/,
   /selectedValue \|\| select\.value/,
-  /catch-setup-line"\)\?\.value/,
-  /catch-leadcore-colors"\)\?\.value/,
-  /catch-ball-depth"\)\?\.value/,
-  /line-type"\)\?\.value/,
 
-  // Settings visual previews and draft fallback seeding. Saves normalize
-  // settingsUi drafts, not these controls.
+  // Settings visual previews. Saves normalize settingsUi drafts, not these controls.
   /syncTrollingSpreadRowFields/,
   /const color = input\.value/,
-  /unitsDraft\[select\.dataset\.unitSetting\] = select\.value/,
-  /calibrationDisplayDraft/,
   /privateLocationRadiusProgress\(input\.value\)/,
   /fishingSpotRadiusProgress\(input\.value\)/,
   /label\.dataset\.unitLabel/,

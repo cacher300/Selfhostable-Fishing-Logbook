@@ -77,11 +77,11 @@ const emptyDefaults = new Map([
   ["weight", ""]
 ]);
 
-export function trimText(value) {
+function trimText(value) {
   return String(value ?? "").trim();
 }
 
-export function tripMethodFlags(method = "") {
+function tripMethodFlags(method = "") {
   const key = trimText(method).toLowerCase();
   return {
     trolling: key === "trolling",
@@ -90,11 +90,11 @@ export function tripMethodFlags(method = "") {
   };
 }
 
-export function ensureArray(value) {
+function ensureArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
-export function normalizedTripRating(value) {
+function normalizedTripRating(value) {
   if (value === null || value === undefined || value === "") return 1;
   const number = Number(value);
   if (!Number.isFinite(number)) return 1;
@@ -102,7 +102,7 @@ export function normalizedTripRating(value) {
   return Math.min(4, Math.max(1, Math.round(number)));
 }
 
-export function mediaRefs(photos = []) {
+function mediaRefs(photos = []) {
   return ensureArray(photos).map(canonicalMediaRef).filter(Boolean);
 }
 
@@ -201,7 +201,7 @@ export function tripDraftIsPristine(draft) {
   return Boolean(source) && JSON.stringify(draft) === JSON.stringify(source);
 }
 
-export function normalizeSetupLine(line = {}, context = {}) {
+function normalizeSetupLine(line = {}, context = {}) {
   const flags = context.methodFlags || tripMethodFlags(context.method);
   const combo = matchingCombo(line.comboId, context.state || state);
   const presentation = trimText(line.presentation);
@@ -252,7 +252,7 @@ function fishHasDepthData(depthData) {
   return Boolean(depthData && Object.values(depthData).some((value) => value !== null && value !== undefined && value !== ""));
 }
 
-export function normalizeFish(fish = {}, context = {}) {
+function normalizeFish(fish = {}, context = {}) {
   const flags = context.methodFlags || tripMethodFlags(context.method);
   const lost = Boolean(context.lost);
   const detailsUnknown = !lost && Boolean(fish.detailsUnknown);

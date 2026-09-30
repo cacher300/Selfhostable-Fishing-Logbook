@@ -8,6 +8,7 @@ const appState = await import("../static/js/app-state.js");
 const { els } = await import("../static/js/app-elements.js");
 const { replaceState } = await import("../static/js/store.js");
 const { saveUnitSettings } = await import("../static/js/settings.js");
+const { settingsUi } = await import("../static/js/settings-core.js");
 
 function dummyElement() {
   return {
@@ -60,7 +61,7 @@ function installFetchStub() {
 }
 
 function installState() {
-  return replaceState({
+  const installed = replaceState({
     ...structuredClone(defaults),
     settings: {
       ...structuredClone(defaults.settings),
@@ -77,12 +78,21 @@ function installState() {
     trips: [],
     reels: [],
   }, { revision: '"1"' });
+  settingsUi.unitsDraft = { ...installed.settings.units, depth: "m" };
+  return installed;
+}
+
+function installSettingsDrafts(inputValue) {
+  settingsUi.bathymetryLakeCalibrationDisplayDraft = {
+    Ontario: { offshoreOffsetFeet: inputValue }
+  };
 }
 
 test("saving measurement units does not rewrite untouched bathymetry calibrations", async () => {
   installSettingsDom("2.35");
   installFetchStub();
   installState();
+  installSettingsDrafts("2.35");
   await saveUnitSettings({ rerender: false });
   const calibrations = appState.state.settings.bathymetryLakeCalibrationsFeet;
   assert.deepEqual(structuredClone(calibrations.Ontario), { shallowOffsetFeet: 1.234567, offshoreOffsetFeet: 2.345678, source: "custom" });
@@ -94,6 +104,7 @@ test("editing one calibration patches only that value and retains its sibling me
   installSettingsDom("4");
   installFetchStub();
   installState();
+  installSettingsDrafts("4");
   await saveUnitSettings({ rerender: false });
   const calibrations = appState.state.settings.bathymetryLakeCalibrationsFeet;
   assert.deepEqual(structuredClone(calibrations.Ontario), { shallowOffsetFeet: 1.234567, offshoreOffsetFeet: 4, source: "custom" });

@@ -127,7 +127,7 @@ export function renderTrollingSpreadCard(item, { draft = false, index = 0 } = {}
   const editing = draft || settingsUi.activeTrollingSpreadEditorId === item.id;
   const expanded = editing;
   return html`
-    <article class="trolling-spread-card${draft ? " is-draft" : ""}" data-trolling-spread-id="${item.id}" data-trolling-spread-index="${index}" data-trolling-spread-draft="${draft ? "true" : "false"}" data-trolling-spread-editing="${editing ? "true" : "false"}" data-trolling-spread-toggle aria-expanded="${expanded ? "true" : "false"}" onclick="toggleTrollingSpreadCard(this, event)">
+    <article class="trolling-spread-card${draft ? " is-draft" : ""}" data-trolling-spread-id="${item.id}" data-trolling-spread-index="${index}" data-trolling-spread-draft="${draft ? "true" : "false"}" data-trolling-spread-editing="${editing ? "true" : "false"}" data-trolling-spread-toggle aria-expanded="${expanded ? "true" : "false"}">
       <div class="trolling-spread-card-header">
         <label class="settings-control trolling-spread-name-control">
           <span>Spread</span>
@@ -233,19 +233,6 @@ export function setTrollingSpreadSettingsMessage(message = "") {
   if (!els.trollingSpreadSettingsMessage) return;
   els.trollingSpreadSettingsMessage.textContent = message;
   els.trollingSpreadSettingsMessage.classList.toggle("hidden", !message);
-}
-
-export function toggleTrollingSpreadCard(card, event = null) {
-  if (!card) return;
-  const clickedName = event?.target?.matches(".trolling-spread-name");
-  if (event?.target?.closest("button, input, select, textarea, a") && !clickedName) return;
-  if (card.dataset.trollingSpreadDraft === "true") return;
-
-  // A spread's expanded state is its editing state. Clicking the card surface
-  // should therefore enter the editor rather than opening a read-only card.
-  if (card.dataset.trollingSpreadEditing !== "true") {
-    editTrollingSpread(card.dataset.trollingSpreadId);
-  }
 }
 
 export async function finishTrollingSpreadEdit(card) {
@@ -642,25 +629,11 @@ export function bathymetryOffsetFeetFromDisplay(value, depthUnit = unitPreferenc
 
 export async function saveUnitSettings(options = {}) {
   const previousUnits = normalizeUnits(state.settings?.units);
-  let unitsDraft = settingsUi.unitsDraft;
-  if (!unitsDraft) {
-    unitsDraft = { ...previousUnits };
-    document.querySelectorAll("[data-unit-setting]").forEach((select) => {
-      unitsDraft[select.dataset.unitSetting] = select.value;
-    });
-  }
+  const unitsDraft = settingsUi.unitsDraft || previousUnits;
   const units = unitsFromDraft(unitsDraft, previousUnits);
   const originalCalibrations = state.settings?.bathymetryLakeCalibrationsFeet || {};
   const lakeCalibrations = { ...originalCalibrations };
-  let calibrationDisplayDraft = settingsUi.bathymetryLakeCalibrationDisplayDraft;
-  if (!calibrationDisplayDraft) {
-    calibrationDisplayDraft = {};
-    document.querySelectorAll("[data-bathymetry-lake-calibration]").forEach((input) => {
-      const lake = input.dataset.bathymetryLakeCalibration;
-      const field = input.dataset.bathymetryCalibrationEnd;
-      calibrationDisplayDraft[lake] = { ...(calibrationDisplayDraft[lake] || {}), [field]: input.value };
-    });
-  }
+  const calibrationDisplayDraft = settingsUi.bathymetryLakeCalibrationDisplayDraft || {};
   Object.entries(calibrationDisplayDraft || {}).forEach(([lake, fields]) => {
     Object.entries(fields || {}).forEach(([field, value]) => {
     // The field was rendered in the unit that was active before this save.

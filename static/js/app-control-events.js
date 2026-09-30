@@ -378,6 +378,12 @@ export function setup() {
     }
     if (event.target.closest(".cancel-trolling-spread")) cancelTrollingSpreadDraft();
     if (event.target.closest(".delete-trolling-spread")) deleteTrollingSpread(card.dataset.trollingSpreadId).catch(() => {});
+    const clickedName = event.target.matches(".trolling-spread-name");
+    if ((!event.target.closest("button, input, select, textarea, a") || clickedName)
+      && card.dataset.trollingSpreadDraft !== "true"
+      && card.dataset.trollingSpreadEditing !== "true") {
+      editTrollingSpread(card.dataset.trollingSpreadId);
+    }
   });
 
   els.defaultTrollingSpreadRows?.addEventListener("change", (event) => {

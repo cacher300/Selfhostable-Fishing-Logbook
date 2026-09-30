@@ -4,7 +4,7 @@ import { installBrowserEnv, okJson, setFetch } from "./helpers/browser-env.mjs";
 installBrowserEnv();
 const { defaults } = await import("../static/js/app-defaults.js");
 const appState = await import("../static/js/app-state.js");
-const { LogbookConflictError, commit, replaceState } = await import("../static/js/store.js");
+const { commit, replaceState } = await import("../static/js/store.js");
 
 function validDocument(overrides = {}) {
   return {
@@ -58,7 +58,7 @@ function validDocument(overrides = {}) {
     commit((draft) => {
       draft.trips.push({ id: "conflict", title: "Conflict" });
     }),
-    LogbookConflictError,
+    /changed in another tab/,
   );
   assert.deepEqual(appState.state.trips, [], "conflicts leave state unchanged");
 }

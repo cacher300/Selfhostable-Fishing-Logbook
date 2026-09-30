@@ -12,14 +12,13 @@ import { validateState } from "./app-normalization.js";
 import { COLLECTION_KEYS, OBJECT_COLLECTION_KEYS } from "./generated/logbook-schema-rules.js";
 import { diffLogbook } from "./logbook-sync.js";
 
-export class LogbookConflictError extends Error {
+class LogbookConflictError extends Error {
   constructor() {
     super("This logbook was changed in another tab or on another device. Reload the page to get the latest version; your last change was not saved.");
     this.name = "LogbookConflictError";
   }
 }
 
-const listeners = new Set();
 let persisted = null;
 let queue = Promise.resolve();
 
@@ -55,27 +54,6 @@ function cacheLocally(document) {
   }
 }
 
-function notify(change) {
-  for (const listener of listeners) {
-    try {
-      listener(state, change);
-    } catch (error) {
-      console.error("A logbook subscriber failed.", error);
-    }
-  }
-}
-
-/** Call `listener(state, change)` after every successful commit or reload. */
-export function subscribe(listener) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-/** The last document known to be persisted (read-only). */
-export function persistedDocument() {
-  return persisted;
-}
-
 /** Install a document that is already persisted (startup, archive import, refresh). */
 export function replaceState(document, { revision } = {}) {
   const validated = validateState(document);
@@ -83,15 +61,7 @@ export function replaceState(document, { revision } = {}) {
   const installed = installState(validated);
   persisted = structuredClone(validated);
   cacheLocally(validated);
-  notify({ type: "replace" });
   return installed;
-}
-
-/** Reload the stored document from the server and make it current. */
-export async function reloadFromServer() {
-  const response = await fetch("/api/logbook");
-  if (!response.ok) throw new Error("The logbook could not be refreshed from the server.");
-  return replaceState(await response.json(), { revision: response.headers.get("ETag") || "" });
 }
 
 async function responseError(response, fallback) {
@@ -130,7 +100,6 @@ export function commit(mutate) {
     const installed = installState(next);
     persisted = structuredClone(next);
     cacheLocally(next);
-    notify({ type: "commit" });
     return installed;
   };
   const result = queue.then(run, run);
