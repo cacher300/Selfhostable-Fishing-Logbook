@@ -14,7 +14,7 @@ import { populateDatalist, populateOptionSelect, renderAll } from "./dashboard.j
 import { ExpeditionAnalytics } from "./expedition-analytics.js";
 import { displayDateForCalendar, expeditionDateRange, populateTripExpeditionSelect, syncCalendarDate } from "./expeditions.js";
 import { renderNotePhotos } from "./photos.js";
-import { addCatchRow, addLostFishRow, addTripGearRow, fishRowLabel, populateSetupLineSelects, selectedText, setupLineLabelFromRow } from "./trip-rows.js";
+import { addCatchRow, addLostFishRow, addTripGearRow, populateSetupLineSelects, setupLineLabel } from "./trip-rows.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { greatLakesControlValue, greatLakesLoadedModelsKey } from "./great-lakes-conditions.js";
 import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
@@ -105,9 +105,12 @@ export function tripDateLabel(value) {
 }
 
 export function updateTripDialogHeader() {
-  const title = ui.tripDraft?.title || getValue("tripTitle") || (ui.activeTripId ? "Untitled Trip" : "New Trip");
-  const date = tripDateLabel(ui.tripDraft?.date || document.querySelector("#tripDateValue")?.value || document.querySelector("#tripDate")?.value);
-  const location = selectedText(els.tripLocation);
+  const title = ui.tripDraft?.title || (ui.activeTripId ? "Untitled Trip" : "New Trip");
+  const date = tripDateLabel(ui.tripDraft?.date || "");
+  const locationRecord = ui.tripDraft?.locationId || ui.tripDraft?.location
+    ? findLocationByIdOrName(ui.tripDraft?.locationId, ui.tripDraft?.location)
+    : null;
+  const location = locationRecord?.name || ui.tripDraft?.location || "";
   els.tripDialogTitle.textContent = title;
   if (els.tripDialogMeta) {
     els.tripDialogMeta.textContent = [date, location].filter(Boolean).join(" \u2022 ") || "Trip details";
@@ -166,32 +169,32 @@ export function validateTripForm() {
 export function tripSaveWarnings() {
   const warnings = [];
   const importantFields = [
-    { field: document.querySelector("#launchTime"), label: "Start time" },
-    { field: document.querySelector("#linesPulledTime"), label: "End time" },
-    { field: document.querySelector("#method"), label: "Fishing method" }
+    { value: ui.tripDraft?.launchTime, label: "Start time" },
+    { value: ui.tripDraft?.linesPulledTime, label: "End time" },
+    { value: ui.tripDraft?.method, label: "Fishing method" }
   ];
   importantFields
-    .filter(({ field }) => !field?.value.trim())
+    .filter(({ value }) => !String(value || "").trim())
     .forEach(({ label }) => warnings.push(`${label} is blank.`));
 
-  const expedition = state.expeditions.find((item) => item.id === getValue("tripExpedition"));
-  if (expedition && ExpeditionAnalytics.tripOutsideRange({ date: getValue("tripDate") }, expedition)) {
+  const expedition = state.expeditions.find((item) => item.id === ui.tripDraft?.expeditionId);
+  if (expedition && ExpeditionAnalytics.tripOutsideRange({ date: ui.tripDraft?.date }, expedition)) {
     warnings.push(`Trip date is outside ${expedition.name} (${expeditionDateRange(expedition)}).`);
   }
 
   const trolling = isTrollingTrip();
-  const tripStartTime = getValue("launchTime");
-  const tripEndTime = getValue("linesPulledTime");
+  const tripStartTime = ui.tripDraft?.launchTime || "";
+  const tripEndTime = ui.tripDraft?.linesPulledTime || "";
   const tripMinutes = tripStartTime && tripEndTime
     ? calculateMinutes(tripStartTime, tripEndTime)
     : 0;
-  const setupRows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
+  const setupRows = ui.tripDraft?.gearUsed || [];
   if (trolling && !setupRows.length) warnings.push("No rods have been added to the setup timeline.");
 
-  setupRows.forEach((row, index) => {
-    const label = setupLineLabelFromRow(row, index);
-    const startTime = row.querySelector(".trip-gear-start-time")?.value || "";
-    const endTime = row.querySelector(".trip-gear-end-time")?.value || "";
+  setupRows.forEach((record, index) => {
+    const label = setupLineLabel(record, index);
+    const startTime = record.startTime || "";
+    const endTime = record.endTime || "";
     if (!startTime || !endTime) {
       warnings.push(`${label} is missing a deployment start or stop time.`);
       return;
@@ -202,17 +205,16 @@ export function tripSaveWarnings() {
     }
   });
 
-  document.querySelectorAll(".catch-row").forEach((row) => {
-    const label = fishRowLabel(row);
-    const detailsUnknown = row.querySelector(".catch-details-unknown")?.checked && !row.classList.contains("lost-fish-row");
-    const unknownTime = Boolean(row.querySelector(".catch-time-unknown")?.checked);
-    const speciesField = row.classList.contains("lost-fish-row")
-      ? row.querySelector(".catch-possible-species")
-      : row.querySelector(".catch-species");
-    if (!detailsUnknown && !row.querySelector(".catch-person")?.value) warnings.push(`${label} has no person selected.`);
-    if (!speciesField?.value.trim()) warnings.push(`${label} has no species selected.`);
-    if (!detailsUnknown && !unknownTime && !row.querySelector(".catch-time")?.value.trim()) warnings.push(`${label} has no time.`);
-    if (!detailsUnknown && trolling && !row.querySelector(".catch-setup-line")?.value) warnings.push(`${label} has no rod selected.`);
+  [
+    ...(ui.tripDraft?.catches || []).map((record, index) => ({ record, label: `Catch ${index + 1}`, lost: false })),
+    ...(ui.tripDraft?.lostFish || []).map((record, index) => ({ record, label: `Lost Fish ${index + 1}`, lost: true }))
+  ].forEach(({ record, label, lost }) => {
+    const detailsUnknown = record.detailsUnknown && !lost;
+    const unknownTime = Boolean(record.timeUnknown);
+    if (!detailsUnknown && !record.personId) warnings.push(`${label} has no person selected.`);
+    if (!String(lost ? record.possibleSpecies : record.species || "").trim()) warnings.push(`${label} has no species selected.`);
+    if (!detailsUnknown && !unknownTime && !String(record.time || "").trim()) warnings.push(`${label} has no time.`);
+    if (!detailsUnknown && trolling && !(record.setupLineValue || record.setupLineId)) warnings.push(`${label} has no rod selected.`);
   });
   return warnings;
 }
@@ -728,16 +730,7 @@ export function probeCatchDepths(catches = []) {
 }
 
 export function collectProbeCatchDepths() {
-  return probeCatchDepths([...document.querySelectorAll("#catchRows .catch-row")].map((row) => ({
-    detailsUnknown: Boolean(row.querySelector(".catch-details-unknown")?.checked),
-    species: row.querySelector(".catch-species")?.value || "",
-    presentation: row.querySelector(".catch-presentation")?.value || "",
-    setupLineId: row.querySelector(".catch-setup-line")?.value || "",
-    depthDown: row.querySelector(".catch-depth-down")?.value || "",
-    ballDepth: row.querySelector(".catch-ball-depth")?.value || "",
-    estimatedLureDepth: row.querySelector(".catch-estimated-lure-depth")?.value || "",
-    estimatedDepth: row.querySelector(".catch-estimated-depth")?.value || ""
-  })));
+  return probeCatchDepths(ui.tripDraft?.catches || []);
 }
 
 export const probeCatchColors = ["#f0b35b", "#e879f9", "#60a5fa", "#f87171", "#a3e635", "#c084fc", "#2dd4bf", "#fb7185"];
@@ -986,7 +979,7 @@ export function renderProbeTemperatureProfileChart(profile = []) {
 }
 
 export function getTripIntent() {
-  return document.querySelector('input[name="tripIntent"]:checked')?.value || "serious";
+  return tripIntent(ui.tripDraft || {});
 }
 
 export function setTripIntent(value) {

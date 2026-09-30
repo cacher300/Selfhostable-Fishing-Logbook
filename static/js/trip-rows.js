@@ -62,7 +62,8 @@ export function populateCatchSpotSelect(row, catchItem = {}) {
 export function refreshCatchSpotSelect(row) {
   const select = row?.querySelector(".catch-spot");
   if (!select) return;
-  const value = select.value || "__automatic__";
+  const record = fishRecordForRow(row);
+  const value = record.spotSelection || (record.spotAssignmentMode === "manual" ? (record.spotId || "__none__") : "__automatic__");
   populateCatchSpotSelect(row, {
     spotAssignmentMode: value === "__automatic__" ? "automatic" : "manual",
     spotId: value.startsWith("__") ? "" : value
@@ -70,7 +71,7 @@ export function refreshCatchSpotSelect(row) {
 }
 
 export function updateUnknownTimeField(row) {
-  const unknown = row.querySelector(".catch-time-unknown")?.checked;
+  const unknown = Boolean(fishRecordForRow(row).timeUnknown);
   const timeInput = row.querySelector(".catch-time");
   if (!timeInput) return;
   if (unknown) timeInput.value = "";
@@ -179,7 +180,7 @@ export function clearUnknownCatchDetails(row) {
 
 export function updateCatchDetailsUnknown(row, { clear = false } = {}) {
   if (!row) return;
-  const detailsUnknown = Boolean(row.querySelector(".catch-details-unknown")?.checked);
+  const detailsUnknown = Boolean(fishRecordForRow(row).detailsUnknown);
   if (detailsUnknown && clear) clearUnknownCatchDetails(row);
   row.classList.toggle("details-unknown", detailsUnknown);
   row.querySelectorAll(".catch-detail-optional:not(.catch-details-unknown-allowed)").forEach((field) => {
@@ -205,10 +206,12 @@ export function syncTripTimesToBlankRows() {
   const endTime = ui.tripDraft?.linesPulledTime || getValue("linesPulledTime");
   if (startTime) {
     document.querySelectorAll("#catchRows .catch-time, #lostFishRows .catch-time, #tripGearRows .trip-gear-start-time").forEach((field) => {
-      if (field.closest(".catch-row")?.querySelector(".catch-time-unknown")?.checked) return;
-      if (!field.value) {
+      const row = field.closest(".catch-row, .gear-used-row");
+      const record = row?.classList.contains("gear-used-row") ? gearRecordForRow(row) : fishRecordForRow(row);
+      if (record.timeUnknown) return;
+      const current = row?.classList.contains("gear-used-row") ? record.startTime : record.time;
+      if (!current) {
         field.value = startTime;
-        const row = field.closest(".catch-row, .gear-used-row");
         const id = row?.dataset.catchId || row?.dataset.gearId || "";
         const collection = row?.classList.contains("gear-used-row") ? "gearUsed" : row?.classList.contains("lost-fish-row") ? "lostFish" : "catches";
         updateTripRow(collection, id, { [row?.classList.contains("gear-used-row") ? "startTime" : "time"]: startTime });
@@ -218,9 +221,9 @@ export function syncTripTimesToBlankRows() {
   }
   if (endTime) {
     document.querySelectorAll("#tripGearRows .trip-gear-end-time").forEach((field) => {
-      if (!field.value) {
+      const row = field.closest(".gear-used-row");
+      if (!gearRecordForRow(row).endTime) {
         field.value = endTime;
-        const row = field.closest(".gear-used-row");
         updateTripRow("gearUsed", row?.dataset.gearId, { endTime });
         flashAutoFilledField(field);
       }
@@ -584,53 +587,70 @@ export function importLastTrollingSpread() {
 }
 
 export function setupLineLabelFromRow(row, index) {
-  const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
-  if (customLabel) return customLabel;
-  return setupLineAutoLabel({
-    side: isTrollingTrip() ? row.querySelector(".trip-gear-side")?.value || "" : "",
-    presentation: isTrollingTrip() ? row.querySelector(".catch-presentation")?.value || "" : "",
-    comboId: row.querySelector(".trip-gear-combo")?.value || "",
-    lureId: row.querySelector(".trip-gear-lure")?.value || "",
-    flasherId: row.querySelector(".trip-gear-flasher")?.value || ""
-  }, index);
+  return setupLineLabel(gearRecordForRow(row), index);
 }
 
 export function catchRodPickerLabelFromRow(row, index, { cheater = false } = {}) {
-  const customLabel = row.querySelector(".trip-gear-line-label")?.value.trim() || "";
+  return catchRodPickerLabel(gearRecordForRow(row), index, { cheater });
+}
+
+export function gearRecordForRow(row) {
+  const id = row?.dataset?.gearId || "";
+  return findDraftRecord("gearUsed", id) || {};
+}
+
+export function fishRecordForRow(row) {
+  const collection = row?.classList?.contains?.("lost-fish-row") ? "lostFish" : "catches";
+  return findDraftRecord(collection, row?.dataset?.catchId || row?.dataset?.rowId || "") || {};
+}
+
+export function setupLineLabel(record = {}, index = 0) {
+  const customLabel = String(record.lineLabel || "").trim();
+  if (customLabel) return customLabel;
+  return setupLineAutoLabel({
+    side: isTrollingTrip() ? record.side || "" : "",
+    presentation: isTrollingTrip() ? record.presentation || "" : "",
+    comboId: record.comboId || "",
+    lureId: record.lureId || "",
+    flasherId: record.flasherId || ""
+  }, index);
+}
+
+export function catchRodPickerLabel(record = {}, index = 0, { cheater = false } = {}) {
+  const customLabel = String(record.lineLabel || "").trim();
   const identity = customLabel || [
-    isTrollingTrip() ? setupLineSideLabel(row.querySelector(".trip-gear-side")?.value) : "",
-    isTrollingTrip() ? choiceLabel("trollingPresentations", row.querySelector(".catch-presentation")?.value) : `Rod ${index + 1}`
+    isTrollingTrip() ? setupLineSideLabel(record.side) : "",
+    isTrollingTrip() ? choiceLabel("trollingPresentations", record.presentation) : `Rod ${index + 1}`
   ].filter(Boolean).join(" ");
   const lureId = cheater
-    ? row.querySelector(".trip-gear-cheater-lure")?.value || ""
-    : row.querySelector(".trip-gear-lure")?.value || "";
+    ? record.cheaterLureId || ""
+    : record.lureId || "";
   const lure = lureId.startsWith("__type__:") ? "" : lureName(lureId);
   return [cheater ? `${identity} — Cheater` : identity, lure].filter(Boolean).join(" / ");
 }
 
-export function setupLineOptionsFromForm() {
-  return [...els.tripGearRows.querySelectorAll(".gear-used-row")].flatMap((row, index) => {
-    if (!row.dataset.gearId) row.dataset.gearId = createId();
-    const startTime = row.querySelector(".trip-gear-start-time")?.value || "";
-    const endTime = row.querySelector(".trip-gear-end-time")?.value || "";
+export function setupLineOptions(draft = ui.tripDraft) {
+  return (Array.isArray(draft?.gearUsed) ? draft.gearUsed : []).flatMap((record, index) => {
     const mainOption = {
-      id: row.dataset.gearId,
-      label: catchRodPickerLabelFromRow(row, index),
-      startTime,
-      endTime
+      id: record.id || createId(),
+      label: catchRodPickerLabel(record, index),
+      startTime: record.startTime || "",
+      endTime: record.endTime || ""
     };
-    if (!row.querySelector(".trip-gear-cheater")?.checked) return [mainOption];
+    if (!record.hasCheater) return [mainOption];
     return [
       mainOption,
       {
-        id: `${row.dataset.gearId}::cheater`,
-        label: catchRodPickerLabelFromRow(row, index, { cheater: true }),
-        startTime,
-        endTime
+        id: `${record.id}::cheater`,
+        label: catchRodPickerLabel(record, index, { cheater: true }),
+        startTime: record.startTime || "",
+        endTime: record.endTime || ""
       }
     ];
   });
 }
+
+export const setupLineOptionsFromForm = setupLineOptions;
 
 export function setupLineIsActiveAtTime(option, catchTime) {
   if (!catchTime || !option.startTime || !option.endTime) return true;
@@ -640,11 +660,12 @@ export function setupLineIsActiveAtTime(option, catchTime) {
 
 export function populateSetupLineSelect(select, selectedId = "") {
   const catchRow = select.closest(".catch-row");
-  const catchTime = catchRow?.querySelector(".catch-time-unknown")?.checked
+  const catchRecord = fishRecordForRow(catchRow);
+  const catchTime = catchRecord.timeUnknown
     ? ""
-    : (catchRow?.querySelector(".catch-time")?.value || "");
-  const options = setupLineOptionsFromForm().filter((option) => setupLineIsActiveAtTime(option, catchTime));
-  const selected = selectedId || select.dataset.selectedSetupLine || "";
+    : (catchRecord.time || "");
+  const options = setupLineOptions().filter((option) => setupLineIsActiveAtTime(option, catchTime));
+  const selected = selectedId || catchRecord.setupLineValue || catchRecord.setupLineId || select.dataset.selectedSetupLine || "";
   select.dataset.selectedSetupLine = "";
   setHtml(select, html`<option value="">Select rod</option>${joinHtml(options.map((item) => (
     html`<option value="${item.id}" ${item.id === selected ? "selected" : ""}>${item.label}</option>`
@@ -653,7 +674,8 @@ export function populateSetupLineSelect(select, selectedId = "") {
 
 export function populateSetupLineSelects() {
   document.querySelectorAll(".catch-setup-line").forEach((select) => {
-    populateSetupLineSelect(select, select.value);
+    const record = fishRecordForRow(select.closest(".catch-row"));
+    populateSetupLineSelect(select, record.setupLineValue || record.setupLineId || "");
   });
   document.querySelectorAll("#catchRows .catch-row").forEach(syncCatchMethodToSetupLine);
 }
@@ -678,8 +700,8 @@ export function sortTrollingSetupRows() {
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
   rows.sort((first, second) => {
     const rowKey = (row) => [
-      row.querySelector(".trip-gear-side")?.value,
-      row.querySelector(".catch-presentation")?.value
+      gearRecordForRow(row).side,
+      gearRecordForRow(row).presentation
     ].map((value) => String(value || "").trim().toLowerCase()).join("|");
     const firstOrder = order.get(rowKey(first)) ?? TROLLING_SETUP_ROW_ORDER.length;
     const secondOrder = order.get(rowKey(second)) ?? TROLLING_SETUP_ROW_ORDER.length;
@@ -689,37 +711,41 @@ export function sortTrollingSetupRows() {
 }
 
 export function rodOptionFromGearRow(row, index) {
-  const combo = selectedComboForRow(row);
+  return rodOptionFromGearRecord(gearRecordForRow(row), index);
+}
+
+export function rodOptionFromGearRecord(record = {}, index = 0) {
+  const combo = selectedComboForRecord(record);
   const rodId = combo?.rodId || "";
-  const lureSelect = row.querySelector(".trip-gear-lure");
-  const lureId = lureSelect?.value?.startsWith("__type__:") ? "" : (lureSelect?.value || "");
-  const fallbackLabel = setupLineLabelFromRow(row, index);
+  const lureId = String(record.lureId || "").startsWith("__type__:") ? "" : (record.lureId || "");
+  const fallbackLabel = setupLineLabel(record, index);
   const label = [
-    comboName(row.querySelector(".trip-gear-combo")?.value || "") || rodName(rodId) || fallbackLabel,
+    comboName(record.comboId || "") || rodName(rodId) || fallbackLabel,
     lureName(lureId)
   ].filter(Boolean).join(" / ");
   return {
-    id: row.dataset.gearId || createId(),
+    id: record.id || createId(),
     rodId,
     lureId,
     label: label || fallbackLabel || `Rod ${index + 1}`
   };
 }
 
-export function catchRodOptionsFromForm(selectedRodId = "") {
-  return [...els.tripGearRows.querySelectorAll(".gear-used-row")]
-    .map((row, index) => {
-      if (!row.dataset.gearId) row.dataset.gearId = createId();
-      return rodOptionFromGearRow(row, index);
-    })
+export function catchRodOptions(draft = ui.tripDraft) {
+  return (Array.isArray(draft?.gearUsed) ? draft.gearUsed : [])
+    .map((record, index) => rodOptionFromGearRecord(record, index))
     .filter((item) => item.rodId);
 }
 
+export const catchRodOptionsFromForm = catchRodOptions;
+
 export function populateCatchRodSelect(select, selectedRodId = "", selectedOptionId = "") {
   if (!select) return;
-  const selected = selectedRodId || select.dataset.selectedRodId || "";
-  const options = catchRodOptionsFromForm(selected);
+  const rowRecord = fishRecordForRow(select.closest(".catch-row"));
+  const selected = selectedRodId || rowRecord.rodId || select.dataset.selectedRodId || "";
+  const options = catchRodOptions();
   const selectedOption = options.find((item) => item.id === selectedOptionId)?.id
+    || options.find((item) => item.id === rowRecord.setupLineId)?.id
     || options.find((item) => item.rodId === selected)?.id
     || "";
   select.dataset.selectedRodId = "";
@@ -730,19 +756,20 @@ export function populateCatchRodSelect(select, selectedRodId = "", selectedOptio
 
 export function populateCatchRodSelects() {
   document.querySelectorAll(".catch-rod").forEach((select) => {
-    const selectedRodId = select.selectedOptions?.[0]?.dataset.rodId || select.dataset.selectedRodId || "";
-    populateCatchRodSelect(select, selectedRodId, select.value);
+    const record = fishRecordForRow(select.closest(".catch-row"));
+    populateCatchRodSelect(select, record.rodId || "", record.setupLineId || record.rodSelect || "");
   });
 }
 
 export function syncDirectCatchRodToLure(row) {
   if (!row) return;
-  const option = row.querySelector(".catch-rod")?.selectedOptions?.[0];
-  const lureId = option?.dataset.lureId || "";
+  const record = fishRecordForRow(row);
+  const option = catchRodOptions().find((item) => item.id === (record.setupLineId || record.rodSelect || ""));
+  const lureId = option?.lureId || "";
   const patch = {
-    setupLineId: row.querySelector(".catch-rod")?.value || "",
-    rodId: option?.dataset.rodId || "",
-    lureId: lureId || findDraftRecord(row.classList.contains("lost-fish-row") ? "lostFish" : "catches", row.dataset.catchId)?.lureId || ""
+    setupLineId: option?.id || record.setupLineId || "",
+    rodId: option?.rodId || record.rodId || "",
+    lureId: lureId || record.lureId || ""
   };
   if (lureId) {
     const lureSelect = row.querySelector(".catch-lure");
@@ -756,15 +783,14 @@ export function syncDirectCatchRodToLure(row) {
 
 export function syncCatchRiggingFromSetupLine(row) {
   if (!row) return;
-  const setupLineId = row.querySelector(".catch-rod")?.value || "";
-  const setupRow = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
-    .find((gearRow) => gearRow.dataset.gearId === setupLineId);
-  if (!setupRow) return;
+  const record = fishRecordForRow(row);
+  const setup = findDraftRecord("gearUsed", record.setupLineId || record.rodSelect || "");
+  if (!setup) return;
 
   const rigging = row.querySelector(".catch-rigging");
   const riggingDetails = row.querySelector(".catch-rigging-details");
-  const riggingValue = setupRow.querySelector(".trip-gear-rigging")?.value || "";
-  const riggingDetailsValue = setupRow.querySelector(".trip-gear-rigging-details")?.value || "";
+  const riggingValue = setup.rigging || "";
+  const riggingDetailsValue = setup.riggingDetails || "";
   if (rigging) rigging.value = riggingValue;
   if (riggingDetails) riggingDetails.value = riggingDetailsValue;
   updateTripRow(row.classList.contains("lost-fish-row") ? "lostFish" : "catches", row.dataset?.catchId || row.dataset?.rowId, {
@@ -774,25 +800,26 @@ export function syncCatchRiggingFromSetupLine(row) {
 }
 
 export function syncCatchMethodToSetupLine(row) {
-  const selectedValue = row.querySelector(".catch-setup-line")?.value || "";
+  const record = fishRecordForRow(row);
+  const selectedValue = record.setupLineValue || record.setupLineId || row.querySelector(".catch-setup-line")?.value || "";
   const presentationSelect = row.querySelector(".catch-presentation");
   if (!presentationSelect) return;
 
   const setupLineId = selectedValue.split("::")[0];
-  const setupRow = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
-    .find((gearRow) => gearRow.dataset.gearId === setupLineId);
+  const setup = findDraftRecord("gearUsed", setupLineId);
   const isCheater = selectedValue.endsWith("::cheater");
   if (isCheater && ![...presentationSelect.options].some((option) => option.value === "Cheater")) {
     presentationSelect.add(new Option("Cheater", "Cheater"));
   }
-  presentationSelect.value = isCheater
+  const presentation = isCheater
     ? "Cheater"
-    : (setupRow?.querySelector(".catch-presentation")?.value || "");
+    : (setup?.presentation || "");
+  presentationSelect.value = presentation;
   updateTripRow(row.classList.contains("lost-fish-row") ? "lostFish" : "catches", row.dataset?.catchId || row.dataset?.rowId, {
     setupLineValue: selectedValue,
     setupLineId,
     setupLineTarget: isCheater ? "cheater" : "",
-    presentation: presentationSelect.value || ""
+    presentation
   });
   updatePresentationFields(row);
   updateCheaterDepth(row);
@@ -818,23 +845,23 @@ export function fishRowLabel(row) {
 }
 
 export function catchSetupSummary(row) {
-  const selectedValue = row.querySelector(".catch-setup-line")?.value || "";
+  const record = fishRecordForRow(row);
+  const selectedValue = record.setupLineValue || record.setupLineId || "";
   if (!selectedValue) return "";
   const setupLineId = selectedValue.split("::")[0];
-  const setupRow = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
-    .find((gearRow) => gearRow.dataset.gearId === setupLineId);
-  if (!setupRow) return "";
+  const setup = findDraftRecord("gearUsed", setupLineId);
+  if (!setup) return "";
   const label = [
-    setupLineSideLabel(setupRow.querySelector(".trip-gear-side")?.value),
-    choiceLabel("trollingPresentations", setupRow.querySelector(".catch-presentation")?.value)
+    setupLineSideLabel(setup.side),
+    choiceLabel("trollingPresentations", setup.presentation)
   ].filter(Boolean).join(" ");
   return selectedValue.endsWith("::cheater") ? `${label} Cheater` : label;
 }
 
 export function catchLurePreviewName(row) {
-  const lureId = row.querySelector(".catch-lure")?.value || "";
+  const lureId = fishRecordForRow(row).lureId || "";
   const lure = state.lures.find((item) => item.id === lureId);
-  return lure?.name || summaryOption(row.querySelector(".catch-lure"), ["No lure selected"]);
+  return lure?.name || "";
 }
 
 export function updateRowSummary(row) {
@@ -842,20 +869,21 @@ export function updateRowSummary(row) {
   if (!summary) return;
 
   if (row.classList.contains("catch-row")) {
-    const released = !row.querySelector(".catch-released")?.checked && !row.classList.contains("lost-fish-row");
+    const record = fishRecordForRow(row);
+    const released = !record.kept && !row.classList.contains("lost-fish-row");
     const trolling = isTrollingTrip();
     const pieces = [
       fishRowLabel(row),
       row.classList.contains("lost-fish-row")
-        ? summaryOption(row.querySelector(".catch-possible-species"), ["Select possible species"])
-        : summaryOption(row.querySelector(".catch-species"), ["Select species"]),
+        ? record.possibleSpecies
+        : record.species,
       released ? "Released" : "",
-      row.querySelector(".catch-time-unknown")?.checked ? "Unknown time" : formatDisplayTime(row.querySelector(".catch-time").value),
+      record.timeUnknown ? "Unknown time" : formatDisplayTime(record.time),
       trolling
         ? catchSetupSummary(row)
         : [
-            summaryOption(row.querySelector(".catch-rod"), ["Select rod"]),
-            summaryOption(row.querySelector(".catch-lure"), ["No lure selected"])
+            catchRodOptions().find((item) => item.id === (record.setupLineId || record.rodSelect))?.label || "",
+            lureName(record.lureId)
           ].filter(Boolean).join(" / "),
     ].filter(Boolean);
     summary.textContent = pieces.join(" · ");
@@ -864,8 +892,8 @@ export function updateRowSummary(row) {
 
   const pieces = [
     `Rod ${rowNumber(row, ".gear-used-row")}`,
-    isTrollingTrip() ? setupLineSideLabel(row.querySelector(".trip-gear-side")?.value) : "",
-    summaryOption(row.querySelector(".catch-presentation"), ["Select method"])
+    isTrollingTrip() ? setupLineSideLabel(gearRecordForRow(row).side) : "",
+    choiceLabel("trollingPresentations", gearRecordForRow(row).presentation) || gearRecordForRow(row).presentation || ""
   ].filter(Boolean);
   summary.textContent = pieces.join(" / ");
 }
@@ -877,8 +905,11 @@ export function updateAllRowSummaries() {
 }
 
 export function selectedComboForRow(row) {
-  const comboId = row.querySelector(".trip-gear-combo")?.value || "";
-  return state.rodReelCombos.find((combo) => combo.id === comboId);
+  return selectedComboForRecord(gearRecordForRow(row));
+}
+
+export function selectedComboForRecord(record = {}) {
+  return state.rodReelCombos.find((combo) => combo.id === record.comboId);
 }
 
 export function setup() {
@@ -892,15 +923,16 @@ export function setup() {
     const detail = row.querySelector(".collapsible-row-detail");
     if (!summary || !detail) return;
   
+    const record = fishRecordForRow(row);
     const species = row.classList.contains("lost-fish-row")
-      ? summaryOption(row.querySelector(".catch-possible-species"), ["Select possible species"])
-      : summaryOption(row.querySelector(".catch-species"), ["Select species"]);
+      ? record.possibleSpecies || ""
+      : record.species || "";
     const size = row.classList.contains("lost-fish-row")
       ? ""
-      : [row.querySelector(".catch-length")?.value.trim(), row.querySelector(".catch-weight")?.value.trim()].filter(Boolean).join(" / ");
-    const time = row.querySelector(".catch-time-unknown")?.checked
+      : [record.length || "", record.weight || ""].filter(Boolean).join(" / ");
+    const time = record.timeUnknown
       ? "Unknown time"
-      : formatDisplayTime(row.querySelector(".catch-time")?.value || "");
+      : formatDisplayTime(record.time || "");
     const lure = isTrollingTrip()
       ? catchSetupSummary(row)
       : catchLurePreviewName(row);

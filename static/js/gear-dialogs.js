@@ -120,7 +120,11 @@ export function updateMonoBackingVisibility(row) {
   if (!row) return;
   const backingField = row.querySelector(".line-mono-backing-field");
   const backingInput = row.querySelector(".line-mono-backing");
-  const lineType = row.querySelector(".line-type")?.value;
+  const lineId = row.dataset?.lineId || "";
+  const line = (ui.gearDraft?.lineHistory || []).find((entry) => String(entry.id || "") === String(lineId))
+    || activeLineEntry(ui.gearDraft || {})
+    || {};
+  const lineType = line.type || optionLabels("lineTypes")[0];
   const showBacking = lineUsesBraid(lineType);
   backingField?.classList.toggle("hidden", !showBacking);
   if (!showBacking && backingInput) {

@@ -1,8 +1,7 @@
 import { html, joinHtml, setHtml } from "./html.js";
 import { createId } from "./app-defaults.js";
 import { choiceLabel } from "./app-normalization.js";
-import { els } from "./app-elements.js";
-import { selectedText } from "./trip-rows.js";
+import { ui } from "./app-state.js";
 import { comboName, flasherName, lureName, reelName, rodName } from "./gear-core.js";
 import { setupLineCheaterFishCount, setupLineCounts } from "./trip-timeline.js";
 import { presentationLabel } from "./stats.js";
@@ -399,40 +398,40 @@ export function renderTrollingSpread(trip) {
 
 export function liveSetupLineCounts(setupLineId) {
   if (!setupLineId) return { fish: 0, lost: 0 };
-  const fish = [...els.catchRows.querySelectorAll(".catch-row")]
-    .filter((row) => row.querySelector(".catch-setup-line")?.value === setupLineId)
+  const fish = (ui.tripDraft?.catches || [])
+    .filter((record) => (record.setupLineValue || record.setupLineId) === setupLineId)
     .length;
-  const lost = [...els.lostFishRows.querySelectorAll(".catch-row")]
-    .filter((row) => row.querySelector(".catch-setup-line")?.value === setupLineId)
+  const lost = (ui.tripDraft?.lostFish || [])
+    .filter((record) => (record.setupLineValue || record.setupLineId) === setupLineId)
     .length;
   return { fish, lost };
 }
 
 export function liveCheaterFishCount(setupLineId) {
   if (!setupLineId) return 0;
-  return [...els.catchRows.querySelectorAll(".catch-row")]
-    .filter((row) => row.querySelector(".catch-setup-line")?.value === `${setupLineId}::cheater`)
+  return (ui.tripDraft?.catches || [])
+    .filter((record) => (record.setupLineValue || record.setupLineId) === `${setupLineId}::cheater`)
     .length;
 }
 
 export function liveTripRodsForSpread() {
-  return [...els.tripGearRows.querySelectorAll(".gear-used-row")].map((row) => {
-    if (!row.dataset.gearId) row.dataset.gearId = createId();
-    const counts = liveSetupLineCounts(row.dataset.gearId);
+  return (ui.tripDraft?.gearUsed || []).map((record) => {
+    const id = record.id || createId();
+    const counts = liveSetupLineCounts(id);
     return {
-      id: row.dataset.gearId,
-      lineSide: row.querySelector(".trip-gear-side")?.value || "",
-      trollingMethod: row.querySelector(".catch-presentation")?.value || "",
-      lureId: row.querySelector(".trip-gear-lure")?.value || "",
-      lureName: lureName(row.querySelector(".trip-gear-lure")?.value),
-      flasherId: row.querySelector(".trip-gear-flasher")?.value || "",
-      flasherName: flasherName(row.querySelector(".trip-gear-flasher")?.value),
+      id,
+      lineSide: record.side || "",
+      trollingMethod: record.presentation || "",
+      lureId: record.lureId || "",
+      lureName: lureName(record.lureId),
+      flasherId: record.flasherId || "",
+      flasherName: flasherName(record.flasherId),
       fishCount: counts.fish,
       lostCount: counts.lost,
-      hasCheater: Boolean(row.querySelector(".trip-gear-cheater")?.checked),
-      cheaterLureId: row.querySelector(".trip-gear-cheater-lure")?.value || "",
-      cheaterLureName: selectedText(row.querySelector(".trip-gear-cheater-lure")).replace("No lure selected", ""),
-      cheaterFishCount: liveCheaterFishCount(row.dataset.gearId)
+      hasCheater: Boolean(record.hasCheater),
+      cheaterLureId: record.cheaterLureId || "",
+      cheaterLureName: lureName(record.cheaterLureId),
+      cheaterFishCount: liveCheaterFishCount(id)
     };
   });
 }
