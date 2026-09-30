@@ -1,5 +1,5 @@
 import { createId } from "./app-defaults.js";
-import { loadState } from "./app-state.js";
+import { loadState, state, ui } from "./app-state.js";
 import { replaceState } from "./store.js";
 import { els } from "./app-elements.js";
 import { applyThemePreference, renderSettings } from "./settings.js";
@@ -16,6 +16,7 @@ import { isTrollingTrip, updateTrollingVisibility } from "./form-utils.js";
 import { renderGallery } from "./gallery.js";
 import { renderChecklists } from "./checklists.js";
 import { initRouter, replaceInitialRoute, routeViews, viewFromCurrentRoute } from "./router.js";
+import { updateTripRow } from "./draft-binding.js";
 
 export { routeViews, viewFromCurrentRoute };
 
@@ -140,14 +141,22 @@ export function setup() {
     const row = event.target.closest(".person-row");
     if (event.target.matches(".person-select") && row) {
       const input = row.querySelector(".person-name");
+      const previousPersonId = row.dataset.personId || "";
       if (event.target.value === "__new__") {
         row.dataset.personId = createId();
         input.classList.remove("hidden");
         input.focus();
+        updateTripRow("people", row.dataset.personId, { id: row.dataset.personId, name: input.value || "" });
       } else {
         row.dataset.personId = event.target.value || createId();
         input.value = "";
         input.classList.add("hidden");
+        const person = state.people.find((item) => item.id === event.target.value);
+        updateTripRow("people", row.dataset.personId, { id: row.dataset.personId, name: person?.name || "" });
+      }
+      if (previousPersonId && previousPersonId !== row.dataset.personId) {
+        const index = ui.tripDraft?.people?.findIndex((person) => person.id === previousPersonId) ?? -1;
+        if (index >= 0) ui.tripDraft.people.splice(index, 1);
       }
     }
     populatePersonSelects();

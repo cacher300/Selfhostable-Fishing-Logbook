@@ -11,7 +11,7 @@ import { firstCatchCoordinates, fishCoordinatesFromRow, isCatchMetadataLocked } 
 import { refreshCatchSpotSelect, updateRowSummary } from "./trip-rows.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
-import { draftRecordForRow } from "./draft-binding.js";
+import { draftRecordForRow, updateTripRow } from "./draft-binding.js";
 
 
 export const LOCATION_FOCUS_ZOOM = 15;
@@ -266,6 +266,12 @@ export async function updateCatchFowForCoordinates(row, coordinates, options = {
   if (isCatchMetadataLocked(row, "fow") && !options.ignoreMetadataLock) return;
   if (!isUsableCoordinates(coordinates)) {
     row.catchDepthData = null;
+    updateTripRow(row.classList.contains("lost-fish-row") ? "lostFish" : "catches", row.dataset.catchId, {
+      depth_m: null,
+      depth_ft: null,
+      lake_name: null,
+      depth_source: null
+    });
     return;
   }
   const fowInput = row.querySelector(".catch-fow-field:not(.hidden) .catch-fow")
@@ -296,6 +302,10 @@ export async function updateCatchFowForCoordinates(row, coordinates, options = {
     if (fowInput) {
       const nextFow = payload.fowCaught || "";
       fowInput.value = payload.fowCaught || "";
+      updateTripRow(row.classList.contains("lost-fish-row") ? "lostFish" : "catches", row.dataset.catchId, {
+        fowCaught: nextFow,
+        ...row.catchDepthData
+      });
       if (nextFow) flashAutoFilledField(fowInput);
       updateRowSummary(row);
       renderLiveTrollingSpread();

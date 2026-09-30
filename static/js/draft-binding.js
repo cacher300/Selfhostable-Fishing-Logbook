@@ -165,6 +165,11 @@ export function findDraftRecord(collection, id) {
   return draftCollection(collection).find((item) => String(item.id) === String(id)) || null;
 }
 
+function cloneDraftValue(value) {
+  if (value === undefined) return value;
+  return structuredClone(value);
+}
+
 export function ensureDraftRecord(collection, id, defaults = {}) {
   const items = draftCollection(collection);
   let record = items.find((item) => String(item.id) === String(id));
@@ -180,12 +185,50 @@ export function removeDraftRecord(collection, id) {
   ui.tripDraft[collection] = ui.tripDraft[collection].filter((item) => String(item.id) !== String(id));
 }
 
+export function removeTripRow(collection, rowId) {
+  removeDraftRecord(collection, rowId);
+}
+
 export function replaceDraftRecord(collection, record) {
   const items = draftCollection(collection);
-  const index = items.findIndex((item) => String(item.id) === String(record.id));
-  if (index >= 0) items[index] = record;
-  else items.push(record);
+  const next = { ...cloneDraftValue(record), id: record.id || createId() };
+  const index = items.findIndex((item) => String(item.id) === String(next.id));
+  if (index >= 0) items[index] = next;
+  else items.push(next);
+  return next;
+}
+
+export function updateTripField(field, value) {
+  if (!ui.tripDraft || !field) return null;
+  setPath(ui.tripDraft, field, cloneDraftValue(value));
+  syncRootDerivedFields(field);
+  return ui.tripDraft;
+}
+
+export function updateTripRow(collection, rowId, patch = {}) {
+  if (!ui.tripDraft || !collection) return null;
+  const targetId = rowId || patch.id;
+  if (!targetId) return null;
+  const record = ensureDraftRecord(collection, targetId);
+  Object.assign(record, cloneDraftValue(patch), { id: rowId || patch.id || record.id });
   return record;
+}
+
+export function insertTripRow(collection, record = {}, index = undefined) {
+  if (!ui.tripDraft || !collection) return null;
+  const items = draftCollection(collection);
+  const next = { ...cloneDraftValue(record), id: record.id || createId() };
+  const existingIndex = items.findIndex((item) => String(item.id) === String(next.id));
+  if (existingIndex >= 0) items.splice(existingIndex, 1);
+  const targetIndex = Number.isInteger(index) ? Math.max(0, Math.min(index, items.length)) : items.length;
+  items.splice(targetIndex, 0, next);
+  return next;
+}
+
+export function replaceTripRows(collection, records = []) {
+  if (!ui.tripDraft || !collection) return [];
+  ui.tripDraft[collection] = records.map((record) => ({ ...cloneDraftValue(record), id: record.id || createId() }));
+  return ui.tripDraft[collection];
 }
 
 export function draftRecordForRow(row) {
@@ -252,6 +295,7 @@ function syncRootDerivedFields(path) {
 }
 
 function updateProbeProfile(control) {
+  if (!control.hasAttribute("data-probe-depth-feet")) return false;
   const depth = Number(control.getAttribute("data-probe-depth-feet"));
   if (!Number.isFinite(depth) || !ui.tripDraft) return false;
   const value = String(control.value ?? "").trim();
@@ -262,7 +306,7 @@ function updateProbeProfile(control) {
   return true;
 }
 
-export function updateTripDraftFromControl(control) {
+function updateTripDraftFromControl(control) {
   if (!control || !ui.tripDraft) return false;
   if (updateProbeProfile(control)) return true;
   const bindingRow = control.closest(".person-row, .gear-used-row, .catch-row");
@@ -301,15 +345,13 @@ export function updateTripDraftFromControl(control) {
 }
 
 export function handleTripDraftControlEvent(event) {
+  // This delegated event handler is the only trip-draft path that reads live
+  // control values. Programmatic editor changes must call updateTripField() or
+  // updateTripRow() instead of asking save to re-read the DOM.
   const control = event.target?.closest?.("input, select, textarea");
   if (!control?.closest?.("#tripDialog")) return;
   updateTripDraftFromControl(control);
-}
-
-export function flushTripDraftBindings(root) {
-  if (!root) return;
-  applyTripDraftBindings(root);
-  controlsUnder(root).forEach(updateTripDraftFromControl);
+  ui.tripFormUserChanged = true;
 }
 
 

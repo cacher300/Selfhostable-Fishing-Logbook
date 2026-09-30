@@ -7,6 +7,15 @@ import { sortTrollingSetupRows, syncLastTrollingSpreadImportButton, updateRowSum
 import { updateRiggingVisibility } from "./gear-pickers.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { calculateMinutes } from "./stats.js";
+import { findDraftRecord, updateTripRow } from "./draft-binding.js";
+
+function draftCollectionForFishRow(row) {
+  return row?.classList?.contains?.("lost-fish-row") ? "lostFish" : "catches";
+}
+
+function draftIdForRow(row) {
+  return row?.dataset?.catchId || row?.dataset?.rowId || "";
+}
 
 export function idleHoursFromForm() {
   const value = Number(document.querySelector("#tripIdleTime")?.value || 0);
@@ -52,6 +61,7 @@ export function updateTrollingVisibility() {
   if (!trolling) {
     document.querySelectorAll(".trip-gear-side").forEach((select) => {
       select.value = "";
+      updateTripRow("gearUsed", select.closest(".gear-used-row")?.dataset?.gearId, { side: "" });
     });
   }
   document.querySelectorAll("#tripDialog .gear-used-row .gear-lure-field > span").forEach((label) => {
@@ -135,12 +145,14 @@ export function updatePresentationFields(row) {
     } else {
       const dipseyDiverColor = row.querySelector(".trip-gear-dipsey-diver-color");
       if (dipseyDiverColor) dipseyDiverColor.value = "";
+      updateTripRow("gearUsed", row.dataset?.gearId, { dipseyDiverColor: "" });
     }
     if (isLeadcoreCapablePresentation(presentation)) {
       row.querySelector(".param-leadcore")?.classList.add("visible");
     } else {
       const leadcoreToggle = row.querySelector(".trip-gear-leadcore");
       if (leadcoreToggle) leadcoreToggle.checked = false;
+      updateTripRow("gearUsed", row.dataset?.gearId, { hasLeadcore: false });
     }
     if (presentation === "downrigger" || presentation === "Downrigger") {
       row.querySelector(".param-cheater")?.classList.add("visible");
@@ -155,6 +167,7 @@ export function updatePresentationFields(row) {
     } else {
       const attachedWeight = row.querySelector(".trip-gear-attached-weight");
       if (attachedWeight) attachedWeight.value = "";
+      updateTripRow("gearUsed", row.dataset?.gearId, { attachedWeightOz: "" });
     }
     return;
   }
@@ -174,6 +187,7 @@ export function updatePresentationFields(row) {
     row.querySelector(".param-deepest-rigger")?.classList.add("visible");
   } else if (deepestRiggerToggle) {
     deepestRiggerToggle.checked = false;
+    updateTripRow(draftCollectionForFishRow(row), draftIdForRow(row), { deepestRigger: false });
   }
   if (isBoardOrChute) {
     row.querySelector(".param-flatline-weight")?.classList.add("visible");
@@ -218,6 +232,12 @@ export function setupRowForCatchRow(row) {
 }
 
 export function catchRowUsesLeadcore(row) {
+  const selectedValue = findDraftRecord(draftCollectionForFishRow(row), draftIdForRow(row))?.setupLineValue
+    || row.querySelector(".catch-setup-line")?.value
+    || "";
+  const setupLineId = selectedValue.split("::")[0];
+  const setup = findDraftRecord("gearUsed", setupLineId);
+  if (setup) return isLeadcoreCapablePresentation(setup.presentation) && Boolean(setup.hasLeadcore);
   const setupRow = setupRowForCatchRow(row);
   const presentation = setupRow?.querySelector(".catch-presentation")?.value || "";
   return isLeadcoreCapablePresentation(presentation) && Boolean(setupRow?.querySelector(".trip-gear-leadcore")?.checked);
@@ -233,19 +253,25 @@ export function leadcoreDepthLabel(colors) {
 }
 
 export function updateLeadcoreEstimatedDepth(row) {
-  const colors = Number(row.querySelector(".catch-leadcore-colors")?.value);
+  const record = findDraftRecord(draftCollectionForFishRow(row), draftIdForRow(row));
+  const colors = Number(record?.leadcoreColors ?? row.querySelector(".catch-leadcore-colors")?.value);
   const output = row.querySelector(".catch-estimated-lure-depth");
   if (!output) return;
   output.readOnly = true;
-  output.value = Number.isFinite(colors) && colors > 0 ? leadcoreDepthLabel(colors) : "";
+  const value = Number.isFinite(colors) && colors > 0 ? leadcoreDepthLabel(colors) : "";
+  output.value = value;
+  updateTripRow(draftCollectionForFishRow(row), draftIdForRow(row), { estimatedLureDepth: value });
 }
 
 export function updateCheaterDepth(row) {
   const output = row.querySelector(".catch-estimated-lure-depth");
   if (!output) return;
   output.readOnly = true;
-  const ballDepth = Number.parseFloat(row.querySelector(".catch-ball-depth")?.value);
-  output.value = Number.isFinite(ballDepth) ? trimNumber(ballDepth / 2) : "";
+  const record = findDraftRecord(draftCollectionForFishRow(row), draftIdForRow(row));
+  const ballDepth = Number.parseFloat(record?.ballDepth ?? row.querySelector(".catch-ball-depth")?.value);
+  const value = Number.isFinite(ballDepth) ? trimNumber(ballDepth / 2) : "";
+  output.value = value;
+  updateTripRow(draftCollectionForFishRow(row), draftIdForRow(row), { estimatedLureDepth: value });
 }
 
 export function trimNumber(value) {

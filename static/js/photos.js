@@ -733,7 +733,7 @@ export function renderCatchPhotos(row) {
         ? mediaMarkup(photo, "", { download: false })
         : html`<button class="catch-photo-open" type="button" data-catch-photo-open="${photo.id}" aria-label="Enlarge ${displayPhotoTitle(photo)}">${mediaMarkup(photo, "", { download: false })}</button>`}
       <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch media"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
-      ${isUsableCoordinates(photo.coordinates) ? `
+      ${isUsableCoordinates(photo.coordinates) ? html`
         ${taggedPhotos.length > 1 ? html`
           <label class="catch-photo-gps-choice">
             <input
