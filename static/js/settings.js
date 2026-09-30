@@ -91,7 +91,8 @@ export function trollingSpreadUsesDipseyDiverColor(value) {
 
 export function syncTrollingSpreadRowFields(row) {
   if (!row) return;
-  const presentation = row.querySelector(".trolling-spread-presentation")?.value || "";
+  const card = row.closest(".trolling-spread-card");
+  const presentation = settingsUi.trollingSpreadsDraft?.[Number(card?.dataset.trollingSpreadIndex)]?.spread?.[Number(row.dataset.sourceIndex)]?.presentation || "";
   const supportsColor = trollingSpreadUsesDipseyDiverColor(presentation);
   row.querySelector(".trolling-spread-dipsey-color-field")?.classList.toggle("hidden", !supportsColor);
   if (!supportsColor) {

@@ -457,14 +457,10 @@ export function renderNotePhotos() {
 }
 
 export function collectNotePhotos() {
-  const captions = new Map([...els.notePhotoGrid.querySelectorAll("[data-note-photo]")].map((card) => [
-    card.dataset.notePhoto,
-    card.querySelector(".note-photo-caption").value.trim()
-  ]));
-
+  const draftCaptions = new Map((ui.tripDraft?.notePhotos || []).map((photo) => [photo.id, photo.caption || ""]));
   return ui.activeNotePhotos.map((photo) => ({
     ...canonicalMediaRef(photo),
-    caption: captions.get(photo.id) ?? photo.caption ?? ""
+    caption: draftCaptions.get(photo.id) ?? photo.caption ?? ""
   })).filter((photo) => photo.category);
 }
 

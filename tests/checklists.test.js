@@ -4,7 +4,8 @@ import { installBrowserEnv } from "./helpers/browser-env.mjs";
 installBrowserEnv();
 const { els } = await import("../static/js/app-elements.js");
 const appState = await import("../static/js/app-state.js");
-const { checklistsFromView, savedChecklists } = await import("../static/js/checklists.js");
+const { checklistsFromDraftState, savedChecklists } = await import("../static/js/checklists.js");
+const { settingsUi } = await import("../static/js/settings-core.js");
 
 const original = [{
   id: "launch",
@@ -39,9 +40,10 @@ const card = {
 };
 appState.setState({ settings: { checklists: original } });
 els.checklistList = { querySelectorAll: (selector) => (selector === ".checklist-card" ? [card] : []) };
+settingsUi.checklistsDraft = structuredClone(original);
 
 assert.strictEqual(savedChecklists(), original, "reading checklists must not replace or reshape state");
-const collected = structuredClone(checklistsFromView());
+const collected = structuredClone(checklistsFromDraftState());
 assert.equal(collected[0].syncTag, "mobile");
 assert.equal(collected[0].items[0].icon, "battery");
 assert.equal(collected[0].items.length, 1, "blank checklist drafts must not be persisted");
