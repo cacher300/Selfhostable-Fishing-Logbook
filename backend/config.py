@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import secrets
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
@@ -44,9 +44,6 @@ class AppConfig:
     @property
     def cloud_enabled(self) -> bool:
         return self.storage_backend == "cloud" and bool(self.cloud_api_url)
-
-    def with_overrides(self, **changes) -> "AppConfig":
-        return replace(self, **changes)
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "AppConfig":

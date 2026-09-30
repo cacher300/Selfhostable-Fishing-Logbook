@@ -103,7 +103,6 @@ TEXT_OPTION_KEYS = (
     "trollingDirections",
 )
 CHOICE_OPTION_KEYS = ("trollingPresentations", "setupLineSides")
-OPTIONAL_MODERN_SETTINGS = {"shareAppearancePresets"}
 LEGACY_GENERATED_TRIP_TITLE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}\b.*\bTrip$")
 
 
@@ -548,7 +547,7 @@ def _normalize_locations(source: object) -> list[dict]:
             "launches": [],
         }
         location.pop("location", None)
-        for launch_index, launch in enumerate(_as_list(item.get("launches"))):
+        for launch in _as_list(item.get("launches")):
             if isinstance(launch, str):
                 launch = {"name": launch}
             if not isinstance(launch, dict):
@@ -608,7 +607,7 @@ def _normalize_trip(trip: object, index: int, locations: list[dict]) -> dict:
         result["launchId"] = launch["id"]
 
     normalized_gear = []
-    for line_index, item in enumerate(_as_list(result.get("gearUsed"))):
+    for item in _as_list(result.get("gearUsed")):
         if not isinstance(item, dict):
             continue
         line = deepcopy(item)

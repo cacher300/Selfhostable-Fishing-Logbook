@@ -8,7 +8,6 @@ only because the frozen cloud client module imports them directly.
 from __future__ import annotations
 
 import os
-from copy import deepcopy
 from pathlib import Path
 
 
@@ -63,40 +62,7 @@ MARINE_QUERY_KEYS = {
     "hourly",
 }
 ASTRONOMY_QUERY_KEYS = {"lat", "lng", "date", "timezone", "time_format"}
-WEATHER_HOURLY_FIELDS = [
-    "temperature_2m",
-    "apparent_temperature",
-    "relative_humidity_2m",
-    "dew_point_2m",
-    "precipitation",
-    "rain",
-    "snowfall",
-    "weather_code",
-    "surface_pressure",
-    "pressure_msl",
-    "cloud_cover",
-    "wind_speed_10m",
-    "wind_direction_10m",
-    "wind_gusts_10m",
-]
 MARINE_HOURLY_FIELDS = ["wave_height", "wave_direction", "wave_period"]
-WEATHER_DAILY_FIELDS = [
-    "weather_code",
-    "temperature_2m_max",
-    "temperature_2m_min",
-    "precipitation_sum",
-    "rain_sum",
-    "snowfall_sum",
-    "sunshine_duration",
-    "daylight_duration",
-    "sunrise",
-    "sunset",
-    "wind_speed_10m_max",
-    "wind_gusts_10m_max",
-    "wind_direction_10m_dominant",
-]
-DEFAULT_UNITS = deepcopy(_SCHEMA_CONSTANTS["defaultUnits"])
-DEFAULT_SPECIES_MAP_COLORS = deepcopy(_SCHEMA_CONSTANTS["defaultSpeciesMapColors"])
 BATHYMETRY_LAKES = tuple(_SCHEMA_CONSTANTS["bathymetryLakes"])
 UNIT_OPTIONS = {key: set(values) for key, values in _SCHEMA_CONSTANTS["unitOptions"].items()}
 DEFAULT_LOGBOOK = _load_schema_json("default-logbook.json")
