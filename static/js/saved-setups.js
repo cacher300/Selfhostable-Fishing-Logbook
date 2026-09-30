@@ -4,7 +4,7 @@ import { state, ui } from "./app-state.js";
 import { currentSavedSetups } from "./app-normalization.js";
 import { updateSettings } from "./actions.js";
 import { els } from "./app-elements.js";
-import { runSettingsSave, scheduleSettingsAutosave, settingsAutosaveTimer, settingsUi } from "./settings-core.js";
+import { runSettingsSave, scheduleSettingsAutosave, cancelSettingsAutosave, settingsUi } from "./settings-core.js";
 import { getValue, syncTripFormChrome } from "./trip-editor.js";
 import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, updateAllRowSummaries } from "./trip-rows.js";
 import { replaceTripRows } from "./draft-binding.js";
@@ -216,7 +216,7 @@ export async function finishSavedSetupEdit(card) {
     setSavedSetupSettingsMessage("Choose a combo or remove the empty rod row before finishing.");
     return;
   }
-  clearTimeout(settingsAutosaveTimer);
+  cancelSettingsAutosave();
   await saveSavedSetupCard(card, { autosave: true });
   activeSavedSetupEditorId = "";
   setSavedSetupSettingsMessage("");

@@ -4,7 +4,7 @@ import { optionChoices, optionLabels } from "./app-normalization.js";
 import { currentChopRanges } from "./app-units.js";
 import { replacePredefinedFields, updateSettings } from "./actions.js";
 import { els } from "./app-elements.js";
-import { runSettingsSave, settingsAutosaveTimer, settingsUi } from "./settings-core.js";
+import { runSettingsSave, cancelSettingsAutosave, settingsUi } from "./settings-core.js";
 import { renderSettings } from "./settings.js";
 import { renderAll, renderTrips } from "./dashboard.js";
 import { trimNumber } from "./form-utils.js";
@@ -230,7 +230,7 @@ export async function toggleChopRangeEditing() {
 }
 
 export async function cancelChopRangeEditing() {
-  clearTimeout(settingsAutosaveTimer);
+  cancelSettingsAutosave();
   settingsUi.chopRangesEditing = false;
   settingsUi.chopRangesDraft = chopRangesDraftFromState(settingsUi.chopRangesEditSnapshot || currentChopRanges());
   settingsUi.chopRangesEditSnapshot = null;

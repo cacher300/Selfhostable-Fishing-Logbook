@@ -27,7 +27,7 @@ export function chopLabelForWaveHeight(value) {
   return (bounded || ranges.find((range) => range.maxFeet === null) || ranges.at(-1))?.label || "";
 }
 
-export let settingsAutosaveTimer = null;
+let settingsAutosaveTimer = null;
 export let settingsStatusTimer = null;
 settingsUi.privateLocationNameEditId = "";
 settingsUi.activeSettingsTab = "general";
@@ -45,7 +45,13 @@ export function setSettingsSaveStatus(text = "Autosave on", status = "") {
   els.settingsSaveStatus.classList.toggle("is-error", status === "error");
 }
 
+// "Saved" is shown only when no autosave is waiting or still running, so a
+// newer edit can never be reported as saved before it is stored.
+let settingsAutosavePending = false;
+let settingsSavesInFlight = 0;
+
 export function markSettingsSaved() {
+  if (settingsAutosavePending || settingsSavesInFlight > 0) return;
   setSettingsSaveStatus("Saved");
   clearTimeout(settingsStatusTimer);
   settingsStatusTimer = setTimeout(() => setSettingsSaveStatus("Autosave on"), 1800);
@@ -54,10 +60,13 @@ export function markSettingsSaved() {
 export async function runSettingsSave(work, errorMessage, options = {}) {
   const isAutosave = options.autosave === true;
   setSettingsSaveStatus(isAutosave ? "Autosaving..." : "Saving...", "saving");
+  settingsSavesInFlight += 1;
   try {
     await work();
+    settingsSavesInFlight -= 1;
     markSettingsSaved();
   } catch (error) {
+    settingsSavesInFlight -= 1;
     console.error(errorMessage, error);
     setSettingsSaveStatus("Save failed", "error");
     if (!isAutosave) alert(error.message || errorMessage);
@@ -65,10 +74,17 @@ export async function runSettingsSave(work, errorMessage, options = {}) {
   }
 }
 
+export function cancelSettingsAutosave() {
+  clearTimeout(settingsAutosaveTimer);
+  settingsAutosavePending = false;
+}
+
 export function scheduleSettingsAutosave(saveAction, delay = 650) {
   clearTimeout(settingsAutosaveTimer);
+  settingsAutosavePending = true;
   setSettingsSaveStatus("Autosaving...", "saving");
   settingsAutosaveTimer = setTimeout(() => {
+    settingsAutosavePending = false;
     saveAction({ autosave: true }).catch(() => {});
   }, delay);
 }

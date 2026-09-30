@@ -219,9 +219,7 @@ test.describe("gear and settings characterization", () => {
     await page.goto("/gear", { waitUntil: "domcontentloaded" });
 
     await page.locator('[data-edit-lure="lure-authority"]').click();
-    await page.evaluate(() => {
-      document.querySelector("#lureName").value = "Silent Spoon";
-    });
+    await page.locator("#lureName").first().evaluate((element) => { element.value = "Silent Spoon"; });
     await page.getByRole("button", { name: "Save Lure", exact: true }).click();
     await expect(page.locator("#lureDialog")).toBeHidden();
     expect((await readLogbook(page)).lures.find((item) => item.id === "lure-authority").name).toBe("Original Spoon");
