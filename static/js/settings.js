@@ -7,7 +7,7 @@ import { updateLogbook, updateSettings } from "./actions.js";
 import { els } from "./app-elements.js";
 import { renderLocationManager } from "./locations.js";
 import { marineRequestCache, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel, weatherRequestCache } from "./location-weather.js";
-import { runSettingsSave, scheduleSettingsAutosave, settingsAutosaveTimer, settingsUi } from "./settings-core.js";
+import { runSettingsSave, scheduleSettingsAutosave, cancelSettingsAutosave, settingsUi } from "./settings-core.js";
 import { renderSavedSetupSettings } from "./saved-setups.js";
 import { renderChopRangeSettings, renderPredefinedFieldSettings } from "./settings-fields.js";
 import { renderFishingSpotSettings, renderPrivatePhotoLocationSettings } from "./settings-locations.js";
@@ -246,7 +246,7 @@ export async function finishTrollingSpreadEdit(card) {
     setTrollingSpreadSettingsMessage("Add at least one rod with a rod / reel combo before finishing.");
     return;
   }
-  clearTimeout(settingsAutosaveTimer);
+  cancelSettingsAutosave();
   await saveTrollingSpreadCard(card, { autosave: true });
   settingsUi.activeTrollingSpreadEditorId = "";
   setTrollingSpreadSettingsMessage("");

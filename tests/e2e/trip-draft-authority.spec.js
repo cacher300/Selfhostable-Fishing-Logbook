@@ -87,10 +87,8 @@ test.describe("trip draft is the editor authority", () => {
     await page.goto("/trips", { waitUntil: "domcontentloaded" });
 
     await openSeededTrip(page, "trip-authority");
-    await page.evaluate(() => {
-      document.querySelector("#tripTitle").value = "Silent title";
-      document.querySelector('#catchRows .catch-row[data-catch-id="catch-1"] .catch-species').value = "Perch";
-    });
+    await page.locator("#tripTitle").evaluate((element) => { element.value = "Silent title"; });
+    await page.locator('#catchRows .catch-row[data-catch-id="catch-1"] .catch-species').evaluate((element) => { element.value = "Perch"; });
     await saveTrip(page);
 
     let trip = (await readLogbook(page)).trips.find((item) => item.id === "trip-authority");

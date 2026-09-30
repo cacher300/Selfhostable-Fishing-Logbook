@@ -63,47 +63,38 @@ test.describe("settings drafts are save authority", () => {
 
     await page.locator('[data-settings-tab="lists"]').click();
     await page.locator('[data-predefined-key="species"]').evaluate((details) => { details.open = true; });
-    await page.evaluate(() => {
-      document.querySelector('[data-predefined-key="species"] .predefined-option-label').value = "Silent species";
-    });
+    await page.locator('[data-predefined-key="species"] .predefined-option-label').first().evaluate((element) => { element.value = "Silent species"; });
     await page.locator('[data-predefined-key="species"] .add-predefined-option').click();
     await waitForSave();
     expect((await readLogbook(page)).species[0]).toBe("Walleye");
 
     await page.locator('[data-predefined-key="species"] .predefined-option-label').first().fill("Normal species");
-    await waitForSave();
+    await expect.poll(async () => (await readLogbook(page)).species[0]).toBe("Normal species");
     await expect(page.locator("#settingsSaveStatus")).toHaveText(/Saved|Autosave on/);
-    expect((await readLogbook(page)).species[0]).toBe("Normal species");
 
     await resetWith(page);
     await page.goto("/settings", { waitUntil: "domcontentloaded" });
     await page.locator('[data-settings-tab="measurements"]').click();
     await page.locator("#editChopRangesButton").click();
-    await page.evaluate(() => {
-      document.querySelector(".chop-range-label").value = "Silent chop";
-    });
+    await page.locator(".chop-range-label").first().evaluate((element) => { element.value = "Silent chop"; });
     await page.locator("#editChopRangesButton").click();
     expect((await readLogbook(page)).settings.chopRanges[0].label).toBe("Calm");
 
     await page.locator("#editChopRangesButton").click();
     await page.locator(".chop-range-label").first().fill("Normal chop");
     await page.locator("#editChopRangesButton").click();
-    await waitForSave();
-    expect((await readLogbook(page)).settings.chopRanges[0].label).toBe("Normal chop");
+    await expect.poll(async () => (await readLogbook(page)).settings.chopRanges[0].label).toBe("Normal chop");
 
     await resetWith(page);
     await page.goto("/checklists", { waitUntil: "domcontentloaded" });
-    await page.evaluate(() => {
-      document.querySelector(".checklist-item-label").value = "Silent checklist";
-    });
+    await page.locator(".checklist-item-label").first().evaluate((element) => { element.value = "Silent checklist"; });
     await page.locator("[data-duplicate-checklist]").click();
     await waitForSave();
     expect((await readLogbook(page)).settings.checklists[0].items[0].label).toBe("Charge batteries");
 
     await page.locator(".checklist-item-label").first().fill("Normal checklist");
-    await waitForSave();
+    await expect.poll(async () => (await readLogbook(page)).settings.checklists[0].items[0].label).toBe("Normal checklist");
     await expect(page.locator(".checklist-save-status").first()).toHaveText("Saved");
-    expect((await readLogbook(page)).settings.checklists[0].items[0].label).toBe("Normal checklist");
   });
 
   test("editing one settings field leaves the rest of the document deep-equal", async ({ page }) => {
