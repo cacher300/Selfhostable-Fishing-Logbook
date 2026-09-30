@@ -23,19 +23,24 @@ flowchart LR
 
 ### Frontend
 
-`templates/index.html` composes routed screens, dialogs, and row templates from feature partials under `templates/partials/`. Flask renders the composition at request time. `standalone.html` is a generated copy for direct-file fallback, reached through the small root `index.html` bootstrap. Browser code in `static/js/` is authored as ES modules and bundled into `static/dist/` by esbuild.
+`templates/index.html` composes routed screens, dialogs, and row templates from feature partials under `templates/partials/`. Flask renders the composition at request time and links the built bundle through `asset_url()` (content-hashed URLs from `static/dist/manifest.json`). `standalone.html` is generated from the same template for direct-file fallback, reached through the small root `index.html` bootstrap.
 
-- `app-state.js`, `app-normalization.js`, `app-units.js`, `app-persistence.js`: shared state, v2 validation, measurement display, and load/save behavior.
-- `app.js`, `router.js`, `app-control-events.js`, `app-delegated-events.js`: route/view startup, `pushState` synchronization, plus direct and delegated event wiring.
-- `trip-editor.js`, `trip-rows.js`, `trip-save.js`, `form-utils.js`, `trolling-spread.js`: trip lifecycle, repeated catch/setup rows, persistence, and method-specific fishing behavior.
+The browser code is ES modules under `static/js/`, bundled by esbuild (`npm run build`) with Leaflet, esri-leaflet, html2canvas, and the Roboto font from npm; no CDN is used. `main.js` imports every module and then calls each module's `setup()` (event wiring and other load-time work) in a fixed order.
+
+- `app-state.js`: the read-only `state` document plus `ui` for UI-only state. `store.js`: the only writer ? `commit(mutate)` validates a changed copy against the shared schema, persists record-level changes (`logbook-sync.js` diff, `POST /api/logbook/changes` with `If-Match`) and installs it; `replaceState` installs server documents. `actions.js`: named domain changes (trips, gear with reference cleanup, locations, expeditions, checklists, spots, settings). Development/test bundles deep-freeze `state`; ESLint rejects mutations of it.
+- `app-normalization.js`, `app-defaults.js`: validation and defaults from the generated shared-schema module `generated/logbook-schema-rules.js`. `app-units.js`: measurement display and unit conversion.
+- `html.js`: the auto-escaping `html` tagged template, `joinHtml`, and `setHtml`/`insertHtml` ? the only way markup reaches the DOM (ESLint forbids direct `innerHTML` and non-constant `raw()`).
+- `router.js`: keeps the URL in sync with the visible view (`pushState`, `popstate`, reload keeps the view).
+- `app.js`, `app-control-events.js`, `app-delegated-events.js`: startup plus direct and delegated event wiring.
+- Trip editor: `trip-editor.js`, `trip-rows.js`, `trip-save.js`, `form-utils.js`, `trolling-spread.js`. The editor keeps `ui.tripDraft`; `draft-binding.js` writes `data-bind` controls into it, and `trip-draft.js` (`tripFromDraft`) applies the save-time normalization as a pure function. Some helpers still write controls directly, so `trip-save.js` re-reads the editor into the draft before saving (marked transitional).
 - `locations.js`, `location-weather.js`: mapped locations and environmental enrichment.
 - `photos.js`, `gallery.js`: metadata extraction, upload assignment, gallery, cleanup.
-- `gear-core.js`, `gear-pickers.js`, `gear-dialogs.js`, `gear-inventory.js`: gear media/naming, custom selectors, editor workflows, and inventory rendering.
-- `dashboard.js`, `stats-scope.js`, `stats-performance.js`, `stats.js`, `stats-rendering.js`: trip lists, analytics scoping/calculation, page composition, and reusable chart/table rendering.
-- `maps.js`, `trip-summary.js`, `trip-report.js`, `trip-timeline.js`: global/trip maps, summary detail rendering, report rendering, and summary dialog/media interactions.
-- `settings-core.js`, `settings.js`, `settings-fields.js`, `settings-locations.js`: preference orchestration, import/export, editable option groups, and mapped private locations/spots.
+- `gear-core.js`, `gear-pickers.js`, `gear-dialogs.js`, `gear-draft.js`, `gear-inventory.js`: gear media/naming, custom selectors, draft-bound editor dialogs and their normalizers, inventory rendering.
+- `dashboard.js`, `stats-*.js`, `leaderboard.js`, `personal-bests.js`: trip lists and analytics.
+- `maps.js`, `trip-summary.js`, `trip-report.js`, `trip-timeline.js`, `trip-sharing.js`: maps, summaries, reports, sharing.
+- `settings-core.js`, `settings.js`, `settings-fields.js`, `settings-locations.js`, `settings-draft.js`, `saved-setups.js`, `checklists.js`: preferences, import/export, editable option groups, spots and private locations. Settings editors still collect their cards from the DOM on autosave; `settings-draft.js` holds their pure normalizers.
 
-Shared mutable globals couple these files. HTML IDs/classes are effectively internal APIs.
+HTML IDs/classes and `data-*` attributes remain internal APIs shared by templates, renderers, CSS, and tests.
 
 ### Backend
 
@@ -75,7 +80,7 @@ cached document when available, otherwise the browser's built-in starter state. 
 original database is left untouched, and ordinary saves return `503` until an
 explicit archive import repairs the storage.
 
-When opened via `file:`, step 5 stops after localStorage. This is fallback persistence, not feature-complete offline operation.
+When opened via `file:`, commits skip the server and only update localStorage. This is fallback persistence, not feature-complete offline operation.
 
 ### Trip weather
 
