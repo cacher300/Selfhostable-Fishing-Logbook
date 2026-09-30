@@ -1,8 +1,24 @@
-﻿import { createId } from "./app-defaults.js";
+import { createId, isValidSpeciesMapColor } from "./app-defaults.js";
 import { slugOptionValue } from "./app-normalization.js";
-import { validateChopRanges } from "./app-units.js";
+import { normalizeUnits, validateChopRanges } from "./app-units.js";
 
 const text = (value) => String(value ?? "").trim();
+const clone = (value) => (value === undefined ? undefined : structuredClone(value));
+const asObject = (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
+const asArray = (value) => (Array.isArray(value) ? value : []);
+
+export function predefinedFieldsDraftFromState(groups = [], source = {}) {
+  const draft = {};
+  groups.forEach((group) => {
+    const rows = asArray(source[group.key]);
+    draft[group.key] = rows.map((row) => (
+      typeof row === "object" && row !== null
+        ? clone(row)
+        : { label: String(row ?? "") }
+    ));
+  });
+  return draft;
+}
 
 export function predefinedFieldsFromDraft(groups = [], draft = {}) {
   const next = {};
@@ -21,6 +37,10 @@ export function predefinedFieldsFromDraft(groups = [], draft = {}) {
   return next;
 }
 
+export function chopRangesDraftFromState(ranges = []) {
+  return asArray(ranges).map((range) => clone(range));
+}
+
 export function chopRangesFromDraft(rows = [], current = []) {
   const ranges = (Array.isArray(rows) ? rows : []).map((row, index) => ({
     ...(current[index] || {}),
@@ -31,6 +51,69 @@ export function chopRangesFromDraft(rows = [], current = []) {
   }));
   validateChopRanges(ranges);
   return ranges;
+}
+
+export function unitsDraftFromSettings(settings = {}) {
+  return normalizeUnits(settings.units);
+}
+
+export function unitsFromDraft(draft = {}, current = {}) {
+  return normalizeUnits({ ...current, ...asObject(draft) });
+}
+
+export function bathymetryCalibrationsDraftFromSettings(settings = {}) {
+  return clone(settings.bathymetryLakeCalibrationsFeet || {});
+}
+
+export function bathymetryCalibrationsFromDraft(draft = {}, current = {}) {
+  const next = { ...asObject(current) };
+  Object.entries(asObject(draft)).forEach(([lake, calibration]) => {
+    next[lake] = { ...asObject(next[lake]), ...asObject(calibration) };
+  });
+  return next;
+}
+
+export function preferencesDraftFromSettings(settings = {}) {
+  return {
+    theme: settings.theme === "dark" ? "dark" : "light",
+    timeFormat: settings.timeFormat === "12" ? "12" : "24",
+    defaultHomeLake: String(settings.defaultHomeLake || ""),
+    hasFishHawk: settings.hasFishHawk !== false,
+    defaultPeople: asArray(settings.defaultPeople).map((id) => String(id || "")).filter(Boolean),
+    defaultTrollingSpreadId: String(settings.defaultTrollingSpreadId || ""),
+    defaultSavedSetupIds: clone(asObject(settings.defaultSavedSetupIds))
+  };
+}
+
+export function preferencesFromDraft(draft = {}, current = {}, availablePeopleIds = null) {
+  const available = availablePeopleIds ? new Set(availablePeopleIds) : null;
+  const defaultPeople = asArray(draft.defaultPeople)
+    .map((id) => String(id || ""))
+    .filter((id) => id && (!available || available.has(id)));
+  return {
+    ...asObject(current),
+    theme: draft.theme === "dark" ? "dark" : "light",
+    timeFormat: draft.timeFormat === "12" ? "12" : "24",
+    defaultHomeLake: String(draft.defaultHomeLake || ""),
+    hasFishHawk: draft.hasFishHawk !== false,
+    defaultPeople,
+    defaultTrollingSpreadId: String(draft.defaultTrollingSpreadId || ""),
+    defaultSavedSetupIds: { ...asObject(draft.defaultSavedSetupIds) }
+  };
+}
+
+export function speciesMapColorsDraftFromSettings(settings = {}) {
+  return clone(asObject(settings.speciesMapColors));
+}
+
+export function speciesMapColorsFromDraft(draft = {}, current = {}) {
+  const next = { ...asObject(current) };
+  Object.entries(asObject(draft)).forEach(([species, color]) => {
+    const name = text(species);
+    const normalized = String(color || "").toLowerCase();
+    if (name && isValidSpeciesMapColor(normalized)) next[name] = normalized;
+  });
+  return next;
 }
 
 export function savedSetupFromDraft(draft = {}, existing = {}) {
@@ -48,6 +131,10 @@ export function savedSetupFromDraft(draft = {}, existing = {}) {
   };
 }
 
+export function savedSetupsFromDraft(draft = [], current = []) {
+  return asArray(draft).map((setup, index) => savedSetupFromDraft(setup, current[index] || {}));
+}
+
 export function trollingSpreadFromDraft(draft = {}, existing = {}) {
   return {
     ...existing,
@@ -55,16 +142,62 @@ export function trollingSpreadFromDraft(draft = {}, existing = {}) {
     id: text(draft.id || existing.id) || createId(),
     name: text(draft.name),
     spread: (Array.isArray(draft.spread) ? draft.spread : []).map((row, index) => {
+      const existingRow = existing.spread?.[index] || {};
       const presentation = text(row?.presentation);
       const usesColor = ["high-diver", "low-diver"].includes(presentation.toLowerCase().replace(/[\s_]+/g, "-"));
+      const untouchedColor = String(row?.presentation ?? "") === String(existingRow.presentation ?? "")
+        && String(row?.dipseyDiverColor ?? "") === String(existingRow.dipseyDiverColor ?? "");
       return {
-        ...(existing.spread?.[index] || {}),
+        ...existingRow,
         ...row,
         comboId: text(row?.comboId),
         side: text(row?.side),
         presentation,
-        dipseyDiverColor: usesColor ? text(row?.dipseyDiverColor) : ""
+        dipseyDiverColor: usesColor || untouchedColor ? text(row?.dipseyDiverColor) : ""
       };
     })
   };
+}
+
+export function trollingSpreadsFromDraft(draft = [], current = []) {
+  return asArray(draft).map((spread, index) => trollingSpreadFromDraft(spread, current[index] || {}));
+}
+
+export function checklistDraftFromSettings(settings = {}) {
+  return asArray(settings.checklists).map((checklist) => clone(checklist));
+}
+
+export function checklistsFromDraft(draft = [], current = []) {
+  return asArray(draft).map((checklist, index) => {
+    const existing = current[index] || {};
+    const existingItems = new Map(asArray(existing.items).map((item) => [String(item.id || ""), item]));
+    return {
+      ...existing,
+      ...checklist,
+      id: text(checklist?.id || existing.id) || createId(),
+      name: String(checklist?.name ?? ""),
+      items: asArray(checklist?.items).flatMap((item) => {
+        const id = text(item?.id) || createId();
+        const label = String(item?.label ?? "");
+        if (!label.trim()) return [];
+        return [{
+          ...(existingItems.get(id) || {}),
+          ...item,
+          id,
+          label,
+          done: Boolean(item?.done)
+        }];
+      })
+    };
+  });
+}
+
+export function locationsFromDraft(draft = [], current = []) {
+  return asArray(draft).map((location, index) => ({
+    ...(current[index] || {}),
+    ...location,
+    id: text(location?.id || current[index]?.id) || createId(),
+    name: text(location?.name) || text(current[index]?.name) || "Home",
+    radiusMeters: Number(location?.radiusMeters ?? current[index]?.radiusMeters)
+  }));
 }

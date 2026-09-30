@@ -4,13 +4,14 @@ import { state, ui } from "./app-state.js";
 import { currentSavedSetups } from "./app-normalization.js";
 import { updateSettings } from "./actions.js";
 import { els } from "./app-elements.js";
-import { runSettingsSave, scheduleSettingsAutosave, settingsAutosaveTimer } from "./settings-core.js";
+import { runSettingsSave, scheduleSettingsAutosave, settingsAutosaveTimer, settingsUi } from "./settings-core.js";
 import { getValue, syncTripFormChrome } from "./trip-editor.js";
 import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, updateAllRowSummaries } from "./trip-rows.js";
 import { replaceTripRows } from "./draft-binding.js";
 import { comboName } from "./gear-core.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { isTrollingTrip } from "./form-utils.js";
+import { preferencesDraftFromSettings, savedSetupFromDraft } from "./settings-draft.js";
 
 
 export let activeSavedSetupEditorId = "";
@@ -43,7 +44,7 @@ export function savedSetupDefaultId(method, defaults = state.settings?.defaultSa
   return String(entry?.[1] || "");
 }
 
-export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex = "" } = {}) {
+export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex = "", setupIndex = 0 } = {}) {
   const comboId = String(item.comboId || "");
   const comboOptions = joinHtml(state.rodReelCombos.map((combo) => (
     html`<option value="${combo.id}" ${combo.id === comboId ? "selected" : ""}>${comboName(combo.id) || "Rod / reel combo"}</option>`
@@ -52,7 +53,7 @@ export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex =
     <div class="saved-setup-row"${sourceIndex === "" ? "" : html` data-source-index="${sourceIndex}"`}>
       <label>
         <span>Rod / reel combo</span>
-        <select class="saved-setup-combo"${disabled ? " disabled" : ""}>
+        <select class="saved-setup-combo" data-settings-draft="savedSetupsDraft" data-settings-bind="${setupIndex}.rows.${sourceIndex === "" ? 0 : sourceIndex}.comboId"${disabled ? " disabled" : ""}>
           <option value="">Select rod / reel combo</option>
           ${comboOptions}
         </select>
@@ -62,12 +63,13 @@ export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex =
   `;
 }
 
-export function renderSavedSetupCard(item, { draft = false } = {}) {
+export function renderSavedSetupCard(item, { draft = false, index = 0 } = {}) {
   const editing = draft || activeSavedSetupEditorId === item.id;
   const rows = Array.isArray(item.rows) ? item.rows : [];
   return html`
     <article class="saved-setup-card${draft ? " is-draft" : ""}"
       data-saved-setup-id="${item.id}"
+      data-saved-setup-index="${index}"
       data-saved-setup-method="${item.method}"
       data-saved-setup-draft="${draft ? "true" : "false"}"
       data-saved-setup-editing="${editing ? "true" : "false"}"
@@ -75,7 +77,7 @@ export function renderSavedSetupCard(item, { draft = false } = {}) {
       <div class="saved-setup-card-header">
         <label class="settings-control saved-setup-name-control">
           <span>Setup name</span>
-          <input class="saved-setup-name" type="text" maxlength="60" value="${item.name || ""}" placeholder="Light Jigging"${editing ? "" : " readonly"} />
+          <input class="saved-setup-name" type="text" maxlength="60" value="${item.name || ""}" data-settings-draft="savedSetupsDraft" data-settings-bind="${index}.name" placeholder="Light Jigging"${editing ? "" : " readonly"} />
         </label>
         <div class="saved-setup-card-actions">
           ${editing && !draft ? html`<button class="button secondary finish-saved-setup-edit" type="button">Done</button>` : !editing ? html`<button class="button secondary edit-saved-setup" type="button">Edit</button>` : ""}
@@ -91,7 +93,7 @@ export function renderSavedSetupCard(item, { draft = false } = {}) {
           ${editing ? html`<button class="button secondary add-saved-setup-row" type="button">Add Rod</button>` : ""}
         </div>
         <div class="saved-setup-list">
-          ${rows.length ? joinHtml(rows.map((row, index) => savedSetupRowMarkup(row, { disabled: !editing, sourceIndex: index }))) : html`<p class="saved-setup-empty-rows">Add at least one rod to save this setup.</p>`}
+          ${rows.length ? joinHtml(rows.map((row, rowIndex) => savedSetupRowMarkup(row, { disabled: !editing, sourceIndex: rowIndex, setupIndex: index }))) : html`<p class="saved-setup-empty-rows">Add at least one rod to save this setup.</p>`}
         </div>
       </div>
     </article>
@@ -114,7 +116,7 @@ export function renderSavedSetupMethodSection(method, setups) {
         <div class="saved-setup-method-controls">
           <label class="settings-control">
             <span>${method} default</span>
-            <select class="saved-setup-default" data-saved-setup-method="${method}">
+            <select class="saved-setup-default" data-saved-setup-method="${method}" data-settings-draft="preferencesDraft" data-settings-bind="defaultSavedSetupIds.${method}">
               <option value="">No ${method} default</option>
               ${methodOptions}
             </select>
@@ -124,7 +126,7 @@ export function renderSavedSetupMethodSection(method, setups) {
       </div>
       <div class="saved-setup-list" data-saved-setup-list="${method}">
         ${methodSetups.length
-          ? joinHtml(methodSetups.map((setup) => renderSavedSetupCard(setup, { draft: setup === savedSetupDraft })))
+          ? joinHtml(methodSetups.map((setup) => renderSavedSetupCard(setup, { draft: setup === savedSetupDraft, index: setups.findIndex((item) => item.id === setup.id) })))
           : html`<p class="saved-setup-empty-state">No saved setups for this method yet.</p>`}
       </div>
     </section>
@@ -135,6 +137,8 @@ export function renderSavedSetupSettings() {
   if (!els.savedSetupMethodSections) return;
   const setups = currentSavedSetups();
   const visibleSetups = savedSetupDraft ? [...setups, savedSetupDraft] : setups;
+  settingsUi.savedSetupsDraft = structuredClone(visibleSetups);
+  if (!settingsUi.preferencesDraft) settingsUi.preferencesDraft = preferencesDraftFromSettings(state.settings || {});
   const methods = savedSetupMethods();
   setHtml(els.savedSetupMethodSections, methods.length
     ? joinHtml(methods.map((method) => renderSavedSetupMethodSection(method, visibleSetups)))
@@ -155,8 +159,13 @@ export function addSavedSetup(method) {
 export function addSavedSetupRowToCard(card) {
   const list = card?.querySelector(".saved-setup-list");
   if (!list || card.dataset.savedSetupEditing !== "true") return;
+  const setup = settingsUi.savedSetupsDraft?.[Number(card.dataset.savedSetupIndex)];
+  if (setup) {
+    if (!Array.isArray(setup.rows)) setup.rows = [];
+    setup.rows.push({ comboId: "" });
+  }
   card.querySelector(".saved-setup-empty-rows")?.remove();
-  insertHtml(list, "beforeend", savedSetupRowMarkup());
+  insertHtml(list, "beforeend", savedSetupRowMarkup({}, { sourceIndex: setup?.rows?.length ? setup.rows.length - 1 : "" , setupIndex: Number(card.dataset.savedSetupIndex) }));
   scheduleSavedSetupAutosave(card);
   list.querySelector(".saved-setup-row:last-child select")?.focus();
 }
@@ -171,16 +180,10 @@ export function editSavedSetup(setupId) {
 export function collectSavedSetupCard(card) {
   const id = card?.dataset.savedSetupId || createId();
   const existing = currentSavedSetups().find((setup) => setup.id === id);
-  return {
-    ...existing,
-    id,
-    method: card?.dataset.savedSetupMethod || "",
-    name: card?.querySelector(".saved-setup-name")?.value.trim() || "",
-    rows: [...card?.querySelectorAll(".saved-setup-row") || []].map((row) => ({
-      ...(row.dataset.sourceIndex !== undefined ? existing?.rows?.[Number(row.dataset.sourceIndex)] : {}),
-      comboId: row.querySelector(".saved-setup-combo")?.value || ""
-    }))
-  };
+  const draft = settingsUi.savedSetupsDraft?.[Number(card?.dataset.savedSetupIndex)] || { id, method: card?.dataset.savedSetupMethod || "", rows: [] };
+  const next = savedSetupFromDraft({ ...draft, id, method: draft.method || card?.dataset.savedSetupMethod || "" }, existing || {});
+  if (existing && JSON.stringify(draft.rows || []) === JSON.stringify(existing.rows || [])) next.rows = existing.rows || [];
+  return next;
 }
 
 export function setSavedSetupSettingsMessage(message = "") {
@@ -299,8 +302,8 @@ export async function deleteSavedSetup(setupId) {
   }
 }
 
-export async function saveDefaultSavedSetupId(method, select, options = {}) {
-  const nextId = select?.value || "";
+export async function saveDefaultSavedSetupId(method, options = {}) {
+  const nextId = settingsUi.preferencesDraft?.defaultSavedSetupIds?.[method] || "";
   const setup = currentSavedSetups().find((item) => (
     item.id === nextId && item.method.toLowerCase() === String(method || "").trim().toLowerCase()
   ));
@@ -419,7 +422,9 @@ export function setup() {
       return;
     }
     if (event.target.closest(".remove-saved-setup-row")) {
-      event.target.closest(".saved-setup-row")?.remove();
+      const row = event.target.closest(".saved-setup-row");
+      settingsUi.savedSetupsDraft?.[Number(card?.dataset.savedSetupIndex)]?.rows?.splice(Number(row?.dataset.sourceIndex), 1);
+      row?.remove();
       scheduleSavedSetupAutosave(card);
       return;
     }
@@ -444,7 +449,7 @@ export function setup() {
   els.savedSetupMethodSections?.addEventListener("change", (event) => {
     if (event.target.matches(".saved-setup-combo")) scheduleSavedSetupAutosave(event.target.closest(".saved-setup-card"));
     if (event.target.matches(".saved-setup-default")) {
-      saveDefaultSavedSetupId(event.target.dataset.savedSetupMethod, event.target).catch(() => {});
+      saveDefaultSavedSetupId(event.target.dataset.savedSetupMethod).catch(() => {});
     }
   });
 

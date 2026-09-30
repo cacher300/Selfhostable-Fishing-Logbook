@@ -1,5 +1,6 @@
 ﻿import { createId } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
+import { settingsUi } from "./settings-core.js";
 
 const rootBindings = [
   ["#tripId", "id"],
@@ -469,4 +470,45 @@ export function flushGearDraftBindings(root) {
   if (!root) return;
   applyGearDraftBindings(root);
   controlsUnder(root).forEach(updateGearDraftFromControl);
+}
+
+export function updateSettingsDraftPath(draftName, path, value) {
+  if (!draftName || !path || !settingsUi[draftName]) return null;
+  setPath(settingsUi[draftName], path, cloneDraftValue(value));
+  return settingsUi[draftName];
+}
+
+export function updateSettingsDraftList(draftName, path, value, selected) {
+  if (!draftName || !path || !settingsUi[draftName]) return null;
+  const parts = String(path || "").split(".").filter(Boolean);
+  const field = parts.pop();
+  let target = settingsUi[draftName];
+  parts.forEach((part) => {
+    if (!target[part] || typeof target[part] !== "object") target[part] = {};
+    target = target[part];
+  });
+  if (!Array.isArray(target[field])) target[field] = [];
+  const textValue = String(value || "");
+  target[field] = selected
+    ? [...new Set([...target[field], textValue].filter(Boolean))]
+    : target[field].filter((item) => String(item) !== textValue);
+  return settingsUi[draftName];
+}
+
+export function handleSettingsDraftControlEvent(event) {
+  // This delegated event handler is the only settings-draft path that reads
+  // live control values. Programmatic settings changes update settingsUi drafts
+  // directly and save paths normalize those drafts instead of re-reading DOM.
+  const control = event.target?.closest?.("input, select, textarea");
+  if (!control) return false;
+  const draftName = control.getAttribute("data-settings-draft") || control.closest("[data-settings-draft-root]")?.getAttribute("data-settings-draft-root") || "";
+  const listPath = control.getAttribute("data-settings-list");
+  if (listPath) {
+    updateSettingsDraftList(draftName, listPath, control.value, Boolean(control.checked));
+    return true;
+  }
+  const path = control.getAttribute("data-settings-bind") || "";
+  if (!path) return false;
+  updateSettingsDraftPath(draftName, path, controlValue(control));
+  return true;
 }
