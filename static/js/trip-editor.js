@@ -310,6 +310,7 @@ export function openTripDialog(trip = null) {
   beginMediaEditSession("trip");
   ui.activeTripId = trip?.id || null;
   ui.tripDraft = createTripDraft(trip);
+  ui.tripDraftHydrating = Boolean(trip);
   const tripDraft = ui.tripDraft;
   ui.newTripStartupSpreadApplied = false;
   ui.newTripSavedSetupAppliedMethods = new Set();
@@ -397,10 +398,14 @@ export function openTripDialog(trip = null) {
     applyTripDraftBindings(els.tripDialog);
     els.tripForm.scrollTop = 0;
     els.personRows.querySelector("[data-focus-person-name='true'] .person-name")?.focus({ preventScroll: true });
+    ui.tripDraftHydrating = false;
     resetTripFormSnapshot();
     updateTripDialogHeader();
   });
-  if (!trip) scheduleTripWeatherPreview(true);
+  if (!trip) {
+    ui.tripDraftHydrating = false;
+    scheduleTripWeatherPreview(true);
+  }
 }
 
 export function setValue(id, value) {
@@ -1051,7 +1056,7 @@ export function addPersonRow(person = {}, { editNew = false } = {}) {
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.personId = person.id || createId();
   node.dataset.rowId = node.dataset.personId;
-  if (ui.tripDraft && !ui.tripDraft.people.some((item) => item.id === node.dataset.personId)) {
+  if (ui.tripDraft && !ui.tripDraftHydrating && !ui.tripDraft.people.some((item) => item.id === node.dataset.personId)) {
     ui.tripDraft.people.push({ id: node.dataset.personId, name: person.name || "" });
   }
   node.querySelector(".person-name").value = person.name || "";

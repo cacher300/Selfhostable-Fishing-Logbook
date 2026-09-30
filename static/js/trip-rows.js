@@ -299,8 +299,10 @@ export function addFishRow(catchItem = {}, { container, lost }) {
   if (lost) node.classList.add("lost-fish-row");
   node.dataset.rowId = createId();
   node.dataset.catchId = catchItem.id || node.dataset.rowId;
-  const draftRecord = hydratedFishRecord(catchItem, { id: node.dataset.catchId, lost });
-  if (ui.tripDraft) replaceDraftRecord(lost ? "lostFish" : "catches", draftRecord);
+  const collection = lost ? "lostFish" : "catches";
+  const existingDraft = findDraftRecord(collection, node.dataset.catchId);
+  const draftRecord = hydratedFishRecord(existingDraft || catchItem, { id: node.dataset.catchId, lost });
+  if (ui.tripDraft && !existingDraft) replaceDraftRecord(collection, draftRecord);
   node.catchPhotos = structuredClone(draftRecord.photos || []);
   node.dataset.photoLocationId = draftRecord.photoLocationId || "";
   node.dataset.heroPhotoId = draftRecord.heroPhotoId || "";
@@ -447,11 +449,12 @@ export function addTripGearRow(gearItem = {}) {
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.rowId = createId();
   node.dataset.gearId = gearItem.id || node.dataset.rowId;
-  const draftRecord = hydratedGearRecord(gearItem, {
+  const existingDraft = findDraftRecord("gearUsed", node.dataset.gearId);
+  const draftRecord = hydratedGearRecord(existingDraft || gearItem, {
     id: node.dataset.gearId,
     rowIndex: els.tripGearRows.querySelectorAll(".gear-used-row").length
   });
-  if (ui.tripDraft) replaceDraftRecord("gearUsed", draftRecord);
+  if (ui.tripDraft && !existingDraft) replaceDraftRecord("gearUsed", draftRecord);
   node.querySelector(".trip-gear-start-time").value = draftRecord.startTime;
   node.querySelector(".trip-gear-end-time").value = draftRecord.endTime;
   node.querySelector(".trip-gear-change-note").value = draftRecord.changeNote || "";
