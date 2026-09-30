@@ -5,7 +5,7 @@ import { els } from "./app-elements.js";
 import { finishMediaEditSession } from "./app-media.js";
 import { clearActiveCatchLocation, deleteActiveLocationFromDialog, handleLocationManagerDragEnd, handleLocationManagerDragOver, handleLocationManagerDragStart, handleLocationManagerDrop, openLocationDialog, renderLocationManager, saveCatchLocationFromPicker, saveLocationPin } from "./locations.js";
 import { resyncTripWeather } from "./location-weather.js";
-import { exportArchive, importArchive, scheduleSettingsAutosave, setSettingsSaveStatus } from "./settings-core.js";
+import { exportArchive, importArchive, scheduleSettingsAutosave, setSettingsSaveStatus, settingsUi } from "./settings-core.js";
 import { addTrollingSpread, addTrollingSpreadRowToCard, cancelTrollingSpreadDraft, deleteTrollingSpread, editTrollingSpread, finishTrollingSpreadEdit, refreshTrollingSpreadCardPreview, saveDefaultHomeLake, saveDefaultPeople, saveDefaultTrollingSpreadId, saveFishHawkPreference, saveSpeciesMapColors, saveThemePreference, saveTimeFormatPreference, saveUnitSettings, scheduleTrollingSpreadAutosave, setSettingsTab, setTrollingSpreadSettingsMessage, syncSpeciesMapColorPreview, syncTrollingSpreadRowFields } from "./settings.js";
 import { openSavedSetupPicker } from "./saved-setups.js";
 import { cancelChopRangeEditing, savePredefinedFieldSettings, toggleChopRangeEditing } from "./settings-fields.js";
@@ -29,7 +29,7 @@ import { deleteGalleryItems, downloadGalleryItems, gallerySelectionMode, gallery
 import { bindChecklistEvents } from "./checklists.js";
 import { openTrollingSpreadPicker } from "./trolling-spread-picker.js";
 import { navigate } from "./router.js";
-import { handleGearDraftControlEvent, handleTripDraftControlEvent } from "./draft-binding.js";
+import { handleGearDraftControlEvent, handleSettingsDraftControlEvent, handleTripDraftControlEvent } from "./draft-binding.js";
 
 export let activeStructureSelect = null;
 
@@ -103,6 +103,10 @@ export function setup() {
   [els.lureDialog, els.flasherDialog, els.reelDialog, els.rodDialog, els.comboDialog].forEach((dialog) => {
     dialog.addEventListener("input", handleGearDraftControlEvent);
     dialog.addEventListener("change", handleGearDraftControlEvent);
+  });
+  [els.settingsPanel, els.checklistsPanel].forEach((panel) => {
+    panel?.addEventListener("input", handleSettingsDraftControlEvent);
+    panel?.addEventListener("change", handleSettingsDraftControlEvent);
   });
 
   els.saveTripDraftButtons.forEach((button) => button.addEventListener("click", saveTripAsDraft));
@@ -326,11 +330,19 @@ export function setup() {
   els.fishHawkToggle?.addEventListener("change", () => saveFishHawkPreference({ autosave: true }));
 
   els.speciesMapColorRows?.addEventListener("input", (event) => {
-    if (event.target.matches("[data-species-map-color]")) syncSpeciesMapColorPreview(event.target);
+    if (event.target.matches("[data-species-map-color]")) {
+      if (!settingsUi.speciesMapColorsDirty) settingsUi.speciesMapColorsDirty = new Set();
+      settingsUi.speciesMapColorsDirty.add(event.target.dataset.speciesMapColor);
+      syncSpeciesMapColorPreview(event.target);
+    }
   });
 
   els.speciesMapColorRows?.addEventListener("change", (event) => {
-    if (event.target.matches("[data-species-map-color]")) saveSpeciesMapColors({ autosave: true }).catch(() => {});
+    if (event.target.matches("[data-species-map-color]")) {
+      if (!settingsUi.speciesMapColorsDirty) settingsUi.speciesMapColorsDirty = new Set();
+      settingsUi.speciesMapColorsDirty.add(event.target.dataset.speciesMapColor);
+      saveSpeciesMapColors({ autosave: true }).catch(() => {});
+    }
   });
 
   els.gearFilterField?.addEventListener("change", updateGearFilter);
@@ -358,7 +370,9 @@ export function setup() {
     if (event.target.closest(".finish-trolling-spread-edit")) finishTrollingSpreadEdit(card).catch(() => {});
     if (event.target.closest(".add-trolling-spread-row")) addTrollingSpreadRowToCard(card);
     if (event.target.closest(".remove-trolling-spread-row")) {
-      event.target.closest(".trolling-spread-row")?.remove();
+      const row = event.target.closest(".trolling-spread-row");
+      settingsUi.trollingSpreadsDraft?.[Number(card?.dataset.trollingSpreadIndex)]?.spread?.splice(Number(row?.dataset.sourceIndex), 1);
+      row?.remove();
       refreshTrollingSpreadCardPreview(card);
       scheduleTrollingSpreadAutosave(card);
     }
@@ -412,6 +426,11 @@ export function setup() {
 
   els.predefinedFieldSettings?.addEventListener("input", (event) => {
     if (event.target.matches(".predefined-option-label")) {
+      const groupKey = event.target.closest(".predefined-field-group")?.dataset.predefinedKey;
+      if (groupKey) {
+        if (!settingsUi.predefinedFieldsDirty) settingsUi.predefinedFieldsDirty = new Set();
+        settingsUi.predefinedFieldsDirty.add(groupKey);
+      }
       scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }));
     }
   });

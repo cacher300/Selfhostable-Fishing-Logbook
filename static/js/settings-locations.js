@@ -56,16 +56,14 @@ export function nextFishingSpotName() {
 
 export function collectFishingSpotSettings() {
   const current = new Map(fishingSpots().map((spot) => [spot.id, spot]));
-  return [...els.fishingSpotList.querySelectorAll("[data-fishing-spot-id]")].map((card) => {
-    const existing = current.get(card.dataset.fishingSpotId);
-    const nameInput = card.querySelector(".fishing-spot-name");
-    const nameDisplay = card.querySelector("[data-fishing-spot-name]");
-    return {
-      ...existing,
-      name: nameInput?.value.trim() || nameDisplay?.dataset.fishingSpotName || existing?.name || "Spot",
-      radiusMeters: fishingSpotRadiusMeters(card.querySelector(".fishing-spot-radius")?.value || fishingSpotRadiusDisplayValue(existing?.radiusMeters || 100))
-    };
-  });
+  return (settingsUi.fishingSpotsDraft || fishingSpots().map((spot) => ({ ...spot, radiusDisplay: fishingSpotRadiusDisplayValue(spot.radiusMeters) }))).map((spot) => ({
+    ...(current.get(spot.id) || {}),
+    ...spot,
+    name: String(spot.name || "").trim() || "Spot",
+    radiusMeters: String(spot.radiusDisplay ?? "") === String(fishingSpotRadiusDisplayValue((current.get(spot.id) || spot).radiusMeters || 100))
+      ? (current.get(spot.id) || spot).radiusMeters
+      : fishingSpotRadiusMeters(spot.radiusDisplay ?? fishingSpotRadiusDisplayValue(spot.radiusMeters || 100))
+  })).map(({ radiusDisplay, ...spot }) => spot);
 }
 
 export function validateFishingSpots(spots) {
@@ -119,6 +117,7 @@ export async function saveFishingSpots(nextSpots, options = {}) {
 export function renderFishingSpotSettings() {
   if (!els.fishingSpotList) return;
   const spots = fishingSpots();
+  settingsUi.fishingSpotsDraft = spots.map((spot) => ({ ...structuredClone(spot), radiusDisplay: fishingSpotRadiusDisplayValue(spot.radiusMeters) }));
   const activeId = ensureActiveFishingSpot(spots);
   const orderedSpots = activeId
     ? [spots.find((spot) => spot.id === activeId), ...spots.filter((spot) => spot.id !== activeId)].filter(Boolean)
@@ -131,7 +130,7 @@ export function renderFishingSpotSettings() {
       <article class="private-location-card${spot.id === activeId ? " is-selected" : ""}" data-fishing-spot-id="${spot.id}" aria-current="${spot.id === activeId ? "true" : "false"}">
         <div class="private-location-card-head">
           <div class="private-location-name-row">
-            <input class="private-location-name fishing-spot-name" type="text" value="${spot.name}" aria-label="Fishing spot name" />
+            <input class="private-location-name fishing-spot-name" type="text" value="${spot.name}" data-settings-draft="fishingSpotsDraft" data-settings-bind="${settingsUi.fishingSpotsDraft.findIndex((item) => item.id === spot.id)}.name" aria-label="Fishing spot name" />
           </div>
           <button class="button secondary private-location-edit-pin" type="button" data-edit-fishing-spot-pin="${spot.id}" aria-label="Edit map pin for ${spot.name}">Edit pin</button>
           <button class="button danger${isEditing ? "" : " hidden"}" type="button" data-delete-fishing-spot="${spot.id}">Delete</button>
@@ -139,7 +138,7 @@ export function renderFishingSpotSettings() {
         <p class="fishing-spot-assignment-count">${count} assigned ${count === 1 ? "catch" : "catches"}</p>
         <label class="settings-control private-location-radius-control">
         <span>Radius <output class="private-location-radius-value fishing-spot-radius-value">${fishingSpotRadiusText(spot.radiusMeters)}</output></span>
-          <input class="private-location-radius fishing-spot-radius" type="range" min="${radiusConfig.min}" max="${radiusConfig.max}" step="${radiusConfig.step}" value="${fishingSpotRadiusDisplayValue(spot.radiusMeters)}" aria-label="Fishing spot radius in ${radiusConfig.unit}" style="${fishingSpotRadiusStyle(spot.radiusMeters)}" />
+          <input class="private-location-radius fishing-spot-radius" type="range" min="${radiusConfig.min}" max="${radiusConfig.max}" step="${radiusConfig.step}" value="${fishingSpotRadiusDisplayValue(spot.radiusMeters)}" data-settings-draft="fishingSpotsDraft" data-settings-bind="${settingsUi.fishingSpotsDraft.findIndex((item) => item.id === spot.id)}.radiusDisplay" aria-label="Fishing spot radius in ${radiusConfig.unit}" style="${fishingSpotRadiusStyle(spot.radiusMeters)}" />
         </label>
       </article>
     `;
@@ -317,6 +316,7 @@ export function ensureActivePrivatePhotoLocation(locations = privatePhotoLocatio
 export function renderPrivatePhotoLocationSettings() {
   if (!els.privatePhotoLocationList) return;
   const locations = privatePhotoLocations();
+  settingsUi.privatePhotoLocationsDraft = locations.map((location) => ({ ...structuredClone(location), radiusDisplay: privateLocationRadiusDisplayValue(location.radiusMeters) }));
   const activeLocationId = ensureActivePrivatePhotoLocation(locations);
   const orderedLocations = activeLocationId
     ? [locations.find((location) => location.id === activeLocationId), ...locations.filter((location) => location.id !== activeLocationId)].filter(Boolean)
@@ -329,7 +329,7 @@ export function renderPrivatePhotoLocationSettings() {
       <div class="private-location-card-head">
           <div class="private-location-name-row">
             ${settingsUi.privateLocationNameEditId === location.id
-              ? html`<input class="private-location-name" type="text" value="${location.name}" aria-label="Home location name" />`
+              ? html`<input class="private-location-name" type="text" value="${location.name}" data-settings-draft="privatePhotoLocationsDraft" data-settings-bind="${settingsUi.privatePhotoLocationsDraft.findIndex((item) => item.id === location.id)}.name" aria-label="Home location name" />`
               : html`<button class="private-location-name-display" type="button" data-edit-private-location-name="${location.id}" data-private-location-name="${location.name}">${location.name}</button>`}
           </div>
           <button class="button secondary private-location-edit-pin" type="button" data-edit-private-location-pin="${location.id}" aria-label="Edit map pin for ${location.name}">Edit pin</button>
@@ -337,7 +337,7 @@ export function renderPrivatePhotoLocationSettings() {
       </div>
       <label class="settings-control private-location-radius-control">
         <span>Radius <output class="private-location-radius-value">${privateLocationRadiusText(location.radiusMeters)}</output></span>
-        <input class="private-location-radius" type="range" min="${radiusConfig.min}" max="${radiusConfig.max}" step="${radiusConfig.step}" value="${privateLocationRadiusDisplayValue(location.radiusMeters)}" aria-label="Home location radius in ${radiusConfig.unit}" style="${privateLocationRadiusStyle(location.radiusMeters)}" />
+        <input class="private-location-radius" type="range" min="${radiusConfig.min}" max="${radiusConfig.max}" step="${radiusConfig.step}" value="${privateLocationRadiusDisplayValue(location.radiusMeters)}" data-settings-draft="privatePhotoLocationsDraft" data-settings-bind="${settingsUi.privatePhotoLocationsDraft.findIndex((item) => item.id === location.id)}.radiusDisplay" aria-label="Home location radius in ${radiusConfig.unit}" style="${privateLocationRadiusStyle(location.radiusMeters)}" />
       </label>
     </article>
   `;
@@ -378,16 +378,14 @@ export async function savePrivatePhotoLocations(nextLocations, options = {}) {
 
 export function collectPrivatePhotoLocationSettings() {
   const current = new Map(privatePhotoLocations().map((location) => [location.id, location]));
-  return [...els.privatePhotoLocationList.querySelectorAll("[data-private-location-id]")].map((card) => {
-    const existing = current.get(card.dataset.privateLocationId);
-    const nameInput = card.querySelector(".private-location-name");
-    const nameDisplay = card.querySelector("[data-private-location-name]");
-    return {
-      ...existing,
-      name: nameInput?.value.trim() || nameDisplay?.dataset.privateLocationName || existing?.name || "Home",
-      radiusMeters: privateLocationRadiusMeters(card.querySelector(".private-location-radius")?.value || privateLocationRadiusDisplayValue(existing?.radiusMeters || 400))
-    };
-  });
+  return (settingsUi.privatePhotoLocationsDraft || privatePhotoLocations().map((location) => ({ ...location, radiusDisplay: privateLocationRadiusDisplayValue(location.radiusMeters) }))).map((location) => ({
+    ...(current.get(location.id) || {}),
+    ...location,
+    name: String(location.name || "").trim() || "Home",
+    radiusMeters: String(location.radiusDisplay ?? "") === String(privateLocationRadiusDisplayValue((current.get(location.id) || location).radiusMeters || 400))
+      ? (current.get(location.id) || location).radiusMeters
+      : privateLocationRadiusMeters(location.radiusDisplay ?? privateLocationRadiusDisplayValue(location.radiusMeters || 400))
+  })).map(({ radiusDisplay, ...location }) => location);
 }
 
 export function ensurePrivatePhotoLocationMap() {

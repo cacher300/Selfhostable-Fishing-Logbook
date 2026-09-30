@@ -1,5 +1,5 @@
 import { html, insertHtml, joinHtml, setHtml } from "./html.js";
-import { createId, isValidSpeciesMapColor, speciesColor, unitOptions } from "./app-defaults.js";
+import { createId, speciesColor, unitOptions } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { currentTrollingSpreads, hasFishHawk, optionChoices } from "./app-normalization.js";
 import { convertStoredMeasurements, convertUnitValue, normalizeUnits, themePreference, timeFormatPreference, unitPreference, unitSymbol } from "./app-units.js";
@@ -18,6 +18,15 @@ import { renderSpreadDiagram } from "./trolling-spread.js";
 import { renderFishMap } from "./maps.js";
 import { openTripSummary } from "./trip-timeline.js";
 import { syncFishHawkVisibility, trimNumber } from "./form-utils.js";
+import {
+  preferencesDraftFromSettings,
+  preferencesFromDraft,
+  speciesMapColorsDraftFromSettings,
+  speciesMapColorsFromDraft,
+  trollingSpreadFromDraft,
+  unitsDraftFromSettings,
+  unitsFromDraft
+} from "./settings-draft.js";
 
 
 export function renderSettings() {
@@ -36,7 +45,7 @@ export function renderSettings() {
   renderLocationManager();
 }
 
-export function trollingSpreadRowMarkup(item = {}, { disabled = false, sourceIndex = "" } = {}) {
+export function trollingSpreadRowMarkup(item = {}, { disabled = false, sourceIndex = "", spreadIndex = 0 } = {}) {
   const comboId = String(item.comboId || "");
   const side = String(item.side || "");
   const presentation = String(item.presentation || "");
@@ -53,22 +62,22 @@ export function trollingSpreadRowMarkup(item = {}, { disabled = false, sourceInd
     <div class="trolling-spread-row"${sourceIndex === "" ? "" : html` data-source-index="${sourceIndex}"`}>
       <label>
         <span>Rod / reel combo</span>
-        <select class="trolling-spread-combo"${disabled ? " disabled" : ""}>
+        <select class="trolling-spread-combo" data-settings-draft="trollingSpreadsDraft" data-settings-bind="${spreadIndex}.spread.${sourceIndex === "" ? 0 : sourceIndex}.comboId"${disabled ? " disabled" : ""}>
           <option value="">Select rod / reel combo</option>
           ${comboOptions}
         </select>
       </label>
       <label>
         <span>Side</span>
-        <select class="trolling-spread-side"${disabled ? " disabled" : ""}>${choiceOptions("setupLineSides", side, "Select side")}</select>
+        <select class="trolling-spread-side" data-settings-draft="trollingSpreadsDraft" data-settings-bind="${spreadIndex}.spread.${sourceIndex === "" ? 0 : sourceIndex}.side"${disabled ? " disabled" : ""}>${choiceOptions("setupLineSides", side, "Select side")}</select>
       </label>
       <label>
         <span>Method</span>
-        <select class="trolling-spread-presentation"${disabled ? " disabled" : ""}>${choiceOptions("trollingPresentations", presentation, "Select method")}</select>
+        <select class="trolling-spread-presentation" data-settings-draft="trollingSpreadsDraft" data-settings-bind="${spreadIndex}.spread.${sourceIndex === "" ? 0 : sourceIndex}.presentation"${disabled ? " disabled" : ""}>${choiceOptions("trollingPresentations", presentation, "Select method")}</select>
       </label>
       <label class="trolling-spread-dipsey-color-field${trollingSpreadUsesDipseyDiverColor(presentation) ? "" : " hidden"}">
         <span>Dipsey diver color</span>
-        <input class="trolling-spread-dipsey-color" type="text" value="${dipseyDiverColor}" placeholder="Purple / green"${disabled ? " disabled" : ""} />
+        <input class="trolling-spread-dipsey-color" type="text" value="${dipseyDiverColor}" data-settings-draft="trollingSpreadsDraft" data-settings-bind="${spreadIndex}.spread.${sourceIndex === "" ? 0 : sourceIndex}.dipseyDiverColor" placeholder="Purple / green"${disabled ? " disabled" : ""} />
       </label>
       ${disabled ? "" : html`<button class="button danger remove-trolling-spread-row" type="button">Remove</button>`}
     </div>
@@ -111,17 +120,17 @@ export function renderTrollingSpreadPreview(card, spread) {
   setHtml(canvas, renderSpreadDiagram(trollingSpreadRodsForPreview(spread), { labelWithCombo: true }));
 }
 
-export function renderTrollingSpreadCard(item, { draft = false } = {}) {
+export function renderTrollingSpreadCard(item, { draft = false, index = 0 } = {}) {
   const name = String(item?.name || "");
   const spread = Array.isArray(item?.spread) ? item.spread : [];
   const editing = draft || settingsUi.activeTrollingSpreadEditorId === item.id;
   const expanded = editing;
   return html`
-    <article class="trolling-spread-card${draft ? " is-draft" : ""}" data-trolling-spread-id="${item.id}" data-trolling-spread-draft="${draft ? "true" : "false"}" data-trolling-spread-editing="${editing ? "true" : "false"}" data-trolling-spread-toggle aria-expanded="${expanded ? "true" : "false"}" onclick="toggleTrollingSpreadCard(this, event)">
+    <article class="trolling-spread-card${draft ? " is-draft" : ""}" data-trolling-spread-id="${item.id}" data-trolling-spread-index="${index}" data-trolling-spread-draft="${draft ? "true" : "false"}" data-trolling-spread-editing="${editing ? "true" : "false"}" data-trolling-spread-toggle aria-expanded="${expanded ? "true" : "false"}" onclick="toggleTrollingSpreadCard(this, event)">
       <div class="trolling-spread-card-header">
         <label class="settings-control trolling-spread-name-control">
           <span>Spread</span>
-          <input class="trolling-spread-name" type="text" maxlength="60" value="${name}" placeholder="1 Man Spread"${editing ? "" : " readonly"} />
+          <input class="trolling-spread-name" type="text" maxlength="60" value="${name}" data-settings-draft="trollingSpreadsDraft" data-settings-bind="${index}.name" placeholder="1 Man Spread"${editing ? "" : " readonly"} />
         </label>
         <div class="trolling-spread-card-actions">
           ${editing && !draft ? html`<button class="button secondary finish-trolling-spread-edit" type="button">Done</button>` : !editing ? html`<button class="button secondary edit-trolling-spread" type="button">Edit</button>` : ""}
@@ -138,7 +147,7 @@ export function renderTrollingSpreadCard(item, { draft = false } = {}) {
             ${editing ? html`<button class="button secondary add-trolling-spread-row" type="button">Add Rod</button>` : ""}
           </div>
           <div class="trolling-spread-list">
-            ${spread.length ? joinHtml(spread.map((row, index) => trollingSpreadRowMarkup(row, { disabled: !editing, sourceIndex: index }))) : html`<p class="trolling-spread-empty-rows">Add at least one rod to save this spread.</p>`}
+            ${spread.length ? joinHtml(spread.map((row, rowIndex) => trollingSpreadRowMarkup(row, { disabled: !editing, sourceIndex: rowIndex, spreadIndex: index }))) : html`<p class="trolling-spread-empty-rows">Add at least one rod to save this spread.</p>`}
           </div>
         </div>
         <div class="trolling-spread-card-preview">
@@ -154,6 +163,7 @@ export function renderTrollingSpreadSettings() {
   if (!els.defaultTrollingSpreadRows) return;
   const spreads = currentTrollingSpreads();
   const visibleSpreads = settingsUi.trollingSpreadDraft ? [...spreads, settingsUi.trollingSpreadDraft] : spreads;
+  settingsUi.trollingSpreadsDraft = structuredClone(visibleSpreads);
   const defaultId = String(state.settings?.defaultTrollingSpreadId || "");
   if (els.defaultTrollingSpreadId) {
     setHtml(els.defaultTrollingSpreadId, joinHtml([
@@ -161,10 +171,12 @@ export function renderTrollingSpreadSettings() {
       ...spreads.map((item) => html`<option value="${item.id}">${item.name}</option>`)
     ]));
     els.defaultTrollingSpreadId.value = spreads.some((item) => item.id === defaultId) ? defaultId : "";
+    els.defaultTrollingSpreadId.setAttribute("data-settings-draft", "preferencesDraft");
+    els.defaultTrollingSpreadId.setAttribute("data-settings-bind", "defaultTrollingSpreadId");
   }
   setHtml(els.defaultTrollingSpreadRows, html`
     ${visibleSpreads.length
-      ? joinHtml(visibleSpreads.map((item) => renderTrollingSpreadCard(item, { draft: item === settingsUi.trollingSpreadDraft })))
+      ? joinHtml(visibleSpreads.map((item, index) => renderTrollingSpreadCard(item, { draft: item === settingsUi.trollingSpreadDraft, index })))
       : html`<div class="trolling-spread-empty-state">No saved trolling spreads yet. Add one to make it available from the trip editor.</div>`}
   `);
   els.defaultTrollingSpreadRows.querySelectorAll(".trolling-spread-row").forEach(syncTrollingSpreadRowFields);
@@ -188,8 +200,13 @@ export function addTrollingSpread() {
 export function addTrollingSpreadRowToCard(card) {
   const list = card?.querySelector(".trolling-spread-list");
   if (!list || card.dataset.trollingSpreadEditing !== "true") return;
+  const spread = settingsUi.trollingSpreadsDraft?.[Number(card.dataset.trollingSpreadIndex)];
+  if (spread) {
+    if (!Array.isArray(spread.spread)) spread.spread = [];
+    spread.spread.push({ comboId: "", side: "", presentation: "", dipseyDiverColor: "" });
+  }
   card.querySelector(".trolling-spread-empty-rows")?.remove();
-  insertHtml(list, "beforeend", trollingSpreadRowMarkup());
+  insertHtml(list, "beforeend", trollingSpreadRowMarkup({}, { sourceIndex: spread?.spread?.length ? spread.spread.length - 1 : "", spreadIndex: Number(card.dataset.trollingSpreadIndex) }));
   renderTrollingSpreadPreview(card, collectTrollingSpreadCard(card).spread);
   scheduleTrollingSpreadAutosave(card);
   list.querySelector(".trolling-spread-row:last-child select")?.focus();
@@ -205,20 +222,10 @@ export function editTrollingSpread(spreadId) {
 export function collectTrollingSpreadCard(card) {
   const id = card?.dataset.trollingSpreadId || createId();
   const existing = currentTrollingSpreads().find((item) => item.id === id);
-  return {
-    ...existing,
-    id,
-    name: card?.querySelector(".trolling-spread-name")?.value.trim() || "",
-    spread: [...card?.querySelectorAll(".trolling-spread-row") || []].map((row) => ({
-      ...(row.dataset.sourceIndex !== undefined ? existing?.spread?.[Number(row.dataset.sourceIndex)] : {}),
-      comboId: row.querySelector(".trolling-spread-combo")?.value || "",
-      side: row.querySelector(".trolling-spread-side")?.value || "",
-      presentation: row.querySelector(".trolling-spread-presentation")?.value || "",
-      dipseyDiverColor: trollingSpreadUsesDipseyDiverColor(row.querySelector(".trolling-spread-presentation")?.value)
-        ? row.querySelector(".trolling-spread-dipsey-color")?.value.trim() || ""
-        : ""
-    }))
-  };
+  const draft = settingsUi.trollingSpreadsDraft?.[Number(card?.dataset.trollingSpreadIndex)] || { id, spread: [] };
+  const next = trollingSpreadFromDraft({ ...draft, id }, existing || {});
+  if (existing && JSON.stringify(draft.spread || []) === JSON.stringify(existing.spread || [])) next.spread = existing.spread || [];
+  return next;
 }
 
 export function setTrollingSpreadSettingsMessage(message = "") {
@@ -331,7 +338,7 @@ export async function deleteTrollingSpread(spreadId) {
 }
 
 export async function saveDefaultTrollingSpreadId(options = {}) {
-  const nextId = els.defaultTrollingSpreadId?.value || "";
+  const nextId = (settingsUi.preferencesDraft || preferencesDraftFromSettings(state.settings || {})).defaultTrollingSpreadId || "";
   const validId = !nextId || currentTrollingSpreads().some((item) => item.id === nextId);
   if (!validId) return;
   try {
@@ -357,16 +364,33 @@ export function cancelTrollingSpreadDraft() {
 }
 
 export function renderPreferenceSettings() {
+  settingsUi.preferencesDraft = preferencesDraftFromSettings(state.settings || {});
   applyThemePreference();
   document.querySelectorAll("[data-theme-option]").forEach((input) => {
     input.checked = input.value === themePreference();
+    input.setAttribute("data-settings-draft", "preferencesDraft");
+    input.setAttribute("data-settings-bind", "theme");
   });
-  if (els.timeFormatSelect) els.timeFormatSelect.value = timeFormatPreference();
-  if (els.defaultHomeLakeSelect) els.defaultHomeLakeSelect.value = state.settings?.defaultHomeLake || "";
-  if (els.fishHawkToggle) els.fishHawkToggle.checked = hasFishHawk();
+  if (els.timeFormatSelect) {
+    els.timeFormatSelect.value = timeFormatPreference();
+    els.timeFormatSelect.setAttribute("data-settings-draft", "preferencesDraft");
+    els.timeFormatSelect.setAttribute("data-settings-bind", "timeFormat");
+  }
+  if (els.defaultHomeLakeSelect) {
+    els.defaultHomeLakeSelect.value = state.settings?.defaultHomeLake || "";
+    els.defaultHomeLakeSelect.setAttribute("data-settings-draft", "preferencesDraft");
+    els.defaultHomeLakeSelect.setAttribute("data-settings-bind", "defaultHomeLake");
+  }
+  if (els.fishHawkToggle) {
+    els.fishHawkToggle.checked = hasFishHawk();
+    els.fishHawkToggle.setAttribute("data-settings-draft", "preferencesDraft");
+    els.fishHawkToggle.setAttribute("data-settings-bind", "hasFishHawk");
+  }
   renderDefaultPeopleSettings();
   document.querySelectorAll("[data-time-format-option]").forEach((input) => {
     input.checked = input.value === timeFormatPreference();
+    input.setAttribute("data-settings-draft", "preferencesDraft");
+    input.setAttribute("data-settings-bind", "timeFormat");
   });
 }
 
@@ -392,6 +416,8 @@ export function speciesMapSettingNames() {
 export function renderSpeciesMapColorSettings() {
   if (!els.speciesMapColorRows) return;
   const species = speciesMapSettingNames();
+  settingsUi.speciesMapColorsDraft = speciesMapColorsDraftFromSettings(state.settings || {});
+  settingsUi.speciesMapColorsDirty = new Set();
   setHtml(els.speciesMapColorRows, species.length
     ? joinHtml(species.map((name) => {
       const color = speciesColor(name);
@@ -399,7 +425,7 @@ export function renderSpeciesMapColorSettings() {
         <div class="map-pin-settings-row">
           <label class="map-pin-settings-color-picker">
             <span class="map-pin-settings-swatch" data-species-map-swatch style="--species-map-color:${color}" aria-hidden="true"></span>
-            <input type="color" data-species-map-color="${name}" value="${color}" aria-label="Map pin color for ${name}" />
+            <input type="color" data-species-map-color="${name}" data-settings-draft="speciesMapColorsDraft" data-settings-bind="${name}" value="${color}" aria-label="Map pin color for ${name}" />
           </label>
           <strong class="map-pin-settings-name">${name}</strong>
         </div>
@@ -416,17 +442,20 @@ export function syncSpeciesMapColorPreview(input) {
 }
 
 export function collectSpeciesMapColors() {
-  const existing = state.settings?.speciesMapColors && typeof state.settings.speciesMapColors === "object"
-    && !Array.isArray(state.settings.speciesMapColors)
-    ? state.settings.speciesMapColors
-    : {};
-  const next = { ...existing };
-  els.speciesMapColorRows?.querySelectorAll("[data-species-map-color]").forEach((input) => {
-    const species = String(input.dataset.speciesMapColor || "").trim();
-    const color = String(input.value || "").toLowerCase();
-    if (species && isValidSpeciesMapColor(color)) next[species] = color;
-  });
-  return next;
+  if (settingsUi.speciesMapColorsDirty?.size) {
+    const next = { ...(state.settings?.speciesMapColors || {}) };
+    settingsUi.speciesMapColorsDirty.forEach((species) => {
+      Object.assign(next, speciesMapColorsFromDraft(
+        { [species]: settingsUi.speciesMapColorsDraft?.[species] },
+        { [species]: next[species] }
+      ));
+    });
+    return next;
+  }
+  return speciesMapColorsFromDraft(
+    settingsUi.speciesMapColorsDraft || speciesMapColorsDraftFromSettings(state.settings || {}),
+    state.settings?.speciesMapColors || {}
+  );
 }
 
 export async function saveSpeciesMapColors(options = {}) {
@@ -449,7 +478,7 @@ export async function saveSpeciesMapColors(options = {}) {
 }
 
 export async function saveFishHawkPreference(options = {}) {
-  const nextSetting = Boolean(els.fishHawkToggle?.checked);
+  const nextSetting = (settingsUi.preferencesDraft || preferencesDraftFromSettings(state.settings || {})).hasFishHawk !== false;
   try {
     await runSettingsSave(
       async () => {
@@ -476,7 +505,7 @@ export function renderDefaultPeopleSettings() {
   setHtml(els.defaultPeopleOptions, people.length
     ? joinHtml(people.map((person) => html`
         <label>
-          <input type="checkbox" value="${person.id}" ${selectedIds.has(person.id) ? "checked" : ""} />
+          <input type="checkbox" value="${person.id}" data-settings-draft="preferencesDraft" data-settings-list="defaultPeople" ${selectedIds.has(person.id) ? "checked" : ""} />
           <span>${person.name}</span>
         </label>
       `), "")
@@ -485,18 +514,16 @@ export function renderDefaultPeopleSettings() {
 
 export async function saveDefaultPeople(options = {}) {
   const availableIds = new Set((state.people || []).map((person) => person.id));
-  const defaultPeople = [...els.defaultPeopleOptions?.querySelectorAll('input[type="checkbox"]:checked') || []]
-    .map((input) => input.value)
-    .filter((id) => availableIds.has(id));
+  const preferences = preferencesFromDraft(settingsUi.preferencesDraft || preferencesDraftFromSettings(state.settings || {}), state.settings || {}, availableIds);
   await runSettingsSave(
-    () => updateSettings((settings) => { settings.defaultPeople = defaultPeople; }),
+    () => updateSettings((settings) => { settings.defaultPeople = preferences.defaultPeople; }),
     "The default people could not be saved.",
     options
   );
 }
 
 export async function saveDefaultHomeLake(options = {}) {
-  const defaultHomeLake = els.defaultHomeLakeSelect?.value || "";
+  const defaultHomeLake = String((settingsUi.preferencesDraft || preferencesDraftFromSettings(state.settings || {})).defaultHomeLake || "");
   await runSettingsSave(
     () => updateSettings((settings) => { settings.defaultHomeLake = defaultHomeLake; }),
     "The default home lake could not be saved.",
@@ -536,8 +563,7 @@ export function applyThemePreference(theme = themePreference()) {
 }
 
 export async function saveThemePreference(options = {}) {
-  const selectedTheme = document.querySelector("[data-theme-option]:checked")?.value;
-  const theme = selectedTheme === "dark" ? "dark" : "light";
+  const theme = (settingsUi.preferencesDraft || preferencesDraftFromSettings(state.settings || {})).theme === "dark" ? "dark" : "light";
   applyThemePreference(theme);
   try {
     await runSettingsSave(
@@ -553,7 +579,8 @@ export async function saveThemePreference(options = {}) {
 
 export function renderUnitSettings() {
   if (!els.unitSettingsFields) return;
-  const units = normalizeUnits(state.settings?.units);
+  settingsUi.unitsDraft = unitsDraftFromSettings(state.settings || {});
+  const units = settingsUi.unitsDraft;
   const rows = [
     ["depth", "Depth"],
     ["distance", "Distance"],
@@ -570,7 +597,7 @@ export function renderUnitSettings() {
   setHtml(els.unitSettingsFields, joinHtml(rows.map(([key, label]) => html`
     <label class="settings-control">
       <span>${label}</span>
-      <select data-unit-setting="${key}">
+      <select data-unit-setting="${key}" data-settings-draft="unitsDraft" data-settings-bind="${key}">
         ${joinHtml((unitOptions[key] || []).map((option) => html`
           <option value="${option.value}"${units[key] === option.value ? " selected" : ""}>${option.label}</option>
         `), "")}
@@ -583,12 +610,18 @@ export function renderFowCalibrationSettings() {
   if (!els.fowCalibrationFields) return;
   const calibrationUnit = unitPreference("depth") || "ft";
   const lakeCalibrations = state.settings?.bathymetryLakeCalibrationsFeet || {};
+  settingsUi.bathymetryLakeCalibrationDisplayDraft = {};
   setHtml(els.fowCalibrationFields, joinHtml(["Erie", "Ontario", "St. Clair", "Huron", "Michigan", "Superior"].map((lake) => html`
     <label class="settings-control">
       <span>${lake} FOW adjustment</span>
-      <input data-bathymetry-lake-calibration="${lake}" data-bathymetry-calibration-end="offshoreOffsetFeet" type="number" step="0.1" value="${bathymetryOffsetDisplayValue(lakeCalibrations[lake]?.offshoreOffsetFeet ?? 0, calibrationUnit)}" />
+      <input data-bathymetry-lake-calibration="${lake}" data-bathymetry-calibration-end="offshoreOffsetFeet" data-settings-draft="bathymetryLakeCalibrationDisplayDraft" data-settings-bind="${lake}.offshoreOffsetFeet" type="number" step="0.1" value="${bathymetryOffsetDisplayValue(lakeCalibrations[lake]?.offshoreOffsetFeet ?? 0, calibrationUnit)}" />
     </label>
   `), ""));
+  Object.entries(lakeCalibrations).forEach(([lake, calibration]) => {
+    settingsUi.bathymetryLakeCalibrationDisplayDraft[lake] = {
+      offshoreOffsetFeet: bathymetryOffsetDisplayValue(calibration?.offshoreOffsetFeet ?? 0, calibrationUnit)
+    };
+  });
 }
 
 export function bathymetryOffsetDisplayValue(offsetFeet, depthUnit = unitPreference("depth")) {
@@ -608,23 +641,36 @@ export function bathymetryOffsetFeetFromDisplay(value, depthUnit = unitPreferenc
 
 export async function saveUnitSettings(options = {}) {
   const previousUnits = normalizeUnits(state.settings?.units);
-  const units = { ...previousUnits };
-  document.querySelectorAll("[data-unit-setting]").forEach((select) => {
-    units[select.dataset.unitSetting] = select.value;
-  });
+  let unitsDraft = settingsUi.unitsDraft;
+  if (!unitsDraft) {
+    unitsDraft = { ...previousUnits };
+    document.querySelectorAll("[data-unit-setting]").forEach((select) => {
+      unitsDraft[select.dataset.unitSetting] = select.value;
+    });
+  }
+  const units = unitsFromDraft(unitsDraft, previousUnits);
   const originalCalibrations = state.settings?.bathymetryLakeCalibrationsFeet || {};
   const lakeCalibrations = { ...originalCalibrations };
-  document.querySelectorAll("[data-bathymetry-lake-calibration]").forEach((input) => {
-    const lake = input.dataset.bathymetryLakeCalibration;
-    const field = input.dataset.bathymetryCalibrationEnd;
+  let calibrationDisplayDraft = settingsUi.bathymetryLakeCalibrationDisplayDraft;
+  if (!calibrationDisplayDraft) {
+    calibrationDisplayDraft = {};
+    document.querySelectorAll("[data-bathymetry-lake-calibration]").forEach((input) => {
+      const lake = input.dataset.bathymetryLakeCalibration;
+      const field = input.dataset.bathymetryCalibrationEnd;
+      calibrationDisplayDraft[lake] = { ...(calibrationDisplayDraft[lake] || {}), [field]: input.value };
+    });
+  }
+  Object.entries(calibrationDisplayDraft || {}).forEach(([lake, fields]) => {
+    Object.entries(fields || {}).forEach(([field, value]) => {
     // The field was rendered in the unit that was active before this save.
     const existing = originalCalibrations[lake] || {};
     const currentDisplayValue = bathymetryOffsetDisplayValue(existing[field] ?? 0, previousUnits.depth);
-    if (String(input.value).trim() === currentDisplayValue) return;
+    if (String(value).trim() === currentDisplayValue) return;
     lakeCalibrations[lake] = {
       ...existing,
-      [field]: bathymetryOffsetFeetFromDisplay(input.value, previousUnits.depth)
+      [field]: bathymetryOffsetFeetFromDisplay(value, previousUnits.depth)
     };
+    });
   });
   const nextUnits = normalizeUnits(units);
   try {
@@ -699,8 +745,7 @@ export function syncUnitLabels(root = document) {
 }
 
 export async function saveTimeFormatPreference(options = {}) {
-  const checked = document.querySelector("[data-time-format-option]:checked");
-  const nextTimeFormat = checked?.value || els.timeFormatSelect?.value || "24";
+  const nextTimeFormat = (settingsUi.preferencesDraft || preferencesDraftFromSettings(state.settings || {})).timeFormat || "24";
   if (els.timeFormatSelect) els.timeFormatSelect.value = nextTimeFormat === "12" ? "12" : "24";
   const timeFormat = nextTimeFormat === "12" ? "12" : "24";
   try {
