@@ -219,7 +219,9 @@ When adding or renaming a field, update all of the following together:
 
 1. Template markup and unit labels.
 2. DOM population and method-specific visibility.
-3. Form hydration and collection.
+3. Draft binding (`data-bind` attributes, `draft-binding.js`) and the draft
+   normalizers (`trip-draft.js`, `gear-draft.js`, `settings-draft.js`), including
+   their round-trip tests.
 4. Browser/backend v2 validation and canonical defaults where applicable.
 5. Summary, map, analytics, import/export, and reference cleanup behavior.
 6. Relevant documentation and tests.

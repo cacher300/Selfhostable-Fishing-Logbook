@@ -70,7 +70,7 @@ The UI and scripts are tightly coupled by selectors. When adding or renaming a f
 
 1. Markup/template and unit labels.
 2. DOM population and method-specific visibility.
-3. Form hydration and collection.
+3. Draft binding (`data-bind`, `draft-binding.js`) and the draft normalizers (`trip-draft.js`, `gear-draft.js`, `settings-draft.js`) with their round-trip tests; forms never read controls on save.
 4. The shared schema (`schema/logbook.schema.json`), semantic rules in `backend/logbook_store.py` and the generator, canonical defaults in `schema/default-logbook.json`, then `npm run schema:generate`.
 5. Summary, map, analytics, import/export, and reference cleanup behavior.
 6. Data/API/feature documentation.
