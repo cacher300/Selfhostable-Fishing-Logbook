@@ -187,4 +187,64 @@ test.describe("gear and settings characterization", () => {
     expect(reel.lineHistory.find((line) => line.id === "line-old")).toMatchObject({ weight: "20", notes: "older spool" });
     expect(reel.lineHistory.find((line) => line.id === "line-active")).toMatchObject({ weight: "40", notes: "fresh braid" });
   });
+
+  test("gear dialogs save from drafts and preserve untouched gear data", async ({ page }) => {
+    const seed = {
+      lures: [
+        {
+          id: "lure-authority",
+          name: "Original Spoon",
+          type: "Spoon",
+          color: "Green",
+          spoonSize: "Mag",
+          media: [{ id: "photo-1", category: "lures", filename: "one.jpg", caption: "front" }],
+          additive: { mobile: true }
+        },
+        { id: "lure-other", name: "Other Spoon", type: "Spoon", color: "Blue", mobileOnly: "keep" }
+      ],
+      flashers: [{ id: "flasher-other", name: "Other Paddle", type: "Paddle", additive: true }],
+      reels: [{
+        id: "reel-other",
+        shortName: "Other Reel",
+        quantityAvailable: "2",
+        lineHistory: [
+          { id: "old-line", spooledDate: "2024-01-01", type: "Mono", weight: "20" },
+          { id: "new-line", spooledDate: "2025-01-01", type: "Braid", weight: "30" }
+        ]
+      }],
+      rods: [{ id: "rod-other", shortName: "Other Rod", quantityAvailable: "3" }],
+      rodReelCombos: [{ id: "combo-other", shortName: "Other Combo", rodId: "rod-other", reelId: "reel-other" }]
+    };
+    await resetEmpty(page, seed);
+    await page.goto("/gear", { waitUntil: "domcontentloaded" });
+
+    await page.locator('[data-edit-lure="lure-authority"]').click();
+    await page.evaluate(() => {
+      document.querySelector("#lureName").value = "Silent Spoon";
+    });
+    await page.getByRole("button", { name: "Save Lure", exact: true }).click();
+    await expect(page.locator("#lureDialog")).toBeHidden();
+    expect((await readLogbook(page)).lures.find((item) => item.id === "lure-authority").name).toBe("Original Spoon");
+
+    await page.locator('[data-edit-lure="lure-authority"]').click();
+    await page.locator("#lureName").fill("Typed Spoon");
+    await page.getByRole("button", { name: "Save Lure", exact: true }).click();
+    await expect(page.locator("#lureDialog")).toBeHidden();
+    expect((await readLogbook(page)).lures.find((item) => item.id === "lure-authority").name).toBe("Typed Spoon");
+
+    const before = await readLogbook(page);
+    const beforeLure = before.lures.find((item) => item.id === "lure-authority");
+    await page.locator('[data-edit-lure="lure-authority"]').click();
+    await page.locator("#lureColor").fill("Green Glow");
+    await page.getByRole("button", { name: "Save Lure", exact: true }).click();
+    await expect(page.locator("#lureDialog")).toBeHidden();
+
+    const after = await readLogbook(page);
+    expect(after.lures.find((item) => item.id === "lure-authority")).toEqual({ ...beforeLure, color: "Green Glow" });
+    expect(after.lures.find((item) => item.id === "lure-other")).toEqual(before.lures.find((item) => item.id === "lure-other"));
+    expect(after.flashers).toEqual(before.flashers);
+    expect(after.reels).toEqual(before.reels);
+    expect(after.rods).toEqual(before.rods);
+    expect(after.rodReelCombos).toEqual(before.rodReelCombos);
+  });
 });

@@ -3,7 +3,7 @@ import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
 installBrowserEnv();
 
-const { lineHistoryFromDraft, lureFromDraft, reelFromDraft, rodFromDraft, syncReelGroupQuantity } = await import("../static/js/gear-draft.js");
+const { comboFromDraft, flasherFromDraft, lineHistoryFromDraft, lureFromDraft, reelFromDraft, rodFromDraft, syncReelGroupQuantity } = await import("../static/js/gear-draft.js");
 
 const existingLines = [
   { id: "old", spooledDate: "2023-01-01", type: "Mono", brand: "A", notes: "keep" },
@@ -49,3 +49,67 @@ assert.equal(flyRod.flyWeight, "8");
 const castingRod = rodFromDraft({ type: "Casting", flyWeight: "8", pieces: "4" });
 assert.equal(castingRod.flyWeight, "");
 assert.equal(castingRod.pieces, "");
+
+const media = [
+  { id: "media-1", category: "lures", filename: "one.jpg", caption: "front" },
+  { id: "media-2", category: "lures", filename: "two.jpg", mediaType: "video", extraMediaField: "keep" }
+];
+const roundTrips = [
+  [lureFromDraft, {
+    id: "lure-source",
+    name: "Source Spoon",
+    type: "Spoon",
+    color: "Green",
+    spoonSize: "Mag",
+    media,
+    heroMediaId: "media-1",
+    additive: { mobile: true }
+  }],
+  [flasherFromDraft, {
+    id: "flasher-source",
+    name: "Source Paddle",
+    type: "Paddle",
+    brand: "Dreamweaver",
+    media,
+    additive: ["native"]
+  }],
+  [reelFromDraft, {
+    id: "reel-source",
+    shortName: "Wire Diver",
+    style: "Linecounter",
+    quantityAvailable: "2",
+    modelGroupId: "group-source",
+    media,
+    lineHistory: [
+      { id: "old-line", spooledDate: "2023-05-01", type: "Mono", weight: "20", additive: "old" },
+      { id: "active-line", spooledDate: "2025-05-01", type: "Braid", weight: "30", monoBacking: true }
+    ],
+    mobileOnly: { lineTracker: true }
+  }],
+  [rodFromDraft, {
+    id: "rod-source",
+    shortName: "Rigger",
+    type: "Downrigging",
+    quantityAvailable: "3",
+    media,
+    additive: "rod"
+  }],
+  [comboFromDraft, {
+    id: "combo-source",
+    shortName: "Port Rigger",
+    rodId: "rod-source",
+    reelId: "reel-source",
+    additive: { combo: true }
+  }]
+];
+
+for (const [normalize, source] of roundTrips) {
+  const draft = structuredClone(source);
+  assert.deepEqual(normalize(draft, { existing: source, editingId: source.id }), source);
+}
+
+const sparseSource = { id: "lure-sparse", name: "Sparse Crank", type: "Crankbait" };
+const sparseDraft = { ...structuredClone(sparseSource), color: "  " };
+const sparseSaved = lureFromDraft(sparseDraft, { existing: sparseSource, editingId: sparseSource.id });
+assert.equal(Object.hasOwn(sparseSaved, "color"), false);
+assert.equal(Object.hasOwn(sparseSaved, "media"), false);

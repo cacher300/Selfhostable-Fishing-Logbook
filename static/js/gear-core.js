@@ -235,13 +235,15 @@ export function renderExistingGearPhotos(type, item = null, localFiles = []) {
 
 export function previewSelectedGearUploads(type, input) {
   const items = { lure: state.lures, flasher: state.flashers, reel: state.reels, rod: state.rods }[type] || [];
-  const id = {
+  const context = ui.gearDraftContext || {};
+  const id = context.editingId || context.duplicateSourceId || {
     lure: getValue("editingLureId"),
     flasher: getValue("editingFlasherId"),
     reel: getValue("editingReelId") || els.reelDialog.dataset.duplicateFromId,
     rod: getValue("editingRodId") || els.rodDialog.dataset.duplicateFromId
   }[type];
-  renderExistingGearPhotos(type, items.find((item) => item.id === id) || null, input?.files || []);
+  ui.gearDraftUploads = { ...(ui.gearDraftUploads || {}), [type]: [...(input?.files || [])] };
+  renderExistingGearPhotos(type, ui.gearDraft || items.find((item) => item.id === id) || null, ui.gearDraftUploads[type]);
 }
 
 export function removeExistingGearPhoto(type, key) {
@@ -250,6 +252,13 @@ export function removeExistingGearPhoto(type, key) {
   const keys = removedGearPhotoKeys(type);
   keys.add(key);
   dialog.dataset.removedPhotoKeys = JSON.stringify([...keys]);
+  if (ui.gearDraft) {
+    const media = gearPhotos(ui.gearDraft).filter((photo, index) => gearPhotoKey(photo, index) !== key);
+    ui.gearDraft.media = media;
+    if (ui.gearDraft.heroMediaId && !media.some((photo) => photo.id === ui.gearDraft.heroMediaId && !isVideoMedia(photo))) {
+      ui.gearDraft.heroMediaId = "";
+    }
+  }
   const input = document.querySelector({ lure: "#lureImage", flasher: "#flasherImage", reel: "#reelImage", rod: "#rodImage" }[type]);
   previewSelectedGearUploads(type, input);
 }

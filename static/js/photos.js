@@ -936,21 +936,25 @@ export async function claimQueuedPhoto(filename) {
     }
     if (target.type === "lure") {
       ui.pendingLureImage = photoItem;
+      if (ui.gearDraft) ui.gearDraft.media = [...(ui.gearDraft.media || []), canonicalMediaRef(photoItem)].filter(Boolean);
       document.querySelector("#lureImage").value = "";
       renderQueuedGearImage("lure");
     }
     if (target.type === "flasher") {
       ui.pendingFlasherImage = photoItem;
+      if (ui.gearDraft) ui.gearDraft.media = [...(ui.gearDraft.media || []), canonicalMediaRef(photoItem)].filter(Boolean);
       document.querySelector("#flasherImage").value = "";
       renderQueuedGearImage("flasher");
     }
     if (target.type === "reel") {
       ui.pendingReelImage = photoItem;
+      if (ui.gearDraft) ui.gearDraft.media = [...(ui.gearDraft.media || []), canonicalMediaRef(photoItem)].filter(Boolean);
       document.querySelector("#reelImage").value = "";
       renderQueuedGearImage("reel");
     }
     if (target.type === "rod") {
       ui.pendingRodImage = photoItem;
+      if (ui.gearDraft) ui.gearDraft.media = [...(ui.gearDraft.media || []), canonicalMediaRef(photoItem)].filter(Boolean);
       document.querySelector("#rodImage").value = "";
       renderQueuedGearImage("rod");
     }

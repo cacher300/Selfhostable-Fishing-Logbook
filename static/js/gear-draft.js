@@ -1,8 +1,80 @@
 ﻿import { createId } from "./app-defaults.js";
-import { generatedLureName, increasedQuantity, mergeLineHistory } from "./gear-core.js";
+import { activeLineEntry, generatedLureName, increasedQuantity, mergeLineHistory } from "./gear-core.js";
 
 const text = (value) => String(value ?? "").trim();
 const lower = (value) => text(value).toLowerCase();
+const gearEmptyDefaults = new Map([
+  ["arbor", ""],
+  ["bladeType", ""],
+  ["braidCapacity", ""],
+  ["brand", ""],
+  ["color", ""],
+  ["dateBought", ""],
+  ["divingDepth", ""],
+  ["flyCategory", ""],
+  ["flyHookSize", ""],
+  ["flyLineRange", ""],
+  ["flyPattern", ""],
+  ["flyWeight", ""],
+  ["gearRatio", ""],
+  ["glow", false],
+  ["heroMediaId", ""],
+  ["length", ""],
+  ["lineHistory", []],
+  ["lureRating", ""],
+  ["maxDrag", ""],
+  ["meatRigType", ""],
+  ["media", []],
+  ["model", ""],
+  ["modelGroupId", ""],
+  ["monoCapacity", ""],
+  ["name", ""],
+  ["notes", ""],
+  ["pieces", ""],
+  ["power", ""],
+  ["purchaseAmount", ""],
+  ["quantityAvailable", ""],
+  ["reelId", ""],
+  ["rodId", ""],
+  ["shortName", ""],
+  ["size", ""],
+  ["softPlasticType", ""],
+  ["spoonSize", ""],
+  ["style", ""],
+  ["type", ""],
+  ["weight", ""]
+]);
+
+function hasOwn(object, key) {
+  return Object.hasOwn(object || {}, key);
+}
+
+function sameValue(first, second) {
+  return JSON.stringify(first) === JSON.stringify(second);
+}
+
+function draftHasEmptyDefault(draft, key, emptyValue) {
+  if (!hasOwn(draft, key)) return true;
+  if (emptyValue === "") return text(draft[key]) === "";
+  return sameValue(draft[key], emptyValue);
+}
+
+function cleanSourceAware(normalized, draft = {}, source = null) {
+  if (source && sameValue(draft, source)) return structuredClone(source);
+  const next = { ...normalized };
+  if (source) {
+    Object.keys(source).forEach((key) => {
+      if (sameValue(draft?.[key], source[key])) next[key] = structuredClone(source[key]);
+    });
+  }
+  gearEmptyDefaults.forEach((value, key) => {
+    if (!hasOwn(source, key) && sameValue(next[key], value) && draftHasEmptyDefault(draft, key, value)) delete next[key];
+  });
+  Object.keys(next).forEach((key) => {
+    if (next[key] === undefined && !hasOwn(source, key) && !hasOwn(draft, key)) delete next[key];
+  });
+  return next;
+}
 
 export function isWormHarnessType(type) {
   return lower(type) === "worm harness";
@@ -47,18 +119,20 @@ export function normalizeLineEntry(line = {}) {
 }
 
 export function lineEntryIsNotEmpty(line = {}) {
-  return Boolean(line.spooledDate || line.type || line.brand || line.name || line.weight || line.diameterIn || line.diameterMm || line.color || line.monoBacking || line.notes);
+  return Boolean(line.spooledDate || line.type || line.brand || line.name || line.weight || line.flyWeight || line.flyTaper || line.flyDensity || line.diameterIn || line.diameterMm || line.color || line.monoBacking || line.notes);
 }
 
 export function lineHistoryFromDraft(lines = [], existingEntries = []) {
-  const latest = (Array.isArray(lines) ? lines : []).map(normalizeLineEntry).filter(lineEntryIsNotEmpty).slice(0, 1);
-  return mergeLineHistory(existingEntries, latest);
+  const normalized = (Array.isArray(lines) ? lines : []).map(normalizeLineEntry).filter(lineEntryIsNotEmpty);
+  const latest = activeLineEntry({ lineHistory: normalized });
+  return mergeLineHistory(existingEntries, latest ? [latest] : []);
 }
 
 export function lureFromDraft(draft = {}, context = {}) {
+  const existing = context.existing || null;
   const type = text(draft.type);
   const lure = {
-    ...(context.existing || {}),
+    ...(existing || {}),
     ...draft,
     id: text(draft.id) || text(context.editingId) || createId(),
     name: text(draft.name),
@@ -80,12 +154,13 @@ export function lureFromDraft(draft = {}, context = {}) {
     notes: text(draft.notes)
   };
   lure.name = lure.name || generatedLureName(lure) || "Unnamed Lure";
-  return lure;
+  return cleanSourceAware(lure, draft, existing);
 }
 
 export function flasherFromDraft(draft = {}, context = {}) {
-  return {
-    ...(context.existing || {}),
+  const existing = context.existing || null;
+  return cleanSourceAware({
+    ...(existing || {}),
     ...draft,
     id: text(draft.id) || text(context.editingId) || createId(),
     name: text(draft.name),
@@ -95,13 +170,13 @@ export function flasherFromDraft(draft = {}, context = {}) {
     color: text(draft.color),
     glow: Boolean(draft.glow),
     notes: text(draft.notes)
-  };
+  }, draft, existing);
 }
 
 export function reelFromDraft(draft = {}, context = {}) {
   const existing = context.existing || {};
   const modelGroupId = text(draft.modelGroupId || existing.modelGroupId || (context.duplicateSourceId ? existing.id : ""));
-  return {
+  return cleanSourceAware({
     ...existing,
     ...draft,
     id: text(draft.id) || text(context.editingId) || createId(),
@@ -123,12 +198,13 @@ export function reelFromDraft(draft = {}, context = {}) {
     modelGroupId,
     notes: text(draft.notes),
     lineHistory: lineHistoryFromDraft(draft.lineHistory, existing.lineHistory || [])
-  };
+  }, draft, context.existing || null);
 }
 
 export function rodFromDraft(draft = {}, context = {}) {
-  return {
-    ...(context.existing || {}),
+  const existing = context.existing || null;
+  return cleanSourceAware({
+    ...(existing || {}),
     ...draft,
     id: text(draft.id) || text(context.editingId) || createId(),
     shortName: text(draft.shortName),
@@ -145,19 +221,20 @@ export function rodFromDraft(draft = {}, context = {}) {
     dateBought: text(draft.dateBought),
     quantityAvailable: text(draft.quantityAvailable),
     notes: text(draft.notes)
-  };
+  }, draft, existing);
 }
 
 export function comboFromDraft(draft = {}, context = {}) {
-  return {
-    ...(context.existing || {}),
+  const existing = context.existing || null;
+  return cleanSourceAware({
+    ...(existing || {}),
     ...draft,
     id: text(draft.id) || text(context.editingId) || createId(),
     shortName: text(draft.shortName),
     rodId: text(draft.rodId),
     reelId: text(draft.reelId),
     notes: text(draft.notes)
-  };
+  }, draft, existing);
 }
 
 export function syncReelGroupQuantity(reels = [], groupId = "", quantity = "") {

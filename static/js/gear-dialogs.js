@@ -5,21 +5,100 @@ import { optionLabels } from "./app-normalization.js";
 import { unitSymbol } from "./app-units.js";
 import { deleteCombo as deleteComboRecord, deleteFlasher as deleteFlasherRecord, deleteLure as deleteLureRecord, deleteReel as deleteReelRecord, deleteRod as deleteRodRecord, saveRecord, updateLogbook, upsertListValueInDraft } from "./actions.js";
 import { els } from "./app-elements.js";
-import { beginMediaEditSession, cleanupReplacedMedia, markMediaEditSessionSaved, mediaMarkup } from "./app-media.js";
+import { beginMediaEditSession, canonicalMediaRef, cleanupReplacedMedia, isVideoMedia, markMediaEditSessionSaved, mediaMarkup } from "./app-media.js";
 import { populateOptionSelect, renderAll } from "./dashboard.js";
 import { uploadImageFile } from "./photos.js";
 import { getValue, setValue } from "./trip-editor.js";
 import { updateRowSummary } from "./trip-rows.js";
-import { activeLineEntry, baitStats, comboName, duplicateMatchesSource, gearDisplayName, gearPhotoFields, gearPhotos, increasedQuantity, nextReelCopyShortName, renderExistingGearPhotos, renderQueuedGearImage } from "./gear-core.js";
+import { activeLineEntry, baitStats, comboName, duplicateMatchesSource, gearDisplayName, gearPhotos, increasedQuantity, nextReelCopyShortName, renderExistingGearPhotos, renderQueuedGearImage } from "./gear-core.js";
 import { populateFlasherSelect, populateLureSelect, populateLuresForType, populateReelSelect, populateRodSelect, prepareInlineGearDialog, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
 import { comboFromDraft, flasherFromDraft, lureFromDraft, reelFromDraft, rodFromDraft } from "./gear-draft.js";
-import { applyGearDraftBindings, createGearDraft, flushGearDraftBindings } from "./draft-binding.js";
+import { applyGearDraftBindings, createGearDraft, setGearDraftContext, updateGearLineEntry } from "./draft-binding.js";
 
 
 export function renderLineRows(lines = []) {
   const container = document.querySelector("#reelLineRows");
   if (!container) return;
   setHtml(container, lineRowMarkup(activeLineEntry({ lineHistory: lines }) || {}));
+}
+
+function gearDraftContext() {
+  return ui.gearDraftContext || {};
+}
+
+function resetGearDraftUploads(type) {
+  ui.gearDraftUploads = { ...(ui.gearDraftUploads || {}), [type]: [] };
+}
+
+function gearDraftUploads(type) {
+  return ui.gearDraftUploads?.[type] || [];
+}
+
+function gearDraftMedia() {
+  return Array.isArray(ui.gearDraft?.media) ? ui.gearDraft.media : [];
+}
+
+function setGearDraftMedia(media = []) {
+  if (!ui.gearDraft) return;
+  ui.gearDraft.media = media.map(canonicalMediaRef).filter(Boolean);
+  if (ui.gearDraft.heroMediaId && !ui.gearDraft.media.some((photo) => photo.id === ui.gearDraft.heroMediaId && !isVideoMedia(photo))) {
+    ui.gearDraft.heroMediaId = "";
+  }
+}
+
+function sameGearMedia(first, second) {
+  return Boolean(first && second) && (
+    (first.id && first.id === second.id)
+    || (first.category === second.category && first.filename === second.filename && first.previewFilename === second.previewFilename)
+  );
+}
+
+async function appendUploadedGearMedia(type, category) {
+  const files = gearDraftUploads(type);
+  const uploaded = files.length ? await Promise.all(files.map((file) => uploadImageFile(file, category))) : [];
+  const pending = {
+    lure: ui.pendingLureImage,
+    flasher: ui.pendingFlasherImage,
+    reel: ui.pendingReelImage,
+    rod: ui.pendingRodImage
+  }[type];
+  const existing = gearDraftMedia();
+  const pendingMedia = pending && !existing.some((photo) => sameGearMedia(photo, pending)) ? [pending] : [];
+  setGearDraftMedia([...existing, ...uploaded, ...pendingMedia]);
+}
+
+function refreshLureSelectors(lure, context = {}) {
+  [...document.querySelectorAll(".catch-lure, .trip-gear-lure, .trip-gear-cheater-lure")]
+    .forEach((select) => populateLureSelect(select, select.value));
+  const rowId = context.pendingRowId || "";
+  const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
+  if (!row) return;
+  const targetSelector = context.pendingLureTarget === "cheater"
+    ? ".trip-gear-cheater-lure"
+    : ".catch-lure, .trip-gear-lure";
+  const select = row.querySelector(targetSelector);
+  if (select) {
+    populateLuresForType(select, lure.type, lure.id);
+    select.value = lure.id;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  renderLurePreview(row);
+  updateRowSummary(row);
+}
+
+function refreshFlasherSelectors(flasher, context = {}) {
+  [...document.querySelectorAll(".catch-flasher, .trip-gear-flasher")]
+    .forEach((select) => populateFlasherSelect(select, select.value));
+  const rowId = context.pendingRowId || "";
+  const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
+  if (!row) return;
+  const select = row.querySelector(".catch-flasher, .trip-gear-flasher");
+  if (select) {
+    select.value = flasher.id;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  renderFlasherPreview(row);
+  updateRowSummary(row);
 }
 
 function syncReelGroupQuantityInDraft(reels, groupId, quantity) {
@@ -44,7 +123,10 @@ export function updateMonoBackingVisibility(row) {
   const lineType = row.querySelector(".line-type")?.value;
   const showBacking = lineUsesBraid(lineType);
   backingField?.classList.toggle("hidden", !showBacking);
-  if (!showBacking && backingInput) backingInput.checked = false;
+  if (!showBacking && backingInput) {
+    backingInput.checked = false;
+    updateGearLineEntry(row, { monoBacking: false });
+  }
 }
 
 export function lineRowMarkup(line = {}) {
@@ -81,11 +163,11 @@ export function updateFlyGearVisibility() {
 
 export function openReelDialog(reel = null, { duplicate = false } = {}) {
   beginMediaEditSession("reel");
+  resetGearDraftUploads("reel");
   els.reelDialog.dataset.removedPhotoKeys = "[]";
   els.reelForm.reset();
   ui.pendingReelImage = null;
   renderQueuedGearImage("reel");
-  renderExistingGearPhotos("reel", reel);
   populateOptionSelect(document.querySelector("#reelStyle"), optionLabels("reelStyles"), "Select style");
   const editing = Boolean(reel) && !duplicate;
   createGearDraft(editing ? reel : null, {
@@ -108,6 +190,8 @@ export function openReelDialog(reel = null, { duplicate = false } = {}) {
     notes: reel?.notes || "",
     lineHistory: [activeLineEntry({ lineHistory: reel?.lineHistory || [] }) || {}]
   });
+  setGearDraftContext({ type: "reel", editingId: editing ? reel?.id || "" : "", duplicateSourceId: duplicate ? reel?.id || "" : "" });
+  renderExistingGearPhotos("reel", ui.gearDraft);
   document.querySelector("#reelDialog h2").textContent = editing ? "Edit Reel" : duplicate ? "Add Separate Reel" : "Add Reel";
   els.reelDialog.dataset.duplicateFromId = duplicate ? reel?.id || "" : "";
   setValue("editingReelId", editing ? reel?.id || "" : "");
@@ -136,11 +220,11 @@ export function openReelDialog(reel = null, { duplicate = false } = {}) {
 
 export function openRodDialog(rod = null, { duplicate = false } = {}) {
   beginMediaEditSession("rod");
+  resetGearDraftUploads("rod");
   els.rodDialog.dataset.removedPhotoKeys = "[]";
   els.rodForm.reset();
   ui.pendingRodImage = null;
   renderQueuedGearImage("rod");
-  renderExistingGearPhotos("rod", rod);
   populateOptionSelect(document.querySelector("#rodType"), optionLabels("rodTypes"), "Select type");
   const editing = Boolean(rod) && !duplicate;
   createGearDraft(editing ? rod : null, {
@@ -160,6 +244,8 @@ export function openRodDialog(rod = null, { duplicate = false } = {}) {
     quantityAvailable: rod?.quantityAvailable ?? "",
     notes: rod?.notes || ""
   });
+  setGearDraftContext({ type: "rod", editingId: editing ? rod?.id || "" : "", duplicateSourceId: duplicate ? rod?.id || "" : "" });
+  renderExistingGearPhotos("rod", ui.gearDraft);
   document.querySelector("#rodDialog h2").textContent = editing ? "Edit Rod" : duplicate ? "Duplicate Rod" : "Add Rod";
   els.rodDialog.dataset.duplicateFromId = duplicate ? rod?.id || "" : "";
   setValue("editingRodId", editing ? rod?.id || "" : "");
@@ -193,6 +279,7 @@ export function openComboDialog(combo = null) {
     reelId: combo?.reelId || "",
     notes: combo?.notes || ""
   });
+  setGearDraftContext({ type: "combo", editingId: editing ? combo?.id || "" : "" });
   document.querySelector("#comboDialog h2").textContent = editing ? "Edit Combo" : "Add Combo";
   setValue("editingComboId", combo?.id || "");
   setValue("comboShortName", combo?.shortName || "");
@@ -208,12 +295,12 @@ export function openComboDialog(combo = null) {
 export function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", initialType = "") {
   beginMediaEditSession("lure");
   prepareInlineGearDialog("lure", pendingRowId);
+  resetGearDraftUploads("lure");
   els.lureDialog.dataset.removedPhotoKeys = "[]";
   els.lureDialog.dataset.pendingLureTarget = pendingLureTarget;
   els.lureForm.reset();
   ui.pendingLureImage = null;
   renderQueuedGearImage("lure");
-  renderExistingGearPhotos("lure", lure);
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#lureBladeType"), optionLabels("lureBladeTypes"), "Select blade type");
   populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
@@ -241,6 +328,8 @@ export function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget
     glow: Boolean(lure?.glow),
     notes: lure?.notes || ""
   });
+  setGearDraftContext({ type: "lure", editingId: lure?.id || "", pendingRowId, pendingLureTarget });
+  renderExistingGearPhotos("lure", ui.gearDraft);
   const gearLabel = String(lure?.type || initialType).toLowerCase() === "fly" ? "Fly" : "Lure";
   document.querySelector("#lureDialog h2").textContent = editing ? `Edit ${gearLabel}` : `Add ${gearLabel}`;
   setValue("pendingCatchRow", pendingRowId);
@@ -339,11 +428,11 @@ export function isSoftPlasticType(type) {
 export function openFlasherDialog(flasher = null, pendingRowId = "") {
   beginMediaEditSession("flasher");
   prepareInlineGearDialog("flasher", pendingRowId);
+  resetGearDraftUploads("flasher");
   els.flasherDialog.dataset.removedPhotoKeys = "[]";
   els.flasherForm.reset();
   ui.pendingFlasherImage = null;
   renderQueuedGearImage("flasher");
-  renderExistingGearPhotos("flasher", flasher);
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
   const editing = Boolean(flasher);
   createGearDraft(flasher, {
@@ -356,6 +445,8 @@ export function openFlasherDialog(flasher = null, pendingRowId = "") {
     glow: Boolean(flasher?.glow),
     notes: flasher?.notes || ""
   });
+  setGearDraftContext({ type: "flasher", editingId: flasher?.id || "", pendingRowId });
+  renderExistingGearPhotos("flasher", ui.gearDraft);
   document.querySelector("#flasherDialog h2").textContent = editing ? "Edit Flasher" : "Add Flasher";
   setValue("pendingFlasherCatchRow", pendingRowId);
   setValue("editingFlasherId", flasher?.id || "");
@@ -402,44 +493,17 @@ export function openFlasherInfoDialog(flasher, pendingRowId = "") {
 export async function saveReel(event) {
   event.preventDefault();
   try {
-    const editingId = getValue("editingReelId");
-    const duplicateSourceId = els.reelDialog.dataset.duplicateFromId;
+    const context = gearDraftContext();
+    const editingId = context.editingId || "";
+    const duplicateSourceId = context.duplicateSourceId || "";
     const existing = state.reels.find((item) => item.id === editingId || item.id === duplicateSourceId);
-    flushGearDraftBindings(event.currentTarget);
-    flushGearDraftBindings(els.reelDialog);
-    const lineRow = document.getElementById("reelLineRows")?.getElementsByClassName("line-editor-row")?.[0];
-    if (lineRow && ui.gearDraft) {
-      ui.gearDraft.lineHistory = [{
-        ...(ui.gearDraft.lineHistory?.[0] || {}),
-        id: lineRow.getAttribute("data-line-id") || ui.gearDraft.lineHistory?.[0]?.id || createId(),
-        spooledDate: lineRow.getElementsByClassName("line-spooled-date")[0]?.["value"] || "",
-        type: lineRow.getElementsByClassName("line-type")[0]?.["value"] || "",
-        brand: lineRow.getElementsByClassName("line-brand")[0]?.["value"]?.trim() || "",
-        name: lineRow.getElementsByClassName("line-name")[0]?.["value"]?.trim() || "",
-        weight: lineRow.getElementsByClassName("line-weight")[0]?.["value"]?.trim() || "",
-        flyWeight: lineRow.getElementsByClassName("line-fly-weight")[0]?.["value"]?.trim() || "",
-        flyTaper: lineRow.getElementsByClassName("line-fly-taper")[0]?.["value"]?.trim() || "",
-        flyDensity: lineRow.getElementsByClassName("line-fly-density")[0]?.["value"]?.trim() || "",
-        diameterIn: lineRow.getElementsByClassName("line-diameter-in")[0]?.["value"]?.trim() || "",
-        diameterMm: lineRow.getElementsByClassName("line-diameter-mm")[0]?.["value"]?.trim() || "",
-        color: lineRow.getElementsByClassName("line-color")[0]?.["value"]?.trim() || "",
-        monoBacking: Boolean(lineRow.getElementsByClassName("line-mono-backing")[0]?.["checked"]),
-        notes: lineRow.getElementsByClassName("line-notes")[0]?.["value"]?.trim() || ""
-      }];
-    }
     const modelGroupId = existing?.modelGroupId || (duplicateSourceId ? existing?.id || "" : "");
-    const imageFiles = [...document.querySelector("#reelImage").files];
-    const uploadedPhotos = imageFiles.length
-      ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "reels")))
-      : ui.pendingReelImage ? [ui.pendingReelImage] : [];
-    const reel = {
-      ...reelFromDraft({
-        ...(ui.gearDraft || {}),
-        id: editingId || ui.gearDraft?.id || "",
-        modelGroupId
-      }, { existing, editingId, duplicateSourceId }),
-      ...gearPhotoFields(uploadedPhotos, existing, "reel")
-    };
+    await appendUploadedGearMedia("reel", "reels");
+    const reel = reelFromDraft({
+      ...(ui.gearDraft || {}),
+      id: editingId || ui.gearDraft?.id || "",
+      modelGroupId
+    }, { existing, editingId, duplicateSourceId });
     await updateLogbook((draft) => {
       const index = draft.reels.findIndex((item) => item.id === reel.id);
       if (index >= 0) draft.reels[index] = reel;
@@ -452,8 +516,8 @@ export async function saveReel(event) {
     await cleanupReplacedMedia(editingId ? existing : null, reel);
     els.reelDialog.close();
     els.reelForm.reset();
-    els.reelDialog.dataset.duplicateFromId = "";
     ui.pendingReelImage = null;
+    resetGearDraftUploads("reel");
     renderAll();
   } catch (error) {
     console.error("Could not save reel.", error);
@@ -464,21 +528,16 @@ export async function saveReel(event) {
 export async function saveRod(event) {
   event.preventDefault();
   try {
-    const editingId = getValue("editingRodId");
-    const existing = state.rods.find((item) => item.id === editingId || item.id === els.rodDialog.dataset.duplicateFromId);
-    flushGearDraftBindings(event.currentTarget);
-    const imageFiles = [...document.querySelector("#rodImage").files];
-    const uploadedPhotos = imageFiles.length
-      ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "rods")))
-      : ui.pendingRodImage ? [ui.pendingRodImage] : [];
-    const rod = {
-      ...rodFromDraft({
-        ...(ui.gearDraft || {}),
-        id: editingId || ui.gearDraft?.id || ""
-      }, { existing, editingId }),
-      ...gearPhotoFields(uploadedPhotos, existing, "rod")
-    };
-    const duplicatedUnchanged = !editingId && Boolean(els.rodDialog.dataset.duplicateFromId)
+    const context = gearDraftContext();
+    const editingId = context.editingId || "";
+    const duplicateSourceId = context.duplicateSourceId || "";
+    const existing = state.rods.find((item) => item.id === editingId || item.id === duplicateSourceId);
+    await appendUploadedGearMedia("rod", "rods");
+    const rod = rodFromDraft({
+      ...(ui.gearDraft || {}),
+      id: editingId || ui.gearDraft?.id || ""
+    }, { existing, editingId });
+    const duplicatedUnchanged = !editingId && Boolean(duplicateSourceId)
       && duplicateMatchesSource(existing, rod, [
         "shortName", "type", "brand", "name", "length", "power", "action", "lureRating",
         "purchaseAmount", "dateBought", "quantityAvailable", "notes"
@@ -496,8 +555,8 @@ export async function saveRod(event) {
     await cleanupReplacedMedia(editingId ? existing : null, rod);
     els.rodDialog.close();
     els.rodForm.reset();
-    els.rodDialog.dataset.duplicateFromId = "";
     ui.pendingRodImage = null;
+    resetGearDraftUploads("rod");
     renderAll();
   } catch (error) {
     console.error("Could not save rod.", error);
@@ -508,9 +567,9 @@ export async function saveRod(event) {
 export async function saveCombo(event) {
   event.preventDefault();
   try {
-    const editingId = getValue("editingComboId");
+    const context = gearDraftContext();
+    const editingId = context.editingId || "";
     const existing = state.rodReelCombos.find((item) => item.id === editingId);
-    flushGearDraftBindings(event.currentTarget);
     const combo = comboFromDraft({
       ...(ui.gearDraft || {}),
       id: editingId || ui.gearDraft?.id || ""
@@ -527,18 +586,14 @@ export async function saveCombo(event) {
 export async function saveLure(event) {
   event.preventDefault();
   try {
-    const editingId = getValue("editingLureId");
+    const context = gearDraftContext();
+    const editingId = context.editingId || "";
     const existing = state.lures.find((item) => item.id === editingId);
-    flushGearDraftBindings(event.currentTarget);
-    const imageFile = document.querySelector("#lureImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "lures") : ui.pendingLureImage;
-    const lure = {
-      ...lureFromDraft({
-        ...(ui.gearDraft || {}),
-        id: editingId || ui.gearDraft?.id || ""
-      }, { existing, editingId }),
-      ...gearPhotoFields(uploadedImage ? [uploadedImage] : [], existing, "lure")
-    };
+    await appendUploadedGearMedia("lure", "lures");
+    const lure = lureFromDraft({
+      ...(ui.gearDraft || {}),
+      id: editingId || ui.gearDraft?.id || ""
+    }, { existing, editingId });
     await updateLogbook((draft) => {
       const lureIndex = draft.lures.findIndex((item) => item.id === lure.id);
       if (lureIndex >= 0) draft.lures[lureIndex] = lure;
@@ -548,25 +603,11 @@ export async function saveLure(event) {
     });
     markMediaEditSessionSaved("lure");
     await cleanupReplacedMedia(existing, lure);
-    [...document.querySelectorAll(".catch-lure, .trip-gear-lure, .trip-gear-cheater-lure")].forEach((select) => populateLureSelect(select, select.value));
-    const rowId = getValue("pendingCatchRow");
-    const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
-    if (row) {
-      const targetSelector = els.lureDialog.dataset.pendingLureTarget === "cheater"
-        ? ".trip-gear-cheater-lure"
-        : ".catch-lure, .trip-gear-lure";
-      const select = row.querySelector(targetSelector);
-      if (select) {
-        populateLuresForType(select, lure.type, lure.id);
-        select.value = lure.id;
-        select.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      renderLurePreview(row);
-      updateRowSummary(row);
-    }
+    refreshLureSelectors(lure, context);
     els.lureDialog.close();
     els.lureForm.reset();
     ui.pendingLureImage = null;
+    resetGearDraftUploads("lure");
     renderQueuedGearImage("lure");
     renderAll();
   } catch (error) {
@@ -578,18 +619,14 @@ export async function saveLure(event) {
 export async function saveFlasher(event) {
   event.preventDefault();
   try {
-    const editingId = getValue("editingFlasherId");
+    const context = gearDraftContext();
+    const editingId = context.editingId || "";
     const existing = state.flashers.find((item) => item.id === editingId);
-    flushGearDraftBindings(event.currentTarget);
-    const imageFile = document.querySelector("#flasherImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "flashers") : ui.pendingFlasherImage;
-    const flasher = {
-      ...flasherFromDraft({
-        ...(ui.gearDraft || {}),
-        id: editingId || ui.gearDraft?.id || ""
-      }, { existing, editingId }),
-      ...gearPhotoFields(uploadedImage ? [uploadedImage] : [], existing, "flasher")
-    };
+    await appendUploadedGearMedia("flasher", "flashers");
+    const flasher = flasherFromDraft({
+      ...(ui.gearDraft || {}),
+      id: editingId || ui.gearDraft?.id || ""
+    }, { existing, editingId });
     await updateLogbook((draft) => {
       const flasherIndex = draft.flashers.findIndex((item) => item.id === flasher.id);
       if (flasherIndex >= 0) draft.flashers[flasherIndex] = flasher;
@@ -598,15 +635,11 @@ export async function saveFlasher(event) {
     });
     markMediaEditSessionSaved("flasher");
     await cleanupReplacedMedia(existing, flasher);
-    [...document.querySelectorAll(".catch-flasher, .trip-gear-flasher")].forEach((select) => populateFlasherSelect(select, select.value));
-    const rowId = getValue("pendingFlasherCatchRow");
-    const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
-    if (row) row.querySelector(".catch-flasher, .trip-gear-flasher").value = flasher.id;
-    if (row) renderFlasherPreview(row);
-    if (row) updateRowSummary(row);
+    refreshFlasherSelectors(flasher, context);
     els.flasherDialog.close();
     els.flasherForm.reset();
     ui.pendingFlasherImage = null;
+    resetGearDraftUploads("flasher");
     renderQueuedGearImage("flasher");
     renderAll();
   } catch (error) {
