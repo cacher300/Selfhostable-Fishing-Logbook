@@ -158,4 +158,33 @@ test.describe("gear and settings characterization", () => {
       return `${checklist?.name}|${checklist?.items?.[0]?.label}`;
     }).toBe("Tournament Prep|Bring landing net");
   });
+
+  test("editing a reel updates the active line while preserving older lineHistory entries", async ({ page }) => {
+    await resetEmpty(page, {
+      reels: [{
+        id: "reel-history",
+        shortName: "LC 30",
+        style: "Linecounter",
+        brand: "Okuma",
+        name: "Cold Water",
+        lineHistory: [
+          { id: "line-old", spooledDate: "2024-01-01", type: "Mono", brand: "Berkley", weight: "20", notes: "older spool" },
+          { id: "line-active", spooledDate: "2025-01-01", type: "Braid", brand: "PowerPro", weight: "30" }
+        ]
+      }]
+    });
+    await page.goto("/gear", { waitUntil: "domcontentloaded" });
+
+    await page.getByRole("button", { name: "Reels", exact: true }).click();
+    await page.locator('[data-edit-reel="reel-history"]').click();
+    await page.locator("#reelLineRows .line-weight").fill("40");
+    await page.locator("#reelLineRows .line-notes").fill("fresh braid");
+    await page.locator("#reelForm").evaluate((form) => form.requestSubmit());
+    await expect(page.locator("#reelDialog")).toBeHidden();
+
+    const reel = (await readLogbook(page)).reels.find((item) => item.id === "reel-history");
+    expect(reel.lineHistory).toHaveLength(2);
+    expect(reel.lineHistory.find((line) => line.id === "line-old")).toMatchObject({ weight: "20", notes: "older spool" });
+    expect(reel.lineHistory.find((line) => line.id === "line-active")).toMatchObject({ weight: "40", notes: "fresh braid" });
+  });
 });
