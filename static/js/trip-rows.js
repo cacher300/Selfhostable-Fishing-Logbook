@@ -586,14 +586,6 @@ export function importLastTrollingSpread() {
   syncTripFormChrome();
 }
 
-export function setupLineLabelFromRow(row, index) {
-  return setupLineLabel(gearRecordForRow(row), index);
-}
-
-export function catchRodPickerLabelFromRow(row, index, { cheater = false } = {}) {
-  return catchRodPickerLabel(gearRecordForRow(row), index, { cheater });
-}
-
 export function gearRecordForRow(row) {
   const id = row?.dataset?.gearId || "";
   return findDraftRecord("gearUsed", id) || {};
@@ -649,8 +641,6 @@ export function setupLineOptions(draft = ui.tripDraft) {
     ];
   });
 }
-
-export const setupLineOptionsFromForm = setupLineOptions;
 
 export function setupLineIsActiveAtTime(option, catchTime) {
   if (!catchTime || !option.startTime || !option.endTime) return true;
@@ -710,10 +700,6 @@ export function sortTrollingSetupRows() {
   rows.forEach((row) => els.tripGearRows.append(row));
 }
 
-export function rodOptionFromGearRow(row, index) {
-  return rodOptionFromGearRecord(gearRecordForRow(row), index);
-}
-
 export function rodOptionFromGearRecord(record = {}, index = 0) {
   const combo = selectedComboForRecord(record);
   const rodId = combo?.rodId || "";
@@ -736,8 +722,6 @@ export function catchRodOptions(draft = ui.tripDraft) {
     .map((record, index) => rodOptionFromGearRecord(record, index))
     .filter((item) => item.rodId);
 }
-
-export const catchRodOptionsFromForm = catchRodOptions;
 
 export function populateCatchRodSelect(select, selectedRodId = "", selectedOptionId = "") {
   if (!select) return;
@@ -801,7 +785,7 @@ export function syncCatchRiggingFromSetupLine(row) {
 
 export function syncCatchMethodToSetupLine(row) {
   const record = fishRecordForRow(row);
-  const selectedValue = record.setupLineValue || record.setupLineId || row.querySelector(".catch-setup-line")?.value || "";
+  const selectedValue = record.setupLineValue || record.setupLineId || "";
   const presentationSelect = row.querySelector(".catch-presentation");
   if (!presentationSelect) return;
 
@@ -824,15 +808,6 @@ export function syncCatchMethodToSetupLine(row) {
   updatePresentationFields(row);
   updateCheaterDepth(row);
   updateLeadcoreEstimatedDepth(row);
-}
-
-export function selectedText(select) {
-  return select?.selectedOptions?.[0]?.textContent?.trim() || "";
-}
-
-export function summaryOption(select, placeholders = []) {
-  const text = selectedText(select);
-  return placeholders.includes(text) ? "" : text;
 }
 
 export function rowNumber(row, selector) {
@@ -902,10 +877,6 @@ export let baseUpdateRowSummary;
 
 export function updateAllRowSummaries() {
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updateRowSummary);
-}
-
-export function selectedComboForRow(row) {
-  return selectedComboForRecord(gearRecordForRow(row));
 }
 
 export function selectedComboForRecord(record = {}) {

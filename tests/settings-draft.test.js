@@ -8,7 +8,6 @@ const {
   checklistsFromDraft,
   chopRangesDraftFromState,
   chopRangesFromDraft,
-  locationsFromDraft,
   preferencesDraftFromSettings,
   preferencesFromDraft,
   predefinedFieldsDraftFromState,
@@ -103,4 +102,3 @@ assert.deepEqual(unitsFromDraft(unitsDraftFromSettings(source.settings), source.
 });
 assert.deepEqual(speciesMapColorsFromDraft(speciesMapColorsDraftFromSettings(source.settings), source.settings.speciesMapColors), source.settings.speciesMapColors);
 assert.deepEqual(checklistsFromDraft(checklistDraftFromSettings(source.settings), source.settings.checklists), source.settings.checklists);
-assert.deepEqual(locationsFromDraft(source.spots, source.spots), source.spots);

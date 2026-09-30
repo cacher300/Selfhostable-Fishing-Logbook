@@ -9,7 +9,7 @@ const HTML_ESCAPES = {
   "`": "&#096;"
 };
 
-export class SafeHtml {
+class SafeHtml {
   constructor(markup) {
     this.markup = String(markup ?? "");
     Object.freeze(this);
@@ -66,10 +66,6 @@ export function html(strings, ...values) {
   return new SafeHtml(output);
 }
 
-export function raw(value) {
-  return new SafeHtml(value);
-}
-
 export function joinHtml(items, separator = "") {
   const trustedSeparator = String(separator ?? "");
   return new SafeHtml((items || []).map(renderValue).join(trustedSeparator));
@@ -88,7 +84,7 @@ function assertSafeHtml(template, apiName) {
   if (template instanceof SafeHtml) return template;
   // Helpers commonly return "" (or nothing) for "no markup"; that cannot inject.
   if (template === "" || template === null || template === undefined) return new SafeHtml("");
-  const message = `${apiName} requires a SafeHtml value. Use the html tagged template or raw() for trusted constants.`;
+  const message = `${apiName} requires a SafeHtml value. Use the html tagged template.`;
   if (typeof __STRICT_STATE__ !== "undefined" && __STRICT_STATE__) {
     throw new TypeError(message);
   }
@@ -99,11 +95,6 @@ function assertSafeHtml(template, apiName) {
 export function setHtml(element, template) {
   if (!element) return;
   element.innerHTML = String(assertSafeHtml(template, "setHtml"));
-}
-
-export function setOuterHtml(element, template) {
-  if (!element) return;
-  element.outerHTML = String(assertSafeHtml(template, "setOuterHtml"));
 }
 
 export function insertHtml(element, position, template) {

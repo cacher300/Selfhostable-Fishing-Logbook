@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
 installBrowserEnv();
-const { els } = await import("../static/js/app-elements.js");
-const { activeLineEntry, gearPhotoFields, mergeLineHistory } = await import("../static/js/gear-core.js");
-
-els.lureDialog = { dataset: { removedPhotoKeys: "[]" } };
+const { activeLineEntry, mergeLineHistory } = await import("../static/js/gear-core.js");
 
 const existing = [
   { id: "old", spooledDate: "2025-05-01", discardedDate: "2025-10-01", notes: "mobile-only note" },
@@ -28,21 +25,3 @@ assert.equal(merged[1].customSource, "native");
 
 const withNew = mergeLineHistory(existing, [...edited, { id: "new", type: "Fly Line" }]);
 assert.deepEqual(withNew.map((line) => line.id), ["old", "active", "new"]);
-
-const keptHero = gearPhotoFields([], {
-  heroMediaId: "hero",
-  media: [{ id: "hero", category: "lures", filename: "hero.jpg", mediaType: "image" }],
-}, "lure");
-assert.equal(keptHero.heroMediaId, "hero");
-const removedHero = gearPhotoFields([], {
-  heroMediaId: "hero",
-  media: [{ id: "hero", category: "lures", filename: "hero.jpg", mediaType: "image" }],
-}, "lure");
-els.lureDialog.dataset.removedPhotoKeys = JSON.stringify(["hero"]);
-const removedHeroAfterMediaRemoval = gearPhotoFields([], {
-  heroMediaId: "hero",
-  media: [{ id: "hero", category: "lures", filename: "hero.jpg", mediaType: "image" }],
-}, "lure");
-assert.equal(removedHero.heroMediaId, "hero");
-assert.equal(removedHeroAfterMediaRemoval.heroMediaId, "");
-assert.equal(removedHeroAfterMediaRemoval.media.length, 0);

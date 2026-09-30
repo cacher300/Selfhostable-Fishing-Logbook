@@ -1,4 +1,4 @@
-export const routeViews = {
+const routeViews = {
   "/": "trips",
   "/trips": "trips",
   "/expeditions": "expeditions",
@@ -13,7 +13,7 @@ export const routeViews = {
   "/settings": "settings"
 };
 
-export const viewRoutes = Object.fromEntries(
+const viewRoutes = Object.fromEntries(
   Object.entries(routeViews).map(([path, view]) => [view, path])
 );
 viewRoutes.trips = "/trips";
@@ -21,20 +21,20 @@ viewRoutes.trips = "/trips";
 let renderView = () => {};
 let initialized = false;
 
-export function viewFromPath(pathname = window.location.pathname) {
+function viewFromPath(pathname = window.location.pathname) {
   const path = String(pathname || "/").replace(/\/$/, "") || "/";
   return routeViews[path.toLowerCase()] || "trips";
 }
 
-export function viewFromCurrentRoute() {
+function viewFromCurrentRoute() {
   return viewFromPath(window.location.pathname);
 }
 
-export function routeForView(view) {
+function routeForView(view) {
   return viewRoutes[view] || "/trips";
 }
 
-export function canUseHistoryRoutes() {
+function canUseHistoryRoutes() {
   return window.location.protocol !== "file:";
 }
 

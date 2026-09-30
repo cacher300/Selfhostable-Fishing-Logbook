@@ -978,10 +978,6 @@ export function renderProbeTemperatureProfileChart(profile = []) {
   setHtml(chart, html`${renderProbeTemperatureProfileChartMarkup(readings, { catchDepths })}<div class="probe-temperature-chart-tooltip" role="status" aria-live="polite" hidden></div>`);
 }
 
-export function getTripIntent() {
-  return tripIntent(ui.tripDraft || {});
-}
-
 export function setTripIntent(value) {
   const normalized = value === "experimental" ? "experimental" : "serious";
   const input = document.querySelector(`input[name="tripIntent"][value="${normalized}"]`);
@@ -1038,10 +1034,6 @@ export function tripIntent(trip) {
 
 export function intentLabel(value) {
   return value === "experimental" ? "Experimental" : "Serious";
-}
-
-export function hasCatchDepthData(depthData) {
-  return Boolean(depthData && Object.values(depthData).some((value) => value !== null && value !== undefined && value !== ""));
 }
 
 export function addPersonRow(person = {}, { editNew = false } = {}) {

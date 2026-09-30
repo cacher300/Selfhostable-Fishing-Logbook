@@ -456,14 +456,6 @@ export function renderNotePhotos() {
   `), ""));
 }
 
-export function collectNotePhotos() {
-  const draftCaptions = new Map((ui.tripDraft?.notePhotos || []).map((photo) => [photo.id, photo.caption || ""]));
-  return ui.activeNotePhotos.map((photo) => ({
-    ...canonicalMediaRef(photo),
-    caption: draftCaptions.get(photo.id) ?? photo.caption ?? ""
-  })).filter((photo) => photo.category);
-}
-
 export function catchMetadataLocks(row) {
   if (!row) return {};
   const fromDataset = (field) => row.dataset[`metadataLock${field[0].toUpperCase()}${field.slice(1)}`];
@@ -552,15 +544,6 @@ export function setCatchMetadataLock(row, field, locked) {
   updateMetadataLockButtons(row);
   updateCatchLocationSummary(row);
   updateRowSummary(row);
-}
-
-export function catchMetadataLocksPayload(row) {
-  const locks = catchMetadataLocks(row);
-  return {
-    time: Boolean(locks.time),
-    location: Boolean(locks.location),
-    fow: Boolean(locks.fow)
-  };
 }
 
 export function normalizePhotoTimeString(value) {
