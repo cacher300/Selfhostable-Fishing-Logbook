@@ -7,6 +7,7 @@ import { catchRate, formatDate, renderAll, totalCaught, tripHours } from "./dash
 import { ExpeditionAnalytics } from "./expedition-analytics.js";
 import { openTripSummary } from "./trip-timeline.js";
 import { trimNumber } from "./form-utils.js";
+import { updateTripField } from "./draft-binding.js";
 
 import { navigate } from "./router.js";
 
@@ -42,6 +43,7 @@ export function syncCalendarDate(inputId) {
   if (!valueInput || !displayInput) return "";
   const parsed = isoDateFromDisplay(displayInput.value);
   valueInput.value = parsed;
+  if (inputId === "tripDateValue") updateTripField("date", parsed);
   displayInput.setCustomValidity(displayInput.value.trim() && !parsed ? "Enter a valid date as mm/dd/yyyy." : "");
   return parsed;
 }

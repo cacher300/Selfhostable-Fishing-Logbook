@@ -7,6 +7,7 @@ import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, upda
 import { comboName } from "./gear-core.js";
 import { renderLiveTrollingSpread, setupLineSideLabel } from "./trolling-spread.js";
 import { isTrollingTrip } from "./form-utils.js";
+import { replaceTripRows } from "./draft-binding.js";
 
 
 export function trollingSpreadPickerItemLabel(item) {
@@ -47,6 +48,7 @@ export function applySavedTrollingSpread(spreadId) {
   if (rows.length && !window.confirm(`Replace the current setup with the ${spread.name} spread?`)) return;
 
   rows.forEach((row) => row.remove());
+  replaceTripRows("gearUsed", []);
   spread.spread.forEach((item) => addTripGearRow({
     comboId: item.comboId,
     side: item.side,

@@ -7,6 +7,7 @@ import { formatDate } from "./dashboard.js";
 import { applyPhotoCaptureTimeToCatch, applyPhotoLocationToCatch, loadPhotoQueue, renderCatchPhotos, selectedCatchPhotoLocation } from "./photos.js";
 import { getValue, markTripFormChanged } from "./trip-editor.js";
 import { addCatchRow, updateRowSummary } from "./trip-rows.js";
+import { updateTripRow } from "./draft-binding.js";
 
 export const PHOTO_QUEUE_CATCH_GAP_MS = 3 * 60 * 1000;
 
@@ -69,6 +70,7 @@ export async function copyQueuedPhotoForCatch(filename) {
 
 export async function attachPhotoGroupToCatch(row, photos) {
   row.catchPhotos = photos;
+  updateTripRow("catches", row?.dataset.catchId, { photos: photos.map((photo) => ({ ...photo })) });
   const selectedPhoto = selectedCatchPhotoLocation(row);
   if (selectedPhoto) applyPhotoLocationToCatch(row, selectedPhoto);
   applyPhotoCaptureTimeToCatch(row, selectedPhoto ? [selectedPhoto] : photos);

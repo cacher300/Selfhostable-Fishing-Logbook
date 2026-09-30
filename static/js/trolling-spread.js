@@ -308,7 +308,7 @@ export function renderCheater(group) {
 
 export function renderMainSpreadLine(group) {
   if (["board", "diver"].includes(group.markerType)) {
-    return `
+    return html`
       ${spreadCssLine(group.start, group.bend, "spread-outward-line")}
       ${spreadCssLine(group.bend, group.end, "spread-main-line")}
     `;

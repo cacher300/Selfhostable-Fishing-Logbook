@@ -5,24 +5,28 @@ import { els } from "./app-elements.js";
 import { isUsableCoordinates } from "./app-media.js";
 import { chopLabelForWaveHeight } from "./settings-core.js";
 import { getValue } from "./trip-editor.js";
+import { updateTripField } from "./draft-binding.js";
 
 export const weatherRequestCache = new Map();
 export const marineRequestCache = new Map();
 export const astronomyRequestCache = new Map();
 
 export function tripDraftForWeather() {
-  const location = state.locations.find((item) => item.id === els.tripLocation.value);
-  const launch = findLaunchByIdOrName(location, els.tripLaunch.value, "");
+  const draft = ui.tripDraft || {};
+  const locationId = draft.locationId || els.tripLocation.value;
+  const launchId = draft.launchId || els.tripLaunch.value;
+  const location = state.locations.find((item) => item.id === locationId);
+  const launch = findLaunchByIdOrName(location, launchId, "");
   return {
-    id: els.tripId.value || "",
-    date: getValue("tripDate"),
-    launchTime: getValue("launchTime"),
-    linesPulledTime: getValue("linesPulledTime"),
+    id: draft.id || els.tripId.value || "",
+    date: draft.date || getValue("tripDate"),
+    launchTime: draft.launchTime || getValue("launchTime"),
+    linesPulledTime: draft.linesPulledTime || getValue("linesPulledTime"),
     location: location?.name || "",
     locationId: location?.id || "",
     launch: launch?.name || "",
     launchId: launch?.id || "",
-    waveHeight: getValue("waveHeight"),
+    waveHeight: draft.waveHeight || getValue("waveHeight"),
     catches: []
   };
 }
@@ -779,7 +783,10 @@ export function renderWeatherSummary(weatherData = ui.activeTripWeatherData) {
   setWeatherCardValue(els.weatherSummaryPressure, Number.isFinite(Number(summary.pressureHpa)) ? formatUnitValue(summary.pressureHpa, "pressure", "hPa", { decimals: 2 }) : "Not available");
   const autoWeatherTag = weatherTagForCode(summary.weatherCode);
   const weatherSelect = document.querySelector("#weather");
-  if (autoWeatherTag && weatherSelect && !weatherSelect.value) weatherSelect.value = autoWeatherTag;
+  if (autoWeatherTag && weatherSelect && !weatherSelect.value) {
+    weatherSelect.value = autoWeatherTag;
+    updateTripField("weather", autoWeatherTag);
+  }
   if (els.weatherSummaryUpdated) els.weatherSummaryUpdated.textContent = "";
 }
 
@@ -851,4 +858,3 @@ export function weatherValueWithTrend(value, ...trendParts) {
   const trends = trendParts.filter(Boolean);
   return [value || "Not logged", ...trends].join(" / ");
 }
-

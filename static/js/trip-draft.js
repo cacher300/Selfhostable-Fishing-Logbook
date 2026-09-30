@@ -203,6 +203,10 @@ export function normalizeFish(fish = {}, context = {}) {
   delete base.depthData;
   delete base.setupLineValue;
   delete base.kept;
+  delete base.manualLatitude;
+  delete base.manualLongitude;
+  delete base.rodSelect;
+  delete base.spotSelection;
   if (!detailsUnknown && flags.trolling) {
     return {
       ...base,
