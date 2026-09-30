@@ -255,6 +255,7 @@ export function setup() {
       updateAllRowSummaries();
       renderLiveTrollingSpread();
       renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
+      markTripFormChanged();
     }
   
     const removeTripGear = event.target.closest(".remove-trip-gear");
@@ -263,6 +264,7 @@ export function setup() {
       populateSetupLineSelects();
       updateAllRowSummaries();
       renderLiveTrollingSpread();
+      markTripFormChanged();
     }
   
     const removePerson = event.target.closest(".remove-person");
@@ -273,6 +275,7 @@ export function setup() {
         if (select.value === personId) select.value = "";
       });
       populatePersonSelects();
+      markTripFormChanged();
     }
   
     const addPredefinedOption = event.target.closest(".add-predefined-option");
@@ -315,6 +318,7 @@ export function setup() {
       const card = removeNotePhoto.closest("[data-note-photo]");
       ui.activeNotePhotos = ui.activeNotePhotos.filter((photo) => photo.id !== card.dataset.notePhoto);
       renderNotePhotos();
+      markTripFormChanged();
     }
   
     const removeCatchPhoto = event.target.closest(".remove-catch-photo");
@@ -330,6 +334,7 @@ export function setup() {
       updateCatchLocationSummary(row);
       updateCatchFowFromLocation(row, { force: removedSelectedLocation });
       updateRowSummary(row);
+      markTripFormChanged();
     }
   
     const removeGearPhoto = event.target.closest("[data-remove-gear-photo]");

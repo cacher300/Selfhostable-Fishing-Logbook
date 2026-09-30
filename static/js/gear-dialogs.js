@@ -10,8 +10,9 @@ import { populateOptionSelect, renderAll } from "./dashboard.js";
 import { uploadImageFile } from "./photos.js";
 import { getValue, setValue } from "./trip-editor.js";
 import { updateRowSummary } from "./trip-rows.js";
-import { activeLineEntry, baitStats, comboName, duplicateMatchesSource, gearDisplayName, gearPhotoFields, gearPhotos, generatedLureName, increasedQuantity, mergeLineHistory, nextReelCopyShortName, renderExistingGearPhotos, renderQueuedGearImage } from "./gear-core.js";
+import { activeLineEntry, baitStats, comboName, duplicateMatchesSource, gearDisplayName, gearPhotoFields, gearPhotos, increasedQuantity, nextReelCopyShortName, renderExistingGearPhotos, renderQueuedGearImage } from "./gear-core.js";
 import { populateFlasherSelect, populateLureSelect, populateLuresForType, populateReelSelect, populateRodSelect, prepareInlineGearDialog, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
+import { comboFromDraft, flasherFromDraft, lureFromDraft, reelFromDraft, rodFromDraft } from "./gear-draft.js";
 
 
 export function renderLineRows(lines = []) {
@@ -353,26 +354,27 @@ export async function saveReel(event) {
       ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "reels")))
       : ui.pendingReelImage ? [ui.pendingReelImage] : [];
     const reel = {
-      ...(existing || {}),
-      id: editingId || createId(),
-      shortName: getValue("reelShortName"),
-      style: getValue("reelStyle"),
-      brand: getValue("reelBrand"),
-      name: getValue("reelName"),
-      size: getValue("reelSize"),
-      weight: getValue("reelWeight"),
-      gearRatio: getValue("reelGearRatio"),
-      maxDrag: getValue("reelMaxDrag"),
-      monoCapacity: getValue("reelMonoCapacity"),
-      braidCapacity: getValue("reelBraidCapacity"),
-      flyLineRange: getValue("reelFlyLineRange"),
-      arbor: getValue("reelArbor"),
-      purchaseAmount: getValue("reelPurchaseAmount"),
-      dateBought: getValue("reelDateBought"),
-      quantityAvailable: getValue("reelQuantityAvailable"),
-      modelGroupId,
-      notes: getValue("reelNotes"),
-      lineHistory: mergeLineHistory(existing?.lineHistory || [], collectLineRows(existing?.lineHistory || [])),
+      ...reelFromDraft({
+        id: editingId || "",
+        shortName: getValue("reelShortName"),
+        style: getValue("reelStyle"),
+        brand: getValue("reelBrand"),
+        name: getValue("reelName"),
+        size: getValue("reelSize"),
+        weight: getValue("reelWeight"),
+        gearRatio: getValue("reelGearRatio"),
+        maxDrag: getValue("reelMaxDrag"),
+        monoCapacity: getValue("reelMonoCapacity"),
+        braidCapacity: getValue("reelBraidCapacity"),
+        flyLineRange: getValue("reelFlyLineRange"),
+        arbor: getValue("reelArbor"),
+        purchaseAmount: getValue("reelPurchaseAmount"),
+        dateBought: getValue("reelDateBought"),
+        quantityAvailable: getValue("reelQuantityAvailable"),
+        modelGroupId,
+        notes: getValue("reelNotes"),
+        lineHistory: collectLineRows(existing?.lineHistory || [])
+      }, { existing, editingId, duplicateSourceId }),
       ...gearPhotoFields(uploadedPhotos, existing, "reel")
     };
     await updateLogbook((draft) => {
@@ -406,22 +408,23 @@ export async function saveRod(event) {
       ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "rods")))
       : ui.pendingRodImage ? [ui.pendingRodImage] : [];
     const rod = {
-      ...(existing || {}),
-      id: editingId || createId(),
-      shortName: getValue("rodShortName"),
-      type: getValue("rodType"),
-      brand: getValue("rodBrand"),
-      name: getValue("rodName"),
-      length: getValue("rodLength"),
-      power: getValue("rodPower"),
-      action: getValue("rodAction"),
-      flyWeight: getValue("rodFlyWeight"),
-      pieces: getValue("rodPieces"),
-      lureRating: getValue("rodLureRating"),
-      purchaseAmount: getValue("rodPurchaseAmount"),
-      dateBought: getValue("rodDateBought"),
-      quantityAvailable: getValue("rodQuantityAvailable"),
-      notes: getValue("rodNotes"),
+      ...rodFromDraft({
+        id: editingId || "",
+        shortName: getValue("rodShortName"),
+        type: getValue("rodType"),
+        brand: getValue("rodBrand"),
+        name: getValue("rodName"),
+        length: getValue("rodLength"),
+        power: getValue("rodPower"),
+        action: getValue("rodAction"),
+        flyWeight: getValue("rodFlyWeight"),
+        pieces: getValue("rodPieces"),
+        lureRating: getValue("rodLureRating"),
+        purchaseAmount: getValue("rodPurchaseAmount"),
+        dateBought: getValue("rodDateBought"),
+        quantityAvailable: getValue("rodQuantityAvailable"),
+        notes: getValue("rodNotes")
+      }, { existing, editingId }),
       ...gearPhotoFields(uploadedPhotos, existing, "rod")
     };
     const duplicatedUnchanged = !editingId && Boolean(els.rodDialog.dataset.duplicateFromId)
@@ -456,14 +459,13 @@ export async function saveCombo(event) {
   try {
     const editingId = getValue("editingComboId");
     const existing = state.rodReelCombos.find((item) => item.id === editingId);
-    const combo = {
-      ...(existing || {}),
-      id: editingId || createId(),
+    const combo = comboFromDraft({
+      id: editingId || "",
       shortName: getValue("comboShortName"),
       rodId: getValue("comboRod"),
       reelId: getValue("comboReel"),
       notes: getValue("comboNotes")
-    };
+    }, { existing, editingId });
     await saveRecord("rodReelCombos", combo);
     els.comboDialog.close();
     renderAll();
@@ -481,28 +483,28 @@ export async function saveLure(event) {
     const imageFile = document.querySelector("#lureImage").files[0];
     const uploadedImage = imageFile ? await uploadImageFile(imageFile, "lures") : ui.pendingLureImage;
     const lure = {
-      ...(existing || {}),
-      id: editingId || createId(),
-      name: getValue("lureName"),
-      type: getValue("lureType"),
-      divingDepth: ["crankbait", "jerkbait"].includes(getValue("lureType").toLowerCase()) ? getValue("lureDivingDepth") : "",
-      bladeType: isWormHarnessType(getValue("lureType")) ? getValue("lureBladeType") : "",
-      spoonSize: isSpoonType(getValue("lureType")) ? getValue("lureSpoonSize") : "",
-      meatRigType: isMeatRigType(getValue("lureType")) ? getValue("lureMeatRigType") : "",
-      softPlasticType: isSoftPlasticType(getValue("lureType")) ? getValue("lureSoftPlasticType") : "",
-      flyCategory: getValue("lureType").toLowerCase() === "fly" ? getValue("flyCategory") : "",
-      flyPattern: getValue("lureType").toLowerCase() === "fly" ? getValue("flyPattern") : "",
-      flyHookSize: getValue("lureType").toLowerCase() === "fly" ? getValue("flyHookSize") : "",
-      brand: getValue("lureBrand"),
-      model: getValue("lureModel"),
-      color: getValue("lureColor"),
-      weight: getValue("lureWeight"),
-      quantityAvailable: getValue("lureQuantityAvailable"),
-      glow: document.querySelector("#lureGlow").checked,
-      notes: getValue("lureNotes"),
+      ...lureFromDraft({
+        id: editingId || "",
+        name: getValue("lureName"),
+        type: getValue("lureType"),
+        divingDepth: getValue("lureDivingDepth"),
+        bladeType: getValue("lureBladeType"),
+        spoonSize: getValue("lureSpoonSize"),
+        meatRigType: getValue("lureMeatRigType"),
+        softPlasticType: getValue("lureSoftPlasticType"),
+        flyCategory: getValue("flyCategory"),
+        flyPattern: getValue("flyPattern"),
+        flyHookSize: getValue("flyHookSize"),
+        brand: getValue("lureBrand"),
+        model: getValue("lureModel"),
+        color: getValue("lureColor"),
+        weight: getValue("lureWeight"),
+        quantityAvailable: getValue("lureQuantityAvailable"),
+        glow: document.querySelector("#lureGlow").checked,
+        notes: getValue("lureNotes")
+      }, { existing, editingId }),
       ...gearPhotoFields(uploadedImage ? [uploadedImage] : [], existing, "lure")
     };
-    lure.name = lure.name || generatedLureName(lure) || "Unnamed Lure";
     await updateLogbook((draft) => {
       const lureIndex = draft.lures.findIndex((item) => item.id === lure.id);
       if (lureIndex >= 0) draft.lures[lureIndex] = lure;
@@ -547,15 +549,16 @@ export async function saveFlasher(event) {
     const imageFile = document.querySelector("#flasherImage").files[0];
     const uploadedImage = imageFile ? await uploadImageFile(imageFile, "flashers") : ui.pendingFlasherImage;
     const flasher = {
-      ...(existing || {}),
-      id: editingId || createId(),
-      name: getValue("flasherName"),
-      type: getValue("flasherType"),
-      brand: getValue("flasherBrand"),
-      model: getValue("flasherModel"),
-      color: getValue("flasherColor"),
-      glow: document.querySelector("#flasherGlow").checked,
-      notes: getValue("flasherNotes"),
+      ...flasherFromDraft({
+        id: editingId || "",
+        name: getValue("flasherName"),
+        type: getValue("flasherType"),
+        brand: getValue("flasherBrand"),
+        model: getValue("flasherModel"),
+        color: getValue("flasherColor"),
+        glow: document.querySelector("#flasherGlow").checked,
+        notes: getValue("flasherNotes")
+      }, { existing, editingId }),
       ...gearPhotoFields(uploadedImage ? [uploadedImage] : [], existing, "flasher")
     };
     await updateLogbook((draft) => {

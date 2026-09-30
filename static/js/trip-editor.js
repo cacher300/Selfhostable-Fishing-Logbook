@@ -21,6 +21,7 @@ import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
 import { calculateMinutes } from "./stats.js";
 import { isTrollingTrip, trimNumber } from "./form-utils.js";
 import { updateMethodVisibility } from "./app.js";
+import { createTripDraft, syncTripDraftFromForm } from "./trip-draft.js";
 
 export function clearTripFormMessage() {
   els.tripFormMessage.classList.add("hidden");
@@ -81,21 +82,7 @@ export function setTripSaveLoading(saving, action = "") {
 
 export function tripFormSnapshot() {
   if (!els.tripForm) return "";
-  const controls = [...els.tripForm.querySelectorAll("input, select, textarea")]
-    .filter((control) => control.type !== "file")
-    .map((control) => ({
-      name: control.id || control.name || control.className || control.tagName,
-      value: control.type === "checkbox" || control.type === "radio" ? control.checked : control.value
-    }));
-  return JSON.stringify({
-    controls,
-    notePhotos: ui.activeNotePhotos.map((photo) => photo.id || photo.filename || ""),
-    catchPhotos: [...els.catchRows.querySelectorAll(".catch-row")].map((row) => (row.catchPhotos || []).map((photo) => photo.id || photo.filename || "")),
-    lostFishPhotos: [...els.lostFishRows.querySelectorAll(".catch-row")].map((row) => (row.catchPhotos || []).map((photo) => photo.id || photo.filename || "")),
-    lostCount: els.lostFishRows.querySelectorAll(".catch-row").length,
-    gearCount: els.tripGearRows.querySelectorAll(".gear-used-row").length,
-    peopleCount: els.personRows.querySelectorAll(".person-row").length
-  });
+  return JSON.stringify(ui.tripDraft || {});
 }
 
 export function resetTripFormSnapshot() {
@@ -132,6 +119,7 @@ export function syncTripFormChrome() {
 }
 
 export function markTripFormChanged() {
+  syncTripDraftFromForm({ probeTemperatureProfile: collectProbeTemperatureProfile });
   ui.tripFormUserChanged = true;
   syncTripFormChrome();
 }
@@ -141,6 +129,7 @@ export function closeTripDialog({ force = false } = {}) {
   if (!force && isTripFormDirty() && !confirm("Discard unsaved trip changes?")) return false;
   ui.tripFormInitialSnapshot = "";
   ui.tripFormUserChanged = false;
+  ui.tripDraft = null;
   els.tripDialog.close();
   els.tripSaveBar?.classList.remove("is-dirty");
   els.tripSaveBar?.classList.remove("is-existing-trip");
@@ -320,6 +309,7 @@ export function ensureProbeTemperatureProfileDisclosure() {
 export function openTripDialog(trip = null) {
   beginMediaEditSession("trip");
   ui.activeTripId = trip?.id || null;
+  ui.tripDraft = createTripDraft(trip);
   ui.newTripStartupSpreadApplied = false;
   ui.newTripSavedSetupAppliedMethods = new Set();
   els.deleteTripButton.classList.toggle("hidden", !trip);
@@ -402,6 +392,7 @@ export function openTripDialog(trip = null) {
   els.tripDialog.showModal();
   els.tripForm.scrollTop = 0;
   requestAnimationFrame(() => {
+    syncTripDraftFromForm({ force: true, probeTemperatureProfile: collectProbeTemperatureProfile });
     els.tripForm.scrollTop = 0;
     els.personRows.querySelector("[data-focus-person-name='true'] .person-name")?.focus({ preventScroll: true });
     resetTripFormSnapshot();

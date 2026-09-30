@@ -11,7 +11,7 @@ installBrowserEnv(`<!doctype html><html><body>
 
 const { els } = await import("../static/js/app-elements.js");
 const { setState } = await import("../static/js/app-state.js");
-const { collectTripFromForm } = await import("../static/js/trip-save.js");
+const { tripDraftFromForm, tripFromDraft } = await import("../static/js/trip-draft.js");
 
 const field = (value = "") => ({
   value,
@@ -72,7 +72,7 @@ els.personRows = { querySelectorAll: () => [] };
 els.notePhotoGrid = { querySelectorAll: () => [] };
 els.tripRating = { value: "" };
 
-const updated = collectTripFromForm();
+const updated = tripFromDraft(tripDraftFromForm(), { state: { trips: [existing], locations: [], people: [], rodReelCombos: [], lures: [] } });
 assert.equal(updated.gearUsed[0].personId, "angler-1");
 assert.equal(updated.structureType, "");
 assert.deepEqual(updated.coordinates, { latitude: 43.2, longitude: -79.5 });

@@ -14,6 +14,7 @@ import { comboName, lureName, rodName } from "./gear-core.js";
 import { populateComboSelect, populateFlasherSelect, populateLureSelect, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
 import { defaultSetupLineSide, renderLiveTrollingSpread, setupLineAutoLabel, setupLineSideLabel } from "./trolling-spread.js";
 import { isTrollingTrip, populateStructureSelect, updateCheaterDepth, updateLeadcoreEstimatedDepth, updatePresentationFields, updateTrollingVisibility } from "./form-utils.js";
+import { syncTripDraftFromForm } from "./trip-draft.js";
 
 
 export function addCatchRow(catchItem = {}) {
@@ -185,7 +186,7 @@ export function addFishRow(catchItem = {}, { container, lost }) {
   const node = template.content.firstElementChild.cloneNode(true);
   if (lost) node.classList.add("lost-fish-row");
   node.dataset.rowId = createId();
-  node.dataset.catchId = catchItem.id || "";
+  node.dataset.catchId = catchItem.id || node.dataset.rowId;
   node.catchPhotos = structuredClone(catchItem.photos || []);
   node.dataset.photoLocationId = catchItem.photoLocationId || "";
   node.dataset.heroPhotoId = catchItem.heroPhotoId || "";
@@ -299,6 +300,7 @@ export function addFishRow(catchItem = {}, { container, lost }) {
   updateCatchDetailsUnknown(node);
   updateAllRowSummaries();
   renderLiveTrollingSpread();
+  syncTripDraftFromForm();
   return node;
 }
 
@@ -316,7 +318,7 @@ export function duplicateCatchRow(sourceRow) {
     else copy.value = control.value;
   });
   duplicate.dataset.rowId = createId();
-  duplicate.dataset.catchId = "";
+  duplicate.dataset.catchId = duplicate.dataset.rowId;
   duplicate.dataset.photoLocationId = "";
   duplicate.dataset.heroPhotoId = "";
   duplicate.catchPhotos = [];
@@ -356,6 +358,7 @@ export function duplicateCatchRow(sourceRow) {
   updateCatchDetailsUnknown(duplicate);
   updateAllRowSummaries();
   renderLiveTrollingSpread();
+  syncTripDraftFromForm();
   return duplicate;
 }
 
@@ -363,7 +366,7 @@ export function addTripGearRow(gearItem = {}) {
   const template = document.querySelector("#tripGearRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.rowId = createId();
-  node.dataset.gearId = gearItem.id || "";
+  node.dataset.gearId = gearItem.id || node.dataset.rowId;
   node.querySelector(".trip-gear-start-time").value = defaultSetupStartTime(gearItem);
   node.querySelector(".trip-gear-end-time").value = defaultSetupEndTime(gearItem);
   node.querySelector(".trip-gear-change-note").value = gearItem.changeNote || gearItem.notes || "";
@@ -403,6 +406,7 @@ export function addTripGearRow(gearItem = {}) {
   populateCatchRodSelects();
   updateAllRowSummaries();
   renderLiveTrollingSpread();
+  syncTripDraftFromForm();
   return node;
 }
 

@@ -13,6 +13,7 @@ async function resetWithLocations(page, overrides = {}) {
     locations: [seededLocation()],
     ...overrides
   });
+
   await resetLogbook(page, document);
   await stubExternalApis(page);
 }
@@ -278,3 +279,112 @@ test.describe("trip editor characterization", () => {
     expect(trip.launchId).toBe("launch-port-clinton");
   });
 });
+
+test.describe("trip draft editor flows", () => {
+    test.afterEach(async ({ page }) => {
+      await resetLogbook(page, await freshLogbook(page));
+    });
+
+    test("edits an existing trolling setup line and keeps catches resolved through setupLineId", async ({ page }) => {
+      await resetWithLocations(page, {
+        lures: [{ id: "lure-spoon", name: "Green Spoon", type: "Spoon", media: [] }],
+        trips: [{
+          id: "trip-troll-edit",
+          title: "Seed troll",
+          date: "2026-07-01",
+          location: "Lake Erie",
+          locationId: "loc-lake-erie",
+          launchTime: "06:00",
+          linesPulledTime: "09:00",
+          hours: 3,
+          targetSpecies: "Walleye",
+          method: "Trolling",
+          people: [{ id: "person-1", name: "Avery" }],
+          gearUsed: [{ id: "line-1", startTime: "06:00", endTime: "09:00", side: "Port", presentation: "Outside Board", lureId: "lure-spoon" }],
+          catches: [{ id: "catch-1", personId: "person-1", species: "Walleye", time: "07:00", setupLineId: "line-1", lureId: "lure-spoon", photos: [] }],
+          lostFish: []
+        }]
+      });
+      await page.goto("/trips", { waitUntil: "domcontentloaded" });
+
+      await page.locator('.table-row[data-view-trip="trip-troll-edit"]').click();
+      await page.getByRole("button", { name: "Edit Trip", exact: true }).click();
+      const setupRow = page.locator('#tripGearRows .gear-used-row[data-gear-id="line-1"]');
+      await setupRow.locator("[data-toggle-row]").click();
+      await setupRow.locator(".trip-gear-side").selectOption({ label: "Starboard" });
+      await setupRow.locator(".trip-gear-line-label").fill("Starboard board");
+      const catchRow = page.locator('#catchRows .catch-row[data-catch-id="catch-1"]');
+      await catchRow.locator("[data-toggle-row]").click();
+      await catchRow.locator(".catch-setup-line").selectOption("line-1");
+      await saveTrip(page);
+
+      const trip = (await readLogbook(page)).trips[0];
+      expect(trip.gearUsed[0]).toMatchObject({ id: "line-1", side: "Starboard", lineLabel: "Starboard board" });
+      expect(trip.catches[0]).toMatchObject({ id: "catch-1", setupLineId: "line-1", setupLineTarget: "" });
+    });
+
+    test("duplicates and removes catch rows from the draft before saving", async ({ page }) => {
+      await resetWithLocations(page);
+      await page.goto("/trips", { waitUntil: "domcontentloaded" });
+
+      await page.getByRole("button", { name: "New Trip", exact: true }).click();
+      await fillRequiredTripBasics(page, { title: "Duplicate catches" });
+      await page.locator("#personRows .person-name").fill("Avery");
+      await page.getByRole("button", { name: "Add Catch", exact: true }).click();
+      const first = page.locator("#catchRows .catch-row").first();
+      await first.locator(".catch-person").selectOption({ label: "Avery" });
+      await first.locator(".catch-species").selectOption({ label: "Walleye" });
+      await first.locator(".catch-time").fill("08:00");
+      await first.locator(".duplicate-catch").click();
+      await expect(page.locator("#catchRows .catch-row")).toHaveCount(2);
+      page.once("dialog", (dialog) => dialog.accept());
+      await page.locator("#catchRows .catch-row").first().locator(".remove-catch").click();
+      await saveTrip(page);
+
+      const trip = (await readLogbook(page)).trips[0];
+      expect(trip.catches).toHaveLength(1);
+      expect(trip.catches[0]).toMatchObject({ species: "Walleye", time: "" });
+    });
+
+    test("switching Trolling to Casting and back preserves old blanking semantics", async ({ page }) => {
+      await resetWithLocations(page, {
+        lures: [{ id: "lure-spoon", name: "Green Spoon", type: "Spoon", media: [] }]
+      });
+      await page.goto("/trips", { waitUntil: "domcontentloaded" });
+
+      await page.getByRole("button", { name: "New Trip", exact: true }).click();
+      await fillRequiredTripBasics(page, { title: "Method switch", method: "Trolling" });
+      await page.getByRole("button", { name: "Add Rod", exact: true }).click();
+      const row = page.locator("#tripGearRows .gear-used-row").first();
+      await row.locator(".trip-gear-side").selectOption({ label: "Port" });
+      await row.locator(".catch-presentation").selectOption({ label: "Outside Board" });
+      await row.locator(".trip-gear-lure").selectOption("lure-spoon");
+      await page.locator("#method").selectOption({ label: "Casting" });
+      await page.locator("#method").selectOption({ label: "Trolling" });
+      await saveTrip(page);
+
+      const trip = (await readLogbook(page)).trips[0];
+      expect(trip.method).toBe("Trolling");
+      expect(trip.gearUsed[0].side).toBe("");
+      expect(trip.gearUsed[0].presentation).toBe("Outside Board");
+      expect(trip.gearUsed[0].lureId).toBe("lure-spoon");
+    });
+
+    test("prompts before closing an edited trip with unsaved draft changes", async ({ page }) => {
+      await resetWithLocations(page);
+      await page.goto("/trips", { waitUntil: "domcontentloaded" });
+
+      await page.getByRole("button", { name: "New Trip", exact: true }).click();
+      await page.locator("#tripTitle").fill("Unsaved title");
+      page.once("dialog", async (dialog) => {
+        expect(dialog.message()).toContain("Discard unsaved trip changes");
+        await dialog.dismiss();
+      });
+      await page.locator("#tripDialog [data-close-dialog]").first().click();
+      await expect(page.locator("#tripDialog")).toBeVisible();
+
+      page.once("dialog", (dialog) => dialog.accept());
+      await page.locator("#tripDialog [data-close-dialog]").first().click();
+      await expect(page.locator("#tripDialog")).toBeHidden();
+    });
+  });
