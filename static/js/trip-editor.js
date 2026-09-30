@@ -21,7 +21,8 @@ import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
 import { calculateMinutes } from "./stats.js";
 import { isTrollingTrip, trimNumber } from "./form-utils.js";
 import { updateMethodVisibility } from "./app.js";
-import { createTripDraft, syncTripDraftFromForm } from "./trip-draft.js";
+import { createTripDraft } from "./trip-draft.js";
+import { applyTripDraftBindings } from "./draft-binding.js";
 
 export function clearTripFormMessage() {
   els.tripFormMessage.classList.add("hidden");
@@ -104,8 +105,8 @@ export function tripDateLabel(value) {
 }
 
 export function updateTripDialogHeader() {
-  const title = getValue("tripTitle") || (ui.activeTripId ? "Untitled Trip" : "New Trip");
-  const date = tripDateLabel(document.querySelector("#tripDateValue")?.value || document.querySelector("#tripDate")?.value);
+  const title = ui.tripDraft?.title || getValue("tripTitle") || (ui.activeTripId ? "Untitled Trip" : "New Trip");
+  const date = tripDateLabel(ui.tripDraft?.date || document.querySelector("#tripDateValue")?.value || document.querySelector("#tripDate")?.value);
   const location = selectedText(els.tripLocation);
   els.tripDialogTitle.textContent = title;
   if (els.tripDialogMeta) {
@@ -119,7 +120,6 @@ export function syncTripFormChrome() {
 }
 
 export function markTripFormChanged() {
-  syncTripDraftFromForm({ probeTemperatureProfile: collectProbeTemperatureProfile });
   ui.tripFormUserChanged = true;
   syncTripFormChrome();
 }
@@ -310,6 +310,7 @@ export function openTripDialog(trip = null) {
   beginMediaEditSession("trip");
   ui.activeTripId = trip?.id || null;
   ui.tripDraft = createTripDraft(trip);
+  const tripDraft = ui.tripDraft;
   ui.newTripStartupSpreadApplied = false;
   ui.newTripSavedSetupAppliedMethods = new Set();
   els.deleteTripButton.classList.toggle("hidden", !trip);
@@ -321,40 +322,40 @@ export function openTripDialog(trip = null) {
   setHtml(els.lostFishRows, html``);
   setHtml(els.tripGearRows, html``);
   setHtml(els.personRows, html``);
-  ui.activeNotePhotos = structuredClone(trip?.notePhotos || []);
+  ui.activeNotePhotos = structuredClone(tripDraft.notePhotos || []);
 
   const today = localDateInputValue();
-  setValue("tripId", trip?.id || "");
-  setValue("tripTitle", trip?.title || "");
-  setValue("tripDateValue", trip?.date || today);
-  setValue("tripDate", displayDateForCalendar(trip?.date || today));
-  populateTripExpeditionSelect(trip?.expeditionId || "");
-  const location = findLocationByIdOrName(trip?.locationId, trip?.location);
+  setValue("tripId", tripDraft.id || "");
+  setValue("tripTitle", tripDraft.title || "");
+  setValue("tripDateValue", tripDraft.date || today);
+  setValue("tripDate", displayDateForCalendar(tripDraft.date || today));
+  populateTripExpeditionSelect(tripDraft.expeditionId || "");
+  const location = findLocationByIdOrName(tripDraft.locationId, tripDraft.location);
   populateLocationSelect(location?.id || "");
-  const launch = findLaunchByIdOrName(location, trip?.launchId, trip?.launch);
+  const launch = findLaunchByIdOrName(location, tripDraft.launchId, tripDraft.launch);
   populateLaunchSelect(launch?.id || "");
-  setValue("launchTime", trip ? (trip.launchTime || "") : defaultTimeValue);
-  setValue("linesPulledTime", trip ? (trip.linesPulledTime || "") : defaultTimeValue);
-  setValue("tripIdleTime", trip?.idleHours || "");
-  setValue("targetSpecies", trip?.targetSpecies || "");
-  setValue("method", trip?.method || "");
-  setTripIntent(tripIntent(trip || {}));
-  setTripRating(tripRatingValue(trip || {}));
-  setValue("waterTemp", trip?.waterTemp || "");
-  setValue("waterClarity", trip?.waterClarity || "");
+  setValue("launchTime", trip ? (tripDraft.launchTime || "") : defaultTimeValue);
+  setValue("linesPulledTime", trip ? (tripDraft.linesPulledTime || "") : defaultTimeValue);
+  setValue("tripIdleTime", tripDraft.idleHours || "");
+  setValue("targetSpecies", tripDraft.targetSpecies || "");
+  setValue("method", tripDraft.method || "");
+  setTripIntent(tripIntent(tripDraft || {}));
+  setTripRating(tripRatingValue(tripDraft || {}));
+  setValue("waterTemp", tripDraft.waterTemp || "");
+  setValue("waterClarity", tripDraft.waterClarity || "");
   populateOptionSelect(document.querySelector("#waterLevel"), optionLabels("waterLevels"), "Select level");
-  setValue("flyHatch", trip?.flyHatch || "");
-  setValue("waterLevel", trip?.waterLevel || "");
-  setValue("weather", trip?.weather || "");
-  setValue("waveHeight", trip?.waveHeight || "");
-  updateMarineWaveHeightPlaceholder(trip?.weatherData || ui.activeTripWeatherData);
-  setValue("structure", trip?.structure || "");
+  setValue("flyHatch", tripDraft.flyHatch || "");
+  setValue("waterLevel", tripDraft.waterLevel || "");
+  setValue("weather", tripDraft.weather || "");
+  setValue("waveHeight", tripDraft.waveHeight || "");
+  updateMarineWaveHeightPlaceholder(tripDraft.weatherData || ui.activeTripWeatherData);
+  setValue("structure", tripDraft.structure || "");
   ui.probeProfileImportCoordinates = null;
   ui.pendingProbeProfileImportCoordinates = null;
   syncProbeProfileImportSourceNote();
   setProbeProfileImportStatus("");
   ensureProbeTemperatureProfileDisclosure();
-  const savedProbeProfile = Array.isArray(trip?.probeTemperatureProfile) ? trip.probeTemperatureProfile : [];
+  const savedProbeProfile = Array.isArray(tripDraft.probeTemperatureProfile) ? tripDraft.probeTemperatureProfile : [];
   // Once a trip has saved readings, show only its populated depths when it is
   // reopened. Empty starter rows are reserved for a brand-new profile.
   if (savedProbeProfile.length) {
@@ -365,14 +366,14 @@ export function openTripDialog(trip = null) {
     probeProfileDepthsFeet = Array.from({ length: 12 }, (_, index) => index * 10);
   }
   renderProbeTemperatureProfile(savedProbeProfile, { exactDepths: savedProbeProfile.length > 0 });
-  setValue("tripNotes", trip?.notes || "");
-  ui.activeTripWeatherData = trip?.weatherData || null;
+  setValue("tripNotes", tripDraft.notes || "");
+  ui.activeTripWeatherData = tripDraft.weatherData || null;
   ui.activeTripWeatherKey = "";
   setWeatherStatus(ui.activeTripWeatherData?.daily ? weatherCardConditionsLabel() : "Choose a mapped location and date");
   renderWeatherSummary(ui.activeTripWeatherData);
   renderNotePhotos();
 
-  const tripPeople = trip?.people || [];
+  const tripPeople = tripDraft.people || [];
   if (tripPeople.length) {
     tripPeople.forEach(addPersonRow);
   } else {
@@ -381,10 +382,11 @@ export function openTripDialog(trip = null) {
     if (savedPeople.length) savedPeople.forEach(addPersonRow);
     else addPersonRow({}, { editNew: true });
   }
-  (trip?.gearUsed || []).forEach(addTripGearRow);
-  (trip?.catches || []).forEach(addCatchRow);
-  (trip?.lostFish || []).forEach(addLostFishRow);
+  (tripDraft.gearUsed || []).forEach(addTripGearRow);
+  (tripDraft.catches || []).forEach(addCatchRow);
+  (tripDraft.lostFish || []).forEach(addLostFishRow);
   populateSetupLineSelects();
+  applyTripDraftBindings(els.tripDialog);
   updateMethodVisibility({ applyStartupSpread: !trip });
   renderLiveTrollingSpread();
   renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
@@ -392,7 +394,7 @@ export function openTripDialog(trip = null) {
   els.tripDialog.showModal();
   els.tripForm.scrollTop = 0;
   requestAnimationFrame(() => {
-    syncTripDraftFromForm({ force: true, probeTemperatureProfile: collectProbeTemperatureProfile });
+    applyTripDraftBindings(els.tripDialog);
     els.tripForm.scrollTop = 0;
     els.personRows.querySelector("[data-focus-person-name='true'] .person-name")?.focus({ preventScroll: true });
     resetTripFormSnapshot();
@@ -614,6 +616,7 @@ export async function importNoaaProbeTemperatureProfile(button) {
     // NOAA provides readings at its own model depths. Replace the editable
     // depth list as well, so old blank manual rows do not remain in the grid.
     probeProfileDepthsFeet = importedProfile.map((entry) => Number(entry.depthFeet));
+    if (ui.tripDraft) ui.tripDraft.probeTemperatureProfile = structuredClone(importedProfile);
     renderProbeTemperatureProfile(importedProfile, { exactDepths: true });
     markTripFormChanged();
     clearTripFormMessage();
@@ -1047,8 +1050,13 @@ export function addPersonRow(person = {}, { editNew = false } = {}) {
   const template = document.querySelector("#personRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.personId = person.id || createId();
+  node.dataset.rowId = node.dataset.personId;
+  if (ui.tripDraft && !ui.tripDraft.people.some((item) => item.id === node.dataset.personId)) {
+    ui.tripDraft.people.push({ id: node.dataset.personId, name: person.name || "" });
+  }
   node.querySelector(".person-name").value = person.name || "";
   els.personRows.append(node);
+  applyTripDraftBindings(node);
   populatePersonSelects();
   if (editNew) {
     const select = node.querySelector(".person-select");

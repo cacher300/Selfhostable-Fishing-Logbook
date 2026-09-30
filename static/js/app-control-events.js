@@ -29,6 +29,7 @@ import { deleteGalleryItems, downloadGalleryItems, gallerySelectionMode, gallery
 import { bindChecklistEvents } from "./checklists.js";
 import { openTrollingSpreadPicker } from "./trolling-spread-picker.js";
 import { navigate } from "./router.js";
+import { handleGearDraftControlEvent, handleTripDraftControlEvent } from "./draft-binding.js";
 
 export let activeStructureSelect = null;
 
@@ -97,6 +98,12 @@ export function setup() {
   els.newTripButton.addEventListener("click", () => openTripDialog());
 
   els.tripForm.addEventListener("submit", saveTrip);
+  els.tripDialog.addEventListener("input", handleTripDraftControlEvent);
+  els.tripDialog.addEventListener("change", handleTripDraftControlEvent);
+  [els.lureDialog, els.flasherDialog, els.reelDialog, els.rodDialog, els.comboDialog].forEach((dialog) => {
+    dialog.addEventListener("input", handleGearDraftControlEvent);
+    dialog.addEventListener("change", handleGearDraftControlEvent);
+  });
 
   els.saveTripDraftButtons.forEach((button) => button.addEventListener("click", saveTripAsDraft));
 

@@ -361,6 +361,7 @@ export function applySavedSetup(setupId) {
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
   if (rows.length && !window.confirm(`Replace the current setup with ${setup.name}?`)) return;
   rows.forEach((row) => row.remove());
+  if (ui.tripDraft) ui.tripDraft.gearUsed = [];
   setup.rows.forEach((row) => addTripGearRow({
     comboId: row.comboId,
     lureId: "",

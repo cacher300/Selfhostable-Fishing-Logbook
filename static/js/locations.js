@@ -11,6 +11,7 @@ import { firstCatchCoordinates, fishCoordinatesFromRow, isCatchMetadataLocked } 
 import { refreshCatchSpotSelect, updateRowSummary } from "./trip-rows.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
+import { draftRecordForRow } from "./draft-binding.js";
 
 
 export const LOCATION_FOCUS_ZOOM = 15;
@@ -223,9 +224,13 @@ export function setCatchLocationForRow(row, coordinates) {
   if (isUsableCoordinates(coordinates)) {
     latitudeInput.value = coordinates.latitude;
     longitudeInput.value = coordinates.longitude;
+    const draft = draftRecordForRow(row);
+    if (draft) draft.manualCoordinates = { latitude: coordinates.latitude, longitude: coordinates.longitude, manual: true };
   } else {
     latitudeInput.value = "";
     longitudeInput.value = "";
+    const draft = draftRecordForRow(row);
+    if (draft) draft.manualCoordinates = null;
   }
   updateCatchLocationSummary(row);
   updateRowSummary(row);

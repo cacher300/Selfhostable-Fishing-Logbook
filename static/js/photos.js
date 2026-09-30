@@ -9,6 +9,7 @@ import { catchLocationFromRow, flashAutoFilledField, setCatchLocationForRow, upd
 import { formatDate } from "./dashboard.js";
 import { markTripFormChanged, showTripFormMessage } from "./trip-editor.js";
 import { updateRowSummary, updateUnknownTimeField } from "./trip-rows.js";
+import { draftRecordForRow } from "./draft-binding.js";
 import { renderQueuedGearImage } from "./gear-core.js";
 import { displayPhotoTitle } from "./trip-summary.js";
 
@@ -429,6 +430,7 @@ export async function addNotePhotos(event) {
     }));
 
     ui.activeNotePhotos = [...ui.activeNotePhotos, ...photos];
+    if (ui.tripDraft) ui.tripDraft.notePhotos = ui.activeNotePhotos.map((photo) => ({ ...photo }));
     event.target.value = "";
     renderNotePhotos();
   } catch (error) {
@@ -546,6 +548,11 @@ export function setCatchMetadataLock(row, field, locked) {
   locks[field] = Boolean(locked);
   row.dataset[metadataLockDatasetKey(field)] = String(Boolean(locked));
   row.catchMetadataLocks = locks;
+  const draft = draftRecordForRow(row);
+  if (draft) {
+    draft.metadataLocks = { ...locks };
+    draft.lockedLocationCoordinates = lockedPhotoCoordinatesFromRow(row);
+  }
   updateMetadataLockButtons(row);
   updateCatchLocationSummary(row);
   updateRowSummary(row);
@@ -595,6 +602,11 @@ export function applyPhotoCaptureTimeToCatch(row, photos) {
       updateUnknownTimeField(row);
     }
     timeInput.value = captureTime;
+    const draft = draftRecordForRow(row);
+    if (draft) {
+      draft.time = captureTime;
+      draft.timeUnknown = false;
+    }
     flashAutoFilledField(timeInput);
     return true;
   }
@@ -606,6 +618,12 @@ export function applyPhotoLocationToCatch(row, photo) {
   const previousCoordinates = fishCoordinatesFromRow(row);
   setCatchLocationForRow(row, null);
   row.dataset.photoLocationId = photo.id || "";
+  const draft = draftRecordForRow(row);
+  if (draft) {
+    draft.manualCoordinates = null;
+    draft.photoLocationId = photo.id || "";
+    draft.coordinates = photo.coordinates;
+  }
   const changed = catchCoordinateFlashKey(previousCoordinates) !== catchCoordinateFlashKey(photo.coordinates);
   if (changed) flashAutoFilledField(row.querySelector(".pick-catch-location"));
   return changed;
@@ -684,6 +702,8 @@ export async function addCatchPhotos(event) {
     }));
 
     row.catchPhotos = [...(row.catchPhotos || []), ...photos];
+    const draft = draftRecordForRow(row);
+    if (draft) draft.photos = collectCatchPhotos(row);
     const selectedPhoto = selectedCatchPhotoLocation(row);
     if (selectedPhoto) applyPhotoLocationToCatch(row, selectedPhoto);
     applyPhotoCaptureTimeToCatch(row, selectedPhoto ? [selectedPhoto] : photos);
@@ -898,6 +918,8 @@ export async function claimQueuedPhoto(filename) {
     if (target.type === "catch") {
       const row = target.row;
       row.catchPhotos = [...(row.catchPhotos || []), photoItem];
+      const draft = draftRecordForRow(row);
+      if (draft) draft.photos = collectCatchPhotos(row);
       const selectedPhoto = selectedCatchPhotoLocation(row);
       if (selectedPhoto) applyPhotoLocationToCatch(row, selectedPhoto);
       applyPhotoCaptureTimeToCatch(row, selectedPhoto ? [selectedPhoto] : [photoItem]);
@@ -909,6 +931,7 @@ export async function claimQueuedPhoto(filename) {
     }
     if (target.type === "trip") {
       ui.activeNotePhotos = [...ui.activeNotePhotos, { ...photoItem, caption: "" }];
+      if (ui.tripDraft) ui.tripDraft.notePhotos = ui.activeNotePhotos.map((photo) => ({ ...photo }));
       renderNotePhotos();
     }
     if (target.type === "lure") {
