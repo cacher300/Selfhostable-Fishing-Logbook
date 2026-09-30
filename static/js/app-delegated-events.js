@@ -20,6 +20,7 @@ import { closeSummaryCatchDetail, closeSummaryCatchLocationMap, openSummaryCatch
 import { openTripShareStudio } from "./trip-sharing.js";
 import { renderAdvancedStats } from "./stats.js";
 import { updateCheaterDepth, updateLeadcoreEstimatedDepth, updatePresentationFields } from "./form-utils.js";
+import { draftRecordForRow, handleGearDraftControlEvent, handleTripDraftControlEvent, removeDraftRecord } from "./draft-binding.js";
 
 import { closeGalleryLightbox, deleteGalleryItems, findGalleryItem, galleryCategoryLabels, gallerySelectionMode, galleryUi, openGalleryLightbox, renderGallery, selectGalleryRange, stepGalleryLightbox, toggleGallerySelection } from "./gallery.js";
 import { openStructureDialog } from "./app-control-events.js";
@@ -251,6 +252,7 @@ export function setup() {
       const catchRow = removeCatch.closest(".catch-row");
       const label = catchRow?.classList.contains("lost-fish-row") ? "missed fish" : "catch";
       if (!window.confirm(`Remove this ${label}?`)) return;
+      if (catchRow?.dataset.catchId) removeDraftRecord(catchRow.classList.contains("lost-fish-row") ? "lostFish" : "catches", catchRow.dataset.catchId);
       catchRow?.remove();
       updateAllRowSummaries();
       renderLiveTrollingSpread();
@@ -260,7 +262,9 @@ export function setup() {
   
     const removeTripGear = event.target.closest(".remove-trip-gear");
     if (removeTripGear) {
-      removeTripGear.closest(".gear-used-row").remove();
+      const row = removeTripGear.closest(".gear-used-row");
+      if (row?.dataset.gearId) removeDraftRecord("gearUsed", row.dataset.gearId);
+      row?.remove();
       populateSetupLineSelects();
       updateAllRowSummaries();
       renderLiveTrollingSpread();
@@ -270,6 +274,7 @@ export function setup() {
     const removePerson = event.target.closest(".remove-person");
     if (removePerson) {
       const personId = removePerson.closest(".person-row").dataset.personId;
+      removeDraftRecord("people", personId);
       removePerson.closest(".person-row").remove();
       document.querySelectorAll(".catch-person").forEach((select) => {
         if (select.value === personId) select.value = "";
@@ -317,6 +322,7 @@ export function setup() {
     if (removeNotePhoto) {
       const card = removeNotePhoto.closest("[data-note-photo]");
       ui.activeNotePhotos = ui.activeNotePhotos.filter((photo) => photo.id !== card.dataset.notePhoto);
+      if (ui.tripDraft) ui.tripDraft.notePhotos = ui.activeNotePhotos.map((photo) => ({ ...photo }));
       renderNotePhotos();
       markTripFormChanged();
     }
@@ -330,6 +336,12 @@ export function setup() {
       row.catchPhotos = (row.catchPhotos || []).filter((photo) => photo.id !== card.dataset.catchPhoto);
       if (removedSelectedLocation) row.dataset.photoLocationId = "";
       if (removedHeroPhoto) row.dataset.heroPhotoId = "";
+      const draft = draftRecordForRow(row);
+      if (draft) {
+        draft.photos = (row.catchPhotos || []).map((photo) => ({ ...photo }));
+        if (removedSelectedLocation) draft.photoLocationId = "";
+        if (removedHeroPhoto) draft.heroPhotoId = "";
+      }
       renderCatchPhotos(row);
       updateCatchLocationSummary(row);
       updateCatchFowFromLocation(row, { force: removedSelectedLocation });
@@ -654,6 +666,8 @@ export function setup() {
   });
 
   document.addEventListener("change", (event) => {
+    handleTripDraftControlEvent(event);
+    handleGearDraftControlEvent(event);
     const columnToggle = event.target.closest?.("[data-report-column]");
     if (!columnToggle) return;
     const columns = reportColumns();
@@ -707,6 +721,8 @@ export function setup() {
   });
 
   document.addEventListener("change", (event) => {
+    handleTripDraftControlEvent(event);
+    handleGearDraftControlEvent(event);
     if (event.target.matches(".catch-structure") && event.target.value === "__new__") {
       openStructureDialog(event.target);
       return;
@@ -716,6 +732,8 @@ export function setup() {
       const row = event.target.closest(".catch-row");
       if (row) {
         row.dataset.heroPhotoId = event.target.value;
+        const draft = draftRecordForRow(row);
+        if (draft) draft.heroPhotoId = event.target.value;
         renderCatchPhotos(row);
         updateRowSummary(row);
       }
@@ -726,6 +744,8 @@ export function setup() {
       const row = event.target.closest(".catch-row");
       if (row) {
         row.dataset.photoLocationId = event.target.value;
+        const draft = draftRecordForRow(row);
+        if (draft) draft.photoLocationId = event.target.value;
         const selectedPhoto = catchPhotoById(row, event.target.value);
         if (selectedPhoto) {
           applyPhotoCaptureTimeToCatch(row, [selectedPhoto]);
@@ -842,6 +862,13 @@ export function setup() {
   });
 
   document.addEventListener("input", (event) => {
+    handleTripDraftControlEvent(event);
+    handleGearDraftControlEvent(event);
+    if (event.target.matches(".note-photo-caption")) {
+      const card = event.target.closest("[data-note-photo]");
+      const photo = ui.tripDraft?.notePhotos?.find((item) => item.id === card?.dataset.notePhoto);
+      if (photo) photo.caption = event.target.value.trim();
+    }
     if (event.target.matches("#probeTemperatureGrid [data-probe-depth-feet]")) {
       event.target.dataset.probeTemperatureDirty = "true";
     }
@@ -935,6 +962,7 @@ export function setup() {
       const inputs = [...document.querySelectorAll("#probeTemperatureGrid [data-probe-depth-feet]")];
       if (inputs.some((input) => input.value.trim()) && confirm("Clear all probe temperature readings?")) {
         inputs.forEach((input) => { input.value = ""; });
+        if (ui.tripDraft) ui.tripDraft.probeTemperatureProfile = [];
         renderProbeTemperatureProfileChart([]);
         markTripFormChanged();
         clearTripFormMessage();

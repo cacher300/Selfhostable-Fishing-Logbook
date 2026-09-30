@@ -82,5 +82,6 @@ assert.equal(castingTrip.catches[0].presentation, "");
 assert.equal(castingTrip.catches[0].retrieve, "pause");
 assert.equal(castingTrip.catches[0].setupLineTarget, "");
 
-const tripSaveSource = readFileSync(new URL("../static/js/trip-save.js", import.meta.url), "utf8");
-assert.equal(/\.value\b/.test(tripSaveSource), false, "trip-save.js must save from ui.tripDraft, not DOM .value reads");
+// trip-draft.js holds the pure draft -> trip normalization; it must never touch the DOM.
+const tripDraftSource = readFileSync(new URL("../static/js/trip-draft.js", import.meta.url), "utf8");
+assert.equal(/\b(document|querySelector\w*|getElement\w*|getAttribute)\b|\.(value|checked|dataset)\b|\["(value|checked|dataset)"\]/.test(tripDraftSource), false, "trip-draft.js must stay free of DOM access");

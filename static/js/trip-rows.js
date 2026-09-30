@@ -14,7 +14,7 @@ import { comboName, lureName, rodName } from "./gear-core.js";
 import { populateComboSelect, populateFlasherSelect, populateLureSelect, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
 import { defaultSetupLineSide, renderLiveTrollingSpread, setupLineAutoLabel, setupLineSideLabel } from "./trolling-spread.js";
 import { isTrollingTrip, populateStructureSelect, updateCheaterDepth, updateLeadcoreEstimatedDepth, updatePresentationFields, updateTrollingVisibility } from "./form-utils.js";
-import { syncTripDraftFromForm } from "./trip-draft.js";
+import { applyTripDraftBindings, replaceDraftRecord } from "./draft-binding.js";
 
 
 export function addCatchRow(catchItem = {}) {
@@ -36,7 +36,7 @@ export function expandAndRevealTripRow(row) {
 }
 
 export function defaultFishTime(catchItem = {}) {
-  return catchItem.timeUnknown ? "" : (catchItem.time ?? (getValue("launchTime") || defaultTimeValue));
+  return catchItem.timeUnknown ? "" : (catchItem.time ?? (ui.tripDraft?.launchTime || getValue("launchTime") || defaultTimeValue));
 }
 
 export function populateCatchSpotSelect(row, catchItem = {}) {
@@ -151,11 +151,11 @@ export function updateCatchDetailsUnknown(row, { clear = false } = {}) {
 }
 
 export function defaultSetupStartTime(gearItem = {}) {
-  return gearItem.startTime ?? (getValue("launchTime") || defaultTimeValue);
+  return gearItem.startTime ?? (ui.tripDraft?.launchTime || getValue("launchTime") || defaultTimeValue);
 }
 
 export function defaultSetupEndTime(gearItem = {}) {
-  return gearItem.endTime ?? (getValue("linesPulledTime") || defaultTimeValue);
+  return gearItem.endTime ?? (ui.tripDraft?.linesPulledTime || getValue("linesPulledTime") || defaultTimeValue);
 }
 
 export function syncTripTimesToBlankRows() {
@@ -166,6 +166,11 @@ export function syncTripTimesToBlankRows() {
       if (field.closest(".catch-row")?.querySelector(".catch-time-unknown")?.checked) return;
       if (!field.value) {
         field.value = startTime;
+        const row = field.closest(".catch-row, .gear-used-row");
+        const id = row?.dataset.catchId || row?.dataset.gearId || "";
+        const collection = row?.classList.contains("gear-used-row") ? "gearUsed" : row?.classList.contains("lost-fish-row") ? "lostFish" : "catches";
+        const record = ui.tripDraft?.[collection]?.find((item) => item.id === id);
+        if (record) record[row?.classList.contains("gear-used-row") ? "startTime" : "time"] = startTime;
         flashAutoFilledField(field);
       }
     });
@@ -174,6 +179,9 @@ export function syncTripTimesToBlankRows() {
     document.querySelectorAll("#tripGearRows .trip-gear-end-time").forEach((field) => {
       if (!field.value) {
         field.value = endTime;
+        const row = field.closest(".gear-used-row");
+        const record = ui.tripDraft?.gearUsed?.find((item) => item.id === row?.dataset.gearId);
+        if (record) record.endTime = endTime;
         flashAutoFilledField(field);
       }
     });
@@ -187,6 +195,7 @@ export function addFishRow(catchItem = {}, { container, lost }) {
   if (lost) node.classList.add("lost-fish-row");
   node.dataset.rowId = createId();
   node.dataset.catchId = catchItem.id || node.dataset.rowId;
+  if (ui.tripDraft) replaceDraftRecord(lost ? "lostFish" : "catches", { ...catchItem, id: node.dataset.catchId });
   node.catchPhotos = structuredClone(catchItem.photos || []);
   node.dataset.photoLocationId = catchItem.photoLocationId || "";
   node.dataset.heroPhotoId = catchItem.heroPhotoId || "";
@@ -293,6 +302,7 @@ export function addFishRow(catchItem = {}, { container, lost }) {
   updatePresentationFields(node);
 
   container.append(node);
+  applyTripDraftBindings(node);
   syncUnitLabels(node);
   populateSetupLineSelects();
   updateTrollingVisibility();
@@ -300,7 +310,6 @@ export function addFishRow(catchItem = {}, { container, lost }) {
   updateCatchDetailsUnknown(node);
   updateAllRowSummaries();
   renderLiveTrollingSpread();
-  syncTripDraftFromForm();
   return node;
 }
 
@@ -358,7 +367,7 @@ export function duplicateCatchRow(sourceRow) {
   updateCatchDetailsUnknown(duplicate);
   updateAllRowSummaries();
   renderLiveTrollingSpread();
-  syncTripDraftFromForm();
+  applyTripDraftBindings(duplicate);
   return duplicate;
 }
 
@@ -367,6 +376,7 @@ export function addTripGearRow(gearItem = {}) {
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.rowId = createId();
   node.dataset.gearId = gearItem.id || node.dataset.rowId;
+  if (ui.tripDraft) replaceDraftRecord("gearUsed", { ...gearItem, id: node.dataset.gearId });
   node.querySelector(".trip-gear-start-time").value = defaultSetupStartTime(gearItem);
   node.querySelector(".trip-gear-end-time").value = defaultSetupEndTime(gearItem);
   node.querySelector(".trip-gear-change-note").value = gearItem.changeNote || gearItem.notes || "";
@@ -400,13 +410,13 @@ export function addTripGearRow(gearItem = {}) {
   updatePresentationFields(node);
 
   els.tripGearRows.append(node);
+  applyTripDraftBindings(node);
   syncUnitLabels(node);
   populateSetupLineSelects();
   updateTrollingVisibility();
   populateCatchRodSelects();
   updateAllRowSummaries();
   renderLiveTrollingSpread();
-  syncTripDraftFromForm();
   return node;
 }
 
@@ -490,6 +500,7 @@ export function importLastTrollingSpread() {
   if (rows.length && !onlyAutoAddedRows && !window.confirm("Replace the current setup with the spread from your last matching trip?")) return;
 
   rows.forEach((row) => row.remove());
+  if (ui.tripDraft) ui.tripDraft.gearUsed = [];
   sourceTrip.gearUsed.forEach((gearItem) => addTripGearRow(lastTripSpreadGearItem(gearItem)));
   populateSetupLineSelects();
   populateCatchRodSelects();
