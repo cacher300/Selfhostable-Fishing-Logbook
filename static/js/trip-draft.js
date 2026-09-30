@@ -6,6 +6,77 @@ import { chopLabelForWaveHeight } from "./settings-core.js";
 import { calculateHours, calculateMinutes } from "./stats.js";
 import { weatherWindText } from "./location-weather.js";
 
+const draftSources = new WeakMap();
+const emptyDefaults = new Map([
+  ["idleHours", 0],
+  ["expeditionId", ""],
+  ["intent", "serious"],
+  ["launch", ""],
+  ["launchId", ""],
+  ["notePhotos", []],
+  ["probeTemperatureProfile", []],
+  ["structure", ""],
+  ["tripRating", 1],
+  ["waterClarity", ""],
+  ["waterTemp", ""],
+  ["waveChop", ""],
+  ["waveHeight", ""],
+  ["weather", ""],
+  ["weatherData", null],
+  ["wind", ""],
+  ["flyHatch", ""],
+  ["waterLevel", ""],
+  ["detailsUnknown", false],
+  ["timeUnknown", false],
+  ["structureType", ""],
+  ["rigging", ""],
+  ["riggingDetails", ""],
+  ["heroPhotoId", ""],
+  ["lockedLocationCoordinates", null],
+  ["metadataLocks", { time: false, location: false, fow: false }],
+  ["photoLocationId", ""],
+  ["shaker", false],
+  ["deepestRigger", false],
+  ["flyPresentation", ""],
+  ["leadcoreColors", ""],
+  ["setupLineId", ""],
+  ["setupLineTarget", ""],
+  ["flatlineWeightOz", ""],
+  ["retrieve", ""],
+  ["dipseyDiverColor", ""],
+  ["attachedWeightOz", ""],
+  ["leader", ""],
+  ["tippet", ""],
+  ["distanceBehind", ""],
+  ["hasLeadcore", false],
+  ["hasCheater", false],
+  ["cheaterLureId", ""],
+  ["changeNote", ""],
+  ["lineLabel", ""],
+  ["ballSpeed", ""],
+  ["ballTemp", ""],
+  ["coordinates", null],
+  ["depthDown", ""],
+  ["dipseySetting", ""],
+  ["direction", ""],
+  ["estimatedDepth", ""],
+  ["fowCaught", ""],
+  ["gpsSpeed", ""],
+  ["length", ""],
+  ["lineBehindBoard", ""],
+  ["lineOut", ""],
+  ["lureId", ""],
+  ["manualCoordinates", null],
+  ["notes", ""],
+  ["possibleSpecies", ""],
+  ["released", true],
+  ["rodId", ""],
+  ["spotAssignmentMode", "automatic"],
+  ["spotId", ""],
+  ["waterDepth", ""],
+  ["weight", ""]
+]);
+
 export function trimText(value) {
   return String(value ?? "").trim();
 }
@@ -41,6 +112,39 @@ function matchingCombo(comboId, appState = state) {
 
 function lineMinutes(line) {
   return Math.max(0, calculateMinutes(line.startTime || "", line.endTime || ""));
+}
+
+function sameValue(first, second) {
+  return JSON.stringify(first) === JSON.stringify(second);
+}
+
+function hasOwn(object, key) {
+  return Object.hasOwn(object || {}, key);
+}
+
+function preserveUnchangedFields(result, draft, source) {
+  if (!source) return result;
+  const next = { ...result };
+  Object.keys(source).forEach((key) => {
+    if (sameValue(draft?.[key], source[key])) next[key] = structuredClone(source[key]);
+  });
+  emptyDefaults.forEach((value, key) => {
+    if (!hasOwn(source, key) && !hasOwn(draft, key) && sameValue(next[key], value)) delete next[key];
+  });
+  Object.keys(next).forEach((key) => {
+    if (next[key] === undefined && !hasOwn(source, key) && !hasOwn(draft, key)) delete next[key];
+  });
+  return next;
+}
+
+function sourceRecordById(records = [], id = "") {
+  return ensureArray(records).find((item) => String(item?.id || "") === String(id || "")) || null;
+}
+
+function normalizeMaybeChangedRecord(record, sourceRecords, normalize) {
+  const source = sourceRecordById(sourceRecords, record?.id);
+  if (source && sameValue(record, source)) return structuredClone(source);
+  return preserveUnchangedFields(normalize(record), record, source);
 }
 
 export function createTripDraft(trip = null, options = {}) {
@@ -83,8 +187,18 @@ export function createTripDraft(trip = null, options = {}) {
   draft.gearUsed = ensureArray(draft.gearUsed).map((line) => ({ ...line, id: line.id || createId() }));
   draft.catches = ensureArray(draft.catches).map((fish) => ({ ...fish, id: fish.id || createId() }));
   draft.lostFish = ensureArray(draft.lostFish).map((fish) => ({ ...fish, id: fish.id || createId() }));
-  draft.notePhotos = mediaRefs(draft.notePhotos);
+  if (!trip) draft.notePhotos = mediaRefs(draft.notePhotos);
+  if (trip) draftSources.set(draft, structuredClone(trip));
   return draft;
+}
+
+export function sourceTripForDraft(draft) {
+  return draftSources.get(draft) || null;
+}
+
+export function tripDraftIsPristine(draft) {
+  const source = sourceTripForDraft(draft);
+  return Boolean(source) && JSON.stringify(draft) === JSON.stringify(source);
 }
 
 export function normalizeSetupLine(line = {}, context = {}) {
@@ -154,11 +268,11 @@ export function normalizeFish(fish = {}, context = {}) {
     personId: detailsUnknown ? "" : trimText(fish.personId),
     species: lost ? "" : trimText(fish.species),
     possibleSpecies: lost ? trimText(fish.possibleSpecies || fish.species) : "",
-    released: detailsUnknown || lost ? false : !Boolean(fish.kept),
+    released: detailsUnknown || lost ? false : (hasOwn(fish, "kept") ? !Boolean(fish.kept) : Boolean(fish.released)),
     length: lost ? "" : trimText(fish.length),
     weight: lost ? "" : trimText(fish.weight),
-    spotAssignmentMode: fish.spotAssignmentMode === "manual" ? "manual" : "automatic",
-    spotId: fish.spotAssignmentMode === "manual" ? trimText(fish.spotId) : "",
+    spotAssignmentMode: hasOwn(fish, "spotAssignmentMode") ? (fish.spotAssignmentMode === "manual" ? "manual" : "automatic") : fish.spotAssignmentMode,
+    spotId: hasOwn(fish, "spotAssignmentMode") ? (fish.spotAssignmentMode === "manual" ? trimText(fish.spotId) : "") : trimText(fish.spotId),
     structureType: detailsUnknown ? "" : trimText(fish.structureType),
     time: detailsUnknown ? "" : trimText(fish.time),
     timeUnknown: detailsUnknown ? false : Boolean(fish.timeUnknown),
@@ -239,6 +353,8 @@ function fishIsNotEmpty(item) {
 }
 
 export function tripFromDraft(draft = {}, context = {}) {
+  if (tripDraftIsPristine(draft)) return structuredClone(sourceTripForDraft(draft));
+  const sourceTrip = sourceTripForDraft(draft);
   const appState = context.state || state;
   const flags = tripMethodFlags(draft.method);
   const location = ensureArray(appState.locations).find((item) => item.id === trimText(draft.locationId));
@@ -248,7 +364,7 @@ export function tripFromDraft(draft = {}, context = {}) {
   const weatherData = draft.weatherData || null;
   const waveHeight = trimText(draft.waveHeight);
   const method = trimText(draft.method);
-  return {
+  const normalized = {
     ...structuredClone(draft),
     id: trimText(draft.id) || createId(),
     title: trimText(draft.title),
@@ -279,15 +395,30 @@ export function tripFromDraft(draft = {}, context = {}) {
     structure: trimText(draft.structure),
     notes: trimText(draft.notes),
     notePhotos: mediaRefs(draft.notePhotos),
-    people: ensureArray(draft.people).map((person) => ({ ...person, name: trimText(person.name) })).filter((person) => person.id && person.name),
+    people: sourceTrip && sameValue(draft.people, sourceTrip.people)
+      ? structuredClone(sourceTrip.people || [])
+      : ensureArray(draft.people).map((person) => ({ ...person, name: trimText(person.name) })).filter((person) => person.id && person.name),
     gearUsed: ensureArray(draft.gearUsed)
-      .map((line) => normalizeSetupLine(line, { state: appState, method, methodFlags: flags }))
+      .map((line) => normalizeMaybeChangedRecord(
+        line,
+        sourceTrip?.gearUsed,
+        (item) => normalizeSetupLine(item, { state: appState, method, methodFlags: flags })
+      ))
       .filter(setupLineIsNotEmpty),
     catches: ensureArray(draft.catches)
-      .map((fish) => normalizeFish(fish, { state: appState, method, methodFlags: flags, lost: false }))
+      .map((fish) => normalizeMaybeChangedRecord(
+        fish,
+        sourceTrip?.catches,
+        (item) => normalizeFish(item, { state: appState, method, methodFlags: flags, lost: false })
+      ))
       .filter(fishIsNotEmpty),
     lostFish: ensureArray(draft.lostFish)
-      .map((fish) => normalizeFish(fish, { state: appState, method, methodFlags: flags, lost: true }))
+      .map((fish) => normalizeMaybeChangedRecord(
+        fish,
+        sourceTrip?.lostFish,
+        (item) => normalizeFish(item, { state: appState, method, methodFlags: flags, lost: true })
+      ))
       .filter(fishIsNotEmpty)
   };
+  return preserveUnchangedFields(normalized, draft, sourceTrip);
 }

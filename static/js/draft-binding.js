@@ -199,6 +199,7 @@ export function replaceDraftRecord(collection, record) {
 }
 
 export function updateTripField(field, value) {
+  if (ui.tripDraftHydrating) return ui.tripDraft || null;
   if (!ui.tripDraft || !field) return null;
   setPath(ui.tripDraft, field, cloneDraftValue(value));
   syncRootDerivedFields(field);
@@ -206,6 +207,7 @@ export function updateTripField(field, value) {
 }
 
 export function updateTripRow(collection, rowId, patch = {}) {
+  if (ui.tripDraftHydrating) return null;
   if (!ui.tripDraft || !collection) return null;
   const targetId = rowId || patch.id;
   if (!targetId) return null;
