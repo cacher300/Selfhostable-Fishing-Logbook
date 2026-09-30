@@ -385,7 +385,18 @@ const lineBindings = [
 ];
 
 export function createGearDraft(record = null, defaults = {}) {
-  ui.gearDraft = { ...structuredClone(record || {}), ...defaults };
+  ui.gearDraft = structuredClone(record || defaults || {});
+  return ui.gearDraft;
+}
+
+export function setGearDraftContext(context = {}) {
+  ui.gearDraftContext = { ...context };
+  return ui.gearDraftContext;
+}
+
+export function updateGearField(field, value) {
+  if (!ui.gearDraft || !field) return null;
+  setPath(ui.gearDraft, field, cloneDraftValue(value));
   return ui.gearDraft;
 }
 
@@ -400,11 +411,32 @@ export function applyGearDraftBindings(root) {
   });
 }
 
-function ensureLineDraft() {
+function ensureLineDraft(id = "") {
   if (!ui.gearDraft) return null;
   if (!Array.isArray(ui.gearDraft.lineHistory)) ui.gearDraft.lineHistory = [];
-  if (!ui.gearDraft.lineHistory[0]) ui.gearDraft.lineHistory[0] = { id: createId() };
-  return ui.gearDraft.lineHistory[0];
+  const requestedId = String(id || "");
+  let line = requestedId
+    ? ui.gearDraft.lineHistory.find((entry) => String(entry?.id || "") === requestedId)
+    : null;
+  if (!line) {
+    line = ui.gearDraft.lineHistory[0];
+    if (!line) {
+      line = { id: requestedId || createId() };
+      ui.gearDraft.lineHistory[0] = line;
+    } else if (requestedId && !line.id) {
+      line.id = requestedId;
+    }
+  }
+  return line;
+}
+
+export function updateGearLineEntry(rowOrId, patch = {}) {
+  if (!ui.gearDraft) return null;
+  const id = typeof rowOrId === "string" ? rowOrId : rowOrId?.getAttribute?.("data-line-id") || "";
+  const line = ensureLineDraft(id);
+  if (!line) return null;
+  Object.assign(line, cloneDraftValue(patch), { id: id || line.id || createId() });
+  return line;
 }
 
 export function updateGearDraftFromControl(control) {
@@ -416,7 +448,8 @@ export function updateGearDraftFromControl(control) {
   const value = controlValue(control);
   if (value === undefined) return false;
   if (linePath) {
-    setPath(ensureLineDraft(), linePath, value);
+    const row = control.closest(".line-editor-row");
+    setPath(ensureLineDraft(row?.getAttribute("data-line-id") || ""), linePath, value);
     return true;
   }
   if (path) {
