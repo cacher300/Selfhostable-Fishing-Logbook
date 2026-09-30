@@ -241,3 +241,21 @@ def test_media_transaction_non_overwrite_existing_target_leaves_tree_unchanged(t
             transaction.promote()
 
     assert existing.read_bytes() == b"old"
+
+
+def test_cached_read_notices_database_replaced_at_same_revision(tmp_path) -> None:
+    database = tmp_path / "logbook.sqlite3"
+    server_view = LocalLogbookStore(database)
+    server_view.initialize()
+    assert server_view.read().revision == '"1"'
+    assert server_view.read().document["trips"] == []
+
+    # Another process deletes the file and installs different data, which
+    # starts over at the same revision number.
+    for path in tmp_path.glob("logbook.sqlite3*"):
+        path.unlink()
+    LocalLogbookStore(database).write(document(trips=[trip("trip-1", "Imported")]), None)
+
+    snapshot = server_view.read()
+    assert snapshot.revision == '"1"'
+    assert [item["id"] for item in snapshot.document["trips"]] == ["trip-1"]

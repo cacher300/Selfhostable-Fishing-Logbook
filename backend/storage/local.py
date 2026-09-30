@@ -59,7 +59,9 @@ class LocalLogbookStore:
     def __init__(self, database_file: Path):
         self.database_file = Path(database_file)
         self._lock = threading.Lock()
-        self._cache: tuple[int, dict] | None = None
+        # (revision, file identity, document). The identity guards against the
+        # database file being replaced by another process at the same revision.
+        self._cache: tuple[int, tuple[int, int] | None, dict] | None = None
 
     def exists(self) -> bool:
         return self.database_file.is_file()
@@ -74,9 +76,17 @@ class LocalLogbookStore:
             # import is the only path that replaces incompatible storage.
             self.read()
 
+    def _file_identity(self) -> tuple[int, int] | None:
+        try:
+            stat = self.database_file.stat()
+        except OSError:
+            return None
+        return stat.st_ino, stat.st_ctime_ns
+
     def _remember(self, revision: int, document: dict) -> None:
+        identity = self._file_identity()
         with self._lock:
-            self._cache = (revision, document)
+            self._cache = (revision, identity, document)
 
     def _read_revision(self) -> int | None:
         try:
@@ -90,8 +100,8 @@ class LocalLogbookStore:
             return LogbookSnapshot(deepcopy(DEFAULT_LOGBOOK), revision_tag(0))
         with self._lock:
             cached = self._cache
-        if cached and cached[0] == revision:
-            return LogbookSnapshot(cached[1], revision_tag(revision))
+        if cached and cached[0] == revision and cached[1] == self._file_identity():
+            return LogbookSnapshot(cached[2], revision_tag(revision))
         try:
             loaded, revision = logbook_repository.read_with_revision(self.database_file, COLLECTION_KEYS)
         except Exception as error:
