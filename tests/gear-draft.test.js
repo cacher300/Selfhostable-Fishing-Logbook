@@ -28,6 +28,17 @@ assert.equal(spoon.meatRigType, "");
 assert.equal(spoon.softPlasticType, "");
 assert.equal(spoon.flyCategory, "");
 
+const spinnerbait = lureFromDraft({ type: "Spinnerbait", name: "Test spinnerbait", bladeType: "Willow Leaf", spoonSize: "Mag" });
+assert.equal(spinnerbait.bladeType, "Willow Leaf");
+assert.equal(spinnerbait.spoonSize, "");
+assert.equal(lureFromDraft({ type: "Spinner", bladeType: "Colorado" }).bladeType, "");
+
+const bead = lureFromDraft({ type: "Bead", name: "", beadSize: "10mm", color: "Peach", spoonSize: "Mag" });
+assert.equal(bead.beadSize, "10mm");
+assert.equal(bead.spoonSize, "");
+assert.match(bead.name, /10mm/);
+assert.equal(lureFromDraft({ type: "Spoon", beadSize: "10mm" }).beadSize, "");
+
 const flyRod = rodFromDraft({ type: "Fly", flyWeight: "8", pieces: "4", shortName: "  8wt  " });
 assert.equal(flyRod.shortName, "8wt");
 assert.equal(flyRod.flyWeight, "8");

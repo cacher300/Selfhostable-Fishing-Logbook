@@ -184,6 +184,7 @@
     "waterLevels",
     "lureBladeTypes",
     "lureSpoonSizes",
+    "lureBeadSizes",
     "meatRigTypes",
     "softPlasticTypes",
     "trollingPresentations",
@@ -213,6 +214,7 @@
     "trips"
   ],
   "optionalCollectionKeys": [
+    "lureBeadSizes",
     "meatRigTypes",
     "softPlasticTypes"
   ]

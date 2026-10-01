@@ -28,6 +28,7 @@ export const predefinedFieldGroups = [
   { key: "waterLevels", label: "Water levels" },
   { key: "lureBladeTypes", label: "Lure blade types" },
   { key: "lureSpoonSizes", label: "Lure spoon sizes" },
+  { key: "lureBeadSizes", label: "Lure bead sizes" },
   { key: "meatRigTypes", label: "Meat rig types" },
   { key: "softPlasticTypes", label: "Soft plastic styles" },
   { key: "trollingPresentations", label: "Trolling methods", choice: true },

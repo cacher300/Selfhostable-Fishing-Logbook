@@ -17,7 +17,7 @@ from threading import RLock
 
 
 _LOCK = RLock()
-_OPTIONAL_COLLECTION_KEYS = {"meatRigTypes", "softPlasticTypes"}
+_OPTIONAL_COLLECTION_KEYS = {"lureBeadSizes", "meatRigTypes", "softPlasticTypes"}
 _OPTIONAL_COLLECTIONS_PRESENT_KEY = "optionalCollectionsPresent"
 
 

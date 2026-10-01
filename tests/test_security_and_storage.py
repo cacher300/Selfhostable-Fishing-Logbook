@@ -162,21 +162,24 @@ class LogbookStoreTests(unittest.TestCase):
         absent = document()
         del absent["meatRigTypes"]
         del absent["softPlasticTypes"]
+        del absent["lureBeadSizes"]
         with tempfile.TemporaryDirectory() as directory:
             store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
             store.write(absent, None)
             stored = store.read().document
             self.assertNotIn("meatRigTypes", stored)
             self.assertNotIn("softPlasticTypes", stored)
+            self.assertNotIn("lureBeadSizes", stored)
 
-            present_empty = document(meatRigTypes=[], softPlasticTypes=[])
+            present_empty = document(meatRigTypes=[], softPlasticTypes=[], lureBeadSizes=[])
             store.write(present_empty, None)
             stored = store.read().document
             self.assertEqual([], stored["meatRigTypes"])
             self.assertEqual([], stored["softPlasticTypes"])
+            self.assertEqual([], stored["lureBeadSizes"])
 
     def test_optional_lure_subtype_collections_migrate_from_extra_to_rows(self):
-        old_collection_keys = tuple(key for key in logbook_store.COLLECTION_KEYS if key not in {"meatRigTypes", "softPlasticTypes"})
+        old_collection_keys = tuple(key for key in logbook_store.COLLECTION_KEYS if key not in {"lureBeadSizes", "meatRigTypes", "softPlasticTypes"})
         payload = document(meatRigTypes=["Custom strip"], softPlasticTypes=["Custom tail"])
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "logbook.sqlite3"

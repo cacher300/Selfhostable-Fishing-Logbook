@@ -187,6 +187,7 @@ export const constants = {
     "waterLevels",
     "lureBladeTypes",
     "lureSpoonSizes",
+    "lureBeadSizes",
     "meatRigTypes",
     "softPlasticTypes",
     "trollingPresentations",
@@ -216,6 +217,7 @@ export const constants = {
     "trips"
   ],
   "optionalCollectionKeys": [
+    "lureBeadSizes",
     "meatRigTypes",
     "softPlasticTypes"
   ]
@@ -254,21 +256,30 @@ export const defaultLogbook = {
     "Shore Fishing"
   ],
   "lureTypes": [
+    "Bead",
     "Blade Bait",
+    "Bucktail",
+    "Bulldawg",
     "Crankbait",
     "Dropshot",
     "Flasher/Fly",
     "Fly",
+    "Glide Bait",
     "Jerkbait",
     "Jig",
     "Meat Rig",
+    "Musky Tube",
     "Topwater",
     "Other",
     "Plug",
+    "Roe",
+    "Skein",
     "Soft Plastic",
     "Spinner",
+    "Spinnerbait",
     "Spoon",
     "Swimbait",
+    "Twitch Bait",
     "Worm Harness"
   ],
   "flasherTypes": [
@@ -381,6 +392,15 @@ export const defaultLogbook = {
     "Small",
     "Standard",
     "Magnum"
+  ],
+  "lureBeadSizes": [
+    "6mm",
+    "8mm",
+    "10mm",
+    "12mm",
+    "14mm",
+    "16mm",
+    "20mm"
   ],
   "meatRigTypes": [
     "Herring Strip",
