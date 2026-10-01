@@ -7,12 +7,11 @@ from flask import Flask, Response, jsonify, request
 from . import cloud_storage
 from .config import PROJECT_ROOT, AppConfig
 from .frontend_assets import asset_url
-from .logbook_changes import LogbookChangeError
 from .logbook_store import LogbookStorageError
 from .media_service import MediaNotFound
 from .request_security import configure_request_security
 from .routes import environment, logbook, media, pages
-from .storage import MediaInventoryIncomplete, MediaRequestError, RevisionConflict, Storage, create_storage
+from .storage import InvalidRevision, MediaInventoryIncomplete, MediaRequestError, RevisionConflict, Storage, create_storage
 
 
 SELF_CACHED_ENDPOINTS = {"pages.static_files", *environment.CACHEABLE_ENDPOINTS}
@@ -70,8 +69,8 @@ def _register_error_handlers(app: Flask) -> None:
         response.headers["ETag"] = exception.current_revision
         return response, status
 
-    @app.errorhandler(LogbookChangeError)
-    def logbook_change_error(exception: LogbookChangeError) -> tuple[Response, int]:
+    @app.errorhandler(InvalidRevision)
+    def invalid_revision(exception: InvalidRevision) -> tuple[Response, int]:
         return error(str(exception), 400)
 
     @app.errorhandler(MediaRequestError)

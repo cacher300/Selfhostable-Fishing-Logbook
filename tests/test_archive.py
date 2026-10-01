@@ -132,12 +132,30 @@ def test_archive_import_can_replace_unreadable_database() -> None:
 def test_main_starts_when_database_initialization_fails() -> None:
     logbook = server.app.extensions["fish.storage"].logbook
     with (
+        patch("server.frontend_is_built", return_value=True),
+        patch("server.frontend_build_is_stale", return_value=False),
         patch.object(logbook, "initialize", side_effect=RuntimeError("simulated initialization failure")),
         patch.object(server.app, "run") as app_run,
     ):
         server.main()
 
     app_run.assert_called_once()
+
+
+def test_main_refuses_to_start_without_a_built_frontend(capsys) -> None:
+    with (
+        patch("server.frontend_is_built", return_value=False),
+        patch.object(server.app, "run") as app_run,
+    ):
+        try:
+            server.main()
+        except SystemExit as exit_error:
+            assert exit_error.code == 1
+        else:
+            raise AssertionError("main() should exit when static/dist is missing")
+
+    app_run.assert_not_called()
+    assert "npm run build" in capsys.readouterr().err
 
 
 def test_archive_round_trip_preserves_logbook_and_media() -> None:

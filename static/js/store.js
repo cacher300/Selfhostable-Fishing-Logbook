@@ -2,15 +2,13 @@
 //
 // `state` (from app-state.js) is the read-only view every renderer uses. All
 // changes go through `commit(mutate)`: the mutation runs on a copy, the copy is
-// validated against the shared schema, persisted as record-level changes (or a
-// whole-document save when needed), and only then becomes the new state.
-// Failed commits leave `state` untouched. Commits run one at a time so every
-// diff is taken against the last persisted document.
+// validated against the shared schema, saved to the server as the whole document
+// (with If-Match, so a stale save is refused), and only then becomes the new
+// state. Failed commits leave `state` untouched. Commits run one at a time, and
+// a commit that changes nothing sends no request.
 import { protectedFetch, storageKey } from "./app-config.js";
 import { logbookRevision, setLogbookRevision, setState, state } from "./app-state.js";
 import { validateState } from "./app-normalization.js";
-import { COLLECTION_KEYS, OBJECT_COLLECTION_KEYS } from "./generated/logbook-schema-rules.js";
-import { diffLogbook } from "./logbook-sync.js";
 
 class LogbookConflictError extends Error {
   constructor() {
@@ -72,16 +70,11 @@ async function responseError(response, fallback) {
 
 async function persist(document) {
   if (location.protocol === "file:") return;
-  const { changes, fullSave } = diffLogbook(persisted, document, {
-    collectionKeys: COLLECTION_KEYS,
-    objectCollectionKeys: OBJECT_COLLECTION_KEYS,
-  });
-  if (!fullSave && !changes.length) return;
+  const body = JSON.stringify(document);
+  if (persisted && body === JSON.stringify(persisted)) return;
   const headers = { "Content-Type": "application/json" };
   if (logbookRevision) headers["If-Match"] = logbookRevision;
-  const response = fullSave
-    ? await protectedFetch("/api/logbook", { method: "PUT", headers, body: JSON.stringify(document) })
-    : await protectedFetch("/api/logbook/changes", { method: "POST", headers, body: JSON.stringify({ changes }) });
+  const response = await protectedFetch("/api/logbook", { method: "PUT", headers, body });
   if (!response.ok) throw await responseError(response, "Could not save logbook database");
   setLogbookRevision(response.headers.get("ETag") || logbookRevision);
 }

@@ -32,10 +32,10 @@ function validDocument(overrides = {}) {
   });
   await Promise.all([first, second]);
 
-  const changeCalls = calls.filter((call) => call.url === "/api/logbook/changes");
-  assert.equal(changeCalls.length, 2);
-  assert.deepEqual(changeCalls[0].body.changes[0].record.id, "first");
-  assert.deepEqual(changeCalls[1].body.changes[0].record.id, "second");
+  const saveCalls = calls.filter((call) => call.url === "/api/logbook");
+  assert.equal(saveCalls.length, 2, "each commit saves once, in order");
+  assert.deepEqual(saveCalls[0].body.trips.map((trip) => trip.id), ["first"]);
+  assert.deepEqual(saveCalls[1].body.trips.map((trip) => trip.id), ["first", "second"]);
   assert.deepEqual(appState.state.trips.map((trip) => trip.id), ["first", "second"]);
 }
 
@@ -61,4 +61,15 @@ function validDocument(overrides = {}) {
     /changed in another tab/,
   );
   assert.deepEqual(appState.state.trips, [], "conflicts leave state unchanged");
+}
+
+{
+  const calls = [];
+  replaceState(validDocument({ trips: [{ id: "same", title: "Same" }] }), { revision: '"5"' });
+  setFetch(async (url) => {
+    calls.push(url);
+    return okJson({ csrfToken: "test-token" });
+  });
+  await commit(() => {});
+  assert.deepEqual(calls, [], "a commit that changes nothing sends no request");
 }

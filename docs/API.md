@@ -14,7 +14,7 @@ Every successful write increments a revision stored with the document. Writes ac
 
 ### `PUT /api/logbook`
 
-Replaces the complete logbook document. The browser uses this only when a change cannot be expressed as record changes (see below).
+Replaces the complete logbook document. The browser saves every change this way, sending `If-Match` with the revision it last read.
 
 The request must be a complete v2 document. It is validated before replacement; ordinary reads, writes, and imports preserve the document without reshaping. Documents without `schemaVersion` and unsupported schema versions are rejected.
 
@@ -31,16 +31,6 @@ Required top-level JSON types:
 
 Success: `200 {"ok": true}` with the new `ETag`. Shape failure: `400 {"error": "..."}`. Validation uses the shared JSON Schema in `schema/logbook.schema.json` plus the semantic rules in `backend/logbook_store.py` (unique IDs and names, date order); error messages start with the failing path such as `settings.checklists[0].items[0].done`. See `DATA_MODEL.md`.
 
-### `POST /api/logbook/changes`
-
-Applies record-level changes and persists only the affected SQLite rows. Body: `{"changes": [...]}` where each change is one of:
-
-- `{"op": "upsert", "collection": "trips", "record": {...}, "index": 0}` ? replace the record with the same `id` in place, or insert a new record at `index` (appended when omitted). Only object collections (`lures`, `flashers`, `reels`, `rods`, `rodReelCombos`, `people`, `locations`, `spots`, `expeditions`, `trips`).
-- `{"op": "delete", "collection": "trips", "id": "..."}` ? remove a record; an unknown id is a `400`.
-- `{"op": "replace", "collection": "species", "items": [...]}` ? replace a whole collection (option lists, or reordered object collections).
-- `{"op": "settings", "value": {...}}` ? replace `settings`.
-
-Changes are applied in order to the current document, which must still validate as a whole. Honors `If-Match` like `PUT`. Returns `200 {"ok": true}` with the new `ETag`; malformed changes or an invalid result return `400`; an unreadable database returns `503`.
 
 ### `GET /api/archive`
 

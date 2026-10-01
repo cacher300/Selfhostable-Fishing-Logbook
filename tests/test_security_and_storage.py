@@ -191,13 +191,13 @@ class LogbookStoreTests(unittest.TestCase):
                 extra = connection.execute("SELECT value_json FROM logbook_metadata WHERE key='extra'").fetchone()[0]
                 self.assertNotIn("meatRigTypes", extra)
 
-    def test_record_level_replace_supports_optional_lure_subtype_collections(self):
+    def test_optional_lure_subtype_collection_can_be_added_later(self):
         payload = document()
         del payload["meatRigTypes"]
         with tempfile.TemporaryDirectory() as directory:
             store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
             store.write(payload, None)
-            store.apply_changes([{"op": "replace", "collection": "meatRigTypes", "items": ["Custom strip"]}], None)
+            store.write({**payload, "meatRigTypes": ["Custom strip"]}, None)
             stored = store.read().document
             self.assertEqual(["Custom strip"], stored["meatRigTypes"])
 

@@ -24,6 +24,10 @@ class RevisionConflict(RuntimeError):
         self.current_revision = current_revision
 
 
+class InvalidRevision(ValueError):
+    """An If-Match header does not contain a logbook revision."""
+
+
 class MediaRequestError(ValueError):
     """A media request is invalid; the message is safe to show to the user."""
 
@@ -53,9 +57,6 @@ class LogbookStore(Protocol):
 
     def write(self, document: dict, expected_revision: str | None) -> str:
         """Replace the whole document; ``expected_revision`` guards concurrent edits."""
-
-    def apply_changes(self, changes: list, expected_revision: str | None) -> str:
-        """Apply record-level changes (see :mod:`backend.logbook_changes`)."""
 
     def install(self, document: dict) -> str:
         """Install a validated document during explicit archive recovery."""

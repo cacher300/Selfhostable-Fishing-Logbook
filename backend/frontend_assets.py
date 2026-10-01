@@ -29,3 +29,16 @@ def asset_url(name: str) -> str:
 
 def frontend_is_built() -> bool:
     return MANIFEST.is_file()
+
+
+def frontend_build_is_stale() -> bool:
+    """True when a JS/CSS source file is newer than the built bundle."""
+    try:
+        built = MANIFEST.stat().st_mtime
+    except OSError:
+        return True
+    sources = [
+        *(PROJECT_ROOT / "static" / "js").rglob("*.js"),
+        *(PROJECT_ROOT / "static" / "css").rglob("*.css"),
+    ]
+    return any(source.stat().st_mtime > built for source in sources)
