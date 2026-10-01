@@ -176,8 +176,11 @@ export function filterPerformanceItems(items) {
 }
 
 export function performanceRows(items, labelHeader = "Name") {
-  return filterPerformanceItems(sortPerformanceItems(items)).map((item) => {
-    return [
+  return filterPerformanceItems(sortPerformanceItems(items)).map((item) => performanceRow(item, labelHeader));
+}
+
+export function performanceRow(item, labelHeader = "Name") {
+  return [
     item.name || labelHeader,
     item.fish,
     item.lost || 0,
@@ -192,8 +195,7 @@ export function performanceRows(items, labelHeader = "Name") {
     `${trimNumber(item.catchShare)}%`,
     item.hasUsableTime ? trimNumber(item.efficiencyIndex) : "n/a",
     item.hasUsableTime ? (item.overperformance > 0 ? `+${trimNumber(item.overperformance)}%` : `${trimNumber(item.overperformance)}%`) : "n/a"
-    ];
-  });
+  ];
 }
 
 export function makePerformanceItems(items, totalHours, totalFish) {

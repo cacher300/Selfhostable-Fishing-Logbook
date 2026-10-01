@@ -9,7 +9,8 @@ import { intentLabel, tripIntent, tripRatingLabel, tripRatingValue } from "./tri
 import { flasherName, lureName } from "./gear-core.js";
 import { resolveTripLineRecord, setupLineSideLabel } from "./trolling-spread.js";
 import { catchRecords, filterGearRecordsByStats, filterRecordsByStats, filteredCatchRecordsForTrip, gearUseRecords, lostFishRecords, recordMatchesStatsFilters, scopedCatchRate, scopedTripFish, scopedTrips, tripMonthName } from "./stats-scope.js";
-import { airTempBucket, catchComparisonRows, cloudCoverBucket, fishShareRows, lureColorLabel, lureSpreadRows, lureTypeLabel, makePerformanceItems, performanceRows, pressureBucket, setupLineMinutes, summarizeBestSpeedByDirection, summarizeBiteWindows, summarizeBy, summarizeCatchMeasurement, summarizeDistanceBehind, summarizeDownriggerCatchPositions, summarizeEffortPerformance, summarizeEffortWithCatches, summarizeLureSpreadContext, summarizeProbeProfiles, summarizeShakers, summarizeSpeedDelta, summarizeThermoclinePosition, summarizeTripPerformance, summarizeWeatherBuckets, sunshineBucket, tripPerformanceRows, weatherNumber, weatherText, windSpeedBucket } from "./stats-performance.js";
+import { airTempBucket, catchComparisonRows, cloudCoverBucket, fishShareRows, lureSpreadRows, makePerformanceItems, performanceRows, pressureBucket, setupLineMinutes, summarizeBestSpeedByDirection, summarizeBiteWindows, summarizeBy, summarizeCatchMeasurement, summarizeDistanceBehind, summarizeDownriggerCatchPositions, summarizeEffortWithCatches, summarizeLureSpreadContext, summarizeProbeProfiles, summarizeShakers, summarizeSpeedDelta, summarizeThermoclinePosition, summarizeTripPerformance, summarizeWeatherBuckets, sunshineBucket, tripPerformanceRows, weatherNumber, weatherText, windSpeedBucket } from "./stats-performance.js";
+import { COMPARISON_DIMENSIONS, COMPARISON_METRICS, comparisonDimension, comparisonHeaders, comparisonHighlights, comparisonMatrix, comparisonNote, comparisonRows, summarizeComparison } from "./stats-comparisons.js";
 import { StatsActivityHeatmap } from "./stats-heatmap.js";
 import { renderStatsMessage, renderStatsTable } from "./stats-rendering.js";
 import { trimNumber } from "./form-utils.js";
@@ -87,22 +88,7 @@ export function renderAdvancedStats() {
     ["Lure", "Fish", "Hours", "Fish / hr", "Trips", "Producing Trips", "Quiet While Others Hit", "Quiet %", "Only Producer Trips"],
     lureSpreadRows(summarizeLureSpreadContext(trips, records, gearRecords))
   );
-  const lureTypeItems = summarizeEffortPerformance(
-    gearRecords.filter((record) => record.lureId),
-    (record) => lureTypeLabel(record.lureId),
-    (record) => record.lureMinutes,
-    lureHours,
-    fish
-  );
-  const lureColorItems = summarizeEffortPerformance(
-    gearRecords.filter((record) => record.lureId),
-    (record) => lureColorLabel(record.lureId),
-    (record) => record.lureMinutes,
-    lureHours,
-    fish
-  );
-  renderStatsTable(els.lureTypeStatsTable, headersForPerformance("Lure Type", lureTypeItems), performanceRows(lureTypeItems, "Lure Type"));
-  renderStatsTable(els.lureColorStatsTable, headersForPerformance("Lure Color", lureColorItems), performanceRows(lureColorItems, "Lure Color"));
+  renderComparisonSection({ effortRecords: timedSetupRecords, catchRecords: records, lostRecords }, isTrollingScope);
 
   const speciesOverviewRows = summarizeBy(records.filter((record) => record.species), (record) => record.species)
     .map((item) => [item.name, item.fish, item.trips.size, fish ? `${trimNumber((item.fish / fish) * 100)}%` : "0%"]);
@@ -265,6 +251,90 @@ export function renderAdvancedStats() {
   renderStatsTable(els.moonPhaseStatsTable, ["Moon", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => record.trip?.weatherData?.sunMoon?.phase || ""));
   renderStatsTable(els.moonWindowStatsTable, ["Moon Window", "Fish", "Trips", "Fish / trip"], summarizeWeatherBuckets(records, (record) => moonWindowForTime(record.time, record.trip?.weatherData?.sunMoon)));
 
+}
+
+export function renderComparisonSection(sources, isTrollingScope) {
+  const dimensionTables = [
+    [els.lureColorStatsTable, "lureColor"],
+    [els.lureColorFamilyStatsTable, "lureColorFamily"],
+    [els.lureSizeStatsTable, "lureSize"],
+    [els.lureTypeStatsTable, "lureType"],
+    [els.lureGlowStatsTable, "lureGlow"],
+    [els.bladeTypeStatsTable, "bladeType"],
+    [els.dipseyColorStatsTable, "dipseyColor"],
+    [els.dipseySettingStatsTable, "dipseySetting"],
+    [els.flasherColorStatsTable, "flasherColor"],
+    [els.lureFlasherColorStatsTable, "lureFlasherColor"]
+  ];
+  dimensionTables.forEach(([container, id]) => {
+    if (!container) return;
+    const dimension = comparisonDimension(id);
+    if (dimension.trolling && !isTrollingScope) {
+      renderStatsMessage(container, `${dimension.label[0].toUpperCase()}${dimension.label.slice(1)} is only tracked for trolling trips.`);
+      return;
+    }
+    renderStatsTable(container, comparisonHeaders(id), comparisonRows(summarizeComparison(sources, id), dimension.header));
+  });
+
+  const highlightIds = ["lureColor", "lureColorFamily", "lureSize", "lureType", "lureGlow", "bladeType"];
+  if (isTrollingScope) highlightIds.push("dipseyColor", "flasherColor", "lureFlasherColor", "presentation", "lineSide");
+  highlightIds.push("timeOfDay");
+  renderStatsTable(
+    els.comparisonHighlightsTable,
+    ["Comparison", "Best", "Fish / hr", "Vs Avg", "Landed", "Hours", "Trailing", "Sample"],
+    comparisonHighlights(sources, highlightIds)
+  );
+
+  renderComparisonBuilder(sources);
+}
+
+export function renderComparisonBuilder(sources) {
+  if (!els.comparisonBuilderTable) return;
+  if (!comparisonDimension(ui.activeStatsCompareBy)) ui.activeStatsCompareBy = "lureColor";
+  if (ui.activeStatsCompareSplit === ui.activeStatsCompareBy || (ui.activeStatsCompareSplit && !comparisonDimension(ui.activeStatsCompareSplit))) {
+    ui.activeStatsCompareSplit = "";
+  }
+  if (!COMPARISON_METRICS.some((metric) => metric.id === ui.activeStatsCompareMetric)) ui.activeStatsCompareMetric = "fishPerHour";
+  populateComparisonControls();
+
+  const compareId = ui.activeStatsCompareBy;
+  const splitId = ui.activeStatsCompareSplit;
+  if (els.statsCompareNote) els.statsCompareNote.textContent = comparisonNote(compareId, splitId);
+  if (els.statsCompareMetricField) els.statsCompareMetricField.hidden = !splitId;
+  const compare = comparisonDimension(compareId);
+  const overallItems = summarizeComparison(sources, compareId);
+  if (!splitId) {
+    renderStatsTable(els.comparisonBuilderTable, comparisonHeaders(compareId), comparisonRows(overallItems, compare.header));
+    return;
+  }
+  const split = comparisonDimension(splitId);
+  const timeless = compare.catchOnly || split.catchOnly;
+  const metric = timeless && ["fishPerHour", "strikesPerHour"].includes(ui.activeStatsCompareMetric) ? "fish" : ui.activeStatsCompareMetric;
+  const { headers, rows } = comparisonMatrix(summarizeComparison(sources, compareId, splitId), overallItems, { compareId, splitId, metric });
+  renderStatsTable(els.comparisonBuilderTable, headers, rows);
+}
+
+function populateComparisonControls() {
+  const groups = [...new Set(COMPARISON_DIMENSIONS.map((dimension) => dimension.group))];
+  const optionsFor = (selected, excludeId = "") => joinHtml(groups.map((group) => html`
+    <optgroup label="${group}">
+      ${joinHtml(COMPARISON_DIMENSIONS.filter((dimension) => dimension.group === group && dimension.id !== excludeId).map((dimension) => html`
+        <option value="${dimension.id}" ${dimension.id === selected ? "selected" : ""}>${dimension.label}</option>
+      `), "")}
+    </optgroup>
+  `), "");
+  if (els.statsCompareBySelect) setHtml(els.statsCompareBySelect, optionsFor(ui.activeStatsCompareBy));
+  if (els.statsCompareSplitSelect) {
+    setHtml(els.statsCompareSplitSelect, html`
+      <option value="" ${ui.activeStatsCompareSplit ? "" : "selected"}>No split</option>
+      ${optionsFor(ui.activeStatsCompareSplit, ui.activeStatsCompareBy)}
+    `);
+  }
+  if (els.statsCompareMetricSelect) {
+    setHtml(els.statsCompareMetricSelect, joinHtml(COMPARISON_METRICS.map((metric) => html`
+      <option value="${metric.id}" ${metric.id === ui.activeStatsCompareMetric ? "selected" : ""}>${metric.label}</option>
+    `), ""));
+  }
 }
 
 export function renderStatsActivityHeatmap(trips) {

@@ -87,6 +87,9 @@ export function syncStatsUrl() {
   if (ui.activeStatsMinTrips) params.set("minTrips", String(ui.activeStatsMinTrips));
   if (ui.activeStatsMinHours) params.set("minHours", String(ui.activeStatsMinHours));
   if (ui.activeStatsIncludeLost) params.set("outcome", "strikes");
+  if (ui.activeStatsCompareBy && ui.activeStatsCompareBy !== "lureColor") params.set("compare", ui.activeStatsCompareBy);
+  if (ui.activeStatsCompareSplit) params.set("split", ui.activeStatsCompareSplit);
+  if (ui.activeStatsCompareSplit && ui.activeStatsCompareMetric !== "fishPerHour") params.set("show", ui.activeStatsCompareMetric);
   Object.entries(activeStatsFilters).forEach(([key, value]) => {
     if (value && !value.startsWith("All ")) params.set(key, value);
   });
@@ -547,6 +550,18 @@ export function setup() {
     ui.activeStatsIncludeLost = Boolean(els.statsIncludeLostToggle.checked);
     syncStatsUrl();
     renderAdvancedStats();
+  });
+
+  [
+    [els.statsCompareBySelect, "activeStatsCompareBy"],
+    [els.statsCompareSplitSelect, "activeStatsCompareSplit"],
+    [els.statsCompareMetricSelect, "activeStatsCompareMetric"]
+  ].forEach(([control, key]) => {
+    control?.addEventListener("change", () => {
+      ui[key] = control.value;
+      syncStatsUrl();
+      renderAdvancedStats();
+    });
   });
 
   [

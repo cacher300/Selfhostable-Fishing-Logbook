@@ -139,6 +139,12 @@
         "type": "string"
       }
     },
+    "lureBeadSizes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "meatRigTypes": {
       "type": "array",
       "items": {
@@ -367,6 +373,9 @@
           "type": "string"
         },
         "softPlasticType": {
+          "type": "string"
+        },
+        "beadSize": {
           "type": "string"
         }
       }

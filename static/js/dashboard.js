@@ -284,6 +284,9 @@ export function renderStatsMethodFilter() {
     ui.activeStatsMinTrips = Math.max(0, Math.floor(Number(params.get("minTrips")) || 0));
     ui.activeStatsMinHours = Math.max(0, Number(params.get("minHours")) || 0);
     ui.activeStatsIncludeLost = params.get("outcome") === "strikes";
+    ui.activeStatsCompareBy = params.get("compare") || "lureColor";
+    ui.activeStatsCompareSplit = params.get("split") || "";
+    ui.activeStatsCompareMetric = params.get("show") || "fishPerHour";
     Object.keys(activeStatsFilters).forEach((key) => {
       if (params.has(key)) activeStatsFilters[key] = params.get(key);
     });
@@ -536,6 +539,7 @@ export function renderSelectOptions() {
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
   populateOptionSelect(document.querySelector("#lureBladeType"), optionLabels("lureBladeTypes"), "Select blade type");
   populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
+  populateOptionSelect(document.querySelector("#lureBeadSize"), optionLabels("lureBeadSizes"), "Select bead size");
   populateOptionSelect(document.querySelector("#lureMeatRigType"), optionLabels("meatRigTypes"), "Select meat rig type");
   document.querySelectorAll(".catch-species").forEach((select) => populateOptionSelect(select, state.species, "Select species"));
   document.querySelectorAll(".catch-possible-species").forEach((select) => populateOptionSelect(select, state.species, "Select possible species"));

@@ -128,7 +128,7 @@ export function optionChoices(key) {
 }
 
 export function optionLabels(key) {
-  const values = Array.isArray(state[key]) ? state[key] : ["meatRigTypes", "softPlasticTypes"].includes(key) ? defaults[key] : [];
+  const values = Array.isArray(state[key]) ? state[key] : ["lureBeadSizes", "meatRigTypes", "softPlasticTypes"].includes(key) ? defaults[key] : [];
   return values.map((item) => typeof item === "object" ? item?.label || item?.value : item);
 }
 

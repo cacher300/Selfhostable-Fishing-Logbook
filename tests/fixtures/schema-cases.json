@@ -1,7 +1,7 @@
 {
   "cases": [
     { "name": "canonical default", "valid": true },
-    { "name": "old optional subtype lists omitted", "valid": true, "remove": ["meatRigTypes", "softPlasticTypes"] },
+    { "name": "old optional subtype lists omitted", "valid": true, "remove": ["lureBeadSizes", "meatRigTypes", "softPlasticTypes"] },
     { "name": "missing required collection", "valid": false, "path": "riggings", "remove": ["riggings"] },
     { "name": "option list items must be strings", "valid": false, "path": "species[0]", "set": { "species[0]": 4 } },
     { "name": "choice labels must be non-empty", "valid": false, "path": "trollingPresentations[0].label", "set": { "trollingPresentations[0].label": "   " } },

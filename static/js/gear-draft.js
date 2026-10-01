@@ -5,6 +5,7 @@ const text = (value) => String(value ?? "").trim();
 const lower = (value) => text(value).toLowerCase();
 const gearEmptyDefaults = new Map([
   ["arbor", ""],
+  ["beadSize", ""],
   ["bladeType", ""],
   ["braidCapacity", ""],
   ["brand", ""],
@@ -76,12 +77,16 @@ function cleanSourceAware(normalized, draft = {}, source = null) {
   return next;
 }
 
-function isWormHarnessType(type) {
-  return lower(type) === "worm harness";
+function isBladeLureType(type) {
+  return ["worm harness", "spinnerbait"].includes(lower(type));
 }
 
 function isSpoonType(type) {
   return lower(type) === "spoon";
+}
+
+function isBeadType(type) {
+  return lower(type) === "bead";
 }
 
 function isMeatRigType(type) {
@@ -138,8 +143,9 @@ export function lureFromDraft(draft = {}, context = {}) {
     name: text(draft.name),
     type,
     divingDepth: ["crankbait", "jerkbait"].includes(lower(type)) ? text(draft.divingDepth) : "",
-    bladeType: isWormHarnessType(type) ? text(draft.bladeType) : "",
+    bladeType: isBladeLureType(type) ? text(draft.bladeType) : "",
     spoonSize: isSpoonType(type) ? text(draft.spoonSize) : "",
+    beadSize: isBeadType(type) ? text(draft.beadSize) : "",
     meatRigType: isMeatRigType(type) ? text(draft.meatRigType) : "",
     softPlasticType: isSoftPlasticType(type) ? text(draft.softPlasticType) : "",
     flyCategory: isFlyType(type) ? text(draft.flyCategory) : "",

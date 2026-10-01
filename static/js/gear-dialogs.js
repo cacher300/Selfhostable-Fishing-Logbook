@@ -309,6 +309,7 @@ export function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#lureBladeType"), optionLabels("lureBladeTypes"), "Select blade type");
   populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
+  populateOptionSelect(document.querySelector("#lureBeadSize"), [...new Set([...optionLabels("lureBeadSizes"), ...(lure?.beadSize ? [lure.beadSize] : [])])], "Select bead size");
   populateOptionSelect(document.querySelector("#lureMeatRigType"), optionLabels("meatRigTypes"), "Select meat rig type");
   populateOptionSelect(document.querySelector("#lureSoftPlasticType"), [...new Set([...optionLabels("softPlasticTypes"), ...(lure?.softPlasticType ? [lure.softPlasticType] : [])])], "Select soft plastic style");
   populateOptionSelect(document.querySelector("#flyCategory"), optionLabels("flyCategories"), "Select category");
@@ -320,6 +321,7 @@ export function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget
     divingDepth: lure?.divingDepth || "",
     bladeType: lure?.bladeType || "",
     spoonSize: lure?.spoonSize || "",
+    beadSize: lure?.beadSize || "",
     meatRigType: lure?.meatRigType || "",
     softPlasticType: lure?.softPlasticType || "",
     flyCategory: lure?.flyCategory || "",
@@ -344,6 +346,7 @@ export function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget
   setValue("lureDivingDepth", lure?.divingDepth || "");
   setValue("lureBladeType", lure?.bladeType || "");
   setValue("lureSpoonSize", lure?.spoonSize || "");
+  setValue("lureBeadSize", lure?.beadSize || "");
   setValue("lureMeatRigType", lure?.meatRigType || "");
   setValue("lureSoftPlasticType", lure?.softPlasticType || "");
   setValue("flyCategory", lure?.flyCategory || "");
@@ -367,8 +370,9 @@ export function openLureInfoDialog(lure, pendingRowId = "") {
   prepareInlineGearDialog("lureInfo", pendingRowId);
   const stats = baitStats("lure", lure.id);
   const hasDivingDepth = ["crankbait", "jerkbait"].includes(lure.type?.toLowerCase());
-  const hasBladeType = isWormHarnessType(lure.type);
+  const hasBladeType = isBladeLureType(lure.type);
   const hasSpoonSize = isSpoonType(lure.type);
+  const hasBeadSize = isBeadType(lure.type);
   const hasMeatRigType = isMeatRigType(lure.type);
   const hasSoftPlasticType = isSoftPlasticType(lure.type);
   const details = [
@@ -376,6 +380,7 @@ export function openLureInfoDialog(lure, pendingRowId = "") {
     ["Diving depth", hasDivingDepth ? lure.divingDepth : ""],
     ["Blade type", hasBladeType ? lure.bladeType : ""],
     ["Spoon size", hasSpoonSize ? lure.spoonSize : ""],
+    ["Bead size", hasBeadSize ? lure.beadSize : ""],
     ["Meat rig type", hasMeatRigType ? lure.meatRigType : ""],
     ["Soft plastic style", hasSoftPlasticType ? lure.softPlasticType : ""],
     ["Brand", lure.brand],
@@ -407,19 +412,24 @@ export function updateLureDivingDepthField() {
   const hasDivingDepth = ["crankbait", "jerkbait"].includes(lureType.toLowerCase());
   const fly = lureType.toLowerCase() === "fly";
   document.querySelector("#lureDivingDepthField").classList.toggle("hidden", !hasDivingDepth);
-  document.querySelector("#lureBladeTypeField").classList.toggle("hidden", !isWormHarnessType(lureType));
+  document.querySelector("#lureBladeTypeField").classList.toggle("hidden", !isBladeLureType(lureType));
   document.querySelector("#lureSpoonSizeField").classList.toggle("hidden", !isSpoonType(lureType));
+  document.querySelector("#lureBeadSizeField").classList.toggle("hidden", !isBeadType(lureType));
   document.querySelector("#lureMeatRigTypeField").classList.toggle("hidden", !isMeatRigType(lureType));
   document.querySelector("#lureSoftPlasticTypeField").classList.toggle("hidden", !isSoftPlasticType(lureType));
   document.querySelectorAll("#flyCategoryField, #flyPatternField, #flyHookSizeField").forEach((field) => field.classList.toggle("hidden", !fly));
 }
 
-export function isWormHarnessType(type) {
-  return String(type || "").trim().toLowerCase() === "worm harness";
+export function isBladeLureType(type) {
+  return ["worm harness", "spinnerbait"].includes(String(type || "").trim().toLowerCase());
 }
 
 export function isSpoonType(type) {
   return String(type || "").trim().toLowerCase() === "spoon";
+}
+
+export function isBeadType(type) {
+  return String(type || "").trim().toLowerCase() === "bead";
 }
 
 export function isMeatRigType(type) {

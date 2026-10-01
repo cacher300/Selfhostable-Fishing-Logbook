@@ -92,7 +92,16 @@ export function statsHeaderTitle(header) {
     Meaning: "What is being measured for coverage.",
     "Avg Temp": "Average probe temperature at this depth.",
     "Min Temp": "Lowest probe temperature at this depth.",
-    "Max Temp": "Highest probe temperature at this depth."
+    "Max Temp": "Highest probe temperature at this depth.",
+    Landed: "Landed fish counted in the current stats scope.",
+    Sample: "How much data backs this row. Thin: under 2 trips or 3 strikes. Strong: 5+ trips, 10+ strikes, and 10+ hours.",
+    "Vs Avg": "How the best option's fish per hour compares with the average across everything in that comparison.",
+    Best: "Highest fish per hour among options with at least 2 trips and 2 strikes when available.",
+    Trailing: "Lowest fish per hour among the same qualifying options.",
+    Delta: "Fish % minus Time %. Positive means it produced more than its share of time.",
+    "Landing %": "Landed fish divided by landed plus lost fish.",
+    "Strikes / hr": "Landed plus lost fish per hour.",
+    Overall: "All results for this row, regardless of the split."
   };
   return titles[header] || `Sort by ${header}`;
 }
@@ -101,8 +110,9 @@ export function statsCellMarkup(cell, header) {
   if (cell && typeof cell === "object" && cell.html) return cell.html;
   const text = String(cell ?? "");
   const title = statsHeaderTitle(header);
-  if (header === "Over" && text.startsWith("+")) return html`<span class="stats-positive" title="${title}">${text}</span>`;
-  if (header === "Over" && text.startsWith("-")) return html`<span class="stats-negative" title="${title}">${text}</span>`;
+  if (["Over", "Vs Avg"].includes(header) && text.startsWith("+")) return html`<span class="stats-positive" title="${title}">${text}</span>`;
+  if (["Over", "Vs Avg"].includes(header) && text.startsWith("-")) return html`<span class="stats-negative" title="${title}">${text}</span>`;
+  if (header === "Sample") return html`<span class="stats-sample stats-sample-${text.toLowerCase()}" title="${title}">${text}</span>`;
   return html`<span title="${title}">${cell}</span>`;
 }
 
@@ -236,6 +246,15 @@ export function statsChartConfig(id, headers) {
     lureSpreadStatsTable: { type: "bar", valueIndex: byHeader("Quiet While Others Hit"), limit: 8 },
     lureTypeStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     lureColorStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
+    lureColorFamilyStatsTable: { type: "bar", valueIndex: rateIndex, limit: 10 },
+    lureSizeStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
+    lureGlowStatsTable: { type: "grouped", valueIndexes: [usageShareIndex, catchShareIndex], seriesLabels: ["Time %", "Fish %"], limit: 4 },
+    bladeTypeStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
+    dipseyColorStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
+    dipseySettingStatsTable: { type: "bar", valueIndex: byHeader("Landed"), limit: 10 },
+    flasherColorStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
+    lureFlasherColorStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
+    comparisonBuilderTable: { type: "bar", valueIndex: rateIndex, limit: 12 },
     flasherStatsTable: { type: "grouped", valueIndexes: [usageShareIndex, catchShareIndex], seriesLabels: ["Time %", "Fish %"], limit: 8 },
     comboStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     directionStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
