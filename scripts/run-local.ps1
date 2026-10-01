@@ -63,9 +63,21 @@ $npm = Get-Command npm.cmd -ErrorAction SilentlyContinue
 if (-not $npm) {
   throw "Node.js/npm is required to build the frontend. Install Node.js 22 or newer."
 }
-if (-not (Test-Path -LiteralPath (Join-Path $projectRoot "node_modules"))) {
+# Reinstall npm packages whenever package-lock.json changes (for example after
+# pulling), so the build never runs against a stale node_modules.
+$packageLockPath = Join-Path $projectRoot "package-lock.json"
+$nodeModulesPath = Join-Path $projectRoot "node_modules"
+$packageStampPath = Join-Path $nodeModulesPath ".package-lock.sha256"
+$packageLockHash = (Get-FileHash -LiteralPath $packageLockPath -Algorithm SHA256).Hash
+$installedPackageHash = if (Test-Path -LiteralPath $packageStampPath) {
+  (Get-Content -LiteralPath $packageStampPath -Raw).Trim()
+} else {
+  ""
+}
+if ($packageLockHash -ne $installedPackageHash) {
   & $npm.Source ci
   if ($LASTEXITCODE -ne 0) { throw "Could not install the frontend dependencies." }
+  Set-Content -LiteralPath $packageStampPath -Value $packageLockHash -NoNewline
 }
 & $npm.Source run build
 if ($LASTEXITCODE -ne 0) { throw "The frontend build failed." }

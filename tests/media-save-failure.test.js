@@ -36,12 +36,8 @@ await commit((draft) => {
   draft.trips[0].notePhotos.push({ id: "saved", category: "trip-photos", filename: "saved.jpg" });
 });
 assert.equal(appState.state.trips[0].notePhotos.length, 1);
-const changesCall = calls.find((call) => call.url === "/api/logbook/changes");
-assert(changesCall, "successful record edits are sent to the changes endpoint");
-assert.equal(changesCall.options.method, "POST");
-assert.equal(changesCall.options.headers.get("If-Match"), '"1"');
-assert.deepEqual(JSON.parse(changesCall.options.body).changes, [{
-  op: "upsert",
-  collection: "trips",
-  record: appState.state.trips[0],
-}]);
+const saveCall = calls.find((call) => call.url === "/api/logbook");
+assert(saveCall, "successful edits save the logbook");
+assert.equal(saveCall.options.method, "PUT");
+assert.equal(saveCall.options.headers.get("If-Match"), '"1"');
+assert.deepEqual(JSON.parse(saveCall.options.body), appState.state);

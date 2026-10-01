@@ -19,8 +19,7 @@ from werkzeug.utils import secure_filename
 
 from .. import logbook_repository
 from ..backend_config import ALLOWED_MEDIA_EXTENSIONS, DEFAULT_LOGBOOK, PREVIEW_DIRNAME, UPLOAD_CATEGORIES
-from ..logbook_changes import LogbookChangeError, apply_changes
-from ..logbook_store import COLLECTION_KEYS, OBJECT_COLLECTION_KEYS, OPTIONAL_COLLECTION_KEYS, LogbookStorageError, validate_logbook
+from ..logbook_store import COLLECTION_KEYS, OBJECT_COLLECTION_KEYS, LogbookStorageError, validate_logbook
 from ..media_service import (
     MediaNotFound,
     UploadLibrary,
@@ -32,7 +31,7 @@ from ..media_service import (
     upload_payload,
 )
 from ..shared_trip_archive import ArchiveMedia, SharedTripArchiveError
-from .base import LogbookSnapshot, MediaRequestError, RevisionConflict, archive_media_entries
+from .base import InvalidRevision, LogbookSnapshot, MediaRequestError, RevisionConflict, archive_media_entries
 from .media_transaction import MediaTransaction
 
 
@@ -52,7 +51,7 @@ def parse_revision_tag(tag: str | None) -> int | None:
     try:
         return int(value)
     except ValueError as error:
-        raise LogbookChangeError("If-Match must contain a logbook revision") from error
+        raise InvalidRevision("If-Match must contain a logbook revision") from error
 
 
 class LocalLogbookStore:
@@ -130,61 +129,6 @@ class LocalLogbookStore:
                 OBJECT_COLLECTION_KEYS,
                 expected_revision=expected,
             )
-        except logbook_repository.RevisionConflict as conflict:
-            raise RevisionConflict(revision_tag(conflict.current_revision)) from conflict
-        self._remember(revision, document)
-        return revision_tag(revision)
-
-    def apply_changes(self, changes: list, expected_revision: str | None) -> str:
-        snapshot = self.read()
-        base_revision = parse_revision_tag(snapshot.revision)
-        expected = parse_revision_tag(expected_revision)
-        if expected is not None and expected != base_revision:
-            raise RevisionConflict(snapshot.revision)
-        document = deepcopy(snapshot.document)
-        plan = apply_changes(
-            document,
-            changes,
-            collection_keys=COLLECTION_KEYS,
-            object_collection_keys=OBJECT_COLLECTION_KEYS,
-        )
-        is_valid, error = validate_logbook(document)
-        if not is_valid:
-            raise LogbookChangeError(error or "The changed logbook is invalid")
-        try:
-            if self._read_revision() is None:
-                revision = logbook_repository.write(
-                    self.database_file, document, COLLECTION_KEYS, OBJECT_COLLECTION_KEYS,
-                    expected_revision=base_revision,
-                )
-            else:
-                metadata: dict[str, object] = {
-                    # "extra" is rewritten so collections promoted out of it
-                    # cannot shadow their new rows.
-                    "extra": {
-                        key: value for key, value in document.items()
-                        if key not in {*COLLECTION_KEYS, "schemaVersion", "settings"}
-                    },
-                    "optionalCollectionsPresent": [
-                        key for key in COLLECTION_KEYS
-                        if key in OPTIONAL_COLLECTION_KEYS and key in document
-                    ],
-                }
-                if plan.settings_changed:
-                    metadata["settings"] = document["settings"]
-                rewritten_collections = set(plan.rewritten_collections)
-                rewritten_collections.update(
-                    key for key in OPTIONAL_COLLECTION_KEYS
-                    if key in document
-                )
-                revision = logbook_repository.write_partial(
-                    self.database_file,
-                    expected_revision=base_revision,
-                    object_collection_keys=OBJECT_COLLECTION_KEYS,
-                    collections={name: document[name] for name in rewritten_collections},
-                    record_updates=plan.record_updates(document),
-                    metadata=metadata,
-                )
         except logbook_repository.RevisionConflict as conflict:
             raise RevisionConflict(revision_tag(conflict.current_revision)) from conflict
         self._remember(revision, document)

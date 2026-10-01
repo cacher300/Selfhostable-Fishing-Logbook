@@ -10,6 +10,7 @@ import sys
 
 from backend.app_factory import create_app
 from backend.config import AppConfig
+from backend.frontend_assets import frontend_build_is_stale, frontend_is_built
 
 
 config = AppConfig.from_env()
@@ -17,6 +18,15 @@ app = create_app(config)
 
 
 def main() -> None:
+    if not frontend_is_built():
+        print(
+            "The browser bundle has not been built (static/dist is missing), so every page would be empty.\n"
+            "Run `npm ci` and `npm run build` (scripts/run-local.ps1 does both), then start the server again.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    if frontend_build_is_stale():
+        print("Warning: static/js or static/css changed since the last build; run `npm run build` to see the changes.", file=sys.stderr)
     try:
         app.extensions["fish.storage"].logbook.initialize()
     except Exception as error:

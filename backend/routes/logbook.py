@@ -69,18 +69,6 @@ def update_logbook() -> tuple[Response, int] | Response:
     return _with_revision(jsonify({"ok": True}), revision)
 
 
-@blueprint.post("/api/logbook/changes")
-def change_logbook_records() -> tuple[Response, int] | Response:
-    """Persist record-level changes; see :mod:`backend.logbook_changes`."""
-    payload = request.get_json(silent=True)
-    changes = payload.get("changes") if isinstance(payload, dict) else None
-    refused = _refuse_unreadable_storage()
-    if refused:
-        return refused
-    revision = storage().logbook.apply_changes(changes, request.headers.get("If-Match"))
-    return _with_revision(jsonify({"ok": True}), revision)
-
-
 @blueprint.get("/api/archive")
 def export_archive() -> tuple[Response, int] | Response:
     """Download the canonical logbook and uploaded media as a portable archive."""

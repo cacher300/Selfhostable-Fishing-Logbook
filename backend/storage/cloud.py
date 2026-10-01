@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import mimetypes
 import uuid
-from copy import deepcopy
 from pathlib import Path
 from typing import Callable, Iterable
 from zipfile import ZipFile
@@ -21,9 +20,7 @@ from werkzeug.utils import secure_filename
 
 from .. import cloud_storage
 from ..backend_config import PREVIEW_DIRNAME, UPLOAD_CATEGORIES
-from ..logbook_changes import apply_changes
-from ..logbook_changes import LogbookChangeError
-from ..logbook_store import COLLECTION_KEYS, OBJECT_COLLECTION_KEYS, validate_logbook
+from ..logbook_store import validate_logbook
 from ..media_service import MediaNotFound, upload_media_type, upload_payload
 from ..shared_trip_archive import ArchiveMedia
 from .base import LogbookSnapshot, MediaInventoryIncomplete, archive_media_entries
@@ -46,17 +43,6 @@ class CloudLogbookStore:
 
     def write(self, document: dict, expected_revision: str | None) -> str:
         return cloud_storage.put_logbook(document, expected_revision or "")
-
-    def apply_changes(self, changes: list, expected_revision: str | None) -> str:
-        # The Worker stores whole documents, so record changes are applied to
-        # a copy and written back with the revision that was read.
-        snapshot = self.read()
-        document = deepcopy(snapshot.document)
-        apply_changes(document, changes, collection_keys=COLLECTION_KEYS, object_collection_keys=OBJECT_COLLECTION_KEYS)
-        is_valid, error = validate_logbook(document)
-        if not is_valid:
-            raise LogbookChangeError(error or "The changed logbook is invalid")
-        return cloud_storage.put_logbook(document, expected_revision or snapshot.revision)
 
     def install(self, document: dict) -> str:
         return cloud_storage.put_logbook(document)

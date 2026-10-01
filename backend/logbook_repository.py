@@ -239,53 +239,6 @@ def write(
     return revision
 
 
-def write_partial(
-    database_file: Path,
-    *,
-    expected_revision: int | None,
-    object_collection_keys: set[str],
-    collections: dict[str, list] | None = None,
-    record_updates: list[tuple[str, int, dict]] | None = None,
-    metadata: dict[str, object] | None = None,
-) -> int:
-    """Persist only the changed parts of an already-validated document.
-
-    ``collections`` rewrites whole collections (inserts, deletes, reorders),
-    ``record_updates`` replaces single rows in place by position, and
-    ``metadata`` replaces ``settings``/``extra``/``schemaVersion`` values.
-    """
-    with _LOCK:
-        with closing(_connect(database_file)) as connection:
-            _initialize_schema(connection)
-            connection.execute("BEGIN IMMEDIATE")
-            try:
-                revision = _check_revision(connection, expected_revision) + 1
-                for key, value in (metadata or {}).items():
-                    _write_metadata(connection, key, value)
-                for collection_name, records in (collections or {}).items():
-                    connection.execute("DELETE FROM logbook_entries WHERE collection_name = ?", (collection_name,))
-                    _insert_rows(connection, collection_name, records, object_collection_keys)
-                for collection_name, position, record in record_updates or []:
-                    updated = connection.execute(
-                        "UPDATE logbook_entries SET payload_json = ?, record_id = ? "
-                        "WHERE collection_name = ? AND position = ?",
-                        (
-                            json.dumps(record, allow_nan=False, separators=(",", ":")),
-                            str(record.get("id")) if collection_name in object_collection_keys and record.get("id") else None,
-                            collection_name,
-                            position,
-                        ),
-                    )
-                    if updated.rowcount != 1:
-                        raise sqlite3.DatabaseError(f"Stored {collection_name} row {position} is missing")
-                _write_metadata(connection, "revision", revision)
-                connection.commit()
-            except Exception:
-                connection.rollback()
-                raise
-    return revision
-
-
 def replace(
     database_file: Path,
     normalized: dict,

@@ -14,9 +14,10 @@ builds the browser bundle and runs the JavaScript and browser tests.
 Open `http://127.0.0.1:8080`. The server creates `data/logbook.sqlite3` from defaults when started through `main()` and the database is missing. If an existing database is corrupt or incompatible, startup continues in degraded mode so the app shell and archive recovery tools remain available; the original file is not overwritten by ordinary saves.
 
 The launcher creates `.venv`, installs the pinned development requirements when
-their hash changes, runs `npm ci` when `node_modules` is missing, builds the
-frontend bundle with `npm run build`, and starts the server with that
-environment. It does not silently delete an existing environment; use
+their hash changes, runs `npm ci` whenever `package-lock.json` changes, builds
+the frontend bundle with `npm run build`, and starts the server with that
+environment. The server refuses to start when `static/dist` has not been built
+and warns when JS/CSS sources are newer than the last build. It does not silently delete an existing environment; use
 `.\scripts\run-local.ps1 -Reset` when a rebuild is intentional. When running
 `server.py` yourself, use the project interpreter
 (`.venv\Scripts\python.exe server.py`) and build the frontend first; the server no
@@ -55,7 +56,7 @@ docker compose down
 - `backend/app_factory.py`, `backend/config.py`: application factory and runtime configuration.
 - `backend/routes/`: HTTP blueprints (`pages`, `logbook`, `media`, `environment`).
 - `backend/storage/`: `LogbookStore`/`MediaStore` interfaces with local (SQLite + disk) and cloud implementations, plus the media transaction helper.
-- `backend/logbook_store.py`: v2 validation (shared schema + semantic rules). `backend/logbook_repository.py`: SQLite I/O and revisions. `backend/logbook_changes.py`: record-level change operations.
+- `backend/logbook_store.py`: v2 validation (shared schema + semantic rules). `backend/logbook_repository.py`: SQLite I/O and revisions.
 - `backend/media_service.py`, `backend/archive_service.py`, `backend/shared_trip_archive.py`: media helpers, whole-logbook archives, Shared Trip ZIPs.
 - `backend/weather_service.py`, `bathymetry_service.py`, `great_lakes_service.py`: environmental proxies.
 - `schema/`: the shared v2 JSON Schema, constants, and canonical default document. `npm run schema:generate` regenerates `static/js/generated/` and the mobile copies under `..\Mobile\src\domain\generated`; `npm run schema:check` fails when they are stale.
@@ -93,7 +94,7 @@ py scripts/migrate_logbook_v2.py --archive <path-to-mobile-or-desktop.zip> --app
 
 The apply command creates a backup, converts known v1 fields to v2 fields, migrates date-first default trip titles to the current species/method/sequence format, validates the result, and rewrites the SQLite database or shared ZIP archive. For an older archive whose referenced files live in a neighboring upload tree, add `--media-root <uploads>` so the script can include those files. The running desktop or mobile application must receive a canonical v2 database/archive.
 
-The browser persists record-level changes (`POST /api/logbook/changes`) with the revision it last read, and only updates its state and localStorage cache after the server accepts the change. A save based on an outdated revision is refused with `412` instead of overwriting newer data.
+The browser saves the whole document (`PUT /api/logbook`) with the revision it last read, and only updates its state and localStorage cache after the server accepts the change. A save based on an outdated revision is refused with `412` instead of overwriting newer data.
 
 ## Cross-Client Changes
 

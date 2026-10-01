@@ -53,7 +53,7 @@ function installSettingsDom(inputValue) {
 function installFetchStub() {
   setFetch(async (url, options = {}) => {
     if (url === "/api/csrf-token") return okJson({ csrfToken: "test-token" });
-    if (url === "/api/logbook/changes" || url === "/api/logbook") {
+    if (url === "/api/logbook") {
       return okJson({}, { headers: { ETag: '"2"' } });
     }
     throw new Error(`Unexpected fetch ${url} ${options.method || "GET"}`);

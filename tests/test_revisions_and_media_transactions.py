@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import sqlite3
-from contextlib import closing
 from copy import deepcopy
 
 import pytest
@@ -58,100 +56,18 @@ def test_stale_if_match_put_returns_conflict_without_changing_document(fish) -> 
     assert LocalLogbookStore(fish.config.database_file).read().document == original
 
 
-def test_logbook_changes_apply_and_persist_expected_document(fish) -> None:
-    base = document(
-        trips=[trip("trip-1", "First"), trip("trip-2", "Second")],
-        lures=[{"id": "lure-1", "name": "Control Lure"}],
+def test_malformed_if_match_is_rejected_without_changing_document(fish) -> None:
+    original = document(trips=[trip("trip-1", "First")])
+    fish.logbook.write(original, None)
+
+    response = fish.client.put(
+        "/api/logbook",
+        json=document(trips=[trip("trip-2", "Second")]),
+        headers={"X-CSRF-Token": fish.csrf(), "If-Match": '"not-a-revision"'},
     )
-    revision = fish.logbook.write(base, None)
-    with closing(sqlite3.connect(fish.config.database_file)) as connection:
-        lure_before = connection.execute(
-            "SELECT payload_json FROM logbook_entries WHERE collection_name='lures' AND position=0"
-        ).fetchone()[0]
 
-    appended = trip("trip-3", "Third")
-    response = fish.client.post(
-        "/api/logbook/changes",
-        json={"changes": [{"op": "upsert", "collection": "trips", "record": appended}]},
-        headers={"X-CSRF-Token": fish.csrf(), "If-Match": revision},
-    )
-    assert response.status_code == 200
-    revision = response.headers["ETag"]
-
-    updated = trip("trip-1", "First renamed")
-    response = fish.client.post(
-        "/api/logbook/changes",
-        json={"changes": [{"op": "upsert", "collection": "trips", "record": updated}]},
-        headers={"X-CSRF-Token": fish.csrf(), "If-Match": revision},
-    )
-    assert response.status_code == 200
-    revision = response.headers["ETag"]
-
-    response = fish.client.post(
-        "/api/logbook/changes",
-        json={"changes": [{"op": "delete", "collection": "trips", "id": "trip-2"}]},
-        headers={"X-CSRF-Token": fish.csrf(), "If-Match": revision},
-    )
-    assert response.status_code == 200
-    revision = response.headers["ETag"]
-
-    response = fish.client.post(
-        "/api/logbook/changes",
-        json={"changes": [{"op": "replace", "collection": "waterClarities", "items": ["Clear", "Muddy"]}]},
-        headers={"X-CSRF-Token": fish.csrf(), "If-Match": revision},
-    )
-    assert response.status_code == 200
-    revision = response.headers["ETag"]
-
-    settings = deepcopy(DEFAULT_LOGBOOK["settings"])
-    settings["theme"] = "dark"
-    response = fish.client.post(
-        "/api/logbook/changes",
-        json={"changes": [{"op": "settings", "value": settings}]},
-        headers={"X-CSRF-Token": fish.csrf(), "If-Match": revision},
-    )
-    assert response.status_code == 200
-
-    expected = document(
-        trips=[updated, appended],
-        lures=[{"id": "lure-1", "name": "Control Lure"}],
-        waterClarities=["Clear", "Muddy"],
-        settings=settings,
-    )
-    stored = LocalLogbookStore(fish.config.database_file).read().document
-    assert stored == expected
-    with closing(sqlite3.connect(fish.config.database_file)) as connection:
-        assert connection.execute(
-            "SELECT payload_json FROM logbook_entries WHERE collection_name='lures' AND position=0"
-        ).fetchone()[0] == lure_before
-
-
-@pytest.mark.parametrize(
-    "changes, expected_status",
-    [
-        ([{"op": "unsupported", "collection": "trips"}], 400),
-        ([{"op": "delete", "collection": "trips", "id": "missing"}], 400),
-    ],
-)
-def test_logbook_changes_reject_invalid_requests(fish, changes, expected_status) -> None:
-    fish.logbook.write(document(trips=[trip("trip-1", "First")]), None)
-    response = fish.client.post(
-        "/api/logbook/changes",
-        json={"changes": changes},
-        headers={"X-CSRF-Token": fish.csrf()},
-    )
-    assert response.status_code == expected_status
-
-
-def test_logbook_changes_reject_stale_revision(fish) -> None:
-    fish.logbook.write(document(trips=[trip("trip-1", "First")]), None)
-    response = fish.client.post(
-        "/api/logbook/changes",
-        json={"changes": [{"op": "upsert", "collection": "trips", "record": trip("trip-2", "Second")}]},
-        headers={"X-CSRF-Token": fish.csrf(), "If-Match": '"0"'},
-    )
-    assert response.status_code == 412
-    assert response.get_json()["revisionConflict"] is True
+    assert response.status_code == 400
+    assert LocalLogbookStore(fish.config.database_file).read().document == original
 
 
 def test_install_after_corrupt_database_keeps_revisions_monotonic(tmp_path) -> None:

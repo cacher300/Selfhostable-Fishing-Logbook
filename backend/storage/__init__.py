@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ..config import AppConfig
 from .base import (
+    InvalidRevision,
     LogbookSnapshot,
     LogbookStore,
     MediaInventoryIncomplete,
@@ -29,6 +30,7 @@ def create_storage(config: AppConfig) -> Storage:
 
 
 __all__ = [
+    "InvalidRevision",
     "LogbookSnapshot",
     "LogbookStore",
     "MediaInventoryIncomplete",
