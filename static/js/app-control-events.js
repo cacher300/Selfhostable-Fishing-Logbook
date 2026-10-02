@@ -18,7 +18,7 @@ import { deleteActiveTrip, saveTrip, saveTripAsDraft } from "./trip-save.js";
 import { autofillCatchesFromPhotoQueue } from "./photo-queue-autofill.js";
 import { restoreTripDialogAfterInlineGear } from "./gear-pickers.js";
 import { deleteCombo, deleteFlasher, deleteLure, deleteReel, deleteRod, openComboDialog, openFlasherDialog, openLureDialog, openReelDialog, openRodDialog, saveCombo, saveFlasher, saveLure, saveReel, saveRod, updateFlyGearVisibility, updateLureDivingDepthField, updateMonoBackingVisibility } from "./gear-dialogs.js";
-import { clearGearFilter, closeGearFilterSuggestions, openGearFilterSuggestions, updateGearFilter } from "./gear-inventory.js";
+import { clearGearFilter, closeGearFilterSuggestions, openGearFilterSuggestions, updateGearFilter, updateGearLureTypeFilter, updateGearSoftPlasticStyleFilter } from "./gear-inventory.js";
 import { renderFishMap, renderTripSummaryMap, syncMapPageChartOverlay } from "./maps.js";
 import { openTripShareStudio } from "./trip-sharing.js";
 import { renderAdvancedStats } from "./stats.js";
@@ -349,6 +349,8 @@ export function setup() {
   });
 
   els.gearFilterField?.addEventListener("change", updateGearFilter);
+  els.gearLureTypeFilter?.addEventListener("change", updateGearLureTypeFilter);
+  els.gearSoftPlasticStyleFilter?.addEventListener("change", updateGearSoftPlasticStyleFilter);
 
   els.gearFilterQuery?.addEventListener("input", updateGearFilter);
 

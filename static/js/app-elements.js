@@ -342,6 +342,8 @@ export const els = {
   galleryBatchDeleteButton: document.querySelector("#galleryBatchDeleteButton"),
   galleryClearSelectionButton: document.querySelector("#galleryClearSelectionButton"),
   galleryGrid: document.querySelector("#galleryGrid"),
+  gearLureTypeFilter: document.querySelector("#gearLureTypeFilter"),
+  gearSoftPlasticStyleFilter: document.querySelector("#gearSoftPlasticStyleFilter"),
   gearFilterField: document.querySelector("#gearFilterField"),
   gearFilterQuery: document.querySelector("#gearFilterQuery"),
   gearFilterSuggestions: document.querySelector("#gearFilterSuggestions"),

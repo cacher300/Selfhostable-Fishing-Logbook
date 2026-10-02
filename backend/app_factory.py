@@ -15,6 +15,7 @@ from .storage import InvalidRevision, MediaInventoryIncomplete, MediaRequestErro
 
 
 SELF_CACHED_ENDPOINTS = {"pages.static_files", *environment.CACHEABLE_ENDPOINTS}
+CACHED_MEDIA_ENDPOINTS = {"media.uploaded_file", "media.uploaded_preview_file"}
 
 
 def create_app(config: AppConfig | None = None, *, storage: Storage | None = None) -> Flask:
@@ -36,10 +37,14 @@ def create_app(config: AppConfig | None = None, *, storage: Storage | None = Non
     _register_error_handlers(app)
 
     @app.after_request
-    def add_no_store_header(response: Response) -> Response:
-        # Only successful responses from endpoints with their own policy keep it;
-        # everything else, including private uploads, stays no-store.
-        if request.endpoint not in SELF_CACHED_ENDPOINTS or response.status_code >= 400:
+    def set_cache_policy(response: Response) -> Response:
+        # Uploaded media can stay in the browser cache for an hour. Shared
+        # proxies must not cache it; API responses and errors remain no-store.
+        if response.status_code >= 400:
+            response.headers["Cache-Control"] = "no-store"
+        elif request.endpoint in CACHED_MEDIA_ENDPOINTS and request.method in {"GET", "HEAD"}:
+            response.headers["Cache-Control"] = "private, max-age=3600"
+        elif request.endpoint not in SELF_CACHED_ENDPOINTS:
             response.headers["Cache-Control"] = "no-store"
         return response
 

@@ -19,6 +19,128 @@ test.describe("gear and settings characterization", () => {
     await resetLogbook(page, await freshLogbook(page));
   });
 
+  for (const { width, height, theme } of [
+    { width: 1440, height: 900, theme: "light" },
+    { width: 390, height: 844, theme: "dark" }
+  ]) {
+    test(`combines soft plastic styles with color filters at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      const seed = await freshLogbook(page, {
+        lures: [
+          { id: "green-tail", name: "Green tail", type: "Soft Plastic", softPlasticType: "Paddle Tail", color: "Green" },
+          { id: "blue-tail", name: "Blue tail", type: "Soft Plastic", softPlasticType: "Paddle Tail", color: "Blue" },
+          { id: "tube", name: "Green tube", type: "Soft Plastic", softPlasticType: "Custom tube", color: "Green" },
+          { id: "unstyled", name: "Unstyled plastic", type: "Soft Plastic", color: "Green" },
+          { id: "spoon", name: "Green spoon", type: "Spoon", color: "Green" }
+        ]
+      });
+      seed.settings.theme = theme;
+      await resetLogbook(page, seed);
+      await stubExternalApis(page);
+      await page.goto("/gear", { waitUntil: "domcontentloaded" });
+      const type = page.locator("#gearLureTypeFilter");
+      const style = page.getByRole("combobox", { name: "Soft plastic style", exact: true });
+      const rows = page.locator("#baitInventoryTable tbody tr:visible");
+      await expect(style).toBeHidden();
+      await type.selectOption("Soft Plastic");
+      await expect(style).toBeVisible();
+      await expect(style.locator("option")).toHaveText(["All styles", "Custom tube", "Paddle Tail"]);
+      await expect(rows).toHaveCount(4);
+      await style.selectOption("Paddle Tail");
+      await expect(rows).toHaveCount(2);
+      await page.locator("#gearFilterField").selectOption("Color");
+      await page.locator("#gearFilterQuery").fill("green");
+      await expect(rows).toHaveCount(1);
+      await expect(rows).toContainText("Green tail");
+      await style.selectOption("Custom tube");
+      await expect(rows).toContainText("Green tube");
+      await page.locator('#baitInventoryTable [data-inventory-sort-index="1"]').click();
+      await expect(style).toHaveValue("Custom tube");
+      await expect(rows).toHaveCount(1);
+      await page.screenshot({ path: test.info().outputPath("soft-plastic-style-filter.png") });
+      await page.getByRole("button", { name: "Flashers", exact: true }).click();
+      await expect(style).toBeHidden();
+      await page.getByRole("button", { name: "Baits", exact: true }).click();
+      await expect(style).toHaveValue("Custom tube");
+      await type.selectOption("Spoon");
+      await expect(style).toBeHidden();
+      await expect(rows).toContainText("Green spoon");
+      await type.selectOption("Soft Plastic");
+      await expect(style).toHaveValue("");
+      await expect(rows).toHaveCount(3);
+      await style.selectOption("Custom tube");
+      await page.locator("#clearGearFilterButton").click();
+      await expect(style).toBeHidden();
+      await expect(type).toHaveValue("");
+      await expect(rows).toHaveCount(5);
+      await type.selectOption("Soft Plastic");
+      await expect(style).toHaveValue("");
+      await expect(rows).toHaveCount(4);
+      expect((await readLogbook(page)).lures).toEqual(seed.lures);
+    });
+
+    test(`combines lure types with color filters at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      const errors = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      const seed = await freshLogbook(page, {
+        lures: [
+          { id: "green-spoon", name: "Green spoon", type: "Spoon", color: "Green" },
+          { id: "blue-spoon", name: "Blue spoon", type: "Spoon", color: "Blue" },
+          { id: "green-crank", name: "Green crank", type: "Crankbait", color: "Green" },
+          { id: "spinner", name: "Custom spinner", type: "Inline Spinner", color: "Gold" },
+          { id: "fly", name: "Green fly", type: "Fly", color: "Green" }
+        ],
+        flashers: [{ id: "green-paddle", name: "Green paddle", type: "Paddle", color: "Green" }]
+      });
+      seed.settings.theme = theme;
+      await resetLogbook(page, seed);
+      await stubExternalApis(page);
+      await page.goto("/gear", { waitUntil: "domcontentloaded" });
+      const lureType = page.getByRole("combobox", { name: "Lure type", exact: true });
+      const visibleRows = page.locator("#baitInventoryTable tbody tr:visible");
+      await expect(lureType).toBeVisible();
+      await expect(lureType.locator("option")).toHaveText([
+        "All types", "Crankbait", "Inline Spinner", "Spoon"
+      ]);
+      await lureType.selectOption("Spoon");
+      await expect(visibleRows).toHaveCount(2);
+      await page.locator("#gearFilterField").selectOption("Color");
+      await page.locator("#gearFilterQuery").fill("green");
+      await expect(visibleRows).toHaveCount(1);
+      await expect(visibleRows).toContainText("Green spoon");
+      await lureType.selectOption("Crankbait");
+      await expect(page.locator("#gearFilterQuery")).toHaveValue("green");
+      await expect(visibleRows).toContainText("Green crank");
+      await lureType.selectOption("Spoon");
+      await page.locator('#baitInventoryTable [data-inventory-sort-index="1"]').click();
+      await expect(lureType).toHaveValue("Spoon");
+      await expect(visibleRows).toHaveCount(1);
+      const controlsBox = await page.locator(".gear-inventory-controls").boundingBox();
+      const tableBox = await page.locator("#baitInventoryTable").boundingBox();
+      expect(Math.abs(controlsBox.x - tableBox.x)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: test.info().outputPath("lure-type-filter.png") });
+
+      await page.getByRole("button", { name: "Flashers", exact: true }).click();
+      await expect(lureType).toBeHidden();
+      await expect(page.locator("#flasherInventoryTable tbody tr:visible")).toHaveCount(1);
+      await page.getByRole("button", { name: "Baits", exact: true }).click();
+      await expect(lureType).toHaveValue("Spoon");
+      await expect(visibleRows).toHaveCount(1);
+      await lureType.selectOption("");
+      await expect(visibleRows).toHaveCount(2);
+      await page.locator("#clearGearFilterButton").click();
+      await expect(lureType).toHaveValue("");
+      await expect(page.locator("#gearFilterQuery")).toHaveValue("");
+      await expect(visibleRows).toHaveCount(4);
+      await lureType.selectOption("Inline Spinner");
+      await expect(visibleRows).toHaveCount(1);
+      await expect(visibleRows).toContainText("Custom spinner");
+      expect((await readLogbook(page)).lures).toEqual(seed.lures);
+      expect(errors).toEqual([]);
+    });
+  }
+
   test("creates, edits, and deletes gear through inventory dialogs", async ({ page }) => {
     await resetEmpty(page);
     await page.goto("/gear", { waitUntil: "domcontentloaded" });

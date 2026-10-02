@@ -16,6 +16,11 @@ import { preferencesDraftFromSettings, savedSetupFromDraft } from "./settings-dr
 
 export let activeSavedSetupEditorId = "";
 export let savedSetupDraft = null;
+const collapsedSavedSetupMethods = new Set();
+
+function savedSetupMethodKey(method) {
+  return String(method || "").trim().toLowerCase();
+}
 
 export function savedSetupMethods() {
   const methods = [];
@@ -87,8 +92,7 @@ export function renderSavedSetupCard(item, { draft = false, index = 0 } = {}) {
       <div class="saved-setup-card-body"${editing ? "" : " hidden"}>
         <div class="saved-setup-card-section-heading">
           <div>
-            <strong>Rod positions</strong>
-            <span>Saved setups use rod / reel combos only.</span>
+            <strong>Rods</strong>
           </div>
           ${editing ? html`<button class="button secondary add-saved-setup-row" type="button">Add Rod</button>` : ""}
         </div>
@@ -100,19 +104,24 @@ export function renderSavedSetupCard(item, { draft = false, index = 0 } = {}) {
   `;
 }
 
-export function renderSavedSetupMethodSection(method, setups) {
+export function renderSavedSetupMethodSection(method, setups, methodIndex = 0) {
   const methodSetups = setups.filter((setup) => setup.method.toLowerCase() === method.toLowerCase());
   const selectableSetups = methodSetups.filter((setup) => setup.id !== savedSetupDraft?.id);
   const defaultId = savedSetupDefaultId(method);
+  const collapsed = collapsedSavedSetupMethods.has(savedSetupMethodKey(method));
+  const contentId = `savedSetupMethodContent${methodIndex}`;
   const methodOptions = joinHtml(selectableSetups.map((setup) => (
     html`<option value="${setup.id}" ${setup.id === defaultId ? "selected" : ""}>${setup.name}</option>`
   )), "");
   return html`
     <section class="saved-setup-method-section" data-saved-setup-method-section="${method}">
       <div class="saved-setup-method-header">
-        <div>
-          <h4>${method}</h4>
-        </div>
+        <h4 class="saved-setup-method-heading">
+          <button class="saved-setup-method-toggle" type="button" data-saved-setup-method-toggle="${method}" aria-expanded="${collapsed ? "false" : "true"}" aria-controls="${contentId}">
+            <span>${method}</span>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
+          </button>
+        </h4>
         <div class="saved-setup-method-controls">
           <label class="settings-control">
             <span>${method} default</span>
@@ -124,7 +133,7 @@ export function renderSavedSetupMethodSection(method, setups) {
           <button class="button secondary add-saved-setup" type="button" data-saved-setup-new-method="${method}">New Setup</button>
         </div>
       </div>
-      <div class="saved-setup-list" data-saved-setup-list="${method}">
+      <div class="saved-setup-list" id="${contentId}" data-saved-setup-list="${method}"${collapsed ? " hidden" : ""}>
         ${methodSetups.length
           ? joinHtml(methodSetups.map((setup) => renderSavedSetupCard(setup, { draft: setup === savedSetupDraft, index: setups.findIndex((item) => item.id === setup.id) })))
           : html`<p class="saved-setup-empty-state">No saved setups for this method yet.</p>`}
@@ -141,7 +150,7 @@ export function renderSavedSetupSettings() {
   if (!settingsUi.preferencesDraft) settingsUi.preferencesDraft = preferencesDraftFromSettings(state.settings || {});
   const methods = savedSetupMethods();
   setHtml(els.savedSetupMethodSections, methods.length
-    ? joinHtml(methods.map((method) => renderSavedSetupMethodSection(method, visibleSetups)))
+    ? joinHtml(methods.map((method, index) => renderSavedSetupMethodSection(method, visibleSetups, index)))
     : html`<p class="saved-setup-empty-state">Add a non-trolling method in Settings → Categories to create saved setups.</p>`);
 }
 
@@ -150,7 +159,9 @@ export function addSavedSetup(method) {
     document.querySelector(`[data-saved-setup-id="${CSS.escape(savedSetupDraft.id)}"] .saved-setup-name`)?.focus();
     return;
   }
-  savedSetupDraft = { id: createId(), name: "", method: String(method || "").trim(), rows: [] };
+  const setupMethod = String(method || "").trim();
+  collapsedSavedSetupMethods.delete(savedSetupMethodKey(setupMethod));
+  savedSetupDraft = { id: createId(), name: "", method: setupMethod, rows: [] };
   activeSavedSetupEditorId = savedSetupDraft.id;
   renderSavedSetupSettings();
   document.querySelector(`[data-saved-setup-id="${CSS.escape(savedSetupDraft.id)}"] .saved-setup-name`)?.focus();
@@ -201,6 +212,18 @@ export function toggleSavedSetupCard(card, event = null) {
   card.setAttribute("aria-expanded", String(!body.hidden));
 }
 
+function toggleSavedSetupMethodSection(toggle) {
+  const section = toggle.closest("[data-saved-setup-method-section]");
+  const content = section?.querySelector(".saved-setup-list");
+  if (!section || !content) return;
+  const collapsed = !content.hidden;
+  const methodKey = savedSetupMethodKey(section.dataset.savedSetupMethodSection);
+  content.hidden = collapsed;
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+  if (collapsed) collapsedSavedSetupMethods.add(methodKey);
+  else collapsedSavedSetupMethods.delete(methodKey);
+}
+
 export async function finishSavedSetupEdit(card) {
   const next = collectSavedSetupCard(card);
   if (!next.name) {
@@ -245,7 +268,9 @@ export async function saveSavedSetupCard(card, options = {}) {
     return;
   }
   if (next.rows.some((row) => !row.comboId)) {
-    if (!options.silentInvalid) setSavedSetupSettingsMessage("Choose a combo or remove the empty rod row before saving.");
+    if (!options.silentInvalid) setSavedSetupSettingsMessage(options.autosave
+      ? "Autosave paused. Choose a combo or remove the empty rod row to continue."
+      : "Choose a combo or remove the empty rod row before saving.");
     return;
   }
   const setups = [...currentSavedSetups()];
@@ -408,6 +433,11 @@ export function applyStartupSavedSetup() {
 
 export function setup() {
   els.savedSetupMethodSections?.addEventListener("click", (event) => {
+    const methodToggle = event.target.closest("[data-saved-setup-method-toggle]");
+    if (methodToggle) {
+      toggleSavedSetupMethodSection(methodToggle);
+      return;
+    }
     const card = event.target.closest(".saved-setup-card");
     if (event.target.closest(".edit-saved-setup")) {
       editSavedSetup(card?.dataset.savedSetupId);

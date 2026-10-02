@@ -1,23 +1,13 @@
 import { html, joinHtml, setHtml } from "./html.js";
 import { ui } from "./app-state.js";
-import { choiceLabel, currentTrollingSpreads } from "./app-normalization.js";
+import { currentTrollingSpreads } from "./app-normalization.js";
 import { els } from "./app-elements.js";
 import { syncTripFormChrome } from "./trip-editor.js";
 import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, updateAllRowSummaries } from "./trip-rows.js";
-import { comboName } from "./gear-core.js";
-import { renderLiveTrollingSpread, setupLineSideLabel } from "./trolling-spread.js";
+import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { isTrollingTrip } from "./form-utils.js";
 import { replaceTripRows } from "./draft-binding.js";
 
-
-export function trollingSpreadPickerItemLabel(item) {
-  return item.spread.map((row, index) => {
-    const combo = comboName(row.comboId) || `Rod ${index + 1}`;
-    const side = setupLineSideLabel(row.side);
-    const presentation = choiceLabel("trollingPresentations", row.presentation);
-    return [side, presentation, combo].filter(Boolean).join(" ");
-  }).join(" · ");
-}
 
 export function renderTrollingSpreadPicker() {
   if (!els.trollingSpreadPickerList) return;
@@ -25,10 +15,7 @@ export function renderTrollingSpreadPicker() {
   setHtml(els.trollingSpreadPickerList, spreads.length
     ? joinHtml(spreads.map((item) => html`
         <button class="trolling-spread-picker-option" type="button" data-pick-trolling-spread="${item.id}">
-          <span class="trolling-spread-picker-option-copy">
-            <strong>${item.name}</strong>
-            <small>${`${item.spread.length} rod${item.spread.length === 1 ? "" : "s"} · ${trollingSpreadPickerItemLabel(item)}`}</small>
-          </span>
+          <strong class="trolling-spread-picker-option-title">${item.name}</strong>
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
         </button>
       `), "")

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
 from conftest import make_app
 
 
@@ -32,3 +34,49 @@ def test_great_lakes_errors_and_other_routes_stay_no_store(tmp_path) -> None:
 
     assert test_client.get("/api/great-lakes/temperature?depth=deep").headers["Cache-Control"] == "no-store"
     assert test_client.get("/healthz").headers["Cache-Control"] == "no-store"
+
+
+@pytest.mark.parametrize("preview", [False, True])
+def test_local_media_is_privately_cached_and_revalidates(tmp_path, preview) -> None:
+    fish = make_app(tmp_path)
+    directory = fish.uploads / "lures"
+    if preview:
+        directory /= "_previews"
+    directory.mkdir(parents=True)
+    (directory / "sample.jpg").write_bytes(b"sample-image")
+    url = f"/uploads/lures/{'_previews/' if preview else ''}sample.jpg"
+
+    response = fish.client.get(url)
+    assert response.status_code == 200
+    assert response.data == b"sample-image"
+    assert response.headers["Cache-Control"] == "private, max-age=3600"
+    head = fish.client.head(url)
+    assert head.status_code == 200
+    assert head.headers["Cache-Control"] == "private, max-age=3600"
+    unchanged = fish.client.get(url, headers={"If-None-Match": response.headers["ETag"]})
+    assert unchanged.status_code == 304
+    assert unchanged.data == b""
+    assert unchanged.headers["Cache-Control"] == "private, max-age=3600"
+    partial = fish.client.get(url, headers={"Range": "bytes=0-5"})
+    assert partial.status_code == 206
+    assert partial.data == b"sample"
+    assert partial.headers["Cache-Control"] == "private, max-age=3600"
+    missing = fish.client.get(url.replace("sample.jpg", "missing.jpg"))
+    assert missing.status_code == 404
+    assert missing.headers["Cache-Control"] == "no-store"
+    assert fish.client.get("/api/gallery").headers["Cache-Control"] == "no-store"
+    assert fish.client.get("/api/logbook").headers["Cache-Control"] == "no-store"
+
+
+@pytest.mark.parametrize("preview", [False, True])
+def test_cloud_media_uses_the_same_private_cache_policy(tmp_path, preview) -> None:
+    fish = make_app(tmp_path, storage_backend="cloud", cloud_api_url="https://cloud.invalid")
+    url = f"/uploads/lures/{'_previews/' if preview else ''}sample.jpg"
+    with patch("backend.cloud_storage.get_object", return_value=(
+        b"sample-image", {"content-type": "image/jpeg", "etag": '"sample-etag"'}
+    )):
+        response = fish.client.get(url)
+    assert response.status_code == 200
+    assert response.data == b"sample-image"
+    assert response.headers["Cache-Control"] == "private, max-age=3600"
+    assert response.headers["ETag"] == '"sample-etag"'
