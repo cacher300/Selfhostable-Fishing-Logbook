@@ -5,7 +5,7 @@ import { els } from "./app-elements.js";
 import { mediaMarkup } from "./app-media.js";
 import { formatDate } from "./dashboard.js";
 import { activeLineEntry, comboName, gearDisplayName, gearPhotos, lineSummary, reelName, rodName } from "./gear-core.js";
-import { isFlyLure } from "./gear-pickers.js";
+import { isFlyLure, savedLureTypes } from "./gear-pickers.js";
 import { openFlasherInfoDialog, openLureInfoDialog } from "./gear-dialogs.js";
 import { gearPerformanceStats } from "./leaderboard.js";
 
@@ -36,6 +36,8 @@ export function renderInventoryTable(container, headers, rows, emptyText) {
 }
 
 export let activeGearFilter = { field: "all", query: "" };
+export let activeGearLureType = "";
+export let activeGearSoftPlasticStyle = "";
 export const inventorySortState = {};
 export let gearFilterSuggestionsOpen = false;
 
@@ -48,6 +50,7 @@ export function inventoryHeaderLabels(container) {
 }
 
 export function syncGearFilterFields() {
+  syncGearLureTypeFilter();
   const container = activeInventoryTable();
   if (!container || !els.gearFilterField) return;
   const headers = inventoryHeaderLabels(container).filter((label) => label && label !== "Photo");
@@ -58,6 +61,50 @@ export function syncGearFilterFields() {
   syncGearFilterSuggestions();
 }
 
+function syncGearLureTypeFilter() {
+  const select = els.gearLureTypeFilter;
+  if (!select) return;
+  const types = savedLureTypes();
+  if (!types.includes(activeGearLureType)) activeGearLureType = "";
+  setHtml(select, html`<option value="">All types</option>${joinHtml(types.map((type) => html`<option value="${type}">${type}</option>`), "")}`);
+  select.value = activeGearLureType;
+  select.closest("label")?.classList.toggle("hidden", ui.activeGearTab !== "baits");
+  syncGearSoftPlasticStyleFilter();
+}
+
+function syncGearSoftPlasticStyleFilter() {
+  const select = els.gearSoftPlasticStyleFilter;
+  if (!select) return;
+  const isSoftPlastic = activeGearLureType.toLowerCase() === "soft plastic";
+  const styles = [...new Set(state.lures
+    .filter((lure) => String(lure.type || "").trim() === activeGearLureType)
+    .map((lure) => String(lure.softPlasticType || "").trim()).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right));
+  if (!isSoftPlastic || !styles.includes(activeGearSoftPlasticStyle)) activeGearSoftPlasticStyle = "";
+  setHtml(select, html`<option value="">All styles</option>${joinHtml(styles.map((style) => html`<option value="${style}">${style}</option>`), "")}`);
+  select.value = activeGearSoftPlasticStyle;
+  select.closest("label")?.classList.toggle("hidden", ui.activeGearTab !== "baits" || !isSoftPlastic);
+}
+
+function inventoryRowMatchesLureType(row, container) {
+  return container.id !== "baitInventoryTable"
+    || ((!activeGearLureType || row.dataset.inventoryLureType === activeGearLureType)
+      && (!activeGearSoftPlasticStyle || row.dataset.inventorySoftPlasticStyle === activeGearSoftPlasticStyle));
+}
+
+export function updateGearLureTypeFilter() {
+  activeGearLureType = els.gearLureTypeFilter?.value || "";
+  syncGearSoftPlasticStyleFilter();
+  closeGearFilterSuggestions();
+  applyInventoryTableControls();
+}
+
+export function updateGearSoftPlasticStyleFilter() {
+  activeGearSoftPlasticStyle = els.gearSoftPlasticStyleFilter?.value || "";
+  closeGearFilterSuggestions();
+  applyInventoryTableControls();
+}
+
 export function syncGearFilterSuggestions() {
   const container = activeInventoryTable();
   if (!container || !els.gearFilterSuggestions) return;
@@ -65,6 +112,7 @@ export function syncGearFilterSuggestions() {
   const fieldIndex = activeGearFilter.field === "all" ? -1 : headers.indexOf(activeGearFilter.field);
   const query = activeGearFilter.query.trim().toLocaleLowerCase();
   const values = [...new Set([...container.querySelectorAll("tbody tr")].flatMap((row) => {
+    if (!inventoryRowMatchesLureType(row, container)) return [];
     const cells = [...row.cells].map((cell) => cell.textContent.trim());
     return fieldIndex >= 0 ? [cells[fieldIndex]] : cells;
   }).filter((value) => value && value !== "-" && value.toLocaleLowerCase().includes(query)))].sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" })).slice(0, 100);
@@ -98,7 +146,8 @@ export function applyInventoryTableControls(container = activeInventoryTable()) 
   rows.forEach((row) => {
     const cells = [...row.cells].map((cell) => cell.textContent.trim().toLocaleLowerCase());
     const haystack = filterIndex >= 0 ? cells[filterIndex] || "" : cells.join(" ");
-    row.hidden = Boolean(query) && !haystack.includes(query);
+    row.hidden = !inventoryRowMatchesLureType(row, container)
+      || (Boolean(query) && !haystack.includes(query));
   });
   const sortState = inventorySortState[container.id];
   if (!sortState) return;
@@ -130,6 +179,10 @@ export function updateGearFilter() {
 
 export function clearGearFilter() {
   activeGearFilter = { field: "all", query: "" };
+  if (ui.activeGearTab === "baits") {
+    activeGearLureType = "";
+    activeGearSoftPlasticStyle = "";
+  }
   gearFilterSuggestionsOpen = false;
   syncGearFilterFields();
   syncGearFilterSuggestions();
@@ -154,7 +207,14 @@ export function sortInventoryTable(tableId, index) {
 
 export function inventoryRow(type, item, cells) {
   return {
-    attributes: { "data-inventory-type": type, "data-inventory-id": item.id },
+    attributes: {
+      "data-inventory-type": type,
+      "data-inventory-id": item.id,
+      ...(type === "lure" ? {
+        "data-inventory-lure-type": String(item.type || "").trim(),
+        "data-inventory-soft-plastic-style": String(item.softPlasticType || "").trim()
+      } : {})
+    },
     cells
   };
 }
