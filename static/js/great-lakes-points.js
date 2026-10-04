@@ -171,7 +171,7 @@ function renderStations() {
   declutterStations();
   const withCurrents = stations.filter((station) => station.current).length;
   stationsMessage = stations.length
-    ? `${stations.length} stations reporting${withCurrents ? `, ${withCurrents} with current meters` : ""}. Updated ${new Date(stationsLoadedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
+    ? `${stations.length} stations reporting${withCurrents ? `, ${withCurrents} with current meters` : ""}. Data last received at ${new Date(stationsLoadedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
     : "No measurement stations are reporting right now.";
   setPointsStatus();
 }

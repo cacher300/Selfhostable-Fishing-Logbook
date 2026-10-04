@@ -75,7 +75,9 @@ document.addEventListener("great-lakes-frame-shown", (event) => { shown = event.
 play.click();
 assert.equal(play.getAttribute("aria-pressed"), "true");
 await waitFor(() => /Preparing the forecast animation… 50%/.test(status()), "progress");
-await waitFor(() => /Showing the forecast for/.test(status()), "the first frame");
+// The time shows on the timeline and in the panel summary, so the status line only carries warnings.
+await waitFor(() => shown && document.querySelectorAll(".great-lakes-animation-frame").length === 3, "the first frame");
+assert.equal(status(), "");
 assert.equal(calls.frames.length, 3);
 const overlays = [...document.querySelectorAll(".great-lakes-animation-frame")];
 assert.equal(overlays.length, 3);

@@ -121,9 +121,8 @@ export function waterColumnDialogHtml(profile, zoom) {
     ${statsHtml(profile, values)}
     ${zoomHtml(values, zoom)}
     <div class="wc-chart" data-wc-chart tabindex="0" role="img" aria-label="Water temperature by depth. Use the up and down arrow keys to read each model level."></div>
-    <p class="wc-hint"><span class="hint-mouse">Move over</span><span class="hint-touch">Drag along</span> the chart to read the temperature at any depth.</p>
     ${tableHtml(values)}
-    <p class="wc-note">From NOAA's lake model at the nearest grid point. The thermocline is where the water cools fastest with depth; it is an estimate from the model's fixed levels.</p>
+    <p class="wc-note">This is our best estimate of the thermocline’s location based on NOAA data, but it may not be accurate.</p>
   </dialog>`;
 }
 
