@@ -77,6 +77,20 @@ It should not be the live `/uploads` filesystem: sync delays, permissions, and
 unstable file URLs can cause broken images. For a longer-term setup, use object
 storage such as S3-compatible storage, Cloudflare R2, or Backblaze B2.
 
+## NOAA Great Lakes data
+
+The container keeps the map's NOAA Great Lakes data downloaded in the
+background: one gunicorn worker holds a lock and refreshes, and both workers
+share the download cache in the container's temp directory
+(`/tmp/fishing-logbook-great-lakes`). It prepares every forecast choice ("Now",
+6, 12, 24, and 48 hours) at every depth each hour, so expect roughly 180 MB of
+NOAA downloads an hour (about 4.4 GB a day) and a few hundred MB of cache on
+disk. The wave layer adds about 0.7 MB an hour from NOAA NOMADS (only the
+three wave fields of each forecast choice are downloaded). The cache is disposable: it is not
+logbook data, is not backed up, and is rebuilt within a few minutes after a
+container is recreated. Set `GREAT_LAKES_CACHE_DIR` to keep it across
+rebuilds, or `GREAT_LAKES_BACKGROUND_REFRESH=false` to download only on demand.
+
 ## Cloudflare D1 and R2 foundation
 
 The production cloud API is maintained under `cloud/worker/` and deployed by

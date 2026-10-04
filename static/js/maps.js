@@ -9,6 +9,8 @@ import { isUsableCoordinates, isVideoMedia, mediaMarkup, previewImage } from "./
 import { coordinateText } from "./locations.js";
 import { fishingSpotRadiusText } from "./settings-locations.js";
 import { ensureGreatLakesConditions } from "./great-lakes-conditions.js";
+import { positionLabel } from "./cards.js";
+import { addMeasureControl, isMeasuring } from "./measure.js";
 import { formatDate } from "./dashboard.js";
 import { displayFowValue } from "./trip-summary.js";
 
@@ -239,32 +241,11 @@ export function catchSizePopupValue(catchItem = {}) {
 }
 
 export function mapDepthPopupHtml(coordinates, payload = null, status = "loading", overlayHtml = "") {
-  const compactClass = overlayHtml ? "" : " map-depth-popup--compact";
-  if (status === "loading") {
-    return html`
-      <div class="map-popup map-depth-popup${compactClass}">
-        <strong>Depth lookup</strong>
-        <span>Looking up...</span>
-        ${overlayHtml}
-      </div>
-    `;
-  }
-  if (status === "error") {
-    return html`
-      <div class="map-popup map-depth-popup${compactClass}">
-        <strong>Depth unavailable</strong>
-        <span>Could not fetch depth here.</span>
-        ${overlayHtml}
-      </div>
-    `;
-  }
-  const depthText = mapDepthText(payload);
-  return html`
-    <div class="map-popup map-depth-popup${compactClass}">
-      <strong>${depthText || "No depth found"}</strong>
-      ${overlayHtml}
-    </div>
-  `;
+  const heading = status === "loading" ? "Looking up…" : status === "error" ? "Depth unavailable" : (mapDepthText(payload) || "No depth found");
+  return html`<article class="gl-card${status === "loading" ? " is-loading" : ""}">
+    <header class="gl-card-head"><strong class="gl-card-title">${heading}</strong><span class="gl-card-sub">${positionLabel(coordinates.latitude, coordinates.longitude)}</span></header>
+    ${overlayHtml}
+  </article>`;
 }
 
 export async function showDepthPopupForMapClick(map, event) {
@@ -274,7 +255,7 @@ export async function showDepthPopupForMapClick(map, event) {
     longitude: Number(event.latlng?.lng)
   };
   if (!Number.isFinite(coordinates.latitude) || !Number.isFinite(coordinates.longitude)) return;
-  const popup = L.popup()
+  const popup = L.popup({ className: "gl-popup", minWidth: 240, maxWidth: 280 })
     .setLatLng(event.latlng)
     .setContent(String(mapDepthPopupHtml(coordinates)))
     .openOn(map);
@@ -302,7 +283,8 @@ export async function showDepthPopupForMapClick(map, event) {
 export function bindDepthLookupPopup(map) {
   if (!map || map._logbookDepthLookupBound) return;
   map._logbookDepthLookupBound = true;
-  map.on("click", (event) => showDepthPopupForMapClick(map, event));
+  // While measuring, clicks place measurement points instead of looking up the depth.
+  map.on("click", (event) => { if (!isMeasuring()) showDepthPopupForMapClick(map, event); });
 }
 
 export function ensureMapPageChartOverlay(map) {
@@ -625,6 +607,7 @@ export function renderFishMap() {
     fishMapBasemapLayer = addSeamlessTileLayer(ui.fishMap, savedMapBasemap());
     ensureFishMapBasemapControl();
     bindDepthLookupPopup(ui.fishMap);
+    addMeasureControl(ui.fishMap, { position: "topleft" });
     ensureGreatLakesConditions(ui.fishMap);
     syncMapPageChartOverlay(ui.fishMap);
     ensureMapMarkerPanes(ui.fishMap);
@@ -786,4 +769,14 @@ export function setup() {
       options: { attribution: "&copy; OpenStreetMap contributors &copy; CARTO", subdomains: "abcd", maxZoom: 20 }
     }
   };
+
+  // Filters and Layers are one-at-a-time menus. The shared <details name>
+  // does this natively in current browsers; this covers older ones too.
+  document.addEventListener("toggle", (event) => {
+    const menu = event.target;
+    if (!(menu instanceof HTMLDetailsElement) || !menu.open || !menu.matches(".map-more-filters, .map-layers-menu")) return;
+    document.querySelectorAll(".map-more-filters[open], .map-layers-menu[open]").forEach((other) => {
+      if (other !== menu) other.open = false;
+    });
+  }, true);
 }

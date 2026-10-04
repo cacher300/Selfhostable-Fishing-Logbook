@@ -76,11 +76,11 @@ Proxy errors return an upstream status where available or `503` for network/time
 
 ### `GET /api/bathymetry/depth`
 
-Looks up the nearest Great Lakes bathymetry feature for numeric `latitude` and `longitude` coordinates. The response includes `depth_m`, `depth_ft`, `lake_name`, and `depth_source`; when a feature is unavailable, the depth fields are null. The request uses the saved per-lake FOW calibration settings.
+Looks up the Great Lakes depth for numeric `latitude` and `longitude` coordinates. The nearest Esri Canada depth contour within 500 m is used when there is one (`depth_source` `Great Lakes Bathymetry ArcGIS`). Otherwise, typically offshore where contours are far apart, or if the contour service is down, the depth is interpolated from NOAA's lake-model bathymetry (0.5–1 km cells; `depth_source` `NOAA Great Lakes model bathymetry`), which agrees with the contours to within about a foot where both exist. The response includes `depth_m`, `depth_ft`, `lake_name`, and `depth_source`; points on land or outside every lake return null depth fields, and the route returns `503` only when both sources are unavailable. The request uses the saved per-lake FOW calibration settings.
 
 ### `GET /api/great-lakes/temperature-value`
 
-Returns a modelled Great Lakes water-temperature value for numeric `forecastHour`, `depth`, `resolution`, `latitude`, and `longitude` query values. `forecastHour` is snapped to `0`, `6`, `12`, `24`, or `48`; depth is bounded to 0–500 meters and resolution to 128–512 pixels. An optional comma-separated `models` list selects known NOAA models.
+Returns a modelled Great Lakes water-temperature value for numeric `forecastHour`, `depth`, `resolution`, `latitude`, and `longitude` query values. `forecastHour` is snapped to `0`, `6`, `12`, `24`, or `48` and counts from the current hour: `0` ("Now") is the newest complete NOAA run's frame nearest the present, not the run's start, and every Great Lakes route uses the same rule. Depth is bounded to 0–500 meters and snapped to the nearest NOAA depth level; resolution is bounded to 128–512 pixels. An optional comma-separated `models` list selects known NOAA models.
 
 ### `GET /api/great-lakes/profile`
 
@@ -90,7 +90,7 @@ Returns the modelled water-column temperature profile and estimated thermocline 
 
 Returns the current model payload for `temperature` or `currents`. The optional `forecastHour`, `depth`, and `models` query values select the model view.
 
-The currents payload includes sampled `data` points and, when the NOAA run has a regular velocity grid, interpolatable `fields`. A run with only unstructured FVCOM fields can return sampled currents with an empty `fields` array; the map then shows static arrows.
+The currents payload includes sampled `data` points and, when the NOAA run has a regular velocity grid, interpolatable `fields` plus speed-shading `rasters`. Each field carries a compact `waterMask` (row-major bits from NOAA's near-native wet/dry mask) so particles stay on the water. A run with only unstructured FVCOM fields can return sampled currents with empty `fields` and `rasters` arrays; the map then shows static arrows.
 
 ### `GET /api/great-lakes/current-profile`
 
@@ -98,11 +98,33 @@ Returns modeled current speed and flow direction at each available water-column 
 
 ### `GET /api/great-lakes/temperature-raster`
 
-Returns a server-rendered temperature raster payload for the optional `forecastHour`, `depth`, `resolution`, and `models` query values.
+Returns a server-rendered temperature raster payload for the optional `forecastHour`, `depth`, `resolution`, and `models` query values. Each raster is an RGBA image (`imageUrl` data URL, WebP when available) warped to Web Mercator and clipped to NOAA's water mask; all lakes in one response share the colour range reported as `metadata.minC`/`metadata.maxC`.
+
+At depth, temperature and current layers cover only water at least that deep: shallower areas are transparent and outside each current field's `waterMask`. A lake whose deepest model level is shallower than the requested depth has no raster or field, and its `metadata.models[]` entry has `tooShallow: true` and `maxDepthMeters`. The profile and current-profile lookups read the nearest wet cell of the model volume the server already keeps on disk when there is one, so map clicks answer in tens of milliseconds.
 
 ### `GET /api/great-lakes/thermocline-raster`
 
-Returns a server-rendered thermocline-depth raster payload for the optional `forecastHour`, `resolution`, and `models` query values.
+Returns a server-rendered thermocline-depth raster payload for the optional `forecastHour`, `resolution`, and `models` query values. Rasters are rendered like temperature rasters and share the range in `metadata.minDepthMeters`/`metadata.maxDepthMeters` (the 2nd–98th percentile, so outliers do not flatten the colours); water mixed top to bottom, without a thermocline, is drawn in `metadata.mixedColor`.
+
+### `GET /api/great-lakes/waves-raster`
+
+Returns the NOAA GLWU wave layer for the optional `forecastHour`, `resolution`, and `models` query values. `rasters` holds one significant-wave-height image per lake, rendered like temperature rasters and clipped to the same water mask, sharing the range in `metadata.minHeightMeters` (always 0) and `metadata.maxHeightMeters` (at least 1 m). `arrows` lists wave-model cells (every 4th cell, about 10 km apart) with `latitude`, `longitude`, `heightMeters`, `periodSeconds`, and `directionDegrees` (the direction waves come from, degrees true). `metadata` also reports the wave `run`, `selectedForecastHour`, and `validTime`. If NOMADS has no usable run, `rasters` is empty and every model is `available: false`.
+
+### `GET /api/great-lakes/wave-value`
+
+Returns the modelled waves at required `latitude` and `longitude` for the optional `forecastHour`: `available`, `heightMeters`, `periodSeconds`, `directionDegrees` (from the nearest wave-model cell), `validTime`, `run`, and `source`. Points just inside the shoreline use the nearest water cell; points off the lakes return `available: false`.
+
+### `GET /api/great-lakes/status`
+
+Reports what the server is serving for the optional comma-separated `models`: `generatedAt`, a `version` string that changes when a new NOAA run is used or "Now" advances an hour, per-model `run`, `runTime`, `nowForecastHour`, `nowValidTime`, and `nextRunExpectedAt`, the same fields for the hourly wave model in `waves` with its own `wavesVersion`, and the background refresher's last activity and errors in `refresher`. Never cached. Layer requests may include `data=<version>`; the server ignores it, but it gives each data version its own browser-cache entry.
+
+### `GET /api/great-lakes/observations`
+
+Returns live measurements from NOAA National Data Buoy Center stations in the Great Lakes region (buoys and shore gauges): `generatedAt`, `source`, and `stations`, each with `id`, `name`, `owner`, `type` (`Buoy` or `Shore station`), `latitude`, `longitude`, NDBC `url`, `waterTemperature` (`temperatureC`, `observedAt`) or `null`, `waves` (`heightMeters`, `periodSeconds`, `directionDegrees` waves come from, `observedAt`) or `null`, and `current` or `null`. A current is the newest current-meter profile: `observedAt` and `values` with `depthMeters`, `directionDegrees` (the bearing the water flows toward), and `speedMetersPerSecond`. Only stations with a reading from the last 6 hours are included. Readings are fetched live from NDBC on every request and never cached (about 400 KB: only the newest 4 KB of each current-meter file is downloaded); if NDBC is unreachable the route returns 503 with an empty `stations` list.
+
+### `GET /api/great-lakes/model-points`
+
+Returns the forecast model's calculation points inside required numeric `south`, `west`, `north`, and `east` bounds. `kind=temperature` (default) returns FVCOM mesh nodes; `kind=currents` returns triangle centres, where the model computes velocity; `kind=waves` returns the GLWU wave model's 2.5 km water cells (and ignores `models`). Optional comma-separated `models` selects lakes. The response contains `kind`, `count`, `limit`, `tooMany`, per-model availability in `models`, and `points` as a flat `[latitude, longitude, …]` array. Points are never thinned: when `count` exceeds `limit`, `tooMany` is `true` and `points` is empty so the client can ask the user to zoom in. Each model's mesh is downloaded once per server process.
 
 ## Uploads and Media
 

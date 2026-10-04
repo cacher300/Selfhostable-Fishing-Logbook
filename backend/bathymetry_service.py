@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import ssl
 import subprocess
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -10,6 +11,7 @@ from urllib.request import Request, urlopen
 from .backend_config import GREAT_LAKES_BATHYMETRY_URL
 
 DEPTH_SOURCE = "Great Lakes Bathymetry ArcGIS"
+MODEL_DEPTH_SOURCE = "NOAA Great Lakes model bathymetry"
 BASE_DEPTH_OFFSET_FEET = 0
 FEET_PER_METER = 3.28084
 # Bathymetry contours are comparatively sparse in some nearshore areas. A
@@ -17,6 +19,21 @@ FEET_PER_METER = 3.28084
 LOOKUP_DISTANCE_METERS = 500
 SHALLOW_FOW_FEET = 30
 OFFSHORE_FOW_FEET = 80
+# edumaps.esri.ca only negotiates TLS 1.2 with RSA key exchange
+# (AES256-GCM-SHA384). OpenSSL 3.5+ (Python 3.14) no longer offers those
+# ciphers by default, so the server drops the handshake. Allow just these two
+# for this host; certificate and hostname verification stay on.
+BATHYMETRY_EXTRA_CIPHERS = "AES256-GCM-SHA384:AES128-GCM-SHA256"
+
+
+def bathymetry_ssl_context() -> ssl.SSLContext:
+    context = ssl.create_default_context()
+    default_ciphers = ":".join(cipher["name"] for cipher in context.get_ciphers() if cipher.get("protocol") != "TLSv1.3")
+    context.set_ciphers(f"{default_ciphers}:{BATHYMETRY_EXTRA_CIPHERS}" if default_ciphers else BATHYMETRY_EXTRA_CIPHERS)
+    return context
+
+
+_SSL_CONTEXT = bathymetry_ssl_context()
 
 
 def valid_coordinates(coordinates: object) -> tuple[float, float] | None:
@@ -37,10 +54,36 @@ def valid_coordinates(coordinates: object) -> tuple[float, float] | None:
 
 
 def lookup_depth(latitude: float, longitude: float, lake_calibrations_feet: object = None) -> dict | None:
-    features = query_bathymetry_features(latitude, longitude)
-    nearest = nearest_bathymetry_feature(latitude, longitude, features)
+    """Depth from the nearest Esri contour within 500 m, else NOAA's lake-model depth.
+
+    Contours are precise near shore but can be tens of kilometres apart over
+    flat offshore basins, which left mid-lake points without a depth. NOAA's
+    model bathymetry (0.5–1 km cells) covers all open water and agrees with
+    the contours to within about a foot where both exist.
+    """
+    try:
+        features = query_bathymetry_features(latitude, longitude)
+        nearest = nearest_bathymetry_feature(latitude, longitude, features)
+        contour_error = None
+    except RuntimeError as error:
+        nearest, contour_error = None, error
     if nearest is None:
-        return None
+        estimate = model_depth_estimate(latitude, longitude)
+        if estimate is None:
+            if contour_error is not None:
+                raise contour_error
+            return None
+        depth_m = estimate["depthMeters"]
+        depth_ft = depth_m * FEET_PER_METER
+        depth_m, depth_ft = corrected_bathymetry_depths(
+            depth_ft, depth_m, lake_depth_offset_feet(estimate["lake"], depth_ft, depth_m, lake_calibrations_feet),
+        )
+        return {
+            "depth_m": rounded_depth(depth_m),
+            "depth_ft": rounded_depth(depth_ft),
+            "lake_name": estimate["lake"],
+            "depth_source": MODEL_DEPTH_SOURCE,
+        }
     attributes = nearest.get("attributes", {})
     depth_m, depth_ft = corrected_bathymetry_depths(
         attributes.get("depth_ft"),
@@ -58,6 +101,15 @@ def lookup_depth(latitude: float, longitude: float, lake_calibrations_feet: obje
         "lake_name": attributes.get("Lake"),
         "depth_source": DEPTH_SOURCE,
     }
+
+
+def model_depth_estimate(latitude: float, longitude: float) -> dict | None:
+    from .great_lakes_service import model_bathymetry_depth
+
+    try:
+        return model_bathymetry_depth(latitude, longitude)
+    except Exception:
+        return None
 
 
 def finite_float(value: object) -> float | None:
@@ -134,7 +186,7 @@ def query_bathymetry_features(latitude: float, longitude: float) -> list[dict]:
 def read_json_url(url: str) -> dict:
     request_headers = {"User-Agent": "FishingLogbook/1.0 (+https://edumaps.esri.ca/)"}
     try:
-        with urlopen(Request(url, headers=request_headers), timeout=10) as response:
+        with urlopen(Request(url, headers=request_headers), timeout=10, context=_SSL_CONTEXT) as response:
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
         raise RuntimeError(f"Bathymetry service returned HTTP {error.code}") from error

@@ -5,8 +5,10 @@ from __future__ import annotations
 from flask import Flask, Response, jsonify, request
 
 from . import cloud_storage
+from . import great_lakes_cache
 from .config import PROJECT_ROOT, AppConfig
 from .frontend_assets import asset_url
+from .great_lakes_refresher import GreatLakesRefresher
 from .logbook_store import LogbookStorageError
 from .media_service import MediaNotFound
 from .request_security import configure_request_security
@@ -50,6 +52,9 @@ def create_app(config: AppConfig | None = None, *, storage: Storage | None = Non
 
     for module in (pages, logbook, media, environment):
         app.register_blueprint(module.blueprint)
+    great_lakes_cache.configure(config.great_lakes_cache_dir or None)
+    if config.great_lakes_background_refresh and not config.testing:
+        app.extensions["fish.great_lakes_refresher"] = GreatLakesRefresher().start()
     return app
 
 

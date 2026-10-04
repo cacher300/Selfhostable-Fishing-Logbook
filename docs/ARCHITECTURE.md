@@ -52,7 +52,7 @@ HTML IDs/classes and `data-*` attributes remain internal APIs shared by template
 - `logbook_repository.py`: SQLite I/O and revisions.
 - `archive_service.py`: whole-logbook archive export and import validation. `shared_trip_archive.py`: one-trip Shared Trip ZIPs.
 - `media_service.py`: `UploadLibrary` (paths, sidecars, previews for one uploads tree) and pure media helpers (references, captions, EXIF, HEIF conversion, private-location scrubbing).
-- `weather_service.py`, `bathymetry_service.py`, `great_lakes_service.py`: external data proxies. Great Lakes caches are bounded by time bucket and entry count.
+- `weather_service.py`, `bathymetry_service.py`, `great_lakes_service.py`: external data proxies. Great Lakes layers are built from cached NOAA volumes (`great_lakes_volumes.py`, `great_lakes_cache.py`), drawn by `great_lakes_render.py`, and kept current by `great_lakes_refresher.py` (see [Great Lakes data refresh](#great-lakes-data-refresh)); `great_lakes_observations.py` serves live NOAA buoy readings; `great_lakes_waves.py` (with the pure-Python GRIB2 reader `grib2.py`) serves the NOAA GLWU wave layer.
 - `request_security.py`: session-backed CSRF protection for mutating requests.
 - `backend_config.py`: static constants, loaded from `schema/constants.json` and `schema/default-logbook.json` where shared with the browser and mobile app. `frontend_assets.py` resolves the built bundle URLs.
 
@@ -97,6 +97,30 @@ When opened via `file:`, commits skip the server and only update localStorage. T
 3. Flask validates category/extension, assigns a UUID filename, creates an image preview when possible, and writes a sidecar.
 4. The returned reference is embedded in the logbook document.
 5. Queue claim moves the file to a final category. Orphan detection compares disk items with recursive logbook references.
+
+### Great Lakes data refresh
+
+NOAA runs each Great Lakes Operational Forecast System (LSOFS for Superior, LMHOFS for Michigan–Huron, LEOFS for Erie, LOOFS for Ontario) four times a day, at 00, 06, 12, and 18 UTC. Each run holds hourly frames out to 120 hours. A run's final frame reaches the CO-OPS THREDDS server a consistent delay after the cycle time (measured October 2026): about 2 h 35 m for Erie, 2 h 47 m for Ontario, 3 h 21 m for Michigan–Huron, and 3 h 25 m for Superior. Between runs nothing new is published; "Now" is the run's frame nearest the current hour, so it advances hourly within the same run.
+
+1. Discovery only uses complete runs (the f120 frame exists), falling back to the previous day's catalog during a partial 00z run, and keeps the last good run if NOAA is unreachable. Results are shared through `runs.json`.
+2. One binary OPeNDAP download per model-hour (`.dods`, every depth level) is stored on disk as a temperature volume and a velocity volume. Every depth on the slider, the thermocline, the current field, and the speed and temperature rasters are derived from those two files. A model's grid coordinates and wet mask never change, so they are downloaded once and left out of later requests; file structure and depth levels are looked up once per run.
+3. When the server runs with `GREAT_LAKES_BACKGROUND_REFRESH` on, one process holds `refresher.lock` and:
+   - checks for a new run every 5 minutes from 10 minutes before to 2 hours after each model's expected publication, and every 30 minutes otherwise;
+   - downloads every forecast choice ("Now", 6, 12, 24, and 48 h) for every lake at every depth (about 45 MB per choice, roughly 180 MB an hour) whenever a run arrives or "Now" moves to the next hour, "Now" first; precomputes their thermoclines; and deletes older runs and hours the map no longer shows;
+   - draws the map's all-lakes layers (temperature, thermocline, and currents at full detail) for "Now" at every depth level down to 30 m (about 100 ft) and for each forecast at the surface, so they open without waiting;
+   - downloads the static model meshes and water masks once;
+   - keeps the wave layer current (see [Great Lakes waves](#great-lakes-waves)) before the slower GLOFS work in each pass.
+   Requests for anything not prepared (for example another depth before its hour is warm, or with background refresh off) fetch only the displayed depth level first (about 0.2–0.4 MB per lake), then the full volume in the background; both stay cached until the next run. Drawn layers are stored on disk (`rendered/`) for every worker and dropped after three hours. Buoy observations are small and are fetched live on each request instead (most stations report hourly, about 25 minutes after the hour; an open map refetches them every 10 minutes). Other gunicorn workers read the same disk cache and take over the lock if the leader exits.
+4. `GET /api/great-lakes/status` reports the run and hour being served and when the next run is expected. An open map polls it every 5 minutes (and when the tab becomes visible) and reloads the layer only when that version changes. Layers always cover all four lakes at one fixed resolution, so panning and zooming never request new data; requested depths are snapped to the nearest model level before cache lookup. Layer requests carry the version so the browser's HTTP cache never returns an older frame.
+
+### Great Lakes waves
+
+GLOFS has no waves, so the wave layer uses the National Weather Service's Great Lakes Wave Unstructured model (GLWU, WAVEWATCH III), the operational guidance behind NWS Great Lakes marine forecasts. NCEP runs it every hour with hourly frames out to 48 hours on a 2.5 km Lambert conformal grid covering all five lakes, and publishes it on NOMADS (`glwu.YYYYMMDD/glwu.grlc_2p5km_sr.tHHz.grib2`) only as GRIB2, since NOMADS retired OPeNDAP in 2025. A cycle usually appears a few minutes after the hour; the longer 01, 07, 13, and 19 UTC runs appear about 30 minutes after.
+
+1. `great_lakes_waves.py` reads each cycle's `.idx` inventory, uses the newest cycle whose 48-hour frame is listed, and shares it through `waves-run.json` (keeping the last good cycle if NOMADS is unreachable).
+2. For each forecast choice it downloads only three fields with HTTP Range requests (about 140 KB per hour instead of the 24 MB file): significant wave height (HTSGW), primary wave period (PERPW), and primary wave direction (DIRPW, the direction waves come from). `grib2.py` decodes them in pure Python (Lambert conformal and lat/lon grids; simple, complex, and spatially differenced complex packing). Decoded hours are cached under `waves/<cycle>/`.
+3. Wave height is resampled onto each lake's temperature raster grid and drawn by `great_lakes_render.py`, so it has the same fine NOAA shoreline as the other layers. The colour scale runs from calm (0) to the highest height shown, never less than 1 m. The payload also carries direction arrows sampled every 4th model cell, which the browser thins to an even screen spacing on every pan or zoom.
+4. The refresher checks for a new cycle every 5 minutes and downloads and draws every forecast choice whenever a cycle arrives or "Now" moves to the next hour. `/api/great-lakes/status` reports it separately as `waves` and `wavesVersion`, so a new wave cycle reloads only the wave layer.
 
 ## Routing
 
