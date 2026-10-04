@@ -5,7 +5,6 @@ import {
   clearGreatLakesVisuals,
   createParticleLayer,
   createWaveArrowLayer,
-  friendlyTime,
   greatLakesConditionsLayer,
   greatLakesControlValue,
   modelDepthNote,
@@ -409,8 +408,7 @@ function showFrame(index, { fade = true } = {}) {
   const models = [...(metadata.models || []), ...(state.backgroundPayloads?.[state.index]?.metadata?.models || [])];
   const unavailable = models.some((model) => !model.available);
   const shownDepth = state.layer === "thermocline" || state.layer === "waves" ? null : modelDepthShown(state.backgroundPayloads?.[state.index]?.metadata || metadata);
-  const time = frame.validTime ? friendlyTime(frame.validTime) : "";
-  setGreatLakesStatus(`${unavailable ? "Data is missing for one or more lakes in this frame. " : ""}${time ? `Showing the forecast for ${time}.` : "Showing the forecast."} Every 3 hours over the next 48, on one colour scale.${modelDepthNote(state.depth, shownDepth)}${tooShallowNote(models)}`, unavailable);
+  setGreatLakesStatus(`${unavailable ? "Data is missing for one or more lakes in this frame. " : ""}${modelDepthNote(state.depth, shownDepth)}${tooShallowNote(models)}`, unavailable);
   document.dispatchEvent(new CustomEvent("great-lakes-frame-shown", { detail: { layer: state.layer, metadata: { ...metadata, validTime: frame.validTime }, depth: state.depth } }));
 }
 
