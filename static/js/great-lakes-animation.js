@@ -23,14 +23,28 @@ import {
 // Forecast animation: the chosen layer stepped through the next 48 hours,
 // every 3 hours, with one colour scale for every frame (the server picks it),
 // so colours only change where the water does. Every frame is downloaded
-// first, then frames cross-fade; currents keep their particles flowing and
-// only swap the field under them.
-export const ANIMATION_FRAME_MS = 900;
-// The last frame is held a little longer before the loop starts again.
-export const ANIMATION_LAST_FRAME_MS = 1800;
+// first, then each frame fades in over the one before it (which stays drawn
+// underneath, so colours blend straight into each other and never dip to the
+// map), taking most of the frame so the change reads as continuous. Currents
+// keep their particles flowing and only swap the field under them.
+// Time per frame and the share of it spent fading into the next, per speed.
+export const ANIMATION_SPEEDS = Object.freeze({
+  slow: { label: "Slow", frameMs: 2400 },
+  normal: { label: "Normal", frameMs: 1400 },
+  fast: { label: "Fast", frameMs: 700 }
+});
+export const ANIMATION_FADE_SHARE = 0.75;
+// The last frame is held this much longer before the loop starts again.
+export const ANIMATION_LAST_FRAME_EXTRA_MS = 1200;
+export const ANIMATION_SPEED_STORAGE_KEY = "glc.AnimationSpeed";
 export const ANIMATION_POLL_MS = 1500;
 export const ANIMATION_FETCH_CONCURRENCY = 4;
 export const ANIMATION_IDLE_LABEL = "Play the next 48 hours";
+// Frames sit in their own pane, just under the overlay pane so current
+// particles stay on top. The pane carries the layer's opacity, so each image
+// can be fully opaque and a frame fading in over another never lets the map
+// show through.
+const ANIMATION_PANE = "greatLakesAnimation";
 const RASTER_STYLES = {
   temperature: { className: "great-lakes-temperature-raster", opacity: 0.9 },
   thermocline: { className: "great-lakes-thermocline-raster", opacity: 0.88 },
@@ -49,6 +63,8 @@ const state = {
   overlays: [],
   index: 0,
   timer: null,
+  fadeTimer: null,
+  stack: 0,
   particles: null,
   arrows: null,
   waveArrows: null,
@@ -56,6 +72,20 @@ const state = {
 };
 const payloadCache = new Map();
 const PAYLOAD_CACHE_LIMIT = 80;
+
+export function savedAnimationSpeed() {
+  try {
+    const saved = localStorage.getItem(ANIMATION_SPEED_STORAGE_KEY);
+    return Object.hasOwn(ANIMATION_SPEEDS, saved) ? saved : "normal";
+  } catch { return "normal"; }
+}
+
+function speedTiming() {
+  const select = document.querySelector("[data-gl-animation-speed-choice]");
+  const speed = ANIMATION_SPEEDS[select?.value] || ANIMATION_SPEEDS[savedAnimationSpeed()];
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return { frameMs: speed.frameMs, fadeMs: reduced ? 0 : Math.round(speed.frameMs * ANIMATION_FADE_SHARE) };
+}
 
 export function greatLakesAnimationActive() {
   return state.active;
@@ -67,11 +97,15 @@ export function greatLakesAnimationForecastHour() {
 }
 
 export function greatLakesTimelineHtml() {
+  const speed = savedAnimationSpeed();
   return html`<div class="great-lakes-timeline" data-gl-timeline>
     <button type="button" class="great-lakes-play" data-gl-play aria-label="Play the forecast" aria-pressed="false" title="Play the forecast">${playIconHtml(false)}</button>
     <div class="great-lakes-timeline-track">
       <input type="range" data-gl-frame min="0" max="16" step="1" value="0" disabled aria-label="Forecast time" />
-      <span class="great-lakes-timeline-label" data-gl-frame-label aria-live="off">${ANIMATION_IDLE_LABEL}</span>
+      <div class="great-lakes-timeline-meta">
+        <span class="great-lakes-timeline-label" data-gl-frame-label aria-live="off">${ANIMATION_IDLE_LABEL}</span>
+        <label class="great-lakes-timeline-speed">Speed<select data-gl-animation-speed-choice aria-label="Animation speed">${Object.entries(ANIMATION_SPEEDS).map(([value, option]) => html`<option value="${value}"${value === speed ? " selected" : ""}>${option.label}</option>`)}</select></label>
+      </div>
     </div>
     <button type="button" class="great-lakes-timeline-stop" data-gl-animation-stop aria-label="Stop the animation" title="Back to the forecast choice" hidden>×</button>
   </div>`;
@@ -132,7 +166,16 @@ export function setupGreatLakesTimeline(host, reload) {
     stopGreatLakesAnimation();
     reload();
   });
+  host.querySelector("[data-gl-animation-speed-choice]")?.addEventListener("change", (event) => {
+    try { localStorage.setItem(ANIMATION_SPEED_STORAGE_KEY, event.target.value); } catch { /* storage unavailable */ }
+    applyFadeDuration();
+    if (state.playing) scheduleNextFrame();
+  });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && state.playing) scheduleNextFrame(); });
+}
+
+function applyFadeDuration() {
+  state.map?.getPane(ANIMATION_PANE)?.style.setProperty("--gl-frame-fade", `${speedTiming().fadeMs}ms`);
 }
 
 export function syncTimelineControls() {
@@ -172,6 +215,7 @@ export function stopGreatLakesAnimation() {
 // Called by clearGreatLakesVisuals: the overlays themselves live in the shared layer group.
 export function clearGreatLakesAnimationVisuals() {
   clearTimeout(state.timer);
+  clearTimeout(state.fadeTimer);
   state.particles?.remove();
   state.particles = null;
   state.arrows?.remove();
@@ -275,7 +319,7 @@ export async function loadGreatLakesAnimation(map, { layer, depth, signal, isCur
       if (state.backgroundPayloads) setTemperatureLegendRange(state.backgroundPayloads[0]?.metadata || {});
     }
     state.index = shownTime ? nearestFrameIndex(state.frames, shownTime) : 0;
-    showFrame(state.index);
+    showFrame(state.index, { fade: false });
     announceGreatLakesLayer(layer, first, state.backgroundPayloads?.[0]?.metadata || (layer === "temperature" ? first : null));
     syncTimelineControls();
     if (state.playing) scheduleNextFrame();
@@ -296,13 +340,15 @@ function buildFrames(map, background) {
     ? (background === "temperature" ? state.backgroundPayloads : background === "none" ? null : state.payloads)
     : state.payloads;
   const style = RASTER_STYLES[layer === "currents" && background === "temperature" ? "temperature" : layer];
-  state.overlays = state.payloads.map((_, index) => (rasterPayloads?.[index]?.rasters || []).map((raster) => {
-    const overlay = L.imageOverlay(raster.imageUrl, raster.bounds, {
-      opacity: 0, interactive: false, className: `${style.className} great-lakes-animation-frame`
-    });
-    overlay.targetOpacity = style.opacity;
-    return overlay.addTo(greatLakesConditionsLayer);
-  }));
+  const pane = map.getPane(ANIMATION_PANE) || map.createPane(ANIMATION_PANE);
+  pane.style.zIndex = "395";
+  pane.style.pointerEvents = "none";
+  pane.style.opacity = String(style.opacity);
+  applyFadeDuration();
+  state.stack = 0;
+  state.overlays = state.payloads.map((_, index) => (rasterPayloads?.[index]?.rasters || []).map((raster) => L.imageOverlay(raster.imageUrl, raster.bounds, {
+    pane: ANIMATION_PANE, opacity: 0, interactive: false, className: `${style.className} great-lakes-animation-frame`
+  }).addTo(greatLakesConditionsLayer)));
   if (layer !== "currents") return;
   const display = greatLakesControlValue("current-display");
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -313,12 +359,30 @@ function buildFrames(map, background) {
   }
 }
 
-function showFrame(index) {
+// The new frame fades in on top of the one on screen, which stays fully drawn
+// underneath until the fade is done; then the frames below are hidden.
+function crossfadeTo(index, fade) {
+  const pane = state.map?.getPane(ANIMATION_PANE);
+  pane?.classList.toggle("is-instant", !fade);
+  state.stack += 1;
+  (state.overlays[index] || []).forEach((overlay) => {
+    overlay.setZIndex(state.stack);
+    overlay.setOpacity(1);
+  });
+  clearTimeout(state.fadeTimer);
+  const hideOthers = () => state.overlays.forEach((overlays, frame) => {
+    if (frame !== state.index) overlays.forEach((overlay) => overlay.setOpacity(0));
+  });
+  const { fadeMs } = speedTiming();
+  if (fade && fadeMs > 0) state.fadeTimer = setTimeout(hideOthers, fadeMs + 60);
+  else hideOthers();
+}
+
+function showFrame(index, { fade = true } = {}) {
   if (!state.frames.length) return;
   state.index = Math.max(0, Math.min(state.frames.length - 1, index));
   const payload = state.payloads[state.index] || {};
-  // Only opacities change, so frames cross-fade (see .great-lakes-animation-frame).
-  state.overlays.forEach((overlays, frame) => overlays.forEach((overlay) => overlay.setOpacity(frame === state.index ? overlay.targetOpacity : 0)));
+  crossfadeTo(state.index, fade);
   if (state.layer === "currents") {
     if (state.particles && payload.fields?.length) state.particles.setFields(payload.fields);
     if (state.arrows) {
@@ -353,7 +417,8 @@ function showFrame(index) {
 function scheduleNextFrame() {
   clearTimeout(state.timer);
   if (!state.playing || state.frames.length < 2) return;
-  const wait = state.index === state.frames.length - 1 ? ANIMATION_LAST_FRAME_MS : ANIMATION_FRAME_MS;
+  const { frameMs } = speedTiming();
+  const wait = state.index === state.frames.length - 1 ? frameMs + ANIMATION_LAST_FRAME_EXTRA_MS : frameMs;
   state.timer = setTimeout(() => {
     if (!state.playing) return;
     if (document.hidden) return;  // Resumed by visibilitychange.

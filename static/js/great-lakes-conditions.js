@@ -35,8 +35,8 @@ export const FLOW_COLOR_STORAGE_KEY = "logbook.greatLakesFlowColor";
 // "speed" colours each flow line by its current speed (the speed legend's palette).
 export const FLOW_COLOR_BY_SPEED = "speed";
 export const FLOW_COLOR_OPTIONS = Object.freeze([
-  ["#ffffff", "White"], ["#111827", "Black"], ["#9ca3af", "Grey"], ["#ef4444", "Red"],
-  ["#2563eb", "Blue"], ["#facc15", "Yellow"], ["#22c55e", "Green"], [FLOW_COLOR_BY_SPEED, "By current speed"]
+  [FLOW_COLOR_BY_SPEED, "By current speed"], ["#ffffff", "White"], ["#111827", "Black"], ["#9ca3af", "Grey"],
+  ["#ef4444", "Red"], ["#2563eb", "Blue"], ["#facc15", "Yellow"], ["#22c55e", "Green"]
 ]);
 export const CURRENT_BACKGROUND_OPTIONS = Object.freeze([["speed", "Current speed"], ["temperature", "Water temperature"], ["none", "None (map only)"]]);
 export const DEFAULT_FLOW_COLOR = "#ffffff";
@@ -100,13 +100,17 @@ export function greatLakesConditionsHtml() {
 export function ensureGreatLakesLoadingIndicator() {
   const mapNode = document.querySelector("#fishMap");
   if (!mapNode || mapNode.querySelector("[data-gl-map-loading]")) return;
-  insertHtml(mapNode, "beforeend", html`<div class="great-lakes-map-loading" data-gl-map-loading role="status" aria-live="polite" aria-hidden="true"><span class="great-lakes-map-spinner" aria-hidden="true"></span><span>Loading data…</span></div>`);
+  insertHtml(mapNode, "beforeend", html`<div class="great-lakes-map-loading" data-gl-map-loading role="status" aria-live="polite" aria-hidden="true"><div class="great-lakes-map-loading-card"><span class="great-lakes-map-spinner" aria-hidden="true"></span><span data-gl-map-loading-text>Loading NOAA forecast…</span></div></div>`);
 }
 
-export function setGreatLakesMapLoading(isLoading) {
+// A card in the middle of the map while data loads; it shows the same progress
+// as the panel's status line ("Preparing the forecast animation… 40%").
+export function setGreatLakesMapLoading(isLoading, message = "Loading NOAA forecast…") {
   ensureGreatLakesLoadingIndicator();
   const mapNode = document.querySelector("#fishMap");
   const indicator = mapNode?.querySelector("[data-gl-map-loading]");
+  const text = indicator?.querySelector("[data-gl-map-loading-text]");
+  if (isLoading && text && !mapNode.classList.contains("is-great-lakes-loading")) text.textContent = message;
   mapNode?.classList.toggle("is-great-lakes-loading", isLoading);
   mapNode?.setAttribute("aria-busy", String(isLoading));
   indicator?.setAttribute("aria-hidden", String(!isLoading));
@@ -126,10 +130,17 @@ export function greatLakesDepthValueLabel(meters) {
   return typeof formatUnitValue === "function" ? formatUnitValue(meters, "depth", "m", { decimals: 0 }) : `${Math.round(meters)} m`;
 }
 
+// The slider is logarithmic, flattened near the surface by this many metres so
+// shallow water does not take up most of the bar: a quarter of the way along is
+// about 12 m (40 ft), halfway about 49 m, and the end 500 m.
+export const GREAT_LAKES_DEPTH_SLIDER_CURVE_METERS = 6;
+
 export function greatLakesDepthFromSlider(value) {
   const position = Math.max(0, Math.min(GREAT_LAKES_DEPTH_SLIDER_MAX, Number(value) || 0));
   if (position <= 0) return 0;
-  return Math.round(Math.expm1(Math.log1p(GREAT_LAKES_MAX_DEPTH_METERS) * position / GREAT_LAKES_DEPTH_SLIDER_MAX));
+  const curve = GREAT_LAKES_DEPTH_SLIDER_CURVE_METERS;
+  const meters = curve * Math.expm1(Math.log1p(GREAT_LAKES_MAX_DEPTH_METERS / curve) * position / GREAT_LAKES_DEPTH_SLIDER_MAX);
+  return Math.round(meters * 10) / 10;
 }
 
 export function waterTemperatureLabel(temperatureC) {
@@ -174,6 +185,8 @@ export function ensureGreatLakesConditions(map) {
   const syncLayerSpecificControls = () => syncGreatLakesLayerControls(host);
   syncLayerSpecificControls();
   host.querySelectorAll("select").forEach((select) => select.addEventListener("change", () => {
+    // The animation's own speed choice only changes its timing (great-lakes-animation.js).
+    if (select.matches("[data-gl-animation-speed-choice]")) return;
     if (select.matches("[data-gl-flow-color]")) {
       onFlowColorChange(map, host, select.value);
       return;
@@ -343,6 +356,8 @@ export function greatLakesForecastHour() {
 }
 
 export function setGreatLakesStatus(message, error = false) {
+  const loadingText = document.querySelector("[data-gl-map-loading-text]");
+  if (loadingText && !error) loadingText.textContent = message;
   const node = document.querySelector("[data-gl-status]");
   if (node) {
     node.textContent = message;
@@ -834,29 +849,49 @@ export function createParticleLayer(map, fields) {
     }
   }
 
-  // Same batching, split further by speed bin: each segment takes the colour
-  // of the current speed where it ends. Lines are a little wider so the
-  // colour reads.
+  // Same idea, split by speed bin: each segment takes the colour of the
+  // current speed where it ends. Lines are a little wider so the colour reads.
+  // Trail segments are faded in pairs and the dark outline is drawn once per
+  // pair for every colour, which keeps this to about 66 strokes a frame
+  // (one per segment and colour, twice over, was about 240 and visibly slower).
+  const SPEED_TRAIL_TIERS = CURRENT_TRAIL_SEGMENTS / 2;
+  const speedTierStrength = Array.from({ length: SPEED_TRAIL_TIERS }, (_, tier) => (1 - (tier * 2 + 0.5) / CURRENT_TRAIL_SEGMENTS) ** 1.35);
+  const speedTierColors = speedTierStrength.map((strength) => speedColors.map((rgb) => `rgba(${rgb}, ${strength.toFixed(3)})`));
+  let speedTierHalos = null, speedTierHaloKey = "";
+
   function drawBySpeed(halo) {
     const maximum = greatLakesCurrentSpeedMax;
-    for (let segment = CURRENT_TRAIL_SEGMENTS - 1; segment >= 0; segment -= 1) {
+    if (speedTierHaloKey !== halo) {
+      speedTierHalos = speedTierStrength.map((strength) => `rgba(${halo}, ${(0.4 * strength).toFixed(3)})`);
+      speedTierHaloKey = halo;
+    }
+    for (let tier = SPEED_TRAIL_TIERS - 1; tier >= 0; tier -= 1) {
+      const outline = new Path2D();
       const paths = new Array(SPEED_FLOW_COLOR_BINS).fill(null);
-      for (const particle of particles) {
-        const trail = particle.trail, head = trail.length - 1 - segment;
-        if (head < 1) continue;
-        const bin = speedColorBin(trail[head][2], maximum);
-        const path = paths[bin] || (paths[bin] = new Path2D());
-        path.moveTo(trail[head - 1][0] - origin.x, trail[head - 1][1] - origin.y);
-        path.lineTo(trail[head][0] - origin.x, trail[head][1] - origin.y);
+      let any = false;
+      for (let segment = tier * 2; segment < tier * 2 + 2; segment += 1) {
+        for (const particle of particles) {
+          const trail = particle.trail, head = trail.length - 1 - segment;
+          if (head < 1) continue;
+          const x0 = trail[head - 1][0] - origin.x, y0 = trail[head - 1][1] - origin.y;
+          const x1 = trail[head][0] - origin.x, y1 = trail[head][1] - origin.y;
+          const bin = speedColorBin(trail[head][2], maximum);
+          const path = paths[bin] || (paths[bin] = new Path2D());
+          path.moveTo(x0, y0);
+          path.lineTo(x1, y1);
+          outline.moveTo(x0, y0);
+          outline.lineTo(x1, y1);
+          any = true;
+        }
       }
-      const strength = (1 - segment / CURRENT_TRAIL_SEGMENTS) ** 1.35;
+      if (!any) continue;
+      ctx.strokeStyle = speedTierHalos[tier];
+      ctx.lineWidth = 3.8;
+      ctx.stroke(outline);
+      ctx.lineWidth = 2.2;
       paths.forEach((path, bin) => {
         if (!path) return;
-        ctx.strokeStyle = `rgba(${halo}, ${(0.4 * strength).toFixed(3)})`;
-        ctx.lineWidth = 3.8;
-        ctx.stroke(path);
-        ctx.strokeStyle = `rgba(${speedColors[bin]}, ${strength.toFixed(3)})`;
-        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = speedTierColors[tier][bin];
         ctx.stroke(path);
       });
     }
