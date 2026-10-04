@@ -16,6 +16,7 @@ def test_great_lakes_layers_keep_their_private_cache_policy(tmp_path) -> None:
         patch("backend.routes.environment.great_lakes_payload", return_value={"data": []}),
         patch("backend.routes.environment.great_lakes_temperature_rasters", return_value={"rasters": []}),
         patch("backend.routes.environment.great_lakes_thermocline_rasters", return_value={"rasters": []}),
+        patch("backend.routes.environment.great_lakes_model_points", return_value={"points": []}),
     ):
         test_client = client(tmp_path)
         for path in (
@@ -23,6 +24,7 @@ def test_great_lakes_layers_keep_their_private_cache_policy(tmp_path) -> None:
             "/api/great-lakes/currents",
             "/api/great-lakes/temperature-raster",
             "/api/great-lakes/thermocline-raster",
+            "/api/great-lakes/model-points?kind=currents&south=41&west=-83&north=42&east=-82",
         ):
             response = test_client.get(path)
             assert response.status_code == 200, path
@@ -80,3 +82,10 @@ def test_cloud_media_uses_the_same_private_cache_policy(tmp_path, preview) -> No
     assert response.data == b"sample-image"
     assert response.headers["Cache-Control"] == "private, max-age=3600"
     assert response.headers["ETag"] == '"sample-etag"'
+
+
+def test_live_station_readings_are_never_cached(tmp_path) -> None:
+    with patch("backend.routes.environment.great_lakes_observations", return_value={"stations": []}):
+        response = client(tmp_path).get("/api/great-lakes/observations")
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"

@@ -28,6 +28,10 @@ class AppConfig:
     storage_backend: str = "local"
     cloud_api_url: str = ""
     testing: bool = False
+    # Shared NOAA download cache; empty means the OS temp directory.
+    great_lakes_cache_dir: str = ""
+    # Keep NOAA Great Lakes data downloaded in the background (server only).
+    great_lakes_background_refresh: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "data_dir", Path(self.data_dir).expanduser().resolve())
@@ -58,4 +62,6 @@ class AppConfig:
             session_cookie_secure=str(env.get("SESSION_COOKIE_SECURE", "false")).lower() in TRUTHY,
             storage_backend=env.get("FISH_STORAGE_BACKEND", "local"),
             cloud_api_url=str(env.get("FISH_CLOUD_API_URL", "")).strip(),
+            great_lakes_cache_dir=str(env.get("GREAT_LAKES_CACHE_DIR", "")).strip(),
+            great_lakes_background_refresh=str(env.get("GREAT_LAKES_BACKGROUND_REFRESH", "true")).lower() in TRUTHY,
         )

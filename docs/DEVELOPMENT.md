@@ -165,6 +165,13 @@ Application (read once by `AppConfig.from_env()`): `HOST` (default `127.0.0.1`),
 `FISH_DATA_DIR` overrides the local runtime data directory. Browser tests set it
 to a disposable temporary directory so they cannot touch personal logbook data.
 
+NOAA Great Lakes data: `GREAT_LAKES_BACKGROUND_REFRESH` (default `true`; tests
+and the Playwright server turn it off) keeps the map's NOAA data downloaded in
+the background, and `GREAT_LAKES_CACHE_DIR` (default
+`<system temp>/fishing-logbook-great-lakes`) holds that shared download cache.
+The cache is disposable and is never part of a backup. See
+[Great Lakes data refresh](ARCHITECTURE.md#great-lakes-data-refresh).
+
 Launcher: `APP_URL`, `CONTAINER_NAME`, and `LEGACY_CONTAINER_NAME`.
 
 Browser tests use Node.js 22+ and Playwright for Chromium. Run `npm ci`,
