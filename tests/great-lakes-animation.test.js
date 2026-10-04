@@ -48,6 +48,8 @@ window.noaaGreatLakesApi = {
   }
 };
 
+// Fast: frames every 0.7 s, each fading in over 0.5 s.
+localStorage.setItem("glc.AnimationSpeed", "fast");
 const map = L.map("fishMap", { zoomAnimation: false, fadeAnimation: false }).setView([42.5, -81], 7);
 conditions.ensureGreatLakesConditions(map);
 // The fishing map opens with no layer.
@@ -77,7 +79,11 @@ await waitFor(() => /Showing the forecast for/.test(status()), "the first frame"
 assert.equal(calls.frames.length, 3);
 const overlays = [...document.querySelectorAll(".great-lakes-animation-frame")];
 assert.equal(overlays.length, 3);
-assert.deepEqual(overlays.map((image) => image.style.opacity), ["0.9", "0", "0"]);
+// Frames are opaque inside a pane that carries the layer opacity, so a frame
+// fading in over another never lets the map show through.
+assert.deepEqual(overlays.map((image) => image.style.opacity), ["1", "0", "0"]);
+assert.equal(overlays[0].parentElement.style.opacity, "0.9");
+assert.equal(document.querySelector("[data-gl-animation-speed-choice]").value, "fast");
 assert.equal(slider.disabled, false);
 assert.equal(slider.max, "2");
 assert.equal(shown.metadata.validTime, frames[0].validTime);
@@ -88,7 +94,11 @@ assert.equal(conditions.greatLakesForecastHour(), "0");
 slider.value = "2";
 slider.dispatchEvent(new Event("input", { bubbles: true }));
 assert.equal(play.getAttribute("aria-pressed"), "false");
-assert.deepEqual(overlays.map((image) => image.style.opacity), ["0", "0", "0.9"]);
+// The new frame fades in over the old one, which stays drawn until the fade is done.
+assert.deepEqual(overlays.map((image) => image.style.opacity), ["1", "0", "1"]);
+assert.ok(Number(overlays[2].style.zIndex) > Number(overlays[0].style.zIndex));
+await waitFor(() => overlays[0].style.opacity === "0", "the old frame to be hidden after the fade");
+assert.deepEqual(overlays.map((image) => image.style.opacity), ["0", "0", "1"]);
 assert.equal(conditions.greatLakesForecastHour(), "4");
 assert.equal(shown.metadata.validTime, frames[2].validTime);
 assert.match(document.querySelector("[data-gl-frame-label]").textContent, /^[A-Z][a-z]{2} /);

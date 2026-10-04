@@ -202,24 +202,40 @@
 .great-lakes-map-loading {
   position: absolute;
   inset: 0;
-  z-index: 1200;
+  /* Above the map layers and popups, below the map controls and the panel. */
+  z-index: 750;
   display: grid;
   place-content: center;
   justify-items: center;
   gap: 10px;
   pointer-events: none;
-  color: #f8fafc;
-  font-size: 13px;
-  font-weight: 800;
   opacity: 0;
   visibility: hidden;
   transition: opacity 160ms ease, visibility 160ms ease;
 }
 
-.fish-map.is-great-lakes-loading .great-lakes-map-loading {
+.is-great-lakes-loading > .great-lakes-map-loading {
   opacity: 1;
   visibility: visible;
   background: rgb(10 22 35 / 28%);
+}
+
+.great-lakes-map-loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+  max-width: min(320px, calc(100% - 48px));
+  padding: 18px 24px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 14px;
+  background: rgb(15 22 33 / 94%);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 50%);
+  color: #f8fafc;
+  font: 700 14px/1.35 Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .great-lakes-map-spinner {
@@ -604,10 +620,15 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 .great-lakes-timeline-stop { flex: none; width: 28px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--field); color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; }
 .great-lakes-timeline-stop:hover { color: var(--text); }
 :is(.great-lakes-play, .great-lakes-timeline-stop):focus-visible { outline: 3px solid var(--chip-line); outline-offset: 2px; }
-.great-lakes-animation-frame { transition: opacity 420ms ease; }
+.great-lakes-animation-frame { transition: opacity var(--gl-frame-fade, 1000ms) linear; }
+.is-instant > .great-lakes-animation-frame { transition: none; }
 @media (prefers-reduced-motion: reduce) {
   .great-lakes-animation-frame { transition: none; }
 }
+.great-lakes-timeline-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 8px; margin-top: 2px; }
+.great-lakes-timeline-meta .great-lakes-timeline-label { flex: 1 0 auto; margin-top: 0; }
+.great-lakes-control .great-lakes-timeline-speed { display: flex; flex: none; align-items: center; gap: 4px; margin: 0; color: var(--muted); font-size: 11px; font-weight: 700; }
+.great-lakes-control .great-lakes-timeline-speed select { width: auto; margin: 0; padding: 2px 22px 2px 6px; font-size: 11px; }
 .great-lakes-current-options { display: none; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); }
 #greatLakesConditions.has-current-layer .great-lakes-current-options { display: block; }
 .great-lakes-control p { min-height: 30px; margin: 8px 0 5px; color: var(--muted); }
