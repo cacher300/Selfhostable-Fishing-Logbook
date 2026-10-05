@@ -2,7 +2,7 @@ import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { L } from "./vendor.js";
 import { state, ui } from "./app-state.js";
 import { convertUnitValue, currentChopRanges, formatUnitValue, unitPreference } from "./app-units.js";
-import { showWaterColumnDialog } from "./water-column.js";
+import { depthRangeLabel, showWaterColumnDialog, thermoclineBand, thicknessLabel } from "./water-column.js";
 import { currentProfileActionHtml, directionIconHtml, profileActionHtml, readingHtml } from "./cards.js";
 import {
   clearGreatLakesAnimationVisuals,
@@ -86,7 +86,7 @@ export function greatLakesConditionsHtml() {
     <p data-gl-status>Loading NOAA forecast…</p>
     <div class="great-lakes-legend"><span data-gl-temperature-min>—</span><i></i><span data-gl-temperature-max>—</span></div>
     <div class="great-lakes-thermocline-legend"><span data-gl-thermocline-min>—</span><i></i><span data-gl-thermocline-max>—</span></div>
-    <div class="great-lakes-thermocline-mixed"><b aria-hidden="true"></b>Mixed top to bottom (no thermocline)</div>
+    <div class="great-lakes-thermocline-mixed"><b aria-hidden="true"></b>No thermocline (mixed, or cools gradually)</div>
     <div class="great-lakes-wave-legend"><span data-gl-wave-min>—</span><i></i><span data-gl-wave-max>—</span></div>
     <fieldset class="great-lakes-points-options">
       <legend>Data points</legend>
@@ -106,14 +106,27 @@ export function ensureGreatLakesLoadingIndicator() {
 // A card in the middle of the map while data loads; it shows the same progress
 // as the panel's status line ("Preparing the forecast animation… 40%").
 export function setGreatLakesMapLoading(isLoading, message = "Loading NOAA forecast…") {
+  setMapLoadingReason("layer", isLoading, message);
+}
+
+// Everything the map is waiting for (lake data, the first map tiles), with the
+// message for each; the card stays up until all of them are done.
+const mapLoadingReasons = new Map();
+
+export function setMapLoadingReason(reason, isLoading, message) {
   ensureGreatLakesLoadingIndicator();
   const mapNode = document.querySelector("#fishMap");
   const indicator = mapNode?.querySelector("[data-gl-map-loading]");
   const text = indicator?.querySelector("[data-gl-map-loading-text]");
-  if (isLoading && text && !mapNode.classList.contains("is-great-lakes-loading")) text.textContent = message;
-  mapNode?.classList.toggle("is-great-lakes-loading", isLoading);
-  mapNode?.setAttribute("aria-busy", String(isLoading));
-  indicator?.setAttribute("aria-hidden", String(!isLoading));
+  const started = isLoading && !mapLoadingReasons.has(reason);
+  if (isLoading) { if (started) mapLoadingReasons.set(reason, message); }
+  else mapLoadingReasons.delete(reason);
+  const busy = mapLoadingReasons.size > 0;
+  if (text && started) text.textContent = message;
+  else if (text && !isLoading && busy) text.textContent = [...mapLoadingReasons.values()].at(-1);
+  mapNode?.classList.toggle("is-great-lakes-loading", busy);
+  mapNode?.setAttribute("aria-busy", String(busy));
+  indicator?.setAttribute("aria-hidden", String(!busy));
 }
 
 export function greatLakesHomeLake() {
@@ -643,10 +656,11 @@ export async function greatLakesMapInspection({ latitude, longitude }) {
       const profile = await window.noaaGreatLakesApi.profile({ forecastHour, latitude, longitude, models });
       if (!profile?.available) return "";
       const surface = (profile.values || [])[0];
+      const band = thermoclineBand(profile.thermocline);
       return readingHtml({
         label: "Thermocline",
-        value: profile.thermocline ? greatLakesDepthLabel(Number(profile.thermocline.depthMeters)) : "None",
-        note: profile.thermocline ? "" : "Mixed top to bottom",
+        value: band ? greatLakesDepthLabel(band.top) : "None",
+        note: band ? `Down to ${greatLakesDepthLabel(band.bottom)} · ${thicknessLabel(band)}` : profile.noThermocline === "gradual" ? "No distinct thermocline – cools gradually with depth" : "Mixed top to bottom",
         rows: [surface ? ["Surface temperature", waterTemperatureLabel(surface.temperatureC)] : null],
         action: profileActionHtml(latitude, longitude)
       });
@@ -659,10 +673,15 @@ export async function greatLakesMapInspection({ latitude, longitude }) {
     return readingHtml({
       label: temperatureLabel(value),
       value: waterTemperatureLabel(value.temperatureC),
-      rows: [profile?.available ? ["Thermocline", profile.thermocline ? greatLakesDepthLabel(Number(profile.thermocline.depthMeters)) : "None (mixed)"] : null],
+      rows: [profile?.available ? ["Thermocline", thermoclineRangeLabel(profile.thermocline, profile.noThermocline)] : null],
       action: profileActionHtml(latitude, longitude)
     });
   } catch { return ""; }
+}
+
+// "55–66 ft" for a card row; "None (mixed)" or "None (cools gradually)" without a thermocline.
+export function thermoclineRangeLabel(thermocline, noThermocline) {
+  return depthRangeLabel(thermoclineBand(thermocline)) || (noThermocline === "gradual" ? "None (cools gradually)" : "None (mixed)");
 }
 
 export const CURRENT_TRAIL_SEGMENTS = 12;
@@ -1063,6 +1082,7 @@ export async function loadGreatLakesConditions(map) {
   const resolution = GREAT_LAKES_LAYER_RESOLUTION;
   const models = GREAT_LAKES_ALL_MODELS;
   const modelsKey = models.join(",");
+  setGreatLakesMapLoading(true);
   const dataStatus = await greatLakesDataStatus(modelsKey);
   if (loadRevision !== greatLakesLoadRevision) return;
   const dataVersion = greatLakesDataVersion(dataStatus, layer);
