@@ -101,7 +101,7 @@ export function pauseGreatLakesAnimation() {
   clearTimeout(state.timer);
   clearTimeout(state.fadeTimer);
   state.map?.getPane(ANIMATION_PANE)?.classList.add("is-instant");
-  hideAnimationFramesExcept(state.index);
+  showFrame(state.index, { fade: false });
   syncTimelineControls();
 }
 
@@ -165,10 +165,12 @@ export function setupGreatLakesTimeline(host, reload) {
       reload();
       return;
     }
-    state.playing = !state.playing;
-    syncTimelineControls();
-    if (state.playing) scheduleNextFrame();
-    else clearTimeout(state.timer);
+    if (state.playing) pauseGreatLakesAnimation();
+    else {
+      state.playing = true;
+      syncTimelineControls();
+      scheduleNextFrame();
+    }
   });
   slider.addEventListener("input", () => {
     if (!state.frames.length) return;
@@ -202,6 +204,7 @@ function applyFadeDuration() {
 }
 
 export function syncTimelineControls() {
+  document.dispatchEvent(new CustomEvent("great-lakes-animation-state", { detail: { active: state.active } }));
   const play = document.querySelector("[data-gl-play]");
   const slider = document.querySelector("[data-gl-frame]");
   const stop = document.querySelector("[data-gl-animation-stop]");
@@ -333,7 +336,14 @@ export async function loadGreatLakesAnimation(map, { layer, depth, signal, isCur
     state.depth = Number(depth) || 0;
     state.frames = index.frames;
     state.payloads = payloads.slice(0, index.frames.length);
-    state.backgroundPayloads = temperatureIndex ? payloads.slice(index.frames.length) : null;
+    // The two indexes can be prepared/cached independently. Match forecast
+    // hours rather than assuming their frame positions describe the same time.
+    const temperaturePayloads = new Map((temperatureIndex?.frames || []).map((frame, frameIndex) => [
+      Number(frame.forecastHour), payloads[index.frames.length + frameIndex]
+    ]));
+    state.backgroundPayloads = temperatureIndex
+      ? index.frames.map((frame) => temperaturePayloads.get(Number(frame.forecastHour)) || null)
+      : null;
     buildFrames(map, background);
     const first = state.payloads[0]?.metadata || {};
     if (layer === "temperature") setTemperatureLegendRange(first);
@@ -347,7 +357,8 @@ export async function loadGreatLakesAnimation(map, { layer, depth, signal, isCur
     }
     state.index = shownTime ? nearestFrameIndex(state.frames, shownTime) : 0;
     showFrame(state.index, { fade: false });
-    announceGreatLakesLayer(layer, first, state.backgroundPayloads?.[0]?.metadata || (layer === "temperature" ? first : null));
+    const shownMetadata = state.payloads[state.index]?.metadata || {};
+    announceGreatLakesLayer(layer, shownMetadata, state.backgroundPayloads?.[state.index]?.metadata || (layer === "temperature" ? shownMetadata : null));
     syncTimelineControls();
     if (state.playing) scheduleNextFrame();
     return true;
@@ -397,15 +408,22 @@ function buildFrames(map, background) {
 }
 
 function hideAnimationFramesExcept(index) {
+  const pane = state.map?.getPane(ANIMATION_PANE);
+  pane?.classList.add("is-instant");
   state.overlays.forEach((overlays, frame) => {
     if (frame !== index) overlays.forEach((overlay) => overlay.setOpacity(0));
   });
+  // Commit cleanup without fading old frames out underneath the next fade.
+  if (pane) void pane.offsetWidth;
 }
 
 // The new frame fades in over the one on screen. During playback, older frames
 // are cleared at the next handoff so only the adjacent pair stays on the map.
 function crossfadeTo(index, fade) {
   const pane = state.map?.getPane(ANIMATION_PANE);
+  // Flush the starting opacity before enabling the transition, including at
+  // the loop boundary where this image has already been shown before.
+  if (pane) void pane.offsetWidth;
   pane?.classList.toggle("is-instant", !fade);
   state.stack += 1;
   (state.overlays[index] || []).forEach((overlay) => {
@@ -454,18 +472,29 @@ function showFrame(index, { fade = true } = {}) {
   const unavailable = models.some((model) => !model.available);
   const shownDepth = state.layer === "thermocline" || state.layer === "waves" || state.layer === "upwelling" ? null : modelDepthShown(state.backgroundPayloads?.[state.index]?.metadata || metadata);
   setGreatLakesStatus(`${unavailable ? "Data is missing for one or more lakes in this frame. " : ""}${modelDepthNote(state.depth, shownDepth)}${tooShallowNote(models)}`, unavailable);
-  document.dispatchEvent(new CustomEvent("great-lakes-frame-shown", { detail: { layer: state.layer, metadata: { ...metadata, validTime: frame.validTime }, depth: state.depth } }));
+  const temperatureMetadata = state.backgroundPayloads?.[state.index]?.metadata || (state.layer === "temperature" ? metadata : null);
+  document.dispatchEvent(new CustomEvent("great-lakes-frame-shown", { detail: { layer: state.layer, metadata: { ...metadata, validTime: frame.validTime }, temperatureMetadata, depth: state.depth } }));
 }
 
 function scheduleNextFrame() {
   clearTimeout(state.timer);
   if (!state.playing || state.frames.length < 2) return;
-  const { frameMs } = speedTiming();
+  if (document.hidden) return;
+  const { frameMs, fadeMs } = speedTiming();
+  const next = (state.index + 1) % state.frames.length;
+  showFrame(state.index, { fade: false });
+  // Begin blending immediately; hand off to the next frame when the blend
+  // finishes, then start the following blend without a hold between frames.
+  if (fadeMs) {
+    crossfadeTo(next, true);
+    const payload = state.payloads[next] || {};
+    if (state.layer === "currents") state.particles?.setFields(payload.fields || [], { durationMs: frameMs });
+    if (state.layer === "waves") state.particles?.setFields(waveParticleFields(payload.arrows || []), { durationMs: frameMs });
+  }
   state.timer = setTimeout(() => {
     if (!state.playing) return;
     if (document.hidden) return;  // Resumed by visibilitychange.
-    hideAnimationFramesExcept(state.index);
-    showFrame((state.index + 1) % state.frames.length);
+    showFrame(next, { fade: false });
     scheduleNextFrame();
   }, frameMs);
 }

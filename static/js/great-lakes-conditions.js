@@ -1134,6 +1134,12 @@ export function currentPixelsPerFrame(speed) {
   return speed > 0 ? 0.25 + 6.5 * speed ** 0.75 : 0;
 }
 
+export function blendCurrentVectors(from, to, fraction) {
+  if (!from || !to) return fraction < 0.5 ? from : to;
+  const mix = Math.max(0, Math.min(1, fraction));
+  return { u: from.u + (to.u - from.u) * mix, v: from.v + (to.v - from.v) * mix };
+}
+
 export function createParticleLayer(map, fields) {
   const canvas = L.DomUtil.create("canvas", "great-lakes-current-flow leaflet-layer");
   const ctx = canvas.getContext("2d");
@@ -1337,8 +1343,15 @@ export function createParticleLayer(map, fields) {
       frame = requestAnimationFrame(tick);
       return this;
     },
-    setFields(next) {
-      sample = createCurrentFieldSampler(next);
+    setFields(next, { durationMs = 0 } = {}) {
+      const target = createCurrentFieldSampler(next);
+      if (!durationMs) { sample = target; return; }
+      const previous = sample, started = performance.now();
+      sample = (latitude, longitude) => {
+        const fraction = Math.min(1, (performance.now() - started) / durationMs);
+        if (fraction >= 1) return target(latitude, longitude);
+        return blendCurrentVectors(previous(latitude, longitude), target(latitude, longitude), fraction);
+      };
     },
     remove() {
       active = false;

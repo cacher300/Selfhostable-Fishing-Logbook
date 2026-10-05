@@ -8,6 +8,7 @@ import {
   paletteColor, waterTemperatureLabel, waveChopLabel, waveDirectionText, waveHeightLabel
 } from "./great-lakes-conditions.js";
 import { directionIconHtml, readingHtml } from "./cards.js";
+import { greatLakesAnimationActive } from "./great-lakes-animation.js";
 
 // Where Great Lakes values come from: live NOAA buoy/shore measurements, and
 // the forecast model's own calculation points (FVCOM mesh nodes for
@@ -230,7 +231,7 @@ function renderStations() {
   if (!stationsLayer) return;
   stationsLayer.clearLayers();
   stationMarkers = [];
-  if (!toggle("stations")?.checked || !stationsPayload) return;
+  if (greatLakesAnimationActive() || !toggle("stations")?.checked || !stationsPayload) return;
   const stations = stationsPayload.stations || [];
   const range = stationTemperatureRange(stations, layerRange);
   // Current meters and offshore buoys keep their labels first when crowded.
@@ -408,6 +409,13 @@ export function setup() {
     layerRange = temperatureMetadata && !depth && Number.isFinite(Number(temperatureMetadata.minC))
       ? { minC: Number(temperatureMetadata.minC), maxC: Number(temperatureMetadata.maxC) }
       : null;
+    renderStations();
+  });
+
+  let animationActive = greatLakesAnimationActive();
+  document.addEventListener("great-lakes-animation-state", (event) => {
+    if (animationActive === event.detail.active) return;
+    animationActive = event.detail.active;
     renderStations();
   });
 
