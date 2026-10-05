@@ -2,7 +2,7 @@
 // point, with the thermocline band (from where the warm water ends to where the
 // cooling eases) shaded.
 import { html, joinHtml, setHtml } from "./html.js";
-import { friendlyTime, greatLakesDepthLabel, greatLakesDepthValueLabel, waterTemperatureLabel } from "./great-lakes-conditions.js";
+import { friendlyTime, greatLakesDepthLabel, greatLakesDepthValueLabel, historyTimeLabel, waterTemperatureLabel } from "./great-lakes-conditions.js";
 import { convertUnitValue, unitPreference } from "./app-units.js";
 
 const FEET_PER_METER = 3.28084;
@@ -28,9 +28,11 @@ const toDisplayDepth = (meters) => depthUnit() === "ft" ? meters * FEET_PER_METE
 // line up vertically instead of drifting with model noise far below that.
 const toDisplayTemperature = (celsius) => Math.round(convertUnitValue(celsius, "C", temperatureUnit()) * 10) / 10;
 
-function forecastTimeText(validTime) {
-  const when = friendlyTime(validTime);
-  return when ? `NOAA forecast for ${when}` : "NOAA forecast";
+// Saved profiles (a past hour) are the conditions as they were, not a forecast.
+function forecastTimeText(validTime, saved = false) {
+  const when = saved ? historyTimeLabel(validTime) : friendlyTime(validTime);
+  const source = saved ? "Saved NOAA conditions" : "NOAA forecast";
+  return when ? `${source} for ${when}` : source;
 }
 
 // 1, 2, 2.5, or 5 × 10^n: a tick step that gives about `count` ticks.
@@ -85,9 +87,9 @@ export function depthRangeLabel(band) {
 }
 
 // "11 ft thick"; a band thinner than the depth units read is "a thin layer".
-// Why a column has no thermocline: it cools gradually with depth, or it is mixed (the API's noThermocline).
+// Mixed water says so; water that cools gradually (the API's noThermocline "gradual") gets no note.
 export function noThermoclineLabel(profile) {
-  return profile?.noThermocline === "gradual" ? "Cools gradually with depth" : "Mixed top to bottom";
+  return profile?.noThermocline === "gradual" ? "" : "Mixed top to bottom";
 }
 
 export function thicknessLabel(band) {
@@ -113,7 +115,7 @@ function statsHtml(profile, values) {
   const band = thermoclineBand(profile.thermocline);
   const thermoclineCard = band
     ? html`<div class="wc-stat"><span>Thermocline</span><strong>${greatLakesDepthLabel(band.top)}</strong><small>To ${greatLakesDepthLabel(band.bottom)} · ${thicknessLabel(band)}</small></div>`
-    : html`<div class="wc-stat"><span>Thermocline</span><strong>None</strong><small>${noThermoclineLabel(profile)}</small></div>`;
+    : html`<div class="wc-stat"><span>Thermocline</span><strong>None</strong>${noThermoclineLabel(profile) ? html`<small>${noThermoclineLabel(profile)}</small>` : ""}</div>`;
   return html`<div class="wc-stats">
     <div class="wc-stat"><span>Surface</span><strong>${waterTemperatureLabel(surface.temperatureC)}</strong></div>
     ${thermoclineCard}
@@ -139,7 +141,7 @@ function tableHtml(values) {
 export function waterColumnDialogHtml(profile, zoom) {
   const values = sortedValues(profile);
   const lake = MODEL_LAKES[profile.model];
-  const subtitle = [forecastTimeText(profile.validTime), lake].filter(Boolean).join(" · ");
+  const subtitle = [forecastTimeText(profile.validTime, Boolean(profile.historyTime)), lake].filter(Boolean).join(" · ");
   return html`<dialog class="water-column-dialog" aria-labelledby="waterColumnTitle">
     <header class="wc-header">
       <div><h3 id="waterColumnTitle">Water column</h3><p>${subtitle}</p></div>
@@ -196,7 +198,7 @@ export function waterColumnChartSvg(profile, zoom, width, height) {
 
   const thermocline = profile.thermocline;
   // Mixed water says so in the corner the line is not in.
-  const mixedLabel = thermocline ? "" : (() => {
+  const mixedLabel = thermocline || !noThermoclineLabel(profile) ? "" : (() => {
     const onLeft = x(plotTemp(values[0].temperatureC)) > (plot.left + plot.right) / 2;
     return html`<text class="wc-chart-note" x="${onLeft ? plot.left + 8 : plot.right - 8}" y="${plot.top + 16}" text-anchor="${onLeft ? "start" : "end"}">${noThermoclineLabel(profile)}</text>`;
   })();

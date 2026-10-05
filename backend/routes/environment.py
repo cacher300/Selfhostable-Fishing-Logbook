@@ -7,6 +7,7 @@ import math
 from flask import Blueprint, Response, abort, current_app, jsonify, request
 
 from .. import great_lakes_animation as animation
+from .. import great_lakes_history_client as saved_history
 from ..bathymetry_service import apply_depth_result, lookup_depth, valid_coordinates
 from ..great_lakes_observations import great_lakes_observations
 from ..great_lakes_refresher import data_status
@@ -42,6 +43,8 @@ CACHEABLE_ENDPOINTS = {
     "environment.great_lakes_thermocline_raster",
     "environment.great_lakes_wave_raster",
     "environment.great_lakes_model_calculation_points",
+    "environment.great_lakes_history_layer",
+    "environment.great_lakes_history_image",
 }
 
 
@@ -264,6 +267,53 @@ def great_lakes_model_calculation_points() -> Response:
     if kind == "waves":
         return _cached(wave_model_points(bounds))
     return _cached(great_lakes_model_points(kind, bounds, _models()))
+
+
+def _saved(load) -> Response | tuple[Response, int]:
+    """Pass a saved-history answer from the Great Lakes Trolling site on to the browser."""
+    try:
+        return jsonify(load())
+    except saved_history.HistoryUnavailable as error:
+        return jsonify({"error": str(error)}), error.status
+
+
+@blueprint.get("/api/great-lakes/history")
+def great_lakes_history_index() -> Response | tuple[Response, int]:
+    return _saved(saved_history.index)
+
+
+@blueprint.get("/api/great-lakes/history/layers/<layer>")
+def great_lakes_history_layer(layer: str) -> Response | tuple[Response, int]:
+    response = _saved(lambda: saved_history.layer(layer, request.args.get("time", "")))
+    if not isinstance(response, tuple):
+        response.headers["Cache-Control"] = LAYER_CACHE_CONTROL
+    return response
+
+
+@blueprint.get("/api/great-lakes/history/images/<name>")
+def great_lakes_history_image(name: str) -> Response | tuple[Response, int]:
+    try:
+        data, media_type = saved_history.image(name)
+    except saved_history.HistoryUnavailable as error:
+        return jsonify({"error": str(error)}), error.status
+    response = Response(data, mimetype=media_type)
+    response.headers["Cache-Control"] = "private, max-age=31536000, immutable"
+    return response
+
+
+@blueprint.get("/api/great-lakes/history/point/<kind>")
+def great_lakes_history_point(kind: str) -> Response | tuple[Response, int]:
+    return _saved(lambda: saved_history.point(kind, request.args))
+
+
+@blueprint.get("/api/great-lakes/history/stations")
+def great_lakes_history_stations() -> Response | tuple[Response, int]:
+    return _saved(lambda: saved_history.stations(request.args.get("time", "")))
+
+
+@blueprint.get("/api/great-lakes/history/stations/<station_id>")
+def great_lakes_history_station(station_id: str) -> Response | tuple[Response, int]:
+    return _saved(lambda: saved_history.station(station_id))
 
 
 @blueprint.get("/api/great-lakes/<layer>")

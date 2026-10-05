@@ -44,7 +44,7 @@ assert.match(dialog, /data-wc-zoom="100" aria-pressed="true"/);
 assert.match(dialog, /All model levels \(4\)/);
 assert.match(dialog, /<small>To 66 ft · 16 ft thick<\/small>/);
 assert.match(String(waterColumnDialogHtml({ ...profile, thermocline: null }, 0)), /<strong>None<\/strong><small>Mixed top to bottom/);
-assert.match(String(waterColumnDialogHtml({ ...profile, thermocline: null, noThermocline: "gradual" }, 0)), /<strong>None<\/strong><small>Cools gradually with depth/);
+assert.match(String(waterColumnDialogHtml({ ...profile, thermocline: null, noThermocline: "gradual" }, 0)), /<strong>None<\/strong><\/div>/);
 
 // The chart shades the thermocline band, labels its top and bottom, and stops at the zoom depth.
 const chart = String(waterColumnChartSvg(profile, 100, 600, 420));
@@ -55,7 +55,7 @@ assert.doesNotMatch(chart, /Warm layer|Cold layer|linearGradient/);
 assert.match(chart, />100 ft</);
 assert.doesNotMatch(chart, />295 ft</);
 assert.match(String(waterColumnChartSvg({ ...profile, thermocline: null }, 0, 600, 420)), />Mixed top to bottom</);
-assert.match(String(waterColumnChartSvg({ ...profile, thermocline: null, noThermocline: "gradual" }, 0, 600, 420)), />Cools gradually with depth</);
+assert.doesNotMatch(String(waterColumnChartSvg({ ...profile, thermocline: null, noThermocline: "gradual" }, 0, 600, 420)), /wc-chart-note/);
 
 // Mixed water (real Lake Erie values, all reading 67.5–67.6 °F) draws a straight vertical line.
 const mixed = { model: "LEOFS", values: [[0, 19.737], [1, 19.74], [2, 19.7437], [4, 19.7524], [6, 19.7601], [8, 19.7647], [10, 19.7674], [12, 19.7692], [15, 19.7611]].map(([depthMeters, temperatureC]) => ({ depthMeters, temperatureC })), thermocline: null };
