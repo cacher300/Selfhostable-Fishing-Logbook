@@ -292,7 +292,7 @@ export function historyTimeLabel(value) {
 
 export function greatLakesConditionsHtml() {
   return html`<section class="great-lakes-control" aria-label="Great Lakes Conditions">
-    <label>Layer<select data-gl-layer><option value="" selected>None</option><option value="temperature">Surface temperature</option><option value="thermocline">Thermocline depth</option><option value="currents">Underwater currents</option><option value="waves">Waves</option></select></label>
+    <label>Layer<select data-gl-layer><option value="" selected>None</option><option value="temperature">Surface temperature</option><option value="thermocline">Thermocline depth</option><option value="currents">Underwater currents</option><option value="waves">Waves</option><option value="upwelling">Upwelling &amp; downwelling</option></select></label>
     <label>Forecast<select data-gl-forecast><option value="0">Now</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option><option value="48">48 hours</option><option value="${HISTORY_FORECAST_VALUE}">Past 30 days</option></select></label>
     ${greatLakesHistoryHtml()}
     ${greatLakesTimelineHtml()}
@@ -313,6 +313,8 @@ export function greatLakesConditionsHtml() {
     <div class="great-lakes-thermocline-legend"><span data-gl-thermocline-min>—</span><i></i><span data-gl-thermocline-max>—</span></div>
     <div class="great-lakes-thermocline-mixed"><b aria-hidden="true"></b>Clear: no thermocline</div>
     <div class="great-lakes-wave-legend"><span data-gl-wave-min>—</span><i></i><span data-gl-wave-max>—</span></div>
+    <div class="great-lakes-upwelling-legend"><span>Upwelling</span><i></i><span>Downwelling</span></div>
+    <p class="great-lakes-upwelling-note">Blue: cold water rising against a shore. Red: warm water piled up. Darker is stronger; clear water is neither.</p>
     <fieldset class="great-lakes-points-options">
       <legend>Data points</legend>
       <label><input type="checkbox" data-gl-stations /> <span>Measurement stations</span></label>
@@ -511,6 +513,7 @@ export function syncGreatLakesLayerControls(host = document.querySelector("#grea
   host.classList.toggle("has-temperature-layer", layer === "temperature");
   host.classList.toggle("has-thermocline-layer", layer === "thermocline");
   host.classList.toggle("has-wave-layer", layer === "waves");
+  host.classList.toggle("has-upwelling-layer", layer === "upwelling");
   const background = host.querySelector("[data-gl-current-background]")?.value;
   host.classList.toggle("has-temperature-background", layer === "currents" && background === "temperature");
   host.classList.toggle("has-no-background", layer === "currents" && background === "none");
@@ -692,6 +695,7 @@ export function showPaletteRange(kind, low, high) {
   if (kind === "temperature") setTemperatureLegendRange({ minC: low, maxC: high });
   else if (kind === "thermocline") setThermoclineLegendRange({ minDepthMeters: low, maxDepthMeters: high });
   else if (kind === "waves") setWaveLegendRange({ minHeightMeters: low, maxHeightMeters: high });
+  else if (kind === "upwelling") { /* fixed colours: the legend never changes */ }
   else {
     setCurrentLegendRange({ minSpeedMetersPerSecond: low, maxSpeedMetersPerSecond: high });
     setCurrentSpeedMax({ maxSpeedMetersPerSecond: high });
@@ -769,6 +773,45 @@ export function createWaveArrowLayer(map, arrows) {
 export function renderGreatLakesTemperatureRasters(rasters, loadRevision, expectedLayer = "temperature") {
   if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== expectedLayer) return;
   drawPaletteRasters(rasters, "temperature", { opacity: 0.9, className: "great-lakes-temperature-raster" });
+}
+
+export function renderGreatLakesUpwellingRasters(rasters, loadRevision) {
+  if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== "upwelling") return;
+  drawPaletteRasters(rasters, "upwelling", { opacity: 0.88, className: "great-lakes-upwelling-raster" });
+}
+
+// "Strong upwelling": its score in °F (how much colder or warmer, see the server's upwelling.py) in words.
+export function upwellingStrengthLabel(strengthF) {
+  const strength = strengthF === null || strengthF === undefined ? Number.NaN : Number(strengthF);
+  if (!Number.isFinite(strength)) return "";
+  return strength >= 6 ? "Strong" : strength >= 4 ? "Moderate" : "Weak";
+}
+
+// "3.2 °F colder", "1.1 °F warmer": a temperature difference in the chosen unit.
+export function temperatureDifferenceLabel(differenceC, colder = "colder", warmer = "warmer") {
+  const difference = Number(differenceC);
+  if (!Number.isFinite(difference)) return "";
+  const unit = typeof unitPreference === "function" && unitPreference("waterTemperature") === "C" ? "C" : "F";
+  const shown = Math.abs(unit === "F" ? difference * 1.8 : difference);
+  if (shown < 0.05) return "No change";
+  return `${shown.toFixed(1)} °${unit} ${difference < 0 ? colder : warmer}`;
+}
+
+export function upwellingReading(value) {
+  const kind = value.kind;
+  const rows = [
+    Number.isFinite(value.surfaceC) ? ["Surface temperature", waterTemperatureLabel(value.surfaceC)] : null,
+    Number.isFinite(value.surfaceC) && Number.isFinite(value.surroundingC) ? ["Than water nearby", temperatureDifferenceLabel(value.surfaceC - value.surroundingC)] : null,
+    Number.isFinite(value.change24hC) ? ["Since yesterday", temperatureDifferenceLabel(value.change24hC, "cooler", "warmer")] : null,
+    Number.isFinite(value.thermoclineShiftMeters) && Math.abs(value.thermoclineShiftMeters) >= 1.5
+      ? ["Thermocline", `${greatLakesDepthLabel(Math.abs(value.thermoclineShiftMeters))} ${value.thermoclineShiftMeters > 0 ? "deeper" : "shallower"} than nearby`] : null
+  ];
+  return {
+    label: kind === "upwelling" ? "Upwelling" : kind === "downwelling" ? "Downwelling" : "Upwelling & downwelling",
+    value: kind ? upwellingStrengthLabel(value.strengthF) : "None",
+    note: kind === "upwelling" ? "Cold water rising from below" : kind === "downwelling" ? "Warm surface water piled up" : value.openWater === false ? `Too shallow to tell (under ${greatLakesDepthLabel(10)})` : "",
+    rows
+  };
 }
 
 export function renderGreatLakesThermoclineRasters(rasters, loadRevision) {
@@ -918,6 +961,11 @@ export async function greatLakesMapInspection({ latitude, longitude }) {
   const depth = greatLakesShownDepth(), forecastHour = greatLakesForecastHour();
   const models = greatLakesLoadedModelsKey, timeParams = greatLakesTimeParams();
   const temperatureLabel = (value) => Number(value.depthMeters) > 0.25 ? `Temperature at ${greatLakesDepthLabel(Number(value.depthMeters))}` : "Surface temperature";
+  if (greatLakesActiveLayer === "upwelling") {
+    const value = await window.noaaGreatLakesApi.upwellingValue({ forecastHour, latitude, longitude, ...timeParams }).catch(() => null);
+    if (!value?.available) return value?.savedMapOnly ? readingHtml({ label: "Upwelling & downwelling", value: "Map only", note: "Past hours keep the map, not the readings behind it" }) : "";
+    return readingHtml({ ...upwellingReading(value), action: profileActionHtml(latitude, longitude) });
+  }
   if (greatLakesActiveLayer === "waves") {
     const value = await window.noaaGreatLakesApi.waveValue({ forecastHour, latitude, longitude, ...timeParams }).catch(() => null);
     if (!value?.available) return "";
@@ -1462,6 +1510,9 @@ export async function loadGreatLakesConditions(map) {
       renderGreatLakesThermoclineRasters(payload.rasters || [], loadRevision);
       setThermoclineLegendRange(payload.metadata);
     }
+    else if (layer === "upwelling") {
+      renderGreatLakesUpwellingRasters(payload.rasters || [], loadRevision);
+    }
     else if (layer === "waves") {
       renderGreatLakesWaveRasters(payload.rasters || [], loadRevision);
       setWaveLegendRange(payload.metadata);
@@ -1486,9 +1537,9 @@ export async function loadGreatLakesConditions(map) {
     const metadataModels = [...(payload.metadata.models || []), ...(temperaturePayload?.metadata.models || [])];
     const unavailable = metadataModels.some((model) => !model.available);
     const validTime = metadataModels.find((model) => model.validTime)?.validTime;
-    const label = layer === "temperature" ? "Water temperature" : layer === "thermocline" ? "Thermocline depth" : layer === "waves" ? "Wave data" : temperaturePayload ? "Current or temperature data" : "Underwater current data";
+    const label = layer === "temperature" ? "Water temperature" : layer === "thermocline" ? "Thermocline depth" : layer === "upwelling" ? "Upwelling data" : layer === "waves" ? "Wave data" : temperaturePayload ? "Current or temperature data" : "Underwater current data";
     const sampledOnly = layer === "currents" && !(payload.fields || []).length && (payload.data || []).length;
-    const shownDepth = layer === "thermocline" || layer === "waves" ? null : modelDepthShown(temperaturePayload?.metadata || payload.metadata);
+    const shownDepth = layer === "thermocline" || layer === "waves" || layer === "upwelling" ? null : modelDepthShown(temperaturePayload?.metadata || payload.metadata);
     const source = historyMode ? "saved NOAA conditions" : layer === "waves" ? "the NOAA wave forecast" : "the NOAA forecast";
     const updateNote = historyMode ? " Past hours show the surface." : layer === "waves" ? waveUpdateNote(dataStatus) : nextUpdateNote(dataStatus);
     const when = validTime ? (historyMode ? historyTimeLabel(validTime) : friendlyTime(validTime)) : "";

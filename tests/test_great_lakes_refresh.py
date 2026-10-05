@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from backend import great_lakes_cache as cache
 from backend import great_lakes_refresher as refresher
 from backend import great_lakes_service as service
+from backend import great_lakes_upwelling as upwelling
 from backend import great_lakes_volumes as volumes
 from conftest import make_app
 
@@ -147,7 +148,7 @@ def test_refresher_tick_checks_runs_and_warms_each_new_hour(monkeypatch) -> None
     assert events.count("mesh") == len(service.MODELS) * len(service.MODEL_POINT_KINDS)
     assert events.count("bathymetry") == len(service.MODELS)
     assert [event for event in events if event.startswith("predraw")] == [f"predraw +{offset}" for offset in service.FORECAST_OFFSETS]
-    assert [event for event in events if event.startswith("animate")] == ["animate temperature", "animate thermocline", "animate currents"]
+    assert [event for event in events if event.startswith("animate")] == ["animate temperature", "animate thermocline", "animate currents", "animate upwelling"]
     # Files for every frame are kept (run hours 4 … 52), and nothing else.
     kept = {event for event in events if event.startswith("keep ")}
     assert kept == {"keep " + ",".join(map(str, sorted({4 + offset for offset in {*service.FORECAST_OFFSETS, *frames}})))}
@@ -175,7 +176,7 @@ def test_status_route_reports_served_hour_and_next_run(monkeypatch, tmp_path) ->
     assert status["models"]["LEOFS"]["nowForecastHour"] == 6
     assert status["models"]["LEOFS"]["nowValidTime"] == "2026-10-02T18:00:00Z"
     assert status["models"]["LEOFS"]["nextRunExpectedAt"] == "2026-10-02T20:35:00Z"
-    assert status["version"] == f"LEOFS:20261002t12z:6|draw:{service.TEMPERATURE_RASTER_RENDER_VERSION}.{service.THERMOCLINE_RASTER_RENDER_VERSION}.{service.CURRENT_RENDER_VERSION}"
+    assert status["version"] == f"LEOFS:20261002t12z:6|draw:{service.TEMPERATURE_RASTER_RENDER_VERSION}.{service.THERMOCLINE_RASTER_RENDER_VERSION}.{service.CURRENT_RENDER_VERSION}.{upwelling.UPWELLING_RENDER_VERSION}"
 
     response = make_app(tmp_path).client.get("/api/great-lakes/status?models=LEOFS")
     assert response.status_code == 200
@@ -312,6 +313,7 @@ def test_predraw_draws_exactly_what_the_map_requests(monkeypatch) -> None:
     monkeypatch.setattr(service, "great_lakes_temperature_rasters", lambda hour, depth, resolution, models: calls.append(("temperature", hour, depth, resolution, models)))
     monkeypatch.setattr(service, "great_lakes_payload", lambda kind, hour, depth, models: calls.append((kind, hour, depth, None, models)))
     monkeypatch.setattr(service, "great_lakes_thermocline_rasters", lambda hour, resolution, models: calls.append(("thermocline", hour, None, resolution, models)))
+    monkeypatch.setattr(upwelling, "upwelling_rasters", lambda hour, resolution, models: calls.append(("upwelling", hour, None, resolution, models)))
     worker = refresher.GreatLakesRefresher()
 
     worker.predraw(0)

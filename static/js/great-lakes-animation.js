@@ -49,7 +49,8 @@ const RASTER_STYLES = {
   temperature: { className: "great-lakes-temperature-raster", opacity: 0.9 },
   thermocline: { className: "great-lakes-thermocline-raster", opacity: 0.88 },
   currents: { className: "great-lakes-current-raster", opacity: 0.8 },
-  waves: { className: "great-lakes-wave-raster", opacity: 0.86 }
+  waves: { className: "great-lakes-wave-raster", opacity: 0.86 },
+  upwelling: { className: "great-lakes-upwelling-raster", opacity: 0.88 }
 };
 
 const state = {
@@ -337,6 +338,7 @@ export async function loadGreatLakesAnimation(map, { layer, depth, signal, isCur
     if (layer === "temperature") setTemperatureLegendRange(first);
     else if (layer === "thermocline") setThermoclineLegendRange(first);
     else if (layer === "waves") setWaveLegendRange(first);
+    else if (layer === "upwelling") { /* fixed legend */ }
     else {
       setCurrentLegendRange(first);
       setCurrentSpeedMax(first);
@@ -441,7 +443,7 @@ function showFrame(index, { fade = true } = {}) {
   const metadata = payload.metadata || {};
   const models = [...(metadata.models || []), ...(state.backgroundPayloads?.[state.index]?.metadata?.models || [])];
   const unavailable = models.some((model) => !model.available);
-  const shownDepth = state.layer === "thermocline" || state.layer === "waves" ? null : modelDepthShown(state.backgroundPayloads?.[state.index]?.metadata || metadata);
+  const shownDepth = state.layer === "thermocline" || state.layer === "waves" || state.layer === "upwelling" ? null : modelDepthShown(state.backgroundPayloads?.[state.index]?.metadata || metadata);
   setGreatLakesStatus(`${unavailable ? "Data is missing for one or more lakes in this frame. " : ""}${modelDepthNote(state.depth, shownDepth)}${tooShallowNote(models)}`, unavailable);
   document.dispatchEvent(new CustomEvent("great-lakes-frame-shown", { detail: { layer: state.layer, metadata: { ...metadata, validTime: frame.validTime }, depth: state.depth } }));
 }

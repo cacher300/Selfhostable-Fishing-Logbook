@@ -8,6 +8,7 @@ from flask import Blueprint, Response, abort, current_app, jsonify, request
 
 from .. import great_lakes_animation as animation
 from .. import great_lakes_history_client as saved_history
+from .. import great_lakes_upwelling as upwelling
 from ..bathymetry_service import apply_depth_result, lookup_depth, valid_coordinates
 from ..great_lakes_observations import great_lakes_observations
 from ..great_lakes_refresher import data_status
@@ -42,6 +43,7 @@ CACHEABLE_ENDPOINTS = {
     "environment.great_lakes_temperature_raster",
     "environment.great_lakes_thermocline_raster",
     "environment.great_lakes_wave_raster",
+    "environment.great_lakes_upwelling_raster",
     "environment.great_lakes_model_calculation_points",
     "environment.great_lakes_history_layer",
     "environment.great_lakes_history_image",
@@ -203,6 +205,34 @@ def great_lakes_wave_raster() -> Response:
     except ValueError:
         abort(400, "forecastHour and resolution must be numeric")
     return _cached(wave_rasters(forecast_hour, resolution, _models()))
+
+
+@blueprint.get("/api/great-lakes/upwelling-raster")
+def great_lakes_upwelling_raster() -> Response:
+    frame = _animation_frame("upwelling")
+    if frame is not None:
+        return frame
+    try:
+        forecast_hour, resolution = _forecast_hour(), _resolution()
+    except ValueError:
+        abort(400, "forecastHour and resolution must be numeric")
+    return _cached(upwelling.upwelling_rasters(forecast_hour, resolution, _models()))
+
+
+@blueprint.get("/api/great-lakes/upwelling-value")
+def great_lakes_upwelling_value_at_point() -> Response:
+    try:
+        forecast_hour = _forecast_hour()
+    except ValueError:
+        abort(400, "forecastHour must be numeric")
+    coordinates = valid_coordinates({"latitude": request.args.get("latitude"), "longitude": request.args.get("longitude")})
+    if coordinates is None:
+        abort(400, "latitude and longitude must be valid coordinates")
+    try:
+        return jsonify(upwelling.upwelling_value(forecast_hour, *coordinates, _models()))
+    except Exception:
+        current_app.logger.exception("NOAA upwelling lookup failed.")
+        return jsonify({"available": False})
 
 
 @blueprint.get("/api/great-lakes/wave-value")

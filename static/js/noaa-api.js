@@ -15,7 +15,7 @@ export function setup() {
       // dataVersion changes when NOAA publishes a run or "Now" advances an
       // hour, so the browser's HTTP cache never serves an older frame.
       const query = new URLSearchParams({ forecastHour, depth, resolution, models, data: dataVersion });
-      const endpoint = layer === "temperature" ? `/api/great-lakes/temperature-raster?${query}` : layer === "thermocline" ? `/api/great-lakes/thermocline-raster?${query}` : layer === "waves" ? `/api/great-lakes/waves-raster?${query}` : `/api/great-lakes/currents?${query}`;
+      const endpoint = layer === "temperature" ? `/api/great-lakes/temperature-raster?${query}` : layer === "thermocline" ? `/api/great-lakes/thermocline-raster?${query}` : layer === "waves" ? `/api/great-lakes/waves-raster?${query}` : layer === "upwelling" ? `/api/great-lakes/upwelling-raster?${query}` : `/api/great-lakes/currents?${query}`;
       const response = await fetch(endpoint, { signal });
       if (!response.ok) throw new Error("NOAA model request failed");
       return response.json();
@@ -49,6 +49,13 @@ export function setup() {
       if (options.time) return historyJson("/point/current-profile", { time: options.time, latitude: options.latitude, longitude: options.longitude });
       const response = await fetch(`/api/great-lakes/current-profile?${new URLSearchParams(options)}`);
       if (!response.ok) throw new Error("NOAA current profile lookup failed");
+      return response.json();
+    },
+    async upwellingValue(options) {
+      if (options.time) return historyJson("/point/upwelling", { time: options.time, latitude: options.latitude, longitude: options.longitude });
+      const query = { forecastHour: options.forecastHour, latitude: options.latitude, longitude: options.longitude, models: options.models || "" };
+      const response = await fetch(`/api/great-lakes/upwelling-value?${new URLSearchParams(query)}`);
+      if (!response.ok) throw new Error("NOAA upwelling lookup failed");
       return response.json();
     },
     async waveValue(options) {

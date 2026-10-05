@@ -35,6 +35,7 @@ from datetime import datetime, timezone
 
 from . import great_lakes_cache as cache
 from . import great_lakes_service as service
+from . import great_lakes_upwelling as upwelling
 from . import great_lakes_waves as waves
 
 CYCLE_HOURS = (0, 6, 12, 18)
@@ -54,7 +55,7 @@ MAP_RESOLUTION = 512
 # "Now" is pre-drawn at every model depth level down to about 100 ft.
 PREDRAW_MAX_DEPTH_METERS = 30.0
 # Forecast animations kept drawn at the surface (waves are kept with the wave model).
-ANIMATED_MODEL_LAYERS = ("temperature", "thermocline", "currents")
+ANIMATED_MODEL_LAYERS = ("temperature", "thermocline", "currents", "upwelling")
 # The wave model runs hourly, so its newest cycle is checked this often.
 WAVE_RUN_CHECK_SECONDS = 5 * 60
 LOCK_FILE = "refresher.lock"
@@ -114,7 +115,7 @@ def data_status(models: tuple[str, ...] = service.MODELS, now: float | None = No
     shared = cache.read_json(cache.path_for(STATUS_FILE)) or {}
     # The drawing versions are part of the key browsers cache layers under,
     # so a change to how layers are drawn reaches them immediately.
-    drawing = f"draw:{service.TEMPERATURE_RASTER_RENDER_VERSION}.{service.THERMOCLINE_RASTER_RENDER_VERSION}.{service.CURRENT_RENDER_VERSION}"
+    drawing = f"draw:{service.TEMPERATURE_RASTER_RENDER_VERSION}.{service.THERMOCLINE_RASTER_RENDER_VERSION}.{service.CURRENT_RENDER_VERSION}.{upwelling.UPWELLING_RENDER_VERSION}"
     version = "|".join([*(f"{model}:{item.get('run')}:{item.get('nowForecastHour')}" for model, item in result.items()), drawing])
     wave_status = waves.wave_status(now)
     return {
@@ -268,6 +269,7 @@ class GreatLakesRefresher:
             service.great_lakes_temperature_rasters(offset, depth, MAP_RESOLUTION, models)
             service.great_lakes_payload("currents", offset, depth, models)
         service.great_lakes_thermocline_rasters(offset, MAP_RESOLUTION, models)
+        upwelling.upwelling_rasters(offset, MAP_RESOLUTION, models)
 
     def _warm(self, runs: dict[str, dict], offset: int = 0) -> bool:
         ok = True
