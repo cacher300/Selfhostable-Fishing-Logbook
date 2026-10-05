@@ -3,7 +3,7 @@ import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
 installBrowserEnv();
 const { setState } = await import("../static/js/app-state.js");
-const { greatLakesHistoryHtml, historyHours, stepHistoryHour } = await import("../static/js/great-lakes-conditions.js");
+const { greatLakesHistoryHtml, historyCalendarHtml, historyHours, stepHistoryHour } = await import("../static/js/great-lakes-conditions.js");
 const { stationHistoryHtml } = await import("../static/js/great-lakes-points.js");
 const { setup: setupApi } = await import("../static/js/noaa-api.js");
 setState({ settings: { units: { depth: "ft", waterTemperature: "F" } } });
@@ -13,7 +13,8 @@ const index = { hours: [{ time: "2026-10-04T00:00:00Z", layers: ["temperature"] 
 const first = Date.parse("2026-10-04T00:00:00Z");
 assert.deepEqual(historyHours(index, "waves"), [first + 24 * HOUR]);
 assert.equal(stepHistoryHour(historyHours(index), first, 1), first + 24 * HOUR);
-assert.match(String(greatLakesHistoryHtml()), /data-gl-history-time/);
+assert.match(String(greatLakesHistoryHtml()), /data-gl-history-open/);
+assert.match(String(historyCalendarHtml(historyHours(index), { selected: first + 24 * HOUR })), /data-gl-cal-day=/);
 
 // A past hour goes to the desktop server's history routes (passed on to the site).
 const requested = [];

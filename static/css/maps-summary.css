@@ -634,11 +634,43 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 #greatLakesConditions.has-history .great-lakes-history { display: block; }
 #greatLakesConditions.has-history :is(.great-lakes-depth-control, .great-lakes-timeline) { display: none; }
 .great-lakes-history-picker { display: flex; align-items: center; gap: 4px; }
-.great-lakes-history-picker input { flex: 1; min-width: 0; box-sizing: border-box; padding: 6px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--text); font: inherit; font-size: 12.5px; }
 .great-lakes-history-picker button { flex: none; width: 28px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--text); font-size: 15px; line-height: 1; cursor: pointer; }
 .great-lakes-history-picker button:hover:not(:disabled) { border-color: var(--chip-line); }
 .great-lakes-history-picker button:disabled { opacity: 0.35; cursor: default; }
-.great-lakes-history-picker :is(button, input):focus-visible { outline: 3px solid var(--chip-line); outline-offset: 1px; }
+.great-lakes-history-picker .great-lakes-history-when { display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; height: 30px; box-sizing: border-box; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--text); font: inherit; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; }
+.great-lakes-history-when span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.great-lakes-history-when svg { flex: none; width: 15px; height: 15px; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; }
+.great-lakes-history-picker .great-lakes-history-when[aria-expanded="true"] { border-color: var(--chip-line); }
+.great-lakes-history-when:disabled { opacity: 0.5; cursor: default; }
+/* The calendar of saved days: only highlighted days can be picked, then one of their hours. */
+.great-lakes-history-calendar { margin-top: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-soft); }
+.great-lakes-history-calendar[hidden] { display: none; }
+.gl-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.gl-cal-head strong { margin: 0; font-size: 13px; }
+.gl-cal-head button, .gl-cal-day, .gl-cal-hour { padding: 0; border: 1px solid transparent; border-radius: 7px; background: none; color: var(--text); font: inherit; cursor: pointer; }
+.gl-cal-head button { width: 28px; height: 26px; font-size: 16px; }
+.gl-cal-head button:disabled { opacity: 0.3; cursor: default; }
+.gl-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.gl-cal-dow { padding: 2px 0; color: var(--muted); font-size: 10.5px; font-weight: 700; text-align: center; }
+.gl-cal-day { height: 28px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.gl-cal-day:disabled { color: var(--muted); opacity: 0.35; cursor: default; }
+.gl-cal-day.has-data { background: var(--field); font-weight: 700; }
+.gl-cal-day.has-data:hover { border-color: var(--chip-line); }
+.gl-cal-day.is-today { text-decoration: underline; text-underline-offset: 3px; }
+.gl-cal-day.is-selected { border-color: var(--chip-line); }
+.gl-cal-day.is-open { background: var(--active-bg); border-color: var(--chip-line); color: var(--active-text); }
+.gl-cal-hours { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); }
+.gl-cal-hours-title { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.gl-cal-hour-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; }
+.gl-cal-hour { height: 26px; background: var(--field); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gl-cal-hour:hover { border-color: var(--chip-line); }
+.gl-cal-hour.is-selected { background: var(--active-bg); border-color: var(--chip-line); color: var(--active-text); font-weight: 700; }
+.great-lakes-control p.gl-cal-hint, .great-lakes-control p.gl-cal-empty { min-height: 0; margin: 8px 0 2px; font-size: 11.5px; text-align: center; }
+.great-lakes-history-calendar :is(button):focus-visible { outline: 2px solid var(--chip-line); outline-offset: 1px; }
+.great-lakes-history-picker button { flex: none; width: 28px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--text); font-size: 15px; line-height: 1; cursor: pointer; }
+.great-lakes-history-picker button:hover:not(:disabled) { border-color: var(--chip-line); }
+.great-lakes-history-picker button:disabled { opacity: 0.35; cursor: default; }
+.great-lakes-history-picker button:focus-visible { outline: 3px solid var(--chip-line); outline-offset: 1px; }
 .great-lakes-current-options { display: none; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); }
 #greatLakesConditions.has-current-layer .great-lakes-current-options { display: block; }
 .great-lakes-control p { min-height: 30px; margin: 8px 0 5px; color: var(--muted); }

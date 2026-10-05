@@ -78,14 +78,17 @@ let greatLakesHistoryIndexAt = 0;
 // A new hour is saved every hour; a list this old is fetched again on entering "Past 30 days".
 const HISTORY_INDEX_MAX_AGE_MS = 2 * 60 * 1000;
 
+const CALENDAR_ICON = html`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>`;
+
 export function greatLakesHistoryHtml() {
   const step = (hours, label, symbol) => html`<button type="button" data-gl-history-step="${hours}" aria-label="${label}" title="${label}">${symbol}</button>`;
   return html`<div class="great-lakes-history" data-gl-history-controls>
     <div class="great-lakes-history-picker">
       ${step(-24, "One day earlier", "«")}${step(-1, "One hour earlier", "‹")}
-      <input type="datetime-local" data-gl-history-time step="3600" aria-label="Date and time to show" />
+      <button type="button" class="great-lakes-history-when" data-gl-history-open aria-expanded="false" aria-controls="greatLakesHistoryCalendar" aria-label="Choose a saved date and time"><span data-gl-history-label>Choose a time</span>${CALENDAR_ICON}</button>
       ${step(1, "One hour later", "›")}${step(24, "One day later", "»")}
     </div>
+    <div class="great-lakes-history-calendar" id="greatLakesHistoryCalendar" data-gl-history-calendar hidden></div>
   </div>`;
 }
 
@@ -131,10 +134,69 @@ export function stepHistoryHour(hours, current, stepHours) {
 
 const pad = (value) => String(value).padStart(2, "0");
 
-// <input type="datetime-local"> values are local time without a zone.
-export function localInputValue(milliseconds) {
+// A local calendar day, "2026-10-05".
+export function localDayKey(milliseconds) {
   const date = new Date(milliseconds);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// Saved hours grouped by local day: Map of day key to that day's hours, oldest first.
+export function historyDays(hours) {
+  const days = new Map();
+  hours.forEach((hour) => {
+    const key = localDayKey(hour);
+    if (!days.has(key)) days.set(key, []);
+    days.get(key).push(hour);
+  });
+  return days;
+}
+
+const monthStart = (milliseconds) => {
+  const date = new Date(milliseconds);
+  return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+};
+const shiftMonth = (start, months) => {
+  const date = new Date(start);
+  return new Date(date.getFullYear(), date.getMonth() + months, 1).getTime();
+};
+
+// The calendar of saved days: only days with a saved hour can be picked; the chosen day lists its hours.
+export function historyCalendarHtml(hours, { month, day, selected } = {}) {
+  if (!hours.length) return html`<p class="gl-cal-empty">No saved hours yet.</p>`;
+  const days = historyDays(hours);
+  const shownMonth = Number.isFinite(month) ? month : monthStart(selected ?? hours[hours.length - 1]);
+  const firstMonth = monthStart(hours[0]), lastMonth = monthStart(hours[hours.length - 1]);
+  const first = new Date(shownMonth);
+  const blanks = first.getDay();
+  const daysInMonth = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  const selectedDay = Number.isFinite(selected) ? localDayKey(selected) : "";
+  const today = localDayKey(Date.now());
+  const weekdays = joinHtml(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((name) => html`<span class="gl-cal-dow" aria-hidden="true">${name}</span>`), "");
+  const cells = [];
+  for (let blank = 0; blank < blanks; blank += 1) cells.push(html`<span aria-hidden="true"></span>`);
+  for (let date = 1; date <= daysInMonth; date += 1) {
+    const time = new Date(first.getFullYear(), first.getMonth(), date).getTime();
+    const key = localDayKey(time);
+    const saved = days.get(key);
+    const classes = ["gl-cal-day", saved ? "has-data" : "", key === day ? "is-open" : "", key === selectedDay ? "is-selected" : "", key === today ? "is-today" : ""].filter(Boolean).join(" ");
+    const label = new Date(time).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+    cells.push(saved
+      ? html`<button type="button" class="${classes}" data-gl-cal-day="${key}" aria-label="${label}, ${saved.length} saved ${saved.length === 1 ? "hour" : "hours"}"${key === day ? html` aria-pressed="true"` : ""}>${date}</button>`
+      : html`<button type="button" class="${classes}" disabled aria-label="${label}, nothing saved">${date}</button>`);
+  }
+  const monthLabel = first.toLocaleDateString([], { month: "long", year: "numeric" });
+  const dayHours = day ? days.get(day) || [] : [];
+  const hourList = dayHours.length ? html`<div class="gl-cal-hours">
+      <span class="gl-cal-hours-title">${new Date(dayHours[0]).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}</span>
+      <div class="gl-cal-hour-grid">${joinHtml(dayHours.map((hour) => html`<button type="button" class="gl-cal-hour${hour === selected ? " is-selected" : ""}" data-gl-cal-hour="${hour}"${hour === selected ? html` aria-pressed="true"` : ""}>${new Date(hour).toLocaleTimeString([], { hour: "numeric" })}</button>`), "")}</div>
+    </div>` : html`<p class="gl-cal-hint">Pick a highlighted day.</p>`;
+  return html`<div class="gl-cal-head">
+      <button type="button" data-gl-cal-month="-1" aria-label="Previous month"${shownMonth <= firstMonth ? " disabled" : ""}>‹</button>
+      <strong aria-live="polite">${monthLabel}</strong>
+      <button type="button" data-gl-cal-month="1" aria-label="Next month"${shownMonth >= lastMonth ? " disabled" : ""}>›</button>
+    </div>
+    <div class="gl-cal-grid">${weekdays}${joinHtml(cells, "")}</div>
+    ${hourList}`;
 }
 
 export function setGreatLakesHistoryTime(value) {
@@ -143,19 +205,54 @@ export function setGreatLakesHistoryTime(value) {
   syncHistoryInput();
 }
 
-export function syncHistoryInput() {
-  const input = document.querySelector("[data-gl-history-time]");
-  if (!input) return;
-  const hours = historyHours(greatLakesHistoryIndex);
-  if (hours.length) {
-    input.min = localInputValue(hours[0]);
-    input.max = localInputValue(hours[hours.length - 1]);
+// The calendar's month and opened day while it is showing.
+const historyCalendar = { open: false, month: null, day: null };
+
+function historyLayerHours() {
+  return historyHours(greatLakesHistoryIndex, greatLakesControlValue("layer"));
+}
+
+function renderHistoryCalendar() {
+  const node = document.querySelector("[data-gl-history-calendar]");
+  if (!node) return;
+  node.hidden = !historyCalendar.open;
+  document.querySelector("[data-gl-history-open]")?.setAttribute("aria-expanded", String(historyCalendar.open));
+  if (historyCalendar.open) setHtml(node, historyCalendarHtml(historyLayerHours(), { month: historyCalendar.month, day: historyCalendar.day, selected: greatLakesHistoryMs }));
+}
+
+export function setHistoryCalendarOpen(open) {
+  historyCalendar.open = open;
+  if (open) {
+    const hours = historyLayerHours();
+    const anchor = Number.isFinite(greatLakesHistoryMs) ? greatLakesHistoryMs : hours[hours.length - 1];
+    historyCalendar.month = Number.isFinite(anchor) ? monthStart(anchor) : null;
+    historyCalendar.day = Number.isFinite(anchor) ? localDayKey(anchor) : null;
   }
-  input.value = Number.isFinite(greatLakesHistoryMs) ? localInputValue(greatLakesHistoryMs) : "";
+  renderHistoryCalendar();
+}
+
+// The chosen hour's label, the step buttons, and the calendar follow the saved hours of the layer shown.
+export function syncHistoryInput() {
+  const hours = historyLayerHours();
+  const label = document.querySelector("[data-gl-history-label]");
+  const shown = Number.isFinite(greatLakesHistoryMs) ? historyButtonLabel(greatLakesHistoryMs) : "";
+  if (label) label.textContent = shown || "Choose a time";
   document.querySelectorAll("[data-gl-history-step]").forEach((button) => {
     const step = Number(button.dataset.glHistoryStep);
     button.disabled = !Number.isFinite(greatLakesHistoryMs) || stepHistoryHour(hours, greatLakesHistoryMs, step) === greatLakesHistoryMs;
   });
+  const open = document.querySelector("[data-gl-history-open]");
+  if (open) {
+    open.disabled = !hours.length;
+    open.setAttribute("aria-label", shown ? `Showing ${shown}. Choose another saved date and time` : "Choose a saved date and time");
+  }
+  renderHistoryCalendar();
+}
+
+// "Mon, Oct 5 · 3 PM" on the calendar button.
+export function historyButtonLabel(milliseconds) {
+  const date = new Date(milliseconds);
+  return `${date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} · ${date.toLocaleTimeString([], { hour: "numeric" })}`;
 }
 
 export async function loadGreatLakesHistoryIndex({ fresh = false } = {}) {
@@ -359,9 +456,8 @@ export function ensureGreatLakesConditions(map) {
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshGreatLakesIfStale(map); });
 }
 
-// The hour buttons and the date picker of "Past 30 days".
+// The hour buttons and the calendar of "Past 30 days".
 export function setupGreatLakesHistoryControls(host, map) {
-  const input = host.querySelector("[data-gl-history-time]");
   const show = (milliseconds) => {
     if (!Number.isFinite(milliseconds) || milliseconds === greatLakesHistoryMs) {
       syncHistoryInput();
@@ -372,12 +468,38 @@ export function setupGreatLakesHistoryControls(host, map) {
     loadGreatLakesConditions(map);
   };
   host.querySelectorAll("[data-gl-history-step]").forEach((button) => button.addEventListener("click", () => {
-    const hours = historyHours(greatLakesHistoryIndex, greatLakesControlValue("layer"));
-    show(stepHistoryHour(hours, greatLakesHistoryMs, Number(button.dataset.glHistoryStep)));
+    show(stepHistoryHour(historyLayerHours(), greatLakesHistoryMs, Number(button.dataset.glHistoryStep)));
   }));
-  input?.addEventListener("change", () => {
-    const chosen = new Date(input.value).getTime();
-    show(nearestHistoryHour(historyHours(greatLakesHistoryIndex, greatLakesControlValue("layer")), chosen));
+  host.querySelector("[data-gl-history-open]")?.addEventListener("click", () => setHistoryCalendarOpen(!historyCalendar.open));
+  const calendar = host.querySelector("[data-gl-history-calendar]");
+  calendar?.addEventListener("click", (event) => {
+    const month = event.target.closest("[data-gl-cal-month]");
+    const day = event.target.closest("[data-gl-cal-day]");
+    const hour = event.target.closest("[data-gl-cal-hour]");
+    if (month && !month.disabled) {
+      historyCalendar.month = shiftMonth(historyCalendar.month, Number(month.dataset.glCalMonth));
+      historyCalendar.day = null;
+      renderHistoryCalendar();
+    } else if (day) {
+      historyCalendar.day = day.dataset.glCalDay;
+      renderHistoryCalendar();
+      calendar.querySelector(".gl-cal-hour.is-selected, .gl-cal-hour")?.focus();
+    } else if (hour) {
+      setHistoryCalendarOpen(false);
+      host.querySelector("[data-gl-history-open]")?.focus();
+      show(Number(hour.dataset.glCalHour));
+    }
+  });
+  host.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && historyCalendar.open) {
+      setHistoryCalendarOpen(false);
+      host.querySelector("[data-gl-history-open]")?.focus();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    // The path is taken when the click happens: a day button re-renders the calendar under it.
+    const inside = event.composedPath().some((node) => node instanceof Element && node.matches("[data-gl-history-controls]"));
+    if (historyCalendar.open && !inside) setHistoryCalendarOpen(false);
   });
 }
 
