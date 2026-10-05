@@ -1,7 +1,8 @@
 // The water-column dialog: temperature from the surface to the lake bed at one
-// point, with the thermocline (where the water cools fastest) marked.
+// point, with the thermocline band (from where the warm water ends to where the
+// cooling eases) shaded.
 import { html, joinHtml, setHtml } from "./html.js";
-import { friendlyTime, greatLakesDepthLabel, waterTemperatureLabel } from "./great-lakes-conditions.js";
+import { friendlyTime, greatLakesDepthLabel, greatLakesDepthValueLabel, waterTemperatureLabel } from "./great-lakes-conditions.js";
 import { convertUnitValue, unitPreference } from "./app-units.js";
 
 const FEET_PER_METER = 3.28084;
@@ -68,12 +69,38 @@ export function zoomOptions(maxDepthMeters, unit = depthUnit()) {
   return ZOOM_PRESETS[unit].filter((preset) => preset < maxDisplay * 0.8);
 }
 
+// Top, bottom, and thickness of the thermocline (older payloads only had a single depth).
+export function thermoclineBand(thermocline) {
+  if (!thermocline) return null;
+  const top = Number(thermocline.topDepthMeters ?? thermocline.depthMeters);
+  const bottom = Math.max(top, Number(thermocline.bottomDepthMeters ?? top));
+  return Number.isFinite(top) ? { top, bottom, thickness: bottom - top } : null;
+}
+
+// "55–66 ft"; a band thinner than a depth unit reads as its top only.
+export function depthRangeLabel(band) {
+  if (!band) return "";
+  const top = greatLakesDepthLabel(band.top), bottom = greatLakesDepthLabel(band.bottom);
+  return top === bottom ? top : `${top.replace(/\s*(ft|m)$/, "")}–${bottom}`;
+}
+
+// "11 ft thick"; a band thinner than the depth units read is "a thin layer".
+// Why a column has no thermocline: it cools gradually with depth, or it is mixed (the API's noThermocline).
+export function noThermoclineLabel(profile) {
+  return profile?.noThermocline === "gradual" ? "Cools gradually with depth" : "Mixed top to bottom";
+}
+
+export function thicknessLabel(band) {
+  return band && toDisplayDepth(band.thickness) >= 1 ? `${greatLakesDepthValueLabel(band.thickness)} thick` : "a thin layer";
+}
+
 export function automaticZoom(profile, unit = depthUnit()) {
   const values = profile.values || [];
   const maxDepth = Math.max(...values.map((item) => item.depthMeters), 1);
-  const thermocline = profile.thermocline;
-  if (!thermocline) return 0;
-  const wanted = (unit === "ft" ? FEET_PER_METER : 1) * thermocline.depthMeters * 1.8;
+  const band = thermoclineBand(profile.thermocline);
+  if (!band) return 0;
+  // The whole band, with room below it.
+  const wanted = (unit === "ft" ? FEET_PER_METER : 1) * Math.max(band.top * 1.8, band.bottom * 1.25);
   return zoomOptions(maxDepth, unit).find((preset) => preset >= wanted) || 0;
 }
 
@@ -83,10 +110,10 @@ function sortedValues(profile) {
 
 function statsHtml(profile, values) {
   const surface = values[0];
-  const thermocline = profile.thermocline;
-  const thermoclineCard = thermocline
-    ? html`<div class="wc-stat"><span>Thermocline</span><strong>${greatLakesDepthLabel(thermocline.depthMeters)}</strong></div>`
-    : html`<div class="wc-stat"><span>Thermocline</span><strong>None</strong><small>Mixed top to bottom</small></div>`;
+  const band = thermoclineBand(profile.thermocline);
+  const thermoclineCard = band
+    ? html`<div class="wc-stat"><span>Thermocline</span><strong>${greatLakesDepthLabel(band.top)}</strong><small>To ${greatLakesDepthLabel(band.bottom)} · ${thicknessLabel(band)}</small></div>`
+    : html`<div class="wc-stat"><span>Thermocline</span><strong>None</strong><small>${noThermoclineLabel(profile)}</small></div>`;
   return html`<div class="wc-stats">
     <div class="wc-stat"><span>Surface</span><strong>${waterTemperatureLabel(surface.temperatureC)}</strong></div>
     ${thermoclineCard}
@@ -171,17 +198,25 @@ export function waterColumnChartSvg(profile, zoom, width, height) {
   // Mixed water says so in the corner the line is not in.
   const mixedLabel = thermocline ? "" : (() => {
     const onLeft = x(plotTemp(values[0].temperatureC)) > (plot.left + plot.right) / 2;
-    return html`<text class="wc-chart-note" x="${onLeft ? plot.left + 8 : plot.right - 8}" y="${plot.top + 16}" text-anchor="${onLeft ? "start" : "end"}">Mixed top to bottom</text>`;
+    return html`<text class="wc-chart-note" x="${onLeft ? plot.left + 8 : plot.right - 8}" y="${plot.top + 16}" text-anchor="${onLeft ? "start" : "end"}">${noThermoclineLabel(profile)}</text>`;
   })();
 
   const linePoints = shown.map((item) => `${x(plotTemp(item.temperatureC)).toFixed(1)},${y(item.depthMeters).toFixed(1)}`);
-  const thermoclineMarker = thermocline && thermocline.depthMeters <= maxDepthMeters
-    ? html`<line class="wc-thermocline-line" x1="${plot.left}" x2="${plot.right}" y1="${y(thermocline.depthMeters)}" y2="${y(thermocline.depthMeters)}"/><g class="wc-thermocline-tag" transform="translate(${plot.left + 6} ${y(thermocline.depthMeters) - 11})"><rect width="128" height="20" rx="10"/><text x="64" y="14" text-anchor="middle">Thermocline ${greatLakesDepthLabel(thermocline.depthMeters)}</text></g>`
+  // The band is shaded from its top to its bottom (cut at the zoom); the tag sits on the top line.
+  const band = thermoclineBand(thermocline);
+  const bandBottom = band ? Math.min(band.bottom, maxDepthMeters) : 0;
+  const tagText = band ? `Thermocline ${depthRangeLabel(band)}` : "";
+  const tagWidth = Math.round(tagText.length * 6.4 + 18);
+  const thermoclineBandShade = band && band.top <= maxDepthMeters && bandBottom > band.top
+    ? html`<rect class="wc-thermocline-band" x="${plot.left}" width="${plot.right - plot.left}" y="${y(band.top)}" height="${y(bandBottom) - y(band.top)}"/>`
+    : "";
+  const thermoclineMarker = band && band.top <= maxDepthMeters
+    ? html`<line class="wc-thermocline-line" x1="${plot.left}" x2="${plot.right}" y1="${y(band.top)}" y2="${y(band.top)}"/>${band.bottom <= maxDepthMeters && band.thickness > 0 ? html`<line class="wc-thermocline-line is-bottom" x1="${plot.left}" x2="${plot.right}" y1="${y(band.bottom)}" y2="${y(band.bottom)}"/>` : ""}<g class="wc-thermocline-tag" transform="translate(${plot.left + 6} ${y(band.top) - 11})"><rect width="${tagWidth}" height="20" rx="10"/><text x="${tagWidth / 2}" y="14" text-anchor="middle">${tagText}</text></g>`
     : "";
   const dots = joinHtml(shown.filter((item) => !item.interpolated).map((item) => html`<circle class="wc-dot" cx="${x(plotTemp(item.temperatureC))}" cy="${y(item.depthMeters)}" r="3.5"/>`), "");
 
   return html`<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" aria-hidden="true" data-plot-left="${plot.left}" data-plot-right="${plot.right}" data-plot-top="${plot.top}" data-plot-bottom="${plot.bottom}" data-max-depth="${maxDepthMeters}" data-min-temp="${minTemp}" data-max-temp="${maxTemp}" data-uniform-temp="${uniform ? uniformTemp : ""}">
-    ${gridY}${gridX}${mixedLabel}
+    ${thermoclineBandShade}${gridY}${gridX}${mixedLabel}
     <text class="wc-axis wc-axis-title" x="${plot.left}" y="13">Temperature (°${tempUnit})</text>
     <polyline class="wc-line" points="${linePoints.join(" ")}"/>
     ${dots}${thermoclineMarker}
