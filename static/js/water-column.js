@@ -145,7 +145,7 @@ export function waterColumnDialogHtml(profile, zoom) {
   return html`<dialog class="water-column-dialog" aria-labelledby="waterColumnTitle">
     <header class="wc-header">
       <div><h3 id="waterColumnTitle">Water column</h3><p>${subtitle}</p></div>
-      <form method="dialog"><button class="icon-button" aria-label="Close">×</button></form>
+      <form method="dialog"><button class="icon-button" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10m0-10L7 17"/></svg></button></form>
     </header>
     ${statsHtml(profile, values)}
     ${zoomHtml(values, zoom)}
