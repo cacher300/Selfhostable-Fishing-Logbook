@@ -744,6 +744,7 @@ export function thinWaveArrows(arrows, project, bounds, spacing = WAVE_ARROW_SPA
 
 export function createWaveArrowLayer(map, arrows) {
   const group = L.layerGroup();
+  let opacity = 1;
   const draw = () => {
     group.clearLayers();
     const bounds = map.getBounds().pad(0.1);
@@ -756,7 +757,7 @@ export function createWaveArrowLayer(map, arrows) {
         iconAnchor: [size / 2, size / 2],
         html: html`<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="transform:rotate(${Math.round(waveTravelDegrees(arrow.directionDegrees))}deg)" aria-hidden="true"><path d="M12 2.5 18.5 11h-4.2v10.5H9.7V11H5.5Z"/></svg>`
       });
-      L.marker([arrow.latitude, arrow.longitude], { icon, interactive: false, keyboard: false }).addTo(group);
+      L.marker([arrow.latitude, arrow.longitude], { icon, interactive: false, keyboard: false, opacity }).addTo(group);
     });
   };
   const originalOnAdd = group.onAdd.bind(group);
@@ -769,6 +770,11 @@ export function createWaveArrowLayer(map, arrows) {
   group.onRemove = (target) => {
     map.off("zoomend moveend", draw);
     originalOnRemove(target);
+  };
+  group.setOpacity = (value) => {
+    opacity = Math.max(0, Math.min(1, Number(value) || 0));
+    group.eachLayer((marker) => marker.setOpacity(opacity));
+    return group;
   };
   return group;
 }
@@ -838,14 +844,14 @@ export function clearGreatLakesVisuals() {
   document.querySelectorAll(".great-lakes-temperature-raster, .great-lakes-thermocline-raster, .great-lakes-current-raster, .great-lakes-wave-raster").forEach((image) => image.remove());
 }
 
-export function renderGreatLakesCurrents(points, zoom, target = greatLakesConditionsLayer) {
+export function renderGreatLakesCurrents(points, zoom, target = greatLakesConditionsLayer, opacity = 1) {
   const stride = zoom <= 5 ? 12 : zoom <= 7 ? 8 : zoom <= 9 ? 5 : 3;
   const bySpeed = greatLakesFlowColor === FLOW_COLOR_BY_SPEED;
   points.filter((_, index) => index % stride === 0).forEach((point) => {
     const size = Math.round(Math.max(14, Math.min(30, 14 + point.speed * 50)));
     const fill = bySpeed ? `;fill:${paletteColor(point.speed / greatLakesCurrentSpeedMax, CURRENT_FLOW_SPEED_COLOR_STOPS)}` : "";
     const icon = L.divIcon({ className: "great-lakes-current-arrow", iconSize: [size, size], iconAnchor: [size / 2, size / 2], html: html`<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="transform:rotate(${Math.round(point.direction)}deg)${fill}" aria-hidden="true"><path d="M12 2.5 19 20.5 12 16.2 5 20.5Z"/></svg>` });
-    L.marker([point.latitude, point.longitude], { icon, interactive: false, keyboard: false }).addTo(target);
+    L.marker([point.latitude, point.longitude], { icon, interactive: false, keyboard: false, opacity }).addTo(target);
   });
 }
 
