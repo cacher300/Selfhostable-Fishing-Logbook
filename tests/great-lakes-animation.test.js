@@ -83,6 +83,9 @@ const overlays = [...document.querySelectorAll(".great-lakes-animation-frame")];
 assert.equal(overlays.length, 3);
 // Frames are opaque inside a pane that carries the layer opacity, so a frame
 // fading in over another never lets the map show through.
+// Playback starts fading toward the next frame immediately, without a hold.
+assert.deepEqual(overlays.map((image) => image.style.opacity), ["1", "1", "0"]);
+play.click();
 assert.deepEqual(overlays.map((image) => image.style.opacity), ["1", "0", "0"]);
 assert.equal(overlays[0].parentElement.style.opacity, "0.9");
 assert.equal(document.querySelector("[data-gl-animation-speed-choice]").value, "fast");
@@ -91,6 +94,9 @@ assert.equal(slider.max, "2");
 assert.equal(shown.metadata.validTime, frames[0].validTime);
 assert.equal(document.querySelector("[data-gl-temperature-max]").textContent, "60.8 °F");
 assert.equal(conditions.greatLakesForecastHour(), "0");
+
+assert.deepEqual(conditions.blendCurrentVectors({ u: 1, v: 0 }, { u: 0, v: 1 }, 0.5), { u: 0.5, v: 0.5 });
+assert.deepEqual(conditions.blendCurrentVectors({ u: 1, v: 0 }, { u: -1, v: 0 }, 0.5), { u: 0, v: 0 });
 
 // Scrubbing pauses on the chosen frame, and readings follow it.
 slider.value = "2";
@@ -119,5 +125,33 @@ assert.equal(document.querySelector("[data-gl-animation-stop]").hidden, true);
 await waitFor(() => calls.conditions === 2, "the forecast choice");
 assert.equal(document.querySelectorAll(".great-lakes-animation-frame").length, 0);
 assert.equal(conditions.greatLakesForecastHour(), "6");
+// Temperature backgrounds must follow the current forecast hour even when
+// independently prepared indexes return their frames in a different order.
+const currentFrames = frames.map((frame) => ({ ...frame, url: `${frame.url}&kind=currents` }));
+const temperatureFrames = [frames[2], frames[0], frames[1]].map((frame) => ({ ...frame, url: `${frame.url}&background=1` }));
+window.noaaGreatLakesApi.animation = async ({ layer }) => ({ ready: true, frames: layer === "currents" ? currentFrames : temperatureFrames });
+window.noaaGreatLakesApi.animationFrame = async ({ url }) => {
+  const frame = [...currentFrames, ...temperatureFrames].find((item) => item.url === url);
+  return {
+    rasters: [{ imageUrl: `${url}.webp`, bounds: [[41, -84], [43, -78]] }],
+    metadata: { forecastHour: frame.forecastHour, minC: 10, maxC: 16, models: [] }
+  };
+};
+document.querySelector("[data-gl-layer]").value = "currents";
+document.querySelector("[data-gl-current-background]").value = "temperature";
+document.querySelector("[data-gl-current-display]").value = "off";
+animation.animationState.active = true;
+assert.equal(await animation.loadGreatLakesAnimation(map, { layer: "currents", depth: "0", isCurrent: () => true }), true);
+animation.syncTimelineControls();
+const temperatureOverlays = [...document.querySelectorAll(".great-lakes-animation-frame")];
+assert.deepEqual(temperatureOverlays.map((image) => image.getAttribute("src")), frames.map((frame) => `${frame.url}&background=1.webp`));
+slider.value = "2";
+slider.dispatchEvent(new Event("input", { bubbles: true }));
+await waitFor(() => temperatureOverlays[0].style.opacity === "0", "the current temperature background to change");
+assert.deepEqual(temperatureOverlays.map((image) => image.style.opacity), ["0", "0", "1"]);
+assert.equal(shown.temperatureMetadata.forecastHour, 4);
+play.click();
+await waitFor(() => shown.temperatureMetadata.forecastHour === 0, "temperature playback to loop with currents");
+animation.stopGreatLakesAnimation();
 map.remove();
 process.exit(0);

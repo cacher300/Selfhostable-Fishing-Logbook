@@ -119,6 +119,10 @@ The "Upwelling & downwelling" layer (`great_lakes_upwelling.py`, shared with the
 
 ### Great Lakes past 30 days
 
+Forecast animation matches a water-temperature background to each current frame by forecast hour rather than by list position. Frame events include the corresponding temperature metadata. Measurement stations are hidden while animation is active, including when paused, and restored on stop without changing the user's stations setting.
+
+Playing starts the next image's linear fade immediately, lasts for the entire frame interval, and starts the following fade without a hold. Older images are hidden instantly at the handoff so their cleanup cannot fade the map through. Current particles keep their trails and interpolate the eastward/northward velocity between the adjacent forecast grids. Reduced motion keeps discrete frame steps.
+
 The map's "Past 30 days" choice shows the conditions as they were at any hour of the last 30 days: each layer's surface map, point readings and water-column profiles (with the thermocline), and station readings, plus a 30-day chart in each station's popup. The desktop app does not run around the clock, so it does not record this itself: the Great Lakes Trolling site's server saves "Now" every hour (never forecasts) and `great_lakes_history_client.py` reads it from that site's public API (`GREAT_LAKES_HISTORY_URL`, default `https://greatlakestrolling.com`). `/api/great-lakes/history/...` passes the answers on to the browser, serves the saved map images through this app, and keeps recent maps and images in memory. Without a connection to the site, "Past 30 days" says the saved conditions are unavailable.
 
 ### Great Lakes waves
