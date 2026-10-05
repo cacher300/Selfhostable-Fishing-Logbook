@@ -9,8 +9,9 @@ const FEET_PER_METER = 3.28084;
 const MODEL_LAKES = { LSOFS: "Lake Superior", LMHOFS: "Lakes Michigan and Huron", LEOFS: "Lake Erie", LOOFS: "Lake Ontario" };
 // Zoom presets in the display unit; only those shallower than the water are offered.
 const ZOOM_PRESETS = { ft: [50, 100, 200], m: [15, 30, 60] };
-// Less variation than this through the whole column draws as a straight line.
-const UNIFORM_SPAN = { F: 0.5, C: 0.3 };
+// Less variation than this through the whole column draws as a straight line (0.5 °F in
+// either unit; the server never finds a thermocline in a column that varies less).
+const UNIFORM_SPAN = { F: 0.5, C: 0.5 / 1.8 };
 
 let currentProfile = null;
 let chosenZoom = null; // null = automatic; 0 = whole column; otherwise a preset depth in display units.

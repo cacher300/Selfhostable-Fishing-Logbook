@@ -170,14 +170,23 @@ def test_the_top_always_has_cooler_water_right_below_it() -> None:
 
 
 def test_a_thermocline_just_above_the_bed_is_found() -> None:
-    # 45.71, -81.26: flat to 49 ft, 0.45 °F cooler at the deepest level (66 ft), bed at 79 ft.
+    # 45.71, -81.26: flat to 49 ft, 0.6 °F cooler at the deepest level (66 ft), bed at 79 ft.
     feet = [0, 3, 7, 13, 20, 26, 33, 39, 49, 66]
-    fahrenheit = [57.91, 57.91, 57.91, 57.91, 57.91, 57.91, 57.91, 57.91, 57.90, 57.45]
+    fahrenheit = [57.91, 57.91, 57.91, 57.91, 57.91, 57.91, 57.91, 57.91, 57.90, 57.31]
 
     band, finding = service._thermocline_analysis(_feet_profile(feet, fahrenheit), 79 / 3.28084)
 
     assert finding == "found"
     assert round(band["top"] * 3.28084) == 49 and round(band["bottom"] * 3.28084) == 66
+
+
+def test_a_column_that_reads_as_uniform_has_no_thermocline() -> None:
+    # North Channel (46.05, -82.18): flat to 66 ft, then under half a degree cooler (61.31 to
+    # 60.83 °F) by 98 ft. The chart draws it as one straight line, so there is no thermocline.
+    feet = [0, 3, 7, 13, 20, 26, 33, 39, 49, 66, 82, 98, 115]
+    fahrenheit = [61.24, 61.25, 61.26, 61.28, 61.29, 61.30, 61.30, 61.30, 61.31, 61.31, 61.09, 60.83, 60.83]
+
+    assert service._thermocline_analysis(_feet_profile(feet, fahrenheit), 120 / 3.28084) == (None, "mixed")
 
 
 def test_mixed_and_winter_water_have_no_thermocline() -> None:
