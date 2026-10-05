@@ -122,6 +122,22 @@ def test_profile_depths_are_sorted_before_detection() -> None:
     assert service._thermocline_band(shuffled) == service._thermocline_band(sorted(shuffled))
 
 
+def test_readings_show_at_most_15_ft_of_the_band(monkeypatch) -> None:
+    feet = [0, 3, 7, 13, 20, 26, 33, 39, 49, 66, 82, 98, 115, 131, 148, 164]
+    fahrenheit = [58.7, 58.7, 58.7, 58.7, 58.7, 58.7, 58.7, 58.6, 58.3, 57.2, 56.3, 55.2, 54.3, 53.6, 52.9, 52.7]
+    values = [{"depthMeters": depth / 3.28084, "temperatureC": (temperature - 32) / 1.8} for depth, temperature in zip(feet, fahrenheit)]
+    monkeypatch.setattr(service, "model_bathymetry_depth", lambda *args: None)
+    run = {"id": "20261004t18z", "cycleEpoch": 1791137600.0}
+
+    thermocline = service._temperature_profile_result("LMHOFS", run, 5, 45.19, -80.46, 45.19, -80.46, values)["thermocline"]
+
+    # The band runs from 49 ft to about 103 ft; readings show its top 15 ft.
+    assert round(thermocline["topDepthMeters"] * 3.28084) == 49
+    assert round(thermocline["bottomDepthMeters"] * 3.28084) == 64 and round(thermocline["thicknessMeters"] * 3.28084) == 15
+    assert thermocline["fullBottomDepthMeters"] * 3.28084 > 90
+    assert round(thermocline["temperatureBelowC"] * 1.8 + 32, 1) == 57.3  # at 64 ft, between 58.3 (49 ft) and 57.2 (66 ft)
+
+
 def test_smoothing_evens_out_level_jitter_without_spreading_into_mixed_water() -> None:
     values = [10.0, 12.0, None, 10.0, 12.0, None]
 
