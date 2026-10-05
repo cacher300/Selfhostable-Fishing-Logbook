@@ -326,8 +326,6 @@ export function ensureGreatLakesConditions(map) {
   const syncLayerSpecificControls = () => syncGreatLakesLayerControls(host);
   syncLayerSpecificControls();
   host.querySelectorAll("select").forEach((select) => select.addEventListener("change", () => {
-    // The animation's own speed choice only changes its timing (great-lakes-animation.js).
-    if (select.matches("[data-gl-animation-speed-choice]")) return;
     if (select.matches("[data-gl-flow-color]")) {
       onFlowColorChange(map, host, select.value);
       return;
@@ -776,7 +774,7 @@ export async function showGreatLakesCurrentProfile({ latitude, longitude }) {
   document.querySelector(".great-lakes-current-dialog")?.remove();
   const dialog = document.createElement("dialog");
   dialog.className = "great-lakes-current-dialog";
-  setHtml(dialog, html`<form method="dialog"><button class="icon-button" aria-label="Close current profile">×</button></form><h3>Underwater current by depth</h3><div data-gl-current-profile-content role="status">Loading NOAA current profile…</div>`);
+  setHtml(dialog, html`<form method="dialog"><button class="icon-button" aria-label="Close current profile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10m0-10L7 17"/></svg></button></form><h3>Underwater current by depth</h3><div data-gl-current-profile-content role="status">Loading NOAA current profile…</div>`);
   document.body.append(dialog);
   dialog.addEventListener("close", () => dialog.remove(), { once: true });
   dialog.showModal();

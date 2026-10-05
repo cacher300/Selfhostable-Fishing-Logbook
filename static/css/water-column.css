@@ -18,7 +18,7 @@
 .wc-header h3 { margin: 0; font-size: 22px; line-height: 1.2; }
 .wc-header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
 .wc-header form { margin: 0; }
-.wc-header .icon-button { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 999px; background: var(--field); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer; }
+.wc-header .icon-button { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 999px; background: var(--field); color: var(--text); cursor: pointer; }
 
 .wc-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0 14px; }
 .wc-stat { display: grid; align-content: start; gap: 2px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }

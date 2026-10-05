@@ -9,6 +9,7 @@ import { isUsableCoordinates, isVideoMedia, mediaMarkup, previewImage } from "./
 import { coordinateText } from "./locations.js";
 import { fishingSpotRadiusText } from "./settings-locations.js";
 import { ensureGreatLakesConditions } from "./great-lakes-conditions.js";
+import { pauseGreatLakesAnimation } from "./great-lakes-animation.js";
 import { positionLabel } from "./cards.js";
 import { addMeasureControl, isMeasuring } from "./measure.js";
 import { formatDate } from "./dashboard.js";
@@ -255,6 +256,8 @@ export async function showDepthPopupForMapClick(map, event) {
     longitude: Number(event.latlng?.lng)
   };
   if (!Number.isFinite(coordinates.latitude) || !Number.isFinite(coordinates.longitude)) return;
+  // A reading belongs to the frame on screen, so a playing animation stops there.
+  pauseGreatLakesAnimation();
   const popup = L.popup({ className: "gl-popup", minWidth: 240, maxWidth: 280 })
     .setLatLng(event.latlng)
     .setContent(String(mapDepthPopupHtml(coordinates)))

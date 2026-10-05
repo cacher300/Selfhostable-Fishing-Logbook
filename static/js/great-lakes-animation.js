@@ -26,17 +26,16 @@ import { createPaletteFilter, fitPaletteToView, paletteOverlays } from "./great-
 // so colours only change where the water does. Every frame is downloaded
 // first, then each frame fades in over the one before it (which stays drawn
 // underneath, so colours blend straight into each other and never dip to the
-// map), taking most of the frame so the change reads as continuous. Currents
+// map) for the full frame interval. Currents
 // keep their particles flowing and only swap the field under them.
 // Time per frame and the share of it spent fading into the next, per speed.
 export const ANIMATION_SPEEDS = Object.freeze({
-  slow: { label: "Slow", frameMs: 2400 },
-  normal: { label: "Normal", frameMs: 1400 },
-  fast: { label: "Fast", frameMs: 700 }
+  slow: { label: "0.5×", frameMs: 2800 },
+  normal: { label: "1×", frameMs: 1400 },
+  fast: { label: "2×", frameMs: 700 }
 });
-export const ANIMATION_FADE_SHARE = 0.75;
-// The last frame is held this much longer before the loop starts again.
-export const ANIMATION_LAST_FRAME_EXTRA_MS = 1200;
+const ANIMATION_SPEED_CYCLE = ["normal", "fast", "slow"];
+export const ANIMATION_FADE_SHARE = 1;
 export const ANIMATION_SPEED_STORAGE_KEY = "glc.AnimationSpeed";
 export const ANIMATION_POLL_MS = 1500;
 export const ANIMATION_FETCH_CONCURRENCY = 4;
@@ -84,14 +83,24 @@ export function savedAnimationSpeed() {
 }
 
 function speedTiming() {
-  const select = document.querySelector("[data-gl-animation-speed-choice]");
-  const speed = ANIMATION_SPEEDS[select?.value] || ANIMATION_SPEEDS[savedAnimationSpeed()];
+  const choice = document.querySelector("[data-gl-animation-speed-choice]");
+  const speed = ANIMATION_SPEEDS[choice?.value] || ANIMATION_SPEEDS[savedAnimationSpeed()];
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   return { frameMs: speed.frameMs, fadeMs: reduced ? 0 : Math.round(speed.frameMs * ANIMATION_FADE_SHARE) };
 }
 
 export function greatLakesAnimationActive() {
   return state.active;
+}
+
+export function pauseGreatLakesAnimation() {
+  if (!state.playing) return;
+  state.playing = false;
+  clearTimeout(state.timer);
+  clearTimeout(state.fadeTimer);
+  state.map?.getPane(ANIMATION_PANE)?.classList.add("is-instant");
+  hideAnimationFramesExcept(state.index);
+  syncTimelineControls();
 }
 
 // The hour the map is showing, for readings at a clicked point.
@@ -101,13 +110,14 @@ export function greatLakesAnimationForecastHour() {
 
 export function greatLakesTimelineHtml() {
   const speed = savedAnimationSpeed();
+  const speedLabel = ANIMATION_SPEEDS[speed].label;
   return html`<div class="great-lakes-timeline" data-gl-timeline>
     <button type="button" class="great-lakes-play" data-gl-play aria-label="Play the forecast" aria-pressed="false" title="Play the forecast">${playIconHtml(false)}</button>
+    <button type="button" class="great-lakes-timeline-speed" data-gl-animation-speed-choice value="${speed}" aria-label="Animation speed: ${speedLabel}. Click to change." title="Change animation speed">${speedLabel}</button>
     <div class="great-lakes-timeline-track">
       <input type="range" data-gl-frame min="0" max="16" step="1" value="0" disabled aria-label="Forecast time" />
       <div class="great-lakes-timeline-meta">
         <span class="great-lakes-timeline-label" data-gl-frame-label aria-live="off">${ANIMATION_IDLE_LABEL}</span>
-        <label class="great-lakes-timeline-speed">Speed<select data-gl-animation-speed-choice aria-label="Animation speed">${Object.entries(ANIMATION_SPEEDS).map(([value, option]) => html`<option value="${value}"${value === speed ? " selected" : ""}>${option.label}</option>`)}</select></label>
       </div>
     </div>
     <button type="button" class="great-lakes-timeline-stop" data-gl-animation-stop aria-label="Stop the animation" title="Back to the forecast choice" hidden>×</button>
@@ -169,8 +179,16 @@ export function setupGreatLakesTimeline(host, reload) {
     stopGreatLakesAnimation();
     reload();
   });
-  host.querySelector("[data-gl-animation-speed-choice]")?.addEventListener("change", (event) => {
-    try { localStorage.setItem(ANIMATION_SPEED_STORAGE_KEY, event.target.value); } catch { /* storage unavailable */ }
+  host.querySelector("[data-gl-animation-speed-choice]")?.addEventListener("click", (event) => {
+    const button = event.currentTarget;
+    const speedIndex = ANIMATION_SPEED_CYCLE.indexOf(button.value);
+    const speed = ANIMATION_SPEED_CYCLE[(speedIndex + 1) % ANIMATION_SPEED_CYCLE.length];
+    const label = ANIMATION_SPEEDS[speed].label;
+    button.value = speed;
+    button.textContent = label;
+    button.setAttribute("aria-label", `Animation speed: ${label}. Click to change.`);
+    button.title = `Animation speed: ${label}`;
+    try { localStorage.setItem(ANIMATION_SPEED_STORAGE_KEY, speed); } catch { /* storage unavailable */ }
     applyFadeDuration();
     if (state.playing) scheduleNextFrame();
   });
@@ -369,8 +387,14 @@ function buildFrames(map, background) {
   }
 }
 
-// The new frame fades in on top of the one on screen, which stays fully drawn
-// underneath until the fade is done; then the frames below are hidden.
+function hideAnimationFramesExcept(index) {
+  state.overlays.forEach((overlays, frame) => {
+    if (frame !== index) overlays.forEach((overlay) => overlay.setOpacity(0));
+  });
+}
+
+// The new frame fades in over the one on screen. During playback, older frames
+// are cleared at the next handoff so only the adjacent pair stays on the map.
 function crossfadeTo(index, fade) {
   const pane = state.map?.getPane(ANIMATION_PANE);
   pane?.classList.toggle("is-instant", !fade);
@@ -380,10 +404,9 @@ function crossfadeTo(index, fade) {
     overlay.setOpacity(1);
   });
   clearTimeout(state.fadeTimer);
-  const hideOthers = () => state.overlays.forEach((overlays, frame) => {
-    if (frame !== state.index) overlays.forEach((overlay) => overlay.setOpacity(0));
-  });
+  const hideOthers = () => hideAnimationFramesExcept(state.index);
   const { fadeMs } = speedTiming();
+  if (fade && fadeMs > 0 && state.playing) return;
   if (fade && fadeMs > 0) state.fadeTimer = setTimeout(hideOthers, fadeMs + 60);
   else hideOthers();
 }
@@ -427,13 +450,13 @@ function scheduleNextFrame() {
   clearTimeout(state.timer);
   if (!state.playing || state.frames.length < 2) return;
   const { frameMs } = speedTiming();
-  const wait = state.index === state.frames.length - 1 ? frameMs + ANIMATION_LAST_FRAME_EXTRA_MS : frameMs;
   state.timer = setTimeout(() => {
     if (!state.playing) return;
     if (document.hidden) return;  // Resumed by visibilitychange.
+    hideAnimationFramesExcept(state.index);
     showFrame((state.index + 1) % state.frames.length);
     scheduleNextFrame();
-  }, wait);
+  }, frameMs);
 }
 
 // Exposed for tests.
