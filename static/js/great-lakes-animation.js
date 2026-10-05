@@ -65,13 +65,17 @@ const state = {
   overlays: [],
   index: 0,
   timer: null,
+  sliderFrame: null,
   fadeTimer: null,
   // Every frame's colours fit what is on screen across all frames (great-lakes-palette.js).
   paletteFit: null,
   stack: 0,
   particles: null,
   arrows: null,
+  previousArrows: null,
   waveArrows: null,
+  previousWaveArrows: null,
+  waveArrowTimer: null,
   map: null
 };
 const payloadCache = new Map();
@@ -99,7 +103,17 @@ export function pauseGreatLakesAnimation() {
   if (!state.playing) return;
   state.playing = false;
   clearTimeout(state.timer);
+  cancelAnimationFrame(state.sliderFrame);
+  state.sliderFrame = null;
   clearTimeout(state.fadeTimer);
+  clearTimeout(state.waveArrowTimer);
+  state.waveArrowTimer = null;
+  state.previousWaveArrows?.remove();
+  state.previousWaveArrows = null;
+  state.waveArrows?.setOpacity?.(1);
+  state.previousArrows?.remove();
+  state.previousArrows = null;
+  setMarkerGroupOpacity(state.arrows, 1);
   state.map?.getPane(ANIMATION_PANE)?.classList.add("is-instant");
   showFrame(state.index, { fade: false });
   syncTimelineControls();
@@ -176,7 +190,9 @@ export function setupGreatLakesTimeline(host, reload) {
     if (!state.frames.length) return;
     state.playing = false;
     clearTimeout(state.timer);
-    showFrame(Number(slider.value));
+    cancelAnimationFrame(state.sliderFrame);
+    state.sliderFrame = null;
+    showFrame(Math.round(Number(slider.value)));
     syncTimelineControls();
   });
   stop.addEventListener("click", () => {
@@ -200,7 +216,9 @@ export function setupGreatLakesTimeline(host, reload) {
 }
 
 function applyFadeDuration() {
-  state.map?.getPane(ANIMATION_PANE)?.style.setProperty("--gl-frame-fade", `${speedTiming().fadeMs}ms`);
+  const duration = `${speedTiming().fadeMs}ms`;
+  state.map?.getPane(ANIMATION_PANE)?.style.setProperty("--gl-frame-fade", duration);
+  state.map?.getContainer()?.style.setProperty("--gl-frame-fade", duration);
 }
 
 export function syncTimelineControls() {
@@ -221,6 +239,7 @@ export function syncTimelineControls() {
   if (slider) {
     slider.disabled = !state.frames.length;
     slider.max = String(Math.max(0, state.frames.length - 1));
+    slider.step = state.playing ? "any" : "1";
     slider.value = String(state.index);
   }
   if (label && !state.active) label.textContent = ANIMATION_IDLE_LABEL;
@@ -230,6 +249,8 @@ export function stopGreatLakesAnimation() {
   state.active = false;
   state.playing = false;
   clearTimeout(state.timer);
+  cancelAnimationFrame(state.sliderFrame);
+  state.sliderFrame = null;
   clearGreatLakesAnimationVisuals();
   state.frames = [];
   state.payloads = [];
@@ -242,12 +263,19 @@ export function stopGreatLakesAnimation() {
 export function clearGreatLakesAnimationVisuals() {
   clearTimeout(state.timer);
   clearTimeout(state.fadeTimer);
+  clearTimeout(state.waveArrowTimer);
+  cancelAnimationFrame(state.sliderFrame);
+  state.sliderFrame = null;
   state.particles?.remove();
   state.particles = null;
   state.arrows?.remove();
   state.arrows = null;
+  state.previousArrows?.remove();
+  state.previousArrows = null;
   state.waveArrows?.remove();
   state.waveArrows = null;
+  state.previousWaveArrows?.remove();
+  state.previousWaveArrows = null;
   state.paletteFit?.stop();
   state.paletteFit = null;
   state.overlays = [];
@@ -417,6 +445,10 @@ function hideAnimationFramesExcept(index) {
   if (pane) void pane.offsetWidth;
 }
 
+function setMarkerGroupOpacity(group, opacity) {
+  group?.eachLayer((marker) => marker.setOpacity(opacity));
+}
+
 // The new frame fades in over the one on screen. During playback, older frames
 // are cleared at the next handoff so only the adjacent pair stays on the map.
 function crossfadeTo(index, fade) {
@@ -438,25 +470,35 @@ function crossfadeTo(index, fade) {
   else hideOthers();
 }
 
-function showFrame(index, { fade = true } = {}) {
+function showFrame(index, { fade = true, preserveWaveArrows = false, preserveCurrentArrows = false } = {}) {
   if (!state.frames.length) return;
   state.index = Math.max(0, Math.min(state.frames.length - 1, index));
   const payload = state.payloads[state.index] || {};
   crossfadeTo(state.index, fade);
   if (state.layer === "currents") {
     if (state.particles && payload.fields?.length) state.particles.setFields(payload.fields);
-    if (state.arrows) {
+    if (state.arrows && !preserveCurrentArrows) {
+      state.previousArrows?.remove();
+      state.previousArrows = null;
+      clearTimeout(state.waveArrowTimer);
       state.arrows.clearLayers();
       renderGreatLakesCurrents(payload.data || [], state.map.getZoom(), state.arrows);
     }
   }
   if (state.layer === "waves") {
-    state.waveArrows?.remove();
     const display = greatLakesControlValue("wave-display");
     if (state.particles && display === "flow") state.particles.setFields(waveParticleFields(payload.arrows || []));
-    state.waveArrows = display === "arrows" && (payload.arrows || []).length
-      ? createWaveArrowLayer(state.map, payload.arrows).addTo(state.map)
-      : null;
+    if (!preserveWaveArrows && display === "arrows") {
+      state.previousWaveArrows?.remove();
+      state.previousWaveArrows = null;
+      state.waveArrows?.remove();
+      state.waveArrows = (payload.arrows || []).length ? createWaveArrowLayer(state.map, payload.arrows).addTo(state.map) : null;
+    } else if (!preserveWaveArrows) {
+      state.previousWaveArrows?.remove();
+      state.previousWaveArrows = null;
+      state.waveArrows?.remove();
+      state.waveArrows = null;
+    }
   }
   const frame = state.frames[state.index];
   const label = animationFrameLabel(frame.validTime, state.index);
@@ -476,26 +518,84 @@ function showFrame(index, { fade = true } = {}) {
   document.dispatchEvent(new CustomEvent("great-lakes-frame-shown", { detail: { layer: state.layer, metadata: { ...metadata, validTime: frame.validTime }, temperatureMetadata, depth: state.depth } }));
 }
 
-function scheduleNextFrame() {
+function scheduleNextFrame(frameAlreadyShown = false) {
   clearTimeout(state.timer);
+  cancelAnimationFrame(state.sliderFrame);
+  state.sliderFrame = null;
   if (!state.playing || state.frames.length < 2) return;
   if (document.hidden) return;
   const { frameMs, fadeMs } = speedTiming();
   const next = (state.index + 1) % state.frames.length;
-  showFrame(state.index, { fade: false });
+  if (!frameAlreadyShown) showFrame(state.index, { fade: false });
+  const slider = document.querySelector("[data-gl-frame]");
+  if (slider) slider.step = "any";
+  if (fadeMs && slider) {
+    const from = state.index;
+    const started = performance.now();
+    const advanceSlider = (now) => {
+      if (!state.playing) return;
+      const progress = Math.min(1, (now - started) / frameMs);
+      const position = next > from ? from + (next - from) * progress : state.frames.length - 1;
+      slider.value = String(position);
+      state.sliderFrame = progress < 1 ? requestAnimationFrame(advanceSlider) : null;
+    };
+    state.sliderFrame = requestAnimationFrame(advanceSlider);
+  } else if (slider) slider.value = String(state.index);
   // Begin blending immediately; hand off to the next frame when the blend
   // finishes, then start the following blend without a hold between frames.
   if (fadeMs) {
     crossfadeTo(next, true);
     const payload = state.payloads[next] || {};
     if (state.layer === "currents") state.particles?.setFields(payload.fields || [], { durationMs: frameMs });
-    if (state.layer === "waves") state.particles?.setFields(waveParticleFields(payload.arrows || []), { durationMs: frameMs });
+    if (state.layer === "waves" && payload.arrows) state.particles?.setFields(waveParticleFields(payload.arrows), { durationMs: frameMs });
+    if (state.layer === "waves" && greatLakesControlValue("wave-display") === "arrows") {
+      const previous = state.waveArrows;
+      const incoming = (payload.arrows || []).length ? createWaveArrowLayer(state.map, payload.arrows) : null;
+      incoming?.setOpacity(0);
+      incoming?.addTo(state.map);
+      if (incoming) requestAnimationFrame(() => incoming.setOpacity(1));
+      previous?.setOpacity?.(0);
+      state.previousWaveArrows?.remove();
+      state.previousWaveArrows = previous || null;
+      state.waveArrows = incoming;
+      state.waveArrowTimer = setTimeout(() => {
+        state.previousWaveArrows?.remove();
+        state.previousWaveArrows = null;
+        state.waveArrowTimer = null;
+      }, frameMs);
+    }
+    if (state.layer === "currents" && state.arrows) {
+      const previous = state.arrows;
+      const incoming = L.layerGroup().addTo(state.map);
+      renderGreatLakesCurrents(payload.data || [], state.map.getZoom(), incoming, 0);
+      requestAnimationFrame(() => setMarkerGroupOpacity(incoming, 1));
+      setMarkerGroupOpacity(previous, 0);
+      state.previousArrows?.remove();
+      state.previousArrows = previous;
+      state.arrows = incoming;
+      clearTimeout(state.waveArrowTimer);
+      state.waveArrowTimer = setTimeout(() => {
+        state.previousArrows?.remove();
+        state.previousArrows = null;
+        state.waveArrowTimer = null;
+      }, frameMs);
+    }
   }
   state.timer = setTimeout(() => {
     if (!state.playing) return;
     if (document.hidden) return;  // Resumed by visibilitychange.
-    showFrame(next, { fade: false });
-    scheduleNextFrame();
+    state.previousWaveArrows?.remove();
+    state.previousWaveArrows = null;
+    state.previousArrows?.remove();
+    state.previousArrows = null;
+    clearTimeout(state.waveArrowTimer);
+    state.waveArrowTimer = null;
+    showFrame(next, {
+      fade: false,
+      preserveWaveArrows: state.layer === "waves" && greatLakesControlValue("wave-display") === "arrows",
+      preserveCurrentArrows: state.layer === "currents" && Boolean(state.arrows)
+    });
+    scheduleNextFrame(true);
   }, frameMs);
 }
 

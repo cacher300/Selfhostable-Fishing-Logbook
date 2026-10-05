@@ -623,6 +623,7 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 .great-lakes-timeline-speed:hover { background: var(--hover); }
 :is(.great-lakes-play, .great-lakes-timeline-speed, .great-lakes-timeline-stop):focus-visible { outline: 3px solid var(--chip-line); outline-offset: 2px; }
 .great-lakes-animation-frame { transition: opacity var(--gl-frame-fade, 1000ms) linear; }
+.leaflet-marker-icon:is(.great-lakes-wave-arrow, .great-lakes-current-arrow) { transition: opacity var(--gl-frame-fade, 1000ms) linear; }
 .is-instant > .great-lakes-animation-frame { transition: none; }
 @media (prefers-reduced-motion: reduce) {
   .great-lakes-animation-frame { transition: none; }
