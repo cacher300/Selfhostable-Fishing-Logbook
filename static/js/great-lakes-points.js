@@ -4,8 +4,8 @@ import { ui } from "./app-state.js";
 import { convertUnitValue, unitPreference } from "./app-units.js";
 import {
   TEMPERATURE_COLOR_STOPS, currentDirectionLabel, currentProfileDepthLabel, currentSpeedLabel,
-  greatLakesControlValue, greatLakesModelsForView, paletteColor, waterTemperatureLabel,
-  waveChopLabel, waveDirectionText, waveHeightLabel
+  greatLakesControlValue, greatLakesHistoryMs, greatLakesModelsForView, greatLakesTimeParams, historyTimeLabel,
+  paletteColor, waterTemperatureLabel, waveChopLabel, waveDirectionText, waveHeightLabel
 } from "./great-lakes-conditions.js";
 import { directionIconHtml, readingHtml } from "./cards.js";
 
@@ -90,7 +90,7 @@ export function stationMarkerHtml(station, range) {
   </span>`;
 }
 
-export function stationPopupHtml(station, now = Date.now()) {
+export function stationPopupHtml(station, now = Date.now(), historyHtml = null) {
   const temperature = station.waterTemperature;
   const current = station.current;
   const details = [station.type, station.owner, station.id].filter(Boolean).join(" · ");
@@ -123,8 +123,82 @@ export function stationPopupHtml(station, now = Date.now()) {
   return html`<article class="gl-card">
     <header class="gl-card-head"><strong class="gl-card-title">${station.name}</strong><span class="gl-card-sub">${details}</span></header>
     ${temperatureBlock}${wavesBlock}${currentBlock}
+    <section class="gl-station-history" data-gl-station-history>${historyHtml || html`<span class="gl-reading-label">Past 30 days</span><p class="gl-reading-note">Loading saved readings…</p>`}</section>
     <a class="gl-card-link" href="${station.url}" target="_blank" rel="noopener noreferrer">NOAA station page<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12"/></svg></a>
   </article>`;
+}
+
+// A gap longer than this between saved readings breaks the line instead of joining across it.
+export const STATION_HISTORY_GAP_MS = 3 * 3600 * 1000;
+const SPARK_WIDTH = 248;
+const SPARK_HEIGHT = 52;
+
+function shortDate(milliseconds) {
+  return new Date(milliseconds).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+// A small line chart of one station reading over the saved days; `points` are [milliseconds, value], oldest first.
+export function stationSparklineHtml({ label, points, format, selected = null }) {
+  const usable = (points || []).filter(([time, value]) => Number.isFinite(time) && Number.isFinite(value));
+  if (usable.length < 2) return "";
+  const first = usable[0][0], last = usable[usable.length - 1][0];
+  const values = usable.map(([, value]) => value);
+  let low = Math.min(...values), high = Math.max(...values);
+  if (high - low < 1e-6) { low -= 0.5; high += 0.5; }
+  const span = Math.max(1, last - first), pad = 3;
+  const x = (time) => ((time - first) / span * SPARK_WIDTH).toFixed(1);
+  const y = (value) => (pad + (1 - (value - low) / (high - low)) * (SPARK_HEIGHT - 2 * pad)).toFixed(1);
+  let path = "";
+  usable.forEach(([time, value], index) => {
+    const joined = index > 0 && time - usable[index - 1][0] <= STATION_HISTORY_GAP_MS;
+    path += `${joined ? "L" : "M"}${x(time)} ${y(value)}`;
+  });
+  const marker = Number.isFinite(selected) && selected >= first && selected <= last
+    ? html`<line class="gl-spark-marker" x1="${x(selected)}" x2="${x(selected)}" y1="0" y2="${SPARK_HEIGHT}"/>` : "";
+  const latest = usable[usable.length - 1][1];
+  return html`<div class="gl-spark">
+    <div class="gl-spark-head"><span>${label}</span><strong>${format(latest)}</strong></div>
+    <svg viewBox="0 0 ${SPARK_WIDTH} ${SPARK_HEIGHT}" preserveAspectRatio="none" role="img" aria-label="${label} from ${shortDate(first)} to ${shortDate(last)}: ${format(low)} to ${format(high)}">${marker}<path d="${path}"/></svg>
+    <div class="gl-spark-axis"><span>${shortDate(first)}</span><span>${format(low)} – ${format(high)}</span><span>${shortDate(last)}</span></div>
+  </div>`;
+}
+
+// The station's saved readings (``/history/stations/<id>``) as small charts.
+export function stationHistoryHtml(history, selected = null) {
+  const series = (entries, pick) => (entries || []).map((entry) => [entry[0] * 1000, pick(entry)]);
+  const charts = [
+    stationSparklineHtml({ label: "Water temperature", points: series(history?.temperature, (entry) => entry[1]), format: waterTemperatureLabel, selected }),
+    stationSparklineHtml({ label: "Wave height", points: series(history?.waves, (entry) => entry[1]), format: waveHeightLabel, selected }),
+    stationSparklineHtml({ label: "Current (top reading)", points: series(history?.current, (entry) => entry[1]?.[1]), format: currentSpeedLabel, selected })
+  ].filter((chart) => String(chart));
+  if (!charts.length) return html`<span class="gl-reading-label">Past ${history?.days || 30} days</span><p class="gl-reading-note">Not enough saved readings yet.</p>`;
+  return html`<span class="gl-reading-label">Past ${history?.days || 30} days</span>${charts}`;
+}
+
+// Saved readings per station, kept a few minutes: the popup's content is rebuilt from it when it opens.
+const stationHistories = new Map();
+const STATION_HISTORY_MAX_AGE_MS = 10 * 60 * 1000;
+
+function savedStationHistoryHtml(station) {
+  const saved = stationHistories.get(station.id);
+  if (!saved) return null;
+  if ("error" in saved) {
+    return html`<span class="gl-reading-label">Past 30 days</span><p class="gl-reading-note">${saved.error === 404 ? "No saved readings for this station yet." : "Saved readings are unavailable right now."}</p>`;
+  }
+  return stationHistoryHtml(saved.history, greatLakesTimeParams().time ? greatLakesHistoryMs : null);
+}
+
+async function loadStationHistory(station, popup) {
+  const saved = stationHistories.get(station.id);
+  if (saved && (saved.loading || Date.now() - saved.at < STATION_HISTORY_MAX_AGE_MS)) return;
+  stationHistories.set(station.id, { loading: true, at: Date.now() });
+  try {
+    stationHistories.set(station.id, { history: await window.noaaGreatLakesApi.stationHistory({ id: station.id }), at: Date.now() });
+  } catch (error) {
+    // An error is retried the next time the popup opens.
+    stationHistories.set(station.id, { error: /\(404\)/.test(error.message) ? 404 : 503, at: 0 });
+  }
+  if (popup.isOpen()) popup.update();
 }
 
 export function overlapsAny(box, boxes) {
@@ -164,15 +238,19 @@ function renderStations() {
   [...stations].sort((first, second) => priority(first) - priority(second)).forEach((station) => {
     const icon = L.divIcon({ className: "great-lakes-station-marker", iconSize: [0, 0], iconAnchor: [0, 0], html: String(stationMarkerHtml(station, range)) });
     const marker = L.marker([station.latitude, station.longitude], { icon, pane: "greatLakesStations", title: station.name, alt: station.name, riseOnHover: true })
-      .bindPopup(() => String(stationPopupHtml(station)), { className: "gl-popup", minWidth: 240, maxWidth: 290 })
+      .bindPopup(() => String(stationPopupHtml(station, Date.now(), savedStationHistoryHtml(station))), { className: "gl-popup", minWidth: 240, maxWidth: 290 })
+      .on("popupopen", (event) => loadStationHistory(station, event.popup))
       .addTo(stationsLayer);
     stationMarkers.push(marker);
   });
   declutterStations();
   const withCurrents = stations.filter((station) => station.current).length;
-  stationsMessage = stations.length
-    ? `${stations.length} stations reporting${withCurrents ? `, ${withCurrents} with current meters` : ""}. Data last received at ${new Date(stationsLoadedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
-    : "No measurement stations are reporting right now.";
+  const past = stationsPayload.historyTime;
+  stationsMessage = past
+    ? (stations.length ? `${stations.length} stations with saved readings for ${historyTimeLabel(past)}${withCurrents ? `, ${withCurrents} with current meters` : ""}.` : `No saved station readings for ${historyTimeLabel(past)}.`)
+    : stations.length
+      ? `${stations.length} stations reporting${withCurrents ? `, ${withCurrents} with current meters` : ""}. Data last received at ${new Date(stationsLoadedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
+      : "No measurement stations are reporting right now.";
   setPointsStatus();
 }
 
@@ -183,7 +261,7 @@ async function loadStations() {
   stationsMessage = "Loading NOAA measurement stations…";
   setPointsStatus();
   try {
-    stationsPayload = await window.noaaGreatLakesApi.observations({ signal: stationsRequest.signal });
+    stationsPayload = await window.noaaGreatLakesApi.observations({ signal: stationsRequest.signal, ...greatLakesTimeParams() });
     stationsLoadedAt = Date.now();
     renderStations();
   } catch (error) {
@@ -308,6 +386,21 @@ export function setup() {
     if (kind !== "temperature" || depth) return;
     layerRange = { minC: minimum, maxC: maximum };
     renderStations();
+  });
+
+  // A past hour on the map: stations show what they measured then.
+  let shownTime = null;
+  document.addEventListener("great-lakes-history-time", (event) => {
+    const time = event.detail?.time || null;
+    if (time === shownTime) return;
+    shownTime = time;
+    loadStations();
+  });
+  document.addEventListener("change", (event) => {
+    if (event.target.matches("[data-gl-forecast]") && shownTime && !greatLakesTimeParams().time) {
+      shownTime = null;
+      loadStations();
+    }
   });
 
   document.addEventListener("great-lakes-layer-loaded", (event) => {

@@ -171,6 +171,9 @@ the background, and `GREAT_LAKES_CACHE_DIR` (default
 `<system temp>/fishing-logbook-great-lakes`) holds that shared download cache.
 The cache is disposable and is never part of a backup. See
 [Great Lakes data refresh](ARCHITECTURE.md#great-lakes-data-refresh).
+`GREAT_LAKES_HISTORY_URL` (default `https://greatlakestrolling.com`) is the
+Great Lakes Trolling site the map's "Past 30 days" reads saved conditions from;
+point it at a local copy (`http://127.0.0.1:8090`) while developing both.
 
 Launcher: `APP_URL`, `CONTAINER_NAME`, and `LEGACY_CONTAINER_NAME`.
 

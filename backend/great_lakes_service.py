@@ -27,7 +27,6 @@ from .great_lakes_render import (
     CURRENT_SPEED_COLOR_STOPS,
     TEMPERATURE_COLOR_STOPS,
     THERMOCLINE_COLOR_STOPS,
-    THERMOCLINE_MIXED_COLOR,
     GridAxes,
     ScalarGrid,
     WaterMask,
@@ -59,7 +58,7 @@ _runs_lock = threading.Lock()
 _raster_cache: dict[tuple, dict] = {}
 _thermocline_raster_cache: dict[tuple, dict] = {}
 TEMPERATURE_RASTER_RENDER_VERSION = 5
-THERMOCLINE_RASTER_RENDER_VERSION = 23
+THERMOCLINE_RASTER_RENDER_VERSION = 26
 CURRENT_RENDER_VERSION = 4
 # A requested depth this far below a lake's deepest model level has no water there.
 DEEPEST_LEVEL_TOLERANCE_METERS = 0.5
@@ -75,14 +74,22 @@ WATER_MASK_MAX_COLUMNS = 1000
 _water_mask_cache: dict[tuple, WaterMask] = {}
 THERMOCLINE_MIN_DEPTH_METERS = 3.048  # 10 ft below the surface
 THERMOCLINE_BOTTOM_CLEARANCE_METERS = 3.048  # Never classify the final 10 ft as a thermocline.
-THERMOCLINE_MIN_GRADIENT_C_PER_METER = 0.1
-# The warm top layer is the water within 0.5 °F of its temperature at 10 ft; the thermocline
-# starts where the water gets that much cooler. The layer must be at least 10 ft thick, and the
-# band below it must cool at least THERMOCLINE_MIN_CONTRAST times faster and by at least 1 °F.
-THERMOCLINE_WARM_LAYER_TOLERANCE_C = 0.5 / 1.8
+# The band's layers cool at least this fast (about 0.1 °F per 10 ft): gentle thermoclines under a
+# perfectly flat warm layer are real; the contrast with the warm layer is what rules out noise.
+THERMOCLINE_MIN_GRADIENT_C_PER_METER = 0.02
+# A thermocline is where the slope changes: a warm top layer at least 10 ft thick (below 10 ft)
+# over a band that cools at least THERMOCLINE_MIN_CONTRAST times faster, by at least 0.4 °F.
 THERMOCLINE_MIN_WARM_LAYER_METERS = 3.048
-THERMOCLINE_MIN_CONTRAST = 2.0
-THERMOCLINE_MIN_BAND_DROP_C = 1.0 / 1.8
+THERMOCLINE_MIN_CONTRAST = 3.0
+THERMOCLINE_MIN_BAND_DROP_C = 0.4 / 1.8
+# The top is the deepest depth where the warm layer above still cools at most a fifth as fast as
+# the band below (it reads as flat on the chart); a warm layer cooling slower than
+# THERMOCLINE_FLAT_RATE_C_PER_METER counts as perfectly flat when comparing.
+THERMOCLINE_FLAT_RATIO = 5.0
+THERMOCLINE_FLAT_RATE_C_PER_METER = 0.005
+# Of those levels, prefer the deepest where the layer just below cools at least this many times
+# faster than the layer just above: where the curve bends, not partway down the band.
+THERMOCLINE_LOCAL_BEND_RATIO = 1.5
 # Readings show at most this much of the band (15 ft): the top is what anglers fish, and a
 # band can taper on for 50 ft or more below it. Detection still uses the whole band.
 THERMOCLINE_MAX_SHOWN_THICKNESS_METERS = 15 / 3.28084
@@ -768,33 +775,39 @@ def _thermocline_band(profile: list[tuple[float, float]], bottom_depth: float | 
 def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: float | None = None) -> tuple[dict | None, str]:
     """The thermocline as a band, or why there is none: ``(band, "found" | "mixed" | "gradual")``.
 
-    The defining feature is a warm top layer of fairly uniform temperature.
-    Everything is measured from 10 ft down, so a sun-warmed skin on a calm
-    afternoon does not count.
+    A thermocline is where the slope of the temperature curve changes: a warm
+    top layer that cools slowly (or not at all) over a band that cools clearly
+    faster. Everything is measured from 10 ft down, so a sun-warmed skin on a
+    calm afternoon does not count.
 
-    **Top**: where the warm layer ends: the first depth where the water is
-    0.5 °F (THERMOCLINE_WARM_LAYER_TOLERANCE_C) cooler than at 10 ft,
-    interpolated between the model's levels. Smaller differences are model
-    noise. Earlier rules found the top by the size of the whole drop (2 °F) or
-    by the strongest bend in the curve; both landed 15-35 ft below where the
-    water starts cooling when the cooling starts gently.
+    **Bottom**: from the strongest cooling below the warm layer, the band ends
+    where the cooling rate eases to half of that strongest rate (never less
+    than THERMOCLINE_MIN_GRADIENT_C_PER_METER), interpolated between the
+    levels' midpoints.
 
-    **Bottom**: from the strongest cooling below the top, the band ends where
-    the cooling rate eases to half of that strongest rate (never less than
-    THERMOCLINE_MIN_GRADIENT_C_PER_METER), interpolated between the levels'
-    midpoints.
+    **Is it a thermocline?** For each model level from 20 ft down to the
+    strongest cooling, compare the band's average cooling below it with the
+    warm layer's average cooling above it (from 10 ft). The best ratio must be
+    at least THERMOCLINE_MIN_CONTRAST, and the band must cool by at least
+    0.4 °F. The ratio, not the size of the drop, is what tells a thermocline
+    from water that cools steadily from the surface: a flat warm layer over a
+    gentle 0.3 °F-per-10-ft drop is one; 1.8 °F per 10 ft from the surface
+    turning into 3 °F per 10 ft below is not.
 
-    **Is it a thermocline?** The warm layer must be at least 10 ft thick (from
-    10 ft down to the top), the band below it must cool at least
-    THERMOCLINE_MIN_CONTRAST times faster than the warm layer and by at least
-    1 °F, and the top and strongest cooling must sit above the last 10 ft over
-    the lake bed (cooling right at the bed is not a thermocline). Water that
-    cools from the surface down without a uniform warm layer, or cools too
-    slowly anywhere to count, is "gradual"; water that barely changes, or is
-    colder at the top than below (winter), is "mixed". The water below the
-    band does not matter: deep water often keeps cooling to the lake bed.
-    ``bottom_depth`` is the true water depth when known; NOAA's deepest wet
-    level can sit well above the lake bed.
+    **Top**: the deepest level where the warm layer above still cools at most
+    a fifth as fast as the band below (THERMOCLINE_FLAT_RATIO): where the chart
+    stops reading as straight down. Of those, the deepest where the curve
+    bends there (the layer below cools THERMOCLINE_LOCAL_BEND_RATIO times
+    faster than the layer above), so a slow lead-in stays in the band. When
+    the warm layer itself slopes (it never gets that flat), the level with the
+    best ratio: the sharpest bend.
+
+    No thermocline: water that barely changes, or is colder at the top than
+    below (winter), is "mixed"; water that cools without a warm layer over a
+    clearly faster drop is "gradual". The strongest cooling and the top must
+    sit above the last 10 ft over the lake bed (cooling right at the bed is
+    not a thermocline). ``bottom_depth`` is the true water depth when known;
+    NOAA's deepest wet level can sit well above the lake bed.
     """
     ordered = []
     for depth, temperature in sorted(profile, key=lambda point: point[0]):
@@ -806,22 +819,11 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
     bed = max(ordered[-1][0], bottom_depth or 0.0)
     deepest_top = bed - THERMOCLINE_BOTTOM_CLEARANCE_METERS
     reference = _temperature_at_depth(ordered, reference_depth)
-    # Cooling of 1 °F or more somewhere below 10 ft, but no thermocline, is "gradual".
+    # Cooling somewhere below 10 ft, but no thermocline, is "gradual".
     no_band = "gradual" if reference - min(temperature for depth, temperature in ordered if depth >= reference_depth) >= THERMOCLINE_MIN_BAND_DROP_C else "mixed"
-    # The top: where the warm layer ends.
-    below = [(reference_depth, reference), *(point for point in ordered if point[0] > reference_depth)]
-    top = None
-    for (d0, t0), (d1, t1) in zip(below, below[1:]):
-        if reference - t1 >= THERMOCLINE_WARM_LAYER_TOLERANCE_C:
-            before, after = reference - t0, reference - t1
-            top = d0 + (d1 - d0) * ((THERMOCLINE_WARM_LAYER_TOLERANCE_C - before) / (after - before) if after > before else 0.0)
-            break
-    if top is None:
-        return None, no_band
-    if top - reference_depth < THERMOCLINE_MIN_WARM_LAYER_METERS or top > deepest_top:
-        return None, no_band
+    warm_top = reference_depth + THERMOCLINE_MIN_WARM_LAYER_METERS
     layers = [(d0, d1, (t0 - t1) / (d1 - d0)) for (d0, t0), (d1, t1) in zip(ordered, ordered[1:])]
-    strong = [index for index, (d0, d1, rate) in enumerate(layers) if rate >= THERMOCLINE_MIN_GRADIENT_C_PER_METER and d1 > top and (d0 + d1) / 2 <= deepest_top]
+    strong = [index for index, (d0, d1, rate) in enumerate(layers) if rate >= THERMOCLINE_MIN_GRADIENT_C_PER_METER and d1 > warm_top and (d0 + d1) / 2 <= deepest_top]
     if not strong:
         return None, no_band
     peak = max(strong, key=lambda index: layers[index][2])
@@ -836,12 +838,27 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
     else:
         bottom = layers[end][1]
     bottom = min(max(bottom, layers[peak][1]), bed)
-    top_temperature, bottom_temperature = _temperature_at_depth(ordered, top), _temperature_at_depth(ordered, bottom)
+    bottom_temperature = _temperature_at_depth(ordered, bottom)
+    # Each candidate top: (depth, how much faster the band cools than the warm layer, warm layer reads as flat).
+    candidates = []
+    for depth, temperature in ordered:
+        if depth < warm_top - 1e-6 or depth > min(layers[peak][0], deepest_top) or depth >= bottom:
+            continue
+        warm_rate = max(0.0, (reference - temperature) / (depth - reference_depth))
+        band_rate = (temperature - bottom_temperature) / (bottom - depth)
+        candidates.append((depth, band_rate / max(THERMOCLINE_FLAT_RATE_C_PER_METER, warm_rate), band_rate >= THERMOCLINE_FLAT_RATIO * warm_rate))
+    if not candidates or max(contrast for _, contrast, _ in candidates) < THERMOCLINE_MIN_CONTRAST:
+        return None, no_band
+    flat = [depth for depth, _, is_flat in candidates if is_flat]
+    # Prefer a flat level where the curve visibly bends: the layer just below cools clearly faster
+    # than the one just above (a slow lead-in at the top of the band is part of the band).
+    above = {d1: max(0.0, rate) for d0, d1, rate in layers}
+    below = {d0: rate for d0, d1, rate in layers}
+    bends = [depth for depth in flat if below.get(depth, 0.0) >= THERMOCLINE_LOCAL_BEND_RATIO * max(THERMOCLINE_FLAT_RATE_C_PER_METER, above.get(depth, 0.0))]
+    top = max(bends or flat) if flat else max(candidates, key=lambda candidate: candidate[1])[0]
+    top_temperature = _temperature_at_depth(ordered, top)
     thickness, drop = bottom - top, top_temperature - bottom_temperature
     if thickness <= 0 or drop < THERMOCLINE_MIN_BAND_DROP_C:
-        return None, no_band
-    warm_rate = (reference - top_temperature) / (top - reference_depth)
-    if drop / thickness < THERMOCLINE_MIN_CONTRAST * warm_rate:
         return None, no_band
     return {
         "top": top,
@@ -1055,10 +1072,9 @@ def _regular_thermocline_grid(model: str, forecast_hour: int, resolution: int) -
         "grid": ScalarGrid([value if value is not None else 0.0 for value in thermoclines], valid, rows, cols, volume.y_stride, volume.x_stride),
         "axes": GridAxes.from_axes(volume.latitude_axis, volume.longitude_axis, volume.y_stride, volume.x_stride),
         "water": _water_mask_or_none(model, path, ny, nx) or _coarse_water_mask(wet, rows, cols, volume.y_stride, volume.x_stride),
-        # Mixed water without a thermocline is drawn in a neutral colour
+        # Water without a thermocline is left transparent (the map shows through)
         # rather than borrowing a neighbouring depth.
         "noData": [is_wet and not ok for is_wet, ok in zip(wet, valid)],
-        "noDataColor": THERMOCLINE_MIXED_COLOR,
         "extra": {"minDepthMeters": min(thermocline_depths), "maxDepthMeters": max(thermocline_depths)},
     }
     return render_input, metadata
@@ -1093,7 +1109,6 @@ def _build_thermocline_rasters(forecast_hour: int, resolution: int, models: tupl
         minimum = max(0.0, minimum)
         rasters = _render_rasters(inputs, THERMOCLINE_COLOR_STOPS, minimum, maximum, resolution)
         metadata["minDepthMeters"], metadata["maxDepthMeters"] = minimum, maximum
-        metadata["mixedColor"] = "#%02x%02x%02x" % THERMOCLINE_MIXED_COLOR
     return {"rasters": rasters, "metadata": metadata}
 
 

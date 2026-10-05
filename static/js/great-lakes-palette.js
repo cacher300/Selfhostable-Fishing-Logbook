@@ -174,7 +174,7 @@ export function createPaletteFilter() {
 }
 
 // Overlays for a layer's lake images: value images through the palette filter, with the
-// thermocline's mixed water as its own grey image underneath. Older payloads without
+// thermocline's mixed water as its own image underneath when a server sends one. Older payloads without
 // value images fall back to the coloured images.
 export function paletteOverlays(rasters, filter, options) {
   return (rasters || []).flatMap((raster) => {

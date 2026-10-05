@@ -67,10 +67,137 @@ export const GREAT_LAKE_VIEWS = {
   Ontario: { center: [43.7, -77.9], zoom: 8, models: ["LOOFS"] }
 };
 
+// "Past 30 days": the server keeps each hour's "Now" (never forecasts) for 30
+// days. The map then shows the saved surface maps of the chosen hour, and
+// point readings and stations come from that hour too.
+export const HISTORY_FORECAST_VALUE = "history";
+const HOUR_MS = 3600 * 1000;
+export let greatLakesHistoryIndex = null;
+export let greatLakesHistoryMs = null;
+let greatLakesHistoryIndexAt = 0;
+// A new hour is saved every hour; a list this old is fetched again on entering "Past 30 days".
+const HISTORY_INDEX_MAX_AGE_MS = 2 * 60 * 1000;
+
+export function greatLakesHistoryHtml() {
+  const step = (hours, label, symbol) => html`<button type="button" data-gl-history-step="${hours}" aria-label="${label}" title="${label}">${symbol}</button>`;
+  return html`<div class="great-lakes-history" data-gl-history-controls>
+    <div class="great-lakes-history-picker">
+      ${step(-24, "One day earlier", "«")}${step(-1, "One hour earlier", "‹")}
+      <input type="datetime-local" data-gl-history-time step="3600" aria-label="Date and time to show" />
+      ${step(1, "One hour later", "›")}${step(24, "One day later", "»")}
+    </div>
+  </div>`;
+}
+
+export function greatLakesHistoryMode() {
+  return greatLakesControlValue("forecast") === HISTORY_FORECAST_VALUE;
+}
+
+export function historyIso(milliseconds) {
+  return new Date(milliseconds).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+// The past hour on the map (ISO 8601), or null when showing "Now" or a forecast.
+export function greatLakesHistoryTime() {
+  return greatLakesHistoryMode() && Number.isFinite(greatLakesHistoryMs) ? historyIso(greatLakesHistoryMs) : null;
+}
+
+// Spread into API calls: `{ time }` for a past hour, nothing otherwise.
+export function greatLakesTimeParams() {
+  const time = greatLakesHistoryTime();
+  return time ? { time } : {};
+}
+
+// Saved hours (milliseconds, oldest first) that have a map of `layer`.
+export function historyHours(index, layer = "") {
+  return (index?.hours || [])
+    .filter((hour) => !layer || (hour.layers || []).includes(layer))
+    .map((hour) => Date.parse(hour.time))
+    .filter(Number.isFinite)
+    .sort((first, second) => first - second);
+}
+
+export function nearestHistoryHour(hours, target) {
+  if (!hours.length) return null;
+  return hours.reduce((best, hour) => Math.abs(hour - target) < Math.abs(best - target) ? hour : best, hours[0]);
+}
+
+// Move by `stepHours`, landing on the saved hour nearest that time (always moving, if there is anywhere to go).
+export function stepHistoryHour(hours, current, stepHours) {
+  const ahead = hours.filter((hour) => (stepHours > 0 ? hour > current : hour < current));
+  if (!ahead.length) return current;
+  return nearestHistoryHour(ahead, current + stepHours * HOUR_MS);
+}
+
+const pad = (value) => String(value).padStart(2, "0");
+
+// <input type="datetime-local"> values are local time without a zone.
+export function localInputValue(milliseconds) {
+  const date = new Date(milliseconds);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export function setGreatLakesHistoryTime(value) {
+  const milliseconds = typeof value === "number" ? value : Date.parse(value);
+  greatLakesHistoryMs = Number.isFinite(milliseconds) ? Math.round(milliseconds / HOUR_MS) * HOUR_MS : null;
+  syncHistoryInput();
+}
+
+export function syncHistoryInput() {
+  const input = document.querySelector("[data-gl-history-time]");
+  if (!input) return;
+  const hours = historyHours(greatLakesHistoryIndex);
+  if (hours.length) {
+    input.min = localInputValue(hours[0]);
+    input.max = localInputValue(hours[hours.length - 1]);
+  }
+  input.value = Number.isFinite(greatLakesHistoryMs) ? localInputValue(greatLakesHistoryMs) : "";
+  document.querySelectorAll("[data-gl-history-step]").forEach((button) => {
+    const step = Number(button.dataset.glHistoryStep);
+    button.disabled = !Number.isFinite(greatLakesHistoryMs) || stepHistoryHour(hours, greatLakesHistoryMs, step) === greatLakesHistoryMs;
+  });
+}
+
+export async function loadGreatLakesHistoryIndex({ fresh = false } = {}) {
+  if (!fresh && greatLakesHistoryIndex && Date.now() - greatLakesHistoryIndexAt < HISTORY_INDEX_MAX_AGE_MS) return greatLakesHistoryIndex;
+  try {
+    greatLakesHistoryIndex = await window.noaaGreatLakesApi.history();
+    greatLakesHistoryIndexAt = Date.now();
+  } catch {
+    greatLakesHistoryIndex ||= null;
+  }
+  return greatLakesHistoryIndex;
+}
+
+// Pick an hour on entering "Past 30 days" (the newest saved one), and snap to a saved hour.
+async function ensureGreatLakesHistoryTime(layer) {
+  const index = await loadGreatLakesHistoryIndex();
+  const hours = historyHours(index, layer);
+  if (!hours.length) return false;
+  const target = Number.isFinite(greatLakesHistoryMs) ? greatLakesHistoryMs : hours[hours.length - 1];
+  greatLakesHistoryMs = nearestHistoryHour(hours, target);
+  syncHistoryInput();
+  return true;
+}
+
+function announceHistoryTime() {
+  document.dispatchEvent(new CustomEvent("great-lakes-history-time", { detail: { time: greatLakesHistoryTime() } }));
+}
+
+// "Thursday, Oct 2 at 3 PM": a past hour, always with its date.
+export function historyTimeLabel(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const day = date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+  const time = date.toLocaleTimeString([], date.getMinutes() ? { hour: "numeric", minute: "2-digit" } : { hour: "numeric" });
+  return `${day} at ${time}`;
+}
+
 export function greatLakesConditionsHtml() {
   return html`<section class="great-lakes-control" aria-label="Great Lakes Conditions">
     <label>Layer<select data-gl-layer><option value="" selected>None</option><option value="temperature">Surface temperature</option><option value="thermocline">Thermocline depth</option><option value="currents">Underwater currents</option><option value="waves">Waves</option></select></label>
-    <label>Forecast<select data-gl-forecast><option value="0">Now</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option><option value="48">48 hours</option></select></label>
+    <label>Forecast<select data-gl-forecast><option value="0">Now</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option><option value="48">48 hours</option><option value="${HISTORY_FORECAST_VALUE}">Past 30 days</option></select></label>
+    ${greatLakesHistoryHtml()}
     ${greatLakesTimelineHtml()}
     <label class="great-lakes-depth-control">Depth <output data-gl-depth-label>Surface</output><input data-gl-depth type="range" min="0" max="${GREAT_LAKES_DEPTH_SLIDER_MAX}" step="1" value="0" aria-label="Model depth, logarithmic scale" aria-valuetext="Surface" /></label>
     <div class="great-lakes-wave-options">
@@ -87,7 +214,7 @@ export function greatLakesConditionsHtml() {
     <p data-gl-status>Loading NOAA forecast…</p>
     <div class="great-lakes-legend"><span data-gl-temperature-min>—</span><i></i><span data-gl-temperature-max>—</span></div>
     <div class="great-lakes-thermocline-legend"><span data-gl-thermocline-min>—</span><i></i><span data-gl-thermocline-max>—</span></div>
-    <div class="great-lakes-thermocline-mixed"><b aria-hidden="true"></b>No thermocline (mixed, or cools gradually)</div>
+    <div class="great-lakes-thermocline-mixed"><b aria-hidden="true"></b>Clear: no thermocline</div>
     <div class="great-lakes-wave-legend"><span data-gl-wave-min>—</span><i></i><span data-gl-wave-max>—</span></div>
     <fieldset class="great-lakes-points-options">
       <legend>Data points</legend>
@@ -205,7 +332,7 @@ export function ensureGreatLakesConditions(map) {
       onFlowColorChange(map, host, select.value);
       return;
     }
-    if (select.matches("[data-gl-layer], [data-gl-current-background]")) syncLayerSpecificControls();
+    if (select.matches("[data-gl-layer], [data-gl-current-background], [data-gl-forecast]")) syncLayerSpecificControls();
     if (select.matches("[data-gl-current-background]")) storeCurrentBackground(select.value);
     if (select.matches("[data-gl-wave-display]")) {
       try { localStorage.setItem(WAVE_DISPLAY_STORAGE_KEY, select.value); } catch { /* storage unavailable */ }
@@ -224,6 +351,7 @@ export function ensureGreatLakesConditions(map) {
   depthSlider.addEventListener("input", syncDepthLabel);
   depthSlider.addEventListener("change", () => loadGreatLakesConditions(map));
   setupGreatLakesTimeline(host, () => loadGreatLakesConditions(map));
+  setupGreatLakesHistoryControls(host, map);
   greatLakesConditionsControl = host;
   // Layers always cover every lake at full detail, so panning and zooming
   // never request (or wait for) a different drawing.
@@ -233,9 +361,32 @@ export function ensureGreatLakesConditions(map) {
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshGreatLakesIfStale(map); });
 }
 
+// The hour buttons and the date picker of "Past 30 days".
+export function setupGreatLakesHistoryControls(host, map) {
+  const input = host.querySelector("[data-gl-history-time]");
+  const show = (milliseconds) => {
+    if (!Number.isFinite(milliseconds) || milliseconds === greatLakesHistoryMs) {
+      syncHistoryInput();
+      return;
+    }
+    greatLakesHistoryMs = milliseconds;
+    syncHistoryInput();
+    loadGreatLakesConditions(map);
+  };
+  host.querySelectorAll("[data-gl-history-step]").forEach((button) => button.addEventListener("click", () => {
+    const hours = historyHours(greatLakesHistoryIndex, greatLakesControlValue("layer"));
+    show(stepHistoryHour(hours, greatLakesHistoryMs, Number(button.dataset.glHistoryStep)));
+  }));
+  input?.addEventListener("change", () => {
+    const chosen = new Date(input.value).getTime();
+    show(nearestHistoryHour(historyHours(greatLakesHistoryIndex, greatLakesControlValue("layer")), chosen));
+  });
+}
+
 export function syncGreatLakesLayerControls(host = document.querySelector("#greatLakesConditions")) {
   if (!host) return;
   const layer = host.querySelector("[data-gl-layer]")?.value;
+  host.classList.toggle("has-history", host.querySelector("[data-gl-forecast]")?.value === HISTORY_FORECAST_VALUE);
   host.classList.toggle("has-current-layer", layer === "currents");
   host.classList.toggle("has-temperature-layer", layer === "temperature");
   host.classList.toggle("has-thermocline-layer", layer === "thermocline");
@@ -364,9 +515,15 @@ export function greatLakesControlValue(name) {
   return control ? control.value : (name === "layer" ? "" : "0");
 }
 
-// The time the map shows: the animation frame on screen, otherwise the forecast choice.
+// The time the map shows: the animation frame on screen, otherwise the forecast choice ("Now" for a past hour; see greatLakesTimeParams).
 export function greatLakesForecastHour() {
+  if (greatLakesHistoryMode()) return "0";
   return greatLakesAnimationForecastHour() ?? greatLakesControlValue("forecast");
+}
+
+// Saved past maps are surface only.
+export function greatLakesShownDepth() {
+  return greatLakesHistoryMode() ? "0" : greatLakesControlValue("depth");
 }
 
 export function setGreatLakesStatus(message, error = false) {
@@ -419,7 +576,7 @@ export function showPaletteRange(kind, low, high) {
     setCurrentLegendRange({ minSpeedMetersPerSecond: low, maxSpeedMetersPerSecond: high });
     setCurrentSpeedMax({ maxSpeedMetersPerSecond: high });
   }
-  document.dispatchEvent(new CustomEvent("great-lakes-palette-range", { detail: { kind, minimum: low, maximum: high, depth: Number(greatLakesControlValue("depth")) || 0 } }));
+  document.dispatchEvent(new CustomEvent("great-lakes-palette-range", { detail: { kind, minimum: low, maximum: high, depth: Number(greatLakesShownDepth()) || 0 } }));
 }
 
 export function stopPaletteFit() {
@@ -594,7 +751,7 @@ export function currentProfileHtml(profile, selectedDepthMeters) {
   const selectedDepth = Number(selectedDepthMeters) || 0;
   const closest = values.reduce((best, value, index) => Math.abs(value.depthMeters - selectedDepth) < Math.abs(values[best].depthMeters - selectedDepth) ? index : best, 0);
   const maximumSpeed = Math.max(...values.map((value) => value.speedMetersPerSecond), 0.01);
-  const time = friendlyTime(profile.validTime);
+  const time = profile.historyTime ? historyTimeLabel(profile.validTime || profile.historyTime) : friendlyTime(profile.validTime);
   const distance = Number.isFinite(profile.sampleDistanceKm) ? ` · Model point ${profile.sampleDistanceKm.toFixed(1)} km away` : "";
   const rows = joinHtml(values.map((value, index) => {
     const speed = value.speedMetersPerSecond;
@@ -609,7 +766,9 @@ export function currentProfileHtml(profile, selectedDepthMeters) {
       <span class="great-lakes-current-direction">${arrow}${speed < 0.001 ? "Still" : html`<span><span class="great-lakes-current-toward">Toward </span>${currentDirectionLabel(value.directionDegrees)} <small>${bearing}°</small></span>`}</span>
     </div>`;
   }), "");
-  return html`<p class="great-lakes-current-meta">${time ? `NOAA forecast for ${time}` : "NOAA forecast"}${distance}</p>
+  const source = profile.historyTime ? "Saved NOAA conditions" : "NOAA forecast";
+  const surfaceOnly = profile.surfaceOnly ? " · Surface only for past hours" : "";
+  return html`<p class="great-lakes-current-meta">${time ? `${source} for ${time}` : source}${distance}${surfaceOnly}</p>
     <div class="great-lakes-current-chart" role="list" aria-label="Current speed and direction by depth">${rows}</div>`;
 }
 
@@ -621,9 +780,9 @@ export async function showGreatLakesCurrentProfile({ latitude, longitude }) {
   document.body.append(dialog);
   dialog.addEventListener("close", () => dialog.remove(), { once: true });
   dialog.showModal();
-  const selectedDepth = greatLakesControlValue("depth");
+  const selectedDepth = greatLakesShownDepth();
   try {
-    const profile = await window.noaaGreatLakesApi.currentProfile({ forecastHour: greatLakesForecastHour(), latitude, longitude, models: greatLakesLoadedModelsKey });
+    const profile = await window.noaaGreatLakesApi.currentProfile({ forecastHour: greatLakesForecastHour(), latitude, longitude, models: greatLakesLoadedModelsKey, ...greatLakesTimeParams() });
     if (dialog.isConnected) {
       const content = dialog.querySelector("[data-gl-current-profile-content]");
       content.removeAttribute("role");
@@ -636,11 +795,11 @@ export async function showGreatLakesCurrentProfile({ latitude, longitude }) {
 
 export async function greatLakesMapInspection({ latitude, longitude }) {
   if (!greatLakesActiveLayer) return "";
-  const depth = greatLakesControlValue("depth"), forecastHour = greatLakesForecastHour();
-  const models = greatLakesLoadedModelsKey;
+  const depth = greatLakesShownDepth(), forecastHour = greatLakesForecastHour();
+  const models = greatLakesLoadedModelsKey, timeParams = greatLakesTimeParams();
   const temperatureLabel = (value) => Number(value.depthMeters) > 0.25 ? `Temperature at ${greatLakesDepthLabel(Number(value.depthMeters))}` : "Surface temperature";
   if (greatLakesActiveLayer === "waves") {
-    const value = await window.noaaGreatLakesApi.waveValue({ forecastHour, latitude, longitude }).catch(() => null);
+    const value = await window.noaaGreatLakesApi.waveValue({ forecastHour, latitude, longitude, ...timeParams }).catch(() => null);
     if (!value?.available) return "";
     return readingHtml({
       label: "Wave height",
@@ -655,8 +814,8 @@ export async function greatLakesMapInspection({ latitude, longitude }) {
   if (greatLakesActiveLayer === "currents") {
     const wantsTemperature = greatLakesControlValue("current-background") === "temperature";
     const [current, temperatureValue] = await Promise.all([
-      window.noaaGreatLakesApi.currentProfile({ forecastHour, latitude, longitude, models }).catch(() => null),
-      wantsTemperature ? window.noaaGreatLakesApi.temperatureValue({ forecastHour, depth, resolution: CURRENT_BACKGROUND_RESOLUTION, latitude, longitude, models }).catch(() => null) : null
+      window.noaaGreatLakesApi.currentProfile({ forecastHour, latitude, longitude, models, ...timeParams }).catch(() => null),
+      wantsTemperature ? window.noaaGreatLakesApi.temperatureValue({ forecastHour, depth, resolution: CURRENT_BACKGROUND_RESOLUTION, latitude, longitude, models, ...timeParams }).catch(() => null) : null
     ]);
     const values = current?.available ? (current.values || []).filter((value) => Number.isFinite(value.speedMetersPerSecond)) : [];
     if (!values.length) return "";
@@ -675,21 +834,21 @@ export async function greatLakesMapInspection({ latitude, longitude }) {
   const resolution = GREAT_LAKES_LAYER_RESOLUTION;
   try {
     if (greatLakesActiveLayer === "thermocline") {
-      const profile = await window.noaaGreatLakesApi.profile({ forecastHour, latitude, longitude, models });
+      const profile = await window.noaaGreatLakesApi.profile({ forecastHour, latitude, longitude, models, ...timeParams });
       if (!profile?.available) return "";
       const surface = (profile.values || [])[0];
       const band = thermoclineBand(profile.thermocline);
       return readingHtml({
         label: "Thermocline",
         value: band ? greatLakesDepthLabel(band.top) : "None",
-        note: band ? `Down to ${greatLakesDepthLabel(band.bottom)} · ${thicknessLabel(band)}` : profile.noThermocline === "gradual" ? "No distinct thermocline – cools gradually with depth" : "Mixed top to bottom",
+        note: band ? `Down to ${greatLakesDepthLabel(band.bottom)} · ${thicknessLabel(band)}` : profile.noThermocline === "gradual" ? "" : "Mixed top to bottom",
         rows: [surface ? ["Surface temperature", waterTemperatureLabel(surface.temperatureC)] : null],
         action: profileActionHtml(latitude, longitude)
       });
     }
     const [value, profile] = await Promise.all([
-      window.noaaGreatLakesApi.temperatureValue({ forecastHour, depth, resolution, latitude, longitude, models }),
-      window.noaaGreatLakesApi.profile({ forecastHour, latitude, longitude, models }).catch(() => null)
+      window.noaaGreatLakesApi.temperatureValue({ forecastHour, depth, resolution, latitude, longitude, models, ...timeParams }),
+      window.noaaGreatLakesApi.profile({ forecastHour, latitude, longitude, models, ...timeParams }).catch(() => null)
     ]);
     if (!value.available) return "";
     return readingHtml({
@@ -701,9 +860,9 @@ export async function greatLakesMapInspection({ latitude, longitude }) {
   } catch { return ""; }
 }
 
-// "55–66 ft" for a card row; "None (mixed)" or "None (cools gradually)" without a thermocline.
+// "55–66 ft" for a card row; "None (mixed)" or "None" without a thermocline.
 export function thermoclineRangeLabel(thermocline, noThermocline) {
-  return depthRangeLabel(thermoclineBand(thermocline)) || (noThermocline === "gradual" ? "None (cools gradually)" : "None (mixed)");
+  return depthRangeLabel(thermoclineBand(thermocline)) || (noThermocline === "gradual" ? "None" : "None (mixed)");
 }
 
 export const CURRENT_TRAIL_SEGMENTS = 12;
@@ -1012,6 +1171,7 @@ export function friendlyTime(value, now = Date.now()) {
   const day = days === 0 ? (date.getHours() >= 18 ? "tonight" : "today")
     : days === 1 ? "tomorrow"
     : days === -1 ? "yesterday"
+    : days < -1 || days > 6 ? date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })
     : date.toLocaleDateString([], { weekday: "long" });
   return `${day} at ${time}`;
 }
@@ -1041,6 +1201,12 @@ export function waveUpdateNote(status, now = Date.now()) {
 
 export async function refreshGreatLakesIfStale(map) {
   if (!map || !greatLakesActiveLayer || !greatLakesLoadedModelsKey || document.hidden) return false;
+  if (greatLakesHistoryMode()) {
+    // A past hour never changes; newly saved hours just become choices.
+    await loadGreatLakesHistoryIndex({ fresh: true });
+    syncHistoryInput();
+    return false;
+  }
   const status = await greatLakesDataStatus(greatLakesLoadedModelsKey, { fresh: true });
   const version = greatLakesDataVersion(status, greatLakesActiveLayer);
   if (!version || version === greatLakesLoadedDataVersion) return false;
@@ -1056,7 +1222,7 @@ export function greatLakesDataVersion(status, layer) {
 
 // Lets companion overlays (measurement points) match the visible temperature colours.
 export function announceGreatLakesLayer(layer, metadata, temperatureMetadata = null) {
-  document.dispatchEvent(new CustomEvent("great-lakes-layer-loaded", { detail: { layer, metadata, temperatureMetadata, depth: Number(greatLakesControlValue("depth")) || 0 } }));
+  document.dispatchEvent(new CustomEvent("great-lakes-layer-loaded", { detail: { layer, metadata, temperatureMetadata, depth: Number(greatLakesShownDepth()) || 0 } }));
 }
 
 // NOAA stores fixed depth levels (0, 1, 2, 4, 6 m …); the server shows the
@@ -1099,16 +1265,35 @@ export async function loadGreatLakesConditions(map) {
     return;
   }
   document.body.classList.remove("great-lakes-layer-none");
-  const forecastHour = greatLakesControlValue("forecast");
-  const depth = greatLakesControlValue("depth");
+  const historyMode = greatLakesHistoryMode();
   const resolution = GREAT_LAKES_LAYER_RESOLUTION;
   const models = GREAT_LAKES_ALL_MODELS;
   const modelsKey = models.join(",");
   setGreatLakesMapLoading(true);
-  const dataStatus = await greatLakesDataStatus(modelsKey);
+  if (historyMode) {
+    stopGreatLakesAnimation();
+    setGreatLakesStatus("Loading saved conditions…");
+    const ready = await ensureGreatLakesHistoryTime(layer);
+    if (loadRevision !== greatLakesLoadRevision) return;
+    announceHistoryTime();
+    if (!ready) {
+      clearGreatLakesVisuals();
+      greatLakesActiveLayer = "";
+      setGreatLakesMapLoading(false);
+      setGreatLakesStatus(greatLakesHistoryIndex
+        ? "No saved conditions yet. The server keeps the past 30 days as they come in, starting now."
+        : "Saved conditions are unavailable. Try again shortly.", !greatLakesHistoryIndex);
+      announceGreatLakesLayer("", {});
+      return;
+    }
+  }
+  const forecastHour = historyMode ? "0" : greatLakesControlValue("forecast");
+  const depth = greatLakesShownDepth();
+  const timeParams = greatLakesTimeParams();
+  const dataStatus = historyMode ? null : await greatLakesDataStatus(modelsKey);
   if (loadRevision !== greatLakesLoadRevision) return;
-  const dataVersion = greatLakesDataVersion(dataStatus, layer);
-  if (greatLakesAnimationActive()) {
+  const dataVersion = historyMode ? `history:${timeParams.time}` : greatLakesDataVersion(dataStatus, layer);
+  if (!historyMode && greatLakesAnimationActive()) {
     greatLakesConditionsRequest = new AbortController();
     setGreatLakesMapLoading(true);
     const isCurrent = () => loadRevision === greatLakesLoadRevision;
@@ -1131,13 +1316,13 @@ export async function loadGreatLakesConditions(map) {
   };
   const cacheHit = freshCache(cacheKey) && (!temperatureBackground || freshCache(temperatureCacheKey));
   greatLakesConditionsRequest = cacheHit ? null : new AbortController();
-  setGreatLakesStatus("Loading NOAA forecast…");
-  setGreatLakesMapLoading(true);
+  setGreatLakesStatus(historyMode ? "Loading saved conditions…" : "Loading NOAA forecast…");
+  setGreatLakesMapLoading(true, historyMode ? "Loading saved conditions…" : undefined);
   clearGreatLakesVisuals();
   const fetchLayer = async (key, request) => {
     const cachedPayload = freshCache(key);
     if (cachedPayload) return cachedPayload;
-    const fetched = await window.noaaGreatLakesApi.conditions({ ...request, forecastHour, depth, models: modelsKey, dataVersion, signal: greatLakesConditionsRequest.signal });
+    const fetched = await window.noaaGreatLakesApi.conditions({ ...request, forecastHour, depth, models: modelsKey, dataVersion, ...timeParams, signal: greatLakesConditionsRequest.signal });
     greatLakesPayloadCache.set(key, { payload: fetched, createdAt: Date.now() });
     return fetched;
   };
@@ -1184,13 +1369,16 @@ export async function loadGreatLakesConditions(map) {
     const label = layer === "temperature" ? "Water temperature" : layer === "thermocline" ? "Thermocline depth" : layer === "waves" ? "Wave data" : temperaturePayload ? "Current or temperature data" : "Underwater current data";
     const sampledOnly = layer === "currents" && !(payload.fields || []).length && (payload.data || []).length;
     const shownDepth = layer === "thermocline" || layer === "waves" ? null : modelDepthShown(temperaturePayload?.metadata || payload.metadata);
-    const source = layer === "waves" ? "the NOAA wave forecast" : "the NOAA forecast";
-    const updateNote = layer === "waves" ? waveUpdateNote(dataStatus) : nextUpdateNote(dataStatus);
-    setGreatLakesStatus(`${unavailable ? `${label} unavailable for one or more lakes. ` : ""}${validTime ? `Showing ${source} for ${friendlyTime(validTime)}.` : `Showing ${source}.`}${modelDepthNote(Number(depth), shownDepth)}${tooShallowNote(metadataModels)}${sampledOnly ? " Flow grid unavailable; showing sampled current arrows." : ""}${updateNote}`, unavailable);
+    const source = historyMode ? "saved NOAA conditions" : layer === "waves" ? "the NOAA wave forecast" : "the NOAA forecast";
+    const updateNote = historyMode ? " Past hours show the surface." : layer === "waves" ? waveUpdateNote(dataStatus) : nextUpdateNote(dataStatus);
+    const when = validTime ? (historyMode ? historyTimeLabel(validTime) : friendlyTime(validTime)) : "";
+    setGreatLakesStatus(`${unavailable ? `${label} unavailable for one or more lakes. ` : ""}${when ? `Showing ${source} for ${when}.` : `Showing ${source}.`}${modelDepthNote(Number(depth), shownDepth)}${tooShallowNote(metadataModels)}${sampledOnly ? " Flow grid unavailable; showing sampled current arrows." : ""}${updateNote}`, unavailable);
     greatLakesLoadedDataVersion = dataVersion;
     announceGreatLakesLayer(layer, payload.metadata || {}, temperaturePayload?.metadata || (layer === "temperature" ? payload.metadata : null));
   } catch (error) {
-    if (loadRevision === greatLakesLoadRevision && error.name !== "AbortError") setGreatLakesStatus("NOAA Great Lakes model data is unavailable. Try again shortly.", true);
+    if (loadRevision !== greatLakesLoadRevision || error.name === "AbortError") return;
+    if (historyMode) setGreatLakesStatus(/\(404\)/.test(error.message) ? "This layer was not saved for that hour. Pick another time." : "Saved conditions are unavailable. Try again shortly.", true);
+    else setGreatLakesStatus("NOAA Great Lakes model data is unavailable. Try again shortly.", true);
   } finally {
     if (loadRevision === greatLakesLoadRevision) setGreatLakesMapLoading(false);
   }
@@ -1233,7 +1421,7 @@ export function setup() {
     button.disabled = true;
     label.textContent = "Loading…";
     try {
-      const profile = await window.noaaGreatLakesApi.profile({ forecastHour: greatLakesForecastHour(), latitude: button.dataset.glProfileLat, longitude: button.dataset.glProfileLon, models: greatLakesLoadedModelsKey });
+      const profile = await window.noaaGreatLakesApi.profile({ forecastHour: greatLakesForecastHour(), latitude: button.dataset.glProfileLat, longitude: button.dataset.glProfileLon, models: greatLakesLoadedModelsKey, ...greatLakesTimeParams() });
       if (!profile.available) throw new Error("Profile unavailable");
       showWaterColumnDialog(profile);
       label.textContent = original;

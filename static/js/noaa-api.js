@@ -1,8 +1,17 @@
 // NOAA Great Lakes API client. Endpoint details stay separate from Leaflet UI.
 
+// Saved past hours ("Past 30 days") come from the Great Lakes Trolling site,
+// which records them; the desktop server passes these requests on.
+async function historyJson(path, params, signal) {
+  const response = await fetch(`/api/great-lakes/history${path}?${new URLSearchParams(params)}`, { signal });
+  if (!response.ok) throw new Error(`Saved Great Lakes conditions request failed (${response.status})`);
+  return response.json();
+}
+
 export function setup() {
   window.noaaGreatLakesApi = {
-    async conditions({ layer, forecastHour, depth, resolution, models, dataVersion = "", signal }) {
+    async conditions({ layer, forecastHour, depth, resolution, models, dataVersion = "", time, signal }) {
+      if (time) return historyJson(`/layers/${encodeURIComponent(layer)}`, { time }, signal);
       // dataVersion changes when NOAA publishes a run or "Now" advances an
       // hour, so the browser's HTTP cache never serves an older frame.
       const query = new URLSearchParams({ forecastHour, depth, resolution, models, data: dataVersion });
@@ -25,21 +34,25 @@ export function setup() {
       return response.json();
     },
     async temperatureValue(options) {
+      if (options.time) return historyJson("/point/temperature", { time: options.time, depth: options.depth, latitude: options.latitude, longitude: options.longitude });
       const response = await fetch(`/api/great-lakes/temperature-value?${new URLSearchParams(options)}`);
       if (!response.ok) throw new Error("NOAA temperature lookup failed");
       return response.json();
     },
     async profile(options) {
+      if (options.time) return historyJson("/point/temperature-profile", { time: options.time, latitude: options.latitude, longitude: options.longitude });
       const response = await fetch(`/api/great-lakes/profile?${new URLSearchParams(options)}`);
       if (!response.ok) throw new Error("NOAA profile lookup failed");
       return response.json();
     },
     async currentProfile(options) {
+      if (options.time) return historyJson("/point/current-profile", { time: options.time, latitude: options.latitude, longitude: options.longitude });
       const response = await fetch(`/api/great-lakes/current-profile?${new URLSearchParams(options)}`);
       if (!response.ok) throw new Error("NOAA current profile lookup failed");
       return response.json();
     },
     async waveValue(options) {
+      if (options.time) return historyJson("/point/waves", { time: options.time, latitude: options.latitude, longitude: options.longitude });
       const response = await fetch(`/api/great-lakes/wave-value?${new URLSearchParams(options)}`);
       if (!response.ok) throw new Error("NOAA wave lookup failed");
       return response.json();
@@ -49,10 +62,18 @@ export function setup() {
       if (!response.ok) throw new Error("NOAA data status is unavailable");
       return response.json();
     },
-    async observations({ signal } = {}) {
+    async observations({ time, signal } = {}) {
+      if (time) return historyJson("/stations", { time }, signal);
       const response = await fetch("/api/great-lakes/observations", { signal });
       if (!response.ok) throw new Error("NOAA buoy observations are unavailable");
       return response.json();
+    },
+    // Which past hours are saved, and one station's saved readings.
+    history({ signal } = {}) {
+      return historyJson("", {}, signal);
+    },
+    stationHistory({ id, signal }) {
+      return historyJson(`/stations/${encodeURIComponent(id)}`, {}, signal);
     },
     async modelPoints({ kind, south, west, north, east, models, signal }) {
       const query = new URLSearchParams({ kind, south, west, north, east, models });

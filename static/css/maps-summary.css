@@ -629,6 +629,16 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 .great-lakes-timeline-meta .great-lakes-timeline-label { flex: 1 0 auto; margin-top: 0; }
 .great-lakes-control .great-lakes-timeline-speed { display: flex; flex: none; align-items: center; gap: 4px; margin: 0; color: var(--muted); font-size: 11px; font-weight: 700; }
 .great-lakes-control .great-lakes-timeline-speed select { width: auto; margin: 0; padding: 2px 22px 2px 6px; font-size: 11px; }
+/* "Past 30 days": step back and forth by hour or day, or pick a time. Saved hours are surface maps without an animation. */
+.great-lakes-history { display: none; margin-top: 7px; }
+#greatLakesConditions.has-history .great-lakes-history { display: block; }
+#greatLakesConditions.has-history :is(.great-lakes-depth-control, .great-lakes-timeline) { display: none; }
+.great-lakes-history-picker { display: flex; align-items: center; gap: 4px; }
+.great-lakes-history-picker input { flex: 1; min-width: 0; box-sizing: border-box; padding: 6px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--text); font: inherit; font-size: 12.5px; }
+.great-lakes-history-picker button { flex: none; width: 28px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--text); font-size: 15px; line-height: 1; cursor: pointer; }
+.great-lakes-history-picker button:hover:not(:disabled) { border-color: var(--chip-line); }
+.great-lakes-history-picker button:disabled { opacity: 0.35; cursor: default; }
+.great-lakes-history-picker :is(button, input):focus-visible { outline: 3px solid var(--chip-line); outline-offset: 1px; }
 .great-lakes-current-options { display: none; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); }
 #greatLakesConditions.has-current-layer .great-lakes-current-options { display: block; }
 .great-lakes-control p { min-height: 30px; margin: 8px 0 5px; color: var(--muted); }
@@ -642,8 +652,8 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 .great-lakes-thermocline-legend i { height: 9px; flex: 1; border-radius: 5px; background: linear-gradient(90deg, #3a28a8, #245ce2 13%, #0e98f2 27%, #0cccde 40%, #22d088 53%, #96de30 66%, #fcda24 78%, #fc8c1c 89%, #e42834); }
 .great-lakes-thermocline-mixed { display: none; align-items: center; gap: 6px; margin: -2px 0 7px; color: var(--muted); font-size: 11px; }
 #greatLakesConditions.has-thermocline-layer .great-lakes-thermocline-mixed { display: flex; }
-/* The same neutral slate the server draws mixed water in (THERMOCLINE_MIXED_COLOR). */
-.great-lakes-thermocline-mixed b { width: 18px; height: 9px; flex: none; border-radius: 3px; background: #687484; }
+/* Water without a thermocline is left clear on the map: an empty swatch. */
+.great-lakes-thermocline-mixed b { width: 18px; height: 9px; flex: none; box-sizing: border-box; border: 1px dashed var(--muted); border-radius: 3px; }
 .great-lakes-current-legend { display: none; flex-wrap: wrap; align-items: center; gap: 5px; margin: 7px 0; font-size: 11px; }
 #greatLakesConditions.has-current-layer .great-lakes-current-legend { display: flex; }
 #greatLakesConditions.has-temperature-background .great-lakes-legend { display: flex; }
