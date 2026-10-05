@@ -58,9 +58,9 @@ _runs_disk_checked = [0.0]
 _runs_lock = threading.Lock()
 _raster_cache: dict[tuple, dict] = {}
 _thermocline_raster_cache: dict[tuple, dict] = {}
-TEMPERATURE_RASTER_RENDER_VERSION = 4
-THERMOCLINE_RASTER_RENDER_VERSION = 21
-CURRENT_RENDER_VERSION = 3
+TEMPERATURE_RASTER_RENDER_VERSION = 5
+THERMOCLINE_RASTER_RENDER_VERSION = 23
+CURRENT_RENDER_VERSION = 4
 # A requested depth this far below a lake's deepest model level has no water there.
 DEEPEST_LEVEL_TOLERANCE_METERS = 0.5
 # Never stretch the palette across less than this, or model noise in a
@@ -76,15 +76,16 @@ _water_mask_cache: dict[tuple, WaterMask] = {}
 THERMOCLINE_MIN_DEPTH_METERS = 3.048  # 10 ft below the surface
 THERMOCLINE_BOTTOM_CLEARANCE_METERS = 3.048  # Never classify the final 10 ft as a thermocline.
 THERMOCLINE_MIN_GRADIENT_C_PER_METER = 0.1
-# A thermocline is a layer under a warm layer that cools at least this many times faster than
-# the warm layer and than the rest of the column, by at least this much in all (1 °F).
+# The warm top layer is the water within 0.5 °F of its temperature at 10 ft; the thermocline
+# starts where the water gets that much cooler. The layer must be at least 10 ft thick, and the
+# band below it must cool at least THERMOCLINE_MIN_CONTRAST times faster and by at least 1 °F.
+THERMOCLINE_WARM_LAYER_TOLERANCE_C = 0.5 / 1.8
+THERMOCLINE_MIN_WARM_LAYER_METERS = 3.048
 THERMOCLINE_MIN_CONTRAST = 2.0
 THERMOCLINE_MIN_BAND_DROP_C = 1.0 / 1.8
-# At least this much of the column (10 ft) must lie outside the band to compare it against.
 # Readings show at most this much of the band (15 ft): the top is what anglers fish, and a
 # band can taper on for 50 ft or more below it. Detection still uses the whole band.
 THERMOCLINE_MAX_SHOWN_THICKNESS_METERS = 15 / 3.28084
-THERMOCLINE_MIN_OUTSIDE_METERS = 3.048
 # The band ends where the cooling eases to this share of its strongest rate (or to the minimum above).
 THERMOCLINE_BAND_PEAK_SHARE = 0.5
 THERMOCLINE_SPATIAL_OUTLIER_METERS = 12.0
@@ -767,32 +768,33 @@ def _thermocline_band(profile: list[tuple[float, float]], bottom_depth: float | 
 def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: float | None = None) -> tuple[dict | None, str]:
     """The thermocline as a band, or why there is none: ``(band, "found" | "mixed" | "gradual")``.
 
-    A thermocline is a layer that cools clearly faster than the water above and
-    below it. Everything is measured from 10 ft down, so a sun-warmed skin on a
-    calm afternoon does not count.
+    The defining feature is a warm top layer of fairly uniform temperature.
+    Everything is measured from 10 ft down, so a sun-warmed skin on a calm
+    afternoon does not count.
 
-    **Bottom**: from the strongest cooling down, the band ends where the cooling
-    rate eases to half of that strongest rate (never less than
+    **Top**: where the warm layer ends: the first depth where the water is
+    0.5 °F (THERMOCLINE_WARM_LAYER_TOLERANCE_C) cooler than at 10 ft,
+    interpolated between the model's levels. Smaller differences are model
+    noise. Earlier rules found the top by the size of the whole drop (2 °F) or
+    by the strongest bend in the curve; both landed 15-35 ft below where the
+    water starts cooling when the cooling starts gently.
+
+    **Bottom**: from the strongest cooling below the top, the band ends where
+    the cooling rate eases to half of that strongest rate (never less than
     THERMOCLINE_MIN_GRADIENT_C_PER_METER), interpolated between the levels'
-    midpoints. In big lakes in the fall the water keeps cooling slowly far
-    below the real drop; the minimum rate alone put the bottom 100 ft too deep.
+    midpoints.
 
-    **Top**: where the temperature curve bends from straight down into the
-    drop, the way it reads on the water-column chart: the model level farthest
-    above the straight line from 10 ft to the bottom of the band, at or above
-    the strongest cooling.
-
-    **Is it a thermocline?** It must sit under a warm layer: the band must
-    cool at least THERMOCLINE_MIN_CONTRAST times faster than the water from
-    10 ft down to its top, and as much faster than the rest of the column
-    (above and below it together), by at least 1 °F in all, with at least
-    10 ft of the column outside it to compare against. Water that cools
-    steadily from the surface, evenly or tapering off into the cold deep water,
-    has no layer that stands out ("gradual"); water that barely changes, or is
-    colder at the top than below (winter), is "mixed". The strongest cooling
-    must also sit above the last 10 ft over the lake bed (cooling right at the
-    bed is not a thermocline). ``bottom_depth`` is the true water depth when
-    known; NOAA's deepest wet level can sit well above the lake bed.
+    **Is it a thermocline?** The warm layer must be at least 10 ft thick (from
+    10 ft down to the top), the band below it must cool at least
+    THERMOCLINE_MIN_CONTRAST times faster than the warm layer and by at least
+    1 °F, and the top and strongest cooling must sit above the last 10 ft over
+    the lake bed (cooling right at the bed is not a thermocline). Water that
+    cools from the surface down without a uniform warm layer, or cools too
+    slowly anywhere to count, is "gradual"; water that barely changes, or is
+    colder at the top than below (winter), is "mixed". The water below the
+    band does not matter: deep water often keeps cooling to the lake bed.
+    ``bottom_depth`` is the true water depth when known; NOAA's deepest wet
+    level can sit well above the lake bed.
     """
     ordered = []
     for depth, temperature in sorted(profile, key=lambda point: point[0]):
@@ -803,12 +805,23 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
         return None, "mixed"
     bed = max(ordered[-1][0], bottom_depth or 0.0)
     deepest_top = bed - THERMOCLINE_BOTTOM_CLEARANCE_METERS
-    deepest = ordered[-1][0]
     reference = _temperature_at_depth(ordered, reference_depth)
-    # Cooling of 1 °F or more somewhere below 10 ft, but no band that stands out, is "gradual".
+    # Cooling of 1 °F or more somewhere below 10 ft, but no thermocline, is "gradual".
     no_band = "gradual" if reference - min(temperature for depth, temperature in ordered if depth >= reference_depth) >= THERMOCLINE_MIN_BAND_DROP_C else "mixed"
+    # The top: where the warm layer ends.
+    below = [(reference_depth, reference), *(point for point in ordered if point[0] > reference_depth)]
+    top = None
+    for (d0, t0), (d1, t1) in zip(below, below[1:]):
+        if reference - t1 >= THERMOCLINE_WARM_LAYER_TOLERANCE_C:
+            before, after = reference - t0, reference - t1
+            top = d0 + (d1 - d0) * ((THERMOCLINE_WARM_LAYER_TOLERANCE_C - before) / (after - before) if after > before else 0.0)
+            break
+    if top is None:
+        return None, no_band
+    if top - reference_depth < THERMOCLINE_MIN_WARM_LAYER_METERS or top > deepest_top:
+        return None, no_band
     layers = [(d0, d1, (t0 - t1) / (d1 - d0)) for (d0, t0), (d1, t1) in zip(ordered, ordered[1:])]
-    strong = [index for index, (d0, d1, rate) in enumerate(layers) if rate >= THERMOCLINE_MIN_GRADIENT_C_PER_METER and d1 > reference_depth and (d0 + d1) / 2 <= deepest_top]
+    strong = [index for index, (d0, d1, rate) in enumerate(layers) if rate >= THERMOCLINE_MIN_GRADIENT_C_PER_METER and d1 > top and (d0 + d1) / 2 <= deepest_top]
     if not strong:
         return None, no_band
     peak = max(strong, key=lambda index: layers[index][2])
@@ -823,34 +836,13 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
     else:
         bottom = layers[end][1]
     bottom = min(max(bottom, layers[peak][1]), bed)
-    # The bend: the level farthest above the straight line from 10 ft to the band's bottom.
-    bottom_temperature = _temperature_at_depth(ordered, bottom)
-    top, widest = max(reference_depth, min(layers[peak][0], deepest_top)), 0.0
-    for depth, temperature in ordered:
-        if depth <= reference_depth or depth > min(layers[peak][0], deepest_top):
-            continue
-        chord = reference + (bottom_temperature - reference) * (depth - reference_depth) / (bottom - reference_depth)
-        if temperature - chord > widest:
-            top, widest = depth, temperature - chord
-    if widest == 0.0:
-        top = reference_depth  # cooling straight from the surface: no warm layer (rejected below)
-    top_temperature = _temperature_at_depth(ordered, top)
-    thickness = bottom - top
-    drop = top_temperature - bottom_temperature
-    if drop < THERMOCLINE_MIN_BAND_DROP_C or thickness <= 0:
+    top_temperature, bottom_temperature = _temperature_at_depth(ordered, top), _temperature_at_depth(ordered, bottom)
+    thickness, drop = bottom - top, top_temperature - bottom_temperature
+    if thickness <= 0 or drop < THERMOCLINE_MIN_BAND_DROP_C:
         return None, no_band
-    # Does the band stand out? Compare its cooling with the rest of the column from 10 ft down.
-    outside_span = (top - reference_depth) + max(0.0, deepest - bottom)
-    if outside_span < THERMOCLINE_MIN_OUTSIDE_METERS:
-        return None, "gradual"
-    band_rate = drop / thickness
-    # The warm layer above: there must be one, and it must cool much more slowly than the band.
-    above_drop = max(0.0, reference - top_temperature)
-    if top <= reference_depth or band_rate < THERMOCLINE_MIN_CONTRAST * above_drop / (top - reference_depth):
-        return None, "gradual"
-    outside_drop = above_drop + max(0.0, bottom_temperature - _temperature_at_depth(ordered, deepest))
-    if band_rate < THERMOCLINE_MIN_CONTRAST * outside_drop / outside_span:
-        return None, "gradual"
+    warm_rate = (reference - top_temperature) / (top - reference_depth)
+    if drop / thickness < THERMOCLINE_MIN_CONTRAST * warm_rate:
+        return None, no_band
     return {
         "top": top,
         "bottom": bottom,

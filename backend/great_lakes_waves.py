@@ -48,7 +48,7 @@ LONG_RUN_CYCLES = (1, 7, 13, 19)
 RUN_FILE = "waves-run.json"
 RUN_MAX_AGE_SECONDS = 5 * 60
 WAVE_FORMAT = 1
-WAVE_RENDER_VERSION = 1
+WAVE_RENDER_VERSION = 2
 # Calm water stays blue: the palette never stretches over less than 1 m.
 WAVE_MIN_COLOR_MAX_METERS = 1.0
 # Direction arrows sample every 4th model cell (about 10 km); the browser

@@ -16,6 +16,7 @@ from io import BytesIO
 
 from PIL import Image, ImageChops, ImageFilter, ImageMath, features
 
+
 TEMPERATURE_COLOR_STOPS = (
     (0.00, (58, 40, 168)),
     (0.13, (36, 92, 226)),
@@ -278,6 +279,23 @@ def _encode(image: Image.Image) -> str:
     return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode('ascii')}"
 
 
+def _encode_values(image: Image.Image) -> str:
+    """A value image: grey level = position in the layer's colour range, alpha = water.
+
+    Browsers recolour it to fit the range on screen. Lossy WebP at quality 97
+    is the size of the coloured image and off by under half a step on average
+    (a few hundredths of a degree); the alpha (shoreline) is kept exact.
+    """
+    buffer = BytesIO()
+    if features.check("webp"):
+        # exact: keep the grey levels under transparent pixels (filled from the nearby water), or the
+        # encoder blanks them and they bleed into the shoreline's half-transparent edge as wrong values.
+        image.save(buffer, format="WEBP", quality=97, alpha_quality=100, method=3, exact=True)
+        return f"data:image/webp;base64,{base64.b64encode(buffer.getvalue()).decode('ascii')}"
+    image.save(buffer, format="PNG", optimize=True)
+    return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode('ascii')}"
+
+
 def render_overlay(
     grid: ScalarGrid,
     axes: GridAxes,
@@ -294,6 +312,11 @@ def render_overlay(
     ``no_data`` optionally marks water cells that have no value (for example
     fully mixed water without a thermocline). They stay transparent, or are
     filled with ``no_data_color`` when one is given.
+
+    Besides the coloured image (``imageUrl``), returns a value image
+    (``valueUrl``, see _encode_values) over ``valueRange`` so browsers can fit
+    the colours to what is on screen, and with ``no_data_color`` a separate
+    image of just the no-data water in that colour (``mixedUrl``).
     """
     pad = 2
     source = _padded_image("F", fill_invalid(grid.values, grid.valid, grid.rows, grid.columns), grid.rows, grid.columns, pad, True)
@@ -330,6 +353,7 @@ def render_overlay(
     values = source.transform((width, height), Image.Transform.MESH, coarse_mesh, Image.Resampling.BILINEAR)
     span = max(maximum - minimum, 1e-6)
     indices = values.point(lambda value: value * (255 / span) - minimum * 255 / span).convert("L")
+    levels = indices.copy()  # the plain grey levels, for the value image
     indices.putpalette(_palette(stops))
     color = indices.convert("RGB")
 
@@ -337,6 +361,7 @@ def render_overlay(
     alpha = mask_source.transform((width, height), Image.Transform.MESH, fine_mesh, Image.Resampling.BILINEAR)
     pixels_per_cell = width / water.columns
     alpha = alpha.filter(ImageFilter.GaussianBlur(max(0.8, 0.6 * pixels_per_cell))).point(_smoothstep_lut(96, 160))
+    value_alpha, mixed = alpha, None
     if no_data is not None and any(no_data):
         # Land cells inherit the no-data state of nearby water, so shoreline
         # pixels next to mixed water are not tinted with a borrowed value.
@@ -347,7 +372,19 @@ def render_overlay(
         holes = holes.filter(ImageFilter.GaussianBlur(max(0.8, 0.35 * width / grid.columns))).point(_smoothstep_lut(100, 156))
         if no_data_color is None:
             alpha = ImageChops.multiply(alpha, ImageChops.invert(holes))
+            value_alpha = alpha
         else:
             color = Image.composite(Image.new("RGB", color.size, no_data_color), color, holes)
+            value_alpha = ImageChops.multiply(alpha, ImageChops.invert(holes))
+            mixed = Image.new("RGB", color.size, no_data_color)
+            mixed.putalpha(ImageChops.multiply(alpha, holes))
     color.putalpha(alpha)
-    return {"imageUrl": _encode(color), "bounds": [[south, west], [north, east]]}
+    result = {
+        "imageUrl": _encode(color),
+        "valueUrl": _encode_values(Image.merge("RGBA", (levels, levels, levels, value_alpha))),
+        "valueRange": [minimum, maximum],
+        "bounds": [[south, west], [north, east]],
+    }
+    if mixed is not None:
+        result["mixedUrl"] = _encode(mixed)
+    return result

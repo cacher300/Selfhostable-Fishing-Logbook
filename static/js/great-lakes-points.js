@@ -302,6 +302,14 @@ export function setup() {
     else if (event.target.matches("[data-gl-layer]") && toggle("model-points")?.checked) scheduleModelPoints();
   });
 
+  // Station dots use the colours on screen: the surface temperature range the map is fitted to.
+  document.addEventListener("great-lakes-palette-range", (event) => {
+    const { kind, minimum, maximum, depth } = event.detail || {};
+    if (kind !== "temperature" || depth) return;
+    layerRange = { minC: minimum, maxC: maximum };
+    renderStations();
+  });
+
   document.addEventListener("great-lakes-layer-loaded", (event) => {
     const { temperatureMetadata, depth } = event.detail || {};
     layerRange = temperatureMetadata && !depth && Number.isFinite(Number(temperatureMetadata.minC))
