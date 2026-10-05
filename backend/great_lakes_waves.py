@@ -32,7 +32,7 @@ from datetime import datetime, timezone
 from . import grib2
 from . import great_lakes_cache as cache
 from . import great_lakes_service as service
-from .great_lakes_render import WAVE_HEIGHT_COLOR_STOPS, ScalarGrid, robust_range
+from .great_lakes_render import WAVE_HEIGHT_COLOR_STOPS, ScalarGrid
 
 GLWU_BASE = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/glwu/prod"
 GLWU_PRODUCT = "grlc_2p5km_sr"
@@ -48,9 +48,9 @@ LONG_RUN_CYCLES = (1, 7, 13, 19)
 RUN_FILE = "waves-run.json"
 RUN_MAX_AGE_SECONDS = 5 * 60
 WAVE_FORMAT = 1
-WAVE_RENDER_VERSION = 2
-# Calm water stays blue: the palette never stretches over less than 1 m.
-WAVE_MIN_COLOR_MAX_METERS = 1.0
+WAVE_RENDER_VERSION = 3
+# Fixed significant-wave-height colour domain, shared by every lake and hour.
+WAVE_COLOR_RANGE_METERS = (0.0, 6.0)
 # Direction arrows sample every 4th model cell (about 10 km); the browser
 # thins them further to fit the zoom level.
 WAVE_ARROW_STRIDE = 4
@@ -393,13 +393,9 @@ def _build_rasters(run: dict, hour: int, forecast_hour: int, resolution: int, mo
     }
     rasters = []
     if inputs:
-        if scale:
-            maximum = scale[1]
-        else:
-            _, high = robust_range([value for item in inputs for value, ok in zip(item["grid"].values, item["grid"].valid) if ok], 0.0, 0.995, 0.0)
-            maximum = max(WAVE_MIN_COLOR_MAX_METERS, high)
-        rasters = service._render_rasters(inputs, WAVE_HEIGHT_COLOR_STOPS, 0.0, maximum, resolution)
-        metadata["minHeightMeters"], metadata["maxHeightMeters"] = 0.0, maximum
+        minimum, maximum = WAVE_COLOR_RANGE_METERS
+        rasters = service._render_rasters(inputs, WAVE_HEIGHT_COLOR_STOPS, minimum, maximum, resolution)
+        metadata["minHeightMeters"], metadata["maxHeightMeters"] = minimum, maximum
     return {"rasters": rasters, "arrows": wave_arrows(waves), "metadata": metadata}
 
 

@@ -179,7 +179,7 @@ def test_wave_layer_is_drawn_per_lake_with_arrows_and_point_values(monkeypatch) 
     assert [item["model"] for item in payload["rasters"]] == ["LEOFS"]
     assert payload["rasters"][0]["imageUrl"].startswith("data:image/")
     assert metadata["validTime"] == "2026-10-02T21:00:00Z" and metadata["models"][0]["available"] is True
-    assert metadata["minHeightMeters"] == 0.0 and math.isclose(metadata["maxHeightMeters"], 2.4, abs_tol=1e-6)
+    assert metadata["minHeightMeters"] == 0.0 and metadata["maxHeightMeters"] == waves.WAVE_COLOR_RANGE_METERS[1]
     assert payload["arrows"] and all(0 <= arrow["directionDegrees"] < 360 for arrow in payload["arrows"])
     # Drawn once, then shared through the disk cache.
     assert cache.read_json(service._rendered_path((waves.WAVE_RENDER_VERSION, run["id"], 1, 512, ("LEOFS",), None, service._cache_bucket()))) is not None

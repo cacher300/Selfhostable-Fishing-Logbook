@@ -24,12 +24,11 @@ export const PALETTE_STOPS = Object.freeze({
 });
 // How the range is trimmed and how narrow it may get, as the server does for the whole map:
 // a few outlying pixels do not stretch the colours, and model noise in uniform water is not
-// blown up into dramatic colour changes. Speed and wave height always start at still water.
+// blown up into dramatic colour changes. Current speed starts at still water; waves are fixed below.
 export const PALETTE_FIT = Object.freeze({
   temperature: { low: 0.005, high: 0.995, minimumSpan: 3 },
   thermocline: { low: 0.02, high: 0.98, minimumSpan: 2, floor: 0 },
   currents: { low: 0, high: 0.98, zeroBased: true, minimumMaximum: 0.08 },
-  waves: { low: 0, high: 0.995, zeroBased: true, minimumMaximum: 1 },
   // Upwelling strength (°F, negative upwelling) keeps one scale, so a colour always means the same strength.
   upwelling: { fixed: [-8, 8] }
 });
@@ -204,6 +203,16 @@ export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
   const end = Math.max(...ranges.map((range) => range[1]));
   const binWidth = Math.max(end - origin, 1e-6) / HISTOGRAM_BINS;
   const valueRange = ranges[0];
+
+  // Wave heights always use the server's fixed 0â€“6 m domain. Keep the same
+  // colours when the user pans, zooms, or steps through forecast frames.
+  if (kind === "waves" && valueRange) {
+    filter.set(valueRange, valueRange[0], valueRange[1], stops);
+    return {
+      refit() {},
+      stop() { active = false; clearTimeout(timer); filter.remove(); }
+    };
+  }
 
   function refit() {
     if (!active || !samples.length) return;

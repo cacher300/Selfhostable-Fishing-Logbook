@@ -18,7 +18,7 @@ import {
 // NOAA Great Lakes OFS map layers. Temperature, thermocline depth, current
 // speed, and wave height are server-rendered rasters clipped to NOAA's water
 // mask; currents add an animated particle flow (or static arrows) on top of
-// the speed shading, and waves add direction arrows.
+// the speed shading, and waves show animated travel or static direction arrows.
 export let greatLakesConditionsControl = null;
 export let greatLakesConditionsLayer = null;
 export let greatLakesConditionsRequest = null;
@@ -298,7 +298,7 @@ export function greatLakesConditionsHtml() {
     ${greatLakesTimelineHtml()}
     <label class="great-lakes-depth-control">Depth <output data-gl-depth-label>Surface</output><input data-gl-depth type="range" min="0" max="${GREAT_LAKES_DEPTH_SLIDER_MAX}" step="1" value="0" aria-label="Model depth, logarithmic scale" aria-valuetext="Surface" /></label>
     <div class="great-lakes-wave-options">
-      <label>Wave direction<select data-gl-wave-display><option value="arrows"${savedWaveDisplay() === "arrows" ? " selected" : ""}>Arrows</option><option value="off"${savedWaveDisplay() === "off" ? " selected" : ""}>Off</option></select></label>
+      <label>Wave display<select data-gl-wave-display><option value="flow"${savedWaveDisplay() === "flow" ? " selected" : ""}>Animated flow</option><option value="arrows"${savedWaveDisplay() === "arrows" ? " selected" : ""}>Static arrows</option><option value="off"${savedWaveDisplay() === "off" ? " selected" : ""}>Off</option></select></label>
     </div>
     <div class="great-lakes-current-options">
       <label>Background<select data-gl-current-background>${currentBackgroundOptionsHtml(savedCurrentBackground())}</select></label>
@@ -521,7 +521,10 @@ export function syncGreatLakesLayerControls(host = document.querySelector("#grea
 }
 
 export function savedWaveDisplay() {
-  try { return localStorage.getItem(WAVE_DISPLAY_STORAGE_KEY) === "off" ? "off" : "arrows"; } catch { return "arrows"; }
+  try {
+    const saved = localStorage.getItem(WAVE_DISPLAY_STORAGE_KEY);
+    return ["flow", "arrows", "off"].includes(saved) ? saved : "arrows";
+  } catch { return "arrows"; }
 }
 
 export function waveHeightLabel(meters) {
@@ -1055,6 +1058,30 @@ export function decodeGreatLakesWaterMask(mask) {
 }
 
 export function createCurrentFieldSampler(fields) {
+  if (fields[0]?.points) {
+    const points = fields.flatMap((field) => field.points);
+    const buckets = new Map();
+    for (const point of points) {
+      const key = `${Math.floor(point.latitude / 0.1)}:${Math.floor(point.longitude / 0.15)}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(point);
+    }
+    return (latitude, longitude) => {
+      let best = null, bestDistance = Infinity;
+      const row = Math.floor(latitude / 0.1), column = Math.floor(longitude / 0.15);
+      for (let y = row - 1; y <= row + 1; y += 1) for (let x = column - 2; x <= column + 2; x += 1) {
+        for (const point of buckets.get(`${y}:${x}`) || []) {
+          const dy = (point.latitude - latitude) * 111.2;
+          const dx = (point.longitude - longitude) * 111.2 * Math.cos(latitude * Math.PI / 180);
+          const distance = dx * dx + dy * dy;
+          if (distance < bestDistance) { best = point; bestDistance = distance; }
+        }
+      }
+      // Wave direction samples are about 10 km apart. Stop the field at its
+      // edge instead of letting particles cross large unsampled gaps.
+      return bestDistance <= 18 * 18 ? { u: best.u, v: best.v } : null;
+    };
+  }
   const prepared = fields.map((field) => {
     const ys = field.latitudeAxis, xs = field.longitudeAxis;
     return {
@@ -1087,6 +1114,18 @@ export function createCurrentFieldSampler(fields) {
     }
     return null;
   };
+}
+
+// NOAA directions describe where waves come from. Convert to the travel
+// bearing and use period for a gentle, readable particle speed.
+export function waveParticleFields(arrows) {
+  const points = arrows.flatMap((arrow) => {
+    if (!Number.isFinite(arrow.periodSeconds) || !Number.isFinite(arrow.directionDegrees)) return [];
+    const bearing = (arrow.directionDegrees + 180) * Math.PI / 180;
+    const speed = Math.max(0.12, Math.min(0.8, arrow.periodSeconds * 1.56 / 12));
+    return [{ latitude: arrow.latitude, longitude: arrow.longitude, u: Math.sin(bearing) * speed, v: Math.cos(bearing) * speed }];
+  });
+  return points.length ? [{ points }] : [];
 }
 
 // Screen-space step so the flow reads at every zoom: still water barely
@@ -1516,9 +1555,10 @@ export async function loadGreatLakesConditions(map) {
     else if (layer === "waves") {
       renderGreatLakesWaveRasters(payload.rasters || [], loadRevision);
       setWaveLegendRange(payload.metadata);
-      if (greatLakesControlValue("wave-display") !== "off" && (payload.arrows || []).length) {
-        greatLakesWaveArrowLayer = createWaveArrowLayer(map, payload.arrows).addTo(map);
-      }
+      const display = greatLakesControlValue("wave-display");
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (display === "flow" && !reduced && (payload.arrows || []).length) greatLakesParticleLayer = createParticleLayer(map, waveParticleFields(payload.arrows)).addTo(map);
+      else if (display === "arrows" && (payload.arrows || []).length) greatLakesWaveArrowLayer = createWaveArrowLayer(map, payload.arrows).addTo(map);
     }
     else {
       setCurrentLegendRange(payload.metadata);
