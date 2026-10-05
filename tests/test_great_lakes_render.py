@@ -205,3 +205,46 @@ def test_shoreline_the_coarse_grid_calls_land_stays_beside_deep_enough_water() -
     rows = [list(limited.wet[row * 5:(row + 1) * 5]) for row in range(5)]
     assert all(row[0] == 0 for row in rows)  # deep cell without a value: too shallow
     assert all(row[2] == 255 and row[4] == 255 for row in rows)  # land next to a valid cell keeps its shoreline
+
+
+def test_value_images_let_browsers_fit_the_colours_to_the_screen() -> None:
+    rows, columns = 4, 8
+    # 5 °C on the west half, 15 °C on the east half; the colour range is 5-25 °C.
+    values = [5.0 if column < columns // 2 else 15.0 for _ in range(rows) for column in range(columns)]
+    grid = render.ScalarGrid(values, [True] * rows * columns, rows, columns, 1, 1)
+    water = render.WaterMask(rows, columns, 1, 1, bytes([255] * rows * columns))
+    raster = render.render_overlay(grid, _axes(rows, columns), water, render.TEMPERATURE_COLOR_STOPS, 5, 25, 64)
+    image = _decode(raster["valueUrl"])
+
+    assert raster["valueRange"] == [5, 25]
+    west, east = image.getpixel((2, image.height // 2)), image.getpixel((image.width - 3, image.height // 2))
+    assert west[0] <= 3 and abs(east[0] - 128) <= 3  # grey level = position in the range
+    assert west[0] == west[1] == west[2] and west[3] > 240
+
+
+def test_mixed_water_gets_its_own_image_beside_the_value_image() -> None:
+    rows, columns = 4, 4
+    grid = render.ScalarGrid([10.0] * 16, [True, True, False, False] * 4, rows, columns, 1, 1)
+    water = render.WaterMask(rows, columns, 1, 1, bytes([255] * 16))
+    no_data = [False, False, True, True] * 4
+    raster = render.render_overlay(grid, _axes(rows, columns), water, render.THERMOCLINE_COLOR_STOPS, 0, 20, 64, no_data, (104, 116, 132))
+    values, mixed = _decode(raster["valueUrl"]), _decode(raster["mixedUrl"])
+
+    right, left = (values.width - 2, values.height // 2), (1, values.height // 2)
+    assert values.getpixel(right)[3] < 30 and values.getpixel(left)[3] > 200  # mixed water is not a value
+    assert mixed.getpixel(right)[3] > 200 and mixed.getpixel(left)[3] < 30
+
+
+def test_value_image_edges_keep_their_values() -> None:
+    # Half-transparent pixels where water meets mixed water (or land) must keep the water's
+    # value; the encoder's blanked hidden pixels used to bleed in as a dark fringe.
+    rows, columns = 16, 16
+    grid = render.ScalarGrid([10.0] * rows * columns, [column < 8 for _ in range(rows) for column in range(columns)], rows, columns, 1, 1)
+    water = render.WaterMask(rows, columns, 1, 1, bytes([255] * rows * columns))
+    no_data = [column >= 8 for _ in range(rows) for column in range(columns)]
+    raster = render.render_overlay(grid, _axes(rows, columns), water, render.THERMOCLINE_COLOR_STOPS, 0, 20, 256, no_data, (104, 116, 132))
+    image = _decode(raster["valueUrl"])
+
+    edge = [image.getpixel((x, y)) for y in range(4, image.height - 4) for x in range(image.width) if 40 <= image.getpixel((x, y))[3] <= 215]
+    assert edge, "expected a soft edge"
+    assert all(abs(pixel[0] - 128) <= 8 for pixel in edge), sorted({pixel[0] for pixel in edge})

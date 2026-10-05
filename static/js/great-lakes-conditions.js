@@ -3,6 +3,7 @@ import { L } from "./vendor.js";
 import { state, ui } from "./app-state.js";
 import { convertUnitValue, currentChopRanges, formatUnitValue, unitPreference } from "./app-units.js";
 import { depthRangeLabel, showWaterColumnDialog, thermoclineBand, thicknessLabel } from "./water-column.js";
+import { createPaletteFilter, fitPaletteToView, paletteOverlays } from "./great-lakes-palette.js";
 import { currentProfileActionHtml, directionIconHtml, profileActionHtml, readingHtml } from "./cards.js";
 import {
   clearGreatLakesAnimationVisuals,
@@ -406,11 +407,37 @@ export function setWaveLegendRange(metadata = {}) {
   if (maximum) maximum.textContent = waveHeightLabel(metadata.maxHeightMeters);
 }
 
+// The layer's colours follow what is on screen (great-lakes-palette.js); null without a layer.
+export let greatLakesPaletteFit = null;
+
+// Legends, flow colours, and station dots follow the colour range on screen.
+export function showPaletteRange(kind, low, high) {
+  if (kind === "temperature") setTemperatureLegendRange({ minC: low, maxC: high });
+  else if (kind === "thermocline") setThermoclineLegendRange({ minDepthMeters: low, maxDepthMeters: high });
+  else if (kind === "waves") setWaveLegendRange({ minHeightMeters: low, maxHeightMeters: high });
+  else {
+    setCurrentLegendRange({ minSpeedMetersPerSecond: low, maxSpeedMetersPerSecond: high });
+    setCurrentSpeedMax({ maxSpeedMetersPerSecond: high });
+  }
+  document.dispatchEvent(new CustomEvent("great-lakes-palette-range", { detail: { kind, minimum: low, maximum: high, depth: Number(greatLakesControlValue("depth")) || 0 } }));
+}
+
+export function stopPaletteFit() {
+  greatLakesPaletteFit?.stop();
+  greatLakesPaletteFit = null;
+}
+
+// A layer's lake images, coloured to fit what is on screen.
+function drawPaletteRasters(rasters, kind, options) {
+  stopPaletteFit();
+  const filter = createPaletteFilter();
+  paletteOverlays(rasters, filter, { ...options, interactive: false }).forEach((overlay) => overlay.addTo(greatLakesConditionsLayer));
+  greatLakesPaletteFit = fitPaletteToView(greatLakesConditionsLayer._map, [rasters], kind, filter, (low, high) => showPaletteRange(kind, low, high));
+}
+
 export function renderGreatLakesWaveRasters(rasters, loadRevision) {
   if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== "waves") return;
-  rasters.forEach((raster) => L.imageOverlay(raster.imageUrl, raster.bounds, {
-    opacity: 0.86, interactive: false, className: "great-lakes-wave-raster"
-  }).addTo(greatLakesConditionsLayer));
+  drawPaletteRasters(rasters, "waves", { opacity: 0.86, className: "great-lakes-wave-raster" });
 }
 
 // About one arrow per this many screen pixels, whatever the zoom.
@@ -464,26 +491,21 @@ export function createWaveArrowLayer(map, arrows) {
 
 export function renderGreatLakesTemperatureRasters(rasters, loadRevision, expectedLayer = "temperature") {
   if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== expectedLayer) return;
-  rasters.forEach((raster) => L.imageOverlay(raster.imageUrl, raster.bounds, {
-    opacity: 0.9, interactive: false, className: "great-lakes-temperature-raster"
-  }).addTo(greatLakesConditionsLayer));
+  drawPaletteRasters(rasters, "temperature", { opacity: 0.9, className: "great-lakes-temperature-raster" });
 }
 
 export function renderGreatLakesThermoclineRasters(rasters, loadRevision) {
   if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== "thermocline") return;
-  rasters.forEach((raster) => L.imageOverlay(raster.imageUrl, raster.bounds, {
-    opacity: 0.88, interactive: false, className: "great-lakes-thermocline-raster"
-  }).addTo(greatLakesConditionsLayer));
+  drawPaletteRasters(rasters, "thermocline", { opacity: 0.88, className: "great-lakes-thermocline-raster" });
 }
 
 export function renderGreatLakesCurrentRasters(rasters, loadRevision) {
   if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== "currents") return;
-  rasters.forEach((raster) => L.imageOverlay(raster.imageUrl, raster.bounds, {
-    opacity: 0.8, interactive: false, className: "great-lakes-current-raster"
-  }).addTo(greatLakesConditionsLayer));
+  drawPaletteRasters(rasters, "currents", { opacity: 0.8, className: "great-lakes-current-raster" });
 }
 
 export function clearGreatLakesVisuals() {
+  stopPaletteFit();
   clearGreatLakesAnimationVisuals();
   greatLakesParticleLayer?.remove();
   greatLakesParticleLayer = null;

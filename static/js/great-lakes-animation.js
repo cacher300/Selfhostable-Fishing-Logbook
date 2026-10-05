@@ -16,8 +16,10 @@ import {
   setTemperatureLegendRange,
   setThermoclineLegendRange,
   setWaveLegendRange,
+  showPaletteRange,
   tooShallowNote
 } from "./great-lakes-conditions.js";
+import { createPaletteFilter, fitPaletteToView, paletteOverlays } from "./great-lakes-palette.js";
 
 // Forecast animation: the chosen layer stepped through the next 48 hours,
 // every 3 hours, with one colour scale for every frame (the server picks it),
@@ -63,6 +65,8 @@ const state = {
   index: 0,
   timer: null,
   fadeTimer: null,
+  // Every frame's colours fit what is on screen across all frames (great-lakes-palette.js).
+  paletteFit: null,
   stack: 0,
   particles: null,
   arrows: null,
@@ -221,6 +225,8 @@ export function clearGreatLakesAnimationVisuals() {
   state.arrows = null;
   state.waveArrows?.remove();
   state.waveArrows = null;
+  state.paletteFit?.stop();
+  state.paletteFit = null;
   state.overlays = [];
 }
 
@@ -262,11 +268,12 @@ async function animationIndex(layer, depth, signal, isCurrent) {
 const IMAGE_PRELOAD_LIMIT_MS = 10000;
 
 function preloadImages(payload) {
-  return Promise.all((payload?.rasters || []).map((raster) => new Promise((resolve) => {
+  const urls = (payload?.rasters || []).flatMap((raster) => raster.valueUrl ? [raster.valueUrl, raster.mixedUrl].filter(Boolean) : [raster.imageUrl]);
+  return Promise.all(urls.map((url) => new Promise((resolve) => {
     const image = new Image();
     const timer = setTimeout(resolve, IMAGE_PRELOAD_LIMIT_MS);
     image.onload = image.onerror = () => { clearTimeout(timer); resolve(); };
-    image.src = raster.imageUrl;
+    image.src = url;
   })));
 }
 
@@ -338,16 +345,20 @@ function buildFrames(map, background) {
   const rasterPayloads = layer === "currents"
     ? (background === "temperature" ? state.backgroundPayloads : background === "none" ? null : state.payloads)
     : state.payloads;
-  const style = RASTER_STYLES[layer === "currents" && background === "temperature" ? "temperature" : layer];
+  const kind = layer === "currents" && background === "temperature" ? "temperature" : layer;
+  const style = RASTER_STYLES[kind];
   const pane = map.getPane(ANIMATION_PANE) || map.createPane(ANIMATION_PANE);
   pane.style.zIndex = "395";
   pane.style.pointerEvents = "none";
   pane.style.opacity = String(style.opacity);
   applyFadeDuration();
   state.stack = 0;
-  state.overlays = state.payloads.map((_, index) => (rasterPayloads?.[index]?.rasters || []).map((raster) => L.imageOverlay(raster.imageUrl, raster.bounds, {
+  const filter = createPaletteFilter();
+  state.overlays = state.payloads.map((_, index) => paletteOverlays(rasterPayloads?.[index]?.rasters, filter, {
     pane: ANIMATION_PANE, opacity: 0, interactive: false, className: `${style.className} great-lakes-animation-frame`
-  }).addTo(greatLakesConditionsLayer)));
+  }).map((overlay) => overlay.addTo(greatLakesConditionsLayer)));
+  const frameRasters = state.payloads.map((_, index) => rasterPayloads?.[index]?.rasters || []);
+  state.paletteFit = fitPaletteToView(map, frameRasters, kind, filter, (low, high) => showPaletteRange(kind, low, high));
   if (layer !== "currents") return;
   const display = greatLakesControlValue("current-display");
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

@@ -3,17 +3,18 @@ from __future__ import annotations
 from backend import great_lakes_service as service
 
 
-def test_the_thermocline_starts_where_the_temperature_curve_bends() -> None:
+def test_the_thermocline_starts_where_the_warm_layer_ends() -> None:
     # Off Collingwood, October 2026: mixed to about 30 ft, then cooling (metres, °C).
     profile = [(0, 14.72), (2, 14.72), (4, 14.72), (6, 14.72), (8, 14.72), (10, 14.56), (12, 14.28), (15, 13.89), (20, 13.17), (25, 12.83)]
 
     band = service._thermocline_band(profile)
 
-    # The curve leaves the warm layer at 10 m (33 ft); the cooling eases below about 20 m.
-    assert band["top"] == 10
+    # The water is 0.5 °F (0.28 °C) cooler than the warm layer between the 10 and 12 m levels
+    # (36 ft); the cooling eases below about 20 m.
+    assert round(band["top"], 2) == 10.84
     assert round(band["bottom"], 2) == 20.39
     assert round(band["thickness"], 6) == round(band["bottom"] - band["top"], 6)
-    assert band["topTemperature"] == 14.56
+    assert round(band["topTemperature"], 3) == round(14.72 - 0.5 / 1.8, 3)
 
 
 def test_a_slow_start_does_not_push_the_top_down() -> None:
@@ -25,7 +26,7 @@ def test_a_slow_start_does_not_push_the_top_down() -> None:
 
     band = service._thermocline_band(profile)
 
-    assert round(band["top"] * 3.28084) == 49
+    assert 50 <= band["top"] * 3.28084 <= 51
     assert band["bottom"] * 3.28084 > 90
 
 
@@ -34,7 +35,7 @@ def test_a_sharp_step_is_a_thin_band() -> None:
 
     band = service._thermocline_band(profile)
 
-    assert band["top"] == 10.0  # the step starts at 10 m
+    assert round(band["top"], 2) == 10.17  # 0.5 °F into the step that starts at 10 m
     assert band["bottom"] == 15.0  # and stops at 15 m
     assert round(band["gradient"], 2) == round((band["topTemperature"] - 12.0) / (15.0 - band["top"]), 2)
 
@@ -58,7 +59,7 @@ def test_the_band_ends_where_the_cooling_eases_to_half_its_strongest_rate() -> N
 def test_a_sun_warmed_skin_does_not_count() -> None:
     profile = [(0, 22.0), (1, 20.5), (3, 20.0), (10, 20.0), (15, 20.0), (20, 15.0), (30, 12.0)]
 
-    assert service._thermocline_band(profile)["top"] == 15
+    assert round(service._thermocline_band(profile)["top"], 2) == 15.28
 
 
 def test_water_cooling_from_the_surface_has_no_thermocline() -> None:
@@ -87,13 +88,16 @@ def test_water_that_cools_evenly_has_no_thermocline() -> None:
     assert service._thermocline_analysis(gentle) == (None, "gradual")
 
 
-def test_a_band_that_stands_out_from_the_rest_of_the_column_is_a_thermocline() -> None:
-    # The same gentle column with a sharp 2 °C/m step in it.
-    profile = [(0, 20.0), (5, 19.25), (10, 18.5), (15, 17.75), (20, 7.75), (25, 7.0), (30, 6.25), (40, 4.75)]
+def test_deep_water_that_keeps_cooling_to_the_bed_does_not_hide_the_thermocline() -> None:
+    # Off Mississauga, October 2026: warm and uniform to about 20 ft, cooling from about 30 ft,
+    # and the deep water keeps cooling right down to the lake bed (4.5 °F in the last 33 ft).
+    feet = [0, 3, 7, 13, 20, 26, 33, 39, 49, 66, 82, 98, 115, 131, 148, 164, 197]
+    fahrenheit = [64.6, 64.6, 64.6, 64.6, 64.5, 64.3, 64.0, 63.4, 62.0, 59.3, 56.4, 53.1, 50.7, 48.9, 47.5, 46.3, 41.8]
+    profile = [(depth / 3.28084, (temperature - 32) / 1.8) for depth, temperature in zip(feet, fahrenheit)]
 
-    band, finding = service._thermocline_analysis(profile)
+    band, finding = service._thermocline_analysis(profile, 200 / 3.28084)
 
-    assert finding == "found" and band["top"] == 15 and 20 <= band["bottom"] < 21
+    assert finding == "found" and 30 <= band["top"] * 3.28084 <= 34
 
 
 def test_mixed_and_winter_water_have_no_thermocline() -> None:
@@ -112,7 +116,7 @@ def test_a_thin_cold_bottom_layer_counts_when_the_lake_is_deeper_than_its_last_l
 
     assert service._thermocline_band(profile) is None  # no bed depth: may be bottom cooling
     band = service._thermocline_band(profile, 23.0)
-    assert band["top"] == 15 and band["bottom"] == 20
+    assert round(band["top"], 2) == 15.93 and band["bottom"] == 20
     assert service._thermocline_band(profile, 20.5) is None  # bed right below: bottom cooling
 
 
@@ -131,11 +135,12 @@ def test_readings_show_at_most_15_ft_of_the_band(monkeypatch) -> None:
 
     thermocline = service._temperature_profile_result("LMHOFS", run, 5, 45.19, -80.46, 45.19, -80.46, values)["thermocline"]
 
-    # The band runs from 49 ft to about 103 ft; readings show its top 15 ft.
-    assert round(thermocline["topDepthMeters"] * 3.28084) == 49
-    assert round(thermocline["bottomDepthMeters"] * 3.28084) == 64 and round(thermocline["thicknessMeters"] * 3.28084) == 15
+    # The band runs from about 51 ft to about 103 ft; readings show its top 15 ft.
+    top_feet = thermocline["topDepthMeters"] * 3.28084
+    assert 50 <= top_feet <= 51
+    assert round(thermocline["thicknessMeters"] * 3.28084) == 15 and round(thermocline["bottomDepthMeters"] * 3.28084) == round(top_feet + 15)
     assert thermocline["fullBottomDepthMeters"] * 3.28084 > 90
-    assert round(thermocline["temperatureBelowC"] * 1.8 + 32, 1) == 57.3  # at 64 ft, between 58.3 (49 ft) and 57.2 (66 ft)
+    assert round(thermocline["temperatureBelowC"] * 1.8 + 32, 1) == 57.2  # at 65.5 ft, just above the 66 ft level (57.2 °F)
 
 
 def test_smoothing_evens_out_level_jitter_without_spreading_into_mixed_water() -> None:

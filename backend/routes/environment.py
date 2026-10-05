@@ -83,7 +83,10 @@ def _models() -> tuple[str, ...]:
 
 def _cached(payload: dict) -> Response:
     response = jsonify(payload)
-    response.headers["Cache-Control"] = LAYER_CACHE_CONTROL
+    # A layer missing a lake (NOAA briefly unreachable) is retried on the server within minutes;
+    # the browser must not keep it for the full ten minutes under the same URL.
+    complete = all(item.get("available", True) for item in (payload.get("metadata") or {}).get("models", []))
+    response.headers["Cache-Control"] = LAYER_CACHE_CONTROL if complete else "no-store"
     return response
 
 
