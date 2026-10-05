@@ -81,6 +81,9 @@ THERMOCLINE_MIN_GRADIENT_C_PER_METER = 0.1
 THERMOCLINE_MIN_CONTRAST = 2.0
 THERMOCLINE_MIN_BAND_DROP_C = 1.0 / 1.8
 # At least this much of the column (10 ft) must lie outside the band to compare it against.
+# Readings show at most this much of the band (15 ft): the top is what anglers fish, and a
+# band can taper on for 50 ft or more below it. Detection still uses the whole band.
+THERMOCLINE_MAX_SHOWN_THICKNESS_METERS = 15 / 3.28084
 THERMOCLINE_MIN_OUTSIDE_METERS = 3.048
 # The band ends where the cooling eases to this share of its strongest rate (or to the minimum above).
 THERMOCLINE_BAND_PEAK_SHARE = 0.5
@@ -1307,19 +1310,30 @@ def _temperature_profile_result(model: str, run: dict, hour: int, latitude: floa
     except Exception:
         bottom = None
     band, finding = _thermocline_analysis(profile_values, bottom["depthMeters"] if bottom else None)
-    thermocline = None if not band else {
-        # depthMeters is the top: where the map colour comes from.
-        "depthMeters": band["top"],
-        "topDepthMeters": band["top"], "bottomDepthMeters": band["bottom"], "thicknessMeters": band["thickness"],
-        "temperatureAboveC": band["topTemperature"], "temperatureBelowC": band["bottomTemperature"],
-        "gradientCPerMeter": band["gradient"],
-        "method": "coolingOnset",
-    }
+    thermocline = None if not band else _shown_thermocline(profile_values, band)
     result = {"available": True, "model": model, "validTime": _valid_time_text(run, hour), "requested": {"latitude": latitude, "longitude": longitude}, "modelLocation": {"latitude": model_latitude, "longitude": model_longitude}, "values": values, "thermocline": thermocline}
     if band is None:
         # Why there is none: "mixed" (about the same temperature throughout, or colder at the top) or "gradual" (cools gradually with depth, no warm layer over a sharper drop).
         result["noThermocline"] = finding
     return result
+
+
+def _shown_thermocline(profile: list[tuple[float, float]], band: dict) -> dict:
+    """A band as readings show it: at most THERMOCLINE_MAX_SHOWN_THICKNESS_METERS from its top."""
+    ordered = sorted(profile)
+    bottom = min(band["bottom"], band["top"] + THERMOCLINE_MAX_SHOWN_THICKNESS_METERS)
+    thickness = bottom - band["top"]
+    bottom_temperature = _temperature_at_depth(ordered, bottom) if bottom < band["bottom"] else band["bottomTemperature"]
+    return {
+        # depthMeters is the top: where the map colour comes from.
+        "depthMeters": band["top"],
+        "topDepthMeters": band["top"], "bottomDepthMeters": bottom, "thicknessMeters": thickness,
+        "temperatureAboveC": band["topTemperature"], "temperatureBelowC": bottom_temperature,
+        "gradientCPerMeter": (band["topTemperature"] - bottom_temperature) / thickness if thickness > 0.01 else band["gradient"],
+        # The whole band continues this far down (the cooling eases below it).
+        "fullBottomDepthMeters": band["bottom"],
+        "method": "coolingOnset",
+    }
 
 
 def _cached_current_profile(model: str, forecast_hour: int, latitude: float, longitude: float) -> dict | None:
