@@ -19,7 +19,8 @@ export const PALETTE_STOPS = Object.freeze({
   temperature: TEMPERATURE_STOPS,
   thermocline: TEMPERATURE_STOPS,
   currents: [[0, [22, 58, 128]], [0.22, [40, 92, 178]], [0.45, [98, 70, 186]], [0.68, [172, 60, 170]], [0.86, [232, 86, 118]], [1, [252, 158, 72]]],
-  waves: [[0, [30, 64, 150]], [0.18, [26, 120, 210]], [0.36, [20, 190, 214]], [0.54, [118, 222, 122]], [0.7, [250, 224, 60]], [0.85, [250, 138, 40]], [1, [222, 40, 92]]]
+  waves: [[0, [30, 64, 150]], [0.18, [26, 120, 210]], [0.36, [20, 190, 214]], [0.54, [118, 222, 122]], [0.7, [250, 224, 60]], [0.85, [250, 138, 40]], [1, [222, 40, 92]]],
+  upwelling: [[0, [20, 54, 160]], [0.22, [38, 112, 222]], [0.38, [126, 196, 250]], [0.5, [236, 240, 245]], [0.62, [252, 178, 122]], [0.78, [232, 92, 54]], [1, [168, 24, 36]]]
 });
 // How the range is trimmed and how narrow it may get, as the server does for the whole map:
 // a few outlying pixels do not stretch the colours, and model noise in uniform water is not
@@ -28,7 +29,9 @@ export const PALETTE_FIT = Object.freeze({
   temperature: { low: 0.005, high: 0.995, minimumSpan: 3 },
   thermocline: { low: 0.02, high: 0.98, minimumSpan: 2, floor: 0 },
   currents: { low: 0, high: 0.98, zeroBased: true, minimumMaximum: 0.08 },
-  waves: { low: 0, high: 0.995, zeroBased: true, minimumMaximum: 1 }
+  waves: { low: 0, high: 0.995, zeroBased: true, minimumMaximum: 1 },
+  // Upwelling strength (°F, negative upwelling) keeps one scale, so a colour always means the same strength.
+  upwelling: { fixed: [-8, 8] }
 });
 // Width of the kept copies of the value images; plenty to find a range.
 const SAMPLE_WIDTH = 320;
@@ -62,6 +65,7 @@ export function paletteTables(valueRange, low, high, stops) {
 // The range to colour: trimmed percentiles of what is on screen, widened to the minimum span.
 export function fitRange(histogram, binWidth, origin, kind) {
   const rule = PALETTE_FIT[kind] || PALETTE_FIT.temperature;
+  if (rule.fixed) return [...rule.fixed];
   const total = histogram.reduce((sum, count) => sum + count, 0);
   if (!total) return null;
   const quantile = (fraction) => {

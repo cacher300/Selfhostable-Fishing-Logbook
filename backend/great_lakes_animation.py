@@ -25,14 +25,15 @@ from urllib.parse import urlencode
 from . import great_lakes_cache as cache
 from . import great_lakes_refresher as refresher
 from . import great_lakes_service as service
+from . import great_lakes_upwelling as upwelling
 from . import great_lakes_waves as waves
 
-LAYERS = ("temperature", "thermocline", "currents", "waves")
+LAYERS = ("temperature", "thermocline", "currents", "waves", "upwelling")
 DEPTH_LAYERS = {"temperature", "currents"}
 MODELS = service.MODELS
 # Animations always cover every lake at the map's one resolution (what the refresher draws).
 RESOLUTION = refresher.MAP_RESOLUTION
-LAYER_ENDPOINTS = {"temperature": "temperature-raster", "thermocline": "thermocline-raster", "currents": "currents", "waves": "waves-raster"}
+LAYER_ENDPOINTS = {"temperature": "temperature-raster", "thermocline": "thermocline-raster", "currents": "currents", "waves": "waves-raster", "upwelling": "upwelling-raster"}
 
 
 def layer_payload(layer: str, forecast_hour: int, depth: float = 0.0, scale: tuple[float, float] | None = None) -> dict:
@@ -45,6 +46,8 @@ def layer_payload(layer: str, forecast_hour: int, depth: float = 0.0, scale: tup
         return service.great_lakes_payload("currents", forecast_hour, depth, MODELS, scale)
     if layer == "waves":
         return waves.wave_rasters(forecast_hour, RESOLUTION, MODELS, scale)
+    if layer == "upwelling":
+        return upwelling.upwelling_rasters(forecast_hour, RESOLUTION, MODELS, scale)
     raise ValueError(f"Unknown layer {layer!r}")
 
 
@@ -71,10 +74,11 @@ RANGE_FIELDS = {
     "thermocline": ("minDepthMeters", "maxDepthMeters"),
     "currents": ("minSpeedMetersPerSecond", "maxSpeedMetersPerSecond"),
     "waves": ("minHeightMeters", "maxHeightMeters"),
+    "upwelling": ("minScoreF", "maxScoreF"),
 }
 # The shared range is widened to these steps, so the hourly "Now" frame
 # rarely changes it (which would redraw every frame).
-SCALE_STEPS = {"temperature": 0.5, "thermocline": 1.0, "currents": 0.02, "waves": 0.1}
+SCALE_STEPS = {"temperature": 0.5, "thermocline": 1.0, "currents": 0.02, "waves": 0.1, "upwelling": 1.0}
 # Speed and wave-height shading always start at still water.
 ZERO_BASED = {"currents", "waves"}
 # An animation request waits this long for its frames before reporting progress instead.

@@ -61,7 +61,7 @@ def fish(tmp_path: Path) -> FishTestApp:
 @pytest.fixture(autouse=True)
 def isolated_great_lakes_cache(tmp_path_factory: pytest.TempPathFactory):
     """Keep NOAA cache files and discovered runs from leaking between tests or into the real cache."""
-    from backend import great_lakes_animation, great_lakes_cache, great_lakes_service, great_lakes_volumes, great_lakes_waves
+    from backend import great_lakes_animation, great_lakes_cache, great_lakes_service, great_lakes_upwelling, great_lakes_volumes, great_lakes_waves
 
     great_lakes_cache.configure(tmp_path_factory.mktemp("great-lakes-cache"))
     great_lakes_service._runs_state.clear()
@@ -71,6 +71,7 @@ def isolated_great_lakes_cache(tmp_path_factory: pytest.TempPathFactory):
     great_lakes_volumes.clear_memory()
     great_lakes_waves.clear_memory()
     great_lakes_animation.clear_memory()
+    great_lakes_upwelling.clear_memory()
     yield
     great_lakes_service._runs_state.clear()
     great_lakes_volumes.clear_memory()
