@@ -622,12 +622,7 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 .great-lakes-timeline-speed { display: grid; flex: none; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--field); color: var(--text); font: 700 10px/1 Roboto, sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; }
 .great-lakes-timeline-speed:hover { background: var(--hover); }
 :is(.great-lakes-play, .great-lakes-timeline-speed, .great-lakes-timeline-stop):focus-visible { outline: 3px solid var(--chip-line); outline-offset: 2px; }
-.great-lakes-animation-frame { transition: opacity var(--gl-frame-fade, 1000ms) linear; }
 .leaflet-marker-icon:is(.great-lakes-wave-arrow, .great-lakes-current-arrow) { transition: opacity var(--gl-frame-fade, 1000ms) linear; }
-.is-instant > .great-lakes-animation-frame { transition: none; }
-@media (prefers-reduced-motion: reduce) {
-  .great-lakes-animation-frame { transition: none; }
-}
 .great-lakes-timeline-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 8px; margin-top: 2px; }
 .great-lakes-timeline-meta .great-lakes-timeline-label { flex: 1 0 auto; margin-top: 0; }
 /* "Past 30 days": step back and forth by hour or day, or pick a time. Saved hours are surface maps without an animation. */

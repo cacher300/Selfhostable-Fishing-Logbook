@@ -439,7 +439,7 @@ function hideAnimationFramesExcept(index) {
   const pane = state.map?.getPane(ANIMATION_PANE);
   pane?.classList.add("is-instant");
   state.overlays.forEach((overlays, frame) => {
-    if (frame !== index) overlays.forEach((overlay) => overlay.setOpacity(0));
+    if (frame !== index) overlays.forEach((overlay) => animateOverlayOpacity(overlay, 0));
   });
   // Commit cleanup without fading old frames out underneath the next fade.
   if (pane) void pane.offsetWidth;
@@ -447,6 +447,28 @@ function hideAnimationFramesExcept(index) {
 
 function setMarkerGroupOpacity(group, opacity) {
   group?.eachLayer((marker) => marker.setOpacity(opacity));
+}
+
+// Animate the image element directly so every forecast layer, including the
+// transparent upwelling rasters, follows the same frame clock in every browser.
+function animateOverlayOpacity(overlay, target, durationMs = 0) {
+  const image = overlay.getElement();
+  if (!image) { overlay.setOpacity(target); return; }
+  cancelAnimationFrame(overlay._glOpacityFrame);
+  overlay._glOpacityFrame = null;
+  const current = Number.parseFloat(getComputedStyle(image).opacity);
+  const startOpacity = Number.isFinite(current) ? current : 0;
+  if (!durationMs || Math.abs(startOpacity - target) < 0.001) {
+    overlay.setOpacity(target);
+    return;
+  }
+  const started = performance.now();
+  const update = (now) => {
+    const progress = Math.min(1, (now - started) / durationMs);
+    overlay.setOpacity(startOpacity + (target - startOpacity) * progress);
+    overlay._glOpacityFrame = progress < 1 ? requestAnimationFrame(update) : null;
+  };
+  overlay._glOpacityFrame = requestAnimationFrame(update);
 }
 
 // The new frame fades in over the one on screen. During playback, older frames
@@ -457,14 +479,15 @@ function crossfadeTo(index, fade) {
   // the loop boundary where this image has already been shown before.
   if (pane) void pane.offsetWidth;
   pane?.classList.toggle("is-instant", !fade);
+  const { fadeMs } = speedTiming();
+  const duration = fade ? fadeMs : 0;
   state.stack += 1;
   (state.overlays[index] || []).forEach((overlay) => {
     overlay.setZIndex(state.stack);
-    overlay.setOpacity(1);
+    animateOverlayOpacity(overlay, 1, duration);
   });
   clearTimeout(state.fadeTimer);
   const hideOthers = () => hideAnimationFramesExcept(state.index);
-  const { fadeMs } = speedTiming();
   if (fade && fadeMs > 0 && state.playing) return;
   if (fade && fadeMs > 0) state.fadeTimer = setTimeout(hideOthers, fadeMs + 60);
   else hideOthers();
