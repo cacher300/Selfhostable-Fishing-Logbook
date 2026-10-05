@@ -9,25 +9,25 @@ def test_the_thermocline_starts_where_the_warm_layer_ends() -> None:
 
     band = service._thermocline_band(profile)
 
-    # Flat to 8 m, barely cooling to 10 m (33 ft), then clearly faster below; the cooling
-    # eases below about 22 m.
-    assert band["top"] == 10.0
+    # Flat to 8 m (26 ft): the straight part ends there, and the cooling that starts below it
+    # keeps going (gently at first) down to about 22 m.
+    assert band["top"] == 8.0
     assert round(band["bottom"], 2) == 22.24
     assert round(band["thickness"], 6) == round(band["bottom"] - band["top"], 6)
-    assert band["topTemperature"] == 14.56
+    assert band["topTemperature"] == 14.72
 
 
 def test_a_slow_start_does_not_push_the_top_down() -> None:
     # Georgian Bay off Parry Sound: 58.7 °F to 49 ft, then only 0.4 °F by 66 ft before the
-    # main drop. Waiting for the water to be 2 °F cooler put the top at 75-83 ft; the slope
-    # changes at the 49 ft level.
+    # main drop. Waiting for the water to be 2 °F cooler put the top at 75-83 ft; the straight
+    # part ends at 39 ft, where the cooling starts and keeps going.
     feet = [0, 3, 7, 13, 20, 26, 33, 39, 49, 66, 82, 98, 115, 131, 148, 164]
     fahrenheit = [58.7, 58.7, 58.7, 58.7, 58.7, 58.7, 58.7, 58.6, 58.3, 57.2, 56.3, 55.2, 54.3, 53.6, 52.9, 52.7]
     profile = [(depth / 3.28084, (temperature - 32) / 1.8) for depth, temperature in zip(feet, fahrenheit)]
 
     band = service._thermocline_band(profile)
 
-    assert round(band["top"] * 3.28084) == 49
+    assert round(band["top"] * 3.28084) == 39
     assert band["bottom"] * 3.28084 > 90
 
 
@@ -137,6 +137,38 @@ def test_the_top_is_where_the_curve_bends_not_partway_down_the_band() -> None:
     assert finding == "found" and round(band["top"] * 3.28084) == 66
 
 
+def test_the_top_is_the_last_level_of_the_straight_part() -> None:
+    # Off Port Credit (43.23, -79.44): flat to 49 ft, 1.2 °F cooler at 66 ft, then 3.6 °F more by
+    # 82 ft. The band starts where the straight part ends (49 ft), not at the sharper bend (66 ft).
+    feet = [0, 3, 7, 13, 20, 26, 33, 39, 49, 66, 82]
+    fahrenheit = [63.1, 63.1, 63.1, 63.1, 63.1, 63.2, 63.2, 63.2, 63.2, 62.0, 58.4]
+
+    band, finding = service._thermocline_analysis(_feet_profile(feet, fahrenheit), 85 / 3.28084)
+
+    assert finding == "found" and round(band["top"] * 3.28084) == 49 and round(band["bottom"] * 3.28084) == 82
+    # A gentler lead-in (0.6 °F) still starts the band where the straight part ends.
+    gentler = [63.11, 63.13, 63.15, 63.18, 63.19, 63.19, 63.20, 63.20, 63.20, 62.56, 58.67]
+    band, finding = service._thermocline_analysis(_feet_profile(feet, gentler), 85 / 3.28084)
+    assert finding == "found" and round(band["top"] * 3.28084) == 49
+    # A cooling of 0.1 °F is not a lead-in: the band starts at the sharp drop.
+    barely = [57.67, 57.67, 57.68, 57.70, 57.71, 57.72, 57.72, 57.72, 57.72, 57.61, 56.55, 55.07, 53.98, 52.99, 52.01]
+    band, finding = service._thermocline_analysis(_feet_profile([*feet, 98, 115, 131, 148], barely), 170 / 3.28084)
+    assert finding == "found" and round(band["top"] * 3.28084) == 66
+
+
+def test_the_top_always_has_cooler_water_right_below_it() -> None:
+    # Slightly warmer at 39 ft and the same at 49 ft: the band cannot start above 49 ft.
+    feet = [0, 3, 7, 13, 20, 26, 33, 39, 49, 66, 82]
+    fahrenheit = [60, 60, 60, 60, 60, 60, 60, 60.2, 60.2, 57, 52]
+    profile = _feet_profile(feet, fahrenheit)
+
+    band, finding = service._thermocline_analysis(profile, 90 / 3.28084)
+
+    assert finding == "found" and round(band["top"] * 3.28084) == 49
+    below = next(temperature for depth, temperature in profile if depth > band["top"])
+    assert below < band["topTemperature"]
+
+
 def test_a_thermocline_just_above_the_bed_is_found() -> None:
     # 45.71, -81.26: flat to 49 ft, 0.45 °F cooler at the deepest level (66 ft), bed at 79 ft.
     feet = [0, 3, 7, 13, 20, 26, 33, 39, 49, 66]
@@ -183,12 +215,12 @@ def test_readings_show_at_most_15_ft_of_the_band(monkeypatch) -> None:
 
     thermocline = service._temperature_profile_result("LMHOFS", run, 5, 45.19, -80.46, 45.19, -80.46, values)["thermocline"]
 
-    # The band runs from 49 ft to about 143 ft; readings show its top 15 ft.
+    # The band runs from 39 ft to about 143 ft; readings show its top 15 ft.
     top_feet = thermocline["topDepthMeters"] * 3.28084
-    assert round(top_feet) == 49
+    assert round(top_feet) == 39
     assert round(thermocline["thicknessMeters"] * 3.28084) == 15 and round(thermocline["bottomDepthMeters"] * 3.28084) == round(top_feet + 15)
     assert thermocline["fullBottomDepthMeters"] * 3.28084 > 90
-    assert round(thermocline["temperatureBelowC"] * 1.8 + 32, 1) == 57.3  # at 64 ft, between 58.3 °F (49 ft) and 57.2 °F (66 ft)
+    assert round(thermocline["temperatureBelowC"] * 1.8 + 32, 1) == 58.0  # at 54 ft, between 58.3 °F (49 ft) and 57.2 °F (66 ft)
 
 
 def test_smoothing_evens_out_level_jitter_without_spreading_into_mixed_water() -> None:

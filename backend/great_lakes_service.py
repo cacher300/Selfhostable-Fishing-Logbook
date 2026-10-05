@@ -58,7 +58,7 @@ _runs_lock = threading.Lock()
 _raster_cache: dict[tuple, dict] = {}
 _thermocline_raster_cache: dict[tuple, dict] = {}
 TEMPERATURE_RASTER_RENDER_VERSION = 5
-THERMOCLINE_RASTER_RENDER_VERSION = 26
+THERMOCLINE_RASTER_RENDER_VERSION = 27
 CURRENT_RENDER_VERSION = 4
 # A requested depth this far below a lake's deepest model level has no water there.
 DEEPEST_LEVEL_TOLERANCE_METERS = 0.5
@@ -90,6 +90,17 @@ THERMOCLINE_FLAT_RATE_C_PER_METER = 0.005
 # Of those levels, prefer the deepest where the layer just below cools at least this many times
 # faster than the layer just above: where the curve bends, not partway down the band.
 THERMOCLINE_LOCAL_BEND_RATIO = 1.5
+# The top is the last level of the straight part above the band: the shallowest bend from which
+# every layer down to the strongest cooling cools at least this share of that strongest rate, so
+# a slower lead-in at the top of the band belongs to the band. The first layer below the top must
+# cool by at least THERMOCLINE_MIN_LEAD_DROP_C (a level with water as warm or warmer below it is
+# never the top).
+THERMOCLINE_LEAD_SHARE = 0.2
+THERMOCLINE_MIN_LEAD_DROP_C = 0.15 / 1.8
+# Below a straight (nearly vertical) part, where the layer below cools at least this many times
+# faster than the layer above, a gentler lead-in still counts down to this share.
+THERMOCLINE_SHARP_BEND_RATIO = 3.0
+THERMOCLINE_SHARP_LEAD_SHARE = 0.1
 # Readings show at most this much of the band (15 ft): the top is what anglers fish, and a
 # band can taper on for 50 ft or more below it. Detection still uses the whole band.
 THERMOCLINE_MAX_SHOWN_THICKNESS_METERS = 15 / 3.28084
@@ -794,9 +805,13 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
     gentle 0.3 °F-per-10-ft drop is one; 1.8 °F per 10 ft from the surface
     turning into 3 °F per 10 ft below is not.
 
-    **Top**: the deepest level where the warm layer above still cools at most
-    a fifth as fast as the band below (THERMOCLINE_FLAT_RATIO): where the chart
-    stops reading as straight down. Of those, the deepest where the curve
+    **Top**: the last level of the straight part above the band, where the
+    curve bends into a run of cooling that continues down to the strongest
+    cooling (``_band_lead_in``); a gentler lead-in at the top of the band is
+    part of the band. The water right below the top is always cooler. Without
+    such a bend: the deepest level where the warm layer above still cools at
+    most a fifth as fast as the band below (THERMOCLINE_FLAT_RATIO), where the
+    chart stops reading as straight down. Of those, the deepest where the curve
     bends there (the layer below cools THERMOCLINE_LOCAL_BEND_RATIO times
     faster than the layer above), so a slow lead-in stays in the band. When
     the warm layer itself slopes (it never gets that flat), the level with the
@@ -856,6 +871,12 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
     below = {d0: rate for d0, d1, rate in layers}
     bends = [depth for depth in flat if below.get(depth, 0.0) >= THERMOCLINE_LOCAL_BEND_RATIO * max(THERMOCLINE_FLAT_RATE_C_PER_METER, above.get(depth, 0.0))]
     top = max(bends or flat) if flat else max(candidates, key=lambda candidate: candidate[1])[0]
+    lead = _band_lead_in(layers, peak, warm_top, deepest_top)
+    if lead is not None:
+        top = lead
+    elif below.get(top, 0.0) <= 0:
+        # Never a top with water as warm or warmer right below it.
+        return None, no_band
     top_temperature = _temperature_at_depth(ordered, top)
     thickness, drop = bottom - top, top_temperature - bottom_temperature
     if thickness <= 0 or drop < THERMOCLINE_MIN_BAND_DROP_C:
@@ -868,6 +889,30 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
         "bottomTemperature": bottom_temperature,
         "gradient": drop / thickness,
     }, "found"
+
+
+def _band_lead_in(layers: list[tuple[float, float, float]], peak: int, warm_top: float, deepest_top: float) -> float | None:
+    """The last level of the straight part above the band, or ``None``.
+
+    The shallowest level (from 20 ft down to the strongest cooling) where the
+    curve bends (the layer below cools THERMOCLINE_LOCAL_BEND_RATIO times
+    faster than the layer above), the layer below cools by at least
+    THERMOCLINE_MIN_LEAD_DROP_C, and every layer from there down to the
+    strongest cooling keeps cooling at THERMOCLINE_LEAD_SHARE of its rate
+    (THERMOCLINE_SHARP_LEAD_SHARE below a sharp bend out of a straight part).
+    """
+    strongest = layers[peak][2]
+    for index in range(peak + 1):
+        d0, d1, rate = layers[index]
+        if d0 < warm_top - 1e-6 or d0 > deepest_top or rate * (d1 - d0) < THERMOCLINE_MIN_LEAD_DROP_C:
+            continue
+        above = max(THERMOCLINE_FLAT_RATE_C_PER_METER, layers[index - 1][2] if index else 0.0)
+        if rate < THERMOCLINE_LOCAL_BEND_RATIO * above:
+            continue
+        share = THERMOCLINE_SHARP_LEAD_SHARE if rate >= THERMOCLINE_SHARP_BEND_RATIO * above else THERMOCLINE_LEAD_SHARE
+        if all(layers[step][2] >= share * strongest for step in range(index, peak + 1)):
+            return d0
+    return None
 
 
 def _smooth_thermocline(values: list[float | None], rows: int, cols: int) -> list[float | None]:
