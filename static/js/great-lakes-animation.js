@@ -17,7 +17,8 @@ import {
   setThermoclineLegendRange,
   setWaveLegendRange,
   showPaletteRange,
-  tooShallowNote
+  tooShallowNote,
+  waveParticleFields
 } from "./great-lakes-conditions.js";
 import { createPaletteFilter, fitPaletteToView, paletteOverlays } from "./great-lakes-palette.js";
 
@@ -379,9 +380,15 @@ function buildFrames(map, background) {
   }).map((overlay) => overlay.addTo(greatLakesConditionsLayer)));
   const frameRasters = state.payloads.map((_, index) => rasterPayloads?.[index]?.rasters || []);
   state.paletteFit = fitPaletteToView(map, frameRasters, kind, filter, (low, high) => showPaletteRange(kind, low, high));
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (layer === "waves") {
+    if (greatLakesControlValue("wave-display") === "flow" && !reduced && state.payloads[0]?.arrows?.length) {
+      state.particles = createParticleLayer(map, waveParticleFields(state.payloads[0].arrows)).addTo(map);
+    }
+    return;
+  }
   if (layer !== "currents") return;
   const display = greatLakesControlValue("current-display");
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (display === "flow" && !reduced && (state.payloads[0]?.fields || []).length) {
     state.particles = createParticleLayer(map, state.payloads[0].fields).addTo(map);
   } else if (display !== "off") {
@@ -427,7 +434,9 @@ function showFrame(index, { fade = true } = {}) {
   }
   if (state.layer === "waves") {
     state.waveArrows?.remove();
-    state.waveArrows = greatLakesControlValue("wave-display") !== "off" && (payload.arrows || []).length
+    const display = greatLakesControlValue("wave-display");
+    if (state.particles && display === "flow") state.particles.setFields(waveParticleFields(payload.arrows || []));
+    state.waveArrows = display === "arrows" && (payload.arrows || []).length
       ? createWaveArrowLayer(state.map, payload.arrows).addTo(state.map)
       : null;
   }
