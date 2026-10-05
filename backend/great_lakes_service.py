@@ -58,7 +58,7 @@ _runs_lock = threading.Lock()
 _raster_cache: dict[tuple, dict] = {}
 _thermocline_raster_cache: dict[tuple, dict] = {}
 TEMPERATURE_RASTER_RENDER_VERSION = 5
-THERMOCLINE_RASTER_RENDER_VERSION = 27
+THERMOCLINE_RASTER_RENDER_VERSION = 28
 CURRENT_RENDER_VERSION = 4
 # A requested depth this far below a lake's deepest model level has no water there.
 DEEPEST_LEVEL_TOLERANCE_METERS = 0.5
@@ -78,10 +78,11 @@ THERMOCLINE_BOTTOM_CLEARANCE_METERS = 3.048  # Never classify the final 10 ft as
 # perfectly flat warm layer are real; the contrast with the warm layer is what rules out noise.
 THERMOCLINE_MIN_GRADIENT_C_PER_METER = 0.02
 # A thermocline is where the slope changes: a warm top layer at least 10 ft thick (below 10 ft)
-# over a band that cools at least THERMOCLINE_MIN_CONTRAST times faster, by at least 0.4 °F.
+# over a band that cools at least THERMOCLINE_MIN_CONTRAST times faster, by at least 0.5 °F: the
+# water-column chart draws a column that varies less than that as one straight line.
 THERMOCLINE_MIN_WARM_LAYER_METERS = 3.048
 THERMOCLINE_MIN_CONTRAST = 3.0
-THERMOCLINE_MIN_BAND_DROP_C = 0.4 / 1.8
+THERMOCLINE_MIN_BAND_DROP_C = 0.5 / 1.8
 # The top is the deepest depth where the warm layer above still cools at most a fifth as fast as
 # the band below (it reads as flat on the chart); a warm layer cooling slower than
 # THERMOCLINE_FLAT_RATE_C_PER_METER counts as perfectly flat when comparing.
@@ -800,7 +801,7 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
     strongest cooling, compare the band's average cooling below it with the
     warm layer's average cooling above it (from 10 ft). The best ratio must be
     at least THERMOCLINE_MIN_CONTRAST, and the band must cool by at least
-    0.4 °F. The ratio, not the size of the drop, is what tells a thermocline
+    0.5 °F. The ratio, not the size of the drop, is what tells a thermocline
     from water that cools steadily from the surface: a flat warm layer over a
     gentle 0.3 °F-per-10-ft drop is one; 1.8 °F per 10 ft from the surface
     turning into 3 °F per 10 ft below is not.
