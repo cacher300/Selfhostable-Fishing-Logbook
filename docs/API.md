@@ -76,7 +76,11 @@ Proxy errors return an upstream status where available or `503` for network/time
 
 ### `GET /api/bathymetry/depth`
 
-Looks up the Great Lakes depth for numeric `latitude` and `longitude` coordinates. The nearest Esri Canada depth contour within 500 m is used when there is one (`depth_source` `Great Lakes Bathymetry ArcGIS`). Otherwise, typically offshore where contours are far apart, or if the contour service is down, the depth is interpolated from NOAA's lake-model bathymetry (0.5–1 km cells; `depth_source` `NOAA Great Lakes model bathymetry`), which agrees with the contours to within about a foot where both exist. The response includes `depth_m`, `depth_ft`, `lake_name`, and `depth_source`; points on land or outside every lake return null depth fields, and the route returns `503` only when both sources are unavailable. The request uses the saved per-lake FOW calibration settings.
+Looks up Great Lakes depth for numeric latitude and longitude coordinates. It searches the bundled NOAA contour data within 500 m first, then falls back to Esri Canada contours and NOAA lake-model bathymetry for offshore points or when contour sources have no nearby line. The response includes depth_m, depth_ft, lake_name, and depth_source; points on land or outside every lake return null depth fields. The request uses the saved per-lake FOW calibration settings.
+
+### `GET /api/bathymetry/contours/{lake}`
+
+Streams the bundled NOAA bathymetry contours for one of Erie, Huron, Michigan, Ontario, or Superior as GeoJSON. The desktop map loads only contours that intersect the current view and caches the parsed layer in memory for later pans.
 
 ### `GET /api/great-lakes/temperature-value`
 
@@ -181,3 +185,14 @@ Files are served from their category paths. Category validation occurs through t
 - `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, `/wiki`, and `/settings` render `templates/index.html` and its feature partials. `/` selects the Trips view.
 - `/static/<path:filename>` serves only `.css`, `.js`, `.map`, `.png`, `.jpg`, `.jpeg`, `.svg`, `.webp`, `.woff`, and `.woff2` files beneath `static/`. The page loads the built bundle `static/dist/app.js` and `static/dist/app-styles.css` with content-hash `?v=` query strings from `static/dist/manifest.json`.
 - `/favicon.ico` returns 204.
+
+
+Thermocline and current layer metadata may include availability with state
+(fallback, waiting, or error), missingModels, outageSeconds, errorAfterSeconds,
+and lastGoodAt when available. Thermocline fallback retains its saved layer's
+original valid time. When a complete current map is cached, a current fallback
+retains that map's original valid times and identifies the lakes that could not
+be refreshed. Layer model metadata includes the NOAA run identifier; the apps
+show its generation time in local time. Delayed responses use no-store. Status
+versions are opaque and can change as additional forecast hours arrive within
+the same NOAA cycle.

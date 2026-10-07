@@ -124,13 +124,13 @@ export function stationPopupHtml(station, now = Date.now(), historyHtml = null) 
   return html`<article class="gl-card">
     <header class="gl-card-head"><strong class="gl-card-title">${station.name}</strong><span class="gl-card-sub">${details}</span></header>
     ${temperatureBlock}${wavesBlock}${currentBlock}
-    <section class="gl-station-history" data-gl-station-history>${historyHtml || html`<span class="gl-reading-label">Past 30 days</span><p class="gl-reading-note">Loading saved readings…</p>`}</section>
+    <section class="gl-station-history" data-gl-station-history>${historyHtml || html`<span class="gl-reading-label">Past 90 days</span><p class="gl-reading-note">Loading saved readings…</p>`}</section>
     <a class="gl-card-link" href="${station.url}" target="_blank" rel="noopener noreferrer">NOAA station page<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12"/></svg></a>
   </article>`;
 }
 
-// A gap longer than this between saved readings breaks the line instead of joining across it.
-export const STATION_HISTORY_GAP_MS = 3 * 3600 * 1000;
+// Join the usual six-hourly station samples, but break when a sample is missing.
+export const STATION_HISTORY_GAP_MS = 7 * 3600 * 1000;
 const SPARK_WIDTH = 248;
 const SPARK_HEIGHT = 52;
 
@@ -172,8 +172,8 @@ export function stationHistoryHtml(history, selected = null) {
     stationSparklineHtml({ label: "Wave height", points: series(history?.waves, (entry) => entry[1]), format: waveHeightLabel, selected }),
     stationSparklineHtml({ label: "Current (top reading)", points: series(history?.current, (entry) => entry[1]?.[1]), format: currentSpeedLabel, selected })
   ].filter((chart) => String(chart));
-  if (!charts.length) return html`<span class="gl-reading-label">Past ${history?.days || 30} days</span><p class="gl-reading-note">Not enough saved readings yet.</p>`;
-  return html`<span class="gl-reading-label">Past ${history?.days || 30} days</span>${charts}`;
+  if (!charts.length) return html`<span class="gl-reading-label">Past ${history?.days || 90} days</span><p class="gl-reading-note">Not enough saved readings yet.</p>`;
+  return html`<span class="gl-reading-label">Past ${history?.days || 90} days</span>${charts}`;
 }
 
 // Saved readings per station, kept a few minutes: the popup's content is rebuilt from it when it opens.
@@ -184,7 +184,7 @@ function savedStationHistoryHtml(station) {
   const saved = stationHistories.get(station.id);
   if (!saved) return null;
   if ("error" in saved) {
-    return html`<span class="gl-reading-label">Past 30 days</span><p class="gl-reading-note">${saved.error === 404 ? "No saved readings for this station yet." : "Saved readings are unavailable right now."}</p>`;
+    return html`<span class="gl-reading-label">Past 90 days</span><p class="gl-reading-note">${saved.error === 404 ? "No saved readings for this station yet." : "Saved readings are unavailable right now."}</p>`;
   }
   return stationHistoryHtml(saved.history, greatLakesTimeParams().time ? greatLakesHistoryMs : null);
 }

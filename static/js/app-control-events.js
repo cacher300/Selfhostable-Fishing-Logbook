@@ -19,7 +19,7 @@ import { autofillCatchesFromPhotoQueue } from "./photo-queue-autofill.js";
 import { restoreTripDialogAfterInlineGear } from "./gear-pickers.js";
 import { deleteCombo, deleteFlasher, deleteLure, deleteReel, deleteRod, openComboDialog, openFlasherDialog, openLureDialog, openReelDialog, openRodDialog, saveCombo, saveFlasher, saveLure, saveReel, saveRod, updateFlyGearVisibility, updateLureDivingDepthField, updateMonoBackingVisibility } from "./gear-dialogs.js";
 import { clearGearFilter, closeGearFilterSuggestions, openGearFilterSuggestions, updateGearFilter, updateGearLureTypeFilter, updateGearSoftPlasticStyleFilter } from "./gear-inventory.js";
-import { renderFishMap, renderTripSummaryMap, syncMapPageChartOverlay } from "./maps.js";
+import { renderFishMap, renderTripSummaryMap, saveMapBathymetryPreference, syncMapPageBathymetryOverlay, syncMapPageChartOverlay } from "./maps.js";
 import { openTripShareStudio } from "./trip-sharing.js";
 import { renderAdvancedStats } from "./stats.js";
 import { renderPersonalBests } from "./personal-bests.js";
@@ -649,6 +649,11 @@ export function setup() {
     ui.activeMapShowNOAACharts = Boolean(els.mapNoaaChartsToggle.checked);
     saveMapNoaaChartsPreference(ui.activeMapShowNOAACharts);
     syncMapPageChartOverlay(ui.fishMap);
+  });
+
+  els.mapBathymetryToggle?.addEventListener("change", () => {
+    saveMapBathymetryPreference(Boolean(els.mapBathymetryToggle.checked));
+    syncMapPageBathymetryOverlay(ui.fishMap);
   });
 
   els.tripSummaryBody.addEventListener("change", (event) => {

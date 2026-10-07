@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import gzip
 import math
+from pathlib import Path
 
 from flask import Blueprint, Response, abort, current_app, jsonify, request
 
@@ -37,6 +39,7 @@ from . import read_document
 blueprint = Blueprint("environment", __name__)
 
 LAYER_CACHE_CONTROL = "private, max-age=600"
+STATIONS_CACHE_CONTROL = "private, max-age=300"
 # Endpoints whose successful responses may be cached privately by the browser.
 CACHEABLE_ENDPOINTS = {
     "environment.great_lakes",
@@ -90,7 +93,9 @@ def _cached(payload: dict) -> Response:
     response = jsonify(payload)
     # A layer missing a lake (NOAA briefly unreachable) is retried on the server within minutes;
     # the browser must not keep it for the full ten minutes under the same URL.
-    complete = all(item.get("available", True) for item in (payload.get("metadata") or {}).get("models", []))
+    metadata = payload.get("metadata") or {}
+    complete = all(item.get("available", True) for item in metadata.get("models", []))
+    complete = complete and (metadata.get("availability") or {}).get("state") not in {"fallback", "waiting", "error"}
     response.headers["Cache-Control"] = LAYER_CACHE_CONTROL if complete else "no-store"
     return response
 
@@ -137,6 +142,26 @@ def catch_depth() -> tuple[Response, int] | Response:
     catch: dict = {}
     apply_depth_result(catch, result)
     return jsonify(catch)
+
+
+
+@blueprint.get("/api/bathymetry/contours/<lake>")
+def bathymetry_contours(lake: str) -> Response:
+    """Stream one bundled NOAA contour collection as GeoJSON."""
+    if lake not in {"erie", "huron", "michigan", "ontario", "superior"}:
+        abort(404)
+    path = Path(__file__).resolve().parents[2] / "static" / "data" / f"lake-{lake}-contours.geojson.gz"
+    if not path.is_file():
+        abort(404)
+    response = Response(_decompressed_bathymetry_contours(path), mimetype="application/geo+json")
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
+def _decompressed_bathymetry_contours(path: Path):
+    with gzip.open(path, "rb") as source:
+        while chunk := source.read(64 * 1024):
+            yield chunk
 
 
 @blueprint.get("/api/great-lakes/temperature-value")
@@ -276,7 +301,9 @@ def great_lakes_data_status() -> Response:
 @blueprint.get("/api/great-lakes/observations")
 def great_lakes_observation_stations() -> Response | tuple[Response, int]:
     try:
-        return jsonify(great_lakes_observations())
+        response = jsonify(great_lakes_observations())
+        response.headers["Cache-Control"] = STATIONS_CACHE_CONTROL
+        return response
     except Exception:
         current_app.logger.exception("NOAA buoy observations are unavailable.")
         return jsonify({"stations": [], "error": "NOAA buoy observations are unavailable."}), 503

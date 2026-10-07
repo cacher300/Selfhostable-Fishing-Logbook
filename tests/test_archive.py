@@ -12,7 +12,14 @@ from backend import logbook_repository, logbook_store, media_service
 from backend.backend_config import DEFAULT_LOGBOOK
 from backend.storage.local import LocalLogbookStore
 from conftest import make_app
-import server
+# Importing the production entry point must not start NOAA work or open the
+# operator's configured storage while collecting startup tests.
+with tempfile.TemporaryDirectory() as server_data, patch.dict("os.environ", {
+    "FISH_DATA_DIR": server_data,
+    "GREAT_LAKES_CACHE_DIR": str(Path(server_data) / "great-lakes-cache"),
+    "GREAT_LAKES_BACKGROUND_REFRESH": "false",
+}):
+    import server
 
 
 def v2(partial: dict) -> dict:

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from array import array
 from datetime import datetime, timezone
+import threading
+
+import pytest
+from backend import great_lakes_waves as waves
 
 from backend import great_lakes_cache as cache
 from backend import great_lakes_refresher as refresher
@@ -25,7 +29,7 @@ def _catalog(*runs: tuple[str, str, range]) -> str:
     return f'<catalog xmlns="http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0">{datasets}</catalog>'
 
 
-def test_runs_still_being_published_are_not_used() -> None:
+def test_catalog_tracks_partial_and_complete_runs() -> None:
     runs = service.runs_from_catalog(_catalog(("20261002", "12", range(0, 121)), ("20261002", "18", range(0, 40))))
 
     assert [(run["id"], run["complete"]) for run in runs] == [("20261002t18z", False), ("20261002t12z", True)]
@@ -33,7 +37,7 @@ def test_runs_still_being_published_are_not_used() -> None:
     assert runs[1]["files"][120].endswith("f120.nc")
 
 
-def test_discovery_falls_back_to_the_previous_day_during_a_partial_00z_run(monkeypatch) -> None:
+def test_partial_00z_run_serves_now_and_previous_day_serves_long_forecasts(monkeypatch) -> None:
     catalogs = {
         "today": _catalog(("20261003", "00", range(0, 30))),
         "yesterday": _catalog(("20261002", "12", range(0, 121)), ("20261002", "18", range(0, 121))),
@@ -41,7 +45,12 @@ def test_discovery_falls_back_to_the_previous_day_during_a_partial_00z_run(monke
     monkeypatch.setattr(service, "_day_catalogs", lambda model, count=2: ["today", "yesterday"])
     monkeypatch.setattr(service, "_get", catalogs.__getitem__)
 
-    assert service._discover_model("LEOFS")["id"] == "20261002t18z"
+    run = service._discover_model("LEOFS")
+    now = _epoch("2026-10-03T02:40:00")
+    assert service.select_forecast_run(run, 0, now)["id"] == "20261003t00z"
+    fallback = service.select_forecast_run(run, 48, now)
+    assert fallback["id"] == "20261002t18z"
+    assert service.select_forecast_hour(fallback, 48, now) == 57
 
 
 def test_now_is_the_hour_nearest_the_current_time() -> None:
@@ -133,7 +142,7 @@ def test_refresher_tick_checks_runs_and_warms_each_new_hour(monkeypatch) -> None
     monkeypatch.setattr(service, "prune_model_hours", lambda model, run, keep: events.append("keep " + ",".join(map(str, sorted(keep)))))
     monkeypatch.setattr(animation, "prepare", lambda layer: events.append(f"animate {layer}"))
     monkeypatch.setattr(animation, "prune", lambda: events.append("prune-animation"))
-    monkeypatch.setattr(refresher.GreatLakesRefresher, "refresh_waves", lambda self: None)
+    monkeypatch.setattr(refresher.GreatLakesRefresher, "refresh_waves", lambda self, **kwargs: None)
     monkeypatch.setattr(service.time, "time", lambda: clock[0])
 
     worker = refresher.GreatLakesRefresher(clock=lambda: clock[0])
@@ -368,3 +377,169 @@ def test_a_lake_shallower_than_the_requested_depth_is_left_blank(monkeypatch) ->
 
     inputs, metadata, fields = service._temperature_inputs(0, 125.0, 512, ("LEOFS",))
     assert inputs == [] and fields == [] and metadata[0]["tooShallow"] is True
+
+
+def _publishing_run(hours=range(4)) -> dict:
+    newest, older = service.runs_from_catalog(_catalog(
+        ("20261002", "18", hours), ("20261002", "12", range(121)),
+    ))
+    return {**newest, "fallbacks": [older]}
+
+
+def test_partial_run_selection_requires_the_exact_hour_and_handles_gaps() -> None:
+    now = _epoch("2026-10-02T20:40:00")  # "Now" = 21 UTC.
+    run = _publishing_run()
+    assert service.selected_data_key({"LEOFS": run}, 0, now) == (("LEOFS", "20261002t18z", 3),)
+    assert service.selected_data_key({"LEOFS": run}, 6, now) == (("LEOFS", "20261002t12z", 15),)
+    # A hole cannot be filled with a neighbouring hour of the newer run.
+    run = _publishing_run((0, 1, 2, 4, 5))
+    assert service.selected_data_key({"LEOFS": run}, 0, now) == (("LEOFS", "20261002t12z", 9),)
+    # Once both runs are out of range, report unavailable instead of clamping.
+    missing = service.select_forecast_run(run, 48, _epoch("2026-10-08T12:00:00"))
+    assert "error" in missing and not missing.get("files")
+    run["fallbacks"] = []
+    assert "error" in service.select_forecast_run(run, 6, now)
+
+
+def test_published_run_fallbacks_survive_disk_sharing_and_noaa_failure(monkeypatch) -> None:
+    now = _epoch("2026-10-02T20:40:00")
+    monkeypatch.setattr(service.time, "time", lambda: now)
+    monkeypatch.setattr(service, "_discover_model", lambda model: _publishing_run())
+    service.discovered_runs(("LEOFS",), refresh=True)
+    service._runs_state.clear()
+    service._runs_disk_checked[0] = 0.0
+
+    def offline(model):
+        raise OSError("NOAA unreachable")
+
+    monkeypatch.setattr(service, "_discover_model", offline)
+    restored = service.discovered_runs(("LEOFS",), refresh=True)["LEOFS"]
+    assert service.selected_data_key({"LEOFS": restored}, 0, now) == (("LEOFS", "20261002t18z", 3),)
+    assert service.selected_data_key({"LEOFS": restored}, 48, now) == (("LEOFS", "20261002t12z", 57),)
+    assert 57 in restored["fallbacks"][0]["files"]
+
+
+@pytest.mark.parametrize("kind", ["temperature", "velocity"])
+def test_model_volumes_and_point_lookups_use_the_selected_run(monkeypatch, kind) -> None:
+    now = _epoch("2026-10-02T20:40:00")
+    run = _publishing_run()
+    monkeypatch.setattr(service.time, "time", lambda: now)
+    monkeypatch.setattr(service, "discovered_runs", lambda models=service.MODELS, refresh=False: {model: run for model in models})
+    monkeypatch.setattr(service, "_regular_grid_dimensions", lambda path: (2, 2, [0.0]))
+    monkeypatch.setattr(service, "_metadata", lambda path: {"temperature": "temp", "u": "u", "v": "v"})
+    downloaded = []
+    monkeypatch.setattr(volumes, "load_volume", lambda *args: downloaded.append(args) or "volume")
+    monkeypatch.setattr(volumes, "cached_volume", lambda *args: "volume")
+    for offset, expected_run, expected_hour in ((0, "20261002t18z", 3), (48, "20261002t12z", 57)):
+        selected, hour, path, _, _ = service._model_volume(kind, "LEOFS", offset)
+        assert (selected["id"], hour) == (expected_run, expected_hour)
+        assert path.endswith(f"f{hour:03d}.nc")
+        assert downloaded[-1][2:4] == (expected_run, expected_hour)
+        cached = service._cached_volume_for_point(kind, "LEOFS", offset)
+        assert cached[0]["id"] == expected_run and cached[1] == expected_hour
+        assert service._data_key(("LEOFS",), offset) == (("LEOFS", expected_run, expected_hour),)
+
+
+def test_status_and_preparation_versions_change_as_forecast_files_arrive(monkeypatch) -> None:
+    now = _epoch("2026-10-02T20:40:00")
+    published = [_publishing_run()]
+    monkeypatch.setattr(service, "discovered_runs", lambda models=service.MODELS, refresh=False: {model: published[0] for model in models})
+    before = refresher.data_status(("LEOFS",), now)
+    before_signature = refresher._forecast_signature({"LEOFS": published[0]}, now)
+    assert before["models"]["LEOFS"]["run"] == "20261002t18z"
+    assert before["models"]["LEOFS"]["nowValidTime"] == "2026-10-02T21:00:00Z"
+    assert before["models"]["LEOFS"]["nextRunExpectedAt"] == "2026-10-02T20:35:00Z"
+    published[0] = _publishing_run(range(10))  # +6 h now available; "Now" unchanged.
+    after = refresher.data_status(("LEOFS",), now)
+    assert before["models"] == after["models"]
+    assert before["version"] != after["version"]
+    assert before_signature != refresher._forecast_signature({"LEOFS": published[0]}, now)
+    # Rechecking the same coverage keeps client versions stable.
+    assert after["version"] == refresher.data_status(("LEOFS",), now)["version"]
+
+
+def test_cache_pruning_keeps_runs_still_needed_by_longer_forecasts(monkeypatch) -> None:
+    now = _epoch("2026-10-02T20:40:00")
+    pruned, kept_hours = [], {}
+    monkeypatch.setattr(cache, "prune", lambda directory, keep: pruned.append(keep))
+    monkeypatch.setattr(service, "prune_model_hours", lambda model, run, keep: kept_hours.update({run["id"]: keep}))
+    worker = refresher.GreatLakesRefresher()
+    worker.prune_model_cache({"LEOFS": _publishing_run()}, now)
+    assert pruned == [{"20261002t18z", "20261002t12z"}]
+    assert kept_hours["20261002t18z"] == {3}
+    assert 57 in kept_hours["20261002t12z"]
+    worker.prune_model_cache({"LEOFS": _publishing_run(range(121))}, now)
+    assert pruned[-1] == {"20261002t18z"}
+
+
+def test_discovery_checks_throughout_publication_including_partial_cycles() -> None:
+    now = _epoch("2026-10-02T20:00:00")
+    old = _publishing_run()["fallbacks"][0]
+    assert refresher.in_publication_window({model: old for model in service.MODELS}, now)
+    partial = _publishing_run()
+    assert refresher.in_publication_window({model: partial for model in service.MODELS}, now)
+
+
+def test_source_checks_continue_while_one_preparation_job_is_blocked(monkeypatch) -> None:
+    clock = [_epoch("2026-10-02T20:00:00")]
+    preparing, release, discovered = threading.Event(), threading.Event(), threading.Event()
+    checks, jobs = [], []
+    published = [_publishing_run(range(2))]
+
+    def runs(models=service.MODELS, refresh=False):
+        if refresh:
+            checks.append(clock[0])
+            if len(checks) >= 2:
+                discovered.set()
+        return {model: published[0] for model in models}
+
+    def prepare(*, check_sources=True):
+        assert check_sources is False
+        jobs.append(1)
+        preparing.set()
+        assert release.wait(3), "test did not release preparation"
+
+    monkeypatch.setattr(service, "discovered_runs", runs)
+    monkeypatch.setattr(waves, "discovered_wave_run", lambda **kwargs: {})
+    worker = refresher.GreatLakesRefresher(clock=lambda: clock[0])
+    monkeypatch.setattr(worker, "tick", prepare)
+    monkeypatch.setattr(worker, "sleep_seconds", lambda: 0.01)
+    try:
+        worker.start()
+        assert preparing.wait(2)
+        assert cache.LeaderLock(cache.path_for(refresher.LOCK_FILE)).acquire() is False
+        published[0] = _publishing_run(range(4))
+        clock[0] += refresher.FAST_RUN_CHECK_SECONDS
+        assert discovered.wait(2), "NOAA discovery was blocked by preparation"
+        assert worker._work_thread.is_alive() and len(jobs) == 1
+        status = cache.read_json(cache.path_for(refresher.STATUS_FILE))
+        # The discovery thread publishes status even while preparation is busy.
+        assert status["lastRunCheck"] is not None
+    finally:
+        worker._stop.set()
+        release.set()
+        worker.stop()
+    assert not worker._thread.is_alive() and not worker._work_thread.is_alive()
+    replacement = cache.LeaderLock(cache.path_for(refresher.LOCK_FILE))
+    assert replacement.acquire()
+    replacement.release()
+
+
+def test_thermocline_delay_keeps_last_good_time_and_eventually_reports_error(monkeypatch, tmp_path):
+    app = make_app(tmp_path).app
+    clock = [100000.0]
+    monkeypatch.setattr(service.time, "time", lambda: clock[0])
+    good = {"rasters": [], "metadata": {"generatedAt": "original", "models": [{"model": "LEOFS", "available": True, "validTime": "2026-10-07T04:00:00Z"}]}}
+    bad = {"rasters": [], "metadata": {"models": [{"model": "LEOFS", "available": False}]}}
+    args = (0, 512, ("LEOFS",), None)
+    assert service._thermocline_with_fallback(good, *args) == good
+    clock[0] += 60
+    fallback = service._thermocline_with_fallback(bad, *args)
+    assert fallback["metadata"]["availability"]["state"] == "fallback"
+    assert fallback["metadata"]["models"][0]["validTime"] == "2026-10-07T04:00:00Z"
+    from backend.routes.environment import _cached
+    with app.app_context():
+        assert _cached(fallback).headers["Cache-Control"] == "no-store"
+    clock[0] += service.THERMOCLINE_ERROR_AFTER_SECONDS
+    assert service._thermocline_with_fallback(bad, *args)["metadata"]["availability"]["state"] == "error"
+    assert "availability" not in service._thermocline_with_fallback(good, *args)["metadata"]

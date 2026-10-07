@@ -32,7 +32,7 @@ class AppConfig:
     great_lakes_cache_dir: str = ""
     # Keep NOAA Great Lakes data downloaded in the background (server only).
     great_lakes_background_refresh: bool = False
-    # Where saved past Great Lakes conditions ("Past 30 days") are read from.
+    # Website serving saved past Great Lakes conditions ("Past 90 days").
     great_lakes_history_url: str = "https://greatlakestrolling.com"
 
     def __post_init__(self) -> None:

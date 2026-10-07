@@ -1,7 +1,8 @@
 """Saved past Great Lakes conditions, read from the Great Lakes Trolling site.
 
-The site's server records a rolling 30-day history of "Now" (surface maps,
-water-column profiles, and station readings; never forecasts). The desktop
+The site's server records a rolling 90-day history of "Now" four times a day
+(surface maps, water-column profiles, and station readings; never forecasts).
+The desktop
 app does not run around the clock, so it asks the site instead
 (``GREAT_LAKES_HISTORY_URL``, default https://greatlakestrolling.com) and
 passes the answers to the browser. Saved map images are served through this

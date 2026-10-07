@@ -72,6 +72,74 @@ export let MAP_BASEMAPS;
 
 export let fishMapBasemapLayer = null;
 
+const MAP_BATHYMETRY_STORAGE_KEY = "logbook.mapBathymetry";
+let mapBathymetryManifestPromise;
+
+function savedMapBathymetry() {
+  try { return localStorage.getItem(MAP_BATHYMETRY_STORAGE_KEY) === "true"; }
+  catch { return false; }
+}
+
+export function saveMapBathymetryPreference(show) {
+  try { localStorage.setItem(MAP_BATHYMETRY_STORAGE_KEY, String(Boolean(show))); }
+  catch { /* The local overlay still works without browser storage. */ }
+}
+
+function mapBathymetryManifest() {
+  if (!mapBathymetryManifestPromise) {
+    mapBathymetryManifestPromise = fetch("/static/data/bathymetry/manifest.json")
+      .then((response) => {
+        if (!response.ok) throw new Error("NOAA bathymetry manifest unavailable");
+        return response.json();
+      })
+      .catch((error) => {
+        mapBathymetryManifestPromise = null;
+        throw error;
+      });
+  }
+  return mapBathymetryManifestPromise;
+}
+
+export function syncMapPageBathymetryOverlay(map) {
+  if (!map) return;
+  const visible = savedMapBathymetry();
+  if (els.mapBathymetryToggle) els.mapBathymetryToggle.checked = visible;
+  if (!map.getPane("bathymetryPane")) {
+    const pane = map.createPane("bathymetryPane");
+    pane.style.zIndex = "350";
+    pane.style.pointerEvents = "none";
+  }
+  const group = map._logbookBathymetryGroup || (map._logbookBathymetryGroup = L.layerGroup());
+  if (!map._logbookBathymetryMoveBound) {
+    map.on("moveend", () => syncMapPageBathymetryOverlay(map));
+    map._logbookBathymetryMoveBound = true;
+  }
+  if (!visible) {
+    if (map.hasLayer(group)) map.removeLayer(group);
+    return;
+  }
+  mapBathymetryManifest().then((manifest) => {
+    const lakeLayers = map._logbookBathymetryLakeLayers || (map._logbookBathymetryLakeLayers = {});
+    const view = map.getBounds();
+    Object.entries(manifest.lakes || {}).forEach(([slug, lake]) => {
+      if (!lake?.image || !Array.isArray(lake.bounds)) return;
+      const bounds = L.latLngBounds(lake.bounds[0], lake.bounds[1]);
+      let layer = lakeLayers[slug];
+      if (!layer) {
+        layer = lakeLayers[slug] = L.imageOverlay(lake.image, bounds, {
+          pane: "bathymetryPane", opacity: 0.72, interactive: false, className: "noaa-bathymetry-overlay"
+        });
+      }
+      if (view.intersects(bounds)) group.addLayer(layer);
+      else group.removeLayer(layer);
+    });
+    if (savedMapBathymetry() && group.getLayers().length && !map.hasLayer(group)) group.addTo(map);
+    else if ((!savedMapBathymetry() || !group.getLayers().length) && map.hasLayer(group)) map.removeLayer(group);
+  }).catch(() => {
+    if (els.mapBathymetryToggle) els.mapBathymetryToggle.title = "NOAA bathymetry could not be loaded";
+  });
+}
+
 export function savedMapBasemap() {
   try {
     const saved = localStorage.getItem(MAP_BASEMAP_STORAGE_KEY);
@@ -590,6 +658,116 @@ export function refreshFishMapLegend() {
   renderFishMapLegend(records, spots);
 }
 
+
+const MAP_DEPTH_CONTOURS_STORAGE_KEY = "logbook.mapDepthContours";
+const MAP_DEPTH_CONTOUR_LAKES = Object.freeze({
+  erie: [[41.0, -84.0008333333333], [43.0008333332533, -78.00000000024001]],
+  huron: [[43.0, -84.5008333333333], [46.5008333331933, -79.6800000001928]],
+  michigan: [[41.62, -88.0008333333333], [46.0908333331545, -84.50000000014]],
+  ontario: [[43.15, -79.90083333333331], [44.2508333332893, -76.05000000015401]],
+  superior: [[46.0, -92.2008333333333], [49.5008333331933, -84.000000000328]]
+});
+
+function savedMapDepthContours() {
+  try { return localStorage.getItem(MAP_DEPTH_CONTOURS_STORAGE_KEY) === "true"; }
+  catch { return false; }
+}
+
+function saveMapDepthContours(show) {
+  try { localStorage.setItem(MAP_DEPTH_CONTOURS_STORAGE_KEY, String(Boolean(show))); }
+  catch { /* The local contours still work without browser storage. */ }
+}
+
+function setupMapPageDepthContours(map) {
+  if (!map || map._logbookDepthContoursReady) return;
+  map._logbookDepthContoursReady = true;
+  const control = els.mapDepthContoursToggle;
+  const status = els.mapDepthContoursStatus;
+  const group = L.layerGroup();
+  const requests = new Map();
+  const layerCache = new Map();
+  let requestSequence = 0;
+
+  const setStatus = (message, isError = false) => {
+    if (!status) return;
+    status.textContent = message;
+    status.classList.toggle("is-error", isError);
+  };
+  const loadLayer = (lake) => {
+    if (layerCache.has(lake)) return Promise.resolve(layerCache.get(lake));
+    if (!requests.has(lake)) {
+      const request = fetch("/api/bathymetry/contours/" + lake)
+        .then((response) => {
+          if (!response.ok) throw new Error("NOAA depth contours unavailable");
+          return response.json();
+        })
+        .then((data) => {
+          const layer = L.geoJSON(data, {
+            pane: "depthContoursPane",
+            renderer: L.canvas({ padding: 0.5 }),
+            style: (feature) => {
+              const major = Number(feature?.properties?.DEPTH) % 10 === 0;
+              return { color: major ? "#a0dcff" : "#5798b5", weight: major ? 1.2 : 0.65, opacity: major ? 0.92 : 0.58 };
+            },
+            smoothFactor: 1.2,
+            interactive: false
+          });
+          layerCache.set(lake, layer);
+          return layer;
+        })
+        .finally(() => requests.delete(lake));
+      requests.set(lake, request);
+    }
+    return requests.get(lake);
+  };
+
+  if (!map.getPane("depthContoursPane")) {
+    const pane = map.createPane("depthContoursPane");
+    pane.style.zIndex = "370";
+    pane.style.pointerEvents = "none";
+  }
+  const refresh = async () => {
+    const visible = savedMapDepthContours();
+    if (control) control.checked = visible;
+    const sequence = ++requestSequence;
+    group.clearLayers();
+    if (map.hasLayer(group)) map.removeLayer(group);
+    if (!visible) { setStatus(""); return; }
+
+    const viewport = map.getBounds();
+    const center = map.getCenter();
+    const intersects = (bounds) => viewport.intersects(L.latLngBounds(bounds[0], bounds[1]));
+    const focused = Object.entries(MAP_DEPTH_CONTOUR_LAKES).find(([, bounds]) =>
+      center.lat >= bounds[0][0] && center.lat <= bounds[1][0] && center.lng >= bounds[0][1] && center.lng <= bounds[1][1]
+    );
+    const lakes = map.getZoom() <= 6
+      ? Object.entries(MAP_DEPTH_CONTOUR_LAKES).filter(([, bounds]) => intersects(bounds)).map(([lake]) => lake)
+      : (focused ? [focused[0]] : []);
+    if (!lakes.length) {
+      setStatus("Move the map over a Great Lake to load depth contours.");
+      return;
+    }
+
+    setStatus("Loading NOAA depth contours…");
+    const results = await Promise.allSettled(lakes.map(loadLayer));
+    if (sequence !== requestSequence || !savedMapDepthContours()) return;
+    const layers = results.filter(result => result.status === "fulfilled").map(result => result.value);
+    layers.forEach(layer => group.addLayer(layer));
+    if (layers.length) group.addTo(map);
+    const failed = results.length - layers.length;
+    if (failed && layers.length) setStatus("Some lake contours could not be loaded; the other visible contours are shown.", true);
+    else if (failed) setStatus("NOAA depth contours could not be loaded.", true);
+    else setStatus(lakes.length > 1 ? "Showing nearby Great Lakes depth contours." : "Showing NOAA depth contours.");
+  };
+
+  control?.addEventListener("change", () => {
+    saveMapDepthContours(Boolean(control.checked));
+    void refresh();
+  });
+  map.on("moveend", () => { if (savedMapDepthContours()) void refresh(); });
+  void refresh();
+}
+
 export function renderFishMap() {
   const allRecords = catchMapRecords();
   const spots = ui.activeMapIncludeSpots ? visibleMapSpots() : [];
@@ -612,14 +790,18 @@ export function renderFishMap() {
     bindDepthLookupPopup(ui.fishMap);
     addMeasureControl(ui.fishMap, { position: "topleft" });
     ensureGreatLakesConditions(ui.fishMap);
+    setupMapPageDepthContours(ui.fishMap);
     syncMapPageChartOverlay(ui.fishMap);
+    syncMapPageBathymetryOverlay(ui.fishMap);
     ensureMapMarkerPanes(ui.fishMap);
     ui.fishMapMarkers = L.layerGroup().addTo(ui.fishMap);
     ui.fishMapSpotMarkers = L.layerGroup().addTo(ui.fishMap);
     ui.fishMap.on("moveend resize", refreshFishMapLegend);
   }
   ensureGreatLakesConditions(ui.fishMap);
+  setupMapPageDepthContours(ui.fishMap);
   syncMapPageChartOverlay(ui.fishMap);
+  syncMapPageBathymetryOverlay(ui.fishMap);
   ensureMapMarkerPanes(ui.fishMap);
 
   ui.fishMapMarkers.clearLayers();

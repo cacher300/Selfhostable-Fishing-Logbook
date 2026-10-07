@@ -10,6 +10,25 @@ from backend import bathymetry_service
 
 
 class BathymetryServiceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # These tests exercise the remote contour/model fallback, independent
+        # of which local NOAA contour assets are installed on the machine.
+        local = patch.object(bathymetry_service, "nearest_local_contour", return_value=None)
+        local.start()
+        self.addCleanup(local.stop)
+
+    def test_local_contour_precedes_remote_providers(self) -> None:
+        with (
+            patch.object(bathymetry_service, "nearest_local_contour", return_value=(100.0, "Ontario")),
+            patch.object(bathymetry_service, "query_bathymetry_features") as contours,
+            patch.object(bathymetry_service, "model_depth_estimate") as model,
+        ):
+            result = bathymetry_service.lookup_depth(43.6, -77.9)
+        self.assertEqual(328, result["depth_ft"])
+        self.assertEqual(bathymetry_service.LOCAL_DEPTH_SOURCE, result["depth_source"])
+        contours.assert_not_called()
+        model.assert_not_called()
+
     def test_lookup_depth_uses_raw_depth_without_default_offset(self) -> None:
         with patch.object(
             bathymetry_service,
