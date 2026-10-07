@@ -4,10 +4,13 @@
 
 This repository is the self-hosted web client for Fishing Logbook:
 
-- Flask routes and startup live in `server.py`.
+- `server.py` is the entry point; the app factory, config, and HTTP blueprints live in
+  `backend/app_factory.py`, `backend/config.py`, and `backend/routes/`.
 - Concern-specific backend code lives in `backend/`.
 - `templates/` contains the server-rendered shell, views, dialogs, and row templates.
-- `static/js/` contains classic global scripts loaded in dependency order; there is no frontend build or module bundler.
+- `static/js/` contains ES modules bundled by esbuild (`npm run build`) into
+  `static/dist/`; `schema/` holds the shared v2 JSON Schema, constants, and
+  canonical default document used by the backend, browser, and mobile client.
 - `static/css/` contains the web styles.
 - `cloud/worker/` is a separate Cloudflare D1/R2 Worker with its own `package.json` and tests.
 - The mobile Expo client is maintained in the adjacent `..\Mobile` repository.
@@ -73,24 +76,28 @@ Useful verification commands:
 .\scripts\check.ps1
 ```
 
-The check script runs Python compilation, Python tests, Node tests, the
-generated-standalone freshness check, and the Playwright smoke suite. Run the
+The check script runs Python compilation and tests, schema-artifact freshness,
+ESLint, Node tests, the frontend and standalone builds, and the Playwright suite. Run the
 narrowest relevant test during iteration, then run the full check before handing
 off a change.
 
 ## Source of truth and generated output
 
-- `templates/` and `static/` are the editable web sources.
-- `standalone.html` is generated output. Never edit it by hand. After changing
-  templates or frontend assets, run `.venv\Scripts\python.exe scripts/build-standalone.py`;
-  use `.venv\Scripts\python.exe scripts/build-standalone.py --check` to verify
-  freshness.
+- `templates/`, `static/js/`, `static/css/`, and `schema/` are the editable sources.
+- `static/dist/` (from `npm run build`) and `standalone.html` (from
+  `.venv\Scripts\python.exe scripts/build-standalone.py` after a build) are generated,
+  ignored by Git, and never edited by hand.
+- `static/js/generated/` and `..\Mobile\src\domain\generated/` are generated from
+  `schema/` by `npm run schema:generate`; commit them, and keep `npm run schema:check`
+  passing.
 - `index.html` is only the direct-file bootstrap for the generated fallback.
   The fallback uses localStorage but is not full offline parity: uploads,
   weather proxies, gallery APIs, and server behavior require Flask.
-- HTML IDs/classes and classic-script load order are effectively internal APIs.
-  Renaming one requires tracing every selector, renderer, event handler, form
-  collector, and test that uses it.
+- HTML IDs/classes are effectively internal APIs. Renaming one requires tracing
+  every selector, renderer, event handler, form binding, and test that uses it.
+- Change logbook data only through `store.commit()` or an action in
+  `static/js/actions.js`; never mutate `state`. Build markup only with the `html`
+  tagged template (`static/js/html.js`); ESLint enforces both.
 
 ## Data and schema rules
 
@@ -177,8 +184,13 @@ need a development-build or physical-device check; a web export is not enough.
 
 ## Backend and API changes
 
-- Keep route handling in `server.py`; put storage, media, security, weather,
-  bathymetry, and Great Lakes logic in the appropriate `backend/` module.
+- Put routes in the matching blueprint under `backend/routes/`; put storage,
+  media, security, weather, bathymetry, and Great Lakes logic in the appropriate
+  `backend/` module. Routes reach storage only through the `LogbookStore` /
+  `MediaStore` interfaces; do not add local/cloud branches to routes.
+- The format rules live in `schema/logbook.schema.json` plus the semantic rules in
+  `backend/logbook_store.py` and `scripts/generate-schema-artifacts.mjs`. Change
+  them together and regenerate artifacts.
 - Mutating browser requests require the session CSRF token from
   `GET /api/csrf-token` in `X-CSRF-Token`.
 - Validate externally supplied paths, categories, coordinates, dates, payload
@@ -207,7 +219,9 @@ When adding or renaming a field, update all of the following together:
 
 1. Template markup and unit labels.
 2. DOM population and method-specific visibility.
-3. Form hydration and collection.
+3. Draft binding (`data-bind` attributes, `draft-binding.js`) and the draft
+   normalizers (`trip-draft.js`, `gear-draft.js`, `settings-draft.js`), including
+   their round-trip tests.
 4. Browser/backend v2 validation and canonical defaults where applicable.
 5. Summary, map, analytics, import/export, and reference cleanup behavior.
 6. Relevant documentation and tests.
@@ -248,7 +262,7 @@ Before finishing:
 1. Inspect `git diff` and preserve unrelated user changes.
 2. Run `scripts/doctor.ps1` if setup changed.
 3. Run the narrow relevant tests and then `scripts/check.ps1` when practical.
-4. If the generated standalone check fails because of pre-existing frontend
-   edits, report that clearly and do not overwrite unrelated work silently.
+4. If schema artifacts are stale because of pre-existing edits, report that
+   clearly and do not overwrite unrelated work silently.
 5. Summarize changed files, commands run, failures, external dependencies, and
    any remaining risk.

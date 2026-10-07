@@ -1,0 +1,951 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fishing-logbook.local/schema/logbook.schema.json",
+  "title": "Fishing Logbook v2 document",
+  "description": "Canonical additive version-2 Fishing Logbook document shared by desktop and mobile clients. Unknown properties are intentionally preserved.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "species",
+    "methods",
+    "lureTypes",
+    "flasherTypes",
+    "waterClarities",
+    "weatherTypes",
+    "reelStyles",
+    "rodTypes",
+    "lineTypes",
+    "riggings",
+    "structureOptions",
+    "flyCategories",
+    "flyPresentations",
+    "waterLevels",
+    "lureBladeTypes",
+    "lureSpoonSizes",
+    "trollingPresentations",
+    "trollingDirections",
+    "setupLineSides",
+    "lures",
+    "flashers",
+    "reels",
+    "rods",
+    "rodReelCombos",
+    "settings",
+    "people",
+    "locations",
+    "spots",
+    "expeditions",
+    "trips"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2,
+      "description": "Document format version. Only version 2 is supported."
+    },
+    "species": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "methods": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "lureTypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "flasherTypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "waterClarities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "weatherTypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reelStyles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rodTypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "lineTypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "riggings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "structureOptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "flyCategories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "flyPresentations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "waterLevels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "lureBladeTypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "lureSpoonSizes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "lureBeadSizes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "meatRigTypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "softPlasticTypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "trollingDirections": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "trollingPresentations": {
+      "$ref": "#/$defs/choiceList"
+    },
+    "setupLineSides": {
+      "$ref": "#/$defs/choiceList"
+    },
+    "lures": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/lure"
+      }
+    },
+    "flashers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/gearItem"
+      }
+    },
+    "reels": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reel"
+      }
+    },
+    "rods": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/gearItem"
+      }
+    },
+    "rodReelCombos": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/idRecord"
+      }
+    },
+    "settings": {
+      "$ref": "#/$defs/settings"
+    },
+    "people": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/person"
+      }
+    },
+    "locations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/location"
+      }
+    },
+    "spots": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/spot"
+      }
+    },
+    "expeditions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/expedition"
+      }
+    },
+    "trips": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/trip"
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "choiceList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "value": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "label": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ]
+      }
+    },
+    "coordinates": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true,
+      "required": [
+        "latitude",
+        "longitude"
+      ],
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      }
+    },
+    "mediaRef": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "catch-photos",
+            "flashers",
+            "lures",
+            "queue",
+            "reels",
+            "rods",
+            "trip-photos"
+          ]
+        },
+        "filename": {
+          "type": "string",
+          "pattern": "^[^/\\\\]+$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "caption": {
+          "type": "string"
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "previewFilename": {
+          "type": "string"
+        },
+        "coordinates": {
+          "$ref": "#/$defs/coordinates"
+        },
+        "captureTime": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "category",
+        "filename"
+      ]
+    },
+    "idRecord": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "gearItem": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/mediaRef"
+          }
+        }
+      }
+    },
+    "lure": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/mediaRef"
+          }
+        },
+        "meatRigType": {
+          "type": "string"
+        },
+        "softPlasticType": {
+          "type": "string"
+        },
+        "beadSize": {
+          "type": "string"
+        }
+      }
+    },
+    "reel": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/mediaRef"
+          }
+        },
+        "lineHistory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "person": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "coordinates": {
+          "$ref": "#/$defs/coordinates"
+        },
+        "launches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spot": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "coordinates": {
+          "$ref": "#/$defs/coordinates"
+        },
+        "radiusMeters": {
+          "type": "number",
+          "minimum": 25,
+          "maximum": 500
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "coordinates",
+        "radiusMeters"
+      ]
+    },
+    "expedition": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "startDate": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "endDate": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "destination": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "startDate",
+        "endDate"
+      ]
+    },
+    "fishEvent": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "coordinates": {
+          "$ref": "#/$defs/coordinates"
+        },
+        "manualCoordinates": {
+          "$ref": "#/$defs/coordinates"
+        },
+        "lockedLocationCoordinates": {
+          "$ref": "#/$defs/coordinates"
+        },
+        "spotId": {
+          "type": "string"
+        },
+        "spotAssignmentMode": {
+          "type": "string",
+          "enum": [
+            "automatic",
+            "manual"
+          ]
+        },
+        "photos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/mediaRef"
+          }
+        }
+      }
+    },
+    "trip": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "gearUsed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "dipseyDiverColor": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "catches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fishEvent"
+          }
+        },
+        "lostFish": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fishEvent"
+          }
+        },
+        "notePhotos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/mediaRef"
+          }
+        },
+        "coordinates": {
+          "$ref": "#/$defs/coordinates"
+        }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "theme": {
+          "type": "string",
+          "enum": [
+            "light",
+            "dark"
+          ]
+        },
+        "hasFishHawk": {
+          "type": "boolean"
+        },
+        "timeFormat": {
+          "type": "string",
+          "enum": [
+            "12",
+            "24"
+          ]
+        },
+        "defaultHomeLake": {
+          "type": "string",
+          "enum": [
+            "",
+            "Superior",
+            "Michigan",
+            "Huron",
+            "Erie",
+            "Ontario"
+          ]
+        },
+        "speciesMapColors": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "\\S"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          }
+        },
+        "units": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "depth": {
+              "type": "string",
+              "enum": [
+                "ft",
+                "m"
+              ],
+              "description": "Preferred unit for depth."
+            },
+            "distance": {
+              "type": "string",
+              "enum": [
+                "km",
+                "mi"
+              ],
+              "description": "Preferred unit for distance."
+            },
+            "speed": {
+              "type": "string",
+              "enum": [
+                "kn",
+                "kph",
+                "mph"
+              ],
+              "description": "Preferred unit for speed."
+            },
+            "windSpeed": {
+              "type": "string",
+              "enum": [
+                "kn",
+                "kph",
+                "mph"
+              ],
+              "description": "Preferred unit for windSpeed."
+            },
+            "pressure": {
+              "type": "string",
+              "enum": [
+                "hPa",
+                "inHg",
+                "kPa",
+                "mmHg"
+              ],
+              "description": "Preferred unit for pressure."
+            },
+            "airTemperature": {
+              "type": "string",
+              "enum": [
+                "C",
+                "F"
+              ],
+              "description": "Preferred unit for airTemperature."
+            },
+            "waterTemperature": {
+              "type": "string",
+              "enum": [
+                "C",
+                "F"
+              ],
+              "description": "Preferred unit for waterTemperature."
+            },
+            "precipitation": {
+              "type": "string",
+              "enum": [
+                "in",
+                "mm"
+              ],
+              "description": "Preferred unit for precipitation."
+            },
+            "waveHeight": {
+              "type": "string",
+              "enum": [
+                "ft",
+                "m"
+              ],
+              "description": "Preferred unit for waveHeight."
+            },
+            "fishLength": {
+              "type": "string",
+              "enum": [
+                "cm",
+                "in"
+              ],
+              "description": "Preferred unit for fishLength."
+            },
+            "fishWeight": {
+              "type": "string",
+              "enum": [
+                "kg",
+                "lb"
+              ],
+              "description": "Preferred unit for fishWeight."
+            }
+          }
+        },
+        "bathymetryLakeCalibrationsFeet": {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "Erie",
+              "Ontario",
+              "St. Clair",
+              "Huron",
+              "Michigan",
+              "Superior"
+            ]
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "shallowOffsetFeet": {
+                "type": "number"
+              },
+              "offshoreOffsetFeet": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "chopRanges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "label": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "maxFeet": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ]
+          }
+        },
+        "checklists": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "name": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "id": {
+                      "$ref": "#/$defs/nonEmptyString"
+                    },
+                    "label": {
+                      "$ref": "#/$defs/nonEmptyString"
+                    },
+                    "done": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label",
+                    "done"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "items"
+            ]
+          }
+        },
+        "privatePhotoLocations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "name": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "coordinates": {
+                "$ref": "#/$defs/coordinates"
+              },
+              "radiusMeters": {
+                "type": "number",
+                "minimum": 25,
+                "maximum": 10000
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "coordinates",
+              "radiusMeters"
+            ]
+          }
+        },
+        "trollingSpreads": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "name": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "spread": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "comboId": {
+                      "$ref": "#/$defs/nonEmptyString"
+                    },
+                    "side": {
+                      "$ref": "#/$defs/nonEmptyString"
+                    },
+                    "presentation": {
+                      "$ref": "#/$defs/nonEmptyString"
+                    },
+                    "dipseyDiverColor": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "comboId",
+                    "side",
+                    "presentation"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "spread"
+            ]
+          }
+        },
+        "defaultTrollingSpreadId": {
+          "type": "string"
+        },
+        "savedSetups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "name": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "method": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "rows": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "comboId": {
+                      "$ref": "#/$defs/nonEmptyString"
+                    }
+                  },
+                  "required": [
+                    "comboId"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "method",
+              "rows"
+            ]
+          }
+        },
+        "defaultSavedSetupIds": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "\\S"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "defaultPeople": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

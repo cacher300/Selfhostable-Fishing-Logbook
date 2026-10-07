@@ -1,25 +1,37 @@
-const weatherRequestCache = new Map();
-const marineRequestCache = new Map();
-const astronomyRequestCache = new Map();
+import { state, ui } from "./app-state.js";
+import { findLaunchByIdOrName, tripWeatherCoordinates } from "./app-normalization.js";
+import { displayStoredMeasurement, formatDisplayTime, formatUnitValue } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { isUsableCoordinates } from "./app-media.js";
+import { chopLabelForWaveHeight } from "./settings-core.js";
+import { getValue } from "./trip-editor.js";
+import { updateTripField } from "./draft-binding.js";
 
-function tripDraftForWeather() {
-  const location = state.locations.find((item) => item.id === els.tripLocation.value);
-  const launch = findLaunchByIdOrName(location, els.tripLaunch.value, "");
+export const weatherRequestCache = new Map();
+export const marineRequestCache = new Map();
+export const astronomyRequestCache = new Map();
+
+export function tripDraftForWeather() {
+  const draft = ui.tripDraft || {};
+  const locationId = draft.locationId || els.tripLocation.value;
+  const launchId = draft.launchId || els.tripLaunch.value;
+  const location = state.locations.find((item) => item.id === locationId);
+  const launch = findLaunchByIdOrName(location, launchId, "");
   return {
-    id: els.tripId.value || "",
-    date: getValue("tripDate"),
-    launchTime: getValue("launchTime"),
-    linesPulledTime: getValue("linesPulledTime"),
+    id: draft.id || els.tripId.value || "",
+    date: draft.date || getValue("tripDate"),
+    launchTime: draft.launchTime || getValue("launchTime"),
+    linesPulledTime: draft.linesPulledTime || getValue("linesPulledTime"),
     location: location?.name || "",
     locationId: location?.id || "",
     launch: launch?.name || "",
     launchId: launch?.id || "",
-    waveHeight: getValue("waveHeight"),
+    waveHeight: draft.waveHeight || getValue("waveHeight"),
     catches: []
   };
 }
 
-function marineSnapshot(weatherData) {
+export function marineSnapshot(weatherData) {
   const marine = weatherData?.marine;
   if (!marine || marine.status === "unavailable") return null;
   if (marine.marineDataAvailable === false) return null;
@@ -30,13 +42,13 @@ function marineSnapshot(weatherData) {
   return null;
 }
 
-function formatMarineWaveHeightM(waveHeightM) {
+export function formatMarineWaveHeightM(waveHeightM) {
   if (waveHeightM === null || waveHeightM === undefined) return "";
   const text = formatUnitValue(waveHeightM, "waveHeight", "m", { decimals: 1 });
   return text === "Not logged" ? "" : text;
 }
 
-function marineWaveHeightPlaceholderText(weatherData) {
+export function marineWaveHeightPlaceholderText(weatherData) {
   const marine = marineSnapshot(weatherData);
   if (marine?.marineDataAvailable && marine.waveHeightM !== null && marine.waveHeightM !== undefined) {
     return formatMarineWaveHeightM(marine.waveHeightM);
@@ -44,12 +56,12 @@ function marineWaveHeightPlaceholderText(weatherData) {
   return "Wave height not available for this location";
 }
 
-function updateMarineWaveHeightPlaceholder(weatherData) {
+export function updateMarineWaveHeightPlaceholder(weatherData) {
   if (!els.waveHeight) return;
   els.waveHeight.placeholder = marineWaveHeightPlaceholderText(weatherData);
 }
 
-function tripWaveHeightDisplay(trip, weatherData) {
+export function tripWaveHeightDisplay(trip, weatherData) {
   const saved = String(trip?.waveHeight || "").trim();
   if (saved) return displayStoredMeasurement(saved, "waveHeight");
   const marine = marineSnapshot(weatherData);
@@ -59,18 +71,18 @@ function tripWaveHeightDisplay(trip, weatherData) {
   return "No marine data";
 }
 
-function tripWaveChopDisplay(trip, weatherData) {
+export function tripWaveChopDisplay(trip, weatherData) {
   const waveHeight = tripWaveHeightDisplay(trip, weatherData);
   return chopLabelForWaveHeight(waveHeight);
 }
 
-function formatWaveHeightChopLine(trip, weatherData) {
+export function formatWaveHeightChopLine(trip, weatherData) {
   const heightText = tripWaveHeightDisplay(trip, weatherData);
   const chopText = tripWaveChopDisplay(trip, weatherData);
   return [heightText, chopText].filter(Boolean).join(" / ") || "Not logged";
 }
 
-function resolveTripWaveSnapshot(trip) {
+export function resolveTripWaveSnapshot(trip) {
   const marine = marineSnapshot(trip.weatherData);
   const userWave = String(trip.waveHeight || "").trim();
   if (userWave) {
@@ -84,7 +96,7 @@ function resolveTripWaveSnapshot(trip) {
   return trip;
 }
 
-function weatherCacheKey(coordinates, startDate, endDate) {
+export function weatherCacheKey(coordinates, startDate, endDate) {
   return [
     Number(coordinates.latitude).toFixed(3),
     Number(coordinates.longitude).toFixed(3),
@@ -93,7 +105,7 @@ function weatherCacheKey(coordinates, startDate, endDate) {
   ].join("|");
 }
 
-function tripEndDate(trip) {
+export function tripEndDate(trip) {
   if (!trip.date) return "";
   const startTime = trip.launchTime || "";
   const endTime = trip.linesPulledTime || "";
@@ -107,7 +119,7 @@ function tripEndDate(trip) {
   return date.toISOString().slice(0, 10);
 }
 
-async function fetchWeatherBundle(coordinates, startDate, endDate) {
+export async function fetchWeatherBundle(coordinates, startDate, endDate) {
   const key = weatherCacheKey(coordinates, startDate, endDate);
   if (weatherRequestCache.has(key)) return weatherRequestCache.get(key);
   const today = new Date().toISOString().slice(0, 10);
@@ -174,7 +186,7 @@ async function fetchWeatherBundle(coordinates, startDate, endDate) {
   return request;
 }
 
-async function fetchMarineBundle(coordinates, startDate, endDate) {
+export async function fetchMarineBundle(coordinates, startDate, endDate) {
   const key = weatherCacheKey(coordinates, startDate, endDate);
   if (marineRequestCache.has(key)) return marineRequestCache.get(key);
   const params = new URLSearchParams({
@@ -200,7 +212,7 @@ async function fetchMarineBundle(coordinates, startDate, endDate) {
   return request;
 }
 
-async function fetchAstronomyBundle(coordinates, date, timezone = "") {
+export async function fetchAstronomyBundle(coordinates, date, timezone = "") {
   const key = [
     Number(coordinates.latitude).toFixed(3),
     Number(coordinates.longitude).toFixed(3),
@@ -228,7 +240,7 @@ async function fetchAstronomyBundle(coordinates, date, timezone = "") {
   return request;
 }
 
-function hourlyRecords(bundle) {
+export function hourlyRecords(bundle) {
   const hourly = bundle.hourly || {};
   return (hourly.time || []).map((time, index) => ({
     time,
@@ -249,7 +261,7 @@ function hourlyRecords(bundle) {
   }));
 }
 
-function dailyRecord(bundle) {
+export function dailyRecord(bundle) {
   const daily = bundle.daily || {};
   return {
     date: daily.time?.[0] || "",
@@ -269,7 +281,7 @@ function dailyRecord(bundle) {
   };
 }
 
-function tripWindowHours(trip, records) {
+export function tripWindowHours(trip, records) {
   const startTime = trip.launchTime || "";
   const endTime = trip.linesPulledTime || "";
   if (!startTime || !endTime) return records.filter((record) => record.time.startsWith(trip.date));
@@ -281,7 +293,7 @@ function tripWindowHours(trip, records) {
   });
 }
 
-function numericRecordValues(records, key) {
+export function numericRecordValues(records, key) {
   return records
     .map((record) => record?.[key])
     .filter((value) => value !== null && value !== undefined && value !== "")
@@ -289,31 +301,31 @@ function numericRecordValues(records, key) {
     .filter(Number.isFinite);
 }
 
-function averageNumber(records, key) {
+export function averageNumber(records, key) {
   const values = numericRecordValues(records, key);
   if (!values.length) return null;
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
 }
 
-function sumNumber(records, key) {
+export function sumNumber(records, key) {
   const values = numericRecordValues(records, key);
   if (!values.length) return null;
   return Math.round(values.reduce((sum, value) => sum + value, 0) * 100) / 100;
 }
 
-function minNumber(records, key) {
+export function minNumber(records, key) {
   const values = numericRecordValues(records, key);
   if (!values.length) return null;
   return Math.round(Math.min(...values) * 10) / 10;
 }
 
-function maxNumber(records, key) {
+export function maxNumber(records, key) {
   const values = numericRecordValues(records, key);
   if (!values.length) return null;
   return Math.round(Math.max(...values) * 10) / 10;
 }
 
-function mostFrequentValue(records, key) {
+export function mostFrequentValue(records, key) {
   const counts = new Map();
   records.forEach((record) => {
     const value = record?.[key];
@@ -323,7 +335,7 @@ function mostFrequentValue(records, key) {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
-function tripWindowSummary(records) {
+export function tripWindowSummary(records) {
   return {
     weatherCode: mostFrequentValue(records, "weatherCode"),
     temperatureC: averageNumber(records, "temperatureC"),
@@ -341,12 +353,12 @@ function tripWindowSummary(records) {
   };
 }
 
-function recordTimeMs(record) {
+export function recordTimeMs(record) {
   const value = new Date(record?.time || "").getTime();
   return Number.isFinite(value) ? value : null;
 }
 
-function barometricTrendRate(records) {
+export function barometricTrendRate(records) {
   const pressureRecords = records
     .filter((record) => Number.isFinite(Number(record.pressureMslHpa ?? record.pressureHpa)) && recordTimeMs(record) !== null)
     .sort((a, b) => recordTimeMs(a) - recordTimeMs(b));
@@ -363,7 +375,7 @@ function barometricTrendRate(records) {
   return Math.round((Number(current.pressureMslHpa ?? current.pressureHpa) - Number(prior.pressureMslHpa ?? prior.pressureHpa)) * 10) / 10;
 }
 
-function barometricTrendLabel(delta) {
+export function barometricTrendLabel(delta) {
   const value = Number(delta);
   if (!Number.isFinite(value)) return "";
   if (value <= -3) return "falling fast";
@@ -373,7 +385,7 @@ function barometricTrendLabel(delta) {
   return "steady";
 }
 
-function marineRecords(bundle) {
+export function marineRecords(bundle) {
   const hourly = bundle?.hourly || {};
   return (hourly.time || []).map((time, index) => ({
     time,
@@ -383,11 +395,11 @@ function marineRecords(bundle) {
   }));
 }
 
-function marineDataAvailable(records) {
+export function marineDataAvailable(records) {
   return numericRecordValues(records, "waveHeightM").length > 0;
 }
 
-function nearestMarineRecord(records, trip) {
+export function nearestMarineRecord(records, trip) {
   const validRecords = records.filter((record) => Number.isFinite(Number(record.waveHeightM)));
   if (!validRecords.length) return null;
   const tripDate = trip.date || validRecords[0].time?.slice(0, 10) || "";
@@ -402,7 +414,7 @@ function nearestMarineRecord(records, trip) {
   }, null)?.record || validRecords[0];
 }
 
-function marineWindowSummary(records, trip = {}) {
+export function marineWindowSummary(records, trip = {}) {
   if (!marineDataAvailable(records)) {
     return {
       marineDataAvailable: false,
@@ -424,26 +436,26 @@ function marineWindowSummary(records, trip = {}) {
   };
 }
 
-function numericDelta(records, key) {
+export function numericDelta(records, key) {
   const values = numericRecordValues(records, key);
   if (values.length < 2) return null;
   return Math.round((values.at(-1) - values[0]) * 10) / 10;
 }
 
-function windDirectionShift(records) {
+export function windDirectionShift(records) {
   const values = numericRecordValues(records, "windDirectionDegrees");
   if (values.length < 2) return null;
   const delta = Math.abs((((values.at(-1) - values[0]) % 360) + 540) % 360 - 180);
   return Math.round(delta);
 }
 
-function trendLabel(delta, unit, threshold = 1) {
+export function trendLabel(delta, unit, threshold = 1) {
   if (delta === null || delta === undefined) return "";
   if (Math.abs(delta) < threshold) return `steady ${unit}`;
   return `${delta > 0 ? "rising" : "falling"} ${unit}`;
 }
 
-function tripWeatherTrend(records) {
+export function tripWeatherTrend(records) {
   const pressureDelta = numericDelta(records, "pressureHpa");
   const temperatureDelta = numericDelta(records, "temperatureC");
   const windSpeedDelta = numericDelta(records, "windSpeedMph");
@@ -462,7 +474,7 @@ function tripWeatherTrend(records) {
   };
 }
 
-function frontTagFromTrend(trend) {
+export function frontTagFromTrend(trend) {
   const pressure = Number(trend?.pressureDeltaHpa);
   const windShift = Number(trend?.windDirectionShiftDegrees);
   const clouds = Number(trend?.cloudCoverDeltaPercent);
@@ -479,14 +491,14 @@ function frontTagFromTrend(trend) {
   return "Unsettled";
 }
 
-function timeText(value) {
+export function timeText(value) {
   if (!value) return "";
   const text = String(value);
   const match = text.match(/T(\d{2}:\d{2})/) || text.match(/^(\d{1,2}:\d{2})/);
   return match ? match[1].padStart(5, "0") : text;
 }
 
-function astronomyData(payload) {
+export function astronomyData(payload) {
   const result = payload?.results || {};
   if (!Object.keys(result).length) return null;
   return {
@@ -499,7 +511,7 @@ function astronomyData(payload) {
   };
 }
 
-function nearestHourlyRecord(records, trip, catchTime) {
+export function nearestHourlyRecord(records, trip, catchTime) {
   if (!catchTime) return null;
   let dateKey = trip.date;
   const startTime = trip.launchTime || "";
@@ -524,14 +536,14 @@ function nearestHourlyRecord(records, trip, catchTime) {
   return best;
 }
 
-function weatherUnits(bundle) {
+export function weatherUnits(bundle) {
   return {
     ...(bundle.hourly_units || {}),
     ...(bundle.daily_units || {})
   };
 }
 
-async function buildWeatherDataForTrip(trip, source, includeCatches = true) {
+export async function buildWeatherDataForTrip(trip, source, includeCatches = true) {
   const endDate = tripEndDate(trip);
   const bundle = await fetchWeatherBundle(source.coordinates, trip.date, endDate || trip.date);
   let astronomy = null;
@@ -609,7 +621,7 @@ async function buildWeatherDataForTrip(trip, source, includeCatches = true) {
   return { tripWeather: weatherData, catches };
 }
 
-async function enrichTripWithWeather(trip) {
+export async function enrichTripWithWeather(trip) {
   const source = tripWeatherCoordinates(trip);
   if (!trip.date || !source) {
     return {
@@ -636,7 +648,7 @@ async function enrichTripWithWeather(trip) {
   }
 }
 
-function weatherWindText(weatherData) {
+export function weatherWindText(weatherData) {
   const wind = weatherData?.tripWindow?.windSpeedMph;
   const gust = weatherData?.tripWindow?.windGustMph;
   const direction = weatherData?.tripWindow?.windDirectionDegrees;
@@ -652,7 +664,7 @@ function weatherWindText(weatherData) {
   return `${directionText}${formatUnitValue(wind, "windSpeed", "mph")}${gustText}`;
 }
 
-function windDirectionLabel(degrees) {
+export function windDirectionLabel(degrees) {
   const value = Number(degrees);
   if (!Number.isFinite(value)) return "";
   const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -660,7 +672,7 @@ function windDirectionLabel(degrees) {
   return directions[index];
 }
 
-function hourlyWindText(hourly) {
+export function hourlyWindText(hourly) {
   const wind = hourly?.windSpeedMph;
   if (wind === null || wind === undefined) return "";
   const direction = windDirectionLabel(hourly.windDirectionDegrees);
@@ -668,11 +680,11 @@ function hourlyWindText(hourly) {
   return `${direction ? `${direction} ` : ""}${formatUnitValue(wind, "windSpeed", "mph")}${gust}`;
 }
 
-function celsiusText(value) {
+export function celsiusText(value) {
   return formatUnitValue(value, "airTemperature", "C");
 }
 
-function catchWeatherSummary(weatherData) {
+export function catchWeatherSummary(weatherData) {
   const hourly = weatherData?.hourly;
   if (!hourly) return "";
   return [
@@ -683,7 +695,7 @@ function catchWeatherSummary(weatherData) {
   ].filter(Boolean).join(" · ");
 }
 
-function moonWindowForTime(time, sunMoon) {
+export function moonWindowForTime(time, sunMoon) {
   if (!time || !sunMoon) return "";
   const [hour, minute] = String(time).split(":").map(Number);
   if (![hour, minute].every(Number.isFinite)) return "";
@@ -701,11 +713,11 @@ function moonWindowForTime(time, sunMoon) {
   return match?.[0] || "";
 }
 
-function setWeatherStatus(message) {
+export function setWeatherStatus(message) {
   if (els.weatherFetchStatus) els.weatherFetchStatus.textContent = message;
 }
 
-function weatherTagForCode(code) {
+export function weatherTagForCode(code) {
   const value = Number(code);
   if (!Number.isFinite(value)) return "";
   if (value === 0) return "Sunny";
@@ -719,12 +731,12 @@ function weatherTagForCode(code) {
   return "Mixed";
 }
 
-function weatherCardConditionsLabel() {
+export function weatherCardConditionsLabel() {
   const time = formatDisplayTime(document.querySelector("#launchTime")?.value || "");
   return time ? `Conditions at ${time}` : "Trip-window conditions";
 }
 
-function weatherCardLocationLabel(weatherData) {
+export function weatherCardLocationLabel(weatherData) {
   const launch = els.tripLaunch?.selectedOptions?.[0]?.textContent?.trim();
   const location = els.tripLocation?.selectedOptions?.[0]?.textContent?.trim();
   return weatherData?.source?.name
@@ -733,18 +745,18 @@ function weatherCardLocationLabel(weatherData) {
     || "Select location";
 }
 
-function weatherCardWindText(summary) {
+export function weatherCardWindText(summary) {
   if (!Number.isFinite(Number(summary?.windSpeedMph))) return "Not available";
   const direction = windDirectionLabel(summary.windDirectionDegrees);
   const speed = formatUnitValue(summary.windSpeedMph, "windSpeed", "mph");
   return [direction, speed].filter(Boolean).join(" ");
 }
 
-function setWeatherCardValue(element, value) {
+export function setWeatherCardValue(element, value) {
   if (element) element.textContent = value || "Not available";
 }
 
-function renderWeatherSummary(weatherData = activeTripWeatherData) {
+export function renderWeatherSummary(weatherData = ui.activeTripWeatherData) {
   const summary = weatherData?.tripWindow;
   const hasSummary = summary && [summary.temperatureC, summary.windSpeedMph, summary.pressureHpa, summary.cloudCoverPercent]
     .some((value) => Number.isFinite(Number(value)));
@@ -771,11 +783,14 @@ function renderWeatherSummary(weatherData = activeTripWeatherData) {
   setWeatherCardValue(els.weatherSummaryPressure, Number.isFinite(Number(summary.pressureHpa)) ? formatUnitValue(summary.pressureHpa, "pressure", "hPa", { decimals: 2 }) : "Not available");
   const autoWeatherTag = weatherTagForCode(summary.weatherCode);
   const weatherSelect = document.querySelector("#weather");
-  if (autoWeatherTag && weatherSelect && !weatherSelect.value) weatherSelect.value = autoWeatherTag;
+  if (autoWeatherTag && weatherSelect && !weatherSelect.value) {
+    weatherSelect.value = autoWeatherTag;
+    updateTripField("weather", autoWeatherTag);
+  }
   if (els.weatherSummaryUpdated) els.weatherSummaryUpdated.textContent = "";
 }
 
-async function refreshTripWeatherPreview(force = false) {
+export async function refreshTripWeatherPreview(force = false) {
   const trip = tripDraftForWeather();
   const source = tripWeatherCoordinates(trip);
   const key = JSON.stringify({
@@ -787,10 +802,10 @@ async function refreshTripWeatherPreview(force = false) {
     waveHeight: trip.waveHeight,
     chopRanges: state.settings?.chopRanges
   });
-  if (!force && key === activeTripWeatherKey) return;
-  activeTripWeatherKey = key;
+  if (!force && key === ui.activeTripWeatherKey) return;
+  ui.activeTripWeatherKey = key;
   if (!trip.date || !source) {
-    activeTripWeatherData = null;
+    ui.activeTripWeatherData = null;
     renderWeatherSummary();
     setWeatherStatus(source ? "Choose a trip date" : "Add a location or launch pin to fetch weather");
     return;
@@ -799,22 +814,22 @@ async function refreshTripWeatherPreview(force = false) {
   renderWeatherSummary(null);
   try {
     const result = await buildWeatherDataForTrip(trip, source, false);
-    activeTripWeatherData = result.tripWeather;
-    updateMarineWaveHeightPlaceholder(activeTripWeatherData);
+    ui.activeTripWeatherData = result.tripWeather;
+    updateMarineWaveHeightPlaceholder(ui.activeTripWeatherData);
     renderWeatherSummary();
     setWeatherStatus(weatherCardConditionsLabel());
   } catch (error) {
-    activeTripWeatherData = null;
+    ui.activeTripWeatherData = null;
     renderWeatherSummary();
     setWeatherStatus(error.message || "Weather fetch failed");
   }
 }
 
-async function resyncTripWeather() {
+export async function resyncTripWeather() {
   weatherRequestCache.clear();
   marineRequestCache.clear();
   astronomyRequestCache.clear();
-  activeTripWeatherKey = "";
+  ui.activeTripWeatherKey = "";
   if (els.resyncWeatherButton) {
     els.resyncWeatherButton.disabled = true;
     els.resyncWeatherButton.textContent = "Resyncing...";
@@ -829,18 +844,17 @@ async function resyncTripWeather() {
   }
 }
 
-function scheduleTripWeatherPreview(force = false) {
+export function scheduleTripWeatherPreview(force = false) {
   if (!els.tripDialog?.open) return;
-  clearTimeout(weatherPreviewTimer);
-  weatherPreviewTimer = setTimeout(() => refreshTripWeatherPreview(force), 350);
+  clearTimeout(ui.weatherPreviewTimer);
+  ui.weatherPreviewTimer = setTimeout(() => refreshTripWeatherPreview(force), 350);
 }
 
-function weatherValue(value, suffix = "") {
+export function weatherValue(value, suffix = "") {
   return value === null || value === undefined || value === "" ? "Not logged" : `${value}${suffix}`;
 }
 
-function weatherValueWithTrend(value, ...trendParts) {
+export function weatherValueWithTrend(value, ...trendParts) {
   const trends = trendParts.filter(Boolean);
   return [value || "Not logged", ...trends].join(" / ");
 }
-

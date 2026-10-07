@@ -9,6 +9,13 @@ test("map depth popup opens the current profile on request", async ({ page }) =>
     status: 200, contentType: "application/json",
     body: JSON.stringify({ depth_ft: 306 })
   }));
+  await page.route("**/api/great-lakes/status?**", (route) => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({
+      version: "LOOFS:20260928t12z:0",
+      models: { LOOFS: { available: true, run: "20260928t12z", nowForecastHour: 0, nowValidTime: "2026-09-28T12:00:00Z", nextRunExpectedAt: "2026-09-28T20:47:00Z" } }
+    })
+  }));
   await page.route("**/api/great-lakes/currents?**", (route) => route.fulfill({
     status: 200, contentType: "application/json",
     body: JSON.stringify({
@@ -32,26 +39,27 @@ test("map depth popup opens the current profile on request", async ({ page }) =>
   await page.goto("/map");
   await expect(page).toHaveTitle("Fishing Logbook");
   await page.locator(".map-layers-menu > summary").click();
-  await page.locator("[data-gl-lake]").selectOption("Ontario");
+  await expect(page.locator("[data-gl-lake]")).toHaveCount(0);
   await page.locator("[data-gl-layer]").selectOption("currents");
-  await expect(page.locator("[data-gl-status]")).toContainText("Showing NOAA model forecast");
+  await expect(page.locator("[data-gl-status]")).toContainText("Showing the NOAA forecast");
   await page.locator(".map-layers-menu > summary").click();
   await page.locator("#fishMap").click({ position: { x: 220, y: 210 } });
 
   const dialog = page.locator(".great-lakes-current-dialog");
-  const popup = page.locator(".map-depth-popup");
+  const popup = page.locator(".leaflet-popup .gl-card");
   await expect(popup).toBeVisible();
   await expect(popup).toContainText("FOW");
   await expect(popup.locator("small")).toHaveCount(0);
   await expect(dialog).toHaveCount(0);
   await page.screenshot({ path: path.join(os.tmpdir(), "fishing-current-depth-popup.png") });
-  await popup.getByRole("button", { name: "View current profile" }).click();
+  await expect(popup).toContainText("Surface current");
+  await popup.getByRole("button", { name: "Current by depth" }).click();
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("heading", { name: "Underwater current by depth" })).toBeVisible();
   await expect(dialog.getByRole("listitem")).toHaveCount(3);
-  await expect(dialog).toContainText("Toward N · 0°");
-  await expect(dialog).toContainText("Toward NE · 45°");
-  await expect(dialog).toContainText("Toward E · 90°");
+  await expect(dialog).toContainText("Toward N 0°");
+  await expect(dialog).toContainText("Toward NE 45°");
+  await expect(dialog).toContainText("Toward E 90°");
   await expect(dialog).not.toContainText("Each bar shows current speed");
   await expect(dialog).not.toContainText("Depths are approximate");
   await expect(dialog.locator(".map-current-compass")).toHaveCount(0);

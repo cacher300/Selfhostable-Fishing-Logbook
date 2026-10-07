@@ -1,41 +1,41 @@
-function trollingSpreadPickerItemLabel(item) {
-  return item.spread.map((row, index) => {
-    const combo = comboName(row.comboId) || `Rod ${index + 1}`;
-    const side = setupLineSideLabel(row.side);
-    const presentation = choiceLabel("trollingPresentations", row.presentation);
-    return [side, presentation, combo].filter(Boolean).join(" ");
-  }).join(" · ");
-}
+import { html, joinHtml, setHtml } from "./html.js";
+import { ui } from "./app-state.js";
+import { currentTrollingSpreads } from "./app-normalization.js";
+import { els } from "./app-elements.js";
+import { syncTripFormChrome } from "./trip-editor.js";
+import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, updateAllRowSummaries } from "./trip-rows.js";
+import { renderLiveTrollingSpread } from "./trolling-spread.js";
+import { isTrollingTrip } from "./form-utils.js";
+import { replaceTripRows } from "./draft-binding.js";
 
-function renderTrollingSpreadPicker() {
+
+export function renderTrollingSpreadPicker() {
   if (!els.trollingSpreadPickerList) return;
   const spreads = currentTrollingSpreads();
-  els.trollingSpreadPickerList.innerHTML = spreads.length
-    ? spreads.map((item) => `
-        <button class="trolling-spread-picker-option" type="button" data-pick-trolling-spread="${escapeHtml(item.id)}">
-          <span class="trolling-spread-picker-option-copy">
-            <strong>${escapeHtml(item.name)}</strong>
-            <small>${escapeHtml(`${item.spread.length} rod${item.spread.length === 1 ? "" : "s"} · ${trollingSpreadPickerItemLabel(item)}`)}</small>
-          </span>
+  setHtml(els.trollingSpreadPickerList, spreads.length
+    ? joinHtml(spreads.map((item) => html`
+        <button class="trolling-spread-picker-option" type="button" data-pick-trolling-spread="${item.id}">
+          <strong class="trolling-spread-picker-option-title">${item.name}</strong>
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
         </button>
-      `).join("")
-    : '<p class="trolling-spread-picker-empty">No saved spreads yet. Create one in Settings → Trolling Spread.</p>';
+      `), "")
+    : html`<p class="trolling-spread-picker-empty">No saved spreads yet. Create one in Settings → Trolling Spread.</p>`);
 }
 
-function openTrollingSpreadPicker() {
+export function openTrollingSpreadPicker() {
   if (!isTrollingTrip() || !els.trollingSpreadPickerDialog) return;
   renderTrollingSpreadPicker();
   els.trollingSpreadPickerDialog.showModal();
 }
 
-function applySavedTrollingSpread(spreadId) {
+export function applySavedTrollingSpread(spreadId) {
   const spread = currentTrollingSpreads().find((item) => item.id === spreadId);
   if (!spread) return;
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
   if (rows.length && !window.confirm(`Replace the current setup with the ${spread.name} spread?`)) return;
 
   rows.forEach((row) => row.remove());
+  replaceTripRows("gearUsed", []);
   spread.spread.forEach((item) => addTripGearRow({
     comboId: item.comboId,
     side: item.side,
@@ -53,11 +53,13 @@ function applySavedTrollingSpread(spreadId) {
   updateAllRowSummaries();
   renderLiveTrollingSpread();
   els.trollingSpreadPickerDialog?.close();
-  tripFormUserChanged = true;
+  ui.tripFormUserChanged = true;
   syncTripFormChrome();
 }
 
-els.trollingSpreadPickerList?.addEventListener("click", (event) => {
-  const option = event.target.closest("[data-pick-trolling-spread]");
-  if (option) applySavedTrollingSpread(option.dataset.pickTrollingSpread);
-});
+export function setup() {
+  els.trollingSpreadPickerList?.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-pick-trolling-spread]");
+    if (option) applySavedTrollingSpread(option.dataset.pickTrollingSpread);
+  });
+}

@@ -1,18 +1,35 @@
 {
-  "name": "fishing-logbook-web-tests",
+  "name": "fishing-logbook-web",
   "version": "0.0.0",
   "private": true,
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test tests/*.test.js",
+    "build": "node scripts/build-frontend.mjs",
+    "build:watch": "node scripts/build-frontend.mjs --watch",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/*.test.js tests/*.test.mjs",
+    "schema:generate": "node scripts/generate-schema-artifacts.mjs",
+    "schema:check": "node scripts/generate-schema-artifacts.mjs --check",
     "test:e2e": "playwright test",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:ui": "playwright test --ui",
-    "playwright:install": "playwright install chromium"
+    "playwright:install": "playwright install chromium",
+    "lint": "eslint static/js scripts"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0"
+    "@playwright/test": "1.63.0",
+    "ajv": "^8.17.1",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "globals": "^17.12.0",
+    "jsdom": "^30.1.1",
+    "json-schema-to-typescript": "^15.0.4"
+  },
+  "dependencies": {
+    "@fontsource/roboto": "^5.3.0",
+    "esri-leaflet": "^3.0.16",
+    "html2canvas": "^1.4.1",
+    "leaflet": "^1.9.4"
   }
 }

@@ -27,10 +27,11 @@
 
 .spread-design-stage {
   position: absolute;
-  top: 25.8%;
-  left: 2%;
+  top: 50%;
+  left: 50%;
   width: 44.1%;
   aspect-ratio: 1717 / 916;
+  transform: translate(-50%, -50%);
 }
 
 .spread-boat-image {
@@ -296,10 +297,9 @@
   background: var(--hover);
 }
 
-.trolling-spread-picker-option-copy {
-  display: grid;
-  gap: 4px;
+.trolling-spread-picker-option-title {
   min-width: 0;
+  font-size: 14px;
 }
 
 .saved-setup-picker-option-copy {
@@ -308,15 +308,10 @@
   min-width: 0;
 }
 
-.trolling-spread-picker-option-copy strong {
-  font-size: 14px;
-}
-
 .saved-setup-picker-option-copy strong {
   font-size: 14px;
 }
 
-.trolling-spread-picker-option-copy small,
 .trolling-spread-picker-empty,
 .saved-setup-picker-option-copy small,
 .saved-setup-picker-empty {

@@ -1,55 +1,65 @@
-const LOCATION_FOCUS_ZOOM = 15;
+import { html, joinHtml, setHtml } from "./html.js";
+import { L } from "./vendor.js";
+import { state, ui } from "./app-state.js";
+import { findLaunchByIdOrName, slugId } from "./app-normalization.js";
+import { deleteLaunch, deleteLocation, reorderLocations, saveLocation } from "./actions.js";
+import { els } from "./app-elements.js";
+import { isUsableCoordinates } from "./app-media.js";
+import { scheduleTripWeatherPreview } from "./location-weather.js";
+import { renderFilters } from "./dashboard.js";
+import { firstCatchCoordinates, fishCoordinatesFromRow, isCatchMetadataLocked } from "./photos.js";
+import { refreshCatchSpotSelect, updateRowSummary } from "./trip-rows.js";
+import { renderLiveTrollingSpread } from "./trolling-spread.js";
+import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
+import { draftRecordForRow, updateTripRow } from "./draft-binding.js";
 
-function coordinateText(coordinates) {
+
+export const LOCATION_FOCUS_ZOOM = 15;
+
+export function coordinateText(coordinates) {
   if (!isUsableCoordinates(coordinates)) return "";
   return `${Number(coordinates.latitude).toFixed(5)}, ${Number(coordinates.longitude).toFixed(5)}`;
 }
 
-function populateLocationSelect(selectedId = els.tripLocation?.value || "") {
+export function populateLocationSelect(selectedId = els.tripLocation?.value || "") {
   if (!els.tripLocation) return;
   const selectedLocation = state.locations.find((location) => location.id === selectedId)
     || state.locations.find((location) => location.name === selectedId);
-  els.tripLocation.innerHTML = `<option value="">Select location</option>` + state.locations.map((location) => (
-    `<option value="${escapeHtml(location.id)}" ${location.id === selectedLocation?.id ? "selected" : ""}>${escapeHtml(location.name)}</option>`
-  )).join("");
+  setHtml(els.tripLocation, html`<option value="">Select location</option>${joinHtml(state.locations.map((location) => (
+    html`<option value="${location.id}" ${location.id === selectedLocation?.id ? "selected" : ""}>${location.name}</option>`
+  )), "")}`);
   populateLaunchSelect(els.tripLaunch?.value || "");
   updateLocationControls();
 }
 
-function populateLaunchSelect(selectedId = "") {
+export function populateLaunchSelect(selectedId = "") {
   if (!els.tripLaunch) return;
   const location = state.locations.find((item) => item.id === els.tripLocation.value);
   const selectedLaunch = findLaunchByIdOrName(location, selectedId, selectedId);
   const launches = location?.launches || [];
-  els.tripLaunch.innerHTML = `<option value="">No launch / area selected</option>` + launches.map((launch) => (
-    `<option value="${escapeHtml(launch.id)}" ${launch.id === selectedLaunch?.id ? "selected" : ""}>${escapeHtml(launch.name)}</option>`
-  )).join("");
+  setHtml(els.tripLaunch, html`<option value="">No launch / area selected</option>${joinHtml(launches.map((launch) => (
+    html`<option value="${launch.id}" ${launch.id === selectedLaunch?.id ? "selected" : ""}>${launch.name}</option>`
+  )), "")}`);
   updateLocationControls();
 }
 
-function updateLocationControls() {
+export function updateLocationControls() {
   const location = state.locations.find((item) => item.id === els.tripLocation?.value);
   if (els.addLaunchButton) els.addLaunchButton.disabled = !location;
   scheduleTripWeatherPreview();
 }
 
-let draggedLocationManagerId = "";
+export let draggedLocationManagerId = "";
 
-async function saveLocationOrderFromManager() {
+export async function saveLocationOrderFromManager() {
   const orderedIds = [...els.locationManagerList.querySelectorAll("[data-managed-location-id]")]
     .map((card) => card.dataset.managedLocationId);
   if (!orderedIds.length) return;
-  const order = new Map(orderedIds.map((id, index) => [id, index]));
-  state.locations = [...state.locations].sort((a, b) => {
-    const aOrder = order.has(a.id) ? order.get(a.id) : Number.MAX_SAFE_INTEGER;
-    const bOrder = order.has(b.id) ? order.get(b.id) : Number.MAX_SAFE_INTEGER;
-    return aOrder - bOrder;
-  });
+  await reorderLocations(orderedIds);
   populateLocationSelect();
-  await saveState();
 }
 
-function handleLocationManagerDragStart(event) {
+export function handleLocationManagerDragStart(event) {
   if (!event.target.closest(".location-manager-heading")) {
     event.preventDefault();
     return;
@@ -62,7 +72,7 @@ function handleLocationManagerDragStart(event) {
   event.dataTransfer.setData("text/plain", draggedLocationManagerId);
 }
 
-function handleLocationManagerDragOver(event) {
+export function handleLocationManagerDragOver(event) {
   const card = event.target.closest("[data-managed-location-id]");
   if (!card || !draggedLocationManagerId || card.dataset.managedLocationId === draggedLocationManagerId) return;
   event.preventDefault();
@@ -73,7 +83,7 @@ function handleLocationManagerDragOver(event) {
   card[after ? "after" : "before"](dragged);
 }
 
-async function handleLocationManagerDrop(event) {
+export async function handleLocationManagerDrop(event) {
   if (!draggedLocationManagerId) return;
   event.preventDefault();
   const dragged = els.locationManagerList.querySelector(".is-dragging");
@@ -84,20 +94,20 @@ async function handleLocationManagerDrop(event) {
   });
 }
 
-function handleLocationManagerDragEnd() {
+export function handleLocationManagerDragEnd() {
   els.locationManagerList?.querySelector(".is-dragging")?.classList.remove("is-dragging");
   draggedLocationManagerId = "";
 }
 
-function renderLocationManager() {
+export function renderLocationManager() {
   if (!els.locationManagerList) return;
   if (!state.locations.length) {
-    els.locationManagerList.innerHTML = `
+    setHtml(els.locationManagerList, html`
       <div class="empty-state compact-empty">
         <p><strong>No waterbodies yet</strong></p>
         <p>Add one to pick it quickly when recording a trip.</p>
       </div>
-    `;
+    `);
     return;
   }
   const query = String(els.locationManagerSearch?.value || "").trim().toLowerCase();
@@ -108,45 +118,45 @@ function renderLocationManager() {
     ].some((value) => String(value || "").toLowerCase().includes(query)))
     : state.locations;
   if (!locations.length) {
-    els.locationManagerList.innerHTML = `<div class="empty-state compact-empty"><p>No waterbodies match that search.</p></div>`;
+    setHtml(els.locationManagerList, html`<div class="empty-state compact-empty"><p>No waterbodies match that search.</p></div>`);
     return;
   }
-  els.locationManagerList.innerHTML = locations.map((location) => {
+  setHtml(els.locationManagerList, joinHtml(locations.map((location) => {
     const launches = location.launches || [];
-    return `
-    <article class="location-manager-card" data-managed-location-id="${escapeHtml(location.id)}" draggable="true">
+    return html`
+    <article class="location-manager-card" data-managed-location-id="${location.id}" draggable="true">
       <div class="location-manager-heading">
         <div class="location-manager-title-row">
           <div>
-            <strong>${escapeHtml(location.name)}</strong>
+            <strong>${location.name}</strong>
             <span>${launches.length} ${launches.length === 1 ? "location" : "locations"}</span>
           </div>
         </div>
         <div class="location-manager-actions">
-          <button class="location-manager-action" type="button" data-edit-managed-location="${escapeHtml(location.id)}">Edit</button>
+          <button class="location-manager-action" type="button" data-edit-managed-location="${location.id}">Edit</button>
         </div>
       </div>
       <div class="location-manager-content">
-      ${launches.length ? `
+      ${launches.length ? html`
         <div class="location-manager-launches">
-          ${launches.map((launch) => `
+          ${joinHtml(launches.map((launch) => html`
             <div class="location-manager-launch-row">
-              <span>${escapeHtml(launch.name)}</span>
+              <span>${launch.name}</span>
               <div class="location-manager-row-actions">
-                <button class="location-manager-action" type="button" data-location-id="${escapeHtml(location.id)}" data-edit-managed-launch="${escapeHtml(launch.id)}">Edit</button>
+                <button class="location-manager-action" type="button" data-location-id="${location.id}" data-edit-managed-launch="${launch.id}">Edit</button>
               </div>
             </div>
-          `).join("")}
+          `), "")}
         </div>
-      ` : `<p class="location-manager-empty">No locations yet.</p>`}
-        <button class="button secondary location-manager-add-launch" type="button" data-add-managed-launch="${escapeHtml(location.id)}">Add location</button>
+      ` : html`<p class="location-manager-empty">No locations yet.</p>`}
+        <button class="button secondary location-manager-add-launch" type="button" data-add-managed-launch="${location.id}">Add location</button>
       </div>
     </article>
   `;
-  }).join("");
+  }), ""));
 }
 
-function locationFormCoordinates() {
+export function locationFormCoordinates() {
   const coordinates = {
     latitude: Number(els.locationLatitude.value),
     longitude: Number(els.locationLongitude.value)
@@ -154,43 +164,43 @@ function locationFormCoordinates() {
   return isUsableCoordinates(coordinates) ? coordinates : null;
 }
 
-function setLocationFormCoordinates(coordinates) {
+export function setLocationFormCoordinates(coordinates) {
   els.locationLatitude.value = coordinates?.latitude ?? "";
   els.locationLongitude.value = coordinates?.longitude ?? "";
-  if (!window.L || !locationPickerMap || !isUsableCoordinates(coordinates)) return;
+  if (!window.L || !ui.locationPickerMap || !isUsableCoordinates(coordinates)) return;
   const point = [coordinates.latitude, coordinates.longitude];
-  if (!locationPickerMarker) {
-    locationPickerMarker = L.marker(point, { draggable: true }).addTo(locationPickerMap);
-    locationPickerMarker.on("dragend", () => {
-      const latLng = locationPickerMarker.getLatLng();
+  if (!ui.locationPickerMarker) {
+    ui.locationPickerMarker = L.marker(point, { draggable: true }).addTo(ui.locationPickerMap);
+    ui.locationPickerMarker.on("dragend", () => {
+      const latLng = ui.locationPickerMarker.getLatLng();
       setLocationFormCoordinates({ latitude: latLng.lat, longitude: latLng.lng });
     });
   } else {
-    locationPickerMarker.setLatLng(point);
+    ui.locationPickerMarker.setLatLng(point);
   }
-  locationPickerMap.setView(point, Math.max(locationPickerMap.getZoom(), LOCATION_FOCUS_ZOOM));
+  ui.locationPickerMap.setView(point, Math.max(ui.locationPickerMap.getZoom(), LOCATION_FOCUS_ZOOM));
 }
 
-function ensureLocationPickerMap(coordinates) {
+export function ensureLocationPickerMap(coordinates) {
   if (!window.L || !els.locationPickerMap) return;
-  if (!locationPickerMap) {
-    locationPickerMap = L.map(els.locationPickerMap, seamlessMapOptions());
-    addSeamlessTileLayer(locationPickerMap);
-    locationPickerMap.on("click", (event) => {
+  if (!ui.locationPickerMap) {
+    ui.locationPickerMap = L.map(els.locationPickerMap, seamlessMapOptions());
+    addSeamlessTileLayer(ui.locationPickerMap);
+    ui.locationPickerMap.on("click", (event) => {
       setLocationFormCoordinates({ latitude: event.latlng.lat, longitude: event.latlng.lng });
     });
   }
   const center = isUsableCoordinates(coordinates) ? [coordinates.latitude, coordinates.longitude] : [43.7, -79.4];
-  locationPickerMap.setView(center, isUsableCoordinates(coordinates) ? LOCATION_FOCUS_ZOOM : 7);
-  setTimeout(() => locationPickerMap.invalidateSize(), 50);
+  ui.locationPickerMap.setView(center, isUsableCoordinates(coordinates) ? LOCATION_FOCUS_ZOOM : 7);
+  setTimeout(() => ui.locationPickerMap.invalidateSize(), 50);
   if (isUsableCoordinates(coordinates)) setLocationFormCoordinates(coordinates);
-  else if (locationPickerMarker) {
-    locationPickerMarker.remove();
-    locationPickerMarker = null;
+  else if (ui.locationPickerMarker) {
+    ui.locationPickerMarker.remove();
+    ui.locationPickerMarker = null;
   }
 }
 
-function selectedTripLocationCoordinates() {
+export function selectedTripLocationCoordinates() {
   const location = state.locations.find((item) => item.id === els.tripLocation?.value);
   const launch = findLaunchByIdOrName(location, els.tripLaunch?.value, "");
   if (isUsableCoordinates(launch?.coordinates)) return launch.coordinates;
@@ -198,7 +208,7 @@ function selectedTripLocationCoordinates() {
   return null;
 }
 
-function catchLocationFromRow(row) {
+export function catchLocationFromRow(row) {
   const coordinates = {
     latitude: Number(row.querySelector(".catch-latitude")?.value),
     longitude: Number(row.querySelector(".catch-longitude")?.value),
@@ -207,23 +217,27 @@ function catchLocationFromRow(row) {
   return isUsableCoordinates(coordinates) ? coordinates : null;
 }
 
-function setCatchLocationForRow(row, coordinates) {
+export function setCatchLocationForRow(row, coordinates) {
   if (!row) return;
   const latitudeInput = row.querySelector(".catch-latitude");
   const longitudeInput = row.querySelector(".catch-longitude");
   if (isUsableCoordinates(coordinates)) {
     latitudeInput.value = coordinates.latitude;
     longitudeInput.value = coordinates.longitude;
+    const draft = draftRecordForRow(row);
+    if (draft) draft.manualCoordinates = { latitude: coordinates.latitude, longitude: coordinates.longitude, manual: true };
   } else {
     latitudeInput.value = "";
     longitudeInput.value = "";
+    const draft = draftRecordForRow(row);
+    if (draft) draft.manualCoordinates = null;
   }
   updateCatchLocationSummary(row);
   updateRowSummary(row);
   renderLiveTrollingSpread();
 }
 
-function flashAutoFilledField(target) {
+export function flashAutoFilledField(target) {
   if (!target) return;
   target.classList.remove("auto-fill-flash");
   void target.offsetWidth;
@@ -231,7 +245,7 @@ function flashAutoFilledField(target) {
   setTimeout(() => target.classList.remove("auto-fill-flash"), 1400);
 }
 
-function catchDepthFieldsFromPayload(payload = {}) {
+export function catchDepthFieldsFromPayload(payload = {}) {
   return {
     depth_m: payload.depth_m ?? null,
     depth_ft: payload.depth_ft ?? null,
@@ -240,18 +254,24 @@ function catchDepthFieldsFromPayload(payload = {}) {
   };
 }
 
-async function updateCatchFowFromLocation(row, options = {}) {
+export async function updateCatchFowFromLocation(row, options = {}) {
   if (!row) return;
   if (isCatchMetadataLocked(row, "fow") && !options.ignoreMetadataLock) return;
   const coordinates = fishCoordinatesFromRow(row);
   return updateCatchFowForCoordinates(row, coordinates, options);
 }
 
-async function updateCatchFowForCoordinates(row, coordinates, options = {}) {
+export async function updateCatchFowForCoordinates(row, coordinates, options = {}) {
   if (!row) return;
   if (isCatchMetadataLocked(row, "fow") && !options.ignoreMetadataLock) return;
   if (!isUsableCoordinates(coordinates)) {
     row.catchDepthData = null;
+    updateTripRow(row.classList.contains("lost-fish-row") ? "lostFish" : "catches", row.dataset.catchId, {
+      depth_m: null,
+      depth_ft: null,
+      lake_name: null,
+      depth_source: null
+    });
     return;
   }
   const fowInput = row.querySelector(".catch-fow-field:not(.hidden) .catch-fow")
@@ -282,6 +302,10 @@ async function updateCatchFowForCoordinates(row, coordinates, options = {}) {
     if (fowInput) {
       const nextFow = payload.fowCaught || "";
       fowInput.value = payload.fowCaught || "";
+      updateTripRow(row.classList.contains("lost-fish-row") ? "lostFish" : "catches", row.dataset.catchId, {
+        fowCaught: nextFow,
+        ...row.catchDepthData
+      });
       if (nextFow) flashAutoFilledField(fowInput);
       updateRowSummary(row);
       renderLiveTrollingSpread();
@@ -297,7 +321,7 @@ async function updateCatchFowForCoordinates(row, coordinates, options = {}) {
   }
 }
 
-function updateCatchLocationSummary(row) {
+export function updateCatchLocationSummary(row) {
   const summary = row?.querySelector(".catch-location-summary");
   const button = row?.querySelector(".pick-catch-location");
   const coordinates = fishCoordinatesFromRow(row);
@@ -306,74 +330,74 @@ function updateCatchLocationSummary(row) {
   if (typeof refreshCatchSpotSelect === "function") refreshCatchSpotSelect(row);
 }
 
-function setCatchLocationPickerCoordinates(coordinates) {
-  if (!window.L || !catchLocationPickerMap || !isUsableCoordinates(coordinates)) return;
+export function setCatchLocationPickerCoordinates(coordinates) {
+  if (!window.L || !ui.catchLocationPickerMap || !isUsableCoordinates(coordinates)) return;
   const point = [coordinates.latitude, coordinates.longitude];
-  if (!catchLocationPickerMarker) {
-    catchLocationPickerMarker = L.marker(point, { draggable: true }).addTo(catchLocationPickerMap);
-    catchLocationPickerMarker.on("dragend", () => {
-      const latLng = catchLocationPickerMarker.getLatLng();
+  if (!ui.catchLocationPickerMarker) {
+    ui.catchLocationPickerMarker = L.marker(point, { draggable: true }).addTo(ui.catchLocationPickerMap);
+    ui.catchLocationPickerMarker.on("dragend", () => {
+      const latLng = ui.catchLocationPickerMarker.getLatLng();
       setCatchLocationPickerCoordinates({ latitude: latLng.lat, longitude: latLng.lng });
     });
   } else {
-    catchLocationPickerMarker.setLatLng(point);
+    ui.catchLocationPickerMarker.setLatLng(point);
   }
-  catchLocationPickerMap.setView(point, Math.max(catchLocationPickerMap.getZoom(), LOCATION_FOCUS_ZOOM));
+  ui.catchLocationPickerMap.setView(point, Math.max(ui.catchLocationPickerMap.getZoom(), LOCATION_FOCUS_ZOOM));
 }
 
-function ensureCatchLocationPickerMap(coordinates, options = {}) {
+export function ensureCatchLocationPickerMap(coordinates, options = {}) {
   if (!window.L || !els.catchLocationPickerMap) return;
   const placeMarker = options.placeMarker !== false;
-  if (!catchLocationPickerMap) {
-    catchLocationPickerMap = L.map(els.catchLocationPickerMap, seamlessMapOptions());
-    addSeamlessTileLayer(catchLocationPickerMap);
-    catchLocationPickerMap.on("click", (event) => {
+  if (!ui.catchLocationPickerMap) {
+    ui.catchLocationPickerMap = L.map(els.catchLocationPickerMap, seamlessMapOptions());
+    addSeamlessTileLayer(ui.catchLocationPickerMap);
+    ui.catchLocationPickerMap.on("click", (event) => {
       setCatchLocationPickerCoordinates({ latitude: event.latlng.lat, longitude: event.latlng.lng });
     });
   }
   const center = isUsableCoordinates(coordinates) ? [coordinates.latitude, coordinates.longitude] : [43.7, -79.4];
-  catchLocationPickerMap.setView(center, isUsableCoordinates(coordinates) ? LOCATION_FOCUS_ZOOM : 7);
-  setTimeout(() => catchLocationPickerMap.invalidateSize(), 50);
+  ui.catchLocationPickerMap.setView(center, isUsableCoordinates(coordinates) ? LOCATION_FOCUS_ZOOM : 7);
+  setTimeout(() => ui.catchLocationPickerMap.invalidateSize(), 50);
   if (isUsableCoordinates(coordinates) && placeMarker) setCatchLocationPickerCoordinates(coordinates);
-  else if (catchLocationPickerMarker) {
-    catchLocationPickerMarker.remove();
-    catchLocationPickerMarker = null;
+  else if (ui.catchLocationPickerMarker) {
+    ui.catchLocationPickerMarker.remove();
+    ui.catchLocationPickerMarker = null;
   }
 }
 
-function openCatchLocationDialog(row) {
-  activeCatchLocationRow = row;
+export function openCatchLocationDialog(row) {
+  ui.activeCatchLocationRow = row;
   const existingCatchCoordinates = catchLocationFromRow(row);
   const center = existingCatchCoordinates || firstCatchCoordinates(row) || selectedTripLocationCoordinates();
   els.catchLocationDialog.showModal();
   ensureCatchLocationPickerMap(center, { placeMarker: isUsableCoordinates(existingCatchCoordinates || firstCatchCoordinates(row)) });
 }
 
-function saveCatchLocationFromPicker() {
-  if (!activeCatchLocationRow || !catchLocationPickerMarker) {
+export function saveCatchLocationFromPicker() {
+  if (!ui.activeCatchLocationRow || !ui.catchLocationPickerMarker) {
     alert("Pick a spot on the map first.");
     return;
   }
-  const latLng = catchLocationPickerMarker.getLatLng();
+  const latLng = ui.catchLocationPickerMarker.getLatLng();
   const coordinates = { latitude: latLng.lat, longitude: latLng.lng, manual: true };
-  setCatchLocationForRow(activeCatchLocationRow, coordinates);
-  updateCatchFowForCoordinates(activeCatchLocationRow, coordinates, { force: true });
-  activeCatchLocationRow = null;
+  setCatchLocationForRow(ui.activeCatchLocationRow, coordinates);
+  updateCatchFowForCoordinates(ui.activeCatchLocationRow, coordinates, { force: true });
+  ui.activeCatchLocationRow = null;
   els.catchLocationDialog.close();
 }
 
-function clearActiveCatchLocation() {
-  if (activeCatchLocationRow) setCatchLocationForRow(activeCatchLocationRow, null);
-  activeCatchLocationRow = null;
+export function clearActiveCatchLocation() {
+  if (ui.activeCatchLocationRow) setCatchLocationForRow(ui.activeCatchLocationRow, null);
+  ui.activeCatchLocationRow = null;
   els.catchLocationDialog.close();
 }
 
-function openLocationDialog(mode = "location", locationId = "", launchId = "") {
-  activeLocationPickerMode = mode;
-  activeLocationPickerLocationId = locationId || els.tripLocation.value || "";
-  activeLocationPickerLaunchId = launchId || els.tripLaunch.value || "";
-  const location = state.locations.find((item) => item.id === activeLocationPickerLocationId);
-  const launch = findLaunchByIdOrName(location, activeLocationPickerLaunchId, "");
+export function openLocationDialog(mode = "location", locationId = "", launchId = "") {
+  ui.activeLocationPickerMode = mode;
+  ui.activeLocationPickerLocationId = locationId || els.tripLocation.value || "";
+  ui.activeLocationPickerLaunchId = launchId || els.tripLaunch.value || "";
+  const location = state.locations.find((item) => item.id === ui.activeLocationPickerLocationId);
+  const launch = findLaunchByIdOrName(location, ui.activeLocationPickerLaunchId, "");
   const editingLaunch = mode === "launch";
   els.locationDialogTitle.textContent = editingLaunch ? (launch ? "Edit Launch / Area Fished" : "Add Launch / Area Fished") : (location ? "Edit Location" : "Add Location");
   els.locationParentRow.classList.toggle("hidden", !editingLaunch);
@@ -395,7 +419,7 @@ function openLocationDialog(mode = "location", locationId = "", launchId = "") {
   ensureLocationPickerMap(coordinates);
 }
 
-async function saveLocationPin(event) {
+export async function saveLocationPin(event) {
   event.preventDefault();
   const name = els.locationName.value.trim();
   const coordinates = locationFormCoordinates();
@@ -404,27 +428,27 @@ async function saveLocationPin(event) {
     return;
   }
 
-  if (activeLocationPickerMode === "launch") {
-    const location = state.locations.find((item) => item.id === activeLocationPickerLocationId);
+  if (ui.activeLocationPickerMode === "launch") {
+    const location = state.locations.find((item) => item.id === ui.activeLocationPickerLocationId);
     if (!location) return;
-    const existing = findLaunchByIdOrName(location, activeLocationPickerLaunchId, name);
+    const existing = findLaunchByIdOrName(location, ui.activeLocationPickerLaunchId, name);
     const launch = {
       id: existing?.id || slugId(`${location.id}-launch`, name),
       name,
       coordinates
     };
-    location.launches = existing
-      ? location.launches.map((item) => item.id === existing.id ? launch : item)
-      : [...(location.launches || []), launch];
-    state.trips = state.trips.map((trip) => (
-      trip.locationId === location.id && trip.launchId === launch.id
-        ? { ...trip, launch: launch.name }
-        : trip
-    ));
-    populateLocationSelect(location.id);
-    populateLaunchSelect(launch.id);
+    try {
+      await saveLocation(location, { mode: "launch", launch: { existingId: existing?.id || "", record: launch } });
+      populateLocationSelect(location.id);
+      populateLaunchSelect(launch.id);
+      renderLocationManager();
+      els.locationDialog.close();
+      renderFilters();
+    } catch (error) {
+      console.error("Could not save location pin.", error);
+    }
   } else {
-    const existing = state.locations.find((item) => item.id === activeLocationPickerLocationId)
+    const existing = state.locations.find((item) => item.id === ui.activeLocationPickerLocationId)
       || state.locations.find((item) => item.name.toLowerCase() === name.toLowerCase());
     const location = {
       id: existing?.id || slugId("loc", name),
@@ -432,38 +456,31 @@ async function saveLocationPin(event) {
       coordinates,
       launches: existing?.launches || []
     };
-    state.locations = existing
-      ? state.locations.map((item) => item.id === existing.id ? location : item)
-      : [...state.locations, location].sort((a, b) => a.name.localeCompare(b.name));
-    state.trips = state.trips.map((trip) => (
-      trip.locationId === location.id ? { ...trip, location: location.name } : trip
-    ));
-    populateLocationSelect(location.id);
-  }
-
-  renderLocationManager();
-  els.locationDialog.close();
-  try {
-    await saveState();
-    renderFilters();
-  } catch (error) {
-    console.error("Could not save location pin.", error);
+    try {
+      await saveLocation(location);
+      populateLocationSelect(location.id);
+      renderLocationManager();
+      els.locationDialog.close();
+      renderFilters();
+    } catch (error) {
+      console.error("Could not save location pin.", error);
+    }
   }
   scheduleTripWeatherPreview(true);
 }
 
-function tripUsesLocation(trip, location) {
+export function tripUsesLocation(trip, location) {
   return trip.locationId === location.id
     || String(trip.location || "").trim().toLowerCase() === location.name.toLowerCase();
 }
 
-function tripUsesLaunch(trip, location, launch) {
+export function tripUsesLaunch(trip, location, launch) {
   if (!tripUsesLocation(trip, location)) return false;
   return trip.launchId === launch.id
     || String(trip.launch || "").trim().toLowerCase() === launch.name.toLowerCase();
 }
 
-async function deleteManagedLocation(locationId) {
+export async function deleteManagedLocation(locationId) {
   const location = state.locations.find((item) => item.id === locationId);
   if (!location) return false;
   const usedTrips = state.trips.filter((trip) => tripUsesLocation(trip, location));
@@ -472,15 +489,14 @@ async function deleteManagedLocation(locationId) {
     return false;
   }
   if (!confirm(`Delete ${location.name}?`)) return false;
-  state.locations = state.locations.filter((item) => item.id !== location.id);
+  await deleteLocation(location.id);
   populateLocationSelect();
   renderLocationManager();
-  await saveState();
   renderFilters();
   return true;
 }
 
-async function deleteManagedLaunch(locationId, launchId) {
+export async function deleteManagedLaunch(locationId, launchId) {
   const location = state.locations.find((item) => item.id === locationId);
   const launch = findLaunchByIdOrName(location, launchId, "");
   if (!location || !launch) return false;
@@ -490,18 +506,17 @@ async function deleteManagedLaunch(locationId, launchId) {
     return false;
   }
   if (!confirm(`Delete ${launch.name}?`)) return false;
-  location.launches = (location.launches || []).filter((item) => item.id !== launch.id);
+  await deleteLaunch(location.id, launch.id);
   populateLocationSelect(location.id);
   populateLaunchSelect();
   renderLocationManager();
-  await saveState();
   renderFilters();
   return true;
 }
 
-async function deleteActiveLocationFromDialog() {
-  const deleted = activeLocationPickerMode === "launch"
-    ? await deleteManagedLaunch(activeLocationPickerLocationId, activeLocationPickerLaunchId)
-    : await deleteManagedLocation(activeLocationPickerLocationId);
+export async function deleteActiveLocationFromDialog() {
+  const deleted = ui.activeLocationPickerMode === "launch"
+    ? await deleteManagedLaunch(ui.activeLocationPickerLocationId, ui.activeLocationPickerLaunchId)
+    : await deleteManagedLocation(ui.activeLocationPickerLocationId);
   if (deleted) els.locationDialog.close();
 }

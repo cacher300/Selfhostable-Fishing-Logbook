@@ -22,12 +22,15 @@ module.exports = defineConfig({
     baseURL: "http://127.0.0.1:4173",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    // Recording needs Playwright's ffmpeg download; PLAYWRIGHT_VIDEO=off skips it.
+    video: process.env.PLAYWRIGHT_VIDEO === "off" ? "off" : "retain-on-failure",
   },
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      // PLAYWRIGHT_CHANNEL=msedge (or chrome) uses an installed browser when the
+      // bundled Chromium cannot be downloaded.
+      use: { ...devices["Desktop Chrome"], channel: process.env.PLAYWRIGHT_CHANNEL || undefined },
     },
   ],
   webServer: {

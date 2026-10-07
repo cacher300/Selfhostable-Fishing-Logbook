@@ -1,50 +1,70 @@
-function formatDate(value) {
+import { html, joinHtml, setHtml } from "./html.js";
+import { activeStatsFilters, state, ui } from "./app-state.js";
+import { locationNames, optionChoices, optionLabels } from "./app-normalization.js";
+import { unitSymbol } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { isVideoMedia, mediaMarkup, previewImage } from "./app-media.js";
+import { populateLocationSelect } from "./locations.js";
+import { syncUnitLabels } from "./settings.js";
+import { populateTripExpeditionSelect, renderExpeditions } from "./expeditions.js";
+import { mergePeople, tripIntent, tripRatingClass, tripRatingLabel, tripRatingValue } from "./trip-editor.js";
+import { updateAllRowSummaries } from "./trip-rows.js";
+import { flasherName, lureName } from "./gear-core.js";
+import { renderGearLibrary } from "./gear-inventory.js";
+import { resolveTripLineRecord } from "./trolling-spread.js";
+import { tripMonthName } from "./stats-scope.js";
+import { calculateHours, parseFirstNumber, renderAdvancedStats } from "./stats.js";
+import { renderPersonalBests } from "./personal-bests.js";
+import { trimNumber } from "./form-utils.js";
+
+
+export function formatDate(value) {
   if (!value) return "";
   return new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-function number(value) {
+export function number(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function totalCaught(trip) {
+export function totalCaught(trip) {
   return (trip.catches || []).reduce((sum, catchItem) => sum + fishCount(catchItem), 0);
 }
 
-function totalWeight(trip) {
+export function totalWeight(trip) {
   return (trip.catches || []).reduce((sum, catchItem) => sum + catchWeight(catchItem), 0);
 }
 
-function catchWeight(catchItem) {
+export function catchWeight(catchItem) {
   const weight = parseFirstNumber(catchItem?.weight);
   return weight ? weight * fishCount(catchItem) : 0;
 }
 
-function fishCount(catchItem) {
+export function fishCount(catchItem) {
   if (!catchItem) return 0;
   if (catchItem.quantity !== undefined && catchItem.quantity !== "") return Math.max(0, number(catchItem.quantity));
   return 1;
 }
 
-function catchRate(trip) {
+export function catchRate(trip) {
   const hours = tripHours(trip);
   return hours > 0 ? totalCaught(trip) / hours : 0;
 }
 
-function tripHours(trip) {
+export function tripHours(trip) {
   const calculated = calculateHours(trip.launchTime, trip.linesPulledTime);
   if (calculated) return Math.max(0, calculated - number(trip.idleHours));
   return number(trip.hours);
 }
 
-function tripStartMinutes(trip) {
+export function tripStartMinutes(trip) {
   const match = String(trip?.launchTime || "").match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   return (Number(match[1]) * 60) + Number(match[2]);
 }
 
-function compareTripsByDateTime(a, b, direction = "desc") {
+export function compareTripsByDateTime(a, b, direction = "desc") {
   const dateCompare = String(a.date || "").localeCompare(String(b.date || ""));
   if (dateCompare) return direction === "asc" ? dateCompare : -dateCompare;
 
@@ -56,24 +76,24 @@ function compareTripsByDateTime(a, b, direction = "desc") {
   return direction === "asc" ? aStart - bStart : bStart - aStart;
 }
 
-function dateKeyToDayNumber(dateKey) {
+export function dateKeyToDayNumber(dateKey) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey || "")) return null;
   const [year, month, day] = dateKey.split("-").map(Number);
   return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
 }
 
-function todayDayNumber() {
+export function todayDayNumber() {
   const today = new Date();
   return Math.floor(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 86400000);
 }
 
-function uniqueSortedTripDays(trips) {
+export function uniqueSortedTripDays(trips) {
   return [...new Set(trips.map((trip) => trip.date).filter((date) => dateKeyToDayNumber(date) !== null))]
     .map((date) => dateKeyToDayNumber(date))
     .sort((a, b) => a - b);
 }
 
-function longestConsecutiveRun(dayNumbers) {
+export function longestConsecutiveRun(dayNumbers) {
   let longest = 0;
   let current = 0;
   let previous = null;
@@ -87,7 +107,7 @@ function longestConsecutiveRun(dayNumbers) {
   return longest;
 }
 
-function fishingDateMetrics(trips, hasCatch = (trip) => totalCaught(trip) > 0) {
+export function fishingDateMetrics(trips, hasCatch = (trip) => totalCaught(trip) > 0) {
   const tripDays = uniqueSortedTripDays(trips);
   const catchDays = uniqueSortedTripDays(trips.filter(hasCatch));
   const today = todayDayNumber();
@@ -113,7 +133,7 @@ function fishingDateMetrics(trips, hasCatch = (trip) => totalCaught(trip) > 0) {
   };
 }
 
-function countBy(items, getKey, getCount = () => 1) {
+export function countBy(items, getKey, getCount = () => 1) {
   return items.reduce((map, item) => {
     const key = getKey(item);
     if (!key) return map;
@@ -122,14 +142,14 @@ function countBy(items, getKey, getCount = () => 1) {
   }, new Map());
 }
 
-function topEntries(map, limit = 4) {
+export function topEntries(map, limit = 4) {
   return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
 }
 
-function renderBars(container, entries) {
-  container.innerHTML = "";
+export function renderBars(container, entries) {
+  setHtml(container, html``);
   if (!entries.length) {
-    container.innerHTML = `<p class="muted">No data yet</p>`;
+    setHtml(container, html`<p class="muted">No data yet</p>`);
     return;
   }
 
@@ -137,15 +157,15 @@ function renderBars(container, entries) {
   entries.forEach(([label, count]) => {
     const row = document.createElement("div");
     row.className = "bar-item";
-    row.innerHTML = `
-      <div class="bar-meta"><span>${escapeHtml(label)}</span><strong>${count}</strong></div>
+    setHtml(row, html`
+      <div class="bar-meta"><span>${label}</span><strong>${count}</strong></div>
       <div class="bar-track"><div class="bar-fill" style="width:${(count / max) * 100}%"></div></div>
-    `;
+    `);
     container.append(row);
   });
 }
 
-function renderStats() {
+export function renderStats() {
   const allCatches = state.trips.flatMap((trip) => (trip.catches || []).map((catchItem) => resolveTripLineRecord({ ...catchItem, trip })));
   const fish = state.trips.reduce((sum, trip) => sum + totalCaught(trip), 0);
   const hours = state.trips.reduce((sum, trip) => sum + tripHours(trip), 0);
@@ -168,10 +188,10 @@ function renderStats() {
   renderBars(els.lureBars, topEntries(lureCounts));
 }
 
-function renderBrandSpotlight() {
-  if (brandSpotlightTimer) {
-    clearInterval(brandSpotlightTimer);
-    brandSpotlightTimer = null;
+export function renderBrandSpotlight() {
+  if (ui.brandSpotlightTimer) {
+    clearInterval(ui.brandSpotlightTimer);
+    ui.brandSpotlightTimer = null;
   }
 
   const shufflePhotos = (items) => {
@@ -203,48 +223,48 @@ function renderBrandSpotlight() {
     .filter((photo) => previewImage(photo) && !isVideoMedia(photo)));
 
   if (!photos.length) {
-    els.brandSpotlight.innerHTML = `
+    setHtml(els.brandSpotlight, html`
       <div class="brand-spotlight-empty">
         <span>Trip, gear, catch, and pattern tracker</span>
       </div>
-    `;
+    `);
     return;
   }
 
-  els.brandSpotlight.innerHTML = `
+  setHtml(els.brandSpotlight, html`
     <div class="spotlight-slides">
-      ${photos.map((photo, index) => `
+      ${joinHtml(photos.map((photo, index) => html`
         <figure class="spotlight-slide ${index === 0 ? "is-active" : ""}">
           ${mediaMarkup(photo)}
-          ${photo.spotlightTitle ? `
+          ${photo.spotlightTitle ? html`
             <figcaption>
-              <strong>${escapeHtml(photo.spotlightTitle)}</strong>
+              <strong>${photo.spotlightTitle}</strong>
             </figcaption>
           ` : ""}
         </figure>
-      `).join("")}
+      `), "")}
     </div>
-  `;
+  `);
 
   if (photos.length < 2) return;
 
   let activeIndex = 0;
   const slides = [...els.brandSpotlight.querySelectorAll(".spotlight-slide")];
-  brandSpotlightTimer = setInterval(() => {
+  ui.brandSpotlightTimer = setInterval(() => {
     slides[activeIndex]?.classList.remove("is-active");
     activeIndex = (activeIndex + 1) % slides.length;
     slides[activeIndex]?.classList.add("is-active");
   }, 4200);
 }
 
-function renderFilters() {
+export function renderFilters() {
   const targets = ["All targets", ...new Set(state.trips.map((trip) => trip.targetSpecies).filter(Boolean))];
   const selectedTarget = els.targetFilter.value || "All targets";
-  els.targetFilter.innerHTML = targets.map((target) => `<option ${target === selectedTarget ? "selected" : ""}>${escapeHtml(target)}</option>`).join("");
+  setHtml(els.targetFilter, joinHtml(targets.map((target) => html`<option ${target === selectedTarget ? "selected" : ""}>${target}</option>`), ""));
 
   const methods = ["All methods", ...new Set([...state.methods, ...state.trips.map((trip) => trip.method)].filter(Boolean))];
   const selectedMethod = methods.includes(els.methodFilter.value) ? els.methodFilter.value : "All methods";
-  els.methodFilter.innerHTML = methods.map((method) => `<option ${method === selectedMethod ? "selected" : ""}>${escapeHtml(method)}</option>`).join("");
+  setHtml(els.methodFilter, joinHtml(methods.map((method) => html`<option ${method === selectedMethod ? "selected" : ""}>${method}</option>`), ""));
 
   const years = ["All years", ...new Set(state.trips.map((trip) => new Date(`${trip.date}T12:00:00`).getFullYear()).filter(Boolean))].sort((a, b) => {
     if (a === "All years") return -1;
@@ -252,101 +272,104 @@ function renderFilters() {
     return b - a;
   });
   const selectedYear = els.yearFilter.value || "All years";
-  els.yearFilter.innerHTML = years.map((year) => `<option ${String(year) === selectedYear ? "selected" : ""}>${year}</option>`).join("");
+  setHtml(els.yearFilter, joinHtml(years.map((year) => html`<option ${String(year) === selectedYear ? "selected" : ""}>${year}</option>`), ""));
 }
 
-function renderStatsMethodFilter() {
+export function renderStatsMethodFilter() {
   if (window.location.pathname === "/stats") {
     const params = new URLSearchParams(window.location.search);
-    activeStatsDateRange = ["all", "season", "30", "90"].includes(params.get("range")) ? params.get("range") : "all";
-    activeStatsMethod = params.get("method") || activeStatsMethod;
-    activeStatsSort = params.get("sort") || activeStatsSort;
-    activeStatsMinTrips = Math.max(0, Math.floor(Number(params.get("minTrips")) || 0));
-    activeStatsMinHours = Math.max(0, Number(params.get("minHours")) || 0);
-    activeStatsIncludeLost = params.get("outcome") === "strikes";
+    ui.activeStatsDateRange = ["all", "season", "30", "90"].includes(params.get("range")) ? params.get("range") : "all";
+    ui.activeStatsMethod = params.get("method") || ui.activeStatsMethod;
+    ui.activeStatsSort = params.get("sort") || ui.activeStatsSort;
+    ui.activeStatsMinTrips = Math.max(0, Math.floor(Number(params.get("minTrips")) || 0));
+    ui.activeStatsMinHours = Math.max(0, Number(params.get("minHours")) || 0);
+    ui.activeStatsIncludeLost = params.get("outcome") === "strikes";
+    ui.activeStatsCompareBy = params.get("compare") || "lureColor";
+    ui.activeStatsCompareSplit = params.get("split") || "";
+    ui.activeStatsCompareMetric = params.get("show") || "fishPerHour";
     Object.keys(activeStatsFilters).forEach((key) => {
       if (params.has(key)) activeStatsFilters[key] = params.get(key);
     });
-    if (els.statsDateFilter) els.statsDateFilter.value = activeStatsDateRange;
-    if (els.statsSortFilter) els.statsSortFilter.value = activeStatsSort;
-    if (els.statsMinTripsInput) els.statsMinTripsInput.value = activeStatsMinTrips;
-    if (els.statsMinHoursInput) els.statsMinHoursInput.value = activeStatsMinHours;
-    if (els.statsIncludeLostToggle) els.statsIncludeLostToggle.checked = activeStatsIncludeLost;
+    if (els.statsDateFilter) els.statsDateFilter.value = ui.activeStatsDateRange;
+    if (els.statsSortFilter) els.statsSortFilter.value = ui.activeStatsSort;
+    if (els.statsMinTripsInput) els.statsMinTripsInput.value = ui.activeStatsMinTrips;
+    if (els.statsMinHoursInput) els.statsMinHoursInput.value = ui.activeStatsMinHours;
+    if (els.statsIncludeLostToggle) els.statsIncludeLostToggle.checked = ui.activeStatsIncludeLost;
   }
   const methods = ["All methods", ...new Set([...state.methods, ...state.trips.map((trip) => trip.method)].filter(Boolean))];
-  if (!methods.includes(activeStatsMethod)) activeStatsMethod = "All methods";
-  els.statsMethodFilter.innerHTML = methods.map((method) => (
-    `<option value="${escapeHtml(method)}" ${method === activeStatsMethod ? "selected" : ""}>${escapeHtml(method)}</option>`
-  )).join("");
+  if (!methods.includes(ui.activeStatsMethod)) ui.activeStatsMethod = "All methods";
+  setHtml(els.statsMethodFilter, joinHtml(methods.map((method) => (
+    html`<option value="${method}" ${method === ui.activeStatsMethod ? "selected" : ""}>${method}</option>`
+  )), ""));
 
   const species = ["All species", ...new Set([...state.species, ...state.trips.flatMap((trip) => [
     ...(trip.catches || []).map((catchItem) => catchItem.species),
     ...(trip.lostFish || []).map((fish) => fish.possibleSpecies || fish.species)
   ])].filter(Boolean))];
   if (!species.includes(activeStatsFilters.species)) activeStatsFilters.species = "All species";
-  els.statsSpeciesFilter.innerHTML = species.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.species ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsSpeciesFilter, joinHtml(species.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.species ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const people = ["All people", ...mergePeople(
     state.people,
     state.trips.flatMap((trip) => trip.people || [])
   ).map((person) => person.name)];
   if (!people.includes(activeStatsFilters.person)) activeStatsFilters.person = "All people";
-  els.statsPersonFilter.innerHTML = people.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.person ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsPersonFilter, joinHtml(people.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.person ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const locations = ["All locations", ...new Set([...locationNames(), ...state.trips.map((trip) => trip.location)].filter(Boolean))];
   if (!locations.includes(activeStatsFilters.location)) activeStatsFilters.location = "All locations";
-  els.statsLocationFilter.innerHTML = locations.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.location ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsLocationFilter, joinHtml(locations.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.location ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const launches = ["All launches", ...new Set(state.trips.map((trip) => trip.launch).filter(Boolean))];
   if (!launches.includes(activeStatsFilters.launch)) activeStatsFilters.launch = "All launches";
-  els.statsLaunchFilter.innerHTML = launches.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.launch ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsLaunchFilter, joinHtml(launches.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.launch ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const lures = ["All lures", ...state.lures.map((lure) => lure.name).filter(Boolean)];
   if (!lures.includes(activeStatsFilters.lure)) activeStatsFilters.lure = "All lures";
-  els.statsLureFilter.innerHTML = lures.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.lure ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsLureFilter, joinHtml(lures.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.lure ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const flashers = ["All flashers", ...state.flashers.map((flasher) => flasher.name).filter(Boolean)];
   if (!flashers.includes(activeStatsFilters.flasher)) activeStatsFilters.flasher = "All flashers";
-  els.statsFlasherFilter.innerHTML = flashers.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.flasher ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsFlasherFilter, joinHtml(flashers.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.flasher ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const clarity = ["All clarity", ...optionLabels("waterClarities")];
   if (!clarity.includes(activeStatsFilters.waterClarity)) activeStatsFilters.waterClarity = "All clarity";
-  els.statsWaterClarityFilter.innerHTML = clarity.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.waterClarity ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsWaterClarityFilter, joinHtml(clarity.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.waterClarity ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const weather = ["All weather", ...optionLabels("weatherTypes")];
   if (!weather.includes(activeStatsFilters.weather)) activeStatsFilters.weather = "All weather";
-  els.statsWeatherFilter.innerHTML = weather.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.weather ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsWeatherFilter, joinHtml(weather.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.weather ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const months = ["All months", ...new Set(state.trips.map((trip) => tripMonthName(trip)).filter(Boolean))];
   if (!months.includes(activeStatsFilters.month)) activeStatsFilters.month = "All months";
-  els.statsMonthFilter.innerHTML = months.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.month ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsMonthFilter, joinHtml(months.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.month ? "selected" : ""}>${item}</option>`
+  )), ""));
 
   const ratings = ["All ratings", "Bad", "Mediocre", "Good", "Outstanding"];
   if (!ratings.includes(activeStatsFilters.rating)) activeStatsFilters.rating = "All ratings";
-  els.statsRatingFilter.innerHTML = ratings.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === activeStatsFilters.rating ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(els.statsRatingFilter, joinHtml(ratings.map((item) => (
+    html`<option value="${item}" ${item === activeStatsFilters.rating ? "selected" : ""}>${item}</option>`
+  )), ""));
 }
 
-function filteredTrips() {
+export function filteredTrips() {
   const query = els.searchInput.value.trim().toLowerCase();
   const target = els.targetFilter.value;
   const method = els.methodFilter.value;
@@ -387,7 +410,7 @@ function filteredTrips() {
   return trips.sort(compareTripsByActiveSort);
 }
 
-function textTripSortValue(trip, key) {
+export function textTripSortValue(trip, key) {
   const values = {
     location: trip.location,
     launch: trip.launch,
@@ -398,18 +421,18 @@ function textTripSortValue(trip, key) {
   return String(values[key] || "").toLowerCase();
 }
 
-function compareTripText(a, b, key, direction) {
+export function compareTripText(a, b, key, direction) {
   const result = textTripSortValue(a, key).localeCompare(textTripSortValue(b, key));
   return (direction === "desc" ? -result : result) || compareTripsByDateTime(a, b, "desc");
 }
 
-function compareTripNumber(a, b, getValue, direction) {
+export function compareTripNumber(a, b, getValue, direction) {
   const result = Number(getValue(a)) - Number(getValue(b));
   return (direction === "desc" ? -result : result) || compareTripsByDateTime(a, b, "desc");
 }
 
-function compareTripsByActiveSort(a, b) {
-  const sort = activeTripSort || { key: "date", direction: "desc" };
+export function compareTripsByActiveSort(a, b) {
+  const sort = ui.activeTripSort || { key: "date", direction: "desc" };
   switch (sort.key) {
     case "location":
     case "launch":
@@ -430,7 +453,7 @@ function compareTripsByActiveSort(a, b) {
   }
 }
 
-function tripSortFromSelect(value) {
+export function tripSortFromSelect(value) {
   const sorts = {
     "date-desc": { key: "date", direction: "desc" },
     "date-asc": { key: "date", direction: "asc" },
@@ -441,7 +464,7 @@ function tripSortFromSelect(value) {
   return sorts[value] || sorts["date-desc"];
 }
 
-function tripSortSelectValue(sort = activeTripSort) {
+export function tripSortSelectValue(sort = ui.activeTripSort) {
   const key = `${sort?.key || "date"}-${sort?.direction || "desc"}`;
   const values = {
     "date-desc": "date-desc",
@@ -453,18 +476,18 @@ function tripSortSelectValue(sort = activeTripSort) {
   return values[key] || "custom";
 }
 
-function tripHeaderSortButton(key, label) {
-  const active = activeTripSort?.key === key;
-  const direction = activeTripSort?.direction === "asc" ? "asc" : "desc";
+export function tripHeaderSortButton(key, label) {
+  const active = ui.activeTripSort?.key === key;
+  const direction = ui.activeTripSort?.direction === "asc" ? "asc" : "desc";
   const ariaSort = active ? (direction === "asc" ? "ascending" : "descending") : "none";
-  return `<button class="table-sort-button${active ? " is-active" : ""}" type="button" data-trip-sort="${escapeHtml(key)}" aria-sort="${ariaSort}">${escapeHtml(label)}${active ? `<span>${direction === "desc" ? "↓" : "↑"}</span>` : ""}</button>`;
+  return html`<button class="table-sort-button${active ? " is-active" : ""}" type="button" data-trip-sort="${key}" aria-sort="${ariaSort}">${label}${active ? html`<span>${direction === "desc" ? "↓" : "↑"}</span>` : ""}</button>`;
 }
 
-function renderTrips() {
+export function renderTrips() {
   const trips = filteredTrips();
   const sortValue = tripSortSelectValue();
   els.sortSelect.value = sortValue;
-  els.tripTable.innerHTML = `
+  setHtml(els.tripTable, html`
     <div class="table-row header">
       ${tripHeaderSortButton("date", "Date")}
       ${tripHeaderSortButton("location", "Location")}
@@ -475,36 +498,36 @@ function renderTrips() {
       ${tripHeaderSortButton("caught", "Fish")}
       ${tripHeaderSortButton("catchRate", "Rate")}
     </div>
-  `;
+  `);
 
   trips.forEach((trip) => {
     const row = document.createElement("div");
     row.className = `table-row${trip.isDraft ? " is-draft" : ""}`;
     row.dataset.viewTrip = trip.id;
-    row.innerHTML = `
+    setHtml(row, html`
       <span>${formatDate(trip.date)}</span>
       <span class="trip-location-cell">
-        <button class="location-link" type="button">${escapeHtml(trip.location)}</button>
-        ${trip.launch ? `<small>${escapeHtml(trip.launch)}</small>` : ""}
+        <button class="location-link" type="button">${trip.location}</button>
+        ${trip.launch ? html`<small>${trip.launch}</small>` : ""}
       </span>
-      <span>${escapeHtml(trip.title || "")}</span>
+      <span>${trip.title || ""}</span>
       <span class="trip-pill-stack">
-        <span class="trip-target-text">${escapeHtml(trip.targetSpecies)}</span>
-        ${tripIntent(trip) === "experimental" ? '<span class="intent-pill experimental">Experimental</span>' : ""}
-        <span class="rating-pill ${escapeHtml(tripRatingClass(tripRatingValue(trip)))}">${escapeHtml(tripRatingLabel(tripRatingValue(trip)))}</span>
+        <span class="trip-target-text">${trip.targetSpecies}</span>
+        ${tripIntent(trip) === "experimental" ? html`<span class="intent-pill experimental">Experimental</span>` : ""}
+        <span class="rating-pill ${tripRatingClass(tripRatingValue(trip))}">${tripRatingLabel(tripRatingValue(trip))}</span>
       </span>
-      <span class="method-pill">${escapeHtml(trip.method || "Unknown")}</span>
+      <span class="method-pill">${trip.method || "Unknown"}</span>
       <span>${trimNumber(tripHours(trip))}</span>
       <span>${totalCaught(trip)}</span>
       <span>${trimNumber(catchRate(trip))}</span>
-    `;
+    `);
     els.tripTable.append(row);
   });
 
   els.emptyState.classList.toggle("hidden", trips.length > 0);
 }
 
-function renderSelectOptions() {
+export function renderSelectOptions() {
   populateLocationSelect();
   populateTripExpeditionSelect();
   populateDatalist(els.personOptions, state.people.map((person) => person.name).filter(Boolean));
@@ -516,6 +539,7 @@ function renderSelectOptions() {
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
   populateOptionSelect(document.querySelector("#lureBladeType"), optionLabels("lureBladeTypes"), "Select blade type");
   populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
+  populateOptionSelect(document.querySelector("#lureBeadSize"), optionLabels("lureBeadSizes"), "Select bead size");
   populateOptionSelect(document.querySelector("#lureMeatRigType"), optionLabels("meatRigTypes"), "Select meat rig type");
   document.querySelectorAll(".catch-species").forEach((select) => populateOptionSelect(select, state.species, "Select species"));
   document.querySelectorAll(".catch-possible-species").forEach((select) => populateOptionSelect(select, state.species, "Select possible species"));
@@ -524,32 +548,32 @@ function renderSelectOptions() {
   document.querySelectorAll(".trip-gear-side").forEach((select) => populateChoiceSelect(select, optionChoices("setupLineSides"), "Select side"));
 }
 
-function populateDatalist(datalist, options) {
+export function populateDatalist(datalist, options) {
   if (!datalist) return;
-  datalist.innerHTML = options.map((item) => `<option value="${escapeHtml(item)}"></option>`).join("");
+  setHtml(datalist, joinHtml(options.map((item) => html`<option value="${item}"></option>`), ""));
 }
 
-function populateOptionSelect(select, options, placeholder) {
+export function populateOptionSelect(select, options, placeholder) {
   if (!select) return;
   const current = select.value;
   const normalizedOptions = options.includes(current) || !current ? options : [...options, current];
-  select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` + normalizedOptions.map((item) => (
-    `<option value="${escapeHtml(item)}" ${item === current ? "selected" : ""}>${escapeHtml(item)}</option>`
-  )).join("");
+  setHtml(select, html`<option value="">${placeholder}</option>${joinHtml(normalizedOptions.map((item) => (
+    html`<option value="${item}" ${item === current ? "selected" : ""}>${item}</option>`
+  )), "")}`);
 }
 
-function populateChoiceSelect(select, options, placeholder, selectedValue = "") {
+export function populateChoiceSelect(select, options, placeholder, selectedValue = "") {
   if (!select) return;
   const current = selectedValue || select.value;
   const normalizedOptions = options.some((item) => item.value === current) || !current
     ? options
     : [...options, { value: current, label: current }];
-  select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` + normalizedOptions.map((item) => (
-    `<option value="${escapeHtml(item.value)}" ${item.value === current ? "selected" : ""}>${escapeHtml(item.label)}</option>`
-  )).join("");
+  setHtml(select, html`<option value="">${placeholder}</option>${joinHtml(normalizedOptions.map((item) => (
+    html`<option value="${item.value}" ${item.value === current ? "selected" : ""}>${item.label}</option>`
+  )), "")}`);
 }
 
-function renderAll() {
+export function renderAll() {
   renderSelectOptions();
   renderFilters();
   renderStatsMethodFilter();

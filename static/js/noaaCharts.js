@@ -1,11 +1,13 @@
-const NOAA_MARITIME_CHART_SERVICE_URL = "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/MapServer";
-const NOAA_MARITIME_VISIBLE_LAYER_IDS = [0, 1, 2, 3, 4, 5, 6, 7];
+import { L } from "./vendor.js";
 
-function warnNOAAChartLayerFailure(message, error) {
+export const NOAA_MARITIME_CHART_SERVICE_URL = "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/MapServer";
+export const NOAA_MARITIME_VISIBLE_LAYER_IDS = [0, 1, 2, 3, 4, 5, 6, 7];
+
+export function warnNOAAChartLayerFailure(message, error) {
   console.warn(`[NOAA charts] ${message}`, error || "");
 }
 
-function normalizeNOAAExportBbox(layer) {
+export function normalizeNOAAExportBbox(layer) {
   const calculateBbox = layer._calculateBbox?.bind(layer);
   if (!calculateBbox) return;
 
@@ -25,7 +27,7 @@ function normalizeNOAAExportBbox(layer) {
   };
 }
 
-function createNOAAChartLayer() {
+export function createNOAAChartLayer() {
   if (!window.L?.esri?.dynamicMapLayer) {
     warnNOAAChartLayerFailure("Esri Leaflet is unavailable; keeping the OpenStreetMap basemap visible.");
     return null;
@@ -76,4 +78,6 @@ function createNOAAChartLayer() {
   }
 }
 
-window.createNOAAChartLayer = createNOAAChartLayer;
+export function setup() {
+  window.createNOAAChartLayer = createNOAAChartLayer;
+}

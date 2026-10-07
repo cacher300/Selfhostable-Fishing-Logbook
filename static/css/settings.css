@@ -460,18 +460,49 @@
 .saved-setup-method-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(330px, 0.9fr);
-  align-items: end;
+  align-items: start;
   gap: 18px 28px;
 }
 
-.saved-setup-method-header > div:first-child {
-  display: grid;
-  gap: 5px;
-}
-
-.saved-setup-method-header h4 {
+.saved-setup-method-header .saved-setup-method-heading {
   margin: 0;
   font-size: 17px;
+}
+
+.saved-setup-method-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.saved-setup-method-toggle:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 4px;
+}
+
+.saved-setup-method-toggle svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  transition: transform 140ms ease;
+}
+
+.saved-setup-method-toggle[aria-expanded="false"] svg {
+  transform: rotate(-90deg);
 }
 
 .saved-setup-method-header p,
@@ -508,6 +539,10 @@
   display: grid;
   gap: 14px;
   min-width: 0;
+}
+
+.saved-setup-list[hidden] {
+  display: none;
 }
 
 .saved-setup-card {
@@ -985,5 +1020,11 @@
 
   .saved-setup-method-controls .button {
     justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saved-setup-method-toggle svg {
+    transition: none;
   }
 }

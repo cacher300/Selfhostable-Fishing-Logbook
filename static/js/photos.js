@@ -1,4 +1,20 @@
-function getExifAscii(view, offset, count) {
+import { html, joinHtml, setHtml } from "./html.js";
+import { protectedFetch } from "./app-config.js";
+import { createId } from "./app-defaults.js";
+import { returnToTripDialog, state, ui } from "./app-state.js";
+import { formatDisplayTime } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { canonicalMediaRef, isUsableCoordinates, isVideoMedia, mediaEditSession, mediaMarkup, trackCreatedMedia } from "./app-media.js";
+import { catchLocationFromRow, flashAutoFilledField, setCatchLocationForRow, updateCatchFowFromLocation, updateCatchLocationSummary } from "./locations.js";
+import { formatDate } from "./dashboard.js";
+import { markTripFormChanged, showTripFormMessage } from "./trip-editor.js";
+import { updateRowSummary, updateUnknownTimeField } from "./trip-rows.js";
+import { draftRecordForRow } from "./draft-binding.js";
+import { renderQueuedGearImage } from "./gear-core.js";
+import { displayPhotoTitle } from "./trip-summary.js";
+
+
+export function getExifAscii(view, offset, count) {
   let value = "";
   for (let index = 0; index < count; index += 1) {
     const charCode = view.getUint8(offset + index);
@@ -7,7 +23,7 @@ function getExifAscii(view, offset, count) {
   return value;
 }
 
-async function uploadImageFile(file, category, metadata = {}) {
+export async function uploadImageFile(file, category, metadata = {}) {
   const scope = {
     "trip-photos": "trip", "catch-photos": "trip",
     lures: "lure", flashers: "flasher", reels: "reel", rods: "rod"
@@ -30,13 +46,13 @@ async function uploadImageFile(file, category, metadata = {}) {
   return payload;
 }
 
-function getExifRational(view, offset, littleEndian) {
+export function getExifRational(view, offset, littleEndian) {
   const numerator = view.getUint32(offset, littleEndian);
   const denominator = view.getUint32(offset + 4, littleEndian);
   return denominator ? numerator / denominator : 0;
 }
 
-function getExifValueOffset(view, tiffStart, entryOffset, type, count, littleEndian) {
+export function getExifValueOffset(view, tiffStart, entryOffset, type, count, littleEndian) {
   const valueOffset = entryOffset + 8;
   const byteCounts = {
     1: 1,
@@ -49,7 +65,7 @@ function getExifValueOffset(view, tiffStart, entryOffset, type, count, littleEnd
   return totalBytes <= 4 ? valueOffset : tiffStart + view.getUint32(valueOffset, littleEndian);
 }
 
-function readExifIfd(view, tiffStart, ifdOffset, littleEndian) {
+export function readExifIfd(view, tiffStart, ifdOffset, littleEndian) {
   if (!ifdOffset || tiffStart + ifdOffset + 2 > view.byteLength) return new Map();
   const entries = new Map();
   const entryCount = view.getUint16(tiffStart + ifdOffset, littleEndian);
@@ -65,7 +81,7 @@ function readExifIfd(view, tiffStart, ifdOffset, littleEndian) {
   return entries;
 }
 
-function exifCoordinate(view, entry, reference, littleEndian) {
+export function exifCoordinate(view, entry, reference, littleEndian) {
   if (!entry || entry.type !== 5 || entry.count < 3) return null;
   const degrees = getExifRational(view, entry.valueOffset, littleEndian);
   const minutes = getExifRational(view, entry.valueOffset + 8, littleEndian);
@@ -74,12 +90,12 @@ function exifCoordinate(view, entry, reference, littleEndian) {
   return sign * (degrees + minutes / 60 + seconds / 3600);
 }
 
-function exifText(view, entry) {
+export function exifText(view, entry) {
   if (!entry || entry.type !== 2 || !entry.count) return "";
   return getExifAscii(view, entry.valueOffset, entry.count).trim();
 }
 
-function parseExifDateTime(value) {
+export function parseExifDateTime(value) {
   const match = String(value || "").match(/^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
   if (!match) return null;
   const [, year, month, day, hour, minute, second = "00"] = match;
@@ -90,7 +106,7 @@ function parseExifDateTime(value) {
   };
 }
 
-function parseMetadataDateTime(value) {
+export function parseMetadataDateTime(value) {
   const match = String(value || "").match(/^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
   if (!match) return null;
   const [, year, month, day, hour, minute, second = "00"] = match;
@@ -101,7 +117,7 @@ function parseMetadataDateTime(value) {
   };
 }
 
-function parseExifMetadata(arrayBuffer) {
+export function parseExifMetadata(arrayBuffer) {
   const view = new DataView(arrayBuffer);
   if (view.byteLength < 4 || view.getUint16(0) !== 0xffd8) return {};
 
@@ -150,12 +166,12 @@ function parseExifMetadata(arrayBuffer) {
   return {};
 }
 
-function videoText(view, offset, length) {
+export function videoText(view, offset, length) {
   if (length <= 0 || offset < 0 || offset + length > view.byteLength) return "";
   return new TextDecoder("utf-8").decode(new Uint8Array(view.buffer, view.byteOffset + offset, length)).replace(/\0/g, "").trim();
 }
 
-function videoBoxType(view, offset) {
+export function videoBoxType(view, offset) {
   if (offset < 0 || offset + 4 > view.byteLength) return "";
   return String.fromCharCode(
     view.getUint8(offset),
@@ -165,7 +181,7 @@ function videoBoxType(view, offset) {
   );
 }
 
-function videoBoxSize(view, offset) {
+export function videoBoxSize(view, offset) {
   const size = view.getUint32(offset);
   if (size === 1 && offset + 16 <= view.byteLength) {
     const high = view.getUint32(offset + 8);
@@ -175,11 +191,11 @@ function videoBoxSize(view, offset) {
   return size;
 }
 
-function videoBoxHeaderSize(view, offset) {
+export function videoBoxHeaderSize(view, offset) {
   return view.getUint32(offset) === 1 ? 16 : 8;
 }
 
-function quickTimeDateTime(secondsSince1904) {
+export function quickTimeDateTime(secondsSince1904) {
   if (!secondsSince1904) return null;
   const secondsBetweenEpochs = 2082844800;
   const timestamp = (secondsSince1904 - secondsBetweenEpochs) * 1000;
@@ -194,7 +210,7 @@ function quickTimeDateTime(secondsSince1904) {
   };
 }
 
-function parseIso6709Coordinates(value) {
+export function parseIso6709Coordinates(value) {
   const match = String(value || "").trim().match(/^([+-]\d+(?:\.\d+)?)([+-]\d+(?:\.\d+)?)(?:[+-]\d+(?:\.\d+)?)?\//);
   if (!match) return null;
   const coordinates = {
@@ -204,7 +220,7 @@ function parseIso6709Coordinates(value) {
   return isUsableCoordinates(coordinates) ? coordinates : null;
 }
 
-function readVideoDataBoxes(view, start, end) {
+export function readVideoDataBoxes(view, start, end) {
   const values = [];
   let offset = start;
   while (offset + 8 <= end) {
@@ -219,7 +235,7 @@ function readVideoDataBoxes(view, start, end) {
   return values;
 }
 
-function parseVideoKeys(view, start, end) {
+export function parseVideoKeys(view, start, end) {
   const keys = new Map();
   if (start + 8 > end) return keys;
   let offset = start + 8;
@@ -233,7 +249,7 @@ function parseVideoKeys(view, start, end) {
   return keys;
 }
 
-function parseVideoMetadata(arrayBuffer) {
+export function parseVideoMetadata(arrayBuffer) {
   const view = new DataView(arrayBuffer);
   const metadata = {};
   let ignoreCaptureTime = false;
@@ -305,10 +321,10 @@ function parseVideoMetadata(arrayBuffer) {
   return ignoreCaptureTime ? scrubIgnoredPhotoMetadata(metadata, ignoredMetadataCoordinates) : scrubIgnoredPhotoMetadata(metadata);
 }
 
-const maxFullVideoMetadataBytes = 64 * 1024 * 1024;
-const videoMetadataSliceBytes = 16 * 1024 * 1024;
+export const maxFullVideoMetadataBytes = 64 * 1024 * 1024;
+export const videoMetadataSliceBytes = 16 * 1024 * 1024;
 
-function findContainedVideoBox(arrayBuffer, type) {
+export function findContainedVideoBox(arrayBuffer, type) {
   const view = new DataView(arrayBuffer);
   for (let offset = 4; offset + 4 <= view.byteLength; offset += 1) {
     if (videoBoxType(view, offset) !== type) continue;
@@ -322,11 +338,11 @@ function findContainedVideoBox(arrayBuffer, type) {
   return null;
 }
 
-function hasUsefulMediaMetadata(metadata) {
+export function hasUsefulMediaMetadata(metadata) {
   return Boolean(metadata?.coordinates || metadata?.captureTime);
 }
 
-function distanceMeters(a, b) {
+export function distanceMeters(a, b) {
   const radius = 6371000;
   const toRadians = (value) => (Number(value) * Math.PI) / 180;
   const deltaLat = toRadians(b.latitude - a.latitude);
@@ -338,7 +354,7 @@ function distanceMeters(a, b) {
   return radius * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 }
 
-function shouldIgnorePhotoCoordinates(coordinates) {
+export function shouldIgnorePhotoCoordinates(coordinates) {
   if (!coordinates) return false;
   const configured = Array.isArray(state.settings?.privatePhotoLocations) ? state.settings.privatePhotoLocations : [];
   return configured.some((location) => (
@@ -347,7 +363,7 @@ function shouldIgnorePhotoCoordinates(coordinates) {
   ));
 }
 
-function scrubIgnoredPhotoMetadata(metadata = {}, coordinates = metadata.coordinates) {
+export function scrubIgnoredPhotoMetadata(metadata = {}, coordinates = metadata.coordinates) {
   if (!shouldIgnorePhotoCoordinates(coordinates)) return metadata;
   const { captureDate, captureTime, capturedAt, ...scrubbed } = metadata;
   return {
@@ -357,7 +373,7 @@ function scrubIgnoredPhotoMetadata(metadata = {}, coordinates = metadata.coordin
   };
 }
 
-async function extractPhotoMetadata(file) {
+export async function extractPhotoMetadata(file) {
   const isJpeg = file.type?.includes("jpeg") || /\.(jpe?g)$/i.test(file.name || "");
   if (!isJpeg) return {};
   try {
@@ -368,7 +384,7 @@ async function extractPhotoMetadata(file) {
   }
 }
 
-async function extractVideoMetadata(file) {
+export async function extractVideoMetadata(file) {
   const isVideo = file.type?.startsWith("video/") || /\.(mov|mp4|m4v)$/i.test(file.name || "");
   if (!isVideo) return {};
   try {
@@ -390,14 +406,14 @@ async function extractVideoMetadata(file) {
   }
 }
 
-async function extractMediaMetadata(file) {
+export async function extractMediaMetadata(file) {
   return {
     ...await extractPhotoMetadata(file),
     ...await extractVideoMetadata(file)
   };
 }
 
-async function addNotePhotos(event) {
+export async function addNotePhotos(event) {
   const files = [...event.target.files];
   if (!files.length) return;
 
@@ -413,7 +429,8 @@ async function addNotePhotos(event) {
       };
     }));
 
-    activeNotePhotos = [...activeNotePhotos, ...photos];
+    ui.activeNotePhotos = [...ui.activeNotePhotos, ...photos];
+    if (ui.tripDraft) ui.tripDraft.notePhotos = ui.activeNotePhotos.map((photo) => ({ ...photo }));
     event.target.value = "";
     renderNotePhotos();
   } catch (error) {
@@ -422,36 +439,24 @@ async function addNotePhotos(event) {
   }
 }
 
-function renderNotePhotos() {
-  if (!activeNotePhotos.length) {
-    els.notePhotoGrid.innerHTML = `<div class="empty-state"><p>No note photos attached.</p></div>`;
+export function renderNotePhotos() {
+  if (!ui.activeNotePhotos.length) {
+    setHtml(els.notePhotoGrid, html`<div class="empty-state"><p>No note photos attached.</p></div>`);
     return;
   }
 
-  els.notePhotoGrid.innerHTML = activeNotePhotos.map((photo) => `
+  setHtml(els.notePhotoGrid, joinHtml(ui.activeNotePhotos.map((photo) => html`
     <article class="note-photo-card" data-note-photo="${photo.id}">
       ${mediaMarkup(photo, "", { download: false })}
       <button class="icon-button remove-note-photo" type="button" aria-label="Remove trip photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       <div class="note-photo-body">
-        <input class="note-photo-caption" type="text" value="${escapeHtml(photo.caption || "")}" placeholder="Caption, like fishfinder, launch, rig" />
+        <input class="note-photo-caption" type="text" value="${photo.caption || ""}" placeholder="Caption, like fishfinder, launch, rig" />
       </div>
     </article>
-  `).join("");
+  `), ""));
 }
 
-function collectNotePhotos() {
-  const captions = new Map([...els.notePhotoGrid.querySelectorAll("[data-note-photo]")].map((card) => [
-    card.dataset.notePhoto,
-    card.querySelector(".note-photo-caption").value.trim()
-  ]));
-
-  return activeNotePhotos.map((photo) => ({
-    ...canonicalMediaRef(photo),
-    caption: captions.get(photo.id) ?? photo.caption ?? ""
-  })).filter((photo) => photo.category);
-}
-
-function catchMetadataLocks(row) {
+export function catchMetadataLocks(row) {
   if (!row) return {};
   const fromDataset = (field) => row.dataset[`metadataLock${field[0].toUpperCase()}${field.slice(1)}`];
   row.catchMetadataLocks = {
@@ -462,11 +467,11 @@ function catchMetadataLocks(row) {
   return row.catchMetadataLocks;
 }
 
-function isCatchMetadataLocked(row, field) {
+export function isCatchMetadataLocked(row, field) {
   return Boolean(catchMetadataLocks(row)[field]);
 }
 
-function lockedPhotoCoordinatesFromRow(row) {
+export function lockedPhotoCoordinatesFromRow(row) {
   if (!isCatchMetadataLocked(row, "location")) return null;
   const coordinates = {
     latitude: Number(row?.dataset.lockedLocationLatitude),
@@ -475,21 +480,21 @@ function lockedPhotoCoordinatesFromRow(row) {
   return isUsableCoordinates(coordinates) ? coordinates : null;
 }
 
-function metadataLockIconMarkup(locked) {
+export function metadataLockIconMarkup(locked) {
   return locked
-    ? `<path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />`
-    : `<path d="M4.5 7V5.2a3.5 3.5 0 0 1 6.5-1.8" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />`;
+    ? html`<path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />`
+    : html`<path d="M4.5 7V5.2a3.5 3.5 0 0 1 6.5-1.8" /><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />`;
 }
 
-function metadataLockFieldLabel(field) {
+export function metadataLockFieldLabel(field) {
   return field === "fow" ? "FOW" : field;
 }
 
-function metadataLockDatasetKey(field) {
+export function metadataLockDatasetKey(field) {
   return `metadataLock${field[0].toUpperCase()}${field.slice(1)}`;
 }
 
-function freezeCatchLocationLock(row) {
+export function freezeCatchLocationLock(row) {
   const coordinates = fishCoordinatesFromRow(row);
   if (isUsableCoordinates(coordinates)) {
     row.dataset.lockedLocationLatitude = coordinates.latitude;
@@ -500,7 +505,7 @@ function freezeCatchLocationLock(row) {
   }
 }
 
-function updateMetadataLockButtons(row) {
+export function updateMetadataLockButtons(row) {
   if (!row) return;
   row.querySelectorAll("[data-metadata-lock]").forEach((button) => {
     const field = button.dataset.metadataLock;
@@ -514,11 +519,11 @@ function updateMetadataLockButtons(row) {
       : `Unlocked: future photo metadata can update this catch ${label} when photos are added or selected. Click to lock the current value.`;
     button.dataset.tooltip = button.title;
     const icon = button.querySelector("svg");
-    if (icon) icon.innerHTML = metadataLockIconMarkup(locked);
+    if (icon) setHtml(icon, metadataLockIconMarkup(locked));
   });
 }
 
-function setCatchMetadataLock(row, field, locked) {
+export function setCatchMetadataLock(row, field, locked) {
   const locks = catchMetadataLocks(row);
   if (!(field in locks)) return;
   if (field === "location") {
@@ -531,21 +536,17 @@ function setCatchMetadataLock(row, field, locked) {
   locks[field] = Boolean(locked);
   row.dataset[metadataLockDatasetKey(field)] = String(Boolean(locked));
   row.catchMetadataLocks = locks;
+  const draft = draftRecordForRow(row);
+  if (draft) {
+    draft.metadataLocks = { ...locks };
+    draft.lockedLocationCoordinates = lockedPhotoCoordinatesFromRow(row);
+  }
   updateMetadataLockButtons(row);
   updateCatchLocationSummary(row);
   updateRowSummary(row);
 }
 
-function catchMetadataLocksPayload(row) {
-  const locks = catchMetadataLocks(row);
-  return {
-    time: Boolean(locks.time),
-    location: Boolean(locks.location),
-    fow: Boolean(locks.fow)
-  };
-}
-
-function normalizePhotoTimeString(value) {
+export function normalizePhotoTimeString(value) {
   const match = String(value || "").trim().match(/(?:^|[^\d])(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)?\b/i);
   if (!match) return "";
   let hour = Number(match[1]);
@@ -557,19 +558,19 @@ function normalizePhotoTimeString(value) {
   return `${String(hour).padStart(2, "0")}:${minute}`;
 }
 
-function photoCaptureTimeValue(photo) {
+export function photoCaptureTimeValue(photo) {
   return normalizePhotoTimeString(photo?.captureTime)
     || normalizePhotoTimeString(photo?.capturedAt)
     || normalizePhotoTimeString(`${photo?.captureDate || ""} ${photo?.captureTime || ""}`);
 }
 
-function catchPhotoCaptureTimeMarkup(photo) {
+export function catchPhotoCaptureTimeMarkup(photo) {
   const captureTime = photoCaptureTimeValue(photo);
   if (!captureTime) return "";
-  return `<time class="catch-photo-capture-time" datetime="${escapeHtml(captureTime)}">${escapeHtml(formatDisplayTime(captureTime))}</time>`;
+  return html`<time class="catch-photo-capture-time" datetime="${captureTime}">${formatDisplayTime(captureTime)}</time>`;
 }
 
-function applyPhotoCaptureTimeToCatch(row, photos) {
+export function applyPhotoCaptureTimeToCatch(row, photos) {
   if (isCatchMetadataLocked(row, "time")) return false;
   const captureTime = photos.map(photoCaptureTimeValue).find(Boolean);
   const timeInput = row.querySelector(".catch-time");
@@ -579,39 +580,49 @@ function applyPhotoCaptureTimeToCatch(row, photos) {
       unknownInput.checked = false;
       updateUnknownTimeField(row);
     }
-    const changed = timeInput.value !== captureTime;
     timeInput.value = captureTime;
+    const draft = draftRecordForRow(row);
+    if (draft) {
+      draft.time = captureTime;
+      draft.timeUnknown = false;
+    }
     flashAutoFilledField(timeInput);
     return true;
   }
   return false;
 }
 
-function applyPhotoLocationToCatch(row, photo) {
+export function applyPhotoLocationToCatch(row, photo) {
   if (isCatchMetadataLocked(row, "location") || !isUsableCoordinates(photo?.coordinates)) return false;
   const previousCoordinates = fishCoordinatesFromRow(row);
   setCatchLocationForRow(row, null);
   row.dataset.photoLocationId = photo.id || "";
+  const draft = draftRecordForRow(row);
+  if (draft) {
+    draft.manualCoordinates = null;
+    draft.photoLocationId = photo.id || "";
+    draft.coordinates = photo.coordinates;
+  }
   const changed = catchCoordinateFlashKey(previousCoordinates) !== catchCoordinateFlashKey(photo.coordinates);
   if (changed) flashAutoFilledField(row.querySelector(".pick-catch-location"));
   return changed;
 }
 
-function gpsTaggedCatchPhotos(row) {
+export function gpsTaggedCatchPhotos(row) {
   return (row?.catchPhotos || []).filter((photo) => isUsableCoordinates(photo.coordinates));
 }
 
-function catchPhotoLocationById(row, photoId = row?.dataset.photoLocationId || "") {
+export function catchPhotoLocationById(row, photoId = row?.dataset.photoLocationId || "") {
   if (!photoId) return null;
   return gpsTaggedCatchPhotos(row).find((photo) => photo.id === photoId) || null;
 }
 
-function catchPhotoById(row, photoId = row?.dataset.photoLocationId || "") {
+export function catchPhotoById(row, photoId = row?.dataset.photoLocationId || "") {
   if (!photoId) return null;
   return (row?.catchPhotos || []).find((photo) => photo.id === photoId) || null;
 }
 
-function selectedCatchHeroPhoto(row) {
+export function selectedCatchHeroPhoto(row) {
   const photos = row?.catchPhotos || [];
   if (!photos.length) {
     if (row) row.dataset.heroPhotoId = "";
@@ -620,7 +631,7 @@ function selectedCatchHeroPhoto(row) {
   return photos.find((photo) => photo.id === row?.dataset.heroPhotoId) || photos[0];
 }
 
-function catchPhotoTimestampValue(photo) {
+export function catchPhotoTimestampValue(photo) {
   const timestamp = photo?.capturedAt
     || (photo?.captureDate && photo?.captureTime ? `${photo.captureDate}T${photo.captureTime}` : "")
     || (photo?.captureDate ? `${photo.captureDate}T00:00:00` : "");
@@ -628,7 +639,7 @@ function catchPhotoTimestampValue(photo) {
   return Number.isFinite(value) ? value : null;
 }
 
-function defaultCatchPhotoLocation(row) {
+export function defaultCatchPhotoLocation(row) {
   const taggedPhotos = gpsTaggedCatchPhotos(row);
   const timestampedPhotos = taggedPhotos
     .map((photo, index) => ({ photo, index, timestamp: catchPhotoTimestampValue(photo) }))
@@ -637,7 +648,7 @@ function defaultCatchPhotoLocation(row) {
   return timestampedPhotos[timestampedPhotos.length - 1]?.photo || taggedPhotos[taggedPhotos.length - 1] || null;
 }
 
-function selectedCatchPhotoLocation(row) {
+export function selectedCatchPhotoLocation(row) {
   const taggedPhotos = gpsTaggedCatchPhotos(row);
   if (!taggedPhotos.length) {
     if (row) row.dataset.photoLocationId = "";
@@ -648,12 +659,12 @@ function selectedCatchPhotoLocation(row) {
   return defaultCatchPhotoLocation(row);
 }
 
-function catchCoordinateFlashKey(coordinates) {
+export function catchCoordinateFlashKey(coordinates) {
   if (!isUsableCoordinates(coordinates)) return "";
   return `${Number(coordinates.latitude).toFixed(6)},${Number(coordinates.longitude).toFixed(6)}`;
 }
 
-async function addCatchPhotos(event) {
+export async function addCatchPhotos(event) {
   const row = event.target.closest(".catch-row");
   const files = [...event.target.files];
   if (!row || !files.length) return;
@@ -670,6 +681,8 @@ async function addCatchPhotos(event) {
     }));
 
     row.catchPhotos = [...(row.catchPhotos || []), ...photos];
+    const draft = draftRecordForRow(row);
+    if (draft) draft.photos = collectCatchPhotos(row);
     const selectedPhoto = selectedCatchPhotoLocation(row);
     if (selectedPhoto) applyPhotoLocationToCatch(row, selectedPhoto);
     applyPhotoCaptureTimeToCatch(row, selectedPhoto ? [selectedPhoto] : photos);
@@ -685,7 +698,7 @@ async function addCatchPhotos(event) {
   }
 }
 
-function renderCatchPhotos(row) {
+export function renderCatchPhotos(row) {
   const grid = row.querySelector(".catch-photo-grid");
   if (!grid) return;
 
@@ -693,56 +706,56 @@ function renderCatchPhotos(row) {
   const taggedPhotos = gpsTaggedCatchPhotos(row);
   const selectedPhoto = selectedCatchPhotoLocation(row);
   const heroPhoto = selectedCatchHeroPhoto(row);
-  grid.innerHTML = photos.map((photo) => `
+  setHtml(grid, joinHtml(photos.map((photo) => html`
     <article class="catch-photo-card" data-catch-photo="${photo.id}">
       ${isVideoMedia(photo)
         ? mediaMarkup(photo, "", { download: false })
-        : `<button class="catch-photo-open" type="button" data-catch-photo-open="${escapeHtml(photo.id)}" aria-label="Enlarge ${escapeHtml(displayPhotoTitle(photo))}">${mediaMarkup(photo, "", { download: false })}</button>`}
+        : html`<button class="catch-photo-open" type="button" data-catch-photo-open="${photo.id}" aria-label="Enlarge ${displayPhotoTitle(photo)}">${mediaMarkup(photo, "", { download: false })}</button>`}
       <button class="icon-button remove-catch-photo" type="button" aria-label="Remove catch media"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
-      ${isUsableCoordinates(photo.coordinates) ? `
-        ${taggedPhotos.length > 1 ? `
+      ${isUsableCoordinates(photo.coordinates) ? html`
+        ${taggedPhotos.length > 1 ? html`
           <label class="catch-photo-gps-choice">
             <input
               type="radio"
-              name="catch-photo-gps-${escapeHtml(row.dataset.rowId || "row")}"
-              value="${escapeHtml(photo.id)}"
+              name="catch-photo-gps-${row.dataset.rowId || "row"}"
+              value="${photo.id}"
               ${selectedPhoto?.id === photo.id ? "checked" : ""}
             />
             <span class="catch-photo-gps-copy">Use time and location${catchPhotoCaptureTimeMarkup(photo)}</span>
           </label>
-        ` : `<span class="catch-photo-gps-label"><span>GPS tagged</span>${catchPhotoCaptureTimeMarkup(photo)}</span>`}
-      ` : `<small>${photo.gpsIgnoredReason === "home" ? "Home location: GPS ignored" : "No GPS metadata"}</small>`}
+        ` : html`<span class="catch-photo-gps-label"><span>GPS tagged</span>${catchPhotoCaptureTimeMarkup(photo)}</span>`}
+      ` : html`<small>${photo.gpsIgnoredReason === "home" ? "Home location: GPS ignored" : "No GPS metadata"}</small>`}
       <label class="catch-photo-hero-choice">
         <input
           type="radio"
-          name="catch-photo-hero-${escapeHtml(row.dataset.rowId || "row")}"
-          value="${escapeHtml(photo.id)}"
+          name="catch-photo-hero-${row.dataset.rowId || "row"}"
+          value="${photo.id}"
           ${heroPhoto?.id === photo.id ? "checked" : ""}
         />
         <span>Hero photo</span>
       </label>
     </article>
-  `).join("");
+  `), ""));
 }
 
-function collectCatchPhotos(row) {
+export function collectCatchPhotos(row) {
   return (row.catchPhotos || []).map(canonicalMediaRef).filter(Boolean);
 }
 
-function firstCatchCoordinates(row) {
+export function firstCatchCoordinates(row) {
   if (isCatchMetadataLocked(row, "location")) return null;
   return selectedCatchPhotoLocation(row)?.coordinates || null;
 }
 
-function manualCoordinatesFromRow(row) {
+export function manualCoordinatesFromRow(row) {
   return catchLocationFromRow(row);
 }
 
-function fishCoordinatesFromRow(row) {
+export function fishCoordinatesFromRow(row) {
   return manualCoordinatesFromRow(row) || lockedPhotoCoordinatesFromRow(row) || firstCatchCoordinates(row);
 }
 
-async function loadPhotoQueue() {
+export async function loadPhotoQueue() {
   const response = await fetch("/api/photo-queue");
   if (!response.ok) throw new Error("Could not load photo queue");
   const payload = await response.json();
@@ -756,7 +769,7 @@ async function loadPhotoQueue() {
   });
 }
 
-function photoQueueTimestampValue(photo) {
+export function photoQueueTimestampValue(photo) {
   const timestamp = photo?.capturedAt
     || (photo?.captureDate && photo?.captureTime ? `${photo.captureDate}T${photo.captureTime}` : "")
     || (photo?.captureDate ? `${photo.captureDate}T00:00:00` : "");
@@ -764,7 +777,7 @@ function photoQueueTimestampValue(photo) {
   return Number.isFinite(value) ? value : null;
 }
 
-function photoQueueTimeText(photo) {
+export function photoQueueTimeText(photo) {
   const date = photo.captureDate ? formatDate(photo.captureDate) : "";
   const time = photo.captureTime ? formatDisplayTime(photo.captureTime) : "";
   if (date && time) return `${date} ${time}`;
@@ -773,42 +786,42 @@ function photoQueueTimeText(photo) {
   return "No capture time";
 }
 
-function photoQueueMetadataMarkup(photo) {
+export function photoQueueMetadataMarkup(photo) {
   const metadata = [];
   const time = photoQueueTimeText(photo);
   if (time !== "No capture time") metadata.push(time);
   if (!metadata.length) {
     metadata.push(photo.gpsIgnoredReason === "home" ? "Location hidden for privacy" : "No capture metadata");
   }
-  return metadata.map((value) => `<span>${escapeHtml(value)}</span>`).join("");
+  return joinHtml(metadata.map((value) => html`<span>${value}</span>`), "");
 }
 
-async function renderPhotoQueue() {
+export async function renderPhotoQueue() {
   const photos = await loadPhotoQueue();
   els.photoQueueStatus.textContent = photos.length === 1 ? "1 queued photo" : `${photos.length} queued photos`;
   if (!photos.length) {
-    els.photoQueueGrid.innerHTML = `<div class="empty-state"><p>No queued photos. Upload from your phone, then pick them here while logging.</p></div>`;
+    setHtml(els.photoQueueGrid, html`<div class="empty-state"><p>No queued photos. Upload from your phone, then pick them here while logging.</p></div>`);
     return;
   }
 
-  els.photoQueueGrid.innerHTML = photos.map((photo) => `
-    <article class="photo-queue-card" data-queue-photo="${escapeHtml(photo.filename)}" ${activePhotoQueueTarget ? `data-select-queued-photo="${escapeHtml(photo.filename)}" tabindex="0" role="button"` : ""}>
+  setHtml(els.photoQueueGrid, joinHtml(photos.map((photo) => html`
+    <article class="photo-queue-card" data-queue-photo="${photo.filename}" ${ui.activePhotoQueueTarget ? html`data-select-queued-photo="${photo.filename}" tabindex="0" role="button"` : ""}>
       <div class="photo-queue-image-wrap">
         ${mediaMarkup(photo, "", { download: false })}
-        <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${escapeHtml(photo.filename)}" aria-label="Remove queued photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+        <button class="icon-button photo-queue-remove" type="button" data-delete-queued-photo="${photo.filename}" aria-label="Remove queued photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       </div>
       <div class="photo-queue-metadata">
         ${photoQueueMetadataMarkup(photo)}
       </div>
       <div class="photo-queue-card-actions">
-        ${activePhotoQueueTarget ? `<button class="button primary" type="button" data-select-queued-photo="${escapeHtml(photo.filename)}">Use Photo</button>` : ""}
+        ${ui.activePhotoQueueTarget ? html`<button class="button primary" type="button" data-select-queued-photo="${photo.filename}">Use Photo</button>` : ""}
       </div>
     </article>
-  `).join("");
+  `), ""));
 }
 
-async function openPhotoQueue(target = null) {
-  activePhotoQueueTarget = target;
+export async function openPhotoQueue(target = null) {
+  ui.activePhotoQueueTarget = target;
   returnToTripDialog.queue = Boolean(target) && els.tripDialog.open;
   returnToTripDialog.lureImage = target?.type === "lure" && els.lureDialog.open;
   returnToTripDialog.flasherImage = target?.type === "flasher" && els.flasherDialog.open;
@@ -818,7 +831,7 @@ async function openPhotoQueue(target = null) {
   await renderPhotoQueue();
 }
 
-function restoreDialogAfterPhotoQueue() {
+export function restoreDialogAfterPhotoQueue() {
   if (returnToTripDialog.queue) {
     returnToTripDialog.queue = false;
   }
@@ -836,7 +849,7 @@ function restoreDialogAfterPhotoQueue() {
   }
 }
 
-async function addPhotosToQueue(event) {
+export async function addPhotosToQueue(event) {
   const files = [...event.target.files];
   if (!files.length) return;
   els.photoQueueStatus.textContent = "Uploading photos...";
@@ -858,9 +871,9 @@ async function addPhotosToQueue(event) {
   }
 }
 
-async function claimQueuedPhoto(filename) {
-  if (!activePhotoQueueTarget) return;
-  const target = activePhotoQueueTarget;
+export async function claimQueuedPhoto(filename) {
+  if (!ui.activePhotoQueueTarget) return;
+  const target = ui.activePhotoQueueTarget;
   const scope = ["catch", "trip"].includes(target.type) ? "trip" : target.type;
   const session = mediaEditSession(scope);
   try {
@@ -884,6 +897,8 @@ async function claimQueuedPhoto(filename) {
     if (target.type === "catch") {
       const row = target.row;
       row.catchPhotos = [...(row.catchPhotos || []), photoItem];
+      const draft = draftRecordForRow(row);
+      if (draft) draft.photos = collectCatchPhotos(row);
       const selectedPhoto = selectedCatchPhotoLocation(row);
       if (selectedPhoto) applyPhotoLocationToCatch(row, selectedPhoto);
       applyPhotoCaptureTimeToCatch(row, selectedPhoto ? [selectedPhoto] : [photoItem]);
@@ -894,26 +909,31 @@ async function claimQueuedPhoto(filename) {
       markTripFormChanged();
     }
     if (target.type === "trip") {
-      activeNotePhotos = [...activeNotePhotos, { ...photoItem, caption: "" }];
+      ui.activeNotePhotos = [...ui.activeNotePhotos, { ...photoItem, caption: "" }];
+      if (ui.tripDraft) ui.tripDraft.notePhotos = ui.activeNotePhotos.map((photo) => ({ ...photo }));
       renderNotePhotos();
     }
     if (target.type === "lure") {
-      pendingLureImage = photoItem;
+      ui.pendingLureImage = photoItem;
+      if (ui.gearDraft) ui.gearDraft.media = [...(ui.gearDraft.media || []), canonicalMediaRef(photoItem)].filter(Boolean);
       document.querySelector("#lureImage").value = "";
       renderQueuedGearImage("lure");
     }
     if (target.type === "flasher") {
-      pendingFlasherImage = photoItem;
+      ui.pendingFlasherImage = photoItem;
+      if (ui.gearDraft) ui.gearDraft.media = [...(ui.gearDraft.media || []), canonicalMediaRef(photoItem)].filter(Boolean);
       document.querySelector("#flasherImage").value = "";
       renderQueuedGearImage("flasher");
     }
     if (target.type === "reel") {
-      pendingReelImage = photoItem;
+      ui.pendingReelImage = photoItem;
+      if (ui.gearDraft) ui.gearDraft.media = [...(ui.gearDraft.media || []), canonicalMediaRef(photoItem)].filter(Boolean);
       document.querySelector("#reelImage").value = "";
       renderQueuedGearImage("reel");
     }
     if (target.type === "rod") {
-      pendingRodImage = photoItem;
+      ui.pendingRodImage = photoItem;
+      if (ui.gearDraft) ui.gearDraft.media = [...(ui.gearDraft.media || []), canonicalMediaRef(photoItem)].filter(Boolean);
       document.querySelector("#rodImage").value = "";
       renderQueuedGearImage("rod");
     }
@@ -928,7 +948,7 @@ async function claimQueuedPhoto(filename) {
   }
 }
 
-async function deleteQueuedPhoto(filename) {
+export async function deleteQueuedPhoto(filename) {
   try {
     const response = await protectedFetch(`/api/photo-queue/${encodeURIComponent(filename)}`, { method: "DELETE" });
     if (!response.ok) throw new Error("Could not delete queued photo");

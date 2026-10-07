@@ -1,12 +1,17 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert");
+import assert from "node:assert/strict";
+import { installBrowserEnv } from "./helpers/browser-env.mjs";
+
+installBrowserEnv();
+const { els } = await import("../static/js/app-elements.js");
+const appState = await import("../static/js/app-state.js");
+const { checklistsFromDraftState, savedChecklists } = await import("../static/js/checklists.js");
+const { settingsUi } = await import("../static/js/settings-core.js");
 
 const original = [{
   id: "launch",
   name: "Launch Day",
   syncTag: "mobile",
-  items: [{ id: "battery", label: "Charge batteries", done: true, icon: "battery" }]
+  items: [{ id: "battery", label: "Charge batteries", done: true, icon: "battery" }],
 }];
 const card = {
   dataset: { checklistId: "launch" },
@@ -22,46 +27,27 @@ const card = {
         if (field === ".checklist-item-label") return { value: "Charge batteries" };
         if (field === ".checklist-item-done") return { checked: true };
         return null;
-      }
+      },
     }, {
       dataset: { checklistItemId: "draft" },
       querySelector(field) {
         if (field === ".checklist-item-label") return { value: "   " };
         if (field === ".checklist-item-done") return { checked: false };
         return null;
-      }
+      },
     }];
-  }
+  },
 };
-const context = {
-  console,
-  state: { settings: { checklists: original } },
-  els: { checklistList: { querySelectorAll: (selector) => selector === ".checklist-card" ? [card] : [] } },
-  createId: () => "generated-id"
-};
-vm.createContext(context);
-vm.runInContext(fs.readFileSync("static/js/app-normalization.js", "utf8"), context);
-vm.runInContext(fs.readFileSync("static/js/checklists.js", "utf8"), context);
+appState.setState({ settings: { checklists: original } });
+els.checklistList = { querySelectorAll: (selector) => (selector === ".checklist-card" ? [card] : []) };
+settingsUi.checklistsDraft = structuredClone(original);
 
-assert.strictEqual(context.savedChecklists(), original, "reading checklists must not replace or reshape state");
-const collected = JSON.parse(JSON.stringify(context.checklistsFromView()));
+assert.strictEqual(savedChecklists(), original, "reading checklists must not replace or reshape state");
+const collected = structuredClone(checklistsFromDraftState());
 assert.equal(collected[0].syncTag, "mobile");
 assert.equal(collected[0].items[0].icon, "battery");
 assert.equal(collected[0].items.length, 1, "blank checklist drafts must not be persisted");
-assert.deepEqual(original, [{
+assert.deepEqual(appState.state.settings.checklists, [{
   id: "launch", name: "Launch Day", syncTag: "mobile",
-  items: [{ id: "battery", label: "Charge batteries", done: true, icon: "battery" }]
+  items: [{ id: "battery", label: "Charge batteries", done: true, icon: "battery" }],
 }], "collecting an unchanged form must not mutate the source records");
-
-const cleanupContext = {
-  console,
-  structuredClone,
-  crypto: require("crypto").webcrypto,
-  mergePeople: (...lists) => lists.flat()
-};
-vm.createContext(cleanupContext);
-vm.runInContext(fs.readFileSync("static/js/app-defaults.js", "utf8"), cleanupContext);
-vm.runInContext(fs.readFileSync("static/js/app-units.js", "utf8"), cleanupContext);
-vm.runInContext(fs.readFileSync("static/js/app-normalization.js", "utf8"), cleanupContext);
-
-console.log("checklists render and collect without reshaping saved records");

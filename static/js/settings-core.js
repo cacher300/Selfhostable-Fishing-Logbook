@@ -1,4 +1,12 @@
-function parseWaveHeightFeet(value) {
+import { replaceState } from "./store.js";
+import { protectedFetch } from "./app-config.js";
+import { convertUnitValue, currentChopRanges, explicitMeasurementUnit, unitPreference } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { renderAll } from "./dashboard.js";
+
+export const settingsUi = {};
+
+export function parseWaveHeightFeet(value) {
   if (value === null || value === undefined || value === "") return null;
   if (typeof value === "number") return Number.isFinite(value) ? convertUnitValue(value, unitPreference("waveHeight"), "ft") : null;
   const text = String(value).trim().toLowerCase();
@@ -11,7 +19,7 @@ function parseWaveHeightFeet(value) {
   return convertUnitValue(number, sourceUnit, "ft") ?? null;
 }
 
-function chopLabelForWaveHeight(value) {
+export function chopLabelForWaveHeight(value) {
   const feet = parseWaveHeightFeet(value);
   if (feet === null) return "";
   const ranges = currentChopRanges();
@@ -20,36 +28,45 @@ function chopLabelForWaveHeight(value) {
 }
 
 let settingsAutosaveTimer = null;
-let settingsStatusTimer = null;
-let privateLocationNameEditId = "";
-let activeSettingsTab = "general";
-let chopRangesEditing = false;
-let chopRangesEditSnapshot = null;
-let activeTrollingSpreadEditorId = "";
-let trollingSpreadDraft = null;
-let databaseExportInProgress = false;
-let databaseImportInProgress = false;
+export let settingsStatusTimer = null;
+settingsUi.privateLocationNameEditId = "";
+settingsUi.activeSettingsTab = "general";
+settingsUi.chopRangesEditing = false;
+settingsUi.chopRangesEditSnapshot = null;
+settingsUi.activeTrollingSpreadEditorId = "";
+settingsUi.trollingSpreadDraft = null;
+export let databaseExportInProgress = false;
+export let databaseImportInProgress = false;
 
-function setSettingsSaveStatus(text = "Autosave on", status = "") {
+export function setSettingsSaveStatus(text = "Autosave on", status = "") {
   if (!els.settingsSaveStatus) return;
   els.settingsSaveStatus.textContent = text;
   els.settingsSaveStatus.classList.toggle("is-saving", status === "saving");
   els.settingsSaveStatus.classList.toggle("is-error", status === "error");
 }
 
-function markSettingsSaved() {
+// "Saved" is shown only when no autosave is waiting or still running, so a
+// newer edit can never be reported as saved before it is stored.
+let settingsAutosavePending = false;
+let settingsSavesInFlight = 0;
+
+export function markSettingsSaved() {
+  if (settingsAutosavePending || settingsSavesInFlight > 0) return;
   setSettingsSaveStatus("Saved");
   clearTimeout(settingsStatusTimer);
   settingsStatusTimer = setTimeout(() => setSettingsSaveStatus("Autosave on"), 1800);
 }
 
-async function runSettingsSave(work, errorMessage, options = {}) {
+export async function runSettingsSave(work, errorMessage, options = {}) {
   const isAutosave = options.autosave === true;
   setSettingsSaveStatus(isAutosave ? "Autosaving..." : "Saving...", "saving");
+  settingsSavesInFlight += 1;
   try {
     await work();
+    settingsSavesInFlight -= 1;
     markSettingsSaved();
   } catch (error) {
+    settingsSavesInFlight -= 1;
     console.error(errorMessage, error);
     setSettingsSaveStatus("Save failed", "error");
     if (!isAutosave) alert(error.message || errorMessage);
@@ -57,19 +74,26 @@ async function runSettingsSave(work, errorMessage, options = {}) {
   }
 }
 
-function scheduleSettingsAutosave(saveAction, delay = 650) {
+export function cancelSettingsAutosave() {
   clearTimeout(settingsAutosaveTimer);
+  settingsAutosavePending = false;
+}
+
+export function scheduleSettingsAutosave(saveAction, delay = 650) {
+  clearTimeout(settingsAutosaveTimer);
+  settingsAutosavePending = true;
   setSettingsSaveStatus("Autosaving...", "saving");
   settingsAutosaveTimer = setTimeout(() => {
+    settingsAutosavePending = false;
     saveAction({ autosave: true }).catch(() => {});
   }, delay);
 }
 
-function setDatabaseBackupStatus(message = "") {
+export function setDatabaseBackupStatus(message = "") {
   if (els.databaseBackupStatus) els.databaseBackupStatus.textContent = message;
 }
 
-async function exportArchive() {
+export async function exportArchive() {
   const button = els.exportDatabaseButton;
   if (!button || databaseExportInProgress) return;
   databaseExportInProgress = true;
@@ -108,7 +132,7 @@ async function exportArchive() {
   }
 }
 
-async function importArchive(event) {
+export async function importArchive(event) {
   const input = event.target;
   const archive = input.files?.[0];
   input.value = "";
@@ -133,9 +157,7 @@ async function importArchive(event) {
     if (!response.ok) throw new Error(payload.error || "Could not import the database.");
     const refreshed = await fetch("/api/logbook");
     if (!refreshed.ok) throw new Error("The backup was imported, but the logbook could not be refreshed.");
-    logbookRevision = refreshed.headers.get("ETag") || "";
-    state = validateState(await refreshed.json());
-    localStorage.setItem(storageKey, JSON.stringify(state));
+    replaceState(await refreshed.json(), { revision: refreshed.headers.get("ETag") || "" });
     renderAll();
     setDatabaseBackupStatus("Database and media archive imported.");
   } catch (error) {
