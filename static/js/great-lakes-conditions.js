@@ -1,28 +1,65 @@
-// NOAA Great Lakes OFS map layers. Temperature is rendered as server-generated
-// PNG rasters; currents are rendered as interpolated canvas particle flow.
-let greatLakesConditionsControl = null;
-let greatLakesConditionsLayer = null;
-let greatLakesConditionsRequest = null;
-let greatLakesActiveLayer = "";
-let greatLakesRasterReloadTimer = null;
-let greatLakesParticleLayer = null;
-let greatLakesLoadedModelsKey = "";
-let greatLakesLoadRevision = 0;
-let greatLakesProfileData = null;
-let greatLakesProfileDepthScale = "";
-let greatLakesProfileDepthLimit = null;
-const GREAT_LAKES_CLIENT_CACHE_MS = 10 * 60 * 1000;
-const GREAT_LAKES_MAX_DEPTH_METERS = 500;
-const GREAT_LAKES_DEPTH_SLIDER_MAX = 1000;
-const greatLakesPayloadCache = new Map();
+import { html, insertHtml, joinHtml, setHtml } from "./html.js";
+import { L } from "./vendor.js";
+import { state, ui } from "./app-state.js";
+import { convertUnitValue, currentChopRanges, formatUnitValue, unitPreference } from "./app-units.js";
+import { depthRangeLabel, showWaterColumnDialog, thermoclineBand, thicknessLabel } from "./water-column.js";
+import { createPaletteFilter, fitPaletteToView, paletteOverlays, savedTemperatureColorMode, setTemperatureColorMode } from "./great-lakes-palette.js";
+import { currentProfileActionHtml, directionIconHtml, profileActionHtml, readingHtml } from "./cards.js";
+import {
+  clearGreatLakesAnimationVisuals,
+  greatLakesAnimationActive,
+  greatLakesAnimationForecastHour,
+  greatLakesTimelineHtml,
+  loadGreatLakesAnimation,
+  setupGreatLakesTimeline,
+  stopGreatLakesAnimation
+} from "./great-lakes-animation.js";
 
-const GREAT_LAKES_MODEL_BOUNDS = {
+// NOAA Great Lakes OFS map layers. Temperature, thermocline depth, current
+// speed, and wave height are server-rendered rasters clipped to NOAA's water
+// mask; currents add an animated particle flow (or static arrows) on top of
+// the speed shading, and waves show animated travel or static direction arrows.
+export let greatLakesConditionsControl = null;
+export let greatLakesConditionsLayer = null;
+export let greatLakesConditionsRequest = null;
+export let greatLakesActiveLayer = "";
+export let greatLakesRasterReloadTimer = null;
+export let greatLakesParticleLayer = null;
+export let greatLakesLoadedModelsKey = "";
+export let greatLakesLoadRevision = 0;
+export const GREAT_LAKES_CLIENT_CACHE_MS = 10 * 60 * 1000;
+export const GREAT_LAKES_MAX_DEPTH_METERS = 500;
+export const GREAT_LAKES_DEPTH_SLIDER_MAX = 1000;
+export const greatLakesPayloadCache = new Map();
+export const CURRENT_BACKGROUND_STORAGE_KEY = "logbook.greatLakesCurrentBackground";
+export const FLOW_COLOR_STORAGE_KEY = "logbook.greatLakesFlowColor";
+// "speed" colours each flow line by its current speed (the speed legend's palette).
+export const FLOW_COLOR_BY_SPEED = "speed";
+export const FLOW_COLOR_OPTIONS = Object.freeze([
+  [FLOW_COLOR_BY_SPEED, "By current speed"], ["#ffffff", "White"], ["#111827", "Black"], ["#9ca3af", "Grey"],
+  ["#ef4444", "Red"], ["#2563eb", "Blue"], ["#facc15", "Yellow"], ["#22c55e", "Green"]
+]);
+export const CURRENT_BACKGROUND_OPTIONS = Object.freeze([["speed", "Current speed"], ["temperature", "Water temperature"], ["none", "None (map only)"]]);
+export const DEFAULT_FLOW_COLOR = "#ffffff";
+export let greatLakesFlowColor = DEFAULT_FLOW_COLOR;
+export const WAVE_DISPLAY_STORAGE_KEY = "logbook.greatLakesWaveDisplay";
+export let greatLakesWaveArrowLayer = null;
+// Currents use one fixed raster resolution, so a temperature background
+// matches it and does not need reloading (and restarting the flow) on zoom.
+export const CURRENT_BACKGROUND_RESOLUTION = 512;
+// One drawing per layer, forecast time, and depth: every lake at full detail.
+// The server draws exactly this ahead of time, and the map never has to ask
+// again when the view changes.
+export const GREAT_LAKES_ALL_MODELS = Object.freeze(["LSOFS", "LMHOFS", "LEOFS", "LOOFS"]);
+export const GREAT_LAKES_LAYER_RESOLUTION = 512;
+
+export const GREAT_LAKES_MODEL_BOUNDS = {
   LSOFS: [[46.0, -93.5], [49.4, -83.5]],
   LMHOFS: [[41.2, -88.5], [46.8, -80.0]],
   LEOFS: [[41.0, -84.8], [43.5, -78.3]],
   LOOFS: [[42.4, -80.4], [44.7, -75.3]]
 };
-const GREAT_LAKE_VIEWS = {
+export const GREAT_LAKE_VIEWS = {
   Superior: { center: [47.7, -87.5], zoom: 7, models: ["LSOFS"] },
   Michigan: { center: [43.8, -87.1], zoom: 7, models: ["LMHOFS"] },
   Huron: { center: [44.8, -82.8], zoom: 7, models: ["LMHOFS"] },
@@ -30,64 +67,365 @@ const GREAT_LAKE_VIEWS = {
   Ontario: { center: [43.7, -77.9], zoom: 8, models: ["LOOFS"] }
 };
 
-function greatLakesConditionsHtml() {
-  return `<section class="great-lakes-control" aria-label="Great Lakes Conditions">
-    <label>Lake<select data-gl-lake><option value="">All lakes</option>${Object.keys(GREAT_LAKE_VIEWS).map((lake) => `<option value="${lake}"${greatLakesHomeLake() === lake ? " selected" : ""}>Lake ${lake}</option>`).join("")}</select></label>
-    <label>Layer<select data-gl-layer><option value="" selected>None</option><option value="temperature">Surface temperature</option><option value="thermocline">Thermocline depth</option><option value="currents">Underwater currents</option></select></label>
-    <label>Forecast<select data-gl-forecast><option value="0">Now</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option><option value="48">48 hours</option></select></label>
-    <label>Depth <output data-gl-depth-label>Surface</output><input data-gl-depth type="range" min="0" max="${GREAT_LAKES_DEPTH_SLIDER_MAX}" step="1" value="0" aria-label="Model depth, logarithmic scale" aria-valuetext="Surface" /></label>
+// "Past 90 days": the website keeps four samples a day of "Now" (never
+// forecasts). The map shows only timestamps returned by its history index.
+// Past maps, point readings, and stations are fetched from the website.
+export const HISTORY_FORECAST_VALUE = "history";
+const HOUR_MS = 3600 * 1000;
+export let greatLakesHistoryIndex = null;
+export let greatLakesHistoryMs = null;
+let greatLakesHistoryIndexAt = 0;
+// The website's index is fetched when entering "Past 90 days" and refreshed while viewing it.
+const HISTORY_INDEX_MAX_AGE_MS = 2 * 60 * 1000;
+
+const CALENDAR_ICON = html`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4m8-4v4"/></svg>`;
+
+function savedHistoryDays(index = greatLakesHistoryIndex) {
+  const days = Number(index?.days);
+  return Number.isFinite(days) && days > 0 ? days : 90;
+}
+
+function savedHistorySampleHours(index = greatLakesHistoryIndex) {
+  const hours = Number(index?.sampleEveryHours);
+  return Number.isFinite(hours) && hours > 0 ? hours : 6;
+}
+
+function savedHistoryStepLabel(hours, direction) {
+  const amount = hours === 1 ? "One hour" : `${hours} hours`;
+  return `${amount} ${direction < 0 ? "earlier" : "later"}`;
+}
+
+export function greatLakesHistoryHtml() {
+  const step = (hours, label, symbol) => html`<button type="button" data-gl-history-step="${hours}" aria-label="${label}" title="${label}">${symbol}</button>`;
+  const sampleStep = (direction, symbol) => {
+    const hours = direction * savedHistorySampleHours();
+    const label = savedHistoryStepLabel(Math.abs(hours), direction);
+    return html`<button type="button" data-gl-history-step="${hours}" data-gl-history-sample="${direction}" aria-label="${label}" title="${label}">${symbol}</button>`;
+  };
+  return html`<div class="great-lakes-history" data-gl-history-controls>
+    <div class="great-lakes-history-picker">
+      ${step(-24, "One day earlier", "«")}${sampleStep(-1, "‹")}
+      <button type="button" class="great-lakes-history-when" data-gl-history-open aria-expanded="false" aria-controls="greatLakesHistoryCalendar" aria-label="Choose a saved date and time"><span data-gl-history-label>Choose a time</span>${CALENDAR_ICON}</button>
+      ${sampleStep(1, "›")}${step(24, "One day later", "»")}
+    </div>
+    <div class="great-lakes-history-calendar" id="greatLakesHistoryCalendar" data-gl-history-calendar hidden></div>
+  </div>`;
+}
+
+export function greatLakesHistoryMode() {
+  return greatLakesControlValue("forecast") === HISTORY_FORECAST_VALUE;
+}
+
+export function historyIso(milliseconds) {
+  return new Date(milliseconds).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+// The selected past sample (ISO 8601), or null when showing "Now" or a forecast.
+export function greatLakesHistoryTime() {
+  return greatLakesHistoryMode() && Number.isFinite(greatLakesHistoryMs) ? historyIso(greatLakesHistoryMs) : null;
+}
+
+// Spread into API calls: `{ time }` for a past hour, nothing otherwise.
+export function greatLakesTimeParams() {
+  const time = greatLakesHistoryTime();
+  return time ? { time } : {};
+}
+
+// Saved hours (milliseconds, oldest first) that have a map of `layer`.
+export function historyHours(index, layer = "") {
+  return (index?.hours || [])
+    .filter((hour) => !layer || (hour.layers || []).includes(layer))
+    .map((hour) => Date.parse(hour.time))
+    .filter(Number.isFinite)
+    .sort((first, second) => first - second);
+}
+
+export function nearestHistoryHour(hours, target) {
+  if (!hours.length) return null;
+  return hours.reduce((best, hour) => Math.abs(hour - target) < Math.abs(best - target) ? hour : best, hours[0]);
+}
+
+// Move by `stepHours`, landing on the saved hour nearest that time (always moving, if there is anywhere to go).
+export function stepHistoryHour(hours, current, stepHours) {
+  const ahead = hours.filter((hour) => (stepHours > 0 ? hour > current : hour < current));
+  if (!ahead.length) return current;
+  return nearestHistoryHour(ahead, current + stepHours * HOUR_MS);
+}
+
+const pad = (value) => String(value).padStart(2, "0");
+
+// A local calendar day, "2026-10-05".
+export function localDayKey(milliseconds) {
+  const date = new Date(milliseconds);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// Saved hours grouped by local day: Map of day key to that day's hours, oldest first.
+export function historyDays(hours) {
+  const days = new Map();
+  hours.forEach((hour) => {
+    const key = localDayKey(hour);
+    if (!days.has(key)) days.set(key, []);
+    days.get(key).push(hour);
+  });
+  return days;
+}
+
+const monthStart = (milliseconds) => {
+  const date = new Date(milliseconds);
+  return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+};
+const shiftMonth = (start, months) => {
+  const date = new Date(start);
+  return new Date(date.getFullYear(), date.getMonth() + months, 1).getTime();
+};
+
+// The calendar of saved days: only days with a saved hour can be picked; the chosen day lists its hours.
+export function historyCalendarHtml(hours, { month, day, selected } = {}) {
+  if (!hours.length) return html`<p class="gl-cal-empty">No saved hours yet.</p>`;
+  const days = historyDays(hours);
+  const shownMonth = Number.isFinite(month) ? month : monthStart(selected ?? hours[hours.length - 1]);
+  const firstMonth = monthStart(hours[0]), lastMonth = monthStart(hours[hours.length - 1]);
+  const first = new Date(shownMonth);
+  const blanks = first.getDay();
+  const daysInMonth = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  const selectedDay = Number.isFinite(selected) ? localDayKey(selected) : "";
+  const today = localDayKey(Date.now());
+  const weekdays = joinHtml(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((name) => html`<span class="gl-cal-dow" aria-hidden="true">${name}</span>`), "");
+  const cells = [];
+  for (let blank = 0; blank < blanks; blank += 1) cells.push(html`<span aria-hidden="true"></span>`);
+  for (let date = 1; date <= daysInMonth; date += 1) {
+    const time = new Date(first.getFullYear(), first.getMonth(), date).getTime();
+    const key = localDayKey(time);
+    const saved = days.get(key);
+    const classes = ["gl-cal-day", saved ? "has-data" : "", key === day ? "is-open" : "", key === selectedDay ? "is-selected" : "", key === today ? "is-today" : ""].filter(Boolean).join(" ");
+    const label = new Date(time).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+    cells.push(saved
+      ? html`<button type="button" class="${classes}" data-gl-cal-day="${key}" aria-label="${label}, ${saved.length} saved ${saved.length === 1 ? "hour" : "hours"}"${key === day ? html` aria-pressed="true"` : ""}>${date}</button>`
+      : html`<button type="button" class="${classes}" disabled aria-label="${label}, nothing saved">${date}</button>`);
+  }
+  const monthLabel = first.toLocaleDateString([], { month: "long", year: "numeric" });
+  const dayHours = day ? days.get(day) || [] : [];
+  const hourList = dayHours.length ? html`<div class="gl-cal-hours">
+      <span class="gl-cal-hours-title">${new Date(dayHours[0]).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}</span>
+      <div class="gl-cal-hour-grid">${joinHtml(dayHours.map((hour) => html`<button type="button" class="gl-cal-hour${hour === selected ? " is-selected" : ""}" data-gl-cal-hour="${hour}"${hour === selected ? html` aria-pressed="true"` : ""}>${new Date(hour).toLocaleTimeString([], { hour: "numeric" })}</button>`), "")}</div>
+    </div>` : html`<p class="gl-cal-hint">Pick a highlighted day.</p>`;
+  return html`<div class="gl-cal-head">
+      <button type="button" data-gl-cal-month="-1" aria-label="Previous month"${shownMonth <= firstMonth ? " disabled" : ""}>‹</button>
+      <strong aria-live="polite">${monthLabel}</strong>
+      <button type="button" data-gl-cal-month="1" aria-label="Next month"${shownMonth >= lastMonth ? " disabled" : ""}>›</button>
+    </div>
+    <div class="gl-cal-grid">${weekdays}${joinHtml(cells, "")}</div>
+    ${hourList}`;
+}
+
+export function setGreatLakesHistoryTime(value) {
+  const milliseconds = typeof value === "number" ? value : Date.parse(value);
+  greatLakesHistoryMs = Number.isFinite(milliseconds) ? Math.round(milliseconds / HOUR_MS) * HOUR_MS : null;
+  syncHistoryInput();
+}
+
+// The calendar's month and opened day while it is showing.
+const historyCalendar = { open: false, month: null, day: null };
+
+function historyLayerHours() {
+  return historyHours(greatLakesHistoryIndex, greatLakesControlValue("layer"));
+}
+
+function renderHistoryCalendar() {
+  const node = document.querySelector("[data-gl-history-calendar]");
+  if (!node) return;
+  node.hidden = !historyCalendar.open;
+  document.querySelector("[data-gl-history-open]")?.setAttribute("aria-expanded", String(historyCalendar.open));
+  if (historyCalendar.open) setHtml(node, historyCalendarHtml(historyLayerHours(), { month: historyCalendar.month, day: historyCalendar.day, selected: greatLakesHistoryMs }));
+}
+
+export function setHistoryCalendarOpen(open) {
+  historyCalendar.open = open;
+  if (open) {
+    const hours = historyLayerHours();
+    const anchor = Number.isFinite(greatLakesHistoryMs) ? greatLakesHistoryMs : hours[hours.length - 1];
+    historyCalendar.month = Number.isFinite(anchor) ? monthStart(anchor) : null;
+    historyCalendar.day = Number.isFinite(anchor) ? localDayKey(anchor) : null;
+  }
+  renderHistoryCalendar();
+}
+
+// The selected time, step buttons, and calendar follow timestamps saved for the selected layer.
+function syncHistoryStepControls(host = document.querySelector("#greatLakesConditions")) {
+  if (!host) return;
+  const interval = savedHistorySampleHours();
+  host.querySelectorAll("[data-gl-history-sample]").forEach((button) => {
+    const direction = Number(button.dataset.glHistorySample);
+    const hours = direction * interval;
+    const label = savedHistoryStepLabel(interval, direction);
+    button.dataset.glHistoryStep = String(hours);
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  });
+  const historyOption = host.querySelector(`[data-gl-forecast] option[value="${HISTORY_FORECAST_VALUE}"]`);
+  if (historyOption) historyOption.textContent = `Past ${savedHistoryDays()} days`;
+  syncHistoryInput();
+}
+
+export function syncHistoryInput() {
+  const hours = historyLayerHours();
+  const label = document.querySelector("[data-gl-history-label]");
+  const shown = Number.isFinite(greatLakesHistoryMs) ? historyButtonLabel(greatLakesHistoryMs) : "";
+  if (label) label.textContent = shown || "Choose a time";
+  document.querySelectorAll("[data-gl-history-step]").forEach((button) => {
+    const step = Number(button.dataset.glHistoryStep);
+    button.disabled = !Number.isFinite(greatLakesHistoryMs) || stepHistoryHour(hours, greatLakesHistoryMs, step) === greatLakesHistoryMs;
+  });
+  const open = document.querySelector("[data-gl-history-open]");
+  if (open) {
+    open.disabled = !hours.length;
+    open.setAttribute("aria-label", shown ? `Showing ${shown}. Choose another saved date and time` : "Choose a saved date and time");
+  }
+  renderHistoryCalendar();
+}
+
+// "Mon, Oct 5 · 3 PM" on the calendar button.
+export function historyButtonLabel(milliseconds) {
+  const date = new Date(milliseconds);
+  return `${date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} · ${date.toLocaleTimeString([], { hour: "numeric" })}`;
+}
+
+export async function loadGreatLakesHistoryIndex({ fresh = false } = {}) {
+  if (!fresh && greatLakesHistoryIndex && Date.now() - greatLakesHistoryIndexAt < HISTORY_INDEX_MAX_AGE_MS) return greatLakesHistoryIndex;
+  try {
+    greatLakesHistoryIndex = await window.noaaGreatLakesApi.history();
+    greatLakesHistoryIndexAt = Date.now();
+    syncHistoryStepControls();
+  } catch {
+    greatLakesHistoryIndex ||= null;
+  }
+  return greatLakesHistoryIndex;
+}
+
+// Pick the newest saved timestamp on entering "Past 90 days", and snap to a saved timestamp.
+async function ensureGreatLakesHistoryTime(layer) {
+  const index = await loadGreatLakesHistoryIndex();
+  const hours = historyHours(index, layer);
+  if (!hours.length) return false;
+  const target = Number.isFinite(greatLakesHistoryMs) ? greatLakesHistoryMs : hours[hours.length - 1];
+  greatLakesHistoryMs = nearestHistoryHour(hours, target);
+  syncHistoryInput();
+  return true;
+}
+
+function announceHistoryTime() {
+  document.dispatchEvent(new CustomEvent("great-lakes-history-time", { detail: { time: greatLakesHistoryTime() } }));
+}
+
+// "Thursday, Oct 2 at 3 PM": a past hour, always with its date.
+export function historyTimeLabel(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const day = date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+  const time = date.toLocaleTimeString([], date.getMinutes() ? { hour: "numeric", minute: "2-digit" } : { hour: "numeric" });
+  return `${day} at ${time}`;
+}
+
+export function greatLakesConditionsHtml() {
+  return html`<section class="great-lakes-control" aria-label="Great Lakes Conditions">
+    <label>Layer<select data-gl-layer><option value="" selected>None</option><option value="temperature">Surface temperature</option><option value="thermocline">Thermocline depth</option><option value="currents">Underwater currents</option><option value="waves">Waves</option><option value="upwelling">Upwelling &amp; downwelling</option></select></label>
+    <label>Forecast<select data-gl-forecast><option value="0">Now</option><option value="6">6 hours</option><option value="12">12 hours</option><option value="24">24 hours</option><option value="48">48 hours</option><option value="${HISTORY_FORECAST_VALUE}">Past 90 days</option></select></label>
+    ${greatLakesHistoryHtml()}
+    ${greatLakesTimelineHtml()}
+    <label class="great-lakes-depth-control">Depth <output data-gl-depth-label>Surface</output><input data-gl-depth type="range" min="0" max="${GREAT_LAKES_DEPTH_SLIDER_MAX}" step="1" value="0" aria-label="Model depth, logarithmic scale" aria-valuetext="Surface" /></label>
+    <div class="great-lakes-wave-options">
+      <label>Wave display<select data-gl-wave-display><option value="flow"${savedWaveDisplay() === "flow" ? " selected" : ""}>Animated flow</option><option value="arrows"${savedWaveDisplay() === "arrows" ? " selected" : ""}>Static arrows</option><option value="off"${savedWaveDisplay() === "off" ? " selected" : ""}>Off</option></select></label>
+    </div>
     <div class="great-lakes-current-options">
+      <label>Background<select data-gl-current-background>${currentBackgroundOptionsHtml(savedCurrentBackground())}</select></label>
       <label>Current display<select data-gl-current-display><option value="flow">Animated flow</option><option value="arrows">Static arrows</option></select></label>
+      <label class="great-lakes-flow-color">Flow colour<select data-gl-flow-color aria-label="Current flow colour">${flowColorOptionsHtml(savedFlowColor())}</select></label>
       <label>Particle density<select data-gl-density><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label>
       <label>Animation speed<select data-gl-animation-speed><option value="slow">Slow</option><option value="normal" selected>Normal</option><option value="fast">Fast</option></select></label>
     </div>
     <div class="great-lakes-current-legend"><span data-gl-current-min>—</span><i></i><span data-gl-current-max>—</span></div>
-    <p data-gl-status>Loading NOAA Great Lakes model data…</p>
+    <p data-gl-status>Loading NOAA forecast…</p>
     <div class="great-lakes-legend"><span data-gl-temperature-min>—</span><i></i><span data-gl-temperature-max>—</span></div>
+    <label class="great-lakes-color-mode" title="Fit colour scale to visible temperatures"><input type="checkbox" data-temperature-colors aria-label="Fit colour scale to visible temperatures"${savedTemperatureColorMode() === "dynamic" ? " checked" : ""}> Fit colour scale to visible temperatures</label>
     <div class="great-lakes-thermocline-legend"><span data-gl-thermocline-min>—</span><i></i><span data-gl-thermocline-max>—</span></div>
+    <div class="great-lakes-thermocline-mixed"><b aria-hidden="true"></b>Clear: no thermocline</div>
+    <div class="great-lakes-wave-legend"><span data-gl-wave-min>—</span><i></i><span data-gl-wave-max>—</span></div>
+    <div class="great-lakes-upwelling-legend"><span>Upwelling</span><i></i><span>Downwelling</span></div>
+    <p class="great-lakes-upwelling-note">Blue: cold water rising against a shore. Red: warm water piled up. Darker is stronger; clear water is neither.</p>
+    <fieldset class="great-lakes-points-options">
+      <legend>Data points</legend>
+      <label><input type="checkbox" data-gl-stations /> <span>Measurement stations</span></label>
+      <label><input type="checkbox" data-gl-model-points /> <span>Model calculation points</span></label>
+      <p data-gl-points-status role="status" aria-live="polite"></p>
+    </fieldset>
   </section>`;
 }
 
-function ensureGreatLakesLoadingIndicator() {
+export function ensureGreatLakesLoadingIndicator() {
   const mapNode = document.querySelector("#fishMap");
   if (!mapNode || mapNode.querySelector("[data-gl-map-loading]")) return;
-  mapNode.insertAdjacentHTML("beforeend", `<div class="great-lakes-map-loading" data-gl-map-loading role="status" aria-live="polite" aria-hidden="true"><span class="great-lakes-map-spinner" aria-hidden="true"></span><span>Loading data…</span></div>`);
+  insertHtml(mapNode, "beforeend", html`<div class="great-lakes-map-loading" data-gl-map-loading role="status" aria-live="polite" aria-hidden="true"><div class="great-lakes-map-loading-card"><span class="great-lakes-map-spinner" aria-hidden="true"></span><span data-gl-map-loading-text>Loading NOAA forecast…</span></div></div>`);
 }
 
-function setGreatLakesMapLoading(isLoading) {
+// A card in the middle of the map while data loads; it shows the same progress
+// as the panel's status line ("Preparing the forecast animation… 40%").
+export function setGreatLakesMapLoading(isLoading, message = "Loading NOAA forecast…") {
+  setMapLoadingReason("layer", isLoading, message);
+}
+
+// Everything the map is waiting for (lake data, the first map tiles), with the
+// message for each; the card stays up until all of them are done.
+const mapLoadingReasons = new Map();
+
+export function setMapLoadingReason(reason, isLoading, message) {
   ensureGreatLakesLoadingIndicator();
   const mapNode = document.querySelector("#fishMap");
   const indicator = mapNode?.querySelector("[data-gl-map-loading]");
-  mapNode?.classList.toggle("is-great-lakes-loading", isLoading);
-  mapNode?.setAttribute("aria-busy", String(isLoading));
-  indicator?.setAttribute("aria-hidden", String(!isLoading));
+  const text = indicator?.querySelector("[data-gl-map-loading-text]");
+  const started = isLoading && !mapLoadingReasons.has(reason);
+  if (isLoading) { if (started) mapLoadingReasons.set(reason, message); }
+  else mapLoadingReasons.delete(reason);
+  const busy = mapLoadingReasons.size > 0;
+  if (text && started) text.textContent = message;
+  else if (text && !isLoading && busy) text.textContent = [...mapLoadingReasons.values()].at(-1);
+  mapNode?.classList.toggle("is-great-lakes-loading", busy);
+  mapNode?.setAttribute("aria-busy", String(busy));
+  indicator?.setAttribute("aria-hidden", String(!busy));
 }
 
-function greatLakesHomeLake() {
+export function greatLakesHomeLake() {
   return typeof state !== "undefined" && GREAT_LAKE_VIEWS[state.settings?.defaultHomeLake] ? state.settings.defaultHomeLake : "";
 }
 
-function greatLakesDepthLabel(meters) {
+export function greatLakesDepthLabel(meters) {
   if (!Number.isFinite(Number(meters)) || Number(meters) <= 0.25) return "Surface";
   return typeof formatUnitValue === "function" ? formatUnitValue(meters, "depth", "m", { decimals: 0 }) : `${meters} m`;
 }
 
-function greatLakesDepthValueLabel(meters) {
+export function greatLakesDepthValueLabel(meters) {
   if (!Number.isFinite(Number(meters))) return "—";
   return typeof formatUnitValue === "function" ? formatUnitValue(meters, "depth", "m", { decimals: 0 }) : `${Math.round(meters)} m`;
 }
 
-function greatLakesDepthFromSlider(value) {
+// The slider is logarithmic, flattened near the surface by this many metres so
+// shallow water does not take up most of the bar: a quarter of the way along is
+// about 12 m (40 ft), halfway about 49 m, and the end 500 m.
+export const GREAT_LAKES_DEPTH_SLIDER_CURVE_METERS = 6;
+
+export function greatLakesDepthFromSlider(value) {
   const position = Math.max(0, Math.min(GREAT_LAKES_DEPTH_SLIDER_MAX, Number(value) || 0));
   if (position <= 0) return 0;
-  return Math.round(Math.expm1(Math.log1p(GREAT_LAKES_MAX_DEPTH_METERS) * position / GREAT_LAKES_DEPTH_SLIDER_MAX));
+  const curve = GREAT_LAKES_DEPTH_SLIDER_CURVE_METERS;
+  const meters = curve * Math.expm1(Math.log1p(GREAT_LAKES_MAX_DEPTH_METERS / curve) * position / GREAT_LAKES_DEPTH_SLIDER_MAX);
+  return Math.round(meters * 10) / 10;
 }
 
-function waterTemperatureLabel(temperatureC) {
+export function waterTemperatureLabel(temperatureC) {
   return typeof formatUnitValue === "function" ? formatUnitValue(temperatureC, "waterTemperature", "C", { decimals: 1 }) : `${temperatureC.toFixed(1)} °C`;
 }
 
-function thermoclineGradientLabel(gradientCPerMeter) {
+export function thermoclineGradientLabel(gradientCPerMeter) {
   const temperatureUnit = typeof unitPreference === "function" ? unitPreference("waterTemperature") : "C";
   const depthUnit = typeof unitPreference === "function" ? unitPreference("depth") : "m";
   const temperatureFactor = temperatureUnit === "F" ? 1.8 : 1;
@@ -95,44 +433,47 @@ function thermoclineGradientLabel(gradientCPerMeter) {
   return `${(gradientCPerMeter * temperatureFactor / depthFactor).toFixed(2)} °${temperatureUnit}/${depthUnit}`;
 }
 
-function currentSpeedLabel(metersPerSecond) {
+export function currentSpeedLabel(metersPerSecond) {
   if (!Number.isFinite(Number(metersPerSecond))) return "—";
   const unit = typeof unitPreference === "function" ? unitPreference("speed") : "m/s";
   const factors = { kph: 3.6, mph: 2.236936, kn: 1.943844 };
   const value = Number(metersPerSecond) * (factors[unit] || 1);
-  const decimals = value < 0.1 ? 3 : value < 10 ? 1 : 0;
+  // Rounded values just under 0.1 would otherwise show as "0.10" next to "0.1".
+  const decimals = value === 0 ? 0 : value < 0.095 ? 2 : value < 9.95 ? 1 : 0;
   return `${value.toFixed(decimals)} ${unit}`;
 }
 
-function greatLakesDepthAxisUnit() {
+export function greatLakesDepthAxisUnit() {
   return greatLakesDepthLabel(1).match(/(ft|m)$/i)?.[1] || "m";
 }
 
-function greatLakesDepthAxisTick(depth) {
+export function greatLakesDepthAxisTick(depth) {
   if (depth <= 0.25) return "Surface";
   return greatLakesDepthLabel(depth).replace(/\s*(?:ft|m)$/i, "");
 }
 
-function ensureGreatLakesConditions(map) {
-  if (greatLakesConditionsControl || !window.L) return;
+export function ensureGreatLakesConditions(map) {
+  if (greatLakesConditionsControl) return;
   greatLakesConditionsLayer = L.layerGroup().addTo(map);
   ensureGreatLakesLoadingIndicator();
   const host = document.querySelector("#greatLakesConditions");
   if (!host) return;
-  host.innerHTML = greatLakesConditionsHtml();
-  const syncLayerSpecificControls = () => {
-    const layer = host.querySelector("[data-gl-layer]")?.value;
-    host.classList.toggle("has-current-layer", layer === "currents");
-    host.classList.toggle("has-temperature-layer", layer === "temperature");
-    host.classList.toggle("has-thermocline-layer", layer === "thermocline");
-  };
+  setHtml(host, greatLakesConditionsHtml());
+  applyFlowColor(savedFlowColor());
+  const syncLayerSpecificControls = () => syncGreatLakesLayerControls(host);
   syncLayerSpecificControls();
   host.querySelectorAll("select").forEach((select) => select.addEventListener("change", () => {
-    if (select.matches("[data-gl-layer]")) syncLayerSpecificControls();
-    if (select.matches("[data-gl-lake]") && GREAT_LAKE_VIEWS[select.value]) {
-      const lake = GREAT_LAKE_VIEWS[select.value];
-      map.setView(lake.center, lake.zoom);
+    if (select.matches("[data-gl-flow-color]")) {
+      onFlowColorChange(map, host, select.value);
+      return;
     }
+    if (select.matches("[data-gl-layer], [data-gl-current-background], [data-gl-forecast]")) syncLayerSpecificControls();
+    if (select.matches("[data-gl-current-background]")) storeCurrentBackground(select.value);
+    if (select.matches("[data-gl-wave-display]")) {
+      try { localStorage.setItem(WAVE_DISPLAY_STORAGE_KEY, select.value); } catch { /* storage unavailable */ }
+    }
+    // Picking a forecast time ends the animation; other choices change what it animates.
+    if (select.matches("[data-gl-forecast]")) stopGreatLakesAnimation();
     loadGreatLakesConditions(map);
   }));
   const depthSlider = host.querySelector("[data-gl-depth]");
@@ -144,38 +485,215 @@ function ensureGreatLakesConditions(map) {
   };
   depthSlider.addEventListener("input", syncDepthLabel);
   depthSlider.addEventListener("change", () => loadGreatLakesConditions(map));
+  setupGreatLakesTimeline(host, () => loadGreatLakesConditions(map));
+  setupGreatLakesHistoryControls(host, map);
   greatLakesConditionsControl = host;
-  map.on("zoomend", () => {
-  if (!["temperature", "thermocline"].includes(greatLakesActiveLayer)) return;
-    clearTimeout(greatLakesRasterReloadTimer);
-    greatLakesRasterReloadTimer = setTimeout(() => loadGreatLakesConditions(map), 250);
-  });
-  map.on("moveend", () => {
-    const modelsKey = greatLakesModelsForView(map).join(",");
-    if (!modelsKey || modelsKey === greatLakesLoadedModelsKey) return;
-    clearTimeout(greatLakesRasterReloadTimer);
-    greatLakesRasterReloadTimer = setTimeout(() => loadGreatLakesConditions(map), 180);
-  });
+  // Layers always cover every lake at full detail, so panning and zooming
+  // never request (or wait for) a different drawing.
   if (map._loaded) loadGreatLakesConditions(map);
   else map.once("load", () => loadGreatLakesConditions(map));
+  setInterval(() => refreshGreatLakesIfStale(map), GREAT_LAKES_STATUS_POLL_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshGreatLakesIfStale(map); });
 }
 
-function greatLakesModelsForView(map) {
-  const selectedLake = greatLakesControlValue("lake");
-  if (GREAT_LAKE_VIEWS[selectedLake]) return GREAT_LAKE_VIEWS[selectedLake].models;
+// The saved-sample buttons and calendar of "Past 90 days".
+export function setupGreatLakesHistoryControls(host, map) {
+  syncHistoryStepControls(host);
+  const show = (milliseconds) => {
+    if (!Number.isFinite(milliseconds) || milliseconds === greatLakesHistoryMs) {
+      syncHistoryInput();
+      return;
+    }
+    greatLakesHistoryMs = milliseconds;
+    syncHistoryInput();
+    loadGreatLakesConditions(map);
+  };
+  host.querySelectorAll("[data-gl-history-step]").forEach((button) => button.addEventListener("click", () => {
+    show(stepHistoryHour(historyLayerHours(), greatLakesHistoryMs, Number(button.dataset.glHistoryStep)));
+  }));
+  host.querySelector("[data-gl-history-open]")?.addEventListener("click", () => setHistoryCalendarOpen(!historyCalendar.open));
+  const calendar = host.querySelector("[data-gl-history-calendar]");
+  calendar?.addEventListener("click", (event) => {
+    const month = event.target.closest("[data-gl-cal-month]");
+    const day = event.target.closest("[data-gl-cal-day]");
+    const hour = event.target.closest("[data-gl-cal-hour]");
+    if (month && !month.disabled) {
+      historyCalendar.month = shiftMonth(historyCalendar.month, Number(month.dataset.glCalMonth));
+      historyCalendar.day = null;
+      renderHistoryCalendar();
+    } else if (day) {
+      historyCalendar.day = day.dataset.glCalDay;
+      renderHistoryCalendar();
+      calendar.querySelector(".gl-cal-hour.is-selected, .gl-cal-hour")?.focus();
+    } else if (hour) {
+      setHistoryCalendarOpen(false);
+      host.querySelector("[data-gl-history-open]")?.focus();
+      show(Number(hour.dataset.glCalHour));
+    }
+  });
+  host.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && historyCalendar.open) {
+      setHistoryCalendarOpen(false);
+      host.querySelector("[data-gl-history-open]")?.focus();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    // The path is taken when the click happens: a day button re-renders the calendar under it.
+    const inside = event.composedPath().some((node) => node instanceof Element && node.matches("[data-gl-history-controls]"));
+    if (historyCalendar.open && !inside) setHistoryCalendarOpen(false);
+  });
+}
+
+export function syncGreatLakesLayerControls(host = document.querySelector("#greatLakesConditions")) {
+  if (!host) return;
+  const layer = host.querySelector("[data-gl-layer]")?.value;
+  host.classList.toggle("has-history", host.querySelector("[data-gl-forecast]")?.value === HISTORY_FORECAST_VALUE);
+  host.classList.toggle("has-current-layer", layer === "currents");
+  host.classList.toggle("has-temperature-layer", layer === "temperature");
+  host.classList.toggle("has-thermocline-layer", layer === "thermocline");
+  host.classList.toggle("has-wave-layer", layer === "waves");
+  host.classList.toggle("has-upwelling-layer", layer === "upwelling");
+  const background = host.querySelector("[data-gl-current-background]")?.value;
+  host.classList.toggle("has-temperature-background", layer === "currents" && background === "temperature");
+  host.classList.toggle("has-no-background", layer === "currents" && background === "none");
+  host.classList.toggle("has-speed-flow", layer === "currents" && host.querySelector("[data-gl-flow-color]")?.value === FLOW_COLOR_BY_SPEED);
+}
+
+export function savedWaveDisplay() {
+  try {
+    const saved = localStorage.getItem(WAVE_DISPLAY_STORAGE_KEY);
+    return ["flow", "arrows", "off"].includes(saved) ? saved : "arrows";
+  } catch { return "arrows"; }
+}
+
+export function waveHeightLabel(meters) {
+  if (!Number.isFinite(Number(meters))) return "—";
+  return typeof formatUnitValue === "function" ? formatUnitValue(Number(meters), "waveHeight", "m", { decimals: 1 }) : `${Number(meters).toFixed(1)} m`;
+}
+
+// The same chop categories the trip editor uses (Settings → chop ranges).
+export function waveChopLabel(meters) {
+  const feet = convertUnitValue(Number(meters), "m", "ft");
+  if (!Number.isFinite(feet)) return "";
+  const ranges = currentChopRanges();
+  const bounded = ranges.find((range) => range.maxFeet !== null && feet <= Number(range.maxFeet));
+  return (bounded || ranges.find((range) => range.maxFeet === null) || ranges.at(-1))?.label || "";
+}
+
+// NOAA reports where waves come *from*; arrows point the way they travel.
+export function waveTravelDegrees(fromDegrees) {
+  return ((Number(fromDegrees) + 180) % 360 + 360) % 360;
+}
+
+export function waveDirectionText(fromDegrees) {
+  if (!Number.isFinite(Number(fromDegrees))) return "";
+  const degrees = Math.round(Number(fromDegrees)) % 360;
+  return `From ${currentDirectionLabel(degrees)} (${degrees}°)`;
+}
+
+export function savedCurrentBackground() {
+  try {
+    const saved = localStorage.getItem(CURRENT_BACKGROUND_STORAGE_KEY);
+    return CURRENT_BACKGROUND_OPTIONS.some(([value]) => value === saved) ? saved : "speed";
+  } catch { return "speed"; }
+}
+
+export function storeCurrentBackground(value) {
+  try { localStorage.setItem(CURRENT_BACKGROUND_STORAGE_KEY, value); } catch { /* storage unavailable */ }
+}
+
+export function currentBackgroundOptionsHtml(selected) {
+  return joinHtml(CURRENT_BACKGROUND_OPTIONS.map(([value, label]) => html`<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`), "");
+}
+
+export function flowColorOptionsHtml(selected) {
+  return joinHtml(FLOW_COLOR_OPTIONS.map(([value, label]) => html`<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`), "");
+}
+
+// Only the listed colours are offered; anything else (including colours saved
+// by the earlier free colour picker) falls back to white.
+export function normalizedFlowColor(value) {
+  const text = String(value || "").toLowerCase();
+  return FLOW_COLOR_OPTIONS.some(([option]) => option === text) ? text : DEFAULT_FLOW_COLOR;
+}
+
+export function savedFlowColor() {
+  try { return normalizedFlowColor(localStorage.getItem(FLOW_COLOR_STORAGE_KEY)); } catch { return DEFAULT_FLOW_COLOR; }
+}
+
+// The trail keeps a contrasting outline so every colour stays readable over
+// both the light basemap and the bright temperature colours. Speed colours
+// get a dark outline.
+export function flowColorParts(color) {
+  const value = normalizedFlowColor(color);
+  if (value === FLOW_COLOR_BY_SPEED) return { rgb: "255, 255, 255", halo: "6, 16, 34", bySpeed: true };
+  const [red, green, blue] = [1, 3, 5].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16));
+  const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+  return { rgb: `${red}, ${green}, ${blue}`, halo: luminance > 0.5 ? "6, 16, 34" : "255, 255, 255", bySpeed: false };
+}
+
+export function applyFlowColor(color) {
+  greatLakesFlowColor = normalizedFlowColor(color);
+  const { rgb, halo } = flowColorParts(greatLakesFlowColor);
+  const mapNode = document.querySelector("#fishMap");
+  mapNode?.style.setProperty("--gl-flow-color", `rgb(${rgb})`);
+  mapNode?.style.setProperty("--gl-flow-halo", `rgba(${halo}, 0.72)`);
+}
+
+// Animated flow reads the colour every frame, so a solid colour applies
+// without reloading. Speed colours on top of speed shading would vanish into
+// the same palette, so choosing them switches the background to the map.
+export function onFlowColorChange(map, host, value) {
+  const previous = greatLakesFlowColor;
+  applyFlowColor(value);
+  try { localStorage.setItem(FLOW_COLOR_STORAGE_KEY, greatLakesFlowColor); } catch { /* storage unavailable */ }
+  const background = host.querySelector("[data-gl-current-background]");
+  let reload = greatLakesControlValue("current-display") === "arrows" && (previous === FLOW_COLOR_BY_SPEED) !== (greatLakesFlowColor === FLOW_COLOR_BY_SPEED);
+  if (greatLakesFlowColor === FLOW_COLOR_BY_SPEED && background?.value === "speed") {
+    background.value = "none";
+    storeCurrentBackground("none");
+    reload = true;
+  }
+  syncGreatLakesLayerControls(host);
+  if (reload) loadGreatLakesConditions(map);
+}
+
+export function renderGreatLakesConditionsHost() {
+  const host = document.querySelector("#greatLakesConditions");
+  if (host && !host.querySelector("[data-gl-layer]")) {
+    setHtml(host, greatLakesConditionsHtml());
+    syncGreatLakesLayerControls(host);
+  }
+  return host;
+}
+
+export function greatLakesModelsForView(map) {
   const view = map.getBounds();
   return Object.entries(GREAT_LAKES_MODEL_BOUNDS)
     .filter(([, [[south, west], [north, east]]]) => view.getNorth() >= south && view.getSouth() <= north && view.getEast() >= west && view.getWest() <= east)
     .map(([model]) => model);
 }
 
-function greatLakesControlValue(name) {
+export function greatLakesControlValue(name) {
   const control = document.querySelector(`[data-gl-${name}]`);
   if (name === "depth" && control) return String(greatLakesDepthFromSlider(control.value));
   return control ? control.value : (name === "layer" ? "" : "0");
 }
 
-function setGreatLakesStatus(message, error = false) {
+// The time the map shows: the animation frame on screen, otherwise the forecast choice ("Now" for a past hour; see greatLakesTimeParams).
+export function greatLakesForecastHour() {
+  if (greatLakesHistoryMode()) return "0";
+  return greatLakesAnimationForecastHour() ?? greatLakesControlValue("forecast");
+}
+
+// Saved past maps are surface only.
+export function greatLakesShownDepth() {
+  return greatLakesHistoryMode() ? "0" : greatLakesControlValue("depth");
+}
+
+export function setGreatLakesStatus(message, error = false) {
+  const loadingText = document.querySelector("[data-gl-map-loading-text]");
+  if (loadingText && !error) loadingText.textContent = message;
   const node = document.querySelector("[data-gl-status]");
   if (node) {
     node.textContent = message;
@@ -183,346 +701,1004 @@ function setGreatLakesStatus(message, error = false) {
   }
 }
 
-function setThermoclineLegendRange(metadata = {}) {
+export function setThermoclineLegendRange(metadata = {}) {
   const minimum = document.querySelector("[data-gl-thermocline-min]");
   const maximum = document.querySelector("[data-gl-thermocline-max]");
   if (minimum) minimum.textContent = greatLakesDepthValueLabel(Number(metadata.minDepthMeters));
   if (maximum) maximum.textContent = greatLakesDepthValueLabel(Number(metadata.maxDepthMeters));
 }
 
-function setTemperatureLegendRange(metadata = {}) {
+export function setTemperatureLegendRange(metadata = {}) {
   const minimum = document.querySelector("[data-gl-temperature-min]");
   const maximum = document.querySelector("[data-gl-temperature-max]");
   if (minimum) minimum.textContent = Number.isFinite(Number(metadata.minC)) ? waterTemperatureLabel(Number(metadata.minC)) : "—";
   if (maximum) maximum.textContent = Number.isFinite(Number(metadata.maxC)) ? waterTemperatureLabel(Number(metadata.maxC)) : "—";
 }
 
-function setCurrentLegendRange(metadata = {}) {
+export function setCurrentLegendRange(metadata = {}) {
   const minimum = document.querySelector("[data-gl-current-min]");
   const maximum = document.querySelector("[data-gl-current-max]");
   if (minimum) minimum.textContent = currentSpeedLabel(Number(metadata.minSpeedMetersPerSecond));
   if (maximum) maximum.textContent = currentSpeedLabel(Number(metadata.maxSpeedMetersPerSecond));
 }
 
-function renderGreatLakesTemperatureRasters(rasters, loadRevision) {
-  if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== "temperature") return;
-  rasters.forEach((raster) => L.imageOverlay(raster.imageUrl, raster.bounds, {
-    opacity: 0.72, interactive: false, className: "great-lakes-temperature-raster"
-  }).addTo(greatLakesConditionsLayer));
+export function setWaveLegendRange(metadata = {}) {
+  const minimum = document.querySelector("[data-gl-wave-min]");
+  const maximum = document.querySelector("[data-gl-wave-max]");
+  if (minimum) minimum.textContent = Number(metadata.minHeightMeters) > 0 ? waveHeightLabel(metadata.minHeightMeters) : "Calm";
+  if (maximum) maximum.textContent = waveHeightLabel(metadata.maxHeightMeters);
 }
 
-function renderGreatLakesThermoclineRasters(rasters, loadRevision) {
+// The layer's colours follow what is on screen (great-lakes-palette.js); null without a layer.
+export let greatLakesPaletteFit = null;
+
+// Legends, flow colours, and station dots follow the colour range on screen.
+export function showPaletteRange(kind, low, high) {
+  if (kind === "temperature") setTemperatureLegendRange({ minC: low, maxC: high });
+  else if (kind === "thermocline") setThermoclineLegendRange({ minDepthMeters: low, maxDepthMeters: high });
+  else if (kind === "waves") setWaveLegendRange({ minHeightMeters: low, maxHeightMeters: high });
+  else if (kind === "upwelling") { /* fixed colours: the legend never changes */ }
+  else {
+    setCurrentLegendRange({ minSpeedMetersPerSecond: low, maxSpeedMetersPerSecond: high });
+    setCurrentSpeedMax({ maxSpeedMetersPerSecond: high });
+  }
+  document.dispatchEvent(new CustomEvent("great-lakes-palette-range", { detail: { kind, minimum: low, maximum: high, depth: Number(greatLakesShownDepth()) || 0 } }));
+}
+
+export function stopPaletteFit() {
+  greatLakesPaletteFit?.stop();
+  greatLakesPaletteFit = null;
+}
+
+// A layer's lake images, coloured to fit what is on screen.
+function drawPaletteRasters(rasters, kind, options) {
+  stopPaletteFit();
+  const filter = createPaletteFilter();
+  paletteOverlays(rasters, filter, { ...options, interactive: false }).forEach((overlay) => overlay.addTo(greatLakesConditionsLayer));
+  greatLakesPaletteFit = fitPaletteToView(greatLakesConditionsLayer._map, [rasters], kind, filter, (low, high) => showPaletteRange(kind, low, high));
+}
+
+export function renderGreatLakesWaveRasters(rasters, loadRevision) {
+  if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== "waves") return;
+  drawPaletteRasters(rasters, "waves", { opacity: 0.86, className: "great-lakes-wave-raster" });
+}
+
+// About one arrow per this many screen pixels, whatever the zoom.
+export const WAVE_ARROW_SPACING_PX = 54;
+
+// Keep the arrow nearest each screen cell's centre so spacing stays even.
+export function thinWaveArrows(arrows, project, bounds, spacing = WAVE_ARROW_SPACING_PX) {
+  const chosen = new Map();
+  arrows.forEach((arrow) => {
+    if (bounds && !bounds.contains([arrow.latitude, arrow.longitude])) return;
+    const point = project(arrow);
+    const column = Math.floor(point.x / spacing), row = Math.floor(point.y / spacing);
+    const key = `${column}:${row}`;
+    const offset = Math.hypot(point.x - (column + 0.5) * spacing, point.y - (row + 0.5) * spacing);
+    const existing = chosen.get(key);
+    if (!existing || offset < existing.offset) chosen.set(key, { arrow, offset });
+  });
+  return [...chosen.values()].map((item) => item.arrow);
+}
+
+export function createWaveArrowLayer(map, arrows) {
+  const group = L.layerGroup();
+  let opacity = 1;
+  const draw = () => {
+    group.clearLayers();
+    const bounds = map.getBounds().pad(0.1);
+    const zoom = map.getZoom();
+    thinWaveArrows(arrows, (arrow) => map.project([arrow.latitude, arrow.longitude], zoom), bounds).forEach((arrow) => {
+      const size = Math.round(Math.max(16, Math.min(34, 16 + arrow.heightMeters * 7)));
+      const icon = L.divIcon({
+        className: "great-lakes-wave-arrow",
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        html: html`<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="transform:rotate(${Math.round(waveTravelDegrees(arrow.directionDegrees))}deg)" aria-hidden="true"><path d="M12 2.5 18.5 11h-4.2v10.5H9.7V11H5.5Z"/></svg>`
+      });
+      L.marker([arrow.latitude, arrow.longitude], { icon, interactive: false, keyboard: false, opacity }).addTo(group);
+    });
+  };
+  const originalOnAdd = group.onAdd.bind(group);
+  const originalOnRemove = group.onRemove.bind(group);
+  group.onAdd = (target) => {
+    originalOnAdd(target);
+    draw();
+    map.on("zoomend moveend", draw);
+  };
+  group.onRemove = (target) => {
+    map.off("zoomend moveend", draw);
+    originalOnRemove(target);
+  };
+  group.setOpacity = (value) => {
+    opacity = Math.max(0, Math.min(1, Number(value) || 0));
+    group.eachLayer((marker) => marker.setOpacity(opacity));
+    return group;
+  };
+  return group;
+}
+
+export function renderGreatLakesTemperatureRasters(rasters, loadRevision, expectedLayer = "temperature") {
+  if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== expectedLayer) return;
+  drawPaletteRasters(rasters, "temperature", { opacity: 0.9, className: "great-lakes-temperature-raster" });
+}
+
+export function renderGreatLakesUpwellingRasters(rasters, loadRevision) {
+  if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== "upwelling") return;
+  drawPaletteRasters(rasters, "upwelling", { opacity: 0.88, className: "great-lakes-upwelling-raster" });
+}
+
+// "Strong upwelling": its score in °F (how much colder or warmer, see the server's upwelling.py) in words.
+export function upwellingStrengthLabel(strengthF) {
+  const strength = strengthF === null || strengthF === undefined ? Number.NaN : Number(strengthF);
+  if (!Number.isFinite(strength)) return "";
+  return strength >= 6 ? "Strong" : strength >= 4 ? "Moderate" : "Weak";
+}
+
+// "3.2 °F colder", "1.1 °F warmer": a temperature difference in the chosen unit.
+export function temperatureDifferenceLabel(differenceC, colder = "colder", warmer = "warmer") {
+  const difference = Number(differenceC);
+  if (!Number.isFinite(difference)) return "";
+  const unit = typeof unitPreference === "function" && unitPreference("waterTemperature") === "C" ? "C" : "F";
+  const shown = Math.abs(unit === "F" ? difference * 1.8 : difference);
+  if (shown < 0.05) return "No change";
+  return `${shown.toFixed(1)} °${unit} ${difference < 0 ? colder : warmer}`;
+}
+
+export function upwellingReading(value) {
+  const kind = value.kind;
+  const rows = [
+    Number.isFinite(value.surfaceC) ? ["Surface temperature", waterTemperatureLabel(value.surfaceC)] : null,
+    Number.isFinite(value.surfaceC) && Number.isFinite(value.surroundingC) ? ["Than water nearby", temperatureDifferenceLabel(value.surfaceC - value.surroundingC)] : null,
+    Number.isFinite(value.change24hC) ? ["Since yesterday", temperatureDifferenceLabel(value.change24hC, "cooler", "warmer")] : null,
+    Number.isFinite(value.thermoclineShiftMeters) && Math.abs(value.thermoclineShiftMeters) >= 1.5
+      ? ["Thermocline", `${greatLakesDepthLabel(Math.abs(value.thermoclineShiftMeters))} ${value.thermoclineShiftMeters > 0 ? "deeper" : "shallower"} than nearby`] : null
+  ];
+  return {
+    label: kind === "upwelling" ? "Upwelling" : kind === "downwelling" ? "Downwelling" : "Upwelling & downwelling",
+    value: kind ? upwellingStrengthLabel(value.strengthF) : "None",
+    note: kind === "upwelling" ? "Cold water rising from below" : kind === "downwelling" ? "Warm surface water piled up" : value.openWater === false ? `Too shallow to tell (under ${greatLakesDepthLabel(10)})` : "",
+    rows
+  };
+}
+
+export function renderGreatLakesThermoclineRasters(rasters, loadRevision) {
   if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== "thermocline") return;
-  rasters.forEach((raster) => L.imageOverlay(raster.imageUrl, raster.bounds, {
-    opacity: 0.78, interactive: false, className: "great-lakes-thermocline-raster"
-  }).addTo(greatLakesConditionsLayer));
+  drawPaletteRasters(rasters, "thermocline", { opacity: 0.88, className: "great-lakes-thermocline-raster" });
 }
 
-function clearGreatLakesVisuals() {
+export function renderGreatLakesCurrentRasters(rasters, loadRevision) {
+  if (loadRevision !== greatLakesLoadRevision || greatLakesControlValue("layer") !== "currents") return;
+  drawPaletteRasters(rasters, "currents", { opacity: 0.8, className: "great-lakes-current-raster" });
+}
+
+export function clearGreatLakesVisuals() {
+  stopPaletteFit();
+  clearGreatLakesAnimationVisuals();
   greatLakesParticleLayer?.remove();
   greatLakesParticleLayer = null;
+  greatLakesWaveArrowLayer?.remove();
+  greatLakesWaveArrowLayer = null;
   greatLakesConditionsLayer.clearLayers();
-  document.querySelectorAll(".great-lakes-temperature-raster, .great-lakes-thermocline-raster").forEach((image) => image.remove());
+  document.querySelectorAll(".great-lakes-temperature-raster, .great-lakes-thermocline-raster, .great-lakes-current-raster, .great-lakes-wave-raster").forEach((image) => image.remove());
 }
 
-function renderGreatLakesCurrents(points, zoom) {
+export function renderGreatLakesCurrents(points, zoom, target = greatLakesConditionsLayer, opacity = 1) {
   const stride = zoom <= 5 ? 12 : zoom <= 7 ? 8 : zoom <= 9 ? 5 : 3;
+  const bySpeed = greatLakesFlowColor === FLOW_COLOR_BY_SPEED;
   points.filter((_, index) => index % stride === 0).forEach((point) => {
-    const size = Math.max(12, Math.min(28, 12 + point.speed * 55));
-    const icon = L.divIcon({ className: "great-lakes-current-arrow", iconSize: [size, size], iconAnchor: [size / 2, size / 2], html: `<span style="font-size:${size}px;transform:rotate(${point.direction - 90}deg)">➤</span>` });
-    L.marker([point.latitude, point.longitude], { icon, interactive: false, keyboard: false }).addTo(greatLakesConditionsLayer);
+    const size = Math.round(Math.max(14, Math.min(30, 14 + point.speed * 50)));
+    const fill = bySpeed ? `;fill:${paletteColor(point.speed / greatLakesCurrentSpeedMax, CURRENT_FLOW_SPEED_COLOR_STOPS)}` : "";
+    const icon = L.divIcon({ className: "great-lakes-current-arrow", iconSize: [size, size], iconAnchor: [size / 2, size / 2], html: html`<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="transform:rotate(${Math.round(point.direction)}deg)${fill}" aria-hidden="true"><path d="M12 2.5 19 20.5 12 16.2 5 20.5Z"/></svg>` });
+    L.marker([point.latitude, point.longitude], { icon, interactive: false, keyboard: false, opacity }).addTo(target);
   });
 }
 
-function currentColor(speed) {
-  return speed < 0.08 ? "#a3e635" : speed < 0.22 ? "#facc15" : speed < 0.45 ? "#fb923c" : "#ec4899";
+// Mirror TEMPERATURE_COLOR_STOPS / CURRENT_SPEED_COLOR_STOPS in backend/great_lakes_render.py.
+export const TEMPERATURE_COLOR_STOPS = [
+  [0, [58, 40, 168]], [0.13, [36, 92, 226]], [0.27, [14, 152, 242]], [0.4, [12, 204, 222]],
+  [0.53, [34, 208, 136]], [0.66, [150, 222, 48]], [0.78, [252, 218, 36]], [0.89, [252, 140, 28]], [1, [228, 40, 52]]
+];
+export const CURRENT_SPEED_COLOR_STOPS = [
+  [0, [22, 58, 128]], [0.22, [40, 92, 178]], [0.45, [98, 70, 186]],
+  [0.68, [172, 60, 170]], [0.86, [232, 86, 118]], [1, [252, 158, 72]]
+];
+export const CURRENT_COLOR_MAX_METERS_PER_SECOND = 0.5;
+// Speed-coloured flow lines: brighter than the speed shading so slow (most)
+// water is still visible over the map and over temperature colours.
+export const CURRENT_FLOW_SPEED_COLOR_STOPS = [
+  [0, [125, 225, 255]], [0.25, [70, 232, 160]], [0.5, [250, 232, 60]], [0.75, [255, 146, 40]], [1, [255, 56, 96]]
+];
+// Speed-coloured flow uses the loaded layer's legend range so lines match it.
+export let greatLakesCurrentSpeedMax = CURRENT_COLOR_MAX_METERS_PER_SECOND;
+export const SPEED_FLOW_COLOR_BINS = 10;
+
+export function paletteRgb(position, stops) {
+  const clamped = Math.max(0, Math.min(1, Number(position) || 0));
+  const upper = stops.findIndex(([stop]) => clamped <= stop);
+  const [highStop, highColor] = stops[Math.max(0, upper)];
+  const [lowStop, lowColor] = stops[Math.max(0, upper - 1)];
+  const fraction = highStop === lowStop ? 0 : (clamped - lowStop) / (highStop - lowStop);
+  return lowColor.map((channel, index) => Math.round(channel + (highColor[index] - channel) * fraction)).join(", ");
 }
 
-function currentDirectionLabel(degrees) {
+export function paletteColor(position, stops) {
+  return `rgb(${paletteRgb(position, stops)})`;
+}
+
+export function setCurrentSpeedMax(metadata = {}) {
+  const maximum = Number(metadata.maxSpeedMetersPerSecond);
+  greatLakesCurrentSpeedMax = Number.isFinite(maximum) && maximum > 0 ? maximum : CURRENT_COLOR_MAX_METERS_PER_SECOND;
+}
+
+// Palette bin for a speed: lines are drawn in a few batches, one per bin.
+export function speedColorBin(speed, maximum = greatLakesCurrentSpeedMax, bins = SPEED_FLOW_COLOR_BINS) {
+  return Math.max(0, Math.min(bins - 1, Math.floor((Number(speed) || 0) / maximum * bins)));
+}
+
+export function speedBinColors(bins = SPEED_FLOW_COLOR_BINS) {
+  return Array.from({ length: bins }, (_, bin) => paletteRgb((bin + 0.5) / bins, CURRENT_FLOW_SPEED_COLOR_STOPS));
+}
+
+export function currentColor(speed) {
+  return paletteColor((Number(speed) || 0) / CURRENT_COLOR_MAX_METERS_PER_SECOND, CURRENT_SPEED_COLOR_STOPS);
+}
+
+export function currentDirectionLabel(degrees) {
   const points = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
   return points[Math.round(degrees / 22.5) % points.length];
 }
 
-function currentProfileDepthLabel(meters) {
+export function currentProfileDepthLabel(meters) {
   if (meters <= 0.25) return "Surface";
   return typeof formatUnitValue === "function"
     ? formatUnitValue(meters, "depth", "m", { decimals: meters < 10 ? 1 : 0 })
     : `${meters.toFixed(meters < 10 ? 1 : 0)} m`;
 }
 
-function currentProfileHtml(profile, selectedDepthMeters) {
+export function currentProfileHtml(profile, selectedDepthMeters) {
   const values = (profile.values || []).filter((value) => [value.depthMeters, value.speedMetersPerSecond, value.directionDegrees].every(Number.isFinite));
-  if (!values.length) return `<p class="great-lakes-current-empty">No current profile is available at this point. Try another point on the lake.</p>`;
+  if (!values.length) return html`<p class="great-lakes-current-empty">No current profile is available at this point. Try another point on the lake.</p>`;
   const selectedDepth = Number(selectedDepthMeters) || 0;
   const closest = values.reduce((best, value, index) => Math.abs(value.depthMeters - selectedDepth) < Math.abs(values[best].depthMeters - selectedDepth) ? index : best, 0);
   const maximumSpeed = Math.max(...values.map((value) => value.speedMetersPerSecond), 0.01);
-  const time = profile.validTime && !Number.isNaN(Date.parse(profile.validTime)) ? new Date(profile.validTime).toLocaleString() : "unavailable";
+  const time = profile.historyTime ? historyTimeLabel(profile.validTime || profile.historyTime) : friendlyTime(profile.validTime);
   const distance = Number.isFinite(profile.sampleDistanceKm) ? ` · Model point ${profile.sampleDistanceKm.toFixed(1)} km away` : "";
-  const rows = values.map((value, index) => {
+  const rows = joinHtml(values.map((value, index) => {
     const speed = value.speedMetersPerSecond;
     const bearing = Math.round(value.directionDegrees) % 360;
     const direction = speed < 0.001 ? "Still" : `Toward ${currentDirectionLabel(value.directionDegrees)} · ${bearing}°`;
     const width = speed ? Math.max(3, speed / maximumSpeed * 100) : 0;
-    const arrow = speed < 0.001 ? "" : `<svg viewBox="0 0 20 20" aria-hidden="true" style="transform:rotate(${bearing}deg)"><path d="M10 17V3m0 0L5 8m5-5 5 5" /></svg>`;
-    return `<div class="great-lakes-current-row${index === closest ? " is-closest" : ""}" role="listitem" aria-label="${currentProfileDepthLabel(value.depthMeters)}: ${currentSpeedLabel(speed)}, ${direction}">
+    const arrow = speed < 0.001 ? "" : html`<svg viewBox="0 0 20 20" aria-hidden="true" style="transform:rotate(${bearing}deg)"><path d="M10 17V3m0 0L5 8m5-5 5 5" /></svg>`;
+    return html`<div class="great-lakes-current-row${index === closest ? " is-closest" : ""}" role="listitem" aria-label="${currentProfileDepthLabel(value.depthMeters)}: ${currentSpeedLabel(speed)}, ${direction}">
       <span class="great-lakes-current-depth">${currentProfileDepthLabel(value.depthMeters)}</span>
       <span class="great-lakes-current-track" aria-hidden="true"><i style="width:${width}%;background:${currentColor(speed)}"></i></span>
       <strong>${currentSpeedLabel(speed)}</strong>
-      <span class="great-lakes-current-direction">${arrow}${direction}</span>
+      <span class="great-lakes-current-direction">${arrow}${speed < 0.001 ? "Still" : html`<span><span class="great-lakes-current-toward">Toward </span>${currentDirectionLabel(value.directionDegrees)} <small>${bearing}°</small></span>`}</span>
     </div>`;
-  }).join("");
-  return `<p class="great-lakes-current-meta">NOAA model forecast valid ${time}${distance}</p>
+  }), "");
+  const source = profile.historyTime ? "Saved NOAA conditions" : "NOAA forecast";
+  const surfaceOnly = profile.surfaceOnly ? " · Surface only for past hours" : "";
+  return html`<p class="great-lakes-current-meta">${time ? `${source} for ${time}` : source}${distance}${surfaceOnly}</p>
     <div class="great-lakes-current-chart" role="list" aria-label="Current speed and direction by depth">${rows}</div>`;
 }
 
-async function showGreatLakesCurrentProfile({ latitude, longitude }) {
+export async function showGreatLakesCurrentProfile({ latitude, longitude }) {
   document.querySelector(".great-lakes-current-dialog")?.remove();
   const dialog = document.createElement("dialog");
   dialog.className = "great-lakes-current-dialog";
-  dialog.innerHTML = `<form method="dialog"><button class="icon-button" aria-label="Close current profile">×</button></form><h3>Underwater current by depth</h3><div data-gl-current-profile-content role="status">Loading NOAA current profile…</div>`;
+  setHtml(dialog, html`<form method="dialog"><button class="icon-button" aria-label="Close current profile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10m0-10L7 17"/></svg></button></form><h3>Underwater current by depth</h3><div data-gl-current-profile-content role="status">Loading NOAA current profile…</div>`);
   document.body.append(dialog);
   dialog.addEventListener("close", () => dialog.remove(), { once: true });
   dialog.showModal();
-  const selectedDepth = greatLakesControlValue("depth");
+  const selectedDepth = greatLakesShownDepth();
   try {
-    const profile = await window.noaaGreatLakesApi.currentProfile({ forecastHour: greatLakesControlValue("forecast"), latitude, longitude, models: greatLakesLoadedModelsKey });
+    const profile = await window.noaaGreatLakesApi.currentProfile({ forecastHour: greatLakesForecastHour(), latitude, longitude, models: greatLakesLoadedModelsKey, ...greatLakesTimeParams() });
     if (dialog.isConnected) {
       const content = dialog.querySelector("[data-gl-current-profile-content]");
       content.removeAttribute("role");
-      content.innerHTML = profile.available ? currentProfileHtml(profile, selectedDepth) : `<p class="great-lakes-current-empty">No current profile is available at this point. Try another point on the lake.</p>`;
+      setHtml(content, profile.available ? currentProfileHtml(profile, selectedDepth) : html`<p class="great-lakes-current-empty">No current profile is available at this point. Try another point on the lake.</p>`);
     }
   } catch {
     if (dialog.isConnected) dialog.querySelector("[data-gl-current-profile-content]").textContent = "NOAA current data is unavailable. Close this view and try again shortly.";
   }
 }
 
-async function greatLakesMapInspection({ latitude, longitude }) {
+export async function greatLakesMapInspection({ latitude, longitude }) {
   if (!greatLakesActiveLayer) return "";
-  if (greatLakesActiveLayer === "currents") {
-    return `<section class="map-overlay-reading"><strong>Underwater currents</strong><button class="great-lakes-profile-button" type="button" data-gl-current-profile-lat="${latitude}" data-gl-current-profile-lon="${longitude}">View current profile</button></section>`;
+  const depth = greatLakesShownDepth(), forecastHour = greatLakesForecastHour();
+  const models = greatLakesLoadedModelsKey, timeParams = greatLakesTimeParams();
+  const temperatureLabel = (value) => Number(value.depthMeters) > 0.25 ? `Temperature at ${greatLakesDepthLabel(Number(value.depthMeters))}` : "Surface temperature";
+  if (greatLakesActiveLayer === "upwelling") {
+    const value = await window.noaaGreatLakesApi.upwellingValue({ forecastHour, latitude, longitude, ...timeParams }).catch(() => null);
+    if (!value?.available) return value?.savedMapOnly ? readingHtml({ label: "Upwelling & downwelling", value: "Map only", note: "Past hours keep the map, not the readings behind it" }) : "";
+    return readingHtml({ ...upwellingReading(value), action: profileActionHtml(latitude, longitude) });
   }
-  const depth = greatLakesControlValue("depth"), forecastHour = greatLakesControlValue("forecast");
-  const resolution = 256, models = greatLakesLoadedModelsKey;
+  if (greatLakesActiveLayer === "waves") {
+    const value = await window.noaaGreatLakesApi.waveValue({ forecastHour, latitude, longitude, ...timeParams }).catch(() => null);
+    if (!value?.available) return "";
+    return readingHtml({
+      label: "Wave height",
+      value: waveHeightLabel(value.heightMeters),
+      note: waveChopLabel(value.heightMeters),
+      rows: [
+        ["Period", Number.isFinite(Number(value.periodSeconds)) ? `${Number(value.periodSeconds).toFixed(0)} s` : ""],
+        ["Coming from", Number.isFinite(Number(value.directionDegrees)) ? waveDirectionText(value.directionDegrees).replace(/^From /, "") : ""]
+      ]
+    });
+  }
+  if (greatLakesActiveLayer === "currents") {
+    const wantsTemperature = greatLakesControlValue("current-background") === "temperature";
+    const [current, temperatureValue] = await Promise.all([
+      window.noaaGreatLakesApi.currentProfile({ forecastHour, latitude, longitude, models, ...timeParams }).catch(() => null),
+      wantsTemperature ? window.noaaGreatLakesApi.temperatureValue({ forecastHour, depth, resolution: CURRENT_BACKGROUND_RESOLUTION, latitude, longitude, models, ...timeParams }).catch(() => null) : null
+    ]);
+    const values = current?.available ? (current.values || []).filter((value) => Number.isFinite(value.speedMetersPerSecond)) : [];
+    if (!values.length) return "";
+    const selected = values.reduce((best, value) => Math.abs(value.depthMeters - Number(depth)) < Math.abs(best.depthMeters - Number(depth)) ? value : best, values[0]);
+    const speed = selected.speedMetersPerSecond;
+    const still = speed < 0.001;
+    return readingHtml({
+      label: Number(selected.depthMeters) > 0.25 ? `Current at ${currentProfileDepthLabel(selected.depthMeters)}` : "Surface current",
+      value: currentSpeedLabel(speed),
+      icon: still ? "" : directionIconHtml(selected.directionDegrees),
+      note: still ? "Still" : `Toward ${currentDirectionLabel(selected.directionDegrees)} · ${Math.round(selected.directionDegrees) % 360}°`,
+      rows: [temperatureValue?.available ? [temperatureLabel(temperatureValue), waterTemperatureLabel(temperatureValue.temperatureC)] : null],
+      action: currentProfileActionHtml(latitude, longitude)
+    });
+  }
+  const resolution = GREAT_LAKES_LAYER_RESOLUTION;
   try {
     if (greatLakesActiveLayer === "thermocline") {
-      const profile = await window.noaaGreatLakesApi.profile({ forecastHour, latitude, longitude, models });
-      if (!profile?.thermocline) return "";
-      return `<section class="map-overlay-reading"><strong>Thermocline depth</strong><span>${greatLakesDepthLabel(Number(profile.thermocline.depthMeters))}</span><button class="great-lakes-profile-button" type="button" data-gl-profile-lat="${latitude}" data-gl-profile-lon="${longitude}">View water-column profile</button></section>`;
+      const profile = await window.noaaGreatLakesApi.profile({ forecastHour, latitude, longitude, models, ...timeParams });
+      if (!profile?.available) return "";
+      const surface = (profile.values || [])[0];
+      const band = thermoclineBand(profile.thermocline);
+      return readingHtml({
+        label: "Thermocline",
+        value: band ? greatLakesDepthLabel(band.top) : "None",
+        note: band ? `Down to ${greatLakesDepthLabel(band.bottom)} · ${thicknessLabel(band)}` : profile.noThermocline === "gradual" ? "" : "Mixed top to bottom",
+        rows: [surface ? ["Surface temperature", waterTemperatureLabel(surface.temperatureC)] : null],
+        action: profileActionHtml(latitude, longitude)
+      });
     }
     const [value, profile] = await Promise.all([
-      window.noaaGreatLakesApi.temperatureValue({ forecastHour, depth, resolution, latitude, longitude, models }),
-      window.noaaGreatLakesApi.profile({ forecastHour, latitude, longitude, models }).catch(() => null)
+      window.noaaGreatLakesApi.temperatureValue({ forecastHour, depth, resolution, latitude, longitude, models, ...timeParams }),
+      window.noaaGreatLakesApi.profile({ forecastHour, latitude, longitude, models, ...timeParams }).catch(() => null)
     ]);
     if (!value.available) return "";
-    const thermocline = profile?.thermocline ? `<div class="map-water-reading-row"><span>Thermocline depth</span><strong>${greatLakesDepthLabel(Number(profile.thermocline.depthMeters))}</strong></div>` : "";
-    return `<section class="map-overlay-reading map-water-reading"><strong class="map-water-reading-heading">Water</strong><div class="map-water-reading-row"><span>Temperature</span><strong>${waterTemperatureLabel(value.temperatureC)}</strong></div>${thermocline}<button class="great-lakes-profile-button" type="button" data-gl-profile-lat="${latitude}" data-gl-profile-lon="${longitude}">View water-column profile</button></section>`;
+    return readingHtml({
+      label: temperatureLabel(value),
+      value: waterTemperatureLabel(value.temperatureC),
+      rows: [profile?.available ? ["Thermocline", thermoclineRangeLabel(profile.thermocline, profile.noThermocline)] : null],
+      action: profileActionHtml(latitude, longitude)
+    });
   } catch { return ""; }
 }
 
-function temperatureProfileDialog(profile, depthScale = "", depthLimitMeters = null) {
-  const allValues = profile.values || [];
-  const availableMaximumDepth = Math.max(...allValues.map((item) => item.depthMeters), 1);
-  const requestedMaximumDepth = Number(depthLimitMeters);
-  const hasDepthLimit = depthLimitMeters !== null && depthLimitMeters !== undefined && Number.isFinite(requestedMaximumDepth);
-  const plottedMaximumDepth = hasDepthLimit ? Math.min(Math.max(requestedMaximumDepth, 0), availableMaximumDepth) : availableMaximumDepth;
-  const values = allValues.filter((item) => item.depthMeters <= plottedMaximumDepth);
-  const width = 780, height = 680;
-  const chart = { top: 12, right: 108, bottom: 72, left: 108 };
-  const plotWidth = width - chart.left - chart.right;
-  const plotHeight = height - chart.top - chart.bottom;
-  const temperatureUnit = typeof unitPreference === "function" ? unitPreference("waterTemperature") : "C";
-  const plotTemperature = (temperatureC) => typeof convertUnitValue === "function" ? convertUnitValue(temperatureC, "C", temperatureUnit) : temperatureC;
-  const maxDepth = plottedMaximumDepth, minTemp = Math.min(...values.map((item) => plotTemperature(item.temperatureC))), maxTemp = Math.max(...values.map((item) => plotTemperature(item.temperatureC)));
-  const logarithmicDepth = depthScale === "logarithmic" || (!depthScale && maxDepth >= 100);
-  const x = (temp) => chart.left + ((temp - minTemp) / Math.max(maxTemp - minTemp, 0.1)) * plotWidth;
-  const y = (depth) => chart.top + (logarithmicDepth ? Math.log1p(depth) / Math.log1p(maxDepth) : depth / maxDepth) * plotHeight;
-  const line = values.map((item) => `${x(plotTemperature(item.temperatureC))},${y(item.depthMeters)}`).join(" ");
-  const depthTicks = logarithmicDepth ? [0, 1, 2, 5, 10, 20, 50, 100, 200, 500, maxDepth].filter((value, index, list) => value <= maxDepth && list.indexOf(value) === index) : Array.from({ length: 9 }, (_, index) => maxDepth * index / 8);
-  const tickMarkup = depthTicks.map((depth) => `<line x1="${chart.left}" y1="${y(depth)}" x2="${width - chart.right}" y2="${y(depth)}" stroke-opacity=".22"/><text x="${chart.left - 10}" y="${y(depth) + 4}" text-anchor="end">${greatLakesDepthAxisTick(depth)}</text>`).join("");
-  const temperatureTicks = Array.from({ length: 7 }, (_, index) => minTemp + (maxTemp - minTemp) * index / 6);
-  const temperatureTickMarkup = temperatureTicks.map((temp) => `<line x1="${x(temp)}" y1="${chart.top}" x2="${x(temp)}" y2="${height - chart.bottom}" stroke-opacity=".14"/><text x="${x(temp)}" y="${height - 22}" text-anchor="middle">${temp.toFixed(1)}°</text>`).join("");
-  const thermo = profile.thermocline;
-  const thermoText = thermo ? `<section class="great-lakes-thermocline"><strong>Estimated thermocline</strong><span>${greatLakesDepthLabel(thermo.depthMeters)} · ${thermo.gradientCPerMeter.toFixed(2)} °C/m</span><small>${thermo.temperatureAboveC.toFixed(1)} °C above → ${thermo.temperatureBelowC.toFixed(1)} °C below (${greatLakesDepthLabel(thermo.shallowerDepthMeters)}–${greatLakesDepthLabel(thermo.deeperDepthMeters)})</small></section>` : "";
-  return `<dialog class="great-lakes-profile-dialog"><form method="dialog"><button class="icon-button" aria-label="Close">×</button></form><h3>Water-column temperature</h3><p>${new Date(profile.validTime).toLocaleString()}</p><svg viewBox="0 0 ${width} ${height}" data-plot-top="${chart.top}" data-plot-right="${chart.right}" data-plot-bottom="${chart.bottom}" data-plot-left="${chart.left}" role="img" aria-label="Temperature by depth"><line x1="${chart.left}" y1="${chart.top}" x2="${chart.left}" y2="${height - chart.bottom}"/><line x1="${chart.left}" y1="${height - chart.bottom}" x2="${width - chart.right}" y2="${height - chart.bottom}"/>${tickMarkup}${temperatureTickMarkup}<polyline points="${line}" fill="none" stroke="#22c55e" stroke-width="4"/>${values.map((item) => `<circle cx="${x(item.temperatureC)}" cy="${y(item.depthMeters)}" r="4" fill="#f8fafc" stroke="#22c55e" stroke-width="2.5"/>`).join("")}<text x="18" y="${height / 2}" text-anchor="middle" transform="rotate(-90 18 ${height / 2})">Depth (${greatLakesDepthAxisUnit()})</text><text x="${width / 2}" y="${height - 6}" text-anchor="middle">Temperature (°C)</text></svg>${thermoText}</dialog>`;
+// "55–66 ft" for a card row; "None (mixed)" or "None" without a thermocline.
+export function thermoclineRangeLabel(thermocline, noThermocline) {
+  return depthRangeLabel(thermoclineBand(thermocline)) || (noThermocline === "gradual" ? "None" : "None (mixed)");
 }
 
-function showTemperatureProfileDialog(profile, depthScale = greatLakesProfileDepthScale, depthLimitMeters = greatLakesProfileDepthLimit) {
-  greatLakesProfileData = profile;
-  greatLakesProfileDepthScale = depthScale;
-  greatLakesProfileDepthLimit = depthLimitMeters !== null && depthLimitMeters !== undefined && Number.isFinite(Number(depthLimitMeters)) ? Number(depthLimitMeters) : null;
-  document.querySelector(".great-lakes-profile-dialog")?.remove();
-  document.body.insertAdjacentHTML("beforeend", temperatureProfileDialog(profile, depthScale, greatLakesProfileDepthLimit));
-  const dialog = document.querySelector(".great-lakes-profile-dialog");
-  const thermocline = profile.thermocline;
-  const thermoclineSummary = dialog.querySelector(".great-lakes-thermocline");
-  if (thermocline && thermoclineSummary) {
-    const summary = thermoclineSummary.querySelector("span");
-    const details = thermoclineSummary.querySelector("small");
-    if (summary) summary.textContent = `${greatLakesDepthLabel(thermocline.depthMeters)} · ${thermoclineGradientLabel(thermocline.gradientCPerMeter)}`;
-    if (details) details.textContent = `${waterTemperatureLabel(thermocline.temperatureAboveC)} above → ${waterTemperatureLabel(thermocline.temperatureBelowC)} below (${greatLakesDepthLabel(thermocline.shallowerDepthMeters)}–${greatLakesDepthLabel(thermocline.deeperDepthMeters)})`;
-    thermoclineSummary.insertAdjacentHTML("beforeend", "<small>Best estimate based on limited available model data.</small>");
+export const CURRENT_TRAIL_SEGMENTS = 12;
+export const CURRENT_TRAIL_POINT_FRAMES = 2.5;
+// Particles per 1280×800 px of map; scaled with the visible area.
+export const CURRENT_PARTICLE_DENSITY = { low: 350, medium: 850, high: 1600 };
+
+// These small transparent NOAA bathymetry previews double as a shoreline mask
+// for wave flow. Keep their bounds aligned with the images used on the map.
+const WAVE_SHORELINE_MASKS = [
+  { url: "/static/data/bathymetry/wave-mask/lake-erie.webp", bounds: [[41.0, -84.0008333333333], [43.0008333332533, -78.00000000024001]] },
+  { url: "/static/data/bathymetry/wave-mask/lake-huron.webp", bounds: [[43.0, -84.5008333333333], [46.5008333331933, -79.6800000001928]] },
+  { url: "/static/data/bathymetry/wave-mask/lake-michigan.webp", bounds: [[41.62, -88.0008333333333], [46.0908333331545, -84.50000000014]] },
+  { url: "/static/data/bathymetry/wave-mask/lake-ontario.webp", bounds: [[43.15, -79.90083333333331], [44.2508333332893, -76.05000000015401]] },
+  { url: "/static/data/bathymetry/wave-mask/lake-superior.webp", bounds: [[46.0, -92.2008333333333], [49.5008333331933, -84.000000000328]] }
+];
+
+export function decodeGreatLakesWaterMask(mask) {
+  if (!mask?.bits || !(mask.rows > 1) || !(mask.columns > 1)) return null;
+  const binary = atob(mask.bits);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  const rowStep = (mask.latitudeEnd - mask.latitudeStart) / (mask.rows - 1);
+  const columnStep = (mask.longitudeEnd - mask.longitudeStart) / (mask.columns - 1);
+  return (latitude, longitude) => {
+    const row = Math.round((latitude - mask.latitudeStart) / rowStep);
+    const column = Math.round((longitude - mask.longitudeStart) / columnStep);
+    if (row < 0 || row >= mask.rows || column < 0 || column >= mask.columns) return false;
+    const index = row * mask.columns + column;
+    return Boolean((bytes[index >> 3] >> (index & 7)) & 1);
+  };
+}
+
+export function createCurrentFieldSampler(fields, isAllowedPoint = null) {
+  if (fields[0]?.points) {
+    const points = fields.flatMap((field) => field.points);
+    const buckets = new Map();
+    for (const point of points) {
+      const key = `${Math.floor(point.latitude / 0.1)}:${Math.floor(point.longitude / 0.15)}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(point);
+    }
+    return (latitude, longitude) => {
+      if (isAllowedPoint && !isAllowedPoint(latitude, longitude)) return null;
+      let best = null, bestDistance = Infinity;
+      const row = Math.floor(latitude / 0.1), column = Math.floor(longitude / 0.15);
+      for (let y = row - 1; y <= row + 1; y += 1) for (let x = column - 2; x <= column + 2; x += 1) {
+        for (const point of buckets.get(`${y}:${x}`) || []) {
+          const dy = (point.latitude - latitude) * 111.2;
+          const dx = (point.longitude - longitude) * 111.2 * Math.cos(latitude * Math.PI / 180);
+          const distance = dx * dx + dy * dy;
+          if (distance < bestDistance) { best = point; bestDistance = distance; }
+        }
+      }
+      // Wave direction samples are about 10 km apart. Stop the field at its
+      // edge instead of letting particles cross large unsampled gaps.
+      return bestDistance <= 18 * 18 ? { u: best.u, v: best.v } : null;
+    };
   }
-  const profileUnit = typeof unitPreference === "function" ? unitPreference("waterTemperature") : "C";
-  const plottedValues = profile.values.filter((item) => greatLakesProfileDepthLimit == null || item.depthMeters <= greatLakesProfileDepthLimit);
-  const displayTemperatures = plottedValues.map((item) => typeof convertUnitValue === "function" ? convertUnitValue(item.temperatureC, "C", profileUnit) : item.temperatureC);
-  const minimumTemperature = Math.min(...displayTemperatures), maximumTemperature = Math.max(...displayTemperatures);
-  const availableMaximumDepthForPlot = Math.max(...profile.values.map((item) => item.depthMeters), 1);
-  const maximumDepth = greatLakesProfileDepthLimit == null ? availableMaximumDepthForPlot : Math.min(greatLakesProfileDepthLimit, availableMaximumDepthForPlot);
-  const useLogDepth = depthScale === "logarithmic" || (!depthScale && maximumDepth >= 100);
-  const svg = dialog.querySelector("svg");
-  const plotTop = Number(svg.dataset.plotTop), plotRight = Number(svg.dataset.plotRight), plotBottom = Number(svg.dataset.plotBottom), plotLeft = Number(svg.dataset.plotLeft);
-  const plotWidth = 780 - plotLeft - plotRight, plotHeight = 680 - plotTop - plotBottom;
-  dialog.querySelectorAll("svg circle").forEach((circle, index) => {
-    const point = plottedValues[index];
-    const displayTemperature = displayTemperatures[index];
-    const depthPosition = useLogDepth ? Math.log1p(point.depthMeters) / Math.log1p(maximumDepth) : point.depthMeters / maximumDepth;
-    circle.setAttribute("cx", plotLeft + ((displayTemperature - minimumTemperature) / Math.max(maximumTemperature - minimumTemperature, 0.1)) * plotWidth);
-    circle.setAttribute("cy", plotTop + depthPosition * plotHeight);
-    circle.classList.add("great-lakes-profile-point");
-    circle.dataset.glProfileTemperature = point.temperatureC;
-    circle.dataset.glProfileDepth = point.depthMeters;
-    circle.setAttribute("r", "6");
-    circle.setAttribute("tabindex", "0");
-    circle.setAttribute("role", "img");
-    const reading = `${waterTemperatureLabel(point.temperatureC)} at ${greatLakesDepthLabel(point.depthMeters)}`;
-    circle.setAttribute("aria-label", reading);
-    const tooltip = circle.querySelector("title") || document.createElementNS("http://www.w3.org/2000/svg", "title");
-    tooltip.textContent = reading;
-    if (!tooltip.parentNode) circle.append(tooltip);
+  const prepared = fields.map((field) => {
+    const ys = field.latitudeAxis, xs = field.longitudeAxis;
+    return {
+      field, ys, xs, isWater: decodeGreatLakesWaterMask(field.waterMask),
+      yMin: Math.min(ys[0], ys[ys.length - 1]), yMax: Math.max(ys[0], ys[ys.length - 1]),
+      xMin: Math.min(xs[0], xs[xs.length - 1]), xMax: Math.max(xs[0], xs[xs.length - 1])
+    };
   });
-  dialog.querySelector("svg text:last-of-type").textContent = `Temperature (°${profileUnit})`;
-  const axisLabels = dialog.querySelectorAll("svg text");
-  axisLabels[axisLabels.length - 2].textContent = `Depth (${greatLakesDepthAxisUnit()})`;
-  axisLabels[axisLabels.length - 1].textContent = `Temperature (°${profileUnit})`;
-  axisLabels[axisLabels.length - 1].setAttribute("y", "674");
-  const availableMaximumDepth = Math.max(...profile.values.map((item) => item.depthMeters), 1);
-  const linearRangeControl = depthScale === "linear" ? `<label class="great-lakes-profile-depth-range">Depth range <output data-gl-profile-depth-output>Surface–${greatLakesDepthLabel(maximumDepth)}</output><input type="range" data-gl-profile-depth-limit min="1" max="${Math.ceil(availableMaximumDepth)}" step="1" value="${Math.ceil(maximumDepth)}" aria-label="Linear plot maximum depth" /></label>` : "";
-  dialog.querySelector("p").insertAdjacentHTML("afterend", `<div class="great-lakes-profile-controls"><div class="great-lakes-profile-scale" role="group" aria-label="Depth scale"><button type="button" data-gl-profile-scale="linear" aria-pressed="${depthScale === "linear"}">Linear</button><button type="button" data-gl-profile-scale="logarithmic" aria-pressed="${depthScale === "logarithmic" || (!depthScale && Math.max(...profile.values.map((item) => item.depthMeters)) >= 100)}">Logarithmic</button></div>${linearRangeControl}</div>`);
-  dialog.showModal();
-}
-
-document.addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-gl-profile-lat]");
-  if (!button) return;
-  button.disabled = true;
-  button.textContent = "Loading profile…";
-  try {
-    const profile = await window.noaaGreatLakesApi.profile({ forecastHour: greatLakesControlValue("forecast"), latitude: button.dataset.glProfileLat, longitude: button.dataset.glProfileLon, models: greatLakesLoadedModelsKey });
-    if (!profile.available) throw new Error("Profile unavailable");
-    showTemperatureProfileDialog(profile);
-    button.textContent = "View water-column profile";
-  } catch { button.textContent = "Profile unavailable"; }
-  finally { button.disabled = false; }
-});
-
-document.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-gl-current-profile-lat]");
-  if (!button) return;
-  showGreatLakesCurrentProfile({
-    latitude: Number(button.dataset.glCurrentProfileLat),
-    longitude: Number(button.dataset.glCurrentProfileLon)
-  });
-});
-
-document.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-gl-profile-scale]");
-  if (button && greatLakesProfileData) showTemperatureProfileDialog(greatLakesProfileData, button.dataset.glProfileScale, null);
-});
-
-document.addEventListener("input", (event) => {
-  const slider = event.target.closest("[data-gl-profile-depth-limit]");
-  if (!slider) return;
-  const output = slider.closest(".great-lakes-profile-depth-range")?.querySelector("[data-gl-profile-depth-output]");
-  if (output) output.textContent = `Surface–${greatLakesDepthLabel(Number(slider.value))}`;
-});
-
-document.addEventListener("change", (event) => {
-  const slider = event.target.closest("[data-gl-profile-depth-limit]");
-  if (slider && greatLakesProfileData) showTemperatureProfileDialog(greatLakesProfileData, "linear", Number(slider.value));
-});
-
-document.addEventListener("click", (event) => {
-  const point = event.target.closest(".great-lakes-profile-point");
-  if (!point) return;
-  const dialog = point.closest(".great-lakes-profile-dialog");
-  dialog.querySelector(".great-lakes-profile-point-reading")?.remove();
-  dialog.querySelector("svg").insertAdjacentHTML("afterend", `<p class="great-lakes-profile-point-reading">${waterTemperatureLabel(Number(point.dataset.glProfileTemperature))} at ${greatLakesDepthLabel(Number(point.dataset.glProfileDepth))}</p>`);
-});
-
-function createParticleLayer(map, fields) {
-  const canvas = L.DomUtil.create("canvas", "great-lakes-current-flow leaflet-layer");
-  const ctx = canvas.getContext("2d");
-  const particles = [];
-  let frame = null, last = 0, active = true;
-  const density = { low: 350, medium: 900, high: 1700 }[greatLakesControlValue("density")] || 900;
-  const speedScale = { slow: 0.55, normal: 1, fast: 1.8 }[greatLakesControlValue("animation-speed")] || 1;
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  function resize() { const size = map.getSize(); const ratio = window.devicePixelRatio || 1; const origin = map.containerPointToLayerPoint([0, 0]); L.DomUtil.setPosition(canvas, origin); canvas.width = size.x * ratio; canvas.height = size.y * ratio; canvas.style.width = `${size.x}px`; canvas.style.height = `${size.y}px`; ctx.setTransform(ratio, 0, 0, ratio, 0, 0); ctx.clearRect(0, 0, size.x, size.y); }
-  function sample(lat, lon) {
-    for (const field of fields) {
-      const ys = field.latitudeAxis, xs = field.longitudeAxis;
-      const yMin = Math.min(ys[0], ys[ys.length - 1]), yMax = Math.max(ys[0], ys[ys.length - 1]);
-      const xMin = Math.min(xs[0], xs[xs.length - 1]), xMax = Math.max(xs[0], xs[xs.length - 1]);
-      if (lat < yMin || lat > yMax || lon < xMin || lon > xMax) continue;
-      const find = (axis, value) => { let low = 0, high = axis.length - 1; const asc = axis[high] > axis[0]; while (high - low > 1) { const mid = (low + high) >> 1; if ((asc ? axis[mid] < value : axis[mid] > value)) low = mid; else high = mid; } return low; };
-      const row = find(ys, lat), col = find(xs, lon), i = row * field.columns + col, ids = [i, i + 1, i + field.columns, i + field.columns + 1];
-      const wet = ids.map((index, position) => field.mask[index] ? position : -1).filter((position) => position >= 0);
-      if (!wet.length) continue;
-      const fy = (lat - ys[row]) / (ys[row + 1] - ys[row]); const fx = (lon - xs[col]) / (xs[col + 1] - xs[col]);
+  const find = (axis, value) => {
+    let low = 0, high = axis.length - 1;
+    const ascending = axis[high] > axis[0];
+    while (high - low > 1) { const middle = (low + high) >> 1; if (ascending ? axis[middle] < value : axis[middle] > value) low = middle; else high = middle; }
+    return low;
+  };
+  return (latitude, longitude) => {
+    if (isAllowedPoint && !isAllowedPoint(latitude, longitude)) return null;
+    for (const { field, ys, xs, isWater, yMin, yMax, xMin, xMax } of prepared) {
+      if (latitude < yMin || latitude > yMax || longitude < xMin || longitude > xMax) continue;
+      if (isWater && !isWater(latitude, longitude)) continue;
+      const row = find(ys, latitude), column = find(xs, longitude), index = row * field.columns + column;
+      const ids = [index, index + 1, index + field.columns, index + field.columns + 1];
+      const fy = (latitude - ys[row]) / (ys[row + 1] - ys[row]), fx = (longitude - xs[column]) / (xs[column + 1] - xs[column]);
       const weights = [(1 - fx) * (1 - fy), fx * (1 - fy), (1 - fx) * fy, fx * fy];
-      const blend = (values) => { const total = wet.reduce((sum, position) => sum + weights[position], 0); return total ? wet.reduce((sum, position) => sum + values[ids[position]] * weights[position], 0) / total : values[ids[wet[0]]]; };
+      // With a fine water mask the server has already extended velocities to
+      // the shoreline; without one, only the coarse wet corners are usable.
+      const corners = isWater ? [0, 1, 2, 3] : [0, 1, 2, 3].filter((position) => field.mask[ids[position]]);
+      if (!corners.length) continue;
+      const total = corners.reduce((sum, position) => sum + weights[position], 0);
+      const blend = (values) => total ? corners.reduce((sum, position) => sum + values[ids[position]] * weights[position], 0) / total : values[ids[corners[0]]];
       return { u: blend(field.u), v: blend(field.v) };
     }
     return null;
-  }
-  function spawn(particle = {}) { const bounds = map.getBounds(); for (let attempt = 0; attempt < 30; attempt += 1) { const latitude = bounds.getSouth() + Math.random() * (bounds.getNorth() - bounds.getSouth()); const longitude = bounds.getWest() + Math.random() * (bounds.getEast() - bounds.getWest()); if (sample(latitude, longitude)) return Object.assign(particle, { latitude, longitude, age: 0, maxAge: 45 + Math.random() * 50 }); } return Object.assign(particle, { age: 999 }); }
-  function reset() { particles.length = 0; for (let index = 0; index < density; index += 1) particles.push(spawn({})); }
-  function tick(now) { if (!active) return; if (document.hidden) { frame = requestAnimationFrame(tick); return; } if (now - last < 33) { frame = requestAnimationFrame(tick); return; } last = now; const size = map.getSize(); ctx.globalCompositeOperation = "destination-in"; ctx.fillStyle = "rgba(0,0,0,0.90)"; ctx.fillRect(0, 0, size.x, size.y); ctx.globalCompositeOperation = "source-over"; ctx.lineWidth = 2.2; particles.forEach((particle) => { const vector = sample(particle.latitude, particle.longitude); if (!vector || particle.age++ > particle.maxAge) { spawn(particle); return; } const old = map.latLngToContainerPoint([particle.latitude, particle.longitude]); const seconds = (reduced ? 0 : 120) * speedScale; particle.latitude += vector.v * seconds / 111320; particle.longitude += vector.u * seconds / (111320 * Math.cos(particle.latitude * Math.PI / 180)); const next = map.latLngToContainerPoint([particle.latitude, particle.longitude]); if (!map.getBounds().contains([particle.latitude, particle.longitude]) || !sample(particle.latitude, particle.longitude)) { spawn(particle); return; } ctx.strokeStyle = currentColor(Math.hypot(vector.u, vector.v)); ctx.beginPath(); ctx.moveTo(old.x, old.y); ctx.lineTo(next.x, next.y); ctx.stroke(); }); frame = requestAnimationFrame(tick); }
-  function refreshViewport() { resize(); reset(); }
-  return { addTo() { map.getPane("overlayPane").appendChild(canvas); refreshViewport(); map.on("resize viewreset moveend", refreshViewport); frame = requestAnimationFrame(tick); return this; }, remove() { active = false; cancelAnimationFrame(frame); map.off("resize viewreset moveend", refreshViewport); canvas.remove(); } };
+  };
 }
 
-async function loadGreatLakesConditions(map) {
+// NOAA directions describe where waves come from. Convert to the travel
+// bearing and use period for a gentle, readable particle speed.
+export function waveParticleFields(arrows) {
+  const points = arrows.flatMap((arrow) => {
+    if (!Number.isFinite(arrow.periodSeconds) || !Number.isFinite(arrow.directionDegrees)) return [];
+    const bearing = (arrow.directionDegrees + 180) * Math.PI / 180;
+    const speed = Math.max(0.12, Math.min(0.8, arrow.periodSeconds * 1.56 / 12));
+    return [{ latitude: arrow.latitude, longitude: arrow.longitude, u: Math.sin(bearing) * speed, v: Math.cos(bearing) * speed }];
+  });
+  return points.length ? [{ points }] : [];
+}
+
+// Screen-space step so the flow reads at every zoom: still water barely
+// drifts, ordinary 0.1 m/s currents glide, and jets streak.
+export function currentPixelsPerFrame(speed) {
+  return speed > 0 ? 0.25 + 6.5 * speed ** 0.75 : 0;
+}
+
+export function blendCurrentVectors(from, to, fraction) {
+  if (!from || !to) return fraction < 0.5 ? from : to;
+  const mix = Math.max(0, Math.min(1, fraction));
+  return { u: from.u + (to.u - from.u) * mix, v: from.v + (to.v - from.v) * mix };
+}
+
+export function createParticleLayer(map, fields, { clipToGreatLakesWater = false } = {}) {
+  const canvas = L.DomUtil.create("canvas", "great-lakes-current-flow leaflet-layer");
+  const ctx = canvas.getContext("2d");
+  const waterMaskCanvas = clipToGreatLakesWater ? document.createElement("canvas") : null;
+  const waterMaskCtx = waterMaskCanvas?.getContext("2d", { willReadFrequently: true });
+  let waterMaskPixels = null, waterMaskWidth = 0, waterMaskHeight = 0, waterMaskFailed = false;
+  const waterMaskImages = clipToGreatLakesWater ? WAVE_SHORELINE_MASKS.map((asset) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => { if (active) refresh(); };
+    image.onerror = () => { waterMaskFailed = true; waterMaskPixels = null; };
+    image.src = asset.url;
+    return { ...asset, image };
+  }) : [];
+  // Replaced when an animation moves to the next frame; particles keep flowing.
+  let sample;
+  const speedColors = speedBinColors();
+  const particles = [];
+  const baseDensity = CURRENT_PARTICLE_DENSITY[greatLakesControlValue("density")] || CURRENT_PARTICLE_DENSITY.medium;
+  const speedScale = { slow: 0.5, normal: 1, fast: 1.9 }[greatLakesControlValue("animation-speed")] || 1;
+  let frame = null, last = 0, active = true, origin = L.point(0, 0), size = L.point(0, 0), zoom = null;
+  // Warm-up frames are excluded: image decoding makes the first second slow.
+  let frameTime = 16.67, framesSinceTrim = -120, minimumCount = 0;
+
+  const toLatLng = (x, y) => map.layerPointToLatLng([x, y]);
+  const inView = (x, y) => x >= origin.x && y >= origin.y && x <= origin.x + size.x && y <= origin.y + size.y;
+
+  function rebuildWaterMask() {
+    if (!waterMaskCanvas || !waterMaskCtx) return;
+    waterMaskCanvas.width = Math.max(1, Math.ceil(size.x));
+    waterMaskCanvas.height = Math.max(1, Math.ceil(size.y));
+    waterMaskWidth = waterMaskCanvas.width;
+    waterMaskHeight = waterMaskCanvas.height;
+    waterMaskPixels = null;
+    if (waterMaskFailed || !waterMaskImages.every(({ image }) => image.complete && image.naturalWidth > 0)) return;
+    waterMaskCtx.clearRect(0, 0, waterMaskWidth, waterMaskHeight);
+    waterMaskCtx.imageSmoothingEnabled = true;
+    try {
+      for (const { image, bounds } of waterMaskImages) {
+        const [[south, west], [north, east]] = bounds;
+        const northwest = map.latLngToContainerPoint([north, west]);
+        const southeast = map.latLngToContainerPoint([south, east]);
+        const width = southeast.x - northwest.x, height = southeast.y - northwest.y;
+        if (width <= 0 || height <= 0) continue;
+        waterMaskCtx.drawImage(image, northwest.x, northwest.y, width, height);
+      }
+      const rgba = waterMaskCtx.getImageData(0, 0, waterMaskWidth, waterMaskHeight).data;
+      const waterPixels = waterMaskWidth * waterMaskHeight;
+      const packed = new Uint8Array(Math.ceil(waterPixels / 8));
+      for (let index = 0; index < waterPixels; index += 1) {
+        if (rgba[index * 4 + 3] > 48) packed[index >> 3] |= 1 << (index & 7);
+      }
+      waterMaskPixels = packed;
+    } catch {
+      // A failed local mask should hide wave flow instead of drawing it over land.
+      waterMaskFailed = true;
+      waterMaskPixels = null;
+    }
+  }
+
+  function isLakeWater(latitude, longitude) {
+    if (!waterMaskPixels) return false;
+    const point = map.latLngToContainerPoint([latitude, longitude]);
+    const x = Math.floor(point.x), y = Math.floor(point.y);
+    if (x < 0 || y < 0 || x >= waterMaskWidth || y >= waterMaskHeight) return false;
+    const index = y * waterMaskWidth + x;
+    return Boolean((waterMaskPixels[index >> 3] >> (index & 7)) & 1);
+  }
+
+  const allowedPoint = clipToGreatLakesWater ? isLakeWater : null;
+  sample = createCurrentFieldSampler(fields, allowedPoint);
+
+  function spawn(particle) {
+    particle.trail = [];
+    particle.dying = false;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const x = origin.x + Math.random() * size.x, y = origin.y + Math.random() * size.y;
+      const latlng = toLatLng(x, y);
+      const vector = sample(latlng.lat, latlng.lng);
+      if (vector) {
+        particle.trail.push([x, y, Math.hypot(vector.u, vector.v)]);
+        particle.vector = vector;
+        particle.sinceCommit = 0;
+        particle.provisional = false;
+        particle.age = 0;
+        particle.maxAge = 60 + Math.random() * 90;
+        particle.wait = 0;
+        return particle;
+      }
+    }
+    // Mostly-land views would otherwise retry every particle every frame.
+    particle.wait = 8 + Math.floor(Math.random() * 24);
+    return particle;
+  }
+
+  function reset() {
+    const count = Math.round(baseDensity * Math.min(1.8, Math.max(0.35, (size.x * size.y) / (1280 * 800))));
+    minimumCount = Math.round(count * 0.45);
+    particles.length = 0;
+    for (let index = 0; index < count; index += 1) {
+      const particle = spawn({});
+      particle.age = Math.random() * (particle.maxAge || 0);
+      particles.push(particle);
+    }
+  }
+
+  function position() {
+    size = map.getSize();
+    origin = map.containerPointToLayerPoint([0, 0]);
+    const ratio = window.devicePixelRatio || 1;
+    L.DomUtil.setPosition(canvas, origin);
+    canvas.width = Math.round(size.x * ratio);
+    canvas.height = Math.round(size.y * ratio);
+    canvas.style.width = `${size.x}px`;
+    canvas.style.height = `${size.y}px`;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    rebuildWaterMask();
+  }
+
+  function advance(particle, steps) {
+    if (particle.wait > 0) { particle.wait -= 1; if (!particle.wait) spawn(particle); return; }
+    if (!particle.trail.length) { spawn(particle); return; }
+    if (particle.dying) {
+      particle.trail.shift();
+      if (particle.trail.length < 2) spawn(particle);
+      return;
+    }
+    const [x, y] = particle.trail[particle.trail.length - 1];
+    const vector = particle.vector;
+    particle.age += steps;
+    if (!vector || particle.age > particle.maxAge) { particle.dying = true; return; }
+    const speed = Math.hypot(vector.u, vector.v);
+    if (!speed) { particle.dying = true; return; }
+    const distance = currentPixelsPerFrame(speed) * speedScale * steps;
+    const nextX = x + vector.u / speed * distance, nextY = y - vector.v / speed * distance;
+    if (!inView(nextX, nextY)) { particle.dying = true; return; }
+    const next = toLatLng(nextX, nextY);
+    particle.vector = sample(next.lat, next.lng);
+    if (!particle.vector) { particle.dying = true; return; }
+    // Each trail point keeps the speed there, for speed-coloured flow.
+    const point = [nextX, nextY, Math.hypot(particle.vector.u, particle.vector.v)];
+    // The head moves every frame, but trail points are only committed every
+    // few frames so a fixed number of segments spans a longer, smoother tail.
+    if (particle.provisional) particle.trail[particle.trail.length - 1] = point;
+    else particle.trail.push(point);
+    particle.sinceCommit += steps;
+    particle.provisional = particle.sinceCommit < CURRENT_TRAIL_POINT_FRAMES;
+    if (!particle.provisional) particle.sinceCommit = 0;
+    if (particle.trail.length > CURRENT_TRAIL_SEGMENTS + 1) particle.trail.shift();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, size.x, size.y);
+    if (clipToGreatLakesWater && !waterMaskPixels) return;
+    // Butt caps: round caps overlap at every joint (beading) and cost ~4×.
+    ctx.lineCap = "butt";
+    const { rgb, halo, bySpeed } = flowColorParts(greatLakesFlowColor);
+    if (bySpeed) drawBySpeed(halo);
+    // One path per trail segment age keeps this to a few dozen strokes a frame.
+    else for (let segment = CURRENT_TRAIL_SEGMENTS - 1; segment >= 0; segment -= 1) {
+      ctx.beginPath();
+      let any = false;
+      for (const particle of particles) {
+        const trail = particle.trail, head = trail.length - 1 - segment;
+        if (head < 1) continue;
+        ctx.moveTo(trail[head - 1][0] - origin.x, trail[head - 1][1] - origin.y);
+        ctx.lineTo(trail[head][0] - origin.x, trail[head][1] - origin.y);
+        any = true;
+      }
+      if (!any) continue;
+      const strength = (1 - segment / CURRENT_TRAIL_SEGMENTS) ** 1.35;
+      ctx.strokeStyle = `rgba(${halo}, ${(0.26 * strength).toFixed(3)})`;
+      ctx.lineWidth = 3.2;
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(${rgb}, ${(0.95 * strength).toFixed(3)})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    if (waterMaskCanvas) {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-in";
+      ctx.drawImage(waterMaskCanvas, 0, 0, size.x, size.y);
+      ctx.restore();
+    }
+  }
+
+  // Same idea, split by speed bin: each segment takes the colour of the
+  // current speed where it ends. Lines are a little wider so the colour reads.
+  // Trail segments are faded in pairs and the dark outline is drawn once per
+  // pair for every colour, which keeps this to about 66 strokes a frame
+  // (one per segment and colour, twice over, was about 240 and visibly slower).
+  const SPEED_TRAIL_TIERS = CURRENT_TRAIL_SEGMENTS / 2;
+  const speedTierStrength = Array.from({ length: SPEED_TRAIL_TIERS }, (_, tier) => (1 - (tier * 2 + 0.5) / CURRENT_TRAIL_SEGMENTS) ** 1.35);
+  const speedTierColors = speedTierStrength.map((strength) => speedColors.map((rgb) => `rgba(${rgb}, ${strength.toFixed(3)})`));
+  let speedTierHalos = null, speedTierHaloKey = "";
+
+  function drawBySpeed(halo) {
+    const maximum = greatLakesCurrentSpeedMax;
+    if (speedTierHaloKey !== halo) {
+      speedTierHalos = speedTierStrength.map((strength) => `rgba(${halo}, ${(0.4 * strength).toFixed(3)})`);
+      speedTierHaloKey = halo;
+    }
+    for (let tier = SPEED_TRAIL_TIERS - 1; tier >= 0; tier -= 1) {
+      const outline = new Path2D();
+      const paths = new Array(SPEED_FLOW_COLOR_BINS).fill(null);
+      let any = false;
+      for (let segment = tier * 2; segment < tier * 2 + 2; segment += 1) {
+        for (const particle of particles) {
+          const trail = particle.trail, head = trail.length - 1 - segment;
+          if (head < 1) continue;
+          const x0 = trail[head - 1][0] - origin.x, y0 = trail[head - 1][1] - origin.y;
+          const x1 = trail[head][0] - origin.x, y1 = trail[head][1] - origin.y;
+          const bin = speedColorBin(trail[head][2], maximum);
+          const path = paths[bin] || (paths[bin] = new Path2D());
+          path.moveTo(x0, y0);
+          path.lineTo(x1, y1);
+          outline.moveTo(x0, y0);
+          outline.lineTo(x1, y1);
+          any = true;
+        }
+      }
+      if (!any) continue;
+      ctx.strokeStyle = speedTierHalos[tier];
+      ctx.lineWidth = 3.8;
+      ctx.stroke(outline);
+      ctx.lineWidth = 2.2;
+      paths.forEach((path, bin) => {
+        if (!path) return;
+        ctx.strokeStyle = speedTierColors[tier][bin];
+        ctx.stroke(path);
+      });
+    }
+  }
+
+  function tick(now) {
+    if (!active) return;
+    frame = requestAnimationFrame(tick);
+    if (document.hidden || canvas.style.visibility === "hidden") { last = now; return; }
+    const elapsed = last ? now - last : 16.67;
+    const steps = Math.min(3, elapsed / 16.67);
+    last = now;
+    // Slow devices shed particles instead of stuttering.
+    frameTime = frameTime * 0.95 + Math.min(elapsed, 100) * 0.05;
+    if (++framesSinceTrim > 90 && frameTime > 34 && particles.length > minimumCount) {
+      particles.length = Math.max(minimumCount, Math.round(particles.length * 0.85));
+      framesSinceTrim = 0;
+    }
+    particles.forEach((particle) => advance(particle, steps));
+    draw();
+  }
+
+  function hide() { canvas.style.visibility = "hidden"; }
+  function refresh() {
+    position();
+    if (map.getZoom() !== zoom) { zoom = map.getZoom(); reset(); }
+    canvas.style.visibility = "";
+  }
+
+  return {
+    addTo() {
+      map.getPane("overlayPane").appendChild(canvas);
+      refresh();
+      map.on("zoomstart", hide);
+      map.on("resize viewreset moveend", refresh);
+      frame = requestAnimationFrame(tick);
+      return this;
+    },
+    setFields(next, { durationMs = 0 } = {}) {
+      const target = createCurrentFieldSampler(next, allowedPoint);
+      if (!durationMs) { sample = target; return; }
+      const previous = sample, started = performance.now();
+      sample = (latitude, longitude) => {
+        const fraction = Math.min(1, (performance.now() - started) / durationMs);
+        if (fraction >= 1) return target(latitude, longitude);
+        return blendCurrentVectors(previous(latitude, longitude), target(latitude, longitude), fraction);
+      };
+    },
+    remove() {
+      active = false;
+      cancelAnimationFrame(frame);
+      map.off("zoomstart", hide);
+      map.off("resize viewreset moveend", refresh);
+      canvas.remove();
+    }
+  };
+}
+
+// The server keeps NOAA data current; an open page checks this often whether
+// a new run or the next hourly frame is being served and reloads only then.
+export const GREAT_LAKES_STATUS_POLL_MS = 5 * 60 * 1000;
+const greatLakesStatusCache = new Map();
+export let greatLakesLoadedDataVersion = "";
+let greatLakesAvailability = null;
+
+export async function greatLakesDataStatus(modelsKey, { fresh = false } = {}) {
+  const cached = greatLakesStatusCache.get(modelsKey);
+  if (!fresh && cached && Date.now() - cached.at < 60 * 1000) return cached.status;
+  try {
+    const status = await window.noaaGreatLakesApi.status({ models: modelsKey, signal: AbortSignal.timeout(5000) });
+    greatLakesStatusCache.set(modelsKey, { status, at: Date.now() });
+    return status;
+  } catch {
+    return cached?.status || null;
+  }
+}
+
+// "tonight at 10 PM", "tomorrow at 4 AM", "Sunday at 10:30 PM" instead of a numeric date.
+export function friendlyTime(value, now = Date.now()) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const startOfDay = (time) => { const day = new Date(time); day.setHours(0, 0, 0, 0); return day.getTime(); };
+  const days = Math.round((startOfDay(date) - startOfDay(now)) / 86400000);
+  const time = date.toLocaleTimeString([], date.getMinutes() ? { hour: "numeric", minute: "2-digit" } : { hour: "numeric" });
+  const day = days === 0 ? (date.getHours() >= 18 ? "tonight" : "today")
+    : days === 1 ? "tomorrow"
+    : days === -1 ? "yesterday"
+    : days < -1 || days > 6 ? date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })
+    : date.toLocaleDateString([], { weekday: "long" });
+  return `${day} at ${time}`;
+}
+
+export function friendlyWait(milliseconds) {
+  const minutes = Math.round(milliseconds / 60000);
+  if (minutes < 2) return "in a minute or so";
+  if (minutes < 55) return `in about ${minutes} minutes`;
+  const hours = Math.round(minutes / 60);
+  return hours === 1 ? "in about an hour" : `in about ${hours} hours`;
+}
+
+function runTimestamp(model) {
+  const explicit = Date.parse(model?.runTime || "");
+  if (Number.isFinite(explicit)) return explicit;
+  const match = String(model?.run || "").match(/^(\d{8})t(\d{2})z$/i);
+  if (!match) return NaN;
+  const day = match[1];
+  return Date.parse(day.slice(0, 4) + "-" + day.slice(4, 6) + "-" + day.slice(6, 8) + "T" + match[2] + ":00:00Z");
+}
+
+function generatedNote(times, now) {
+  const valid = times.filter(Number.isFinite);
+  if (!valid.length) return "";
+  return " Data generated by NOAA " + friendlyTime(new Date(Math.max(...valid)), now) + ".";
+}
+
+export function dataGeneratedNote(status, metadata, now = Date.now()) {
+  const layerTimes = [...(metadata?.models || []).map(runTimestamp), runTimestamp(metadata || {})].filter(Number.isFinite);
+  if (layerTimes.length) return generatedNote(layerTimes, now);
+  return generatedNote(Object.values(status?.models || {}).map(model => Date.parse(model.runTime || "")), now);
+}
+
+export function waveDataGeneratedNote(status, metadata, now = Date.now()) {
+  const layerTimes = [...(metadata?.models || []).map(runTimestamp), runTimestamp(metadata || {})].filter(Number.isFinite);
+  if (layerTimes.length) return generatedNote(layerTimes, now);
+  const runTime = Date.parse(status?.waves?.runTime || "");
+  return generatedNote([runTime], now);
+}
+
+export async function refreshGreatLakesIfStale(map) {
+  if (!map || !greatLakesActiveLayer || !greatLakesLoadedModelsKey || document.hidden) return false;
+  if (greatLakesHistoryMode()) {
+    // A selected past sample never changes; new site samples become choices.
+    await loadGreatLakesHistoryIndex({ fresh: true });
+    syncHistoryInput();
+    return false;
+  }
+  const status = await greatLakesDataStatus(greatLakesLoadedModelsKey, { fresh: true });
+  const version = greatLakesDataVersion(status, greatLakesActiveLayer);
+  const retryingFallback = ["fallback", "waiting", "error"].includes(greatLakesAvailability);
+  if (!version || (version === greatLakesLoadedDataVersion && !retryingFallback)) return false;
+  if (retryingFallback && version === greatLakesLoadedDataVersion) {
+    for (const key of greatLakesPayloadCache.keys()) {
+      try {
+        if (JSON.parse(key).layer === greatLakesActiveLayer) greatLakesPayloadCache.delete(key);
+      } catch { /* Ignore cache keys from older app versions. */ }
+    }
+  }
+  await loadGreatLakesConditions(map);
+  return true;
+}
+
+// Waves come from a separate hourly NOAA model with its own version, so the
+// other layers are not reloaded every time a wave cycle arrives.
+export function greatLakesDataVersion(status, layer) {
+  return (layer === "waves" ? status?.wavesVersion : status?.version) || "";
+}
+
+// Lets companion overlays (measurement points) match the visible temperature colours.
+export function announceGreatLakesLayer(layer, metadata, temperatureMetadata = null) {
+  document.dispatchEvent(new CustomEvent("great-lakes-layer-loaded", { detail: { layer, metadata, temperatureMetadata, depth: Number(greatLakesShownDepth()) || 0 } }));
+}
+
+// NOAA stores fixed depth levels (0, 1, 2, 4, 6 m …); the server shows the
+// level nearest the slider, which can differ from the requested depth.
+export function modelDepthShown(metadata = {}) {
+  const depths = (metadata.models || []).map((model) => Number(model.selectedDepthMeters)).filter(Number.isFinite);
+  return depths.length ? depths[0] : null;
+}
+
+export function modelDepthNote(requestedMeters, shownMeters) {
+  if (!Number.isFinite(shownMeters) || Math.abs(shownMeters - requestedMeters) < 0.3) return "";
+  return ` Showing the model's ${greatLakesDepthLabel(shownMeters)} level, the closest to ${greatLakesDepthLabel(requestedMeters)}.`;
+}
+
+const MODEL_LAKE_NAMES = { LSOFS: "Lake Superior", LMHOFS: "Lakes Michigan and Huron", LEOFS: "Lake Erie", LOOFS: "Lake Ontario" };
+
+// Lakes left blank because the chosen depth is deeper than they go.
+export function tooShallowNote(models = []) {
+  const shallow = models.filter((model) => model.tooShallow);
+  const names = [...new Set(shallow.map((model) => MODEL_LAKE_NAMES[model.model] || model.model))];
+  if (!names.length) return "";
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return ` ${list} ${names.length === 1 && !list.startsWith("Lakes ") ? "isn't" : "aren't"} this deep, so ${names.length === 1 && !list.startsWith("Lakes ") ? "it's" : "they're"} left blank.`;
+}
+
+export async function loadGreatLakesConditions(map) {
   if (!greatLakesConditionsLayer) return;
   const loadRevision = ++greatLakesLoadRevision;
   const layer = greatLakesControlValue("layer");
   greatLakesConditionsRequest?.abort();
   if (!layer) {
+    stopGreatLakesAnimation();
     setGreatLakesMapLoading(false);
     document.body.classList.add("great-lakes-layer-none");
     clearGreatLakesVisuals();
     greatLakesActiveLayer = "";
     greatLakesLoadedModelsKey = "";
+    greatLakesAvailability = null;
     setGreatLakesStatus("Choose a layer to show NOAA Great Lakes conditions.");
+    announceGreatLakesLayer("", {});
     return;
   }
   document.body.classList.remove("great-lakes-layer-none");
-  const forecastHour = greatLakesControlValue("forecast");
-  const depth = greatLakesControlValue("depth");
-  const resolution = map.getZoom() >= 9 ? 512 : map.getZoom() >= 7 ? 384 : 256;
-  const models = greatLakesModelsForView(map);
+  const historyMode = greatLakesHistoryMode();
+  const resolution = GREAT_LAKES_LAYER_RESOLUTION;
+  const models = GREAT_LAKES_ALL_MODELS;
   const modelsKey = models.join(",");
-  if (!models.length) {
+  setGreatLakesMapLoading(true);
+  if (historyMode) {
+    stopGreatLakesAnimation();
+    setGreatLakesStatus("Loading saved conditions…");
+    const ready = await ensureGreatLakesHistoryTime(layer);
+    if (loadRevision !== greatLakesLoadRevision) return;
+    announceHistoryTime();
+    if (!ready) {
+      clearGreatLakesVisuals();
+      greatLakesActiveLayer = "";
+      setGreatLakesMapLoading(false);
+      setGreatLakesStatus(greatLakesHistoryIndex
+        ? `No saved conditions yet. The server keeps the past ${savedHistoryDays()} days as they come in, starting now.`
+        : "Saved conditions are unavailable. Try again shortly.", !greatLakesHistoryIndex);
+      announceGreatLakesLayer("", {});
+      return;
+    }
+  }
+  const forecastHour = historyMode ? "0" : greatLakesControlValue("forecast");
+  const depth = greatLakesShownDepth();
+  const timeParams = greatLakesTimeParams();
+  const dataStatus = historyMode ? null : await greatLakesDataStatus(modelsKey);
+  if (loadRevision !== greatLakesLoadRevision) return;
+  const dataVersion = historyMode ? `history:${timeParams.time}` : greatLakesDataVersion(dataStatus, layer);
+  if (!historyMode && greatLakesAnimationActive()) {
+    greatLakesConditionsRequest = new AbortController();
+    setGreatLakesMapLoading(true);
+    const isCurrent = () => loadRevision === greatLakesLoadRevision;
+    const loaded = await loadGreatLakesAnimation(map, { layer, depth, signal: greatLakesConditionsRequest.signal, isCurrent });
+    if (!isCurrent()) return;
     setGreatLakesMapLoading(false);
-    setGreatLakesStatus("Move the map over a Great Lake to load NOAA model data.");
+    if (loaded) {
+      greatLakesActiveLayer = layer;
+      greatLakesLoadedModelsKey = modelsKey;
+      greatLakesLoadedDataVersion = dataVersion;
+    }
     return;
   }
-  const cacheKey = JSON.stringify({ layer, forecastHour, depth, resolution, models: modelsKey });
-  const cached = greatLakesPayloadCache.get(cacheKey);
-  const cacheHit = cached && Date.now() - cached.createdAt < GREAT_LAKES_CLIENT_CACHE_MS;
+  const cacheKey = JSON.stringify({ layer, forecastHour, depth, resolution, models: modelsKey, dataVersion });
+  const temperatureBackground = layer === "currents" && greatLakesControlValue("current-background") === "temperature";
+  const temperatureCacheKey = JSON.stringify({ layer: "temperature", forecastHour, depth, resolution: CURRENT_BACKGROUND_RESOLUTION, models: modelsKey, dataVersion });
+  const freshCache = (key) => {
+    const entry = greatLakesPayloadCache.get(key);
+    return entry && Date.now() - entry.createdAt < GREAT_LAKES_CLIENT_CACHE_MS ? entry.payload : null;
+  };
+  const cacheHit = freshCache(cacheKey) && (!temperatureBackground || freshCache(temperatureCacheKey));
   greatLakesConditionsRequest = cacheHit ? null : new AbortController();
-  setGreatLakesStatus("Loading NOAA Great Lakes model data…");
-  setGreatLakesMapLoading(true);
+  setGreatLakesStatus(historyMode ? "Loading saved conditions…" : "Loading NOAA forecast…");
+  setGreatLakesMapLoading(true, historyMode ? "Loading saved conditions…" : undefined);
   clearGreatLakesVisuals();
+  const fetchLayer = async (key, request) => {
+    const cachedPayload = freshCache(key);
+    if (cachedPayload) return cachedPayload;
+    const fetched = await window.noaaGreatLakesApi.conditions({ ...request, forecastHour, depth, models: modelsKey, dataVersion, ...timeParams, signal: greatLakesConditionsRequest.signal });
+    greatLakesPayloadCache.set(key, { payload: fetched, createdAt: Date.now() });
+    return fetched;
+  };
   try {
-    let payload = cacheHit ? cached.payload : null;
-    if (!payload) {
-      payload = await window.noaaGreatLakesApi.conditions({ layer, forecastHour, depth, resolution, models: modelsKey, signal: greatLakesConditionsRequest.signal });
-      greatLakesPayloadCache.set(cacheKey, { payload, createdAt: Date.now() });
-    }
+    const [payload, temperaturePayload] = await Promise.all([
+      fetchLayer(cacheKey, { layer, resolution }),
+      temperatureBackground ? fetchLayer(temperatureCacheKey, { layer: "temperature", resolution: CURRENT_BACKGROUND_RESOLUTION }) : null
+    ]);
     if (loadRevision !== greatLakesLoadRevision) return;
     greatLakesActiveLayer = layer;
     greatLakesLoadedModelsKey = modelsKey;
+    greatLakesAvailability = payload.metadata.availability?.state || null;
     if (layer === "temperature") {
       renderGreatLakesTemperatureRasters(payload.rasters || [], loadRevision);
       setTemperatureLegendRange(payload.metadata);
@@ -531,25 +1707,140 @@ async function loadGreatLakesConditions(map) {
       renderGreatLakesThermoclineRasters(payload.rasters || [], loadRevision);
       setThermoclineLegendRange(payload.metadata);
     }
+    else if (layer === "upwelling") {
+      renderGreatLakesUpwellingRasters(payload.rasters || [], loadRevision);
+    }
+    else if (layer === "waves") {
+      renderGreatLakesWaveRasters(payload.rasters || [], loadRevision);
+      setWaveLegendRange(payload.metadata);
+      const display = greatLakesControlValue("wave-display");
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (display === "flow" && !reduced && (payload.arrows || []).length) greatLakesParticleLayer = createParticleLayer(map, waveParticleFields(payload.arrows), { clipToGreatLakesWater: true }).addTo(map);
+      else if (display === "arrows" && (payload.arrows || []).length) greatLakesWaveArrowLayer = createWaveArrowLayer(map, payload.arrows).addTo(map);
+    }
     else {
       setCurrentLegendRange(payload.metadata);
+      setCurrentSpeedMax(payload.metadata);
+      if (temperaturePayload) {
+        renderGreatLakesTemperatureRasters(temperaturePayload.rasters || [], loadRevision, "currents");
+        setTemperatureLegendRange(temperaturePayload.metadata);
+      } else if (greatLakesControlValue("current-background") !== "none") {
+        renderGreatLakesCurrentRasters(payload.rasters || [], loadRevision);
+      }
       const display = greatLakesControlValue("current-display");
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (display === "flow" && !reduced && (payload.fields || []).length) greatLakesParticleLayer = createParticleLayer(map, payload.fields).addTo(map);
       else if (display !== "off") renderGreatLakesCurrents(payload.data || [], map.getZoom());
     }
-    const unavailable = (payload.metadata.models || []).some((model) => !model.available);
-    const validTime = (payload.metadata.models || []).find((model) => model.validTime)?.validTime;
-    const label = layer === "temperature" ? "Surface temperature" : layer === "thermocline" ? "Thermocline depth" : "Underwater current data";
+    const metadataModels = [...(payload.metadata.models || []), ...(temperaturePayload?.metadata.models || [])];
+    const thermoclineAvailability = layer === "thermocline" ? payload.metadata.availability?.state : null;
+    const thermoclineFallbackAvailable = thermoclineAvailability === "error"
+      && (payload.rasters || []).length > 0
+      && metadataModels.every((model) => model.available);
+    const unavailable = thermoclineAvailability
+      ? thermoclineAvailability === "error" && !thermoclineFallbackAvailable
+      : metadataModels.some((model) => !model.available);
+    const validTime = metadataModels.find((model) => model.validTime)?.validTime;
+    const label = layer === "temperature" ? "Water temperature" : layer === "thermocline" ? "Thermocline depth" : layer === "upwelling" ? "Upwelling data" : layer === "waves" ? "Wave data" : temperaturePayload ? "Current or temperature data" : "Underwater current data";
     const sampledOnly = layer === "currents" && !(payload.fields || []).length && (payload.data || []).length;
-    setGreatLakesStatus(`${unavailable ? `${label} unavailable for one or more lakes. ` : ""}Showing NOAA model forecast valid at ${validTime ? new Date(validTime).toLocaleString() : "an unavailable time"}.${sampledOnly ? " Flow grid unavailable; showing sampled current arrows." : ""}`, unavailable);
+    const shownDepth = layer === "thermocline" || layer === "waves" || layer === "upwelling" ? null : modelDepthShown(temperaturePayload?.metadata || payload.metadata);
+    const source = historyMode ? "saved NOAA conditions" : layer === "waves" ? "the NOAA wave forecast" : "the NOAA forecast";
+    const updateNote = historyMode ? " Past hours show the surface." : layer === "waves" ? waveDataGeneratedNote(dataStatus, payload.metadata) : dataGeneratedNote(dataStatus, payload.metadata);
+    const when = validTime ? (historyMode ? historyTimeLabel(validTime) : friendlyTime(validTime)) : "";
+    const currentsFallback = layer === "currents" && payload.metadata.availability?.state === "fallback";
+    const availabilityNote = thermoclineAvailability === "fallback"
+      ? "The NOAA update is delayed; showing the last available thermocline data. "
+      : thermoclineAvailability === "waiting"
+        ? "The NOAA update is delayed; waiting for a complete thermocline update. "
+        : thermoclineAvailability === "error"
+          ? "Thermocline data has been unavailable for several hours; showing the last available data if present. "
+          : currentsFallback
+            ? "NOAA currents are temporarily unavailable. Showing the last available current data. "
+            : unavailable ? label + " unavailable for one or more lakes. " : "";
+    setGreatLakesStatus(`${availabilityNote}${when ? `Showing ${source} for ${when}.` : `Showing ${source}.`}${modelDepthNote(Number(depth), shownDepth)}${tooShallowNote(metadataModels)}${sampledOnly ? " Flow grid unavailable; showing sampled current arrows." : ""}${updateNote}`, unavailable);
+    greatLakesLoadedDataVersion = dataVersion;
+    announceGreatLakesLayer(layer, payload.metadata || {}, temperaturePayload?.metadata || (layer === "temperature" ? payload.metadata : null));
   } catch (error) {
-    if (loadRevision === greatLakesLoadRevision && error.name !== "AbortError") setGreatLakesStatus("NOAA Great Lakes model data is unavailable. Try again shortly.", true);
+    if (loadRevision !== greatLakesLoadRevision || error.name === "AbortError") return;
+    if (historyMode) setGreatLakesStatus(/\(404\)/.test(error.message) ? "This layer was not saved for that hour. Pick another time." : "Saved conditions are unavailable. Try again shortly.", true);
+    else setGreatLakesStatus("NOAA Great Lakes model data is unavailable. Try again shortly.", true);
   } finally {
     if (loadRevision === greatLakesLoadRevision) setGreatLakesMapLoading(false);
   }
 }
 
-window.ensureGreatLakesConditions = ensureGreatLakesConditions;
-window.getGreatLakesMapInspection = greatLakesMapInspection;
-window.getGreatLakesHomeView = () => GREAT_LAKE_VIEWS[greatLakesHomeLake()] || null;
+export function setup() {
+  renderGreatLakesConditionsHost();
+
+  document.addEventListener("change", (event) => {
+    if (event.target.matches("[data-temperature-colors]")) {
+      setTemperatureColorMode(event.target.checked ? "dynamic" : "fixed");
+      return;
+    }
+    const control = event.target.closest("[data-gl-layer], [data-gl-depth]");
+    if (!control) return;
+    const host = renderGreatLakesConditionsHost();
+    if (!host) return;
+    syncGreatLakesLayerControls(host);
+    if (!ui.fishMap) return;
+    // Once the map control is attached its own listeners load the layer; a
+    // second load here made the server build every change twice.
+    if (!greatLakesConditionsControl) loadGreatLakesConditions(ui.fishMap);
+    if (greatLakesControlValue("layer") === "currents") {
+      greatLakesActiveLayer = "currents";
+      greatLakesLoadedModelsKey = GREAT_LAKES_ALL_MODELS.join(",");
+    }
+  });
+
+  document.addEventListener("input", (event) => {
+    const depthSlider = event.target.closest("[data-gl-depth]");
+    if (!depthSlider) return;
+    const depth = greatLakesDepthFromSlider(depthSlider.value);
+    const label = depth ? greatLakesDepthLabel(depth) : "Surface";
+    document.querySelector("[data-gl-depth-label]").textContent = label;
+    depthSlider.setAttribute("aria-valuetext", label);
+  });
+
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-gl-profile-lat]");
+    if (!button) return;
+    // The card's button keeps its icon; only its text changes while loading.
+    const label = button.querySelector("span") || button;
+    const original = label.textContent;
+    button.disabled = true;
+    label.textContent = "Loading…";
+    try {
+      const profile = await window.noaaGreatLakesApi.profile({ forecastHour: greatLakesForecastHour(), latitude: button.dataset.glProfileLat, longitude: button.dataset.glProfileLon, models: greatLakesLoadedModelsKey, ...greatLakesTimeParams() });
+      if (!profile.available) throw new Error("Profile unavailable");
+      showWaterColumnDialog(profile);
+      label.textContent = original;
+    } catch { label.textContent = "Profile unavailable"; }
+    finally { button.disabled = false; }
+  });
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-gl-current-profile-lat]");
+    if (!button) return;
+    showGreatLakesCurrentProfile({
+      latitude: Number(button.dataset.glCurrentProfileLat),
+      longitude: Number(button.dataset.glCurrentProfileLon)
+    });
+  });
+
+  window.ensureGreatLakesConditions = ensureGreatLakesConditions;
+
+  let attempts = 0;
+  const attachWhenMapReady = setInterval(() => {
+    attempts += 1;
+    if (ui.fishMap) {
+      ensureGreatLakesConditions(ui.fishMap);
+      clearInterval(attachWhenMapReady);
+    } else if (attempts > 600) {
+      clearInterval(attachWhenMapReady);
+    }
+  }, 50);
+
+  window.getGreatLakesMapInspection = greatLakesMapInspection;
+
+  window.getGreatLakesHomeView = () => GREAT_LAKE_VIEWS[greatLakesHomeLake()] || null;
+}

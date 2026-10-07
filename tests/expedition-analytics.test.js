@@ -1,8 +1,8 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert");
+import assert from "node:assert/strict";
+import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
-vm.runInThisContext(fs.readFileSync("static/js/expedition-analytics.js", "utf8"));
+installBrowserEnv();
+const { ExpeditionAnalytics } = await import("../static/js/expedition-analytics.js");
 
 assert.equal(ExpeditionAnalytics.inclusiveDays("2026-08-01", "2026-08-07"), 7);
 assert.equal(ExpeditionAnalytics.inclusiveDays("2026-08-07", "2026-08-01"), 0);
@@ -47,4 +47,3 @@ assert.equal(ExpeditionAnalytics.tripOutsideRange({ date: "2026-07-16" }, expedi
 const unassigned = ExpeditionAnalytics.unassignTrips(trips, "newer");
 assert.deepEqual(unassigned.slice(0, 2).map((trip) => trip.expeditionId), ["", ""]);
 assert.equal(unassigned[2].expeditionId, "older");
-console.log("expedition analytics tests passed");

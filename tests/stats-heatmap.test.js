@@ -1,15 +1,15 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert");
+import assert from "node:assert/strict";
+import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
-vm.runInThisContext(fs.readFileSync("static/js/stats-heatmap.js", "utf8"));
+installBrowserEnv();
+const { StatsActivityHeatmap } = await import("../static/js/stats-heatmap.js");
 
 const model = StatsActivityHeatmap.build([
   { date: "2026-09-14", catches: [{ quantity: 3 }] },
   { date: "2026-09-14", catches: [{ quantity: 1 }] },
   { date: "2026-09-10", catches: [] },
   { date: "2026-02-30", catches: [{ quantity: 100 }] },
-  { date: "2024-01-01", catches: [{ quantity: 50 }] }
+  { date: "2024-01-01", catches: [{ quantity: 50 }] },
 ], { today: new Date("2026-09-14T12:00:00") });
 
 assert.equal(model.weeks.length, 53);
@@ -30,7 +30,7 @@ assert.equal(model.maxFish, 4);
 
 const septemberTenth = model.weeks.flat().find((day) => day.key === "2026-09-10");
 assert.equal(septemberTenth.level, 0);
-const markup = StatsActivityHeatmap.render(model);
+const markup = String(StatsActivityHeatmap.render(model));
 assert.match(markup, /Fishing activity over the last 12 months/);
 assert.match(markup, /0 fish.*4 fish/);
 assert.match(markup, /is-today[^>]*aria-current="date"/);
@@ -41,24 +41,23 @@ assert.doesNotMatch(emptyDayTag, /tabindex/);
 const dynamicScale = StatsActivityHeatmap.build([
   { date: "2026-09-14", catches: [{ quantity: 10 }] },
   { date: "2026-09-13", catches: [{ quantity: 5 }] },
-  { date: "2026-09-12", catches: [{ quantity: 1 }] }
+  { date: "2026-09-12", catches: [{ quantity: 1 }] },
 ], { today: new Date("2026-09-14T12:00:00") });
 assert.equal(dynamicScale.maxFish, 10);
 assert.equal(dynamicScale.weeks.flat().find((day) => day.key === "2026-09-14").level, 5);
 assert.equal(dynamicScale.weeks.flat().find((day) => day.key === "2026-09-13").level, 3);
 assert.equal(dynamicScale.weeks.flat().find((day) => day.key === "2026-09-12").level, 1);
-assert.match(StatsActivityHeatmap.render(dynamicScale), /0 fish.*10 fish/);
+assert.match(String(StatsActivityHeatmap.render(dynamicScale)), /0 fish.*10 fish/);
 
 const quantityParity = StatsActivityHeatmap.build([
-  { date: "2026-09-14", catches: [{}, { quantity: "" }, { quantity: null }, { quantity: "bad" }] }
+  { date: "2026-09-14", catches: [{}, { quantity: "" }, { quantity: null }, { quantity: "bad" }] },
 ], { today: new Date("2026-09-14T12:00:00") });
 assert.equal(quantityParity.fishCount, 2);
 
 const yearBoundary = StatsActivityHeatmap.build([], {
-  today: new Date("2027-01-15T12:00:00")
+  today: new Date("2027-01-15T12:00:00"),
 });
 const januaryLabels = yearBoundary.months.filter((month) => month.key.endsWith("-01"));
 assert.equal(januaryLabels.length, 2);
 assert.deepEqual(januaryLabels.map((month) => month.key), ["2026-01", "2027-01"]);
 assert.notEqual(januaryLabels[0].column, januaryLabels[1].column);
-console.log("stats heatmap tests passed");

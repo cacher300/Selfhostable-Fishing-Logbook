@@ -17,6 +17,8 @@ from threading import RLock
 
 
 _LOCK = RLock()
+_OPTIONAL_COLLECTION_KEYS = {"lureBeadSizes", "meatRigTypes", "softPlasticTypes"}
+_OPTIONAL_COLLECTIONS_PRESENT_KEY = "optionalCollectionsPresent"
 
 
 def _connect(database_file: Path) -> sqlite3.Connection:
@@ -70,21 +72,52 @@ def backup(source_file: Path, destination_file: Path) -> None:
                 destination.commit()
 
 
-def read(database_file: Path, collection_keys: tuple[str, ...]) -> dict | None:
-    """Read the stored document, returning ``None`` when it has no rows yet."""
+class RevisionConflict(RuntimeError):
+    """The stored document changed since the caller last read it."""
+
+    def __init__(self, current_revision: int):
+        super().__init__(f"The logbook was changed elsewhere (revision {current_revision}).")
+        self.current_revision = current_revision
+
+
+def _schema_tables(connection: sqlite3.Connection) -> set[str]:
+    return {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+
+
+def _stored_revision(connection: sqlite3.Connection) -> int:
+    row = connection.execute("SELECT value_json FROM logbook_metadata WHERE key = 'revision'").fetchone()
+    try:
+        return int(json.loads(row["value_json"])) if row else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def current_revision(database_file: Path) -> int | None:
+    """Return the stored revision cheaply, or ``None`` when no document exists yet."""
     with _LOCK:
         if not database_file.exists():
             return None
         with closing(_connect(database_file)) as connection:
+            tables = _schema_tables(connection)
+            if not tables:
+                return None
+            if not {"logbook_metadata", "logbook_entries"}.issubset(tables):
+                raise sqlite3.DatabaseError("Database does not contain the Fishing Logbook schema")
+            if connection.execute("SELECT 1 FROM logbook_metadata LIMIT 1").fetchone() is None:
+                return None
+            return _stored_revision(connection)
+
+
+def read_with_revision(database_file: Path, collection_keys: tuple[str, ...]) -> tuple[dict | None, int]:
+    """Read the stored document and its revision; the document is ``None`` when empty."""
+    with _LOCK:
+        if not database_file.exists():
+            return None, 0
+        with closing(_connect(database_file)) as connection:
             with connection:
-                tables = {
-                    row[0]
-                    for row in connection.execute(
-                        "SELECT name FROM sqlite_master WHERE type = 'table'"
-                    )
-                }
+                tables = _schema_tables(connection)
                 if not tables:
-                    return None
+                    return None, 0
                 if not {"logbook_metadata", "logbook_entries"}.issubset(tables):
                     raise sqlite3.DatabaseError("Database does not contain the Fishing Logbook schema")
                 metadata = {
@@ -92,12 +125,13 @@ def read(database_file: Path, collection_keys: tuple[str, ...]) -> dict | None:
                     for row in connection.execute("SELECT key, value_json FROM logbook_metadata")
                 }
                 if not metadata:
-                    return None
+                    return None, 0
                 loaded = metadata.get("extra", {})
                 loaded["schemaVersion"] = metadata.get("schemaVersion", 0)
                 loaded["settings"] = metadata.get("settings", {})
+                optional_present = set(metadata.get(_OPTIONAL_COLLECTIONS_PRESENT_KEY, []))
                 for collection_name in collection_keys:
-                    loaded[collection_name] = [
+                    rows = [
                         json.loads(row["payload_json"])
                         for row in connection.execute(
                             "SELECT payload_json FROM logbook_entries "
@@ -105,7 +139,55 @@ def read(database_file: Path, collection_keys: tuple[str, ...]) -> dict | None:
                             (collection_name,),
                         )
                     ]
-                return loaded
+                    # Collections promoted out of "extra" keep their stored
+                    # value until the next write moves them into rows.
+                    if collection_name in _OPTIONAL_COLLECTION_KEYS and not rows and collection_name not in loaded and collection_name not in optional_present:
+                        continue
+                    if rows or collection_name not in loaded:
+                        loaded[collection_name] = rows
+                try:
+                    revision = int(metadata.get("revision", 0))
+                except (TypeError, ValueError):
+                    revision = 0
+                return loaded, revision
+
+
+def read(database_file: Path, collection_keys: tuple[str, ...]) -> dict | None:
+    """Read the stored document, returning ``None`` when it has no rows yet."""
+    return read_with_revision(database_file, collection_keys)[0]
+
+
+def _check_revision(connection: sqlite3.Connection, expected_revision: int | None) -> int:
+    current = _stored_revision(connection)
+    if expected_revision is not None and expected_revision != current:
+        raise RevisionConflict(current)
+    return current
+
+
+def _insert_rows(connection: sqlite3.Connection, collection_name: str, records: list, object_collection_keys: set[str]) -> None:
+    connection.executemany(
+        """
+        INSERT INTO logbook_entries (collection_name, position, record_id, payload_json)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            (
+                collection_name,
+                position,
+                str(record.get("id")) if collection_name in object_collection_keys and isinstance(record, dict) and record.get("id") else None,
+                json.dumps(record, allow_nan=False, separators=(",", ":")),
+            )
+            for position, record in enumerate(records)
+        ),
+    )
+
+
+def _write_metadata(connection: sqlite3.Connection, key: str, value: object) -> None:
+    connection.execute(
+        "INSERT INTO logbook_metadata (key, value_json) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
+        (key, json.dumps(value, allow_nan=False)),
+    )
 
 
 def write(
@@ -113,49 +195,48 @@ def write(
     normalized: dict,
     collection_keys: tuple[str, ...],
     object_collection_keys: set[str],
-) -> None:
-    """Replace the persisted document atomically in one SQLite transaction."""
+    *,
+    expected_revision: int | None = None,
+) -> int:
+    """Replace the persisted document atomically and return its new revision.
+
+    ``expected_revision`` enables optimistic concurrency: the write is refused
+    with :class:`RevisionConflict` when another writer committed first.
+    """
     extras = {
         key: value
         for key, value in normalized.items()
         if key not in {*collection_keys, "schemaVersion", "settings"}
     }
+    optional_present = [
+        key for key in collection_keys
+        if key in _OPTIONAL_COLLECTION_KEYS and key in normalized
+    ]
     with _LOCK:
         database_file.parent.mkdir(parents=True, exist_ok=True)
         with closing(_connect(database_file)) as connection:
             _initialize_schema(connection)
             connection.execute("BEGIN IMMEDIATE")
             try:
+                revision = _check_revision(connection, expected_revision) + 1
                 connection.execute("DELETE FROM logbook_metadata")
                 connection.execute("DELETE FROM logbook_entries")
-                connection.executemany(
-                    "INSERT INTO logbook_metadata (key, value_json) VALUES (?, ?)",
-                    (
-                        ("schemaVersion", json.dumps(normalized["schemaVersion"], allow_nan=False)),
-                        ("settings", json.dumps(normalized["settings"], allow_nan=False)),
-                        ("extra", json.dumps(extras, allow_nan=False)),
-                    ),
-                )
+                for key, value in (
+                    ("schemaVersion", normalized["schemaVersion"]),
+                    ("settings", normalized["settings"]),
+                    ("extra", extras),
+                    (_OPTIONAL_COLLECTIONS_PRESENT_KEY, optional_present),
+                    ("revision", revision),
+                ):
+                    _write_metadata(connection, key, value)
                 for collection_name in collection_keys:
-                    connection.executemany(
-                        """
-                        INSERT INTO logbook_entries (collection_name, position, record_id, payload_json)
-                        VALUES (?, ?, ?, ?)
-                        """,
-                        (
-                            (
-                                collection_name,
-                                position,
-                                str(record.get("id")) if collection_name in object_collection_keys and record.get("id") else None,
-                                json.dumps(record, allow_nan=False, separators=(",", ":")),
-                            )
-                            for position, record in enumerate(normalized[collection_name])
-                        ),
-                    )
+                    if collection_name in normalized:
+                        _insert_rows(connection, collection_name, normalized[collection_name], object_collection_keys)
                 connection.commit()
             except Exception:
                 connection.rollback()
                 raise
+    return revision
 
 
 def replace(
@@ -163,8 +244,10 @@ def replace(
     normalized: dict,
     collection_keys: tuple[str, ...],
     object_collection_keys: set[str],
-) -> None:
-    """Install a complete document into a fresh SQLite file.
+    *,
+    previous_revision: int = 0,
+) -> int:
+    """Install a complete document into a fresh SQLite file and return its revision.
 
     This is reserved for explicit recovery/import operations. It allows a
     corrupt or incompatible SQLite file to be replaced without first trying
@@ -194,7 +277,13 @@ def replace(
         }
         installed_files: list[Path] = []
         try:
-            write(temporary_file, normalized, collection_keys, object_collection_keys)
+            revision = write(temporary_file, normalized, collection_keys, object_collection_keys)
+            if previous_revision >= revision:
+                # Keep revisions monotonic so stale clients cannot match the fresh file.
+                revision = previous_revision + 1
+                with closing(_connect(temporary_file)) as connection:
+                    _write_metadata(connection, "revision", revision)
+                    connection.commit()
             existing_files = [path for path in old_files if path.exists()]
             if existing_files:
                 backup_directory = database_file.parent / f".{database_file.name}.recovery-{uuid.uuid4().hex}"
@@ -226,3 +315,4 @@ def replace(
             temporary_file.unlink(missing_ok=True)
             for sidecar in temporary_sidecars:
                 sidecar.unlink(missing_ok=True)
+    return revision

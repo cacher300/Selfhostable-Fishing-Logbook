@@ -7,36 +7,463 @@ files on every cache refresh and reads only decimated OPeNDAP ASCII slices.
 
 from __future__ import annotations
 
-import base64
 import bisect
+import hashlib
 import math
+import os
 import re
+import threading
 import time
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from array import array
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from io import BytesIO
 
-from PIL import Image
+from . import great_lakes_cache as gl_cache
+from . import great_lakes_volumes as volumes
+from .great_lakes_render import (
+    CURRENT_SPEED_COLOR_STOPS,
+    TEMPERATURE_COLOR_STOPS,
+    THERMOCLINE_COLOR_STOPS,
+    GridAxes,
+    ScalarGrid,
+    WaterMask,
+    fill_invalid,
+    limit_water_to_depth,
+    render_overlay,
+    robust_range,
+)
 
 THREDDS = "https://opendap.co-ops.nos.noaa.gov/thredds"
 GREAT_LAKES_MODELS = {"superior": "LSOFS", "michigan": "LMHOFS", "huron": "LMHOFS", "erie": "LEOFS", "ontario": "LOOFS"}
 MODELS = tuple(dict.fromkeys(GREAT_LAKES_MODELS.values()))
-CACHE_SECONDS = 600
-_catalog_cache: dict[str, object] = {"expires": 0.0, "runs": {}}
+# Every GLOFS cycle (00, 06, 12, 18 UTC) forecasts 120 hours ahead.
+RUN_FINAL_FORECAST_HOUR = 120
+# Forecast choices on the map, in hours from now ("Now" first).
+FORECAST_OFFSETS = (0, 6, 12, 24, 48)
+# The forecast animation: "Now", then every 3 hours on the UTC clock (00, 03,
+# 06 … UTC) out to 48 hours. Frames on fixed clock times are the same NOAA
+# files all through a run, so they are downloaded and drawn once per run
+# rather than again every hour as "Now" moves on.
+ANIMATION_STEP_HOURS = 3
+ANIMATION_SPAN_HOURS = 48
+RUNS_FILE = "runs.json"
+RUNS_MAX_AGE_SECONDS = 15 * 60
+RUNS_DISK_POLL_SECONDS = 30
+_runs_state: dict[str, dict] = {}
+_runs_disk_checked = [0.0]
+_runs_lock = threading.Lock()
 _raster_cache: dict[tuple, dict] = {}
 _thermocline_raster_cache: dict[tuple, dict] = {}
-TEMPERATURE_RASTER_RENDER_VERSION = 2
-THERMOCLINE_RASTER_RENDER_VERSION = 14
+TEMPERATURE_RASTER_RENDER_VERSION = 5
+THERMOCLINE_RASTER_RENDER_VERSION = 28
+THERMOCLINE_ERROR_AFTER_SECONDS = 3 * 60 * 60
+CURRENT_RENDER_VERSION = 4
+# A requested depth this far below a lake's deepest model level has no water there.
+DEEPEST_LEVEL_TOLERANCE_METERS = 0.5
+# Never stretch the palette across less than this, or model noise in a
+# uniformly mixed lake would read as dramatic temperature fronts.
+TEMPERATURE_MIN_COLOR_SPAN_C = 3.0
+THERMOCLINE_MIN_COLOR_SPAN_METERS = 2.0
+CURRENT_MIN_COLOR_MAX_METERS_PER_SECOND = 0.08
+CURRENT_RASTER_RESOLUTION = 512
+# The regular grids are ~0.5–1 km; this keeps the static water mask near
+# native resolution (Superior is halved) while bounding its one-time download.
+WATER_MASK_MAX_COLUMNS = 1000
+_water_mask_cache: dict[tuple, WaterMask] = {}
 THERMOCLINE_MIN_DEPTH_METERS = 3.048  # 10 ft below the surface
 THERMOCLINE_BOTTOM_CLEARANCE_METERS = 3.048  # Never classify the final 10 ft as a thermocline.
-THERMOCLINE_MIN_GRADIENT_C_PER_METER = 0.1
+# The band's layers cool at least this fast (about 0.1 °F per 10 ft): gentle thermoclines under a
+# perfectly flat warm layer are real; the contrast with the warm layer is what rules out noise.
+THERMOCLINE_MIN_GRADIENT_C_PER_METER = 0.02
+# A thermocline is where the slope changes: a warm top layer at least 10 ft thick (below 10 ft)
+# over a band that cools at least THERMOCLINE_MIN_CONTRAST times faster, by at least 0.5 °F: the
+# water-column chart draws a column that varies less than that as one straight line.
+THERMOCLINE_MIN_WARM_LAYER_METERS = 3.048
+THERMOCLINE_MIN_CONTRAST = 3.0
+THERMOCLINE_MIN_BAND_DROP_C = 0.5 / 1.8
+# The top is the deepest depth where the warm layer above still cools at most a fifth as fast as
+# the band below (it reads as flat on the chart); a warm layer cooling slower than
+# THERMOCLINE_FLAT_RATE_C_PER_METER counts as perfectly flat when comparing.
+THERMOCLINE_FLAT_RATIO = 5.0
+THERMOCLINE_FLAT_RATE_C_PER_METER = 0.005
+# Of those levels, prefer the deepest where the layer just below cools at least this many times
+# faster than the layer just above: where the curve bends, not partway down the band.
+THERMOCLINE_LOCAL_BEND_RATIO = 1.5
+# The top is the last level of the straight part above the band: the shallowest bend from which
+# every layer down to the strongest cooling cools at least this share of that strongest rate, so
+# a slower lead-in at the top of the band belongs to the band. The first layer below the top must
+# cool by at least THERMOCLINE_MIN_LEAD_DROP_C (a level with water as warm or warmer below it is
+# never the top).
+THERMOCLINE_LEAD_SHARE = 0.2
+THERMOCLINE_MIN_LEAD_DROP_C = 0.15 / 1.8
+# Below a straight (nearly vertical) part, where the layer below cools at least this many times
+# faster than the layer above, a gentler lead-in still counts down to this share.
+THERMOCLINE_SHARP_BEND_RATIO = 3.0
+THERMOCLINE_SHARP_LEAD_SHARE = 0.1
+# Readings show at most this much of the band (15 ft): the top is what anglers fish, and a
+# band can taper on for 50 ft or more below it. Detection still uses the whole band.
+THERMOCLINE_MAX_SHOWN_THICKNESS_METERS = 15 / 3.28084
+# The band ends where the cooling eases to this share of its strongest rate (or to the minimum above).
+THERMOCLINE_BAND_PEAK_SHARE = 0.5
 THERMOCLINE_SPATIAL_OUTLIER_METERS = 12.0
 _temperature_field_cache: dict[tuple, list[dict]] = {}
 _current_payload_cache: dict[tuple, dict] = {}
 _current_profile_cache: dict[tuple, dict] = {}
+# Cache keys end with an hourly bucket and include client-selected
+# depth/resolution values, so both age and entry count must be bounded.
+MAX_PAYLOAD_CACHE_ENTRIES = 16
+MAX_FIELD_CACHE_ENTRIES = 8
+MAX_PROFILE_CACHE_ENTRIES = 64
+MAX_SAVED_POINT_PROFILES = 512
+# Drawn layers are keyed by run and hour, so older files are never reused.
+RENDERED_MAX_AGE_SECONDS = 3 * 3600
+_build_locks: dict[tuple, threading.Lock] = {}
+_cache_lock = threading.Lock()
+MAX_DATASET_INFO_ENTRIES = 256
+_dds_cache: dict[str, str] = {}
+_dimensions_cache: dict[str, tuple[int, int, list[float]]] = {}
+# FVCOM computes temperature at triangle-mesh nodes and velocity at triangle
+# centres. The mesh is fixed per model, so it is downloaded once and kept on disk.
+MODEL_POINT_KINDS = {"temperature": ("lat", "lon", "node"), "currents": ("latc", "lonc", "nele")}
+MODEL_POINTS_LIMIT = 6000
+_mesh_cache: dict[tuple[str, str], tuple[array, array]] = {}
+_mesh_locks: dict[tuple[str, str], threading.Lock] = {}
+MODEL_LAKE_NAMES = {"LSOFS": "Superior", "LEOFS": "Erie", "LOOFS": "Ontario"}
+MICHIGAN_HURON_SPLIT_LONGITUDE = -84.75
+_bathymetry_cache: dict[str, dict] = {}
+
+
+def _forecast_run(model: str, forecast_hour: int) -> dict:
+    return select_forecast_run(discovered_runs((model,))[model], forecast_hour)
+
+
+
+def select_forecast_run(run: dict, forecast_hour: int, now: float | None = None) -> dict:
+    """Newest run containing the exact requested hour; never clamp a partial run.
+
+    Legacy cached runs have no fallback list and retain their old selection
+    until the next catalog check upgrades them.
+    """
+    if "fallbacks" not in run:
+        return run
+    now = time.time() if now is None else now
+    for candidate in (run, *run["fallbacks"]):
+        hour = math.floor((now - float(candidate["cycleEpoch"])) / 3600 + 0.5) + int(forecast_hour)
+        if hour in candidate.get("files", {}):
+            return candidate
+    return {"id": run.get("id"), "error": "No published NOAA file covers the requested forecast hour"}
+
+
+
+def _thermocline_with_fallback(payload: dict, forecast_hour: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None) -> dict:
+    """Use the last complete thermocline layer while NOAA is missing one or more lakes."""
+    path = _thermocline_fallback_path(forecast_hour, resolution, models, scale)
+    now = time.time()
+    with _cache_lock:
+        state = gl_cache.read_json(path)
+        if not isinstance(state, dict):
+            state = {}
+
+        if _complete(payload):
+            state = {"lastGoodPayload": payload, "lastGoodAt": now, "unavailableSince": None}
+            try:
+                gl_cache.write_json(path, state)
+            except OSError:
+                pass
+            _touch(path, payload)
+            return payload
+
+        unavailable_since = state.get("unavailableSince")
+        try:
+            unavailable_since = float(unavailable_since)
+        except (TypeError, ValueError):
+            unavailable_since = now
+        if not math.isfinite(unavailable_since) or unavailable_since > now:
+            unavailable_since = now
+        if state.get("unavailableSince") != unavailable_since:
+            state["unavailableSince"] = unavailable_since
+            try:
+                gl_cache.write_json(path, state)
+            except OSError:
+                pass
+
+        last_good = state.get("lastGoodPayload")
+        last_good_at = state.get("lastGoodAt")
+        outage_seconds = max(0, int(now - unavailable_since))
+        availability = {
+            "state": "error" if outage_seconds >= THERMOCLINE_ERROR_AFTER_SECONDS else "fallback" if isinstance(last_good, dict) else "waiting",
+            "missingModels": [item.get("model") for item in payload.get("metadata", {}).get("models", []) if not item.get("available", True)],
+            "outageSeconds": outage_seconds,
+            "errorAfterSeconds": THERMOCLINE_ERROR_AFTER_SECONDS,
+        }
+        if last_good_at is not None:
+            availability["lastGoodAt"] = datetime.fromtimestamp(float(last_good_at), timezone.utc).isoformat().replace("+00:00", "Z")
+        if isinstance(last_good, dict):
+            fallback = {**last_good, "metadata": {**last_good.get("metadata", {}), "availability": availability}}
+            _touch(path, fallback)
+            return fallback
+
+        payload["metadata"]["availability"] = availability
+        return payload
+
+
+
+def _thermocline_fallback_path(forecast_hour: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None):
+    key = (THERMOCLINE_RASTER_RENDER_VERSION, forecast_hour, resolution, models, scale)
+    name = hashlib.sha1(repr(key).encode("utf-8")).hexdigest() + ".json"
+    return gl_cache.path_for("thermocline-fallbacks", name)
+
+
+
+def selected_data_key(runs: dict[str, dict], forecast_hour: int, now: float | None = None) -> tuple:
+    """The actual run and file selected for each lake, including publication fallbacks."""
+    now = time.time() if now is None else now
+    selected = {model: select_forecast_run(run, forecast_hour, now) for model, run in runs.items()}
+    return tuple((model, run.get("id"), select_forecast_hour(run, forecast_hour, now) if run.get("files") else None) for model, run in selected.items())
+
+
+
+def _cache_bucket() -> int:
+    # Served data only changes when a run is published or "Now" moves to the
+    # next hour; run ids and file hours are part of every key (``_data_key``).
+    # "Now" is the hour nearest the current time, so it moves at half past; a
+    # bucket on the clock hour made every drawn layer expire at :00 and be
+    # rebuilt on request until the refresher redrew them at :30.
+    return int((time.time() + 1800) // 3600)
+
+
+def animation_offsets(now: float | None = None) -> tuple[int, ...]:
+    """Hours from now of each forecast animation frame ("Now" first)."""
+    # "Now" is the hour nearest the current time (see select_forecast_hour).
+    now_hour = math.floor((time.time() if now is None else now) / 3600 + 0.5)
+    return (0, *(offset for offset in range(1, ANIMATION_SPAN_HOURS + 1) if (now_hour + offset) % ANIMATION_STEP_HOURS == 0))
+
+
+def served_offsets(now: float | None = None) -> tuple[int, ...]:
+    """Every forecast offset the map can show now: the forecast choices and the animation frames."""
+    return tuple(sorted({*FORECAST_OFFSETS, *animation_offsets(now)}))
+
+
+def _data_key(models: tuple[str, ...], forecast_hour: int) -> tuple:
+    runs = discovered_runs(models)
+    return selected_data_key(runs, forecast_hour)
+
+
+def _cache_store(cache: dict, key: tuple, value: object, max_entries: int) -> None:
+    """Store ``value`` after dropping expired buckets and the oldest overflow entries."""
+    with _cache_lock:
+        bucket = key[-1]
+        for expired in [existing for existing in cache if existing[-1] < bucket]:
+            del cache[expired]
+        cache.pop(key, None)
+        cache[key] = value
+        while len(cache) > max_entries:
+            del cache[next(iter(cache))]
+
+
+def _rendered_path(key: tuple):
+    # The trailing hourly bucket only bounds the memory caches. The rest of the
+    # key names the exact NOAA files and drawing, so a layer drawn in an
+    # earlier hour (an animation frame, say) is reused from disk.
+    return gl_cache.path_for("rendered", hashlib.sha1(repr(key[:-1]).encode("utf-8")).hexdigest() + ".json")
+
+
+def _touch(path, payload: dict) -> None:
+    """Mark a drawn layer as in use, so the age-based pruning keeps it (its images are inline)."""
+    try:
+        os.utime(path)
+    except OSError:
+        pass
+
+
+# A layer drawn while a lake could not be read (NOAA briefly unreachable) is
+# kept in memory only this long, then drawn again on the next request, rather
+# than until the hour changes.
+INCOMPLETE_RETRY_SECONDS = 120
+_incomplete_until: dict[tuple, float] = {}
+
+
+def _complete(payload: dict) -> bool:
+    return all(item.get("available", True) for item in payload.get("metadata", {}).get("models", []))
+
+
+def _current_fallback_path(forecast_hour: int, depth: int, models: tuple[str, ...], scale: tuple[float, float] | None):
+    key = (CURRENT_RENDER_VERSION, forecast_hour, depth, models, scale)
+    name = hashlib.sha1(repr(key).encode("utf-8")).hexdigest() + ".json"
+    return gl_cache.path_for("current-fallbacks", name)
+
+
+def _last_cached_current_payload(forecast_hour: int, depth: int, models: tuple[str, ...], now: float) -> dict | None:
+    """Find the newest complete cached current map for this forecast choice."""
+    directory = gl_cache.path_for("rendered")
+    try:
+        paths = sorted(directory.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    except OSError:
+        return None
+    expected_models = set(models)
+    for candidate_path in paths:
+        try:
+            if now - candidate_path.stat().st_mtime > 24 * 3600:
+                break
+        except OSError:
+            continue
+        candidate = gl_cache.read_json(candidate_path)
+        if not isinstance(candidate, dict):
+            continue
+        metadata = candidate.get("metadata", {})
+        candidate_models = metadata.get("models", [])
+        if (
+            "FVCOM sigma-layer" not in str(metadata.get("depthNote", ""))
+            or metadata.get("forecastHour") != forecast_hour
+            or metadata.get("requestedDepthMeters") != depth
+            or {item.get("model") for item in candidate_models} != expected_models
+            or not _complete(candidate)
+            or not candidate.get("rasters")
+        ):
+            continue
+        return candidate
+    return None
+
+
+def _currents_with_fallback(payload: dict, forecast_hour: int, depth: int, models: tuple[str, ...], scale: tuple[float, float] | None) -> dict:
+    """Keep the last complete current map visible when NOAA current files fail."""
+    path = _current_fallback_path(forecast_hour, depth, models, scale)
+    now = time.time()
+    with _cache_lock:
+        state = gl_cache.read_json(path)
+        if not isinstance(state, dict):
+            state = {}
+
+        if _complete(payload):
+            state = {"lastGoodPayload": payload, "lastGoodAt": now, "unavailableSince": None}
+            try:
+                gl_cache.write_json(path, state)
+            except OSError:
+                pass
+            _touch(path, payload)
+            return payload
+
+        unavailable_since = state.get("unavailableSince")
+        try:
+            unavailable_since = float(unavailable_since)
+        except (TypeError, ValueError):
+            unavailable_since = now
+        if not math.isfinite(unavailable_since) or unavailable_since > now:
+            unavailable_since = now
+
+        last_good = state.get("lastGoodPayload")
+        if not isinstance(last_good, dict):
+            last_good = _last_cached_current_payload(forecast_hour, depth, models, now)
+            if isinstance(last_good, dict):
+                generated_at = last_good.get("metadata", {}).get("generatedAt")
+                try:
+                    saved_at = datetime.fromisoformat(str(generated_at).replace("Z", "+00:00")).timestamp()
+                except (TypeError, ValueError):
+                    saved_at = now
+                state["lastGoodPayload"] = last_good
+                state["lastGoodAt"] = saved_at
+        state["unavailableSince"] = unavailable_since
+        try:
+            gl_cache.write_json(path, state)
+        except OSError:
+            pass
+
+        missing = [item.get("model") for item in payload.get("metadata", {}).get("models", []) if not item.get("available", True)]
+        if not isinstance(last_good, dict):
+            return payload
+        availability = {
+            "state": "fallback",
+            "missingModels": missing,
+            "outageSeconds": max(0, int(now - unavailable_since)),
+            "lastGoodAt": datetime.fromtimestamp(float(state.get("lastGoodAt", now)), timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
+        fallback = {**last_good, "metadata": {**last_good.get("metadata", {}), "availability": availability}}
+        _touch(path, fallback)
+        return fallback
+
+
+def _from_memory(memory: dict, key: tuple) -> dict | None:
+    cached = memory.get(key)
+    if cached is None:
+        return None
+    retry_at = _incomplete_until.get(key)
+    return None if retry_at is not None and time.time() >= retry_at else cached
+
+
+def _remember_completeness(key: tuple, payload: dict) -> None:
+    now = time.time()
+    with _cache_lock:
+        if _complete(payload):
+            _incomplete_until.pop(key, None)
+        else:
+            _incomplete_until[key] = now + INCOMPLETE_RETRY_SECONDS
+        for stale in [item for item, retry_at in _incomplete_until.items() if retry_at < now - 3600]:
+            del _incomplete_until[stale]
+
+
+def _shared_payload(memory: dict, key: tuple, build, max_entries: int) -> dict:
+    """A drawn layer from memory, then the shared disk cache, then built.
+
+    Drawing is the slow part of a cached layer (up to a few seconds for all
+    lakes), so finished layers are stored on disk for every worker. Payloads
+    with an unavailable lake are not stored on disk and are kept in memory
+    only briefly, so a later request retries.
+    """
+    cached = _from_memory(memory, key)
+    if cached is not None:
+        return cached
+    with _cache_lock:
+        lock = _build_locks.setdefault(key, threading.Lock())
+    try:
+        with lock:
+            cached = _from_memory(memory, key)
+            if cached is not None:
+                return cached
+            shared = gl_cache.read_json(_rendered_path(key))
+            if isinstance(shared, dict):
+                _touch(_rendered_path(key), shared)
+                _cache_store(memory, key, shared, max_entries)
+                _remember_completeness(key, shared)
+                return shared
+            payload = build()
+            if _complete(payload):
+                try:
+                    gl_cache.write_json(_rendered_path(key), payload)
+                except OSError:
+                    pass
+            _cache_store(memory, key, payload, max_entries)
+            _remember_completeness(key, payload)
+            return payload
+    finally:
+        with _cache_lock:
+            _build_locks.pop(key, None)
+
+
+def prune_model_hours(model: str, run: dict, keep_hours: set[int]) -> None:
+    """Delete a run's cached hours the map no longer shows (forecast choices move forward hourly)."""
+    directory = gl_cache.path_for("models", model, run["id"])
+    try:
+        files = list(directory.iterdir())
+    except OSError:
+        return
+    for item in files:
+        match = re.match(r"[a-z]+-f(\d{3})-", item.name)
+        if match and int(match.group(1)) not in keep_hours:
+            item.unlink(missing_ok=True)
+
+
+def prune_rendered(max_age_seconds: float = RENDERED_MAX_AGE_SECONDS) -> None:
+    directory = gl_cache.path_for("rendered")
+    cutoff = time.time() - max_age_seconds
+    try:
+        stale = [item for item in directory.iterdir() if item.stat().st_mtime < cutoff]
+    except OSError:
+        return
+    for item in stale:
+        item.unlink(missing_ok=True)
 
 
 def _get(url: str) -> str:
@@ -50,56 +477,128 @@ def _catalog_refs(url: str) -> list[tuple[str, str]]:
     return [(node.attrib.get("{http://www.w3.org/1999/xlink}href", ""), node.attrib.get("name", "")) for node in root.iter() if node.tag.endswith("catalogRef")]
 
 
+def _day_catalogs(model: str, count: int = 2) -> list[str]:
+    """Newest ``count`` day-directory catalog URLs, crossing month and year boundaries."""
+    root = f"{THREDDS}/catalog/NOAA/{model}/MODELS/catalog.xml"
+    days: list[str] = []
+    for year_href, _ in sorted(_catalog_refs(root), key=lambda item: item[1], reverse=True):
+        year_url = urllib.parse.urljoin(root, year_href)
+        for month_href, _ in sorted(_catalog_refs(year_url), key=lambda item: item[1], reverse=True):
+            month_url = urllib.parse.urljoin(year_url, month_href)
+            for day_href, _ in sorted(_catalog_refs(month_url), key=lambda item: item[1], reverse=True):
+                days.append(urllib.parse.urljoin(month_url, day_href))
+                if len(days) >= count:
+                    return days
+    return days
+
+
 def _latest_day_catalog(model: str) -> str:
-    root = f"{THREDDS}/catalog/NOAA/{model}/MODELS"
-    year_url = urllib.parse.urljoin(f"{root}/catalog.xml", max(_catalog_refs(f"{root}/catalog.xml"), key=lambda item: item[1])[0])
-    month_url = urllib.parse.urljoin(year_url, max(_catalog_refs(year_url), key=lambda item: item[1])[0])
     # The newest calendar directory can exist before files are published.
-    for href, _ in sorted(_catalog_refs(month_url), key=lambda item: item[1], reverse=True):
-        candidate = urllib.parse.urljoin(month_url, href)
+    for candidate in _day_catalogs(model, 2):
         if re.search(r"\.(?:regulargrid|fields)\.f\d+\.nc", _get(candidate)):
             return candidate
     raise RuntimeError("Newest NOAA day directory has no forecast output yet")
 
 
-def _discover_model(model: str) -> dict:
-    root = ET.fromstring(_get(_latest_day_catalog(model)))
-    files = []
-    for node in root.iter():
+def _cycle_epoch(date: int, cycle: int) -> float:
+    return datetime.strptime(f"{date}{cycle:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp()
+
+
+def runs_from_catalog(xml_text: str) -> list[dict]:
+    """Model runs in one day catalog, newest first, preferring regular-grid output."""
+    grouped: dict[tuple[int, int], dict[str, dict[int, str]]] = {}
+    for node in ET.fromstring(xml_text).iter():
         path = node.attrib.get("urlPath", "")
         match = re.search(r"\.t(\d\d)z\.(\d{8})\.(regulargrid|fields)\.f(\d+)\.nc$", path)
         if match:
-            # Prefer the requested regular-grid output when the newest run
-            # also retains legacy unstructured fields files.
-            files.append((int(match.group(2)), int(match.group(1)), int(match.group(4)), match.group(3) == "regulargrid", path))
-    if not files:
-        raise RuntimeError("No forecast fields dataset found in newest NOAA catalog run")
-    newest_date, newest_cycle = max((date, cycle) for date, cycle, _, _, _ in files)
-    latest = [entry for entry in files if entry[:2] == (newest_date, newest_cycle)]
-    regular = [entry for entry in latest if entry[3]]
-    selected = regular or latest
-    return {"files": {hour: path for _, _, hour, _, path in selected}, "date": newest_date, "cycle": newest_cycle}
+            files = grouped.setdefault((int(match.group(2)), int(match.group(1))), {}).setdefault(match.group(3), {})
+            files[int(match.group(4))] = path
+    runs = []
+    for (date, cycle), kinds in sorted(grouped.items(), reverse=True):
+        kind = "regulargrid" if "regulargrid" in kinds else "fields"
+        files = kinds[kind]
+        runs.append({
+            "id": f"{date}t{cycle:02d}z", "date": date, "cycle": cycle, "cycleEpoch": _cycle_epoch(date, cycle),
+            "kind": kind, "files": dict(sorted(files.items())),
+            # NOAA publishes a run's hourly files over several minutes; a run
+            # is only used once its final forecast hour exists.
+            "complete": max(files) >= RUN_FINAL_FORECAST_HOUR,
+        })
+    return runs
 
 
-def discovered_runs(models: tuple[str, ...] = MODELS) -> dict[str, dict]:
-    cached = _catalog_cache["runs"]  # type: ignore[assignment]
-    if time.monotonic() >= float(_catalog_cache["expires"]):
-        cached = {}
-        _catalog_cache["runs"] = cached
-    missing = [model for model in models if model not in cached]
-    # Each lake has an independent catalog. Discover them concurrently so a
-    # cold cache is bounded by the slowest NOAA catalog rather than their sum.
-    if missing:
-        with ThreadPoolExecutor(max_workers=len(missing)) as executor:
-            futures = {model: executor.submit(_discover_model, model) for model in missing}
-            for model in missing:
-                future = futures[model]
+def _discover_model(model: str) -> dict:
+    """Published regular-grid runs, newest first, without waiting for f120.
+
+    Keep earlier runs so each requested hour can fall back independently.
+    New native fields must not displace usable regular-grid output.
+    """
+    runs = sorted(
+        [run for day_url in _day_catalogs(model, 2) for run in runs_from_catalog(_get(day_url))],
+        key=lambda run: run["cycleEpoch"], reverse=True,
+    )
+    preferred = [run for run in runs if run["kind"] == "regulargrid"] or runs
+    if preferred:
+        return {**preferred[0], "fallbacks": preferred[1:]}
+    raise RuntimeError("No forecast dataset found in the newest NOAA catalogs")
+
+
+def _normalize_run(run: dict) -> dict:
+    if "files" in run:
+        run = {**run, "files": {int(hour): path for hour, path in run["files"].items()}}
+    if "fallbacks" in run:
+        run = {**run, "fallbacks": [_normalize_run(candidate) for candidate in run["fallbacks"]]}
+    return run
+
+
+def discovered_runs(models: tuple[str, ...] = MODELS, refresh: bool = False) -> dict[str, dict]:
+    """Published runs per model, including earlier runs for unpublished hours.
+
+    Runs are checked at most every RUNS_MAX_AGE_SECONDS (the background
+    refresher checks more often around publication times) and shared with
+    other workers through ``runs.json``. A failed check keeps the last good run.
+    """
+    now = time.time()
+    with _runs_lock:
+        if now - _runs_disk_checked[0] > RUNS_DISK_POLL_SECONDS:
+            _runs_disk_checked[0] = now
+            disk = gl_cache.read_json(gl_cache.path_for(RUNS_FILE))
+            if isinstance(disk, dict):
+                for model, entry in disk.items():
+                    if isinstance(entry, dict) and entry.get("checkedAt", 0) > _runs_state.get(model, {}).get("checkedAt", 0):
+                        _runs_state[model] = {**entry, "run": _normalize_run(entry.get("run", {}))}
+        stale = [model for model in models if refresh or now - _runs_state.get(model, {}).get("checkedAt", 0) > RUNS_MAX_AGE_SECONDS]
+    if stale:
+        # Each lake has an independent catalog; discover them concurrently.
+        with ThreadPoolExecutor(max_workers=len(stale)) as executor:
+            futures = {model: executor.submit(_discover_model, model) for model in stale}
+            results = {}
+            for model in stale:
                 try:
-                    cached[model] = future.result()
+                    results[model] = {"run": futures[model].result(), "checkedAt": now}
                 except Exception as error:
-                    cached[model] = {"error": str(error)}
-    _catalog_cache["expires"] = time.monotonic() + CACHE_SECONDS
-    return {model: cached[model] for model in models}
+                    results[model] = {"run": {"error": str(error)}, "checkedAt": now}
+        with _runs_lock:
+            for model, entry in results.items():
+                previous = _runs_state.get(model, {}).get("run", {})
+                if "error" in entry["run"] and "files" in previous:
+                    entry = {"run": previous, "checkedAt": now, "lastError": entry["run"]["error"]}
+                _runs_state[model] = entry
+            snapshot = {model: {**entry, "run": {**entry["run"], "files": {str(hour): path for hour, path in entry["run"].get("files", {}).items()}}} for model, entry in _runs_state.items()}
+        try:
+            gl_cache.write_json(gl_cache.path_for(RUNS_FILE), snapshot)
+        except OSError:
+            pass
+    with _runs_lock:
+        return {model: _runs_state.get(model, {}).get("run", {"error": "NOAA run not discovered"}) for model in models}
+
+
+def select_forecast_hour(run: dict, forecast_hour: int, now: float | None = None) -> int:
+    """File hour for an offset from *now*: "Now" is the hour nearest the current time, not the run start."""
+    hours = run["files"]
+    elapsed = math.floor(((time.time() if now is None else now) - float(run.get("cycleEpoch", 0))) / 3600 + 0.5)
+    target = max(0, elapsed) + int(forecast_hour)
+    return min(hours, key=lambda candidate: abs(candidate - target))
 
 
 def _ascii(path: str, expression: str) -> str:
@@ -111,21 +610,40 @@ def _numbers(text: str, variable: str) -> list[float]:
     if not match:
         return []
     content = re.sub(r"(?:\[\d+\])+\s*,", "", match.group(1))
-    return [float(value) for value in re.findall(r"(?<!\[)\b-?(?:\d+\.\d*|\d*\.\d+|\d+)(?:[Ee][+-]?\d+)?", content)]
+    # The lookbehind keeps a leading minus sign: "\b-?" never matched a "-"
+    # after ", ", so every negative value (west/south currents, sub-zero
+    # water) used to be read as positive.
+    return [float(value) for value in re.findall(r"(?<![\w.\]])-?(?:\d+\.\d*|\d*\.\d+|\d+)(?:[Ee][+-]?\d+)?", content)]
+
+
+def _run_key(path: str) -> str:
+    """Every hourly file of one run shares its structure and depth levels."""
+    return re.sub(r"\.[fn]\d+\.nc$", "", path)
+
+
+def _dds(path: str) -> str:
+    """Dataset structure, fetched once per model run rather than once per hourly file."""
+    key = _run_key(path)
+    with _cache_lock:
+        cached = _dds_cache.get(key)
+    if cached is not None:
+        return cached
+    text = _get(f"{THREDDS}/dodsC/{path}.dds")
+    with _cache_lock:
+        _dds_cache[key] = text
+        while len(_dds_cache) > MAX_DATASET_INFO_ENTRIES:
+            del _dds_cache[next(iter(_dds_cache))]
+    return text
 
 
 def _metadata(path: str) -> dict[str, str]:
-    dds = _get(f"{THREDDS}/dodsC/{path}.dds")
+    dds = _dds(path)
     def available(*candidates: str) -> str:
         for candidate in candidates:
             if re.search(rf"\b{candidate}\[", dds):
                 return candidate
         raise RuntimeError(f"NOAA dataset has none of: {', '.join(candidates)}")
-    variables = {"temperature": available("temp", "temperature"), "u": available("u_eastward", "u"), "v": available("v_northward", "v")}
-    for label, variable in variables.items():
-        if not re.search(rf"\b{variable}\[", dds):
-            raise RuntimeError(f"NOAA dataset has no {label} variable")
-    return variables
+    return {"temperature": available("temp", "temperature"), "u": available("u_eastward", "u"), "v": available("v_northward", "v")}
 
 
 def _layer_for_depth(depth: int) -> int:
@@ -134,25 +652,37 @@ def _layer_for_depth(depth: int) -> int:
 
 
 def _great_lakes_longitude(value: float) -> float:
-    # CO-OPS regular-grid files may use positive-west longitudes while FVCOM
-    # fields use 0–360 east. Both conventions need Leaflet's -180–180 range.
+    # FVCOM fields use 0–360 east; regular grids use -180–180. The Great Lakes
+    # are entirely west of Greenwich, so a positive value below 180 can only be
+    # a positive-west convention.
     if value > 180:
         return value - 360
     return -value if value > 0 else value
 
 
 def _regular_grid_dimensions(path: str) -> tuple[int, int, list[float]]:
-    dds = _get(f"{THREDDS}/dodsC/{path}.dds")
+    key = _run_key(path)
+    with _cache_lock:
+        cached = _dimensions_cache.get(key)
+    if cached is not None:
+        return cached
+    dds = _dds(path)
     match = re.search(r"Latitude\[ny = (\d+)\]\[nx = (\d+)\]", dds)
     depth_match = re.search(r"Depth\[Depth = (\d+)\]", dds)
     if not match or not depth_match:
-        return 0, 0, []
-    depths = _numbers(_ascii(path, f"Depth[0:1:{int(depth_match.group(1)) - 1}]"), "Depth")
-    return int(match.group(1)), int(match.group(2)), depths
+        result: tuple[int, int, list[float]] = (0, 0, [])
+    else:
+        depths = gl_cache.fetch_dods(f"{THREDDS}/dodsC/{path}", f"Depth[0:1:{int(depth_match.group(1)) - 1}]")["Depth"][1]
+        result = (int(match.group(1)), int(match.group(2)), [float(depth) for depth in depths])
+    with _cache_lock:
+        _dimensions_cache[key] = result
+        while len(_dimensions_cache) > MAX_DATASET_INFO_ENTRIES:
+            del _dimensions_cache[next(iter(_dimensions_cache))]
+    return result
 
 
 def _field_dimensions(path: str) -> tuple[int, int]:
-    dds = _get(f"{THREDDS}/dodsC/{path}.dds")
+    dds = _dds(path)
     node = re.search(r"Float32 lat\[node = (\d+)\]", dds)
     face = re.search(r"Float32 latc\[nele = (\d+)\]", dds)
     if not node or not face:
@@ -160,12 +690,83 @@ def _field_dimensions(path: str) -> tuple[int, int]:
     return int(node.group(1)), int(face.group(1))
 
 
+def _valid_time_text(run: dict, hour: int) -> str:
+    return datetime.fromtimestamp(float(run["cycleEpoch"]) + hour * 3600, timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+class LakeTooShallow(Exception):
+    """The requested depth is below a lake's deepest model level: no water there to show."""
+
+    def __init__(self, model: str, max_depth_meters: float):
+        super().__init__(f"{model} is no deeper than {max_depth_meters:g} m")
+        self.model = model
+        self.max_depth_meters = max_depth_meters
+
+    def metadata(self) -> dict:
+        return {"model": self.model, "available": True, "tooShallow": True, "maxDepthMeters": self.max_depth_meters, "validTime": None}
+
+
+def _model_volume(kind: str, model: str, forecast_hour: int) -> tuple[dict, int, str, dict[str, str], volumes.Volume]:
+    """The cached 3D volume for one model's selected forecast hour."""
+    run = _forecast_run(model, forecast_hour)
+    if "error" in run:
+        raise RuntimeError(str(run["error"]))
+    hour = select_forecast_hour(run, forecast_hour)
+    path = run["files"][hour]
+    ny, nx, depths = _regular_grid_dimensions(path)
+    if not ny or not nx or not depths:
+        raise RuntimeError("Newest model run has no NOAA regular-grid output")
+    variables = _metadata(path)
+    names = [variables["temperature"]] if kind == "temperature" else [variables["u"], variables["v"]]
+    volume = volumes.load_volume(kind, model, run["id"], hour, f"{THREDDS}/dodsC/{path}", ny, nx, depths, names)
+    return run, hour, path, variables, volume
+
+
+def _model_depth(kind: str, model: str, forecast_hour: int, depth: float) -> tuple[dict, int, str, dict[str, str], volumes.Volume, int]:
+    """One depth level for a map layer, as fast as possible.
+
+    Uses the full cached volume when there is one ("Now" is kept warm in the
+    background). Otherwise downloads only the requested level for a quick first
+    view and fetches the full volume in the background, so changing depth or
+    switching to the thermocline is fast afterwards.
+    """
+    run = _forecast_run(model, forecast_hour)
+    if "error" in run:
+        raise RuntimeError(str(run["error"]))
+    hour = select_forecast_hour(run, forecast_hour)
+    path = run["files"][hour]
+    ny, nx, depths = _regular_grid_dimensions(path)
+    if not ny or not nx or not depths:
+        raise RuntimeError("Newest model run has no NOAA regular-grid output")
+    if depth > max(depths) + DEEPEST_LEVEL_TOLERANCE_METERS:
+        raise LakeTooShallow(model, max(depths))
+    variables = _metadata(path)
+    full = volumes.cached_volume(kind, model, run["id"], hour, ny, nx)
+    if full is not None:
+        return run, hour, path, variables, full, full.nearest_level(depth)
+    names = [variables["temperature"]] if kind == "temperature" else [variables["u"], variables["v"]]
+    base_url = f"{THREDDS}/dodsC/{path}"
+    level = min(range(len(depths)), key=lambda index: abs(depths[index] - depth))
+    sliced = volumes.load_level(kind, model, run["id"], hour, base_url, ny, nx, depths, names, level)
+    volumes.prefetch_volume(kind, model, run["id"], hour, base_url, ny, nx, depths, names)
+    return run, hour, path, variables, sliced, 0
+
+
+def warm_model_hour(model: str, forecast_hour: int = 0) -> None:
+    """Download (if needed) and precompute everything the map needs for one model-hour."""
+    run, hour, path, variables, volume = _model_volume("temperature", model, forecast_hour)
+    ny, nx, _ = _regular_grid_dimensions(path)
+    _water_mask(model, path, ny, nx)
+    _thermocline_depths(model, run, hour, variables, volume)
+    _model_volume("velocity", model, forecast_hour)
+
+
 def _sample_model(model: str, kind: str, forecast_hour: int, depth: int) -> tuple[list[dict], dict]:
-    run = discovered_runs((model,))[model]
+    run = _forecast_run(model, forecast_hour)
     if "error" in run:
         raise RuntimeError(str(run["error"]))
     hours = run["files"]  # type: ignore[assignment]
-    available_hour = min(hours, key=lambda candidate: abs(candidate - forecast_hour))
+    available_hour = select_forecast_hour(run, forecast_hour)
     path = hours[available_hour]
     variables, layer = _metadata(path), _layer_for_depth(depth)
     ny, nx, depths = _regular_grid_dimensions(path)
@@ -182,7 +783,7 @@ def _sample_model(model: str, kind: str, forecast_hour: int, depth: int) -> tupl
             lat, lon, mask, east, north = _numbers(raw, "Latitude"), _numbers(raw, "Longitude"), _numbers(raw, "mask"), _numbers(raw, variables["u"]), _numbers(raw, variables["v"])
             data = [{"latitude": a, "longitude": _great_lakes_longitude(b), "u": u, "v": v, "speed": math.hypot(u, v), "direction": (math.degrees(math.atan2(u, v)) + 360) % 360, "depthMeters": depths[layer] if depths else depth, "model": model} for a, b, wet, u, v in zip(lat, lon, mask, east, north) if wet > 0 and all(math.isfinite(value) for value in (a, b, u, v)) and abs(u) <= 10 and abs(v) <= 10]
         valid = datetime.strptime(f"{run['date']}{run['cycle']:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp() + available_hour * 3600
-        return data, {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": datetime.fromtimestamp(valid, timezone.utc).isoformat().replace("+00:00", "Z"), "available": True, "variables": variables, "selectedForecastHour": available_hour, "selectedDepthMeters": depths[layer] if depths else depth}
+        return data, {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": datetime.fromtimestamp(valid, timezone.utc).isoformat().replace("+00:00", "Z"), "available": True, "variables": variables, "run": run["id"], "selectedForecastHour": available_hour, "selectedDepthMeters": depths[layer] if depths else depth}
     if kind == "temperature":
         nodes, _ = _field_dimensions(path)
         raw = _ascii(path, f"lat[0:90:{nodes - 1}],lon[0:90:{nodes - 1}],{variables['temperature']}[0][{layer}][0:90:{nodes - 1}]")
@@ -194,28 +795,41 @@ def _sample_model(model: str, kind: str, forecast_hour: int, depth: int) -> tupl
         lat, lon, east, north = _numbers(raw, "latc"), _numbers(raw, "lonc"), _numbers(raw, variables["u"]), _numbers(raw, variables["v"])
         data = [{"latitude": a, "longitude": _great_lakes_longitude(b), "u": u, "v": v, "speed": math.hypot(u, v), "direction": (math.degrees(math.atan2(u, v)) + 360) % 360, "depthMeters": depth, "model": model} for a, b, u, v in zip(lat, lon, east, north) if all(math.isfinite(value) for value in (a, b, u, v)) and abs(u) <= 10 and abs(v) <= 10]
     valid = datetime.strptime(f"{run['date']}{run['cycle']:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp() + available_hour * 3600
-    return data, {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": datetime.fromtimestamp(valid, timezone.utc).isoformat().replace("+00:00", "Z"), "available": True, "variables": variables, "selectedForecastHour": available_hour, "selectedSigmaLayer": layer}
+    return data, {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": datetime.fromtimestamp(valid, timezone.utc).isoformat().replace("+00:00", "Z"), "available": True, "variables": variables, "run": run["id"], "selectedForecastHour": available_hour, "selectedSigmaLayer": layer}
 
 
-def great_lakes_payload(kind: str, forecast_hour: int, depth: int, models: tuple[str, ...] = MODELS) -> dict:
-    cache_key = (forecast_hour, depth, models, int(time.monotonic() // CACHE_SECONDS))
-    if kind == "currents" and cache_key in _current_payload_cache:
-        return _current_payload_cache[cache_key]
-    selected_models, data, model_metadata, fields = models, [], [], []
+def great_lakes_payload(kind: str, forecast_hour: int, depth: int, models: tuple[str, ...] = MODELS, scale: tuple[float, float] | None = None) -> dict:
+    """Currents (or sampled points) for every lake. ``scale`` fixes the speed shading's (min, max) m/s."""
+    depth = snap_depth(depth, models)
+    if kind == "currents":
+        cache_key = (CURRENT_RENDER_VERSION, _data_key(models, forecast_hour), depth, models, scale, _cache_bucket())
+        payload = _shared_payload(_current_payload_cache, cache_key, lambda: _build_payload(kind, forecast_hour, depth, models, scale), MAX_PAYLOAD_CACHE_ENTRIES)
+        return _currents_with_fallback(payload, forecast_hour, depth, models, scale)
+    return _build_payload(kind, forecast_hour, depth, models)
+
+
+def _build_payload(kind: str, forecast_hour: int, depth: int, models: tuple[str, ...], scale: tuple[float, float] | None = None) -> dict:
+    selected_models, data, model_metadata, fields, render_inputs = models, [], [], [], []
 
     def load_model(model: str) -> tuple[list[dict], dict, dict | None]:
-        points, metadata = _sample_model(model, kind, forecast_hour, depth)
-        field = None
-        if kind == "currents":
-            for point in points:
-                point["validTime"] = metadata.get("validTime")
-            try:
-                field = _current_grid_field(model, forecast_hour, depth)
-            except RuntimeError:
-                # FVCOM fields can provide sampled velocities without a regular grid.
-                # Keep those samples for static arrows and point inspection.
-                pass
-            metadata["gridAvailable"] = field is not None
+        if kind != "currents":
+            points, metadata = _sample_model(model, kind, forecast_hour, depth)
+            return points, metadata, None
+        try:
+            field = _current_grid_field(model, forecast_hour, depth)
+        except LakeTooShallow as shallow:
+            return [], shallow.metadata(), None
+        except Exception:
+            # FVCOM fields can provide sampled velocities without a regular grid.
+            # Keep those samples for static arrows and point inspection.
+            field = None
+        if field is not None:
+            points, metadata = field.pop("_samples"), field.pop("_metadata")
+        else:
+            points, metadata = _sample_model(model, kind, forecast_hour, depth)
+        for point in points:
+            point["validTime"] = metadata.get("validTime")
+        metadata["gridAvailable"] = field is not None
         return points, metadata, field
 
     with ThreadPoolExecutor(max_workers=len(selected_models)) as executor:
@@ -226,6 +840,9 @@ def great_lakes_payload(kind: str, forecast_hour: int, depth: int, models: tuple
                 data.extend(points)
                 model_metadata.append(metadata)
                 if field:
+                    render_input = field.pop("_render", None)
+                    if render_input:
+                        render_inputs.append(render_input)
                     fields.append(field)
             except Exception as error:  # One unavailable lake must not hide the others.
                 model_metadata.append({"model": model, "datasetUrl": "", "validTime": None, "available": False, "error": str(error)})
@@ -235,90 +852,278 @@ def great_lakes_payload(kind: str, forecast_hour: int, depth: int, models: tuple
         if speeds:
             metadata["minSpeedMetersPerSecond"] = min(speeds)
             metadata["maxSpeedMetersPerSecond"] = max(speeds)
+    rasters = []
+    if render_inputs:
+        if scale:
+            maximum = scale[1]
+        else:
+            # Speed shading starts at still water; the top trims rare jets so
+            # ordinary lake currents use most of the palette.
+            _, maximum = robust_range(
+                [value for item in render_inputs for value, ok in zip(item["grid"].values, item["grid"].valid) if ok],
+                0.0, 0.98, 0.0,
+            )
+            maximum = max(maximum, CURRENT_MIN_COLOR_MAX_METERS_PER_SECOND)
+        rasters = _render_rasters(render_inputs, CURRENT_SPEED_COLOR_STOPS, 0.0, maximum, CURRENT_RASTER_RESOLUTION)
+        metadata["minSpeedMetersPerSecond"], metadata["maxSpeedMetersPerSecond"] = 0.0, maximum
     payload = {"data": data, "fields": fields if kind == "currents" else None, "metadata": metadata}
     if kind == "currents":
-        _current_payload_cache[cache_key] = payload
+        payload["rasters"] = rasters
     return payload
 
 
-_TEMPERATURE_COLOR_STOPS = (
-    (0.00, (20, 70, 210)),
-    (0.20, (0, 105, 235)),
-    (0.40, (0, 205, 245)),
-    (0.55, (28, 185, 110)),
-    (0.70, (250, 215, 40)),
-    (0.85, (247, 130, 30)),
-    (1.00, (220, 45, 45)),
-)
-_THERMOCLINE_COLOR_STOPS = (
-    (0.00, (0, 205, 245)),
-    (0.25, (38, 190, 105)),
-    (0.50, (250, 215, 40)),
-    (0.75, (247, 130, 30)),
-    (1.00, (220, 45, 45)),
-)
+def _water_mask(model: str, path: str, ny: int, nx: int) -> WaterMask:
+    """NOAA's near-native wet/dry mask; static per model grid, so cached on disk."""
+    key = (model, ny, nx)
+    cached = _water_mask_cache.get(key)
+    if cached is not None:
+        return cached
+    stride = max(1, math.ceil(nx / WATER_MASK_MAX_COLUMNS))
+    rows, cols = (ny - 1) // stride + 1, (nx - 1) // stride + 1
+    disk_path = gl_cache.path_for("static", model, f"water-mask-{ny}x{nx}-s{stride}.bin")
+    record = gl_cache.read_record(disk_path)
+    if record and len(record[1].get("wet", ())) == rows * cols:
+        wet = bytes(record[1]["wet"])
+    else:
+        values = gl_cache.fetch_dods(f"{THREDDS}/dodsC/{path}", f"mask[0:{stride}:{ny - 1}][0:{stride}:{nx - 1}]")["mask"][1]
+        if len(values) != rows * cols:
+            raise RuntimeError("NOAA water mask dimensions were incomplete")
+        wet = bytes(255 if value > 0 else 0 for value in values)
+        gl_cache.write_record(disk_path, {"rows": rows, "columns": cols}, {"wet": array("B", wet)})
+    mask = WaterMask(rows, cols, stride, stride, wet)
+    with _cache_lock:
+        _water_mask_cache[key] = mask
+    return mask
 
 
-def _gradient_rgba(
-    value: float,
-    minimum: float,
-    maximum: float,
-    stops: tuple[tuple[float, tuple[int, int, int]], ...],
-    alpha: int,
-) -> tuple[int, int, int, int]:
-    position = max(0.0, min(1.0, (value - minimum) / (maximum - minimum)))
-    upper_index = next((index for index, (stop, _) in enumerate(stops) if position <= stop), len(stops) - 1)
-    lower_stop, lower_color = stops[max(0, upper_index - 1)]
-    upper_stop, upper_color = stops[upper_index]
-    fraction = 0 if lower_stop == upper_stop else (position - lower_stop) / (upper_stop - lower_stop)
-    rgb = tuple(
-        round(lower_color[index] + (upper_color[index] - lower_color[index]) * fraction)
-        for index in range(3)
-    )
-    return (*rgb, alpha)
+def _water_mask_or_none(model: str, path: str, ny: int, nx: int) -> WaterMask | None:
+    try:
+        return _water_mask(model, path, ny, nx)
+    except Exception:
+        return None
 
 
-def _temperature_rgba(value: float, minimum: float = 0, maximum: float = 30) -> tuple[int, int, int, int]:
-    return _gradient_rgba(value, minimum, maximum, _TEMPERATURE_COLOR_STOPS, 150)
+def _coarse_water_mask(wet: list[bool], rows: int, cols: int, y_stride: int, x_stride: int) -> WaterMask:
+    return WaterMask(rows, cols, y_stride, x_stride, bytes(255 if item else 0 for item in wet))
 
 
-def _thermocline_rgba(depth: float, minimum: float = 0, maximum: float = 100) -> tuple[int, int, int, int]:
-    return _gradient_rgba(depth, minimum, maximum, _THERMOCLINE_COLOR_STOPS, 170)
+def model_render_grid(model: str) -> dict:
+    """The raster grid a lake's temperature layer uses: axes, wet cells, and fine water mask.
 
-
-def _sustained_thermocline_pair(profile: list[tuple[float, float]]) -> tuple[tuple[float, float], tuple[float, float]] | None:
-    """Find the strongest physically plausible cooling gradient in a profile.
-
-    A thermocline is a *negative* temperature gradient with increasing depth.
-    The former detector used the absolute change over an arbitrary 15 m window,
-    so inversions and nearly mixed profiles could both be reported as a
-    thermocline. Adjacent-level gradients preserve the model's vertical
-    resolution and place the estimate at the actual maximum cooling rate.
+    Other sources (the wave model) are resampled onto this grid so every
+    layer has the same shoreline. It is static per model grid, so it comes
+    from the disk cache once any forecast hour has been downloaded.
     """
-    ordered = sorted(profile, key=lambda point: point[0])
-    if len(ordered) < 2:
-        return None
-    bottom_depth = ordered[-1][0]
+    run = discovered_runs((model,))[model]
+    if "error" in run or not run.get("files"):
+        raise RuntimeError(str(run.get("error") or "NOAA run not discovered"))
+    path = run["files"][min(run["files"])]
+    ny, nx, _ = _regular_grid_dimensions(path)
+    if not ny or not nx:
+        raise RuntimeError("Newest model run has no NOAA regular-grid output")
+    y_stride, x_stride = volumes.temperature_strides(ny, nx)
+    static = volumes.static_grid(model, ny, nx, y_stride, x_stride)
+    if static is None:
+        volume = _model_volume("temperature", model, 0)[4]
+        static = (volume.latitude_axis, volume.longitude_axis, volume.wet)
+    latitude_axis, longitude_axis, wet_cells = static
+    rows, columns = len(latitude_axis), len(longitude_axis)
+    wet = [bool(value) for value in wet_cells]
+    return {
+        "model": model,
+        "rows": rows,
+        "columns": columns,
+        "yStride": y_stride,
+        "xStride": x_stride,
+        "latitudeAxis": latitude_axis,
+        "longitudeAxis": longitude_axis,
+        "wet": wet,
+        "axes": GridAxes.from_axes(latitude_axis, longitude_axis, y_stride, x_stride),
+        "water": _water_mask_or_none(model, path, ny, nx) or _coarse_water_mask(wet, rows, columns, y_stride, x_stride),
+    }
+
+
+def _render_rasters(inputs: list[dict], stops: tuple, minimum: float, maximum: float, resolution: int) -> list[dict]:
+    """Render each lake with one shared colour range so adjoining lakes compare directly."""
+    def render(item: dict) -> dict:
+        image = render_overlay(item["grid"], item["axes"], item["water"], stops, minimum, maximum, resolution, item.get("noData"), item.get("noDataColor"))
+        return {**image, "model": item["model"], "validTime": item["validTime"], **item.get("extra", {})}
+
+    if not inputs:
+        return []
+    with ThreadPoolExecutor(max_workers=len(inputs)) as executor:
+        return list(executor.map(render, inputs))
+
+
+def _temperature_at_depth(ordered: list[tuple[float, float]], depth: float) -> float:
+    """Temperature at a depth, straight-line between the model's levels (``ordered`` shallow to deep)."""
+    if depth <= ordered[0][0]:
+        return ordered[0][1]
+    for (d0, t0), (d1, t1) in zip(ordered, ordered[1:]):
+        if depth <= d1:
+            return t0 + (t1 - t0) * (depth - d0) / (d1 - d0) if d1 > d0 else t1
+    return ordered[-1][1]
+
+
+def _thermocline_band(profile: list[tuple[float, float]], bottom_depth: float | None = None) -> dict | None:
+    """The thermocline band (see _thermocline_analysis), or ``None`` without one."""
+    return _thermocline_analysis(profile, bottom_depth)[0]
+
+
+def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: float | None = None) -> tuple[dict | None, str]:
+    """The thermocline as a band, or why there is none: ``(band, "found" | "mixed" | "gradual")``.
+
+    A thermocline is where the slope of the temperature curve changes: a warm
+    top layer that cools slowly (or not at all) over a band that cools clearly
+    faster. Everything is measured from 10 ft down, so a sun-warmed skin on a
+    calm afternoon does not count.
+
+    **Bottom**: from the strongest cooling below the warm layer, the band ends
+    where the cooling rate eases to half of that strongest rate (never less
+    than THERMOCLINE_MIN_GRADIENT_C_PER_METER), interpolated between the
+    levels' midpoints.
+
+    **Is it a thermocline?** For each model level from 20 ft down to the
+    strongest cooling, compare the band's average cooling below it with the
+    warm layer's average cooling above it (from 10 ft). The best ratio must be
+    at least THERMOCLINE_MIN_CONTRAST, and the band must cool by at least
+    0.5 °F. The ratio, not the size of the drop, is what tells a thermocline
+    from water that cools steadily from the surface: a flat warm layer over a
+    gentle 0.3 °F-per-10-ft drop is one; 1.8 °F per 10 ft from the surface
+    turning into 3 °F per 10 ft below is not.
+
+    **Top**: the last level of the straight part above the band, where the
+    curve bends into a run of cooling that continues down to the strongest
+    cooling (``_band_lead_in``); a gentler lead-in at the top of the band is
+    part of the band. The water right below the top is always cooler. Without
+    such a bend: the deepest level where the warm layer above still cools at
+    most a fifth as fast as the band below (THERMOCLINE_FLAT_RATIO), where the
+    chart stops reading as straight down. Of those, the deepest where the curve
+    bends there (the layer below cools THERMOCLINE_LOCAL_BEND_RATIO times
+    faster than the layer above), so a slow lead-in stays in the band. When
+    the warm layer itself slopes (it never gets that flat), the level with the
+    best ratio: the sharpest bend.
+
+    No thermocline: water that barely changes, or is colder at the top than
+    below (winter), is "mixed"; water that cools without a warm layer over a
+    clearly faster drop is "gradual". The strongest cooling and the top must
+    sit above the last 10 ft over the lake bed (cooling right at the bed is
+    not a thermocline). ``bottom_depth`` is the true water depth when known;
+    NOAA's deepest wet level can sit well above the lake bed.
+    """
+    ordered = []
+    for depth, temperature in sorted(profile, key=lambda point: point[0]):
+        if not ordered or depth > ordered[-1][0]:
+            ordered.append((float(depth), float(temperature)))
+    reference_depth = THERMOCLINE_MIN_DEPTH_METERS
+    if len(ordered) < 2 or ordered[-1][0] <= reference_depth:
+        return None, "mixed"
+    bed = max(ordered[-1][0], bottom_depth or 0.0)
+    deepest_top = bed - THERMOCLINE_BOTTOM_CLEARANCE_METERS
+    reference = _temperature_at_depth(ordered, reference_depth)
+    # Cooling somewhere below 10 ft, but no thermocline, is "gradual".
+    no_band = "gradual" if reference - min(temperature for depth, temperature in ordered if depth >= reference_depth) >= THERMOCLINE_MIN_BAND_DROP_C else "mixed"
+    warm_top = reference_depth + THERMOCLINE_MIN_WARM_LAYER_METERS
+    layers = [(d0, d1, (t0 - t1) / (d1 - d0)) for (d0, t0), (d1, t1) in zip(ordered, ordered[1:])]
+    strong = [index for index, (d0, d1, rate) in enumerate(layers) if rate >= THERMOCLINE_MIN_GRADIENT_C_PER_METER and d1 > warm_top and (d0 + d1) / 2 <= deepest_top]
+    if not strong:
+        return None, no_band
+    peak = max(strong, key=lambda index: layers[index][2])
+    cutoff = max(THERMOCLINE_MIN_GRADIENT_C_PER_METER, layers[peak][2] * THERMOCLINE_BAND_PEAK_SHARE)
+    end = peak
+    while end + 1 < len(layers) and layers[end + 1][2] >= cutoff:
+        end += 1
+    if end + 1 < len(layers):
+        middle, next_middle = (layers[end][0] + layers[end][1]) / 2, (layers[end + 1][0] + layers[end + 1][1]) / 2
+        rate, next_rate = layers[end][2], layers[end + 1][2]
+        bottom = middle + (next_middle - middle) * (rate - cutoff) / (rate - next_rate)
+    else:
+        bottom = layers[end][1]
+    bottom = min(max(bottom, layers[peak][1]), bed)
+    bottom_temperature = _temperature_at_depth(ordered, bottom)
+    # Each candidate top: (depth, how much faster the band cools than the warm layer, warm layer reads as flat).
     candidates = []
-    for shallow, deep in zip(ordered, ordered[1:]):
-        span = deep[0] - shallow[0]
-        midpoint = (shallow[0] + deep[0]) / 2
-        if span <= 0 or midpoint < THERMOCLINE_MIN_DEPTH_METERS:
+    for depth, temperature in ordered:
+        if depth < warm_top - 1e-6 or depth > min(layers[peak][0], deepest_top) or depth >= bottom:
             continue
-        if midpoint > bottom_depth - THERMOCLINE_BOTTOM_CLEARANCE_METERS:
-            continue
-        cooling_gradient = (shallow[1] - deep[1]) / span
-        if cooling_gradient >= THERMOCLINE_MIN_GRADIENT_C_PER_METER:
-            candidates.append((cooling_gradient, shallow, deep))
-    if not candidates:
-        return None
-    _, shallow, deep = max(candidates, key=lambda candidate: candidate[0])
-    return shallow, deep
+        warm_rate = max(0.0, (reference - temperature) / (depth - reference_depth))
+        band_rate = (temperature - bottom_temperature) / (bottom - depth)
+        candidates.append((depth, band_rate / max(THERMOCLINE_FLAT_RATE_C_PER_METER, warm_rate), band_rate >= THERMOCLINE_FLAT_RATIO * warm_rate))
+    if not candidates or max(contrast for _, contrast, _ in candidates) < THERMOCLINE_MIN_CONTRAST:
+        return None, no_band
+    flat = [depth for depth, _, is_flat in candidates if is_flat]
+    # Prefer a flat level where the curve visibly bends: the layer just below cools clearly faster
+    # than the one just above (a slow lead-in at the top of the band is part of the band).
+    above = {d1: max(0.0, rate) for d0, d1, rate in layers}
+    below = {d0: rate for d0, d1, rate in layers}
+    bends = [depth for depth in flat if below.get(depth, 0.0) >= THERMOCLINE_LOCAL_BEND_RATIO * max(THERMOCLINE_FLAT_RATE_C_PER_METER, above.get(depth, 0.0))]
+    top = max(bends or flat) if flat else max(candidates, key=lambda candidate: candidate[1])[0]
+    lead = _band_lead_in(layers, peak, warm_top, deepest_top)
+    if lead is not None:
+        top = lead
+    elif below.get(top, 0.0) <= 0:
+        # Never a top with water as warm or warmer right below it.
+        return None, no_band
+    top_temperature = _temperature_at_depth(ordered, top)
+    thickness, drop = bottom - top, top_temperature - bottom_temperature
+    if thickness <= 0 or drop < THERMOCLINE_MIN_BAND_DROP_C:
+        return None, no_band
+    return {
+        "top": top,
+        "bottom": bottom,
+        "thickness": thickness,
+        "topTemperature": top_temperature,
+        "bottomTemperature": bottom_temperature,
+        "gradient": drop / thickness,
+    }, "found"
 
 
-def _continuous_thermocline_depth(profile: list[tuple[float, float]], pair: tuple[tuple[float, float], tuple[float, float]]) -> float:
-    """Place a discrete maximum-gradient estimate halfway between its levels."""
-    return (pair[0][0] + pair[1][0]) / 2
+def _band_lead_in(layers: list[tuple[float, float, float]], peak: int, warm_top: float, deepest_top: float) -> float | None:
+    """The last level of the straight part above the band, or ``None``.
+
+    The shallowest level (from 20 ft down to the strongest cooling) where the
+    curve bends (the layer below cools THERMOCLINE_LOCAL_BEND_RATIO times
+    faster than the layer above), the layer below cools by at least
+    THERMOCLINE_MIN_LEAD_DROP_C, and every layer from there down to the
+    strongest cooling keeps cooling at THERMOCLINE_LEAD_SHARE of its rate
+    (THERMOCLINE_SHARP_LEAD_SHARE below a sharp bend out of a straight part).
+    """
+    strongest = layers[peak][2]
+    for index in range(peak + 1):
+        d0, d1, rate = layers[index]
+        if d0 < warm_top - 1e-6 or d0 > deepest_top or rate * (d1 - d0) < THERMOCLINE_MIN_LEAD_DROP_C:
+            continue
+        above = max(THERMOCLINE_FLAT_RATE_C_PER_METER, layers[index - 1][2] if index else 0.0)
+        if rate < THERMOCLINE_LOCAL_BEND_RATIO * above:
+            continue
+        share = THERMOCLINE_SHARP_LEAD_SHARE if rate >= THERMOCLINE_SHARP_BEND_RATIO * above else THERMOCLINE_LEAD_SHARE
+        if all(layers[step][2] >= share * strongest for step in range(index, peak + 1)):
+            return d0
+    return None
+
+
+def _smooth_thermocline(values: list[float | None], rows: int, cols: int) -> list[float | None]:
+    """A light 3 × 3 average among cells that have a thermocline (the centre counts double).
+
+    Removes cell-to-cell jitter from the model's discrete levels without
+    spreading values into mixed water.
+    """
+    smoothed = values.copy()
+    for row in range(rows):
+        for column in range(cols):
+            index = row * cols + column
+            value = values[index]
+            if value is None:
+                continue
+            total, weight = 2 * value, 2
+            for neighbor_row in range(max(0, row - 1), min(rows, row + 2)):
+                for neighbor_column in range(max(0, column - 1), min(cols, column + 2)):
+                    neighbor = values[neighbor_row * cols + neighbor_column]
+                    if neighbor is not None and (neighbor_row, neighbor_column) != (row, column):
+                        total += neighbor
+                        weight += 1
+            smoothed[index] = total / weight
+    return smoothed
 
 
 def _filter_spatial_thermocline_outliers(values: list[float | None], rows: int, cols: int) -> list[float | None]:
@@ -346,202 +1151,202 @@ def _filter_spatial_thermocline_outliers(values: list[float | None], rows: int, 
     return filtered
 
 
-def _regular_temperature_raster(model: str, forecast_hour: int, depth: int, resolution: int) -> tuple[dict, dict, dict]:
-    run = discovered_runs((model,))[model]
-    if "error" in run:
-        raise RuntimeError(str(run["error"]))
-    hours = run["files"]  # type: ignore[assignment]
-    available_hour = min(hours, key=lambda candidate: abs(candidate - forecast_hour))
-    path = hours[available_hour]
-    ny, nx, depths = _regular_grid_dimensions(path)
-    if not ny or not nx:
-        raise RuntimeError("Newest model run has no NOAA regular-grid temperature output")
-    variables = _metadata(path)
-    layer = min(range(len(depths)), key=lambda index: abs(depths[index] - depth)) if depths else 0
-    # Regular-grid metadata confirms a rectilinear output. Request a dense,
-    # bounded source grid (not every NetCDF cell) then bilinearly resample it.
-    target_x, target_y = max(96, min(resolution, 512)), max(64, min(round(resolution * ny / nx), 320))
-    x_stride, y_stride = max(1, math.ceil((nx - 1) / (target_x - 1))), max(1, math.ceil((ny - 1) / (target_y - 1)))
-    query = f"Latitude[0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}],Longitude[0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}],mask[0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}],{variables['temperature']}[0][{layer}][0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}]"
-    raw = _ascii(path, query)
-    lat, lon, mask, values = _numbers(raw, "Latitude"), _numbers(raw, "Longitude"), _numbers(raw, "mask"), _numbers(raw, variables["temperature"])
-    cols = (nx - 1) // x_stride + 1
-    rows = (ny - 1) // y_stride + 1
-    if not (len(lat) == len(lon) == len(mask) == len(values) == rows * cols):
-        raise RuntimeError("NOAA regular-grid subset dimensions were incomplete")
-    longitudes = [_great_lakes_longitude(value) for value in lon]
-    valid = [wet > 0 and math.isfinite(temp) and -5 <= temp <= 45 for wet, temp in zip(mask, values)]
-    water = [index for index, item in enumerate(valid) if item]
-    if not water:
+def _regular_temperature_grid(model: str, forecast_hour: int, depth: int, resolution: int) -> tuple[dict, dict, dict]:
+    run, hour, path, variables, volume, layer = _model_depth("temperature", model, forecast_hour, depth)
+    values = volume.level(variables["temperature"], layer)
+    valid = [bool(wet) and math.isfinite(temp) and -5 <= temp <= 45 for wet, temp in zip(volume.wet, values)]
+    if not any(valid):
         raise RuntimeError("NOAA model returned no valid water cells")
-    # The image still includes land pixels (as transparent). Its geographic
-    # bounds must therefore use the entire NOAA grid, not just wet cells;
-    # otherwise Leaflet compresses the raster into the lake centre.
-    south, north = min(lat), max(lat)
-    west, east = min(longitudes), max(longitudes)
-    # Supersample the raster so the NOAA water-mask edge is not exposed as
-    # one large step per model cell at close map zooms.
-    shoreline_scale = 3
-    out_width, out_height = (cols - 1) * shoreline_scale + 1, (rows - 1) * shoreline_scale + 1
-    image = Image.new("RGBA", (out_width, out_height), (0, 0, 0, 0))
-    pixels = image.load()
-    for out_y in range(out_height):
-        source_y, row = out_y / shoreline_scale, min(rows - 2, out_y // shoreline_scale)
-        fy = source_y - row
-        for out_x in range(out_width):
-            source_x, column = out_x / shoreline_scale, min(cols - 2, out_x // shoreline_scale)
-            fx = source_x - column
-            indices = (row * cols + column, row * cols + column + 1, (row + 1) * cols + column, (row + 1) * cols + column + 1)
-            weights = ((1 - fx) * (1 - fy), fx * (1 - fy), (1 - fx) * fy, fx * fy)
-            water_corners = [position for position, index in enumerate(indices) if valid[index]]
-            # Permit shoreline coverage whenever NOAA supplies at least one
-            # water corner. Fully land cells remain transparent, while valid
-            # water-corner weights are renormalized below.
-            if not water_corners:
+    rows, cols = volume.rows, volume.columns
+    ny, nx, _ = _regular_grid_dimensions(path)
+    metadata = {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": _valid_time_text(run, hour), "available": True, "variables": variables, "run": run["id"], "selectedForecastHour": hour, "selectedDepthMeters": volume.depths[layer]}
+    water_temperatures = [float(value) for value, ok in zip(values, valid) if ok]
+    values_list = values.tolist()
+    surface_water = _water_mask_or_none(model, path, ny, nx) or _coarse_water_mask([bool(wet) for wet in volume.wet], rows, cols, volume.y_stride, volume.x_stride)
+    render_input = {
+        "model": model,
+        "validTime": metadata["validTime"],
+        "grid": ScalarGrid(values_list, valid, rows, cols, volume.y_stride, volume.x_stride),
+        "axes": GridAxes.from_axes(volume.latitude_axis, volume.longitude_axis, volume.y_stride, volume.x_stride),
+        # Water shallower than this level has no value; leave it uncoloured.
+        "water": limit_water_to_depth(surface_water, [bool(wet) for wet in volume.wet], valid, rows, cols, volume.y_stride, volume.x_stride),
+        "extra": {"minC": min(water_temperatures), "maxC": max(water_temperatures)},
+    }
+    field = {"model": model, "rows": rows, "columns": cols, "latitudeAxis": volume.latitude_axis, "longitudeAxis": volume.longitude_axis, "mask": valid, "temperatureC": values_list, "depthMeters": metadata["selectedDepthMeters"]}
+    return render_input, metadata, field
+
+
+def depth_levels(models: tuple[str, ...] = MODELS) -> list[float]:
+    """Every depth level the selected models store (they share their upper levels)."""
+    runs = discovered_runs(models)
+    levels: set[float] = set()
+    for model in models:
+        run = runs.get(model, {})
+        if run.get("files"):
+            try:
+                levels.update(_regular_grid_dimensions(run["files"][min(run["files"])])[2])
+            except Exception:
                 continue
-            total_weight = sum(weights[position] for position in water_corners)
-            temperature = (
-                sum(values[indices[position]] * weights[position] for position in water_corners) / total_weight
-                if total_weight > 0 else values[indices[water_corners[0]]]
-            )
-            red, green, blue, alpha = _temperature_rgba(temperature)
-            pixels[out_x, out_height - 1 - out_y] = (red, green, blue, round(alpha * total_weight))
-    buffer = BytesIO()
-    image.save(buffer, format="PNG", optimize=True)
-    valid_time = datetime.strptime(f"{run['date']}{run['cycle']:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp() + available_hour * 3600
-    metadata = {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": datetime.fromtimestamp(valid_time, timezone.utc).isoformat().replace("+00:00", "Z"), "available": True, "variables": variables, "selectedForecastHour": available_hour, "selectedDepthMeters": depths[layer] if depths else depth}
-    water_temperatures = [float(values[index]) for index in water]
-    raster = {"imageUrl": f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode('ascii')}", "bounds": [[south, west], [north, east]], "minC": min(water_temperatures), "maxC": max(water_temperatures), "validTime": metadata["validTime"], "model": model}
-    field = {"model": model, "rows": rows, "columns": cols, "latitudeAxis": [lat[row * cols] for row in range(rows)], "longitudeAxis": [longitudes[column] for column in range(cols)], "mask": valid, "temperatureC": values, "depthMeters": metadata["selectedDepthMeters"]}
-    return raster, metadata, field
+    return sorted(levels)
 
 
-def great_lakes_temperature_rasters(forecast_hour: int, depth: int, resolution: int, models: tuple[str, ...] = MODELS) -> dict:
-    cache_key = (TEMPERATURE_RASTER_RENDER_VERSION, forecast_hour, depth, resolution, models, int(time.monotonic() // CACHE_SECONDS))
-    # The click lookup reuses the dense field generated with the raster. A
-    # raster-only cache entry cannot answer those point lookups, so rebuild it.
-    if cache_key in _raster_cache and cache_key in _temperature_field_cache:
-        return _raster_cache[cache_key]
-    selected_models, rasters, model_metadata, fields = models, [], [], []
-    # NOAA serves one independent grid per lake. Fetch and rasterize those
-    # grids in parallel so first paint does not wait four times in sequence.
+def snap_depth(depth: float, models: tuple[str, ...] = MODELS) -> float:
+    """The model level that will be shown for a requested depth.
+
+    The slider sends any whole number of metres, but NOAA stores fixed levels;
+    caching by level means 3 m and 4 m share one drawing instead of two.
+    """
+    levels = depth_levels(models)
+    return min(levels, key=lambda level: abs(level - depth)) if levels else depth
+
+
+def great_lakes_temperature_rasters(forecast_hour: int, depth: int, resolution: int, models: tuple[str, ...] = MODELS, scale: tuple[float, float] | None = None) -> dict:
+    """Water temperature for every lake. ``scale`` fixes the palette's (min, max) °C instead of fitting this frame."""
+    depth = snap_depth(depth, models)
+    cache_key = (TEMPERATURE_RASTER_RENDER_VERSION, _data_key(models, forecast_hour), depth, resolution, models, scale, _cache_bucket())
+    return _shared_payload(_raster_cache, cache_key, lambda: _build_temperature_rasters(_temperature_fields_key(forecast_hour, depth, resolution, models), forecast_hour, depth, resolution, models, scale), MAX_FIELD_CACHE_ENTRIES)
+
+
+def _temperature_fields_key(forecast_hour: int, depth: float, resolution: int, models: tuple[str, ...]) -> tuple:
+    """Key for the regridded temperatures behind a drawing (shared by every colour scale and by point readings)."""
+    return (TEMPERATURE_RASTER_RENDER_VERSION, _data_key(models, forecast_hour), depth, resolution, models, _cache_bucket())
+
+
+def _temperature_inputs(forecast_hour: int, depth: int, resolution: int, models: tuple[str, ...]) -> tuple[list[dict], list[dict], list[dict]]:
+    selected_models, inputs, model_metadata, fields = models, [], [], []
+    # NOAA serves one independent grid per lake. Fetch those grids in
+    # parallel so first paint does not wait four times in sequence.
     with ThreadPoolExecutor(max_workers=len(selected_models)) as executor:
-        futures = {model: executor.submit(_regular_temperature_raster, model, forecast_hour, depth, resolution) for model in selected_models}
+        futures = {model: executor.submit(_regular_temperature_grid, model, forecast_hour, depth, resolution) for model in selected_models}
         for model in selected_models:
             future = futures[model]
             try:
-                raster, metadata, field = future.result()
-                rasters.append(raster)
+                render_input, metadata, field = future.result()
+                inputs.append(render_input)
                 model_metadata.append(metadata)
                 fields.append(field)
+            except LakeTooShallow as shallow:
+                model_metadata.append(shallow.metadata())
             except Exception as error:
                 model_metadata.append({"model": model, "datasetUrl": "", "validTime": None, "available": False, "error": str(error)})
+    return inputs, model_metadata, fields
+
+
+def _build_temperature_rasters(fields_key: tuple, forecast_hour: int, depth: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None = None) -> dict:
+    inputs, model_metadata, fields = _temperature_inputs(forecast_hour, depth, resolution, models)
+    _cache_store(_temperature_field_cache, fields_key, fields, MAX_FIELD_CACHE_ENTRIES)
     metadata = {"generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "forecastHour": forecast_hour, "requestedDepthMeters": depth, "models": model_metadata}
-    if rasters:
-        metadata["minC"] = min(float(raster["minC"]) for raster in rasters)
-        metadata["maxC"] = max(float(raster["maxC"]) for raster in rasters)
-    payload = {"rasters": rasters, "metadata": metadata}
-    _raster_cache[cache_key] = payload
-    _temperature_field_cache[cache_key] = fields
-    return payload
+    rasters = []
+    if inputs:
+        # Spread the palette over the temperatures actually on screen; a fixed
+        # 0–30 °C scale left a typical lake in one washed-out band of colour.
+        minimum, maximum = scale or robust_range(
+            [value for item in inputs for value, ok in zip(item["grid"].values, item["grid"].valid) if ok],
+            0.005, 0.995, TEMPERATURE_MIN_COLOR_SPAN_C,
+        )
+        rasters = _render_rasters(inputs, TEMPERATURE_COLOR_STOPS, minimum, maximum, resolution)
+        metadata["minC"], metadata["maxC"] = minimum, maximum
+    return {"rasters": rasters, "metadata": metadata}
 
 
-def _regular_thermocline_raster(model: str, forecast_hour: int, resolution: int) -> tuple[dict, dict]:
-    run = discovered_runs((model,))[model]
-    if "error" in run:
-        raise RuntimeError(str(run["error"]))
-    hours = run["files"]  # type: ignore[assignment]
-    available_hour = min(hours, key=lambda candidate: abs(candidate - forecast_hour))
-    path = hours[available_hour]
-    ny, nx, depths = _regular_grid_dimensions(path)
-    if not ny or not nx or len(depths) < 2:
+def _volume_bottom_depths(model: str, volume: volumes.Volume) -> list[float] | None:
+    """The model's true water depth at each volume cell, or None if the bathymetry is unavailable."""
+    try:
+        grid = _bathymetry_grid(model)
+    except Exception:
+        return None
+    if grid is None:
+        return None
+    columns, depth = grid["columns"], grid["depth"]
+    if (volume.rows - 1) * volume.y_stride * columns + (volume.columns - 1) * volume.x_stride >= len(depth):
+        return None
+    return [float(depth[(row * volume.y_stride) * columns + column * volume.x_stride]) for row in range(volume.rows) for column in range(volume.columns)]
+
+
+def _thermocline_depths(model: str, run: dict, hour: int, variables: dict[str, str], volume: volumes.Volume) -> list[float | None]:
+    """Per-cell thermocline tops (see _thermocline_band), computed once per model-hour and kept on disk."""
+    disk_path = gl_cache.path_for("models", model, run["id"], f"thermocline-f{hour:03d}-{volume.y_stride}x{volume.x_stride}-v{THERMOCLINE_RASTER_RENDER_VERSION}.bin")
+    record = gl_cache.read_record(disk_path)
+    if record and len(record[1].get("depths", ())) == volume.cells:
+        return [None if math.isnan(value) else value for value in record[1]["depths"]]
+    depths, cells = volume.depths, volume.cells
+    if len(depths) < 2:
         raise RuntimeError("Newest model run has no NOAA regular-grid temperature profile output")
-    variables = _metadata(path)
-    target_x, target_y = max(96, min(resolution, 512)), max(64, min(round(resolution * ny / nx), 320))
-    x_stride, y_stride = max(1, math.ceil((nx - 1) / (target_x - 1))), max(1, math.ceil((ny - 1) / (target_y - 1)))
-    query = f"Latitude[0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}],Longitude[0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}],mask[0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}],{variables['temperature']}[0][0:1:{len(depths) - 1}][0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}]"
-    raw = _ascii(path, query)
-    lat, lon, mask, temperatures = _numbers(raw, "Latitude"), _numbers(raw, "Longitude"), _numbers(raw, "mask"), _numbers(raw, variables["temperature"])
-    cols, rows = (nx - 1) // x_stride + 1, (ny - 1) // y_stride + 1
-    cells = rows * cols
-    if not (len(lat) == len(lon) == len(mask) == cells and len(temperatures) == len(depths) * cells):
-        raise RuntimeError("NOAA thermocline profile subset dimensions were incomplete")
+    temperatures = volume.variables[variables["temperature"]]
+    bottoms = _volume_bottom_depths(model, volume)
     thermoclines: list[float | None] = []
     for cell in range(cells):
-        if mask[cell] <= 0:
+        if not volume.wet[cell]:
             thermoclines.append(None)
             continue
         profile = [(depth, temperatures[layer * cells + cell]) for layer, depth in enumerate(depths) if math.isfinite(temperatures[layer * cells + cell]) and -5 <= temperatures[layer * cells + cell] <= 45]
-        pair = _sustained_thermocline_pair(profile)
-        if not pair:
-            thermoclines.append(None)
-            continue
-        thermoclines.append(_continuous_thermocline_depth(profile, pair))
-    thermoclines = _filter_spatial_thermocline_outliers(thermoclines, rows, cols)
+        band = _thermocline_band(profile, bottoms[cell] if bottoms else None)
+        thermoclines.append(band["top"] if band else None)
+    thermoclines = _smooth_thermocline(_filter_spatial_thermocline_outliers(thermoclines, volume.rows, volume.columns), volume.rows, volume.columns)
+    gl_cache.write_record(disk_path, {"model": model}, {"depths": array("f", (math.nan if value is None else value for value in thermoclines))})
+    return thermoclines
+
+
+def _regular_thermocline_grid(model: str, forecast_hour: int, resolution: int) -> tuple[dict, dict]:
+    run, hour, path, variables, volume = _model_volume("temperature", model, forecast_hour)
+    thermoclines = _thermocline_depths(model, run, hour, variables, volume)
+    rows, cols = volume.rows, volume.columns
     valid = [value is not None for value in thermoclines]
     if not any(valid):
         raise RuntimeError("NOAA model returned no thermocline cells")
     thermocline_depths = [float(value) for value in thermoclines if value is not None]
-    color_minimum, color_maximum = min(thermocline_depths), max(thermocline_depths)
-    if math.isclose(color_minimum, color_maximum):
-        color_minimum, color_maximum = color_minimum - 0.5, color_maximum + 0.5
-    longitudes = [_great_lakes_longitude(value) for value in lon]
-    south, north, west, east = min(lat), max(lat), min(longitudes), max(longitudes)
-    shoreline_scale = 3
-    out_width, out_height = (cols - 1) * shoreline_scale + 1, (rows - 1) * shoreline_scale + 1
-    image = Image.new("RGBA", (out_width, out_height), (0, 0, 0, 0))
-    pixels = image.load()
-    for out_y in range(out_height):
-        source_y, row = out_y / shoreline_scale, min(rows - 2, out_y // shoreline_scale)
-        fy = source_y - row
-        for out_x in range(out_width):
-            source_x, column = out_x / shoreline_scale, min(cols - 2, out_x // shoreline_scale)
-            fx = source_x - column
-            indices = (row * cols + column, row * cols + column + 1, (row + 1) * cols + column, (row + 1) * cols + column + 1)
-            weights = ((1 - fx) * (1 - fy), fx * (1 - fy), (1 - fx) * fy, fx * fy)
-            corners = [position for position, index in enumerate(indices) if valid[index]]
-            if not corners:
-                continue
-            total = sum(weights[position] for position in corners)
-            value = sum(thermoclines[indices[position]] * weights[position] for position in corners) / total if total else thermoclines[indices[corners[0]]]
-            red, green, blue, alpha = _thermocline_rgba(float(value), color_minimum, color_maximum)
-            # The bilinear wet-corner weight is an anti-aliased shoreline
-            # mask. Fully land pixels remain transparent and no temperature
-            # values are ever interpolated from land cells.
-            pixels[out_x, out_height - 1 - out_y] = (red, green, blue, round(alpha * total))
-    buffer = BytesIO()
-    image.save(buffer, format="PNG", optimize=True)
-    valid_time = datetime.strptime(f"{run['date']}{run['cycle']:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp() + available_hour * 3600
-    metadata = {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": datetime.fromtimestamp(valid_time, timezone.utc).isoformat().replace("+00:00", "Z"), "available": True, "selectedForecastHour": available_hour}
-    raster = {"imageUrl": f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode('ascii')}", "bounds": [[south, west], [north, east]], "minDepthMeters": min(thermocline_depths), "maxDepthMeters": max(thermocline_depths), "validTime": metadata["validTime"], "model": model}
-    return raster, metadata
+    wet = [bool(value) for value in volume.wet]
+    ny, nx, _ = _regular_grid_dimensions(path)
+    metadata = {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": _valid_time_text(run, hour), "available": True, "run": run["id"], "selectedForecastHour": hour}
+    render_input = {
+        "model": model,
+        "validTime": metadata["validTime"],
+        "grid": ScalarGrid([value if value is not None else 0.0 for value in thermoclines], valid, rows, cols, volume.y_stride, volume.x_stride),
+        "axes": GridAxes.from_axes(volume.latitude_axis, volume.longitude_axis, volume.y_stride, volume.x_stride),
+        "water": _water_mask_or_none(model, path, ny, nx) or _coarse_water_mask(wet, rows, cols, volume.y_stride, volume.x_stride),
+        # Water without a thermocline is left transparent (the map shows through)
+        # rather than borrowing a neighbouring depth.
+        "noData": [is_wet and not ok for is_wet, ok in zip(wet, valid)],
+        "extra": {"minDepthMeters": min(thermocline_depths), "maxDepthMeters": max(thermocline_depths)},
+    }
+    return render_input, metadata
 
 
-def great_lakes_thermocline_rasters(forecast_hour: int, resolution: int, models: tuple[str, ...] = MODELS) -> dict:
-    cache_key = (THERMOCLINE_RASTER_RENDER_VERSION, forecast_hour, resolution, models, int(time.monotonic() // CACHE_SECONDS))
-    if cache_key in _thermocline_raster_cache:
-        return _thermocline_raster_cache[cache_key]
-    rasters, model_metadata = [], []
+def great_lakes_thermocline_rasters(forecast_hour: int, resolution: int, models: tuple[str, ...] = MODELS, scale: tuple[float, float] | None = None) -> dict:
+    """Thermocline depth for every lake. ``scale`` fixes the palette's (min, max) metres instead of fitting this frame."""
+    cache_key = (THERMOCLINE_RASTER_RENDER_VERSION, _data_key(models, forecast_hour), resolution, models, scale, _cache_bucket())
+    payload = _shared_payload(_thermocline_raster_cache, cache_key, lambda: _build_thermocline_rasters(forecast_hour, resolution, models, scale), MAX_PAYLOAD_CACHE_ENTRIES)
+    return _thermocline_with_fallback(payload, forecast_hour, resolution, models, scale)
+
+
+def _build_thermocline_rasters(forecast_hour: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None = None) -> dict:
+    inputs, model_metadata = [], []
     with ThreadPoolExecutor(max_workers=len(models)) as executor:
-        futures = {model: executor.submit(_regular_thermocline_raster, model, forecast_hour, resolution) for model in models}
+        futures = {model: executor.submit(_regular_thermocline_grid, model, forecast_hour, resolution) for model in models}
         for model in models:
             try:
-                raster, metadata = futures[model].result()
-                rasters.append(raster)
+                render_input, metadata = futures[model].result()
+                inputs.append(render_input)
                 model_metadata.append(metadata)
             except Exception as error:
                 model_metadata.append({"model": model, "datasetUrl": "", "validTime": None, "available": False, "error": str(error)})
     metadata = {"generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "forecastHour": forecast_hour, "models": model_metadata}
-    if rasters:
-        metadata["minDepthMeters"] = min(float(raster["minDepthMeters"]) for raster in rasters)
-        metadata["maxDepthMeters"] = max(float(raster["maxDepthMeters"]) for raster in rasters)
-    payload = {"rasters": rasters, "metadata": metadata}
-    _thermocline_raster_cache[cache_key] = payload
-    return payload
+    rasters = []
+    if inputs:
+        # The middle 96 % of depths sets the colours, so a few deep outliers
+        # do not squeeze ordinary thermoclines into one shade.
+        minimum, maximum = scale or robust_range(
+            [value for item in inputs for value, ok in zip(item["grid"].values, item["grid"].valid) if ok],
+            0.02, 0.98, THERMOCLINE_MIN_COLOR_SPAN_METERS,
+        )
+        minimum = max(0.0, minimum)
+        rasters = _render_rasters(inputs, THERMOCLINE_COLOR_STOPS, minimum, maximum, resolution)
+        metadata["minDepthMeters"], metadata["maxDepthMeters"] = minimum, maximum
+    return {"rasters": rasters, "metadata": metadata}
 
 
-def _temperature_at(field: dict, latitude: float, longitude: float) -> float | None:
-    ys, xs = field["latitudeAxis"], field["longitudeAxis"]
+def _grid_value(ys: list[float], xs: list[float], columns: int, mask, values, latitude: float, longitude: float) -> float | None:
+    """Bilinear value at a point from the surrounding water cells of a rectilinear grid."""
     if not (min(ys[0], ys[-1]) <= latitude <= max(ys[0], ys[-1]) and min(xs[0], xs[-1]) <= longitude <= max(xs[0], xs[-1])):
         return None
     def bracket(axis: list[float], value: float) -> int:
@@ -549,8 +1354,7 @@ def _temperature_at(field: dict, latitude: float, longitude: float) -> float | N
         values, target = (axis, value) if ascending else ([-item for item in axis], -value)
         return max(0, min(len(axis) - 2, bisect.bisect_right(values, target) - 1))
     row, column = bracket(ys, latitude), bracket(xs, longitude)
-    cols, mask, values = field["columns"], field["mask"], field["temperatureC"]
-    ids = (row * cols + column, row * cols + column + 1, (row + 1) * cols + column, (row + 1) * cols + column + 1)
+    ids = (row * columns + column, row * columns + column + 1, (row + 1) * columns + column, (row + 1) * columns + column + 1)
     wet = [index for index in ids if mask[index]]
     if not wet:
         return None
@@ -560,11 +1364,74 @@ def _temperature_at(field: dict, latitude: float, longitude: float) -> float | N
     return sum(values[index] * weight for index, weight in zip(ids, weights) if mask[index]) / total
 
 
+def _temperature_at(field: dict, latitude: float, longitude: float) -> float | None:
+    return _grid_value(field["latitudeAxis"], field["longitudeAxis"], field["columns"], field["mask"], field["temperatureC"], latitude, longitude)
+
+
+def _bathymetry_grid(model: str) -> dict | None:
+    """NOAA's model water depth (``h``) at native grid resolution; static, so cached on disk."""
+    with _cache_lock:
+        cached = _bathymetry_cache.get(model)
+    if cached is not None:
+        return cached
+    run = discovered_runs((model,))[model]
+    if not run.get("files"):
+        return None
+    path = run["files"][min(run["files"])]
+    ny, nx, _ = _regular_grid_dimensions(path)
+    if not ny or not nx:
+        return None
+    disk_path = gl_cache.path_for("static", model, f"bathymetry-{ny}x{nx}.bin")
+    record = gl_cache.read_record(disk_path)
+    if record and len(record[1].get("depth", ())) == ny * nx:
+        header, arrays = record
+        grid = {"latitudeAxis": header["latitudeAxis"], "longitudeAxis": header["longitudeAxis"], "columns": nx, "wet": arrays["wet"], "depth": arrays["depth"]}
+    else:
+        arrays = gl_cache.fetch_dods(f"{THREDDS}/dodsC/{path}", f"Latitude[0:1:{ny - 1}][0],Longitude[0][0:1:{nx - 1}],mask[0:1:{ny - 1}][0:1:{nx - 1}],h[0:1:{ny - 1}][0:1:{nx - 1}]")
+        latitude_axis = [float(value) for value in arrays["Latitude"][1]]
+        longitude_axis = [_great_lakes_longitude(float(value)) for value in arrays["Longitude"][1]]
+        wet = array("B", (1 if value > 0 else 0 for value in arrays["mask"][1]))
+        depth = array("f", (float(value) for value in arrays["h"][1]))
+        if len(latitude_axis) != ny or len(longitude_axis) != nx or len(wet) != ny * nx or len(depth) != ny * nx:
+            raise RuntimeError("NOAA model bathymetry was incomplete")
+        gl_cache.write_record(disk_path, {"latitudeAxis": latitude_axis, "longitudeAxis": longitude_axis}, {"wet": wet, "depth": depth})
+        grid = {"latitudeAxis": latitude_axis, "longitudeAxis": longitude_axis, "columns": nx, "wet": wet, "depth": depth}
+    with _cache_lock:
+        _bathymetry_cache[model] = grid
+    return grid
+
+
+def lake_name_for_model(model: str, longitude: float) -> str:
+    if model == "LMHOFS":
+        # One model covers Michigan and Huron; they meet at the Straits of Mackinac.
+        return "Michigan" if longitude < MICHIGAN_HURON_SPLIT_LONGITUDE else "Huron"
+    return MODEL_LAKE_NAMES.get(model, "")
+
+
+def model_bathymetry_depth(latitude: float, longitude: float, models: tuple[str, ...] = MODELS) -> dict | None:
+    """Water depth anywhere a NOAA lake model has water (about 0.5–1 km cells)."""
+    for model in models:
+        try:
+            grid = _bathymetry_grid(model)
+        except Exception:
+            continue  # One lake's unavailable grid must not hide another lake.
+        if grid is None:
+            continue
+        depth = _grid_value(grid["latitudeAxis"], grid["longitudeAxis"], grid["columns"], grid["wet"], grid["depth"], latitude, longitude)
+        if depth is not None and math.isfinite(depth) and depth > 0:
+            return {"depthMeters": depth, "model": model, "lake": lake_name_for_model(model, longitude)}
+    return None
+
+
 def great_lakes_temperature_value(forecast_hour: int, depth: int, resolution: int, latitude: float, longitude: float, models: tuple[str, ...] = MODELS) -> dict:
-    cache_key = (TEMPERATURE_RASTER_RENDER_VERSION, forecast_hour, depth, resolution, models, int(time.monotonic() // CACHE_SECONDS))
-    if cache_key not in _temperature_field_cache:
-        great_lakes_temperature_rasters(forecast_hour, depth, resolution, models)
-    for field in _temperature_field_cache.get(cache_key, []):
+    depth = snap_depth(depth, models)
+    cache_key = _temperature_fields_key(forecast_hour, depth, resolution, models)
+    fields = _temperature_field_cache.get(cache_key)
+    if fields is None:
+        # Point lookups only need the values, not a drawn layer.
+        _, _, fields = _temperature_inputs(forecast_hour, depth, resolution, models)
+        _cache_store(_temperature_field_cache, cache_key, fields, MAX_FIELD_CACHE_ENTRIES)
+    for field in fields:
         value = _temperature_at(field, latitude, longitude)
         if value is not None:
             return {"available": True, "temperatureC": value, "depthMeters": field["depthMeters"], "model": field["model"]}
@@ -572,12 +1439,49 @@ def great_lakes_temperature_value(forecast_hour: int, depth: int, resolution: in
 
 
 def great_lakes_temperature_profile(forecast_hour: int, latitude: float, longitude: float, models: tuple[str, ...] = MODELS) -> dict:
+    cache_path = _point_temperature_profile_cache_path(forecast_hour, latitude, longitude, models)
+    try:
+        profile = _great_lakes_temperature_profile_live(forecast_hour, latitude, longitude, models)
+    except Exception:
+        saved = gl_cache.read_json(cache_path)
+        if not isinstance(saved, dict) or not isinstance(saved.get("profile"), dict):
+            fallback = _last_saved_temperature_profile(latitude, longitude, models)
+            if fallback is not None:
+                return fallback
+            raise
+        return _stale_temperature_profile(saved)
+
+    if profile.get("available"):
+        try:
+            gl_cache.write_json(cache_path, {"profile": profile, "savedAt": datetime.now(timezone.utc).isoformat()})
+            _prune_saved_point_profiles(cache_path.parent, cache_path)
+        except OSError:
+            pass
+        return profile
+
+    saved = gl_cache.read_json(cache_path)
+    if isinstance(saved, dict) and isinstance(saved.get("profile"), dict):
+        return _stale_temperature_profile(saved)
+    fallback = _last_saved_temperature_profile(latitude, longitude, models)
+    return fallback if fallback is not None else profile
+
+
+def _great_lakes_temperature_profile_live(forecast_hour: int, latitude: float, longitude: float, models: tuple[str, ...] = MODELS) -> dict:
     for model in models:
-        run = discovered_runs((model,))[model]
+        # The refresher keeps whole model-hours on disk; reading those is instant.
+        try:
+            cached = _cached_temperature_profile(model, forecast_hour, latitude, longitude)
+        except Exception:
+            cached = None
+        if cached is not None:
+            if cached.get("available"):
+                return cached
+            continue
+        run = _forecast_run(model, forecast_hour)
         if "error" in run:
             continue
         hours = run["files"]  # type: ignore[assignment]
-        available_hour = min(hours, key=lambda candidate: abs(candidate - forecast_hour))
+        available_hour = select_forecast_hour(run, forecast_hour)
         path = hours[available_hour]
         ny, nx, depths = _regular_grid_dimensions(path)
         if not ny or not nx or not depths:
@@ -603,19 +1507,114 @@ def great_lakes_temperature_profile(forecast_hour: int, latitude: float, longitu
         values = [{"depthMeters": depth, "temperatureC": temp} for depth, temp in zip(depths, temperatures) if math.isfinite(temp) and -5 <= temp <= 45]
         if not values:
             continue
-        values.sort(key=lambda value: value["depthMeters"])
-        profile_values = [(value["depthMeters"], value["temperatureC"]) for value in values]
-        pair = _sustained_thermocline_pair(profile_values)
-        thermocline = None if not pair else {
-            "depthMeters": _continuous_thermocline_depth(profile_values, pair),
-            "gradientCPerMeter": (pair[0][1] - pair[1][1]) / (pair[1][0] - pair[0][0]),
-            "shallowerDepthMeters": pair[0][0], "deeperDepthMeters": pair[1][0],
-            "temperatureAboveC": pair[0][1], "temperatureBelowC": pair[1][1],
-            "method": "maximumCoolingGradient"
-        }
-        valid_time = datetime.strptime(f"{run['date']}{run['cycle']:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp() + available_hour * 3600
-        return {"available": True, "model": model, "validTime": datetime.fromtimestamp(valid_time, timezone.utc).isoformat().replace("+00:00", "Z"), "requested": {"latitude": latitude, "longitude": longitude}, "modelLocation": {"latitude": latitudes[row], "longitude": longitudes[column]}, "values": values, "thermocline": thermocline}
+        return _temperature_profile_result(model, run, available_hour, latitude, longitude, latitudes[row], longitudes[column], values)
     return {"available": False}
+
+
+def _last_saved_temperature_profile(latitude: float, longitude: float, models: tuple[str, ...]) -> dict | None:
+    return _last_cached_temperature_profile(latitude, longitude, models) or _last_history_temperature_profile(latitude, longitude)
+
+
+def _last_cached_temperature_profile(latitude: float, longitude: float, models: tuple[str, ...]) -> dict | None:
+    candidates = []
+    now = time.time()
+    for model in models:
+        model_directory = gl_cache.path_for("models", model)
+        try:
+            run_directories = list(model_directory.iterdir())
+        except OSError:
+            continue
+        for run_directory in run_directories:
+            run_match = re.fullmatch(r"(\d{8})t(\d{2})z", run_directory.name)
+            if not run_match or not run_directory.is_dir():
+                continue
+            try:
+                cycle_epoch = datetime.strptime("".join(run_match.groups()), "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp()
+                files = list(run_directory.glob("temperature-f*-*x*-v*.bin"))
+            except (OSError, ValueError):
+                continue
+            for path in files:
+                file_match = re.fullmatch(r"temperature-f(\d{3})-\d+x\d+-v\d+\.bin", path.name)
+                if not file_match:
+                    continue
+                hour = int(file_match.group(1))
+                valid_epoch = cycle_epoch + hour * 3600
+                if valid_epoch <= now:
+                    try:
+                        candidates.append((valid_epoch, path.stat().st_mtime, model, run_directory.name, cycle_epoch, hour, path))
+                    except OSError:
+                        continue
+
+    for _, _, model, run_id, cycle_epoch, hour, path in sorted(candidates, reverse=True):
+        try:
+            volume = volumes.cached_volume_file("temperature", model, run_id, hour, path)
+            if volume is None:
+                continue
+            cell = _nearest_wet_cell(volume, latitude, longitude)
+            if cell is None:
+                continue
+            temperature_field = next(iter(volume.variables), None)
+            if temperature_field is None:
+                continue
+            temperatures = volume.profile(temperature_field, cell)
+            values = [{"depthMeters": depth, "temperatureC": temperature} for depth, temperature in zip(volume.depths, temperatures) if math.isfinite(temperature) and -5 <= temperature <= 45]
+            if not values:
+                continue
+            profile = _temperature_profile_result(
+                model, {"id": run_id, "cycleEpoch": cycle_epoch}, hour, latitude, longitude,
+                volume.latitude_axis[cell // volume.columns], volume.longitude_axis[cell % volume.columns], values,
+            )
+            profile["stale"] = True
+            profile["lastAvailableAt"] = profile["validTime"]
+            return profile
+        except Exception:
+            continue
+    return None
+
+
+def _last_history_temperature_profile(latitude: float, longitude: float) -> dict | None:
+    try:
+        from . import great_lakes_history_client as saved_history
+
+        index = saved_history.index()
+        hours = index.get("hours", []) if isinstance(index, dict) else []
+        profile_times = [item.get("time") for item in hours if isinstance(item, dict) and item.get("profile") and item.get("time")]
+        for saved_time in reversed(profile_times[-12:]):
+            profile = saved_history.point("temperature-profile", {"time": saved_time, "latitude": latitude, "longitude": longitude})
+            if profile.get("available"):
+                profile = dict(profile)
+                profile["stale"] = True
+                profile["lastAvailableAt"] = profile.get("historyTime") or saved_time
+                return profile
+    except Exception:
+        return None
+    return None
+
+
+def _point_temperature_profile_cache_path(forecast_hour: int, latitude: float, longitude: float, models: tuple[str, ...]):
+    key = f"{forecast_hour}|{','.join(models)}|{latitude:.3f}|{longitude:.3f}"
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+    return gl_cache.path_for("point-profiles", f"{digest}.json")
+
+
+def _stale_temperature_profile(saved: dict) -> dict:
+    profile = dict(saved["profile"])
+    profile["stale"] = True
+    profile["lastAvailableAt"] = saved.get("savedAt")
+    return profile
+
+
+def _prune_saved_point_profiles(directory, current_path) -> None:
+    try:
+        files = list(directory.glob("*.json"))
+        if len(files) <= MAX_SAVED_POINT_PROFILES:
+            return
+        files.sort(key=lambda path: path.stat().st_mtime)
+        for path in files[:len(files) - MAX_SAVED_POINT_PROFILES]:
+            if path != current_path:
+                path.unlink(missing_ok=True)
+    except OSError:
+        return
 
 
 def _distance_km(latitude: float, longitude: float, other_latitude: float, other_longitude: float) -> float:
@@ -624,6 +1623,106 @@ def _distance_km(latitude: float, longitude: float, other_latitude: float, other
     delta_longitude = math.radians(other_longitude - longitude)
     value = math.sin(delta_latitude / 2) ** 2 + math.cos(first) * math.cos(second) * math.sin(delta_longitude / 2) ** 2
     return 12742 * math.asin(min(1, math.sqrt(value)))
+
+
+def _cached_volume_for_point(kind: str, model: str, forecast_hour: int) -> tuple[dict, int, dict[str, str], volumes.Volume] | None:
+    """A model-hour volume the refresher already saved, without downloading anything."""
+    run = _forecast_run(model, forecast_hour)
+    if "error" in run:
+        return None
+    hour = select_forecast_hour(run, forecast_hour)
+    path = run["files"][hour]
+    ny, nx, depths = _regular_grid_dimensions(path)
+    if not ny or not nx or not depths:
+        return None
+    volume = volumes.cached_volume(kind, model, run["id"], hour, ny, nx)
+    return None if volume is None else (run, hour, _metadata(path), volume)
+
+
+def _nearest_wet_cell(volume: volumes.Volume, latitude: float, longitude: float, radius: int = 2) -> int | None:
+    """The wet volume cell closest to a point, looking a couple of cells around the nearest one."""
+    lat_axis, lon_axis = volume.latitude_axis, volume.longitude_axis
+    if not lat_axis or not lon_axis:
+        return None
+    if not (min(lat_axis) <= latitude <= max(lat_axis) and min(lon_axis) <= longitude <= max(lon_axis)):
+        return None
+    row = min(range(volume.rows), key=lambda index: abs(lat_axis[index] - latitude))
+    column = min(range(volume.columns), key=lambda index: abs(lon_axis[index] - longitude))
+    best, best_distance = None, math.inf
+    for r in range(max(0, row - radius), min(volume.rows, row + radius + 1)):
+        for c in range(max(0, column - radius), min(volume.columns, column + radius + 1)):
+            cell = r * volume.columns + c
+            if not volume.wet[cell]:
+                continue
+            distance = _distance_km(latitude, longitude, lat_axis[r], lon_axis[c])
+            if distance < best_distance:
+                best, best_distance = cell, distance
+    return best
+
+
+def _cached_temperature_profile(model: str, forecast_hour: int, latitude: float, longitude: float) -> dict | None:
+    cached = _cached_volume_for_point("temperature", model, forecast_hour)
+    if cached is None:
+        return None
+    run, hour, variables, volume = cached
+    cell = _nearest_wet_cell(volume, latitude, longitude)
+    if cell is None:
+        return {"available": False}
+    temperatures = volume.profile(variables["temperature"], cell)
+    values = [{"depthMeters": depth, "temperatureC": temp} for depth, temp in zip(volume.depths, temperatures) if math.isfinite(temp) and -5 <= temp <= 45]
+    if not values:
+        return {"available": False}
+    return _temperature_profile_result(model, run, hour, latitude, longitude, volume.latitude_axis[cell // volume.columns], volume.longitude_axis[cell % volume.columns], values)
+
+
+def _temperature_profile_result(model: str, run: dict, hour: int, latitude: float, longitude: float, model_latitude: float, model_longitude: float, values: list[dict]) -> dict:
+    values.sort(key=lambda value: value["depthMeters"])
+    profile_values = [(value["depthMeters"], value["temperatureC"]) for value in values]
+    # The same true-bottom rule as the map, so a click agrees with the colour under it.
+    try:
+        bottom = model_bathymetry_depth(model_latitude, model_longitude, (model,))
+    except Exception:
+        bottom = None
+    band, finding = _thermocline_analysis(profile_values, bottom["depthMeters"] if bottom else None)
+    thermocline = None if not band else _shown_thermocline(profile_values, band)
+    result = {"available": True, "model": model, "validTime": _valid_time_text(run, hour), "requested": {"latitude": latitude, "longitude": longitude}, "modelLocation": {"latitude": model_latitude, "longitude": model_longitude}, "values": values, "thermocline": thermocline}
+    if band is None:
+        # Why there is none: "mixed" (about the same temperature throughout, or colder at the top) or "gradual" (cools gradually with depth, no warm layer over a sharper drop).
+        result["noThermocline"] = finding
+    return result
+
+
+def _shown_thermocline(profile: list[tuple[float, float]], band: dict) -> dict:
+    """A band as readings show it: at most THERMOCLINE_MAX_SHOWN_THICKNESS_METERS from its top."""
+    ordered = sorted(profile)
+    bottom = min(band["bottom"], band["top"] + THERMOCLINE_MAX_SHOWN_THICKNESS_METERS)
+    thickness = bottom - band["top"]
+    bottom_temperature = _temperature_at_depth(ordered, bottom) if bottom < band["bottom"] else band["bottomTemperature"]
+    return {
+        # depthMeters is the top: where the map colour comes from.
+        "depthMeters": band["top"],
+        "topDepthMeters": band["top"], "bottomDepthMeters": bottom, "thicknessMeters": thickness,
+        "temperatureAboveC": band["topTemperature"], "temperatureBelowC": bottom_temperature,
+        "gradientCPerMeter": (band["topTemperature"] - bottom_temperature) / thickness if thickness > 0.01 else band["gradient"],
+        # The whole band continues this far down (the cooling eases below it).
+        "fullBottomDepthMeters": band["bottom"],
+        "method": "coolingOnset",
+    }
+
+
+def _cached_current_profile(model: str, forecast_hour: int, latitude: float, longitude: float) -> dict | None:
+    cached = _cached_volume_for_point("velocity", model, forecast_hour)
+    if cached is None:
+        return None
+    run, hour, variables, volume = cached
+    cell = _nearest_wet_cell(volume, latitude, longitude)
+    if cell is None:
+        return {"available": False}
+    values = _current_profile_values(list(volume.depths), volume.profile(variables["u"], cell), volume.profile(variables["v"], cell))
+    if not values:
+        return {"available": False}
+    model_latitude, model_longitude = volume.latitude_axis[cell // volume.columns], volume.longitude_axis[cell % volume.columns]
+    return {"available": True, "model": model, "validTime": _valid_time_text(run, hour), "requested": {"latitude": latitude, "longitude": longitude}, "modelLocation": {"latitude": model_latitude, "longitude": model_longitude}, "sampleDistanceKm": _distance_km(latitude, longitude, model_latitude, model_longitude), "depthApproximate": False, "values": values}
 
 
 def _current_profile_values(depths: list[float], east: list[float], north: list[float]) -> list[dict]:
@@ -638,11 +1737,11 @@ def _current_profile_values(depths: list[float], east: list[float], north: list[
 
 
 def _current_profile_for_model(model: str, forecast_hour: int, latitude: float, longitude: float) -> dict:
-    run = discovered_runs((model,))[model]
+    run = _forecast_run(model, forecast_hour)
     if "error" in run:
         raise RuntimeError(str(run["error"]))
     hours = run["files"]  # type: ignore[assignment]
-    available_hour = min(hours, key=lambda candidate: abs(candidate - forecast_hour))
+    available_hour = select_forecast_hour(run, forecast_hour)
     path = hours[available_hour]
     variables = _metadata(path)
     ny, nx, depths = _regular_grid_dimensions(path)
@@ -701,43 +1800,127 @@ def _current_profile_for_model(model: str, forecast_hour: int, latitude: float, 
 
 
 def great_lakes_current_profile(forecast_hour: int, latitude: float, longitude: float, models: tuple[str, ...] = MODELS) -> dict:
-    cache_key = (forecast_hour, round(latitude, 3), round(longitude, 3), models, int(time.monotonic() // CACHE_SECONDS))
-    if cache_key in _current_profile_cache:
-        return _current_profile_cache[cache_key]
+    cache_key = (_data_key(models, forecast_hour), round(latitude, 3), round(longitude, 3), models, _cache_bucket())
+    cached = _current_profile_cache.get(cache_key)
+    if cached is not None:
+        return cached
     for model in models:
         try:
-            profile = _current_profile_for_model(model, forecast_hour, latitude, longitude)
+            profile = _cached_current_profile(model, forecast_hour, latitude, longitude)
+            if profile is None:
+                profile = _current_profile_for_model(model, forecast_hour, latitude, longitude)
         except Exception:
             continue  # One lake's missing run must not hide another lake.
         if profile.get("available"):
-            _current_profile_cache[cache_key] = profile
+            _cache_store(_current_profile_cache, cache_key, profile, MAX_PROFILE_CACHE_ENTRIES)
             return profile
     return {"available": False}
 
 
 def _current_grid_field(model: str, forecast_hour: int, depth: int) -> dict:
-    run = discovered_runs((model,))[model]
-    if "error" in run:
-        raise RuntimeError(str(run["error"]))
-    hours = run["files"]  # type: ignore[assignment]
-    hour = min(hours, key=lambda candidate: abs(candidate - forecast_hour))
-    path = hours[hour]
-    ny, nx, depths = _regular_grid_dimensions(path)
-    if not ny or not nx:
-        raise RuntimeError("Current run has no regular-grid velocity output")
-    variables = _metadata(path)
-    layer = min(range(len(depths)), key=lambda index: abs(depths[index] - depth)) if depths else 0
-    y_stride, x_stride = max(1, math.ceil((ny - 1) / 119)), max(1, math.ceil((nx - 1) / 159))
-    query = f"Latitude[0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}],Longitude[0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}],mask[0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}],{variables['u']}[0][{layer}][0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}],{variables['v']}[0][{layer}][0:{y_stride}:{ny - 1}][0:{x_stride}:{nx - 1}]"
-    raw = _ascii(path, query)
-    lat, lon, mask = _numbers(raw, "Latitude"), _numbers(raw, "Longitude"), _numbers(raw, "mask")
-    east, north = _numbers(raw, variables["u"]), _numbers(raw, variables["v"])
-    cols, rows = (nx - 1) // x_stride + 1, (ny - 1) // y_stride + 1
-    if not (len(lat) == len(lon) == len(mask) == len(east) == len(north) == rows * cols):
-        raise RuntimeError("NOAA velocity-grid subset dimensions were incomplete")
-    valid = [wet > 0 and all(math.isfinite(value) and abs(value) <= 10 for value in (u, v)) for wet, u, v in zip(mask, east, north)]
-    valid_indices = [index for index, item in enumerate(valid) if item]
-    if not valid_indices:
+    run, hour, path, variables, volume, layer = _model_depth("velocity", model, forecast_hour, depth)
+    east, north = volume.level(variables["u"], layer), volume.level(variables["v"], layer)
+    rows, cols = volume.rows, volume.columns
+    valid = [bool(wet) and all(math.isfinite(value) and abs(value) <= 10 for value in (u, v)) for wet, u, v in zip(volume.wet, east, north)]
+    if not any(valid):
         raise RuntimeError("NOAA model returned no valid current cells")
-    valid_time = datetime.strptime(f"{run['date']}{run['cycle']:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp() + hour * 3600
-    return {"model": model, "rows": rows, "columns": cols, "latitudeAxis": [lat[row * cols] for row in range(rows)], "longitudeAxis": [_great_lakes_longitude(lon[column]) for column in range(cols)], "mask": [1 if item else 0 for item in valid], "u": east, "v": north, "depthMeters": depths[layer] if depths else depth, "validTime": datetime.fromtimestamp(valid_time, timezone.utc).isoformat().replace("+00:00", "Z")}
+    axes = GridAxes.from_axes(volume.latitude_axis, volume.longitude_axis, volume.y_stride, volume.x_stride)
+    ny, nx, _ = _regular_grid_dimensions(path)
+    wet = [bool(cell) for cell in volume.wet]
+    surface_water = _water_mask_or_none(model, path, ny, nx) or _coarse_water_mask(wet, rows, cols, volume.y_stride, volume.x_stride)
+    # Particles and speed shading stay out of water shallower than this level.
+    water = limit_water_to_depth(surface_water, wet, valid, rows, cols, volume.y_stride, volume.x_stride)
+    valid_time_text = _valid_time_text(run, hour)
+    east_list, north_list = east.tolist(), north.tolist()
+    # Shoreline cells the coarse grid calls land borrow nearby velocities, so
+    # particles can follow the fine water mask right up to the shore.
+    filled_east = fill_invalid(east_list, valid, rows, cols, fallback=0.0)
+    filled_north = fill_invalid(north_list, valid, rows, cols, fallback=0.0)
+    speeds = [math.hypot(u, v) if ok else 0.0 for u, v, ok in zip(east_list, north_list, valid)]
+    return {
+        "model": model,
+        "rows": rows,
+        "columns": cols,
+        "latitudeAxis": volume.latitude_axis,
+        "longitudeAxis": volume.longitude_axis,
+        "mask": [1 if item else 0 for item in valid],
+        "u": [round(value, 4) for value in filled_east],
+        "v": [round(value, 4) for value in filled_north],
+        "waterMask": water.payload(axes),
+        "depthMeters": volume.depths[layer],
+        "validTime": valid_time_text,
+        "_samples": [
+            {"latitude": volume.latitude_axis[index // cols], "longitude": volume.longitude_axis[index % cols], "u": east_list[index], "v": north_list[index],
+             "speed": speeds[index], "direction": (math.degrees(math.atan2(east_list[index], north_list[index])) + 360) % 360,
+             "depthMeters": volume.depths[layer], "model": model}
+            for index in range(rows * cols) if valid[index] and (index // cols) % 2 == 0 and (index % cols) % 2 == 0
+        ],
+        "_metadata": {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": valid_time_text, "available": True, "variables": variables, "run": run["id"], "selectedForecastHour": hour, "selectedDepthMeters": volume.depths[layer]},
+        "_render": {"model": model, "validTime": valid_time_text, "grid": ScalarGrid(speeds, valid, rows, cols, volume.y_stride, volume.x_stride), "axes": axes, "water": water},
+    }
+
+
+def _fields_dataset_path(model: str) -> str:
+    """Any FVCOM ``fields`` file from the newest catalog day; only its static mesh is read."""
+    paths = re.findall(r'urlPath="([^"]+\.fields\.[fn]\d+\.nc)"', _get(_latest_day_catalog(model)))
+    if not paths:
+        raise RuntimeError("Newest NOAA catalog has no FVCOM fields file")
+    return sorted(paths)[-1]
+
+
+def _model_mesh(model: str, kind: str) -> tuple[array, array]:
+    """Latitudes (ascending) and matching longitudes of one model's calculation points."""
+    key = (model, kind)
+    cached = _mesh_cache.get(key)
+    if cached is not None:
+        return cached
+    with _cache_lock:
+        lock = _mesh_locks.setdefault(key, threading.Lock())
+    with lock:
+        cached = _mesh_cache.get(key)
+        if cached is not None:
+            return cached
+        latitude_name, longitude_name, dimension = MODEL_POINT_KINDS[kind]
+        disk_path = gl_cache.path_for("static", model, f"mesh-{kind}.bin")
+        record = gl_cache.read_record(disk_path)
+        if record and len(record[1].get("latitudes", ())) == len(record[1].get("longitudes", ())) > 0:
+            mesh = (array("d", record[1]["latitudes"]), array("d", record[1]["longitudes"]))
+            _mesh_cache[key] = mesh
+            return mesh
+        path = _fields_dataset_path(model)
+        count = int(re.search(rf"Float32 {latitude_name}\[{dimension} = (\d+)\]", _dds(path)).group(1))
+        arrays = gl_cache.fetch_dods(f"{THREDDS}/dodsC/{path}", f"{latitude_name}[0:1:{count - 1}],{longitude_name}[0:1:{count - 1}]")
+        latitudes, longitudes = arrays[latitude_name][1], arrays[longitude_name][1]
+        if len(latitudes) != count or len(longitudes) != count:
+            raise RuntimeError("NOAA mesh coordinates were incomplete")
+        ordered = sorted(zip(latitudes, (_great_lakes_longitude(value) for value in longitudes)))
+        mesh = (array("d", (point[0] for point in ordered)), array("d", (point[1] for point in ordered)))
+        gl_cache.write_record(disk_path, {"model": model, "kind": kind}, {"latitudes": mesh[0], "longitudes": mesh[1]})
+        _mesh_cache[key] = mesh
+        return mesh
+
+
+def great_lakes_model_points(kind: str, bounds: tuple[float, float, float, float], models: tuple[str, ...] = MODELS, limit: int = MODEL_POINTS_LIMIT) -> dict:
+    """Model calculation points inside ``bounds`` (south, west, north, east).
+
+    Points are never thinned: when the view holds more than ``limit`` the
+    response reports the count so the map can ask the user to zoom in.
+    """
+    south, west, north, east = bounds
+    selected, model_metadata = [], []
+    with ThreadPoolExecutor(max_workers=len(models)) as executor:
+        futures = {model: executor.submit(_model_mesh, model, kind) for model in models}
+        for model in models:
+            try:
+                latitudes, longitudes = futures[model].result()
+            except Exception as error:
+                model_metadata.append({"model": model, "available": False, "error": str(error)})
+                continue
+            start, end = bisect.bisect_left(latitudes, south), bisect.bisect_right(latitudes, north)
+            points = [(latitudes[index], longitudes[index]) for index in range(start, end) if west <= longitudes[index] <= east]
+            selected.extend(points)
+            model_metadata.append({"model": model, "available": True, "totalPoints": len(latitudes), "pointsInView": len(points)})
+    payload = {"kind": kind, "count": len(selected), "limit": limit, "tooMany": len(selected) > limit, "models": model_metadata, "points": []}
+    if not payload["tooMany"]:
+        payload["points"] = [coordinate for point in selected for coordinate in (round(point[0], 5), round(point[1], 5))]
+    return payload

@@ -1,4 +1,12 @@
-function setupLineCounts(trip, gearItem) {
+import { html, setHtml } from "./html.js";
+import { state, ui } from "./app-state.js";
+import { els } from "./app-elements.js";
+import { fishCount } from "./dashboard.js";
+import { catchMapRecordsForTrip, destroyCatchDetailLocationMap, renderCatchDetailLocationMap, renderTripSummaryMap } from "./maps.js";
+import { displayTitleText, renderCatchDetailLocationPopout, renderCatchDetailPopout, renderCatchMediaGallery } from "./trip-summary.js";
+import { renderTripReport } from "./trip-report.js";
+
+export function setupLineCounts(trip, gearItem) {
   const fish = (trip.catches || [])
     .filter((catchItem) => catchItem.setupLineId === gearItem.id && catchItem.setupLineTarget !== "cheater")
     .reduce((sum, catchItem) => sum + fishCount(catchItem), 0);
@@ -8,13 +16,13 @@ function setupLineCounts(trip, gearItem) {
   return { fish, lost };
 }
 
-function setupLineCheaterFishCount(trip, gearItem) {
+export function setupLineCheaterFishCount(trip, gearItem) {
   return (trip.catches || [])
     .filter((catchItem) => catchItem.setupLineId === gearItem.id && catchItem.setupLineTarget === "cheater")
     .reduce((sum, catchItem) => sum + fishCount(catchItem), 0);
 }
 
-function formatTimelineDisplayTime(value) {
+export function formatTimelineDisplayTime(value) {
   const match = String(value || "").match(/(\d{1,2}):(\d{2})/);
   if (!match) return "";
   const hour = Number(match[1]);
@@ -25,49 +33,49 @@ function formatTimelineDisplayTime(value) {
   return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
-function refreshCatchMediaGallery(gallery, selectedIndex = 0) {
-  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+export function refreshCatchMediaGallery(gallery, selectedIndex = 0) {
+  const trip = state.trips.find((item) => item.id === ui.activeSummaryTripId);
   const catchIndex = Number(gallery?.dataset?.catchIndex);
   const catchType = gallery?.dataset?.catchType === "lost" ? "lostFish" : "catches";
   const catchItem = trip?.[catchType]?.[catchIndex];
   if (!trip || !catchItem || Number.isNaN(catchIndex)) return;
   const wrapper = document.createElement("div");
-  wrapper.innerHTML = renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${catchIndex + 1}`, {
+  setHtml(wrapper, renderCatchMediaGallery(catchItem.photos || [], catchItem.species || `Catch ${catchIndex + 1}`, {
     catchIndex,
     catchType: catchType === "lostFish" ? "lost" : "catch",
     selectedIndex,
     heroPhotoId: catchItem.heroPhotoId,
     context: gallery.dataset.galleryContext || "summary",
     showAllThumbnails: gallery.dataset.showAllThumbnails === "true"
-  }).trim();
+  }).trim());
   const nextGallery = wrapper.firstElementChild;
   if (nextGallery) gallery.replaceWith(nextGallery);
 }
 
-function openSummaryCatchDetail(catchIndex, selectedIndex, catchType = "catch") {
-  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+export function openSummaryCatchDetail(catchIndex, selectedIndex, catchType = "catch") {
+  const trip = state.trips.find((item) => item.id === ui.activeSummaryTripId);
   const isLost = catchType === "lost";
   const catchItem = trip?.[isLost ? "lostFish" : "catches"]?.[catchIndex];
   const host = document.querySelector("#catchDetailHost");
   if (!trip || !catchItem || !host) return;
-  host.innerHTML = renderCatchDetailPopout(trip, catchItem, catchIndex, selectedIndex, isLost ? "lost" : "catch");
+  setHtml(host, renderCatchDetailPopout(trip, catchItem, catchIndex, selectedIndex, isLost ? "lost" : "catch"));
   document.querySelector("#tripSummaryDialog")?.classList.add("catch-detail-open");
   host.querySelector(".catch-detail-close")?.focus();
 }
 
-function openSummaryCatchLocationMap(catchIndex) {
-  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+export function openSummaryCatchLocationMap(catchIndex) {
+  const trip = state.trips.find((item) => item.id === ui.activeSummaryTripId);
   const catchItem = trip?.catches?.[catchIndex];
   const host = document.querySelector("#catchDetailLocationHost");
   if (!trip || !catchItem || !host) return;
-  host.innerHTML = renderCatchDetailLocationPopout(trip, catchItem, catchIndex);
+  setHtml(host, renderCatchDetailLocationPopout(trip, catchItem, catchIndex));
   renderCatchDetailLocationMap(trip, catchItem, catchIndex, "trip");
   host.querySelector("[data-close-catch-map]")?.focus();
 }
 
-function setSummaryCatchLocationScope(scope) {
+export function setSummaryCatchLocationScope(scope) {
   const popout = document.querySelector("#catchDetailLocationPopout");
-  const trip = state.trips.find((item) => item.id === activeSummaryTripId);
+  const trip = state.trips.find((item) => item.id === ui.activeSummaryTripId);
   const catchIndex = Number(popout?.dataset.catchIndex);
   const catchItem = trip?.catches?.[catchIndex];
   if (!popout || !trip || !catchItem || Number.isNaN(catchIndex)) return;
@@ -81,30 +89,30 @@ function setSummaryCatchLocationScope(scope) {
   renderCatchDetailLocationMap(trip, catchItem, catchIndex, nextScope);
 }
 
-function closeSummaryCatchLocationMap() {
+export function closeSummaryCatchLocationMap() {
   destroyCatchDetailLocationMap();
   const host = document.querySelector("#catchDetailLocationHost");
-  if (host) host.innerHTML = "";
+  if (host) setHtml(host, html``);
 }
 
-function toggleSummaryCatchLocationMap(catchIndex) {
+export function toggleSummaryCatchLocationMap(catchIndex) {
   if (document.querySelector("#catchDetailLocationPopout")) closeSummaryCatchLocationMap();
   else openSummaryCatchLocationMap(catchIndex);
 }
 
-function closeSummaryCatchDetail() {
+export function closeSummaryCatchDetail() {
   closeSummaryCatchLocationMap();
   const host = document.querySelector("#catchDetailHost");
-  if (host) host.innerHTML = "";
+  if (host) setHtml(host, html``);
   document.querySelector("#tripSummaryDialog")?.classList.remove("catch-detail-open");
 }
 
-function openTripSummary(trip) {
-  activeSummaryTripId = trip.id;
-  activeReportTimelineFilter = "all";
-  activeReportTimelineSort = { key: "time", direction: "asc" };
+export function openTripSummary(trip) {
+  ui.activeSummaryTripId = trip.id;
+  ui.activeReportTimelineFilter = "all";
+  ui.activeReportTimelineSort = { key: "time", direction: "asc" };
   els.tripSummaryTitle.textContent = displayTitleText(trip.title || trip.location || "Trip Summary");
-  els.tripSummaryBody.innerHTML = renderTripReport(trip);
+  setHtml(els.tripSummaryBody, renderTripReport(trip));
   els.tripSummaryDialog.showModal();
   if (catchMapRecordsForTrip(trip).length) renderTripSummaryMap(trip);
 }

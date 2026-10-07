@@ -18,7 +18,7 @@
                 <span>Year</span>
                 <select id="mapYearFilter"></select>
               </label>
-              <details class="map-more-filters">
+              <details class="map-more-filters" name="map-toolbar-menu">
                 <summary>Filters</summary>
                 <div class="map-more-filters-panel">
                   <label class="inline-toggle map-media-toggle">
@@ -48,7 +48,7 @@
                   <button id="mapClearFilters" class="map-clear-filters" type="button">Clear filters</button>
                 </div>
               </details>
-              <details class="map-layers-menu">
+              <details class="map-layers-menu" name="map-toolbar-menu">
                 <summary>Layers</summary>
                 <div class="map-layers-menu-panel">
                   <label class="map-basemap-select">
@@ -63,6 +63,15 @@
                     <input id="mapNoaaChartsToggle" type="checkbox" checked />
                     <span>NOAA charts</span>
                   </label>
+                  <label class="inline-toggle map-chart-toggle">
+                    <input id="mapBathymetryToggle" type="checkbox" />
+                    <span>NOAA depth shading</span>
+                  </label>
+                  <label class="inline-toggle map-chart-toggle">
+                    <input id="mapDepthContoursToggle" type="checkbox" />
+                    <span>NOAA depth contours</span>
+                  </label>
+                  <small id="mapDepthContoursStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
                   <div id="greatLakesConditions"></div>
                 </div>
               </details>

@@ -1,87 +1,202 @@
-function renderLineRows(lines = []) {
+import { html, joinHtml, setHtml } from "./html.js";
+import { createId } from "./app-defaults.js";
+import { state, ui } from "./app-state.js";
+import { optionLabels } from "./app-normalization.js";
+import { unitSymbol } from "./app-units.js";
+import { deleteCombo as deleteComboRecord, deleteFlasher as deleteFlasherRecord, deleteLure as deleteLureRecord, deleteReel as deleteReelRecord, deleteRod as deleteRodRecord, saveRecord, updateLogbook, upsertListValueInDraft } from "./actions.js";
+import { els } from "./app-elements.js";
+import { beginMediaEditSession, canonicalMediaRef, cleanupReplacedMedia, isVideoMedia, markMediaEditSessionSaved, mediaMarkup } from "./app-media.js";
+import { populateOptionSelect, renderAll } from "./dashboard.js";
+import { uploadImageFile } from "./photos.js";
+import { getValue, setValue } from "./trip-editor.js";
+import { updateRowSummary } from "./trip-rows.js";
+import { activeLineEntry, baitStats, comboName, duplicateMatchesSource, gearDisplayName, gearPhotos, increasedQuantity, nextReelCopyShortName, renderExistingGearPhotos, renderQueuedGearImage } from "./gear-core.js";
+import { populateFlasherSelect, populateLureSelect, populateLuresForType, populateReelSelect, populateRodSelect, prepareInlineGearDialog, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
+import { comboFromDraft, flasherFromDraft, lureFromDraft, reelFromDraft, rodFromDraft } from "./gear-draft.js";
+import { applyGearDraftBindings, createGearDraft, setGearDraftContext, updateGearLineEntry } from "./draft-binding.js";
+
+
+export function renderLineRows(lines = []) {
   const container = document.querySelector("#reelLineRows");
   if (!container) return;
-  container.innerHTML = lineRowMarkup(activeLineEntry({ lineHistory: lines }) || {});
+  setHtml(container, lineRowMarkup(activeLineEntry({ lineHistory: lines }) || {}));
 }
 
-function lineUsesBraid(type) {
+function gearDraftContext() {
+  return ui.gearDraftContext || {};
+}
+
+function resetGearDraftUploads(type) {
+  ui.gearDraftUploads = { ...(ui.gearDraftUploads || {}), [type]: [] };
+}
+
+function gearDraftUploads(type) {
+  return ui.gearDraftUploads?.[type] || [];
+}
+
+function gearDraftMedia() {
+  return Array.isArray(ui.gearDraft?.media) ? ui.gearDraft.media : [];
+}
+
+function setGearDraftMedia(media = []) {
+  if (!ui.gearDraft) return;
+  ui.gearDraft.media = media.map(canonicalMediaRef).filter(Boolean);
+  if (ui.gearDraft.heroMediaId && !ui.gearDraft.media.some((photo) => photo.id === ui.gearDraft.heroMediaId && !isVideoMedia(photo))) {
+    ui.gearDraft.heroMediaId = "";
+  }
+}
+
+function sameGearMedia(first, second) {
+  return Boolean(first && second) && (
+    (first.id && first.id === second.id)
+    || (first.category === second.category && first.filename === second.filename && first.previewFilename === second.previewFilename)
+  );
+}
+
+async function appendUploadedGearMedia(type, category) {
+  const files = gearDraftUploads(type);
+  const uploaded = files.length ? await Promise.all(files.map((file) => uploadImageFile(file, category))) : [];
+  const pending = {
+    lure: ui.pendingLureImage,
+    flasher: ui.pendingFlasherImage,
+    reel: ui.pendingReelImage,
+    rod: ui.pendingRodImage
+  }[type];
+  const existing = gearDraftMedia();
+  const pendingMedia = pending && !existing.some((photo) => sameGearMedia(photo, pending)) ? [pending] : [];
+  setGearDraftMedia([...existing, ...uploaded, ...pendingMedia]);
+}
+
+function refreshLureSelectors(lure, context = {}) {
+  [...document.querySelectorAll(".catch-lure, .trip-gear-lure, .trip-gear-cheater-lure")]
+    .forEach((select) => populateLureSelect(select, select.value));
+  const rowId = context.pendingRowId || "";
+  const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
+  if (!row) return;
+  const targetSelector = context.pendingLureTarget === "cheater"
+    ? ".trip-gear-cheater-lure"
+    : ".catch-lure, .trip-gear-lure";
+  const select = row.querySelector(targetSelector);
+  if (select) {
+    populateLuresForType(select, lure.type, lure.id);
+    select.value = lure.id;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  renderLurePreview(row);
+  updateRowSummary(row);
+}
+
+function refreshFlasherSelectors(flasher, context = {}) {
+  [...document.querySelectorAll(".catch-flasher, .trip-gear-flasher")]
+    .forEach((select) => populateFlasherSelect(select, select.value));
+  const rowId = context.pendingRowId || "";
+  const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
+  if (!row) return;
+  const select = row.querySelector(".catch-flasher, .trip-gear-flasher");
+  if (select) {
+    select.value = flasher.id;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  renderFlasherPreview(row);
+  updateRowSummary(row);
+}
+
+function syncReelGroupQuantityInDraft(reels, groupId, quantity) {
+  if (!groupId) return;
+  reels.forEach((item) => {
+    const itemGroupId = String(item?.modelGroupId || item?.id || "");
+    if (item.id === groupId || itemGroupId === groupId) {
+      item.modelGroupId = groupId;
+      item.quantityAvailable = String(quantity ?? "");
+    }
+  });
+}
+
+export function lineUsesBraid(type) {
   return String(type || "").trim().toLowerCase() === "braid";
 }
 
-function updateMonoBackingVisibility(row) {
+export function updateMonoBackingVisibility(row) {
   if (!row) return;
   const backingField = row.querySelector(".line-mono-backing-field");
   const backingInput = row.querySelector(".line-mono-backing");
-  const lineType = row.querySelector(".line-type")?.value;
+  const lineId = row.dataset?.lineId || "";
+  const line = (ui.gearDraft?.lineHistory || []).find((entry) => String(entry.id || "") === String(lineId))
+    || activeLineEntry(ui.gearDraft || {})
+    || {};
+  const lineType = line.type || optionLabels("lineTypes")[0];
   const showBacking = lineUsesBraid(lineType);
   backingField?.classList.toggle("hidden", !showBacking);
-  if (!showBacking && backingInput) backingInput.checked = false;
+  if (!showBacking && backingInput) {
+    backingInput.checked = false;
+    updateGearLineEntry(row, { monoBacking: false });
+  }
 }
 
-function lineRowMarkup(line = {}) {
+export function lineRowMarkup(line = {}) {
   const id = line.id || createId();
   const showMonoBacking = lineUsesBraid(line.type || optionLabels("lineTypes")[0]);
-  return `
-    <article class="line-editor-row" data-line-id="${escapeHtml(id)}">
-      <label><span>Spooled date</span><input class="line-spooled-date" type="date" value="${escapeHtml(line.spooledDate || "")}" /></label>
-      <label><span>Type</span><select class="line-type">${optionLabels("lineTypes").map((type) => `<option value="${escapeHtml(type)}" ${type === line.type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
-      <label><span>Brand</span><input class="line-brand" type="text" value="${escapeHtml(line.brand || "")}" placeholder="Berkley" /></label>
-      <label><span>Name</span><input class="line-name" type="text" value="${escapeHtml(line.name || "")}" placeholder="X5" /></label>
-      <label><span>Weight (${unitSymbol("fishWeight")})</span><input class="line-weight" type="text" value="${escapeHtml(line.weight || "")}" placeholder="30" /></label>
-      <label class="fly-line-field hidden"><span>Fly line weight</span><input class="line-fly-weight" type="number" min="0" max="16" step="1" value="${escapeHtml(line.flyWeight || "")}" placeholder="5" /></label>
-      <label class="fly-line-field hidden"><span>Taper</span><input class="line-fly-taper" type="text" value="${escapeHtml(line.flyTaper || "")}" placeholder="Weight forward" /></label>
-      <label class="fly-line-field hidden"><span>Density / sink rate</span><input class="line-fly-density" type="text" value="${escapeHtml(line.flyDensity || "")}" placeholder="Floating, 3 ips" /></label>
-      <label><span>Diameter in</span><input class="line-diameter-in" type="text" value="${escapeHtml(line.diameterIn || "")}" placeholder="0.008" /></label>
-      <label><span>Diameter mm</span><input class="line-diameter-mm" type="text" value="${escapeHtml(line.diameterMm || "")}" placeholder="0.20" /></label>
-      <label><span>Color</span><input class="line-color" type="text" value="${escapeHtml(line.color || "")}" placeholder="Lo-Vis" /></label>
+  return html`
+    <article class="line-editor-row" data-line-id="${id}">
+      <label><span>Spooled date</span><input class="line-spooled-date" type="date" value="${line.spooledDate || ""}" /></label>
+      <label><span>Type</span><select class="line-type">${joinHtml(optionLabels("lineTypes").map((type) => html`<option value="${type}" ${type === line.type ? "selected" : ""}>${type}</option>`), "")}</select></label>
+      <label><span>Brand</span><input class="line-brand" type="text" value="${line.brand || ""}" placeholder="Berkley" /></label>
+      <label><span>Name</span><input class="line-name" type="text" value="${line.name || ""}" placeholder="X5" /></label>
+      <label><span>Weight (${unitSymbol("fishWeight")})</span><input class="line-weight" type="text" value="${line.weight || ""}" placeholder="30" /></label>
+      <label class="fly-line-field hidden"><span>Fly line weight</span><input class="line-fly-weight" type="number" min="0" max="16" step="1" value="${line.flyWeight || ""}" placeholder="5" /></label>
+      <label class="fly-line-field hidden"><span>Taper</span><input class="line-fly-taper" type="text" value="${line.flyTaper || ""}" placeholder="Weight forward" /></label>
+      <label class="fly-line-field hidden"><span>Density / sink rate</span><input class="line-fly-density" type="text" value="${line.flyDensity || ""}" placeholder="Floating, 3 ips" /></label>
+      <label><span>Diameter in</span><input class="line-diameter-in" type="text" value="${line.diameterIn || ""}" placeholder="0.008" /></label>
+      <label><span>Diameter mm</span><input class="line-diameter-mm" type="text" value="${line.diameterMm || ""}" placeholder="0.20" /></label>
+      <label><span>Color</span><input class="line-color" type="text" value="${line.color || ""}" placeholder="Lo-Vis" /></label>
       <label class="checkbox-label line-mono-backing-field ${showMonoBacking ? "" : "hidden"}"><input class="line-mono-backing" type="checkbox" ${line.monoBacking && showMonoBacking ? "checked" : ""} /><span>Mono backing</span></label>
-      <label class="line-notes-field"><span>Notes</span><input class="line-notes" type="text" value="${escapeHtml(line.notes || "")}" placeholder="Spooling notes" /></label>
+      <label class="line-notes-field"><span>Notes</span><input class="line-notes" type="text" value="${line.notes || ""}" placeholder="Spooling notes" /></label>
     </article>
   `;
 }
 
-function collectLineRows(existingEntries = []) {
-  const lines = [...document.querySelectorAll("#reelLineRows .line-editor-row")]
-    .map((row) => ({
-      ...(existingEntries.find((line) => line.id === row.dataset.lineId) || {}),
-      id: row.dataset.lineId || createId(),
-      spooledDate: row.querySelector(".line-spooled-date").value,
-      type: row.querySelector(".line-type").value,
-      brand: row.querySelector(".line-brand").value.trim(),
-      name: row.querySelector(".line-name").value.trim(),
-      weight: row.querySelector(".line-weight").value.trim(),
-      flyWeight: row.querySelector(".line-fly-weight").value.trim(),
-      flyTaper: row.querySelector(".line-fly-taper").value.trim(),
-      flyDensity: row.querySelector(".line-fly-density").value.trim(),
-      diameterIn: row.querySelector(".line-diameter-in").value.trim(),
-      diameterMm: row.querySelector(".line-diameter-mm").value.trim(),
-      color: row.querySelector(".line-color").value.trim(),
-      monoBacking: row.querySelector(".line-mono-backing").checked,
-      notes: row.querySelector(".line-notes").value.trim()
-    }))
-    .filter((line) => line.spooledDate || line.type || line.brand || line.name || line.weight || line.diameterIn || line.diameterMm || line.color || line.monoBacking || line.notes);
-  return lines.slice(0, 1);
-}
+export function isFlyType(type) { return String(type || "").trim().toLowerCase() === "fly"; }
 
-function isFlyType(type) { return String(type || "").trim().toLowerCase() === "fly"; }
-
-function updateFlyGearVisibility() {
-  const rodFly = isFlyType(getValue("rodType"));
-  const reelFly = isFlyType(getValue("reelStyle"));
+export function updateFlyGearVisibility() {
+  const rodFly = isFlyType(ui.gearDraft?.type);
+  const reelFly = isFlyType(ui.gearDraft?.style);
+  const lineType = activeLineEntry(ui.gearDraft || {})?.type || optionLabels("lineTypes")[0];
   document.querySelectorAll(".fly-rod-field").forEach((field) => field.classList.toggle("hidden", !rodFly));
   document.querySelectorAll(".fly-reel-field").forEach((field) => field.classList.toggle("hidden", !reelFly));
-  document.querySelectorAll(".fly-line-field").forEach((field) => field.classList.toggle("hidden", String(document.querySelector(".line-type")?.value || "").toLowerCase() !== "fly line"));
+  document.querySelectorAll(".fly-line-field").forEach((field) => field.classList.toggle("hidden", String(lineType).toLowerCase() !== "fly line"));
 }
 
-function openReelDialog(reel = null, { duplicate = false } = {}) {
+export function openReelDialog(reel = null, { duplicate = false } = {}) {
   beginMediaEditSession("reel");
+  resetGearDraftUploads("reel");
   els.reelDialog.dataset.removedPhotoKeys = "[]";
   els.reelForm.reset();
-  pendingReelImage = null;
+  ui.pendingReelImage = null;
   renderQueuedGearImage("reel");
-  renderExistingGearPhotos("reel", reel);
   populateOptionSelect(document.querySelector("#reelStyle"), optionLabels("reelStyles"), "Select style");
   const editing = Boolean(reel) && !duplicate;
+  createGearDraft(editing ? reel : null, {
+    id: editing ? reel?.id || "" : "",
+    shortName: duplicate ? nextReelCopyShortName(reel) : reel?.shortName || "",
+    style: reel?.style || "",
+    brand: reel?.brand || "",
+    name: reel?.name || "",
+    size: reel?.size || "",
+    weight: reel?.weight || "",
+    gearRatio: reel?.gearRatio || "",
+    maxDrag: reel?.maxDrag || "",
+    monoCapacity: reel?.monoCapacity || "",
+    braidCapacity: reel?.braidCapacity || "",
+    flyLineRange: reel?.flyLineRange || "",
+    arbor: reel?.arbor || "",
+    purchaseAmount: reel?.purchaseAmount || "",
+    dateBought: reel?.dateBought || "",
+    quantityAvailable: duplicate ? increasedQuantity(reel?.quantityAvailable) : reel?.quantityAvailable ?? "",
+    notes: reel?.notes || "",
+    lineHistory: [activeLineEntry({ lineHistory: reel?.lineHistory || [] }) || {}]
+  });
+  setGearDraftContext({ type: "reel", editingId: editing ? reel?.id || "" : "", duplicateSourceId: duplicate ? reel?.id || "" : "" });
+  renderExistingGearPhotos("reel", ui.gearDraft);
   document.querySelector("#reelDialog h2").textContent = editing ? "Edit Reel" : duplicate ? "Add Separate Reel" : "Add Reel";
   els.reelDialog.dataset.duplicateFromId = duplicate ? reel?.id || "" : "";
   setValue("editingReelId", editing ? reel?.id || "" : "");
@@ -104,18 +219,38 @@ function openReelDialog(reel = null, { duplicate = false } = {}) {
   renderLineRows(reel?.lineHistory || []);
   updateFlyGearVisibility();
   els.deleteReelButton.classList.toggle("hidden", !editing);
+  applyGearDraftBindings(els.reelDialog);
   els.reelDialog.showModal();
 }
 
-function openRodDialog(rod = null, { duplicate = false } = {}) {
+export function openRodDialog(rod = null, { duplicate = false } = {}) {
   beginMediaEditSession("rod");
+  resetGearDraftUploads("rod");
   els.rodDialog.dataset.removedPhotoKeys = "[]";
   els.rodForm.reset();
-  pendingRodImage = null;
+  ui.pendingRodImage = null;
   renderQueuedGearImage("rod");
-  renderExistingGearPhotos("rod", rod);
   populateOptionSelect(document.querySelector("#rodType"), optionLabels("rodTypes"), "Select type");
   const editing = Boolean(rod) && !duplicate;
+  createGearDraft(editing ? rod : null, {
+    id: editing ? rod?.id || "" : "",
+    shortName: rod?.shortName || "",
+    type: rod?.type || "",
+    brand: rod?.brand || "",
+    name: rod?.name || "",
+    length: rod?.length || "",
+    power: rod?.power || "",
+    action: rod?.action || "",
+    flyWeight: rod?.flyWeight || "",
+    pieces: rod?.pieces || "",
+    lureRating: rod?.lureRating || "",
+    purchaseAmount: rod?.purchaseAmount || "",
+    dateBought: rod?.dateBought || "",
+    quantityAvailable: rod?.quantityAvailable ?? "",
+    notes: rod?.notes || ""
+  });
+  setGearDraftContext({ type: "rod", editingId: editing ? rod?.id || "" : "", duplicateSourceId: duplicate ? rod?.id || "" : "" });
+  renderExistingGearPhotos("rod", ui.gearDraft);
   document.querySelector("#rodDialog h2").textContent = editing ? "Edit Rod" : duplicate ? "Duplicate Rod" : "Add Rod";
   els.rodDialog.dataset.duplicateFromId = duplicate ? rod?.id || "" : "";
   setValue("editingRodId", editing ? rod?.id || "" : "");
@@ -135,12 +270,21 @@ function openRodDialog(rod = null, { duplicate = false } = {}) {
   setValue("rodNotes", rod?.notes || "");
   updateFlyGearVisibility();
   els.deleteRodButton.classList.toggle("hidden", !editing);
+  applyGearDraftBindings(els.rodDialog);
   els.rodDialog.showModal();
 }
 
-function openComboDialog(combo = null) {
+export function openComboDialog(combo = null) {
   els.comboForm.reset();
   const editing = Boolean(combo);
+  createGearDraft(combo, {
+    id: combo?.id || "",
+    shortName: combo?.shortName || "",
+    rodId: combo?.rodId || "",
+    reelId: combo?.reelId || "",
+    notes: combo?.notes || ""
+  });
+  setGearDraftContext({ type: "combo", editingId: editing ? combo?.id || "" : "" });
   document.querySelector("#comboDialog h2").textContent = editing ? "Edit Combo" : "Add Combo";
   setValue("editingComboId", combo?.id || "");
   setValue("comboShortName", combo?.shortName || "");
@@ -149,25 +293,50 @@ function openComboDialog(combo = null) {
   populateReelSelect(document.querySelector("#comboReel"), combo?.reelId || "");
   setValue("comboNotes", combo?.notes || "");
   els.deleteComboButton.classList.toggle("hidden", !editing);
+  applyGearDraftBindings(els.comboDialog);
   els.comboDialog.showModal();
 }
 
-function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", initialType = "") {
+export function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", initialType = "") {
   beginMediaEditSession("lure");
   prepareInlineGearDialog("lure", pendingRowId);
+  resetGearDraftUploads("lure");
   els.lureDialog.dataset.removedPhotoKeys = "[]";
   els.lureDialog.dataset.pendingLureTarget = pendingLureTarget;
   els.lureForm.reset();
-  pendingLureImage = null;
+  ui.pendingLureImage = null;
   renderQueuedGearImage("lure");
-  renderExistingGearPhotos("lure", lure);
   populateOptionSelect(document.querySelector("#lureType"), state.lureTypes, "Select lure type");
   populateOptionSelect(document.querySelector("#lureBladeType"), optionLabels("lureBladeTypes"), "Select blade type");
   populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
+  populateOptionSelect(document.querySelector("#lureBeadSize"), [...new Set([...optionLabels("lureBeadSizes"), ...(lure?.beadSize ? [lure.beadSize] : [])])], "Select bead size");
   populateOptionSelect(document.querySelector("#lureMeatRigType"), optionLabels("meatRigTypes"), "Select meat rig type");
   populateOptionSelect(document.querySelector("#lureSoftPlasticType"), [...new Set([...optionLabels("softPlasticTypes"), ...(lure?.softPlasticType ? [lure.softPlasticType] : [])])], "Select soft plastic style");
   populateOptionSelect(document.querySelector("#flyCategory"), optionLabels("flyCategories"), "Select category");
   const editing = Boolean(lure);
+  createGearDraft(lure, {
+    id: lure?.id || "",
+    name: lure?.name || "",
+    type: lure?.type || initialType,
+    divingDepth: lure?.divingDepth || "",
+    bladeType: lure?.bladeType || "",
+    spoonSize: lure?.spoonSize || "",
+    beadSize: lure?.beadSize || "",
+    meatRigType: lure?.meatRigType || "",
+    softPlasticType: lure?.softPlasticType || "",
+    flyCategory: lure?.flyCategory || "",
+    flyPattern: lure?.flyPattern || "",
+    flyHookSize: lure?.flyHookSize || "",
+    brand: lure?.brand || "",
+    model: lure?.model || "",
+    color: lure?.color || "",
+    weight: lure?.weight || "",
+    quantityAvailable: lure?.quantityAvailable ?? "",
+    glow: Boolean(lure?.glow),
+    notes: lure?.notes || ""
+  });
+  setGearDraftContext({ type: "lure", editingId: lure?.id || "", pendingRowId, pendingLureTarget });
+  renderExistingGearPhotos("lure", ui.gearDraft);
   const gearLabel = String(lure?.type || initialType).toLowerCase() === "fly" ? "Fly" : "Lure";
   document.querySelector("#lureDialog h2").textContent = editing ? `Edit ${gearLabel}` : `Add ${gearLabel}`;
   setValue("pendingCatchRow", pendingRowId);
@@ -177,6 +346,7 @@ function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", 
   setValue("lureDivingDepth", lure?.divingDepth || "");
   setValue("lureBladeType", lure?.bladeType || "");
   setValue("lureSpoonSize", lure?.spoonSize || "");
+  setValue("lureBeadSize", lure?.beadSize || "");
   setValue("lureMeatRigType", lure?.meatRigType || "");
   setValue("lureSoftPlasticType", lure?.softPlasticType || "");
   setValue("flyCategory", lure?.flyCategory || "");
@@ -191,16 +361,18 @@ function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget = "", 
   document.querySelector("#lureGlow").checked = Boolean(lure?.glow);
   setValue("lureNotes", lure?.notes || "");
   els.deleteLureButton.classList.toggle("hidden", !editing);
+  applyGearDraftBindings(els.lureDialog);
   els.lureDialog.showModal();
 }
 
-function openLureInfoDialog(lure, pendingRowId = "") {
+export function openLureInfoDialog(lure, pendingRowId = "") {
   if (!lure) return;
   prepareInlineGearDialog("lureInfo", pendingRowId);
   const stats = baitStats("lure", lure.id);
   const hasDivingDepth = ["crankbait", "jerkbait"].includes(lure.type?.toLowerCase());
-  const hasBladeType = isWormHarnessType(lure.type);
+  const hasBladeType = isBladeLureType(lure.type);
   const hasSpoonSize = isSpoonType(lure.type);
+  const hasBeadSize = isBeadType(lure.type);
   const hasMeatRigType = isMeatRigType(lure.type);
   const hasSoftPlasticType = isSoftPlasticType(lure.type);
   const details = [
@@ -208,6 +380,7 @@ function openLureInfoDialog(lure, pendingRowId = "") {
     ["Diving depth", hasDivingDepth ? lure.divingDepth : ""],
     ["Blade type", hasBladeType ? lure.bladeType : ""],
     ["Spoon size", hasSpoonSize ? lure.spoonSize : ""],
+    ["Bead size", hasBeadSize ? lure.beadSize : ""],
     ["Meat rig type", hasMeatRigType ? lure.meatRigType : ""],
     ["Soft plastic style", hasSoftPlasticType ? lure.softPlasticType : ""],
     ["Brand", lure.brand],
@@ -222,56 +395,73 @@ function openLureInfoDialog(lure, pendingRowId = "") {
   ].filter(([, value]) => value !== "" && value !== null && value !== undefined);
   document.querySelector("#lureInfoTitle").textContent = lure.name || "Lure";
   els.lureInfoDialog.dataset.lureId = lure.id;
-  els.lureInfoContent.innerHTML = `
-    ${gearPhotos(lure).length ? `<div class="lure-info-media">${mediaMarkup(gearPhotos(lure)[0], "", { download: false })}</div>` : ""}
+  setHtml(els.lureInfoContent, html`
+    ${gearPhotos(lure).length ? html`<div class="lure-info-media">${mediaMarkup(gearPhotos(lure)[0], "", { download: false })}</div>` : ""}
     <dl class="lure-info-list">
-      ${details.map(([label, value]) => `
-        <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>
-      `).join("")}
+      ${joinHtml(details.map(([label, value]) => html`
+        <div><dt>${label}</dt><dd>${String(value)}</dd></div>
+      `), "")}
     </dl>
-    ${lure.notes ? `<div class="lure-info-notes"><strong>Notes</strong><p>${escapeHtml(lure.notes)}</p></div>` : ""}
-  `;
+    ${lure.notes ? html`<div class="lure-info-notes"><strong>Notes</strong><p>${lure.notes}</p></div>` : ""}
+  `);
   els.lureInfoDialog.showModal();
 }
 
-function updateLureDivingDepthField() {
+export function updateLureDivingDepthField() {
   const lureType = getValue("lureType");
   const hasDivingDepth = ["crankbait", "jerkbait"].includes(lureType.toLowerCase());
   const fly = lureType.toLowerCase() === "fly";
   document.querySelector("#lureDivingDepthField").classList.toggle("hidden", !hasDivingDepth);
-  document.querySelector("#lureBladeTypeField").classList.toggle("hidden", !isWormHarnessType(lureType));
+  document.querySelector("#lureBladeTypeField").classList.toggle("hidden", !isBladeLureType(lureType));
   document.querySelector("#lureSpoonSizeField").classList.toggle("hidden", !isSpoonType(lureType));
+  document.querySelector("#lureBeadSizeField").classList.toggle("hidden", !isBeadType(lureType));
   document.querySelector("#lureMeatRigTypeField").classList.toggle("hidden", !isMeatRigType(lureType));
   document.querySelector("#lureSoftPlasticTypeField").classList.toggle("hidden", !isSoftPlasticType(lureType));
   document.querySelectorAll("#flyCategoryField, #flyPatternField, #flyHookSizeField").forEach((field) => field.classList.toggle("hidden", !fly));
 }
 
-function isWormHarnessType(type) {
-  return String(type || "").trim().toLowerCase() === "worm harness";
+export function isBladeLureType(type) {
+  return ["worm harness", "spinnerbait"].includes(String(type || "").trim().toLowerCase());
 }
 
-function isSpoonType(type) {
+export function isSpoonType(type) {
   return String(type || "").trim().toLowerCase() === "spoon";
 }
 
-function isMeatRigType(type) {
+export function isBeadType(type) {
+  return String(type || "").trim().toLowerCase() === "bead";
+}
+
+export function isMeatRigType(type) {
   return String(type || "").trim().toLowerCase() === "meat rig";
 }
 
-function isSoftPlasticType(type) {
+export function isSoftPlasticType(type) {
   return String(type || "").trim().toLowerCase() === "soft plastic";
 }
 
-function openFlasherDialog(flasher = null, pendingRowId = "") {
+export function openFlasherDialog(flasher = null, pendingRowId = "") {
   beginMediaEditSession("flasher");
   prepareInlineGearDialog("flasher", pendingRowId);
+  resetGearDraftUploads("flasher");
   els.flasherDialog.dataset.removedPhotoKeys = "[]";
   els.flasherForm.reset();
-  pendingFlasherImage = null;
+  ui.pendingFlasherImage = null;
   renderQueuedGearImage("flasher");
-  renderExistingGearPhotos("flasher", flasher);
   populateOptionSelect(document.querySelector("#flasherType"), state.flasherTypes, "Select flasher type");
   const editing = Boolean(flasher);
+  createGearDraft(flasher, {
+    id: flasher?.id || "",
+    name: flasher?.name || "",
+    type: flasher?.type || "",
+    brand: flasher?.brand || "",
+    model: flasher?.model || "",
+    color: flasher?.color || "",
+    glow: Boolean(flasher?.glow),
+    notes: flasher?.notes || ""
+  });
+  setGearDraftContext({ type: "flasher", editingId: flasher?.id || "", pendingRowId });
+  renderExistingGearPhotos("flasher", ui.gearDraft);
   document.querySelector("#flasherDialog h2").textContent = editing ? "Edit Flasher" : "Add Flasher";
   setValue("pendingFlasherCatchRow", pendingRowId);
   setValue("editingFlasherId", flasher?.id || "");
@@ -283,10 +473,11 @@ function openFlasherDialog(flasher = null, pendingRowId = "") {
   document.querySelector("#flasherGlow").checked = Boolean(flasher?.glow);
   setValue("flasherNotes", flasher?.notes || "");
   els.deleteFlasherButton.classList.toggle("hidden", !editing);
+  applyGearDraftBindings(els.flasherDialog);
   els.flasherDialog.showModal();
 }
 
-function openFlasherInfoDialog(flasher, pendingRowId = "") {
+export function openFlasherInfoDialog(flasher, pendingRowId = "") {
   if (!flasher) return;
   prepareInlineGearDialog("flasherInfo", pendingRowId);
   const stats = baitStats("flasher", flasher.id);
@@ -302,65 +493,46 @@ function openFlasherInfoDialog(flasher, pendingRowId = "") {
   ].filter(([, value]) => value !== "" && value !== null && value !== undefined);
   document.querySelector("#flasherInfoTitle").textContent = flasher.name || "Flasher";
   els.flasherInfoDialog.dataset.flasherId = flasher.id;
-  els.flasherInfoContent.innerHTML = `
-    ${gearPhotos(flasher).length ? `<div class="lure-info-media">${mediaMarkup(gearPhotos(flasher)[0], "", { download: false })}</div>` : ""}
+  setHtml(els.flasherInfoContent, html`
+    ${gearPhotos(flasher).length ? html`<div class="lure-info-media">${mediaMarkup(gearPhotos(flasher)[0], "", { download: false })}</div>` : ""}
     <dl class="lure-info-list">
-      ${details.map(([label, value]) => `
-        <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>
-      `).join("")}
+      ${joinHtml(details.map(([label, value]) => html`
+        <div><dt>${label}</dt><dd>${String(value)}</dd></div>
+      `), "")}
     </dl>
-    ${flasher.notes ? `<div class="lure-info-notes"><strong>Notes</strong><p>${escapeHtml(flasher.notes)}</p></div>` : ""}
-  `;
+    ${flasher.notes ? html`<div class="lure-info-notes"><strong>Notes</strong><p>${flasher.notes}</p></div>` : ""}
+  `);
   els.flasherInfoDialog.showModal();
 }
 
-async function saveReel(event) {
+export async function saveReel(event) {
   event.preventDefault();
   try {
-    const editingId = getValue("editingReelId");
-    const duplicateSourceId = els.reelDialog.dataset.duplicateFromId;
+    const context = gearDraftContext();
+    const editingId = context.editingId || "";
+    const duplicateSourceId = context.duplicateSourceId || "";
     const existing = state.reels.find((item) => item.id === editingId || item.id === duplicateSourceId);
     const modelGroupId = existing?.modelGroupId || (duplicateSourceId ? existing?.id || "" : "");
-    const imageFiles = [...document.querySelector("#reelImage").files];
-    const uploadedPhotos = imageFiles.length
-      ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "reels")))
-      : pendingReelImage ? [pendingReelImage] : [];
-    const reel = {
-      ...(existing || {}),
-      id: editingId || createId(),
-      shortName: getValue("reelShortName"),
-      style: getValue("reelStyle"),
-      brand: getValue("reelBrand"),
-      name: getValue("reelName"),
-      size: getValue("reelSize"),
-      weight: getValue("reelWeight"),
-      gearRatio: getValue("reelGearRatio"),
-      maxDrag: getValue("reelMaxDrag"),
-      monoCapacity: getValue("reelMonoCapacity"),
-      braidCapacity: getValue("reelBraidCapacity"),
-      flyLineRange: getValue("reelFlyLineRange"),
-      arbor: getValue("reelArbor"),
-      purchaseAmount: getValue("reelPurchaseAmount"),
-      dateBought: getValue("reelDateBought"),
-      quantityAvailable: getValue("reelQuantityAvailable"),
-      modelGroupId,
-      notes: getValue("reelNotes"),
-      lineHistory: mergeLineHistory(existing?.lineHistory || [], collectLineRows(existing?.lineHistory || [])),
-      ...gearPhotoFields(uploadedPhotos, existing, "reel")
-    };
-    const index = state.reels.findIndex((item) => item.id === reel.id);
-    if (index >= 0) state.reels[index] = reel;
-    else state.reels.push(reel);
-    if (modelGroupId) syncReelGroupQuantity(modelGroupId, reel.quantityAvailable);
-    upsertListValue("reelStyles", reel.style);
-    reel.lineHistory.forEach((line) => upsertListValue("lineTypes", line.type));
-    await saveState();
+    await appendUploadedGearMedia("reel", "reels");
+    const reel = reelFromDraft({
+      ...(ui.gearDraft || {}),
+      id: editingId || ui.gearDraft?.id || "",
+      modelGroupId
+    }, { existing, editingId, duplicateSourceId });
+    await updateLogbook((draft) => {
+      const index = draft.reels.findIndex((item) => item.id === reel.id);
+      if (index >= 0) draft.reels[index] = reel;
+      else draft.reels.push(reel);
+      if (modelGroupId) syncReelGroupQuantityInDraft(draft.reels, modelGroupId, reel.quantityAvailable);
+      upsertListValueInDraft(draft, "reelStyles", reel.style);
+      reel.lineHistory.forEach((line) => upsertListValueInDraft(draft, "lineTypes", line.type));
+    });
     markMediaEditSessionSaved("reel");
     await cleanupReplacedMedia(editingId ? existing : null, reel);
     els.reelDialog.close();
     els.reelForm.reset();
-    els.reelDialog.dataset.duplicateFromId = "";
-    pendingReelImage = null;
+    ui.pendingReelImage = null;
+    resetGearDraftUploads("reel");
     renderAll();
   } catch (error) {
     console.error("Could not save reel.", error);
@@ -368,51 +540,38 @@ async function saveReel(event) {
   }
 }
 
-async function saveRod(event) {
+export async function saveRod(event) {
   event.preventDefault();
   try {
-    const editingId = getValue("editingRodId");
-    const existing = state.rods.find((item) => item.id === editingId || item.id === els.rodDialog.dataset.duplicateFromId);
-    const imageFiles = [...document.querySelector("#rodImage").files];
-    const uploadedPhotos = imageFiles.length
-      ? await Promise.all(imageFiles.map((file) => uploadImageFile(file, "rods")))
-      : pendingRodImage ? [pendingRodImage] : [];
-    const rod = {
-      ...(existing || {}),
-      id: editingId || createId(),
-      shortName: getValue("rodShortName"),
-      type: getValue("rodType"),
-      brand: getValue("rodBrand"),
-      name: getValue("rodName"),
-      length: getValue("rodLength"),
-      power: getValue("rodPower"),
-      action: getValue("rodAction"),
-      flyWeight: getValue("rodFlyWeight"),
-      pieces: getValue("rodPieces"),
-      lureRating: getValue("rodLureRating"),
-      purchaseAmount: getValue("rodPurchaseAmount"),
-      dateBought: getValue("rodDateBought"),
-      quantityAvailable: getValue("rodQuantityAvailable"),
-      notes: getValue("rodNotes"),
-      ...gearPhotoFields(uploadedPhotos, existing, "rod")
-    };
-    const duplicatedUnchanged = !editingId && Boolean(els.rodDialog.dataset.duplicateFromId)
+    const context = gearDraftContext();
+    const editingId = context.editingId || "";
+    const duplicateSourceId = context.duplicateSourceId || "";
+    const existing = state.rods.find((item) => item.id === editingId || item.id === duplicateSourceId);
+    await appendUploadedGearMedia("rod", "rods");
+    const rod = rodFromDraft({
+      ...(ui.gearDraft || {}),
+      id: editingId || ui.gearDraft?.id || ""
+    }, { existing, editingId });
+    const duplicatedUnchanged = !editingId && Boolean(duplicateSourceId)
       && duplicateMatchesSource(existing, rod, [
         "shortName", "type", "brand", "name", "length", "power", "action", "lureRating",
         "purchaseAmount", "dateBought", "quantityAvailable", "notes"
       ]);
-    const index = state.rods.findIndex((item) => item.id === rod.id);
-    if (duplicatedUnchanged) existing.quantityAvailable = increasedQuantity(existing.quantityAvailable);
-    else if (index >= 0) state.rods[index] = rod;
-    else state.rods.push(rod);
-    upsertListValue("rodTypes", rod.type);
-    await saveState();
+    await updateLogbook((draft) => {
+      const index = draft.rods.findIndex((item) => item.id === rod.id);
+      if (duplicatedUnchanged) {
+        const draftExisting = draft.rods.find((item) => item.id === existing.id);
+        if (draftExisting) draftExisting.quantityAvailable = increasedQuantity(draftExisting.quantityAvailable);
+      } else if (index >= 0) draft.rods[index] = rod;
+      else draft.rods.push(rod);
+      upsertListValueInDraft(draft, "rodTypes", rod.type);
+    });
     markMediaEditSessionSaved("rod");
     await cleanupReplacedMedia(editingId ? existing : null, rod);
     els.rodDialog.close();
     els.rodForm.reset();
-    els.rodDialog.dataset.duplicateFromId = "";
-    pendingRodImage = null;
+    ui.pendingRodImage = null;
+    resetGearDraftUploads("rod");
     renderAll();
   } catch (error) {
     console.error("Could not save rod.", error);
@@ -420,23 +579,17 @@ async function saveRod(event) {
   }
 }
 
-async function saveCombo(event) {
+export async function saveCombo(event) {
   event.preventDefault();
   try {
-    const editingId = getValue("editingComboId");
+    const context = gearDraftContext();
+    const editingId = context.editingId || "";
     const existing = state.rodReelCombos.find((item) => item.id === editingId);
-    const combo = {
-      ...(existing || {}),
-      id: editingId || createId(),
-      shortName: getValue("comboShortName"),
-      rodId: getValue("comboRod"),
-      reelId: getValue("comboReel"),
-      notes: getValue("comboNotes")
-    };
-    const index = state.rodReelCombos.findIndex((item) => item.id === combo.id);
-    if (index >= 0) state.rodReelCombos[index] = combo;
-    else state.rodReelCombos.push(combo);
-    await saveState();
+    const combo = comboFromDraft({
+      ...(ui.gearDraft || {}),
+      id: editingId || ui.gearDraft?.id || ""
+    }, { existing, editingId });
+    await saveRecord("rodReelCombos", combo);
     els.comboDialog.close();
     renderAll();
   } catch (error) {
@@ -445,63 +598,31 @@ async function saveCombo(event) {
   }
 }
 
-async function saveLure(event) {
+export async function saveLure(event) {
   event.preventDefault();
   try {
-    const editingId = getValue("editingLureId");
+    const context = gearDraftContext();
+    const editingId = context.editingId || "";
     const existing = state.lures.find((item) => item.id === editingId);
-    const imageFile = document.querySelector("#lureImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "lures") : pendingLureImage;
-    const lure = {
-      ...(existing || {}),
-      id: editingId || createId(),
-      name: getValue("lureName"),
-      type: getValue("lureType"),
-      divingDepth: ["crankbait", "jerkbait"].includes(getValue("lureType").toLowerCase()) ? getValue("lureDivingDepth") : "",
-      bladeType: isWormHarnessType(getValue("lureType")) ? getValue("lureBladeType") : "",
-      spoonSize: isSpoonType(getValue("lureType")) ? getValue("lureSpoonSize") : "",
-      meatRigType: isMeatRigType(getValue("lureType")) ? getValue("lureMeatRigType") : "",
-      softPlasticType: isSoftPlasticType(getValue("lureType")) ? getValue("lureSoftPlasticType") : "",
-      flyCategory: getValue("lureType").toLowerCase() === "fly" ? getValue("flyCategory") : "",
-      flyPattern: getValue("lureType").toLowerCase() === "fly" ? getValue("flyPattern") : "",
-      flyHookSize: getValue("lureType").toLowerCase() === "fly" ? getValue("flyHookSize") : "",
-      brand: getValue("lureBrand"),
-      model: getValue("lureModel"),
-      color: getValue("lureColor"),
-      weight: getValue("lureWeight"),
-      quantityAvailable: getValue("lureQuantityAvailable"),
-      glow: document.querySelector("#lureGlow").checked,
-      notes: getValue("lureNotes"),
-      ...gearPhotoFields(uploadedImage ? [uploadedImage] : [], existing, "lure")
-    };
-    lure.name = lure.name || generatedLureName(lure) || "Unnamed Lure";
-    const lureIndex = state.lures.findIndex((item) => item.id === lure.id);
-    if (lureIndex >= 0) state.lures[lureIndex] = lure;
-    else state.lures.push(lure);
-    upsertListValue("lureTypes", lure.type);
-    upsertListValue("flyCategories", lure.flyCategory);
-    await saveState();
+    await appendUploadedGearMedia("lure", "lures");
+    const lure = lureFromDraft({
+      ...(ui.gearDraft || {}),
+      id: editingId || ui.gearDraft?.id || ""
+    }, { existing, editingId });
+    await updateLogbook((draft) => {
+      const lureIndex = draft.lures.findIndex((item) => item.id === lure.id);
+      if (lureIndex >= 0) draft.lures[lureIndex] = lure;
+      else draft.lures.push(lure);
+      upsertListValueInDraft(draft, "lureTypes", lure.type);
+      upsertListValueInDraft(draft, "flyCategories", lure.flyCategory);
+    });
     markMediaEditSessionSaved("lure");
     await cleanupReplacedMedia(existing, lure);
-    [...document.querySelectorAll(".catch-lure, .trip-gear-lure, .trip-gear-cheater-lure")].forEach((select) => populateLureSelect(select, select.value));
-    const rowId = getValue("pendingCatchRow");
-    const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
-    if (row) {
-      const targetSelector = els.lureDialog.dataset.pendingLureTarget === "cheater"
-        ? ".trip-gear-cheater-lure"
-        : ".catch-lure, .trip-gear-lure";
-      const select = row.querySelector(targetSelector);
-      if (select) {
-        populateLuresForType(select, lure.type, lure.id);
-        select.value = lure.id;
-        select.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      renderLurePreview(row);
-      updateRowSummary(row);
-    }
+    refreshLureSelectors(lure, context);
     els.lureDialog.close();
     els.lureForm.reset();
-    pendingLureImage = null;
+    ui.pendingLureImage = null;
+    resetGearDraftUploads("lure");
     renderQueuedGearImage("lure");
     renderAll();
   } catch (error) {
@@ -510,41 +631,30 @@ async function saveLure(event) {
   }
 }
 
-async function saveFlasher(event) {
+export async function saveFlasher(event) {
   event.preventDefault();
   try {
-    const editingId = getValue("editingFlasherId");
+    const context = gearDraftContext();
+    const editingId = context.editingId || "";
     const existing = state.flashers.find((item) => item.id === editingId);
-    const imageFile = document.querySelector("#flasherImage").files[0];
-    const uploadedImage = imageFile ? await uploadImageFile(imageFile, "flashers") : pendingFlasherImage;
-    const flasher = {
-      ...(existing || {}),
-      id: editingId || createId(),
-      name: getValue("flasherName"),
-      type: getValue("flasherType"),
-      brand: getValue("flasherBrand"),
-      model: getValue("flasherModel"),
-      color: getValue("flasherColor"),
-      glow: document.querySelector("#flasherGlow").checked,
-      notes: getValue("flasherNotes"),
-      ...gearPhotoFields(uploadedImage ? [uploadedImage] : [], existing, "flasher")
-    };
-    const flasherIndex = state.flashers.findIndex((item) => item.id === flasher.id);
-    if (flasherIndex >= 0) state.flashers[flasherIndex] = flasher;
-    else state.flashers.push(flasher);
-    upsertListValue("flasherTypes", flasher.type);
-    await saveState();
+    await appendUploadedGearMedia("flasher", "flashers");
+    const flasher = flasherFromDraft({
+      ...(ui.gearDraft || {}),
+      id: editingId || ui.gearDraft?.id || ""
+    }, { existing, editingId });
+    await updateLogbook((draft) => {
+      const flasherIndex = draft.flashers.findIndex((item) => item.id === flasher.id);
+      if (flasherIndex >= 0) draft.flashers[flasherIndex] = flasher;
+      else draft.flashers.push(flasher);
+      upsertListValueInDraft(draft, "flasherTypes", flasher.type);
+    });
     markMediaEditSessionSaved("flasher");
     await cleanupReplacedMedia(existing, flasher);
-    [...document.querySelectorAll(".catch-flasher, .trip-gear-flasher")].forEach((select) => populateFlasherSelect(select, select.value));
-    const rowId = getValue("pendingFlasherCatchRow");
-    const row = [...document.querySelectorAll(".catch-row, .gear-used-row")].find((item) => item.dataset.rowId === rowId);
-    if (row) row.querySelector(".catch-flasher, .trip-gear-flasher").value = flasher.id;
-    if (row) renderFlasherPreview(row);
-    if (row) updateRowSummary(row);
+    refreshFlasherSelectors(flasher, context);
     els.flasherDialog.close();
     els.flasherForm.reset();
-    pendingFlasherImage = null;
+    ui.pendingFlasherImage = null;
+    resetGearDraftUploads("flasher");
     renderQueuedGearImage("flasher");
     renderAll();
   } catch (error) {
@@ -553,86 +663,52 @@ async function saveFlasher(event) {
   }
 }
 
-async function deleteReel() {
+export async function deleteReel() {
   const reelId = getValue("editingReelId");
   const reel = state.reels.find((item) => item.id === reelId);
   if (!reel || !confirm(`Delete ${gearDisplayName(reel, "this reel")}? This clears it from combos and trips.`)) return;
   const modelGroupId = reel.modelGroupId || "";
   const nextGroupQuantity = Math.max(0, (Number(reel.quantityAvailable) || 1) - 1);
-  state.reels = state.reels.filter((item) => item.id !== reelId);
-  if (modelGroupId) syncReelGroupQuantity(modelGroupId, nextGroupQuantity);
-  state.rodReelCombos.forEach((combo) => {
-    if (combo.reelId === reelId) combo.reelId = "";
-  });
-  state.trips.forEach((trip) => (trip.gearUsed || []).forEach((gearItem) => {
-    if (gearItem.reelId === reelId) gearItem.reelId = "";
-  }));
-  await saveState();
+  await deleteReelRecord(reelId, modelGroupId, nextGroupQuantity);
   await cleanupReplacedMedia(reel, null);
   els.reelDialog.close();
   renderAll();
 }
 
-async function deleteRod() {
+export async function deleteRod() {
   const rodId = getValue("editingRodId");
   const rod = state.rods.find((item) => item.id === rodId);
   if (!rod || !confirm(`Delete ${gearDisplayName(rod, "this rod")}? This clears it from combos and trips.`)) return;
-  state.rods = state.rods.filter((item) => item.id !== rodId);
-  state.rodReelCombos.forEach((combo) => {
-    if (combo.rodId === rodId) combo.rodId = "";
-  });
-  state.trips.forEach((trip) => (trip.gearUsed || []).forEach((gearItem) => {
-    if (gearItem.rodId === rodId) gearItem.rodId = "";
-  }));
-  await saveState();
+  await deleteRodRecord(rodId);
   await cleanupReplacedMedia(rod, null);
   els.rodDialog.close();
   renderAll();
 }
 
-async function deleteCombo() {
+export async function deleteCombo() {
   const comboId = getValue("editingComboId");
   const combo = state.rodReelCombos.find((item) => item.id === comboId);
   if (!combo || !confirm(`Delete ${comboName(comboId) || "this combo"}? Trips keep their selected rod and reel.`)) return;
-  state.rodReelCombos = state.rodReelCombos.filter((item) => item.id !== comboId);
-  state.trips.forEach((trip) => (trip.gearUsed || []).forEach((gearItem) => {
-    if (gearItem.comboId === comboId) gearItem.comboId = "";
-  }));
-  await saveState();
+  await deleteComboRecord(comboId);
   els.comboDialog.close();
   renderAll();
 }
 
-async function deleteLure() {
+export async function deleteLure() {
   const lureId = getValue("editingLureId");
   const lure = state.lures.find((item) => item.id === lureId);
   if (!lure || !confirm(`Delete ${lure.name}? This removes it from saved lures and clears it from catches.`)) return;
-  state.lures = state.lures.filter((item) => item.id !== lureId);
-  state.trips.forEach((trip) => {
-    (trip.gearUsed || []).forEach((gearItem) => {
-      if (gearItem.lureId === lureId) gearItem.lureId = "";
-      if (gearItem.cheaterLureId === lureId) gearItem.cheaterLureId = "";
-    });
-    (trip.catches || []).forEach((catchItem) => { if (catchItem.lureId === lureId) catchItem.lureId = ""; });
-    (trip.lostFish || []).forEach((fish) => { if (fish.lureId === lureId) fish.lureId = ""; });
-  });
-  await saveState();
+  await deleteLureRecord(lureId);
   await cleanupReplacedMedia(lure, null);
   els.lureDialog.close();
   renderAll();
 }
 
-async function deleteFlasher() {
+export async function deleteFlasher() {
   const flasherId = getValue("editingFlasherId");
   const flasher = state.flashers.find((item) => item.id === flasherId);
   if (!flasher || !confirm(`Delete ${flasher.name}? This removes it from saved flashers and clears it from catches.`)) return;
-  state.flashers = state.flashers.filter((item) => item.id !== flasherId);
-  state.trips.forEach((trip) => {
-    (trip.gearUsed || []).forEach((gearItem) => { if (gearItem.flasherId === flasherId) gearItem.flasherId = ""; });
-    (trip.catches || []).forEach((catchItem) => { if (catchItem.flasherId === flasherId) catchItem.flasherId = ""; });
-    (trip.lostFish || []).forEach((fish) => { if (fish.flasherId === flasherId) fish.flasherId = ""; });
-  });
-  await saveState();
+  await deleteFlasherRecord(flasherId);
   await cleanupReplacedMedia(flasher, null);
   els.flasherDialog.close();
   renderAll();

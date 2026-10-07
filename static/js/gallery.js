@@ -1,4 +1,16 @@
-const galleryCategoryLabels = {
+import { html, insertHtml, joinHtml, setHtml } from "./html.js";
+import { protectedFetch } from "./app-config.js";
+import { state, ui } from "./app-state.js";
+import { formatDisplayTime } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { isVideoMedia, originalMediaUrl, previewImage } from "./app-media.js";
+import { formatDate } from "./dashboard.js";
+import { trimNumber } from "./form-utils.js";
+
+
+export const galleryUi = {};
+
+export const galleryCategoryLabels = {
   all: "All uploads",
   "catch-photos": "Catch photos",
   "trip-photos": "Trip photos",
@@ -9,7 +21,7 @@ const galleryCategoryLabels = {
   queue: "Photo queue"
 };
 
-const galleryQuickFilters = [
+export const galleryQuickFilters = [
   { value: "all", label: "All" },
   { value: "photos", label: "Photos" },
   { value: "videos", label: "Videos" },
@@ -21,23 +33,23 @@ const galleryQuickFilters = [
   { value: "rods", label: "Rods" }
 ];
 
-let galleryItems = [];
-let galleryVisibleItems = [];
-let activeGalleryQuickFilter = "all";
-let activeGallerySearch = "";
-let activeGallerySort = "newest";
-let activeGalleryPageSize = "50";
-let activeGalleryPage = 1;
-let gallerySelectionMode = false;
-let galleryOrphanScanActive = false;
-let selectedGalleryItems = new Set();
-let gallerySelectionAnchorKey = "";
-let activeGalleryLightboxIndex = -1;
+export let galleryItems = [];
+export let galleryVisibleItems = [];
+galleryUi.activeGalleryQuickFilter = "all";
+export let activeGallerySearch = "";
+export let activeGallerySort = "newest";
+export let activeGalleryPageSize = "50";
+galleryUi.activeGalleryPage = 1;
+export let gallerySelectionMode = false;
+export let galleryOrphanScanActive = false;
+export let selectedGalleryItems = new Set();
+export let gallerySelectionAnchorKey = "";
+export let activeGalleryLightboxIndex = -1;
 
-async function loadGalleryItems() {
+export async function loadGalleryItems() {
   const url = galleryOrphanScanActive
     ? "/api/orphaned-media"
-    : `/api/gallery?category=${encodeURIComponent(activeGalleryCategory)}`;
+    : `/api/gallery?category=${encodeURIComponent(ui.activeGalleryCategory)}`;
   const response = await fetch(url);
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
@@ -47,50 +59,50 @@ async function loadGalleryItems() {
   return payload.media || [];
 }
 
-function galleryItemKey(item) {
+export function galleryItemKey(item) {
   return `${item.category}/${item.filename}`;
 }
 
-function findGalleryItem(key) {
+export function findGalleryItem(key) {
   return galleryItems.find((item) => galleryItemKey(item) === key) || null;
 }
 
-function formatFileSize(bytes) {
+export function formatFileSize(bytes) {
   const value = Number(bytes);
   if (!Number.isFinite(value) || value <= 0) return "";
   if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
   return `${trimNumber(value / (1024 * 1024))} MB`;
 }
 
-function galleryCaptureText(item, fallback = "No capture time") {
+export function galleryCaptureText(item, fallback = "No capture time") {
   const date = item.captureDate ? formatDate(item.captureDate) : "";
   const time = item.captureTime ? formatDisplayTime(item.captureTime) : "";
   return [date, time].filter(Boolean).join(" ") || fallback;
 }
 
-function galleryMediaTypeLabel(item) {
+export function galleryMediaTypeLabel(item) {
   return isVideoMedia(item) ? "Video" : "Photo";
 }
 
-function gallerySourceLabel(item) {
+export function gallerySourceLabel(item) {
   return galleryCategoryLabels[item.category] || item.category || "Uploads";
 }
 
-function gallerySortValue(item) {
+export function gallerySortValue(item) {
   const capture = `${item.captureDate || ""}T${item.captureTime || ""}`;
   const captureTime = Date.parse(capture);
   if (Number.isFinite(captureTime)) return captureTime;
   return Number(item.modified || 0) * 1000;
 }
 
-function galleryMediaKey(item) {
+export function galleryMediaKey(item) {
   const category = String(item?.category || "");
   const filename = String(item?.filename || "");
   if (category && filename) return `${category}/${filename}`;
   return "";
 }
 
-function galleryStateCaptions(item) {
+export function galleryStateCaptions(item) {
   const key = galleryMediaKey(item);
   if (!key) return [];
   const captions = [];
@@ -111,7 +123,7 @@ function galleryStateCaptions(item) {
   return captions;
 }
 
-function galleryCaptionText(item) {
+export function galleryCaptionText(item) {
   const captions = [
     item.caption,
     ...(Array.isArray(item.captions) ? item.captions : []),
@@ -120,26 +132,26 @@ function galleryCaptionText(item) {
   return String(captions.find((caption) => String(caption || "").trim()) || "").trim();
 }
 
-function renderGalleryFilters() {
+export function renderGalleryFilters() {
   const options = Object.entries(galleryCategoryLabels);
-  els.galleryCategoryFilter.innerHTML = options.map(([value, label]) => (
-    `<option value="${escapeHtml(value)}" ${value === activeGalleryCategory ? "selected" : ""}>${escapeHtml(label)}</option>`
-  )).join("");
+  setHtml(els.galleryCategoryFilter, joinHtml(options.map(([value, label]) => (
+    html`<option value="${value}" ${value === ui.activeGalleryCategory ? "selected" : ""}>${label}</option>`
+  )), ""));
 
-  els.galleryQuickFilters.innerHTML = galleryQuickFilters.map((filter) => `
-    <button class="gallery-filter-chip${filter.value === activeGalleryQuickFilter ? " is-active" : ""}" type="button" data-gallery-quick-filter="${escapeHtml(filter.value)}" aria-pressed="${filter.value === activeGalleryQuickFilter}">
-      ${escapeHtml(filter.label)}
+  setHtml(els.galleryQuickFilters, joinHtml(galleryQuickFilters.map((filter) => html`
+    <button class="gallery-filter-chip${filter.value === galleryUi.activeGalleryQuickFilter ? " is-active" : ""}" type="button" data-gallery-quick-filter="${filter.value}" aria-pressed="${filter.value === galleryUi.activeGalleryQuickFilter}">
+      ${filter.label}
     </button>
-  `).join("");
+  `), ""));
 }
 
-function galleryFilteredItems(items) {
+export function galleryFilteredItems(items) {
   const query = activeGallerySearch.trim().toLowerCase();
   return items.filter((item) => {
-    const quickMatch = activeGalleryQuickFilter === "all"
-      || (activeGalleryQuickFilter === "photos" && !isVideoMedia(item))
-      || (activeGalleryQuickFilter === "videos" && isVideoMedia(item))
-      || item.category === activeGalleryQuickFilter;
+    const quickMatch = galleryUi.activeGalleryQuickFilter === "all"
+      || (galleryUi.activeGalleryQuickFilter === "photos" && !isVideoMedia(item))
+      || (galleryUi.activeGalleryQuickFilter === "videos" && isVideoMedia(item))
+      || item.category === galleryUi.activeGalleryQuickFilter;
     if (!quickMatch) return false;
     if (!query) return true;
     return [
@@ -161,73 +173,73 @@ function galleryFilteredItems(items) {
   });
 }
 
-function galleryPageLimit() {
+export function galleryPageLimit() {
   if (activeGalleryPageSize === "all") return Infinity;
   const limit = Number(activeGalleryPageSize);
   return Number.isFinite(limit) && limit > 0 ? limit : 50;
 }
 
-function galleryPageCount(totalItems) {
+export function galleryPageCount(totalItems) {
   const limit = galleryPageLimit();
   if (!Number.isFinite(limit)) return 1;
   return Math.max(1, Math.ceil(totalItems / limit));
 }
 
-function setGalleryPage(page) {
-  activeGalleryPage = Math.max(1, Number(page) || 1);
+export function setGalleryPage(page) {
+  galleryUi.activeGalleryPage = Math.max(1, Number(page) || 1);
   renderGalleryItems();
 }
 
-function galleryPreviewMarkup(item) {
+export function galleryPreviewMarkup(item) {
   if (isVideoMedia(item)) {
     const videoSource = originalMediaUrl(item);
-    return `<video src="${escapeHtml(videoSource)}" muted playsinline preload="metadata" aria-hidden="true"></video>`;
+    return html`<video src="${videoSource}" muted playsinline preload="metadata" aria-hidden="true"></video>`;
   }
   const source = previewImage(item);
-  return `<img src="${escapeHtml(source)}" alt="">`;
+  return html`<img src="${source}" alt="">`;
 }
 
-function galleryCard(item, index) {
+export function galleryCard(item, index) {
   const key = galleryItemKey(item);
   const selected = selectedGalleryItems.has(key);
   const downloadName = item.name || item.filename || "download";
   const caption = galleryCaptionText(item);
-  return `
-    <article class="gallery-card${selected ? " is-selected" : ""}${gallerySelectionMode ? " is-selecting" : ""}" data-gallery-key="${escapeHtml(key)}">
-      <label class="gallery-select-control" aria-label="Select ${escapeHtml(downloadName)}">
-        <input type="checkbox" data-gallery-select="${escapeHtml(key)}" ${selected ? "checked" : ""}>
+  return html`
+    <article class="gallery-card${selected ? " is-selected" : ""}${gallerySelectionMode ? " is-selecting" : ""}" data-gallery-key="${key}">
+      <label class="gallery-select-control" aria-label="Select ${downloadName}">
+        <input type="checkbox" data-gallery-select="${key}" ${selected ? "checked" : ""}>
         <span></span>
       </label>
-      <button class="gallery-thumb-button" type="button" data-gallery-open="${escapeHtml(String(index))}" aria-label="Open ${escapeHtml(downloadName)}">
+      <button class="gallery-thumb-button" type="button" data-gallery-open="${String(index)}" aria-label="Open ${downloadName}">
         <span class="gallery-media">
           ${galleryPreviewMarkup(item)}
-          ${caption ? `<span class="gallery-caption">${escapeHtml(caption)}</span>` : ""}
-          ${isVideoMedia(item) ? `
+          ${caption ? html`<span class="gallery-caption">${caption}</span>` : ""}
+          ${isVideoMedia(item) ? html`
             <span class="gallery-play-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7.5v9l7-4.5z" /></svg></span>
           ` : ""}
         </span>
       </button>
       <div class="gallery-hover-overlay" aria-hidden="true">
-        <button type="button" data-gallery-open="${escapeHtml(String(index))}" title="View" aria-label="View"><svg viewBox="0 0 16 16"><path d="M1.5 8s2.25-4 6.5-4 6.5 4 6.5 4-2.25 4-6.5 4-6.5-4-6.5-4z" /><circle cx="8" cy="8" r="2" /></svg></button>
-        <a href="${escapeHtml(item.downloadUrl || originalMediaUrl(item))}" download="${escapeHtml(downloadName)}" title="Download Original" aria-label="Download Original"><svg viewBox="0 0 16 16"><path d="M8 2v7m0 0 3-3m-3 3L5 6M3 12.5h10" /></svg></a>
-        <button type="button" data-gallery-delete="${escapeHtml(key)}" title="Delete" aria-label="Delete"><svg viewBox="0 0 16 16"><path d="M3 4h10M6 4V2.75h4V4m-5 2v6m3-6v6m3-6v6M4.5 4l.5 9h6l.5-9" /></svg></button>
+        <button type="button" data-gallery-open="${String(index)}" title="View" aria-label="View"><svg viewBox="0 0 16 16"><path d="M1.5 8s2.25-4 6.5-4 6.5 4 6.5 4-2.25 4-6.5 4-6.5-4-6.5-4z" /><circle cx="8" cy="8" r="2" /></svg></button>
+        <a href="${item.downloadUrl || originalMediaUrl(item)}" download="${downloadName}" title="Download Original" aria-label="Download Original"><svg viewBox="0 0 16 16"><path d="M8 2v7m0 0 3-3m-3 3L5 6M3 12.5h10" /></svg></a>
+        <button type="button" data-gallery-delete="${key}" title="Delete" aria-label="Delete"><svg viewBox="0 0 16 16"><path d="M3 4h10M6 4V2.75h4V4m-5 2v6m3-6v6m3-6v6M4.5 4l.5 9h6l.5-9" /></svg></button>
       </div>
       <details class="gallery-more-actions">
         <summary aria-label="More actions"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1" /><circle cx="8" cy="8" r="1" /><circle cx="12.5" cy="8" r="1" /></svg></summary>
         <div>
-          <button type="button" data-gallery-open="${escapeHtml(String(index))}">View</button>
-          <a href="${escapeHtml(item.downloadUrl || originalMediaUrl(item))}" download="${escapeHtml(downloadName)}">Download Original</a>
-          <button type="button" data-gallery-delete="${escapeHtml(key)}">Delete</button>
+          <button type="button" data-gallery-open="${String(index)}">View</button>
+          <a href="${item.downloadUrl || originalMediaUrl(item)}" download="${downloadName}">Download Original</a>
+          <button type="button" data-gallery-delete="${key}">Delete</button>
         </div>
       </details>
       <div class="gallery-card-body">
-        <span>${escapeHtml(galleryCaptureText(item))}</span>
+        <span>${galleryCaptureText(item)}</span>
       </div>
     </article>
   `;
 }
 
-function updateGallerySelectionBar() {
+export function updateGallerySelectionBar() {
   const count = selectedGalleryItems.size;
   els.gallerySelectionBar?.classList.toggle("hidden", !gallerySelectionMode);
   els.galleryBatchDownloadButton?.toggleAttribute("disabled", count === 0);
@@ -241,7 +253,7 @@ function updateGallerySelectionBar() {
   }
 }
 
-function setGallerySelectionMode(active) {
+export function setGallerySelectionMode(active) {
   gallerySelectionMode = Boolean(active);
   if (!gallerySelectionMode) {
     selectedGalleryItems.clear();
@@ -250,12 +262,12 @@ function setGallerySelectionMode(active) {
   renderGalleryItems();
 }
 
-function renderGalleryItems() {
+export function renderGalleryItems() {
   const matchedItems = galleryFilteredItems(galleryItems);
   const limit = galleryPageLimit();
   const pageCount = galleryPageCount(matchedItems.length);
-  activeGalleryPage = Math.min(Math.max(1, activeGalleryPage), pageCount);
-  const startIndex = Number.isFinite(limit) ? (activeGalleryPage - 1) * limit : 0;
+  galleryUi.activeGalleryPage = Math.min(Math.max(1, galleryUi.activeGalleryPage), pageCount);
+  const startIndex = Number.isFinite(limit) ? (galleryUi.activeGalleryPage - 1) * limit : 0;
   const endIndex = Number.isFinite(limit) ? startIndex + limit : matchedItems.length;
   galleryVisibleItems = matchedItems.slice(startIndex, endIndex);
   if (!galleryVisibleItems.some((item) => galleryItemKey(item) === gallerySelectionAnchorKey)) {
@@ -267,18 +279,18 @@ function renderGalleryItems() {
     : "";
   els.galleryStatus.classList.toggle("hidden", !galleryOrphanScanActive);
   els.galleryPagination?.classList.toggle("hidden", pageCount <= 1);
-  els.galleryPreviousPageButton?.toggleAttribute("disabled", activeGalleryPage <= 1);
-  els.galleryNextPageButton?.toggleAttribute("disabled", activeGalleryPage >= pageCount);
-  if (els.galleryPageStatus) els.galleryPageStatus.textContent = `Page ${activeGalleryPage} of ${pageCount}`;
+  els.galleryPreviousPageButton?.toggleAttribute("disabled", galleryUi.activeGalleryPage <= 1);
+  els.galleryNextPageButton?.toggleAttribute("disabled", galleryUi.activeGalleryPage >= pageCount);
+  if (els.galleryPageStatus) els.galleryPageStatus.textContent = `Page ${galleryUi.activeGalleryPage} of ${pageCount}`;
   updateGallerySelectionBar();
   if (!galleryVisibleItems.length) {
-    els.galleryGrid.innerHTML = `<div class="empty-state"><p>${galleryOrphanScanActive ? "No orphaned media matches these filters." : "No uploaded media matches these filters."}</p></div>`;
+    setHtml(els.galleryGrid, html`<div class="empty-state"><p>${galleryOrphanScanActive ? "No orphaned media matches these filters." : "No uploaded media matches these filters."}</p></div>`);
     return;
   }
-  els.galleryGrid.innerHTML = galleryVisibleItems.map(galleryCard).join("");
+  setHtml(els.galleryGrid, joinHtml(galleryVisibleItems.map(galleryCard)));
 }
 
-async function renderGallery() {
+export async function renderGallery() {
   renderGalleryFilters();
   if (els.galleryOrphanScanButton) {
     els.galleryOrphanScanButton.textContent = galleryOrphanScanActive ? "Show all media" : "Scan orphaned media";
@@ -288,7 +300,7 @@ async function renderGallery() {
   els.galleryStatus.textContent = "Loading gallery...";
   els.galleryStatus.classList.remove("hidden");
   els.galleryPagination?.classList.add("hidden");
-  els.galleryGrid.innerHTML = "";
+  setHtml(els.galleryGrid, html``);
   try {
     galleryItems = await loadGalleryItems();
     renderGalleryItems();
@@ -297,20 +309,20 @@ async function renderGallery() {
     els.galleryStatus.textContent = error.message || "Could not load gallery.";
     els.galleryStatus.classList.remove("hidden");
     els.galleryPagination?.classList.add("hidden");
-    els.galleryGrid.innerHTML = `<div class="empty-state"><p>The gallery could not be loaded.</p></div>`;
+    setHtml(els.galleryGrid, html`<div class="empty-state"><p>The gallery could not be loaded.</p></div>`);
   }
 }
 
-async function toggleGalleryOrphanScan() {
+export async function toggleGalleryOrphanScan() {
   galleryOrphanScanActive = !galleryOrphanScanActive;
-  activeGalleryCategory = "all";
-  activeGalleryQuickFilter = "all";
-  activeGalleryPage = 1;
+  ui.activeGalleryCategory = "all";
+  galleryUi.activeGalleryQuickFilter = "all";
+  galleryUi.activeGalleryPage = 1;
   setGallerySelectionMode(false);
   await renderGallery();
 }
 
-function galleryLightboxMarkup(item, index) {
+export function galleryLightboxMarkup(item, index) {
   const downloadName = item.name || item.filename || "download";
   const details = [
     ["Type", galleryMediaTypeLabel(item)],
@@ -320,59 +332,59 @@ function galleryLightboxMarkup(item, index) {
     ["Filename", item.filename || "Not available"],
     ["MIME type", item.mimeType || "Not available"]
   ];
-  return `
+  return html`
     <div class="gallery-lightbox" role="dialog" aria-modal="true" aria-label="Media viewer">
       <button class="gallery-lightbox-close" type="button" data-gallery-lightbox-close aria-label="Close"><svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
       <button class="gallery-lightbox-nav previous" type="button" data-gallery-lightbox-prev aria-label="Previous media" ${index <= 0 ? "disabled" : ""}><svg viewBox="0 0 16 16"><path d="M10 3 5 8l5 5" /></svg></button>
       <figure class="gallery-lightbox-stage">
         ${isVideoMedia(item)
-          ? `<video src="${escapeHtml(originalMediaUrl(item))}" controls autoplay playsinline></video>`
-          : `<img src="${escapeHtml(originalMediaUrl(item))}" alt="">`}
+          ? html`<video src="${originalMediaUrl(item)}" controls autoplay playsinline></video>`
+          : html`<img src="${originalMediaUrl(item)}" alt="">`}
       </figure>
       <button class="gallery-lightbox-nav next" type="button" data-gallery-lightbox-next aria-label="Next media" ${index >= galleryVisibleItems.length - 1 ? "disabled" : ""}><svg viewBox="0 0 16 16"><path d="m6 3 5 5-5 5" /></svg></button>
       <aside class="gallery-lightbox-details">
         <div>
-          <p>${escapeHtml(`${index + 1} of ${galleryVisibleItems.length}`)}</p>
-          <h4>${escapeHtml(downloadName)}</h4>
+          <p>${`${index + 1} of ${galleryVisibleItems.length}`}</p>
+          <h4>${downloadName}</h4>
         </div>
         <dl>
-          ${details.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
+          ${joinHtml(details.map(([label, value]) => html`<div><dt>${label}</dt><dd>${value}</dd></div>`), "")}
         </dl>
         <div class="gallery-lightbox-actions">
-          <button class="button danger" type="button" data-gallery-delete="${escapeHtml(galleryItemKey(item))}">Delete</button>
+          <button class="button danger" type="button" data-gallery-delete="${galleryItemKey(item)}">Delete</button>
         </div>
       </aside>
     </div>
   `;
 }
 
-function openGalleryLightbox(index) {
+export function openGalleryLightbox(index) {
   const item = galleryVisibleItems[index];
   if (!item) return;
   closeGalleryLightbox();
   activeGalleryLightboxIndex = index;
-  document.body.insertAdjacentHTML("beforeend", galleryLightboxMarkup(item, index));
+  insertHtml(document.body, "beforeend", galleryLightboxMarkup(item, index));
   document.body.classList.add("gallery-lightbox-open");
   document.querySelector("[data-gallery-lightbox-close]")?.focus();
 }
 
-function closeGalleryLightbox() {
+export function closeGalleryLightbox() {
   document.querySelector(".gallery-lightbox")?.remove();
   document.body.classList.remove("gallery-lightbox-open");
   activeGalleryLightboxIndex = -1;
 }
 
-function stepGalleryLightbox(direction) {
+export function stepGalleryLightbox(direction) {
   const nextIndex = activeGalleryLightboxIndex + direction;
   if (nextIndex < 0 || nextIndex >= galleryVisibleItems.length) return;
   openGalleryLightbox(nextIndex);
 }
 
-function selectedGalleryPayload() {
+export function selectedGalleryPayload() {
   return [...selectedGalleryItems].map(findGalleryItem).filter(Boolean);
 }
 
-function downloadGalleryItems(items) {
+export function downloadGalleryItems(items) {
   items.forEach((item, index) => {
     setTimeout(() => {
       const link = document.createElement("a");
@@ -385,7 +397,7 @@ function downloadGalleryItems(items) {
   });
 }
 
-async function deleteGalleryItems(items) {
+export async function deleteGalleryItems(items) {
   const deletable = items.filter((item) => item.category !== "queue");
   if (!deletable.length) {
     alert("Queue media can be removed from the Photo Queue.");
@@ -405,7 +417,7 @@ async function deleteGalleryItems(items) {
   await renderGallery();
 }
 
-function toggleGallerySelection(key, selected) {
+export function toggleGallerySelection(key, selected) {
   if (!gallerySelectionMode) return;
   gallerySelectionAnchorKey = key;
   if (selected) selectedGalleryItems.add(key);
@@ -415,7 +427,7 @@ function toggleGallerySelection(key, selected) {
   updateGallerySelectionBar();
 }
 
-function selectGalleryRange(key) {
+export function selectGalleryRange(key) {
   if (!gallerySelectionMode) return;
   const targetIndex = galleryVisibleItems.findIndex((item) => galleryItemKey(item) === key);
   if (targetIndex < 0) return;
@@ -433,10 +445,10 @@ function selectGalleryRange(key) {
   updateGallerySelectionBar();
 }
 
-function syncGallerySearchSort() {
+export function syncGallerySearchSort() {
   activeGallerySearch = els.gallerySearchInput?.value || "";
   activeGallerySort = els.gallerySortSelect?.value || "newest";
   activeGalleryPageSize = els.galleryPageSizeSelect?.value || "50";
-  activeGalleryPage = 1;
+  galleryUi.activeGalleryPage = 1;
   renderGalleryItems();
 }

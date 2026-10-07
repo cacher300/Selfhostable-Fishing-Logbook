@@ -1,7 +1,28 @@
-let activeSavedSetupEditorId = "";
-let savedSetupDraft = null;
+import { html, insertHtml, joinHtml, setHtml } from "./html.js";
+import { createId } from "./app-defaults.js";
+import { state, ui } from "./app-state.js";
+import { currentSavedSetups } from "./app-normalization.js";
+import { updateSettings } from "./actions.js";
+import { els } from "./app-elements.js";
+import { runSettingsSave, scheduleSettingsAutosave, cancelSettingsAutosave, settingsUi } from "./settings-core.js";
+import { getValue, syncTripFormChrome } from "./trip-editor.js";
+import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, updateAllRowSummaries } from "./trip-rows.js";
+import { replaceTripRows } from "./draft-binding.js";
+import { comboName } from "./gear-core.js";
+import { renderLiveTrollingSpread } from "./trolling-spread.js";
+import { isTrollingTrip } from "./form-utils.js";
+import { preferencesDraftFromSettings, savedSetupFromDraft } from "./settings-draft.js";
 
-function savedSetupMethods() {
+
+export let activeSavedSetupEditorId = "";
+export let savedSetupDraft = null;
+const collapsedSavedSetupMethods = new Set();
+
+function savedSetupMethodKey(method) {
+  return String(method || "").trim().toLowerCase();
+}
+
+export function savedSetupMethods() {
   const methods = [];
   const seen = new Set();
   const addMethod = (method) => {
@@ -16,165 +37,173 @@ function savedSetupMethods() {
   return methods;
 }
 
-function savedSetupsForMethod(method, setups = state.settings?.savedSetups) {
+export function savedSetupsForMethod(method, setups = state.settings?.savedSetups) {
   const methodKey = String(method || "").trim().toLowerCase();
   return currentSavedSetups(setups).filter((setup) => setup.method.toLowerCase() === methodKey);
 }
 
-function savedSetupDefaultId(method, defaults = state.settings?.defaultSavedSetupIds) {
+export function savedSetupDefaultId(method, defaults = state.settings?.defaultSavedSetupIds) {
   const methodKey = String(method || "").trim().toLowerCase();
   const entry = Object.entries(defaults && typeof defaults === "object" ? defaults : {})
     .find(([key]) => String(key || "").trim().toLowerCase() === methodKey);
   return String(entry?.[1] || "");
 }
 
-function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex = "" } = {}) {
+export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex = "", setupIndex = 0 } = {}) {
   const comboId = String(item.comboId || "");
-  const comboOptions = state.rodReelCombos.map((combo) => (
-    `<option value="${escapeHtml(combo.id)}" ${combo.id === comboId ? "selected" : ""}>${escapeHtml(comboName(combo.id) || "Rod / reel combo")}</option>`
-  )).join("");
-  return `
-    <div class="saved-setup-row"${sourceIndex === "" ? "" : ` data-source-index="${sourceIndex}"`}>
+  const comboOptions = joinHtml(state.rodReelCombos.map((combo) => (
+    html`<option value="${combo.id}" ${combo.id === comboId ? "selected" : ""}>${comboName(combo.id) || "Rod / reel combo"}</option>`
+  )), "");
+  return html`
+    <div class="saved-setup-row"${sourceIndex === "" ? "" : html` data-source-index="${sourceIndex}"`}>
       <label>
         <span>Rod / reel combo</span>
-        <select class="saved-setup-combo"${disabled ? " disabled" : ""}>
+        <select class="saved-setup-combo" data-settings-draft="savedSetupsDraft" data-settings-bind="${setupIndex}.rows.${sourceIndex === "" ? 0 : sourceIndex}.comboId"${disabled ? " disabled" : ""}>
           <option value="">Select rod / reel combo</option>
           ${comboOptions}
         </select>
       </label>
-      ${disabled ? "" : '<button class="button danger remove-saved-setup-row" type="button">Remove</button>'}
+      ${disabled ? "" : html`<button class="button danger remove-saved-setup-row" type="button">Remove</button>`}
     </div>
   `;
 }
 
-function renderSavedSetupCard(item, { draft = false } = {}) {
+export function renderSavedSetupCard(item, { draft = false, index = 0 } = {}) {
   const editing = draft || activeSavedSetupEditorId === item.id;
   const rows = Array.isArray(item.rows) ? item.rows : [];
-  return `
+  return html`
     <article class="saved-setup-card${draft ? " is-draft" : ""}"
-      data-saved-setup-id="${escapeHtml(item.id)}"
-      data-saved-setup-method="${escapeHtml(item.method)}"
+      data-saved-setup-id="${item.id}"
+      data-saved-setup-index="${index}"
+      data-saved-setup-method="${item.method}"
       data-saved-setup-draft="${draft ? "true" : "false"}"
       data-saved-setup-editing="${editing ? "true" : "false"}"
       data-saved-setup-toggle>
       <div class="saved-setup-card-header">
         <label class="settings-control saved-setup-name-control">
           <span>Setup name</span>
-          <input class="saved-setup-name" type="text" maxlength="60" value="${escapeHtml(item.name || "")}" placeholder="Light Jigging"${editing ? "" : " readonly"} />
+          <input class="saved-setup-name" type="text" maxlength="60" value="${item.name || ""}" data-settings-draft="savedSetupsDraft" data-settings-bind="${index}.name" placeholder="Light Jigging"${editing ? "" : " readonly"} />
         </label>
         <div class="saved-setup-card-actions">
-          ${editing && !draft ? '<button class="button secondary finish-saved-setup-edit" type="button">Done</button>' : !editing ? '<button class="button secondary edit-saved-setup" type="button">Edit</button>' : ""}
-          ${draft ? '<button class="button secondary cancel-saved-setup" type="button">Cancel</button>' : '<button class="button danger delete-saved-setup" type="button">Delete</button>'}
+          ${editing && !draft ? html`<button class="button secondary finish-saved-setup-edit" type="button">Done</button>` : !editing ? html`<button class="button secondary edit-saved-setup" type="button">Edit</button>` : ""}
+          ${draft ? html`<button class="button secondary cancel-saved-setup" type="button">Cancel</button>` : html`<button class="button danger delete-saved-setup" type="button">Delete</button>`}
         </div>
       </div>
       <div class="saved-setup-card-body"${editing ? "" : " hidden"}>
         <div class="saved-setup-card-section-heading">
           <div>
-            <strong>Rod positions</strong>
-            <span>Saved setups use rod / reel combos only.</span>
+            <strong>Rods</strong>
           </div>
-          ${editing ? '<button class="button secondary add-saved-setup-row" type="button">Add Rod</button>' : ""}
+          ${editing ? html`<button class="button secondary add-saved-setup-row" type="button">Add Rod</button>` : ""}
         </div>
         <div class="saved-setup-list">
-          ${rows.map((row, index) => savedSetupRowMarkup(row, { disabled: !editing, sourceIndex: index })).join("") || '<p class="saved-setup-empty-rows">Add at least one rod to save this setup.</p>'}
+          ${rows.length ? joinHtml(rows.map((row, rowIndex) => savedSetupRowMarkup(row, { disabled: !editing, sourceIndex: rowIndex, setupIndex: index }))) : html`<p class="saved-setup-empty-rows">Add at least one rod to save this setup.</p>`}
         </div>
       </div>
     </article>
   `;
 }
 
-function renderSavedSetupMethodSection(method, setups) {
+export function renderSavedSetupMethodSection(method, setups, methodIndex = 0) {
   const methodSetups = setups.filter((setup) => setup.method.toLowerCase() === method.toLowerCase());
   const selectableSetups = methodSetups.filter((setup) => setup.id !== savedSetupDraft?.id);
   const defaultId = savedSetupDefaultId(method);
-  const methodOptions = selectableSetups.map((setup) => (
-    `<option value="${escapeHtml(setup.id)}" ${setup.id === defaultId ? "selected" : ""}>${escapeHtml(setup.name)}</option>`
-  )).join("");
-  return `
-    <section class="saved-setup-method-section" data-saved-setup-method-section="${escapeHtml(method)}">
+  const collapsed = collapsedSavedSetupMethods.has(savedSetupMethodKey(method));
+  const contentId = `savedSetupMethodContent${methodIndex}`;
+  const methodOptions = joinHtml(selectableSetups.map((setup) => (
+    html`<option value="${setup.id}" ${setup.id === defaultId ? "selected" : ""}>${setup.name}</option>`
+  )), "");
+  return html`
+    <section class="saved-setup-method-section" data-saved-setup-method-section="${method}">
       <div class="saved-setup-method-header">
-        <div>
-          <h4>${escapeHtml(method)}</h4>
-        </div>
+        <h4 class="saved-setup-method-heading">
+          <button class="saved-setup-method-toggle" type="button" data-saved-setup-method-toggle="${method}" aria-expanded="${collapsed ? "false" : "true"}" aria-controls="${contentId}">
+            <span>${method}</span>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
+          </button>
+        </h4>
         <div class="saved-setup-method-controls">
           <label class="settings-control">
-            <span>${escapeHtml(method)} default</span>
-            <select class="saved-setup-default" data-saved-setup-method="${escapeHtml(method)}">
-              <option value="">No ${escapeHtml(method)} default</option>
+            <span>${method} default</span>
+            <select class="saved-setup-default" data-saved-setup-method="${method}" data-settings-draft="preferencesDraft" data-settings-bind="defaultSavedSetupIds.${method}">
+              <option value="">No ${method} default</option>
               ${methodOptions}
             </select>
           </label>
-          <button class="button secondary add-saved-setup" type="button" data-saved-setup-new-method="${escapeHtml(method)}">New Setup</button>
+          <button class="button secondary add-saved-setup" type="button" data-saved-setup-new-method="${method}">New Setup</button>
         </div>
       </div>
-      <div class="saved-setup-list" data-saved-setup-list="${escapeHtml(method)}">
+      <div class="saved-setup-list" id="${contentId}" data-saved-setup-list="${method}"${collapsed ? " hidden" : ""}>
         ${methodSetups.length
-          ? methodSetups.map((setup) => renderSavedSetupCard(setup, { draft: setup === savedSetupDraft })).join("")
-          : '<p class="saved-setup-empty-state">No saved setups for this method yet.</p>'}
+          ? joinHtml(methodSetups.map((setup) => renderSavedSetupCard(setup, { draft: setup === savedSetupDraft, index: setups.findIndex((item) => item.id === setup.id) })))
+          : html`<p class="saved-setup-empty-state">No saved setups for this method yet.</p>`}
       </div>
     </section>
   `;
 }
 
-function renderSavedSetupSettings() {
+export function renderSavedSetupSettings() {
   if (!els.savedSetupMethodSections) return;
   const setups = currentSavedSetups();
   const visibleSetups = savedSetupDraft ? [...setups, savedSetupDraft] : setups;
+  settingsUi.savedSetupsDraft = structuredClone(visibleSetups);
+  if (!settingsUi.preferencesDraft) settingsUi.preferencesDraft = preferencesDraftFromSettings(state.settings || {});
   const methods = savedSetupMethods();
-  els.savedSetupMethodSections.innerHTML = methods.length
-    ? methods.map((method) => renderSavedSetupMethodSection(method, visibleSetups)).join("")
-    : '<p class="saved-setup-empty-state">Add a non-trolling method in Settings → Categories to create saved setups.</p>';
+  setHtml(els.savedSetupMethodSections, methods.length
+    ? joinHtml(methods.map((method, index) => renderSavedSetupMethodSection(method, visibleSetups, index)))
+    : html`<p class="saved-setup-empty-state">Add a non-trolling method in Settings → Categories to create saved setups.</p>`);
 }
 
-function addSavedSetup(method) {
+export function addSavedSetup(method) {
   if (savedSetupDraft) {
     document.querySelector(`[data-saved-setup-id="${CSS.escape(savedSetupDraft.id)}"] .saved-setup-name`)?.focus();
     return;
   }
-  savedSetupDraft = { id: createId(), name: "", method: String(method || "").trim(), rows: [] };
+  const setupMethod = String(method || "").trim();
+  collapsedSavedSetupMethods.delete(savedSetupMethodKey(setupMethod));
+  savedSetupDraft = { id: createId(), name: "", method: setupMethod, rows: [] };
   activeSavedSetupEditorId = savedSetupDraft.id;
   renderSavedSetupSettings();
   document.querySelector(`[data-saved-setup-id="${CSS.escape(savedSetupDraft.id)}"] .saved-setup-name`)?.focus();
 }
 
-function addSavedSetupRowToCard(card) {
+export function addSavedSetupRowToCard(card) {
   const list = card?.querySelector(".saved-setup-list");
   if (!list || card.dataset.savedSetupEditing !== "true") return;
+  const setup = settingsUi.savedSetupsDraft?.[Number(card.dataset.savedSetupIndex)];
+  if (setup) {
+    if (!Array.isArray(setup.rows)) setup.rows = [];
+    setup.rows.push({ comboId: "" });
+  }
   card.querySelector(".saved-setup-empty-rows")?.remove();
-  list.insertAdjacentHTML("beforeend", savedSetupRowMarkup());
+  insertHtml(list, "beforeend", savedSetupRowMarkup({}, { sourceIndex: setup?.rows?.length ? setup.rows.length - 1 : "" , setupIndex: Number(card.dataset.savedSetupIndex) }));
   scheduleSavedSetupAutosave(card);
   list.querySelector(".saved-setup-row:last-child select")?.focus();
 }
 
-function editSavedSetup(setupId) {
+export function editSavedSetup(setupId) {
   if (!currentSavedSetups().some((setup) => setup.id === setupId)) return;
   activeSavedSetupEditorId = setupId;
   renderSavedSetupSettings();
   document.querySelector(`[data-saved-setup-id="${CSS.escape(setupId)}"] .saved-setup-name`)?.focus();
 }
 
-function collectSavedSetupCard(card) {
+export function collectSavedSetupCard(card) {
   const id = card?.dataset.savedSetupId || createId();
   const existing = currentSavedSetups().find((setup) => setup.id === id);
-  return {
-    ...existing,
-    id,
-    method: card?.dataset.savedSetupMethod || "",
-    name: card?.querySelector(".saved-setup-name")?.value.trim() || "",
-    rows: [...card?.querySelectorAll(".saved-setup-row") || []].map((row) => ({
-      ...(row.dataset.sourceIndex !== undefined ? existing?.rows?.[Number(row.dataset.sourceIndex)] : {}),
-      comboId: row.querySelector(".saved-setup-combo")?.value || ""
-    }))
-  };
+  const draft = settingsUi.savedSetupsDraft?.[Number(card?.dataset.savedSetupIndex)] || { id, method: card?.dataset.savedSetupMethod || "", rows: [] };
+  const next = savedSetupFromDraft({ ...draft, id, method: draft.method || card?.dataset.savedSetupMethod || "" }, existing || {});
+  if (existing && JSON.stringify(draft.rows || []) === JSON.stringify(existing.rows || [])) next.rows = existing.rows || [];
+  return next;
 }
 
-function setSavedSetupSettingsMessage(message = "") {
+export function setSavedSetupSettingsMessage(message = "") {
   if (!els.savedSetupSettingsMessage) return;
   els.savedSetupSettingsMessage.textContent = message;
   els.savedSetupSettingsMessage.classList.toggle("hidden", !message);
 }
 
-function toggleSavedSetupCard(card, event = null) {
+export function toggleSavedSetupCard(card, event = null) {
   if (!card || card.dataset.savedSetupEditing === "true") return;
   if (event?.target?.closest("button, input, select, textarea, a")) return;
   const body = card.querySelector(".saved-setup-card-body");
@@ -183,7 +212,19 @@ function toggleSavedSetupCard(card, event = null) {
   card.setAttribute("aria-expanded", String(!body.hidden));
 }
 
-async function finishSavedSetupEdit(card) {
+function toggleSavedSetupMethodSection(toggle) {
+  const section = toggle.closest("[data-saved-setup-method-section]");
+  const content = section?.querySelector(".saved-setup-list");
+  if (!section || !content) return;
+  const collapsed = !content.hidden;
+  const methodKey = savedSetupMethodKey(section.dataset.savedSetupMethodSection);
+  content.hidden = collapsed;
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+  if (collapsed) collapsedSavedSetupMethods.add(methodKey);
+  else collapsedSavedSetupMethods.delete(methodKey);
+}
+
+export async function finishSavedSetupEdit(card) {
   const next = collectSavedSetupCard(card);
   if (!next.name) {
     setSavedSetupSettingsMessage("Enter a name for this setup before finishing.");
@@ -198,14 +239,14 @@ async function finishSavedSetupEdit(card) {
     setSavedSetupSettingsMessage("Choose a combo or remove the empty rod row before finishing.");
     return;
   }
-  clearTimeout(settingsAutosaveTimer);
+  cancelSettingsAutosave();
   await saveSavedSetupCard(card, { autosave: true });
   activeSavedSetupEditorId = "";
   setSavedSetupSettingsMessage("");
   renderSavedSetupSettings();
 }
 
-function scheduleSavedSetupAutosave(card) {
+export function scheduleSavedSetupAutosave(card) {
   if (!card || card.dataset.savedSetupEditing !== "true") return;
   scheduleSettingsAutosave(async (options = {}) => {
     const next = collectSavedSetupCard(card);
@@ -214,7 +255,7 @@ function scheduleSavedSetupAutosave(card) {
   });
 }
 
-async function saveSavedSetupCard(card, options = {}) {
+export async function saveSavedSetupCard(card, options = {}) {
   const next = collectSavedSetupCard(card);
   const wasDraft = card?.dataset.savedSetupDraft === "true";
   if (!next.name) {
@@ -227,7 +268,9 @@ async function saveSavedSetupCard(card, options = {}) {
     return;
   }
   if (next.rows.some((row) => !row.comboId)) {
-    if (!options.silentInvalid) setSavedSetupSettingsMessage("Choose a combo or remove the empty rod row before saving.");
+    if (!options.silentInvalid) setSavedSetupSettingsMessage(options.autosave
+      ? "Autosave paused. Choose a combo or remove the empty rod row to continue."
+      : "Choose a combo or remove the empty rod row before saving.");
     return;
   }
   const setups = [...currentSavedSetups()];
@@ -241,107 +284,113 @@ async function saveSavedSetupCard(card, options = {}) {
     if (!options.silentInvalid) card?.querySelector(".saved-setup-name")?.focus();
     return;
   }
-  const previousState = structuredClone(state);
   const index = setups.findIndex((setup) => setup.id === next.id);
   if (index >= 0) setups[index] = next;
   else setups.push(next);
-  state.settings = { ...(state.settings || {}), savedSetups: setups };
   savedSetupDraft = null;
   activeSavedSetupEditorId = next.id;
   setSavedSetupSettingsMessage("");
   try {
-    await runSettingsSave(() => saveState(), "The saved setup could not be saved.", options);
+    await runSettingsSave(
+      () => updateSettings((settings) => { settings.savedSetups = setups; }),
+      "The saved setup could not be saved.",
+      options
+    );
     renderSavedSetupSettings();
   } catch (error) {
-    state = previousState;
     savedSetupDraft = wasDraft ? next : null;
     activeSavedSetupEditorId = next.id;
     renderSavedSetupSettings();
   }
 }
 
-async function deleteSavedSetup(setupId) {
+export async function deleteSavedSetup(setupId) {
   const setup = currentSavedSetups().find((item) => item.id === setupId);
   if (!setup || !confirm(`Delete the ${setup.name} setup?`)) return;
-  const previousState = structuredClone(state);
   const setups = currentSavedSetups().filter((item) => item.id !== setupId);
   const defaults = { ...(state.settings?.defaultSavedSetupIds || {}) };
   Object.entries(defaults).forEach(([method, id]) => {
     if (id === setupId) delete defaults[method];
   });
   if (activeSavedSetupEditorId === setupId) activeSavedSetupEditorId = "";
-  state.settings = { ...(state.settings || {}), savedSetups: setups, defaultSavedSetupIds: defaults };
   try {
-    await runSettingsSave(() => saveState(), "The saved setup could not be deleted.");
+    await runSettingsSave(
+      () => updateSettings((settings) => {
+        settings.savedSetups = setups;
+        settings.defaultSavedSetupIds = defaults;
+      }),
+      "The saved setup could not be deleted."
+    );
     renderSavedSetupSettings();
   } catch (error) {
-    state = previousState;
     renderSavedSetupSettings();
   }
 }
 
-async function saveDefaultSavedSetupId(method, select, options = {}) {
-  const nextId = select?.value || "";
+export async function saveDefaultSavedSetupId(method, options = {}) {
+  const nextId = settingsUi.preferencesDraft?.defaultSavedSetupIds?.[method] || "";
   const setup = currentSavedSetups().find((item) => (
     item.id === nextId && item.method.toLowerCase() === String(method || "").trim().toLowerCase()
   ));
   if (nextId && !setup) return;
-  const previousState = structuredClone(state);
   const defaults = { ...(state.settings?.defaultSavedSetupIds || {}) };
   Object.keys(defaults).forEach((key) => {
     if (key.toLowerCase() === String(method || "").trim().toLowerCase()) delete defaults[key];
   });
   if (setup) defaults[setup.method] = setup.id;
-  state.settings = { ...(state.settings || {}), defaultSavedSetupIds: defaults };
   try {
-    await runSettingsSave(() => saveState(), `The ${method} default setup could not be saved.`, options);
+    await runSettingsSave(
+      () => updateSettings((settings) => { settings.defaultSavedSetupIds = defaults; }),
+      `The ${method} default setup could not be saved.`,
+      options
+    );
   } catch (error) {
-    state = previousState;
     renderSavedSetupSettings();
   }
 }
 
-function savedSetupForCurrentMethod(setupId) {
+export function savedSetupForCurrentMethod(setupId) {
   const method = getValue("method").trim();
   return currentSavedSetups().find((setup) => (
     setup.id === setupId && setup.method.toLowerCase() === method.toLowerCase()
   )) || null;
 }
 
-function renderSavedSetupPicker() {
+export function renderSavedSetupPicker() {
   if (!els.savedSetupPickerList) return;
   const method = getValue("method").trim();
   const setups = savedSetupsForMethod(method);
   const renderOption = (setup) => {
     const rodSummary = setup.rows.map((row, index) => comboName(row.comboId) || `Rod ${index + 1}`).join(" · ");
     const summary = `${setup.rows.length} rod${setup.rows.length === 1 ? "" : "s"} · ${rodSummary}`;
-    return `
-        <button class="saved-setup-picker-option" type="button" data-pick-saved-setup="${escapeHtml(setup.id)}">
+    return html`
+        <button class="saved-setup-picker-option" type="button" data-pick-saved-setup="${setup.id}">
           <span class="saved-setup-picker-option-copy">
-            <strong>${escapeHtml(setup.name)}</strong>
-            <small>${escapeHtml(summary)}</small>
+            <strong>${setup.name}</strong>
+            <small>${summary}</small>
           </span>
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
         </button>
       `;
   };
-  els.savedSetupPickerList.innerHTML = setups.length
-    ? setups.map(renderOption).join("")
-    : `<p class="saved-setup-picker-empty">No saved ${escapeHtml(method || "fishing")} setups yet. Create one in Settings → Saved Setups.</p>`;
+  setHtml(els.savedSetupPickerList, setups.length
+    ? joinHtml(setups.map(renderOption))
+    : html`<p class="saved-setup-picker-empty">No saved ${method || "fishing"} setups yet. Create one in Settings → Saved Setups.</p>`);
 }
 
-function openSavedSetupPicker() {
+export function openSavedSetupPicker() {
   if (isTrollingTrip() || !els.savedSetupPickerDialog) return;
   renderSavedSetupPicker();
   els.savedSetupPickerDialog.showModal();
 }
 
-function applySavedSetup(setupId) {
+export function applySavedSetup(setupId) {
   const setup = savedSetupForCurrentMethod(setupId);
   if (!setup) return;
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
   if (rows.length && !window.confirm(`Replace the current setup with ${setup.name}?`)) return;
   rows.forEach((row) => row.remove());
+  replaceTripRows("gearUsed", []);
   setup.rows.forEach((row) => addTripGearRow({
     comboId: row.comboId,
     lureId: "",
@@ -356,15 +405,15 @@ function applySavedSetup(setupId) {
   updateAllRowSummaries();
   renderLiveTrollingSpread();
   els.savedSetupPickerDialog?.close();
-  tripFormUserChanged = true;
+  ui.tripFormUserChanged = true;
   syncTripFormChrome();
 }
 
-function applyStartupSavedSetup() {
+export function applyStartupSavedSetup() {
   const method = getValue("method").trim();
   const methodKey = method.toLowerCase();
-  if (activeTripId || !method || methodKey === "trolling" || newTripSavedSetupAppliedMethods.has(methodKey)) return false;
-  newTripSavedSetupAppliedMethods.add(methodKey);
+  if (ui.activeTripId || !method || methodKey === "trolling" || ui.newTripSavedSetupAppliedMethods.has(methodKey)) return false;
+  ui.newTripSavedSetupAppliedMethods.add(methodKey);
   const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
   if (rows.length) return false;
   const setupId = savedSetupDefaultId(method);
@@ -382,58 +431,67 @@ function applyStartupSavedSetup() {
   return true;
 }
 
-els.savedSetupMethodSections?.addEventListener("click", (event) => {
-  const card = event.target.closest(".saved-setup-card");
-  if (event.target.closest(".edit-saved-setup")) {
-    editSavedSetup(card?.dataset.savedSetupId);
-    return;
-  }
-  if (event.target.closest(".finish-saved-setup-edit")) {
-    finishSavedSetupEdit(card).catch(() => {});
-    return;
-  }
-  if (event.target.closest(".add-saved-setup-row")) {
-    addSavedSetupRowToCard(card);
-    return;
-  }
-  if (event.target.closest(".remove-saved-setup-row")) {
-    event.target.closest(".saved-setup-row")?.remove();
-    scheduleSavedSetupAutosave(card);
-    return;
-  }
-  if (event.target.closest(".cancel-saved-setup")) {
-    savedSetupDraft = null;
-    activeSavedSetupEditorId = "";
-    setSavedSetupSettingsMessage("");
-    renderSavedSetupSettings();
-    return;
-  }
-  if (event.target.closest(".delete-saved-setup")) {
-    deleteSavedSetup(card?.dataset.savedSetupId).catch(() => {});
-    return;
-  }
-  if (event.target.closest(".add-saved-setup")) {
-    addSavedSetup(event.target.closest("[data-saved-setup-new-method]")?.dataset.savedSetupNewMethod);
-    return;
-  }
-  if (card) toggleSavedSetupCard(card, event);
-});
+export function setup() {
+  els.savedSetupMethodSections?.addEventListener("click", (event) => {
+    const methodToggle = event.target.closest("[data-saved-setup-method-toggle]");
+    if (methodToggle) {
+      toggleSavedSetupMethodSection(methodToggle);
+      return;
+    }
+    const card = event.target.closest(".saved-setup-card");
+    if (event.target.closest(".edit-saved-setup")) {
+      editSavedSetup(card?.dataset.savedSetupId);
+      return;
+    }
+    if (event.target.closest(".finish-saved-setup-edit")) {
+      finishSavedSetupEdit(card).catch(() => {});
+      return;
+    }
+    if (event.target.closest(".add-saved-setup-row")) {
+      addSavedSetupRowToCard(card);
+      return;
+    }
+    if (event.target.closest(".remove-saved-setup-row")) {
+      const row = event.target.closest(".saved-setup-row");
+      settingsUi.savedSetupsDraft?.[Number(card?.dataset.savedSetupIndex)]?.rows?.splice(Number(row?.dataset.sourceIndex), 1);
+      row?.remove();
+      scheduleSavedSetupAutosave(card);
+      return;
+    }
+    if (event.target.closest(".cancel-saved-setup")) {
+      savedSetupDraft = null;
+      activeSavedSetupEditorId = "";
+      setSavedSetupSettingsMessage("");
+      renderSavedSetupSettings();
+      return;
+    }
+    if (event.target.closest(".delete-saved-setup")) {
+      deleteSavedSetup(card?.dataset.savedSetupId).catch(() => {});
+      return;
+    }
+    if (event.target.closest(".add-saved-setup")) {
+      addSavedSetup(event.target.closest("[data-saved-setup-new-method]")?.dataset.savedSetupNewMethod);
+      return;
+    }
+    if (card) toggleSavedSetupCard(card, event);
+  });
 
-els.savedSetupMethodSections?.addEventListener("change", (event) => {
-  if (event.target.matches(".saved-setup-combo")) scheduleSavedSetupAutosave(event.target.closest(".saved-setup-card"));
-  if (event.target.matches(".saved-setup-default")) {
-    saveDefaultSavedSetupId(event.target.dataset.savedSetupMethod, event.target).catch(() => {});
-  }
-});
+  els.savedSetupMethodSections?.addEventListener("change", (event) => {
+    if (event.target.matches(".saved-setup-combo")) scheduleSavedSetupAutosave(event.target.closest(".saved-setup-card"));
+    if (event.target.matches(".saved-setup-default")) {
+      saveDefaultSavedSetupId(event.target.dataset.savedSetupMethod).catch(() => {});
+    }
+  });
 
-els.savedSetupMethodSections?.addEventListener("input", (event) => {
-  if (event.target.matches(".saved-setup-name")) {
-    setSavedSetupSettingsMessage("");
-    scheduleSavedSetupAutosave(event.target.closest(".saved-setup-card"));
-  }
-});
+  els.savedSetupMethodSections?.addEventListener("input", (event) => {
+    if (event.target.matches(".saved-setup-name")) {
+      setSavedSetupSettingsMessage("");
+      scheduleSavedSetupAutosave(event.target.closest(".saved-setup-card"));
+    }
+  });
 
-els.savedSetupPickerList?.addEventListener("click", (event) => {
-  const option = event.target.closest("[data-pick-saved-setup]");
-  if (option) applySavedSetup(option.dataset.pickSavedSetup);
-});
+  els.savedSetupPickerList?.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-pick-saved-setup]");
+    if (option) applySavedSetup(option.dataset.pickSavedSetup);
+  });
+}

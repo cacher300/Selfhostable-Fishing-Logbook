@@ -243,6 +243,14 @@
   color: #ffaaa6;
 }
 
+:root[data-theme="dark"] .stats-sample-strong {
+  color: #8be6b5;
+}
+
+:root[data-theme="dark"] .stats-sample-fair {
+  color: #f6c47f;
+}
+
 :root[data-theme="dark"] .topbar {
   background: transparent;
 }

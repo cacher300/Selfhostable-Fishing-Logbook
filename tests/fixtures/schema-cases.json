@@ -1,0 +1,30 @@
+{
+  "cases": [
+    { "name": "canonical default", "valid": true },
+    { "name": "old optional subtype lists omitted", "valid": true, "remove": ["lureBeadSizes", "meatRigTypes", "softPlasticTypes"] },
+    { "name": "missing required collection", "valid": false, "path": "riggings", "remove": ["riggings"] },
+    { "name": "option list items must be strings", "valid": false, "path": "species[0]", "set": { "species[0]": 4 } },
+    { "name": "choice labels must be non-empty", "valid": false, "path": "trollingPresentations[0].label", "set": { "trollingPresentations[0].label": "   " } },
+    { "name": "theme enum", "valid": false, "path": "settings.theme", "set": { "settings.theme": "system" } },
+    { "name": "hasFishHawk must be boolean", "valid": false, "path": "settings.hasFishHawk", "set": { "settings.hasFishHawk": 1 } },
+    { "name": "home lake enum", "valid": false, "path": "settings.defaultHomeLake", "set": { "settings.defaultHomeLake": "Champlain" } },
+    { "name": "species color value pattern", "valid": false, "path": "settings.speciesMapColors.Largemouth Bass", "set": { "settings.speciesMapColors.Largemouth Bass": "green" } },
+    { "name": "species color key non-empty", "valid": false, "path": "settings.speciesMapColors", "set": { "settings.speciesMapColors": { "": "#ffffff" } } },
+    { "name": "unsupported bathymetry lake", "valid": false, "path": "settings.bathymetryLakeCalibrationsFeet", "set": { "settings.bathymetryLakeCalibrationsFeet": { "Champlain": { "shallowOffsetFeet": 0, "offshoreOffsetFeet": 0 } } } },
+    { "name": "bathymetry calibration values must be numbers", "valid": false, "path": "settings.bathymetryLakeCalibrationsFeet.Ontario.offshoreOffsetFeet", "set": { "settings.bathymetryLakeCalibrationsFeet": { "Ontario": { "offshoreOffsetFeet": "2.5" } } } },
+    { "name": "unit enum", "valid": false, "path": "settings.units.depth", "set": { "settings.units.depth": "yards" } },
+    { "name": "chop maxFeet nonnegative", "valid": false, "path": "settings.chopRanges[0].maxFeet", "set": { "settings.chopRanges[0].maxFeet": -1 } },
+    { "name": "checklist done must be boolean", "valid": false, "path": "settings.checklists[0].items[0].done", "set": { "settings.checklists": [{ "id": "safety", "name": "Safety", "items": [{ "id": "net", "label": "Bring net", "done": "false" }] }] } },
+    { "name": "private photo radius maximum", "valid": false, "path": "settings.privatePhotoLocations[0].radiusMeters", "set": { "settings.privatePhotoLocations": [{ "id": "home", "name": "Home", "coordinates": { "latitude": 43.2, "longitude": -79.4 }, "radiusMeters": 10001 }] } },
+    { "name": "coordinate latitude range", "valid": false, "path": "locations[0].coordinates.latitude", "set": { "locations": [{ "id": "loc", "name": "Lake", "coordinates": { "latitude": 91, "longitude": -79 }, "launches": [] }] } },
+    { "name": "media category enum", "valid": false, "path": "lures[0].media[0].category", "set": { "lures": [{ "id": "lure-1", "name": "Spoon", "media": [{ "id": "media-1", "category": "bad", "filename": "photo.jpg" }] }] } },
+    { "name": "media filename pattern", "valid": false, "path": "lures[0].media[0].filename", "set": { "lures": [{ "id": "lure-1", "name": "Spoon", "media": [{ "id": "media-1", "category": "lures", "filename": "bad/photo.jpg" }] }] } },
+    { "name": "person name non-empty", "valid": false, "path": "people[0].name", "set": { "people": [{ "id": "person-1", "name": "" }] } },
+    { "name": "spot radius range", "valid": false, "path": "spots[0].radiusMeters", "set": { "spots": [{ "id": "spot", "name": "Point", "coordinates": { "latitude": 43, "longitude": -79 }, "radiusMeters": 2 }] } },
+    { "name": "trip setup dipsey color string", "valid": false, "path": "trips[0].gearUsed[0].dipseyDiverColor", "set": { "trips": [{ "id": "trip-1", "title": "Trip", "date": "2026-09-20", "gearUsed": [{ "id": "line-1", "dipseyDiverColor": 4 }], "catches": [], "lostFish": [] }] } },
+    { "name": "fish spot assignment mode enum", "valid": false, "path": "trips[0].catches[0].spotAssignmentMode", "set": { "trips": [{ "id": "trip-1", "title": "Trip", "date": "2026-09-20", "gearUsed": [], "catches": [{ "id": "fish-1", "spotAssignmentMode": "nearby" }], "lostFish": [] }] } },
+    { "name": "invalid lure meat rig subtype", "valid": false, "path": "lures[0].meatRigType", "set": { "lures": [{ "id": "lure-1", "name": "Rig", "type": "Meat Rig", "meatRigType": 4 }] } },
+    { "name": "expedition end before start", "valid": false, "path": "expeditions[0].endDate", "set": { "expeditions": [{ "id": "trip", "name": "Trip", "startDate": "2026-09-20", "endDate": "2026-09-19" }] } },
+    { "name": "duplicate spot id", "valid": false, "path": "spots[1].id", "set": { "spots": [{ "id": "spot", "name": "Point", "coordinates": { "latitude": 43, "longitude": -79 }, "radiusMeters": 100 }, { "id": "spot", "name": "Other", "coordinates": { "latitude": 44, "longitude": -78 }, "radiusMeters": 100 }] } }
+  ]
+}

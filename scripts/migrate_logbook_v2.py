@@ -33,11 +33,11 @@ if str(PROJECT_ROOT) not in sys.path:
 from backend import logbook_repository, logbook_store  # noqa: E402
 from backend.backend_config import (  # noqa: E402
     BATHYMETRY_LAKES,
-    DATABASE_FILE,
     DEFAULT_LOGBOOK,
     UNIT_OPTIONS,
     UPLOAD_CATEGORIES,
 )
+from backend.config import AppConfig  # noqa: E402
 from backend.media_service import referenced_uploads  # noqa: E402
 
 
@@ -103,7 +103,6 @@ TEXT_OPTION_KEYS = (
     "trollingDirections",
 )
 CHOICE_OPTION_KEYS = ("trollingPresentations", "setupLineSides")
-OPTIONAL_MODERN_SETTINGS = {"shareAppearancePresets"}
 LEGACY_GENERATED_TRIP_TITLE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}\b.*\bTrip$")
 
 
@@ -548,7 +547,7 @@ def _normalize_locations(source: object) -> list[dict]:
             "launches": [],
         }
         location.pop("location", None)
-        for launch_index, launch in enumerate(_as_list(item.get("launches"))):
+        for launch in _as_list(item.get("launches")):
             if isinstance(launch, str):
                 launch = {"name": launch}
             if not isinstance(launch, dict):
@@ -608,7 +607,7 @@ def _normalize_trip(trip: object, index: int, locations: list[dict]) -> dict:
         result["launchId"] = launch["id"]
 
     normalized_gear = []
-    for line_index, item in enumerate(_as_list(result.get("gearUsed"))):
+    for item in _as_list(result.get("gearUsed")):
         if not isinstance(item, dict):
             continue
         line = deepcopy(item)
@@ -908,7 +907,7 @@ def main() -> int:
     args = parser.parse_args()
 
     is_archive = args.archive is not None
-    input_path = (args.archive or args.database or DATABASE_FILE).resolve()
+    input_path = (args.archive or args.database or AppConfig.from_env().database_file).resolve()
     media_root = args.media_root.resolve() if args.media_root else None
     manifest = None
     archive_names = None

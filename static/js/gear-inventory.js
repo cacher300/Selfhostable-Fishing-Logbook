@@ -1,85 +1,143 @@
-function renderInventoryTable(container, headers, rows, emptyText) {
+﻿import { html, joinHtml, setHtml } from "./html.js";
+import { state, ui } from "./app-state.js";
+import { displayStoredMeasurement, unitSymbol } from "./app-units.js";
+import { els } from "./app-elements.js";
+import { mediaMarkup } from "./app-media.js";
+import { formatDate } from "./dashboard.js";
+import { activeLineEntry, comboName, gearDisplayName, gearPhotos, lineSummary, reelName, rodName } from "./gear-core.js";
+import { isFlyLure, savedLureTypes } from "./gear-pickers.js";
+import { openFlasherInfoDialog, openLureInfoDialog } from "./gear-dialogs.js";
+import { gearPerformanceStats } from "./leaderboard.js";
+
+export function renderInventoryTable(container, headers, rows, emptyText) {
   if (!container) return;
   if (!rows.length) {
-    container.innerHTML = `<div class="empty-state"><p>${escapeHtml(emptyText)}</p></div>`;
+    setHtml(container, html`<div class="empty-state"><p>${emptyText}</p></div>`);
     return;
   }
   const sortState = inventorySortState[container.id];
-  container.innerHTML = `
+  setHtml(container, html`
     <table>
-      <thead><tr>${headers.map((header, index) => {
+      <thead><tr>${joinHtml(headers.map((header, index) => {
         const sortable = Boolean(header) && header !== "Photo";
         const sorted = sortState?.index === index;
         const direction = sorted ? sortState.direction : "none";
-        return `<th aria-sort="${direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}">${sortable ? `<button class="inventory-sort-button" type="button" data-inventory-sort-table="${escapeHtml(container.id)}" data-inventory-sort-index="${index}">${escapeHtml(header)}${sorted ? `<span aria-hidden="true"> ${direction === "asc" ? "↑" : "↓"}</span>` : ""}</button>` : escapeHtml(header)}</th>`;
-      }).join("")}</tr></thead>
-      <tbody>${rows.map((row) => {
+        return html`<th aria-sort="${direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}">${sortable ? html`<button class="inventory-sort-button" type="button" data-inventory-sort-table="${container.id}" data-inventory-sort-index="${index}">${header}${sorted ? html`<span aria-hidden="true"> ${direction === "asc" ? "â†‘" : "â†“"}</span>` : ""}</button>` : header}</th>`;
+      }), "")}</tr></thead>
+      <tbody>${joinHtml(rows.map((row) => {
         const cells = Array.isArray(row) ? row : row.cells;
-        const attributes = Array.isArray(row) ? "" : Object.entries(row.attributes || {})
-          .map(([name, value]) => `${escapeHtml(name)}="${escapeHtml(String(value))}"`)
-          .join(" ");
-        return `<tr ${attributes}>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`;
-      }).join("")}</tbody>
+        const attributes = Array.isArray(row) ? "" : joinHtml(Object.entries(row.attributes || {})
+          .map(([name, value]) => html`${name}="${String(value)}"`), " ");
+        return html`<tr ${attributes}>${joinHtml(cells.map((cell) => html`<td>${cell}</td>`), "")}</tr>`;
+      }), "")}</tbody>
     </table>
-  `;
+  `);
   applyInventoryTableControls(container);
 }
 
-let activeGearFilter = { field: "all", query: "" };
-const inventorySortState = {};
-let gearFilterSuggestionsOpen = false;
+export let activeGearFilter = { field: "all", query: "" };
+export let activeGearLureType = "";
+export let activeGearSoftPlasticStyle = "";
+export const inventorySortState = {};
+export let gearFilterSuggestionsOpen = false;
 
-function activeInventoryTable() {
-  return document.querySelector(`[data-gear-panel="${activeGearTab}"] .inventory-table`);
+export function activeInventoryTable() {
+  return document.querySelector(`[data-gear-panel="${ui.activeGearTab}"] .inventory-table`);
 }
 
-function inventoryHeaderLabels(container) {
-  return [...container.querySelectorAll("thead th")].map((header) => header.textContent.replace(/[↑↓]/g, "").trim());
+export function inventoryHeaderLabels(container) {
+  return [...container.querySelectorAll("thead th")].map((header) => header.textContent.replace(/[â†‘â†“]/g, "").trim());
 }
 
-function syncGearFilterFields() {
+export function syncGearFilterFields() {
+  syncGearLureTypeFilter();
   const container = activeInventoryTable();
   if (!container || !els.gearFilterField) return;
   const headers = inventoryHeaderLabels(container).filter((label) => label && label !== "Photo");
   if (!headers.includes(activeGearFilter.field)) activeGearFilter.field = "all";
-  els.gearFilterField.innerHTML = `<option value="all">All fields</option>${headers.map((label) => `<option value="${escapeHtml(label)}">${escapeHtml(label)}</option>`).join("")}`;
+  setHtml(els.gearFilterField, html`<option value="all">All fields</option>${joinHtml(headers.map((label) => html`<option value="${label}">${label}</option>`), "")}`);
   els.gearFilterField.value = activeGearFilter.field;
   if (els.gearFilterQuery) els.gearFilterQuery.value = activeGearFilter.query;
   syncGearFilterSuggestions();
 }
 
-function syncGearFilterSuggestions() {
+function syncGearLureTypeFilter() {
+  const select = els.gearLureTypeFilter;
+  if (!select) return;
+  const types = savedLureTypes();
+  if (!types.includes(activeGearLureType)) activeGearLureType = "";
+  setHtml(select, html`<option value="">All types</option>${joinHtml(types.map((type) => html`<option value="${type}">${type}</option>`), "")}`);
+  select.value = activeGearLureType;
+  select.closest("label")?.classList.toggle("hidden", ui.activeGearTab !== "baits");
+  syncGearSoftPlasticStyleFilter();
+}
+
+function syncGearSoftPlasticStyleFilter() {
+  const select = els.gearSoftPlasticStyleFilter;
+  if (!select) return;
+  const isSoftPlastic = activeGearLureType.toLowerCase() === "soft plastic";
+  const styles = [...new Set(state.lures
+    .filter((lure) => String(lure.type || "").trim() === activeGearLureType)
+    .map((lure) => String(lure.softPlasticType || "").trim()).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right));
+  if (!isSoftPlastic || !styles.includes(activeGearSoftPlasticStyle)) activeGearSoftPlasticStyle = "";
+  setHtml(select, html`<option value="">All styles</option>${joinHtml(styles.map((style) => html`<option value="${style}">${style}</option>`), "")}`);
+  select.value = activeGearSoftPlasticStyle;
+  select.closest("label")?.classList.toggle("hidden", ui.activeGearTab !== "baits" || !isSoftPlastic);
+}
+
+function inventoryRowMatchesLureType(row, container) {
+  return container.id !== "baitInventoryTable"
+    || ((!activeGearLureType || row.dataset.inventoryLureType === activeGearLureType)
+      && (!activeGearSoftPlasticStyle || row.dataset.inventorySoftPlasticStyle === activeGearSoftPlasticStyle));
+}
+
+export function updateGearLureTypeFilter() {
+  activeGearLureType = els.gearLureTypeFilter?.value || "";
+  syncGearSoftPlasticStyleFilter();
+  closeGearFilterSuggestions();
+  applyInventoryTableControls();
+}
+
+export function updateGearSoftPlasticStyleFilter() {
+  activeGearSoftPlasticStyle = els.gearSoftPlasticStyleFilter?.value || "";
+  closeGearFilterSuggestions();
+  applyInventoryTableControls();
+}
+
+export function syncGearFilterSuggestions() {
   const container = activeInventoryTable();
   if (!container || !els.gearFilterSuggestions) return;
   const headers = inventoryHeaderLabels(container);
   const fieldIndex = activeGearFilter.field === "all" ? -1 : headers.indexOf(activeGearFilter.field);
   const query = activeGearFilter.query.trim().toLocaleLowerCase();
   const values = [...new Set([...container.querySelectorAll("tbody tr")].flatMap((row) => {
+    if (!inventoryRowMatchesLureType(row, container)) return [];
     const cells = [...row.cells].map((cell) => cell.textContent.trim());
     return fieldIndex >= 0 ? [cells[fieldIndex]] : cells;
   }).filter((value) => value && value !== "-" && value.toLocaleLowerCase().includes(query)))].sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" })).slice(0, 100);
-  els.gearFilterSuggestions.innerHTML = values.map((value) => `<button type="button" role="option" data-gear-filter-suggestion="${escapeHtml(value)}">${escapeHtml(value)}</button>`).join("");
+  setHtml(els.gearFilterSuggestions, joinHtml(values.map((value) => html`<button type="button" role="option" data-gear-filter-suggestion="${value}">${value}</button>`), ""));
   els.gearFilterSuggestions.classList.toggle("hidden", !gearFilterSuggestionsOpen || !values.length);
 }
 
-function openGearFilterSuggestions() {
+export function openGearFilterSuggestions() {
   gearFilterSuggestionsOpen = true;
   syncGearFilterSuggestions();
 }
 
-function closeGearFilterSuggestions() {
+export function closeGearFilterSuggestions() {
   gearFilterSuggestionsOpen = false;
   syncGearFilterSuggestions();
 }
 
-function selectGearFilterSuggestion(value) {
+export function selectGearFilterSuggestion(value) {
   if (els.gearFilterQuery) els.gearFilterQuery.value = value;
   activeGearFilter = { field: els.gearFilterField?.value || "all", query: value };
   closeGearFilterSuggestions();
   applyInventoryTableControls();
 }
 
-function applyInventoryTableControls(container = activeInventoryTable()) {
+export function applyInventoryTableControls(container = activeInventoryTable()) {
   if (!container) return;
   const headers = inventoryHeaderLabels(container);
   const filterIndex = activeGearFilter.field === "all" ? -1 : headers.indexOf(activeGearFilter.field);
@@ -88,7 +146,8 @@ function applyInventoryTableControls(container = activeInventoryTable()) {
   rows.forEach((row) => {
     const cells = [...row.cells].map((cell) => cell.textContent.trim().toLocaleLowerCase());
     const haystack = filterIndex >= 0 ? cells[filterIndex] || "" : cells.join(" ");
-    row.hidden = Boolean(query) && !haystack.includes(query);
+    row.hidden = !inventoryRowMatchesLureType(row, container)
+      || (Boolean(query) && !haystack.includes(query));
   });
   const sortState = inventorySortState[container.id];
   if (!sortState) return;
@@ -108,7 +167,7 @@ function applyInventoryTableControls(container = activeInventoryTable()) {
   rows.forEach((row) => body.append(row));
 }
 
-function updateGearFilter() {
+export function updateGearFilter() {
   activeGearFilter = {
     field: els.gearFilterField?.value || "all",
     query: els.gearFilterQuery?.value || ""
@@ -118,15 +177,19 @@ function updateGearFilter() {
   applyInventoryTableControls();
 }
 
-function clearGearFilter() {
+export function clearGearFilter() {
   activeGearFilter = { field: "all", query: "" };
+  if (ui.activeGearTab === "baits") {
+    activeGearLureType = "";
+    activeGearSoftPlasticStyle = "";
+  }
   gearFilterSuggestionsOpen = false;
   syncGearFilterFields();
   syncGearFilterSuggestions();
   applyInventoryTableControls();
 }
 
-function sortInventoryTable(tableId, index) {
+export function sortInventoryTable(tableId, index) {
   const previous = inventorySortState[tableId];
   if (previous?.index === Number(index) && previous.direction === "desc") {
     delete inventorySortState[tableId];
@@ -142,28 +205,35 @@ function sortInventoryTable(tableId, index) {
   applyInventoryTableControls(container);
 }
 
-function inventoryRow(type, item, cells) {
+export function inventoryRow(type, item, cells) {
   return {
-    attributes: { "data-inventory-type": type, "data-inventory-id": item.id },
+    attributes: {
+      "data-inventory-type": type,
+      "data-inventory-id": item.id,
+      ...(type === "lure" ? {
+        "data-inventory-lure-type": String(item.type || "").trim(),
+        "data-inventory-soft-plastic-style": String(item.softPlasticType || "").trim()
+      } : {})
+    },
     cells
   };
 }
 
-function gearUsageCells(type, id) {
+export function gearUsageCells(type, id) {
   const stats = gearPerformanceStats(type, id);
   return [
-    escapeHtml(String(stats.landed || 0)),
-    stats.lastUsed ? escapeHtml(formatDate(stats.lastUsed)) : "-"
+    String(String(stats.landed || 0)),
+    stats.lastUsed ? String(formatDate(stats.lastUsed)) : "-"
   ];
 }
 
-function inventoryThumb(item) {
+export function inventoryThumb(item) {
   const photos = gearPhotos(item);
   if (!photos.length) return "";
   return mediaMarkup(photos[0], "inventory-thumb", { download: false });
 }
 
-function openInventoryItemInfo(type, id) {
+export function openInventoryItemInfo(type, id) {
   if (type === "lure") return openLureInfoDialog(state.lures.find((item) => item.id === id), "inventory");
   if (type === "flasher") return openFlasherInfoDialog(state.flashers.find((item) => item.id === id), "inventory");
 
@@ -179,146 +249,146 @@ function openInventoryItemInfo(type, id) {
   const stats = gearPerformanceStats(type, id);
   details.push(["Fish caught", stats.landed], ["Last used", stats.lastUsed ? formatDate(stats.lastUsed) : "-"]);
   els.inventoryInfoTitle.textContent = gearDisplayName(item, label);
-  els.inventoryInfoContent.innerHTML = `
-    ${gearPhotos(item).length ? `<div class="lure-info-media">${mediaMarkup(gearPhotos(item)[0], "", { download: false })}</div>` : ""}
-    <dl class="lure-info-list">${details.filter(([, value]) => value !== "" && value !== null && value !== undefined).map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(String(value))}</dd></div>`).join("")}</dl>
-    ${item.notes ? `<div class="lure-info-notes"><strong>Notes</strong><p>${escapeHtml(item.notes)}</p></div>` : ""}
-  `;
+  setHtml(els.inventoryInfoContent, html`
+    ${gearPhotos(item).length ? html`<div class="lure-info-media">${mediaMarkup(gearPhotos(item)[0], "", { download: false })}</div>` : ""}
+    <dl class="lure-info-list">${joinHtml(details.filter(([, value]) => value !== "" && value !== null && value !== undefined).map(([name, value]) => html`<div><dt>${name}</dt><dd>${String(value)}</dd></div>`), "")}</dl>
+    ${item.notes ? html`<div class="lure-info-notes"><strong>Notes</strong><p>${item.notes}</p></div>` : ""}
+  `);
   els.inventoryInfoDialog.showModal();
 }
 
-function renderReelInventory() {
+export function renderReelInventory() {
   const rows = state.reels.map((reel) => {
     return inventoryRow("reel", reel, [
       inventoryThumb(reel),
-      escapeHtml(gearDisplayName(reel, "Reel")),
+      String(gearDisplayName(reel, "Reel")),
       ...gearUsageCells("reel", reel.id),
-      escapeHtml(lineSummary(activeLineEntry(reel)) || "-"),
-      escapeHtml(reel.style || "-"),
-      escapeHtml(reel.brand || "-"),
-      escapeHtml(reel.name || "-"),
-      escapeHtml(reel.size || "-"),
-      escapeHtml(reel.weight || "-"),
-      escapeHtml(reel.gearRatio || "-"),
-      escapeHtml(displayStoredMeasurement(reel.maxDrag, "fishWeight") || "-"),
-      escapeHtml(reel.monoCapacity || "-"),
-      escapeHtml(reel.braidCapacity || "-"),
-      escapeHtml(reel.purchaseAmount || "-"),
-      escapeHtml(reel.dateBought || "-"),
-      escapeHtml(reel.quantityAvailable === "" || reel.quantityAvailable === null || reel.quantityAvailable === undefined ? "-" : reel.quantityAvailable),
-      `<div class="inventory-actions"><button class="button secondary inventory-edit-action" type="button" data-edit-reel="${escapeHtml(reel.id)}">Edit</button><button class="button secondary" type="button" data-duplicate-reel="${escapeHtml(reel.id)}">Duplicate</button></div>`
+      String(lineSummary(activeLineEntry(reel)) || "-"),
+      String(reel.style || "-"),
+      String(reel.brand || "-"),
+      String(reel.name || "-"),
+      String(reel.size || "-"),
+      String(reel.weight || "-"),
+      String(reel.gearRatio || "-"),
+      String(displayStoredMeasurement(reel.maxDrag, "fishWeight") || "-"),
+      String(reel.monoCapacity || "-"),
+      String(reel.braidCapacity || "-"),
+      String(reel.purchaseAmount || "-"),
+      String(reel.dateBought || "-"),
+      String(reel.quantityAvailable === "" || reel.quantityAvailable === null || reel.quantityAvailable === undefined ? "-" : reel.quantityAvailable),
+      html`<div class="inventory-actions"><button class="button secondary inventory-edit-action" type="button" data-edit-reel="${reel.id}">Edit</button><button class="button secondary" type="button" data-duplicate-reel="${reel.id}">Duplicate</button></div>`
     ]);
   });
   renderInventoryTable(els.reelInventoryTable, ["Photo", "Name", "Fish caught", "Last used", "Spooled Line", "Style", "Brand", "Model", "Size", "Weight", "Gear", `Max Drag (${unitSymbol("fishWeight")})`, "Mono Cap", "Braid Cap", "Purchase", "Bought", "Owned", ""], rows, "No saved reels yet.");
 }
 
-function renderRodInventory() {
+export function renderRodInventory() {
   const rows = state.rods.map((rod) => {
     return inventoryRow("rod", rod, [
       inventoryThumb(rod),
-      escapeHtml(gearDisplayName(rod, "Rod")),
+      String(gearDisplayName(rod, "Rod")),
       ...gearUsageCells("rod", rod.id),
-      escapeHtml(rod.type || "-"),
-      escapeHtml(rod.brand || "-"),
-      escapeHtml(rod.name || "-"),
-      escapeHtml(rod.length || "-"),
-      escapeHtml(rod.power || "-"),
-      escapeHtml(rod.action || "-"),
-      escapeHtml(rod.lureRating || "-"),
-      escapeHtml(rod.purchaseAmount || "-"),
-      escapeHtml(rod.dateBought || "-"),
-      escapeHtml(rod.quantityAvailable === "" || rod.quantityAvailable === null || rod.quantityAvailable === undefined ? "-" : rod.quantityAvailable),
-      `<div class="inventory-actions"><button class="button secondary inventory-edit-action" type="button" data-edit-rod="${escapeHtml(rod.id)}">Edit</button><button class="button secondary" type="button" data-duplicate-rod="${escapeHtml(rod.id)}">Duplicate</button></div>`
+      String(rod.type || "-"),
+      String(rod.brand || "-"),
+      String(rod.name || "-"),
+      String(rod.length || "-"),
+      String(rod.power || "-"),
+      String(rod.action || "-"),
+      String(rod.lureRating || "-"),
+      String(rod.purchaseAmount || "-"),
+      String(rod.dateBought || "-"),
+      String(rod.quantityAvailable === "" || rod.quantityAvailable === null || rod.quantityAvailable === undefined ? "-" : rod.quantityAvailable),
+      html`<div class="inventory-actions"><button class="button secondary inventory-edit-action" type="button" data-edit-rod="${rod.id}">Edit</button><button class="button secondary" type="button" data-duplicate-rod="${rod.id}">Duplicate</button></div>`
     ]);
   });
   renderInventoryTable(els.rodInventoryTable, ["Photo", "Name", "Fish caught", "Last used", "Type", "Brand", "Model", "Length", "Power", "Action", "Lure Rating", "Purchase", "Bought", "Owned", ""], rows, "No saved rods yet.");
 }
 
-function renderComboInventory() {
+export function renderComboInventory() {
   const rows = state.rodReelCombos.map((combo) => {
     return inventoryRow("combo", combo, [
-      escapeHtml(comboName(combo.id) || "Combo"),
+      String(comboName(combo.id) || "Combo"),
       ...gearUsageCells("combo", combo.id),
-      escapeHtml(rodName(combo.rodId) || "-"),
-      escapeHtml(reelName(combo.reelId) || "-"),
-      escapeHtml(combo.notes || ""),
-      `<button class="button secondary inventory-edit-action" type="button" data-edit-combo="${escapeHtml(combo.id)}">Edit</button>`
+      String(rodName(combo.rodId) || "-"),
+      String(reelName(combo.reelId) || "-"),
+      String(combo.notes || ""),
+      html`<button class="button secondary inventory-edit-action" type="button" data-edit-combo="${combo.id}">Edit</button>`
     ]);
   });
   renderInventoryTable(els.comboInventoryTable, ["Combo", "Fish caught", "Last used", "Rod", "Reel", "Notes", ""], rows, "No saved combos yet.");
 }
 
-function renderLineTracker() {
+export function renderLineTracker() {
   const rows = state.reels.map((reel) => {
     const line = activeLineEntry(reel);
     if (!line) return null;
     return [
-      escapeHtml(gearDisplayName(reel, "Reel")),
-      escapeHtml(line.spooledDate || "-"),
-      escapeHtml(line.type || "-"),
-      escapeHtml(line.brand || "-"),
-      escapeHtml(line.name || "-"),
-      escapeHtml(displayStoredMeasurement(line.weight, "fishWeight") || "-"),
-      escapeHtml(line.diameterIn || "-"),
-      escapeHtml(line.diameterMm || "-"),
-      escapeHtml(line.color || "-"),
+      String(gearDisplayName(reel, "Reel")),
+      String(line.spooledDate || "-"),
+      String(line.type || "-"),
+      String(line.brand || "-"),
+      String(line.name || "-"),
+      String(displayStoredMeasurement(line.weight, "fishWeight") || "-"),
+      String(line.diameterIn || "-"),
+      String(line.diameterMm || "-"),
+      String(line.color || "-"),
       line.monoBacking ? "Yes" : "No",
-      escapeHtml(line.notes || "")
+      String(line.notes || "")
     ];
   }).filter(Boolean);
   renderInventoryTable(els.lineTrackerTable, ["Reel", "Spooled", "Type", "Brand", "Name", `Weight (${unitSymbol("fishWeight")})`, "Dia In", "Dia Mm", "Color", "Backing", "Notes"], rows, "No current line saved yet. Edit a reel to add current line.");
 }
 
-function renderBaitInventory() {
+export function renderBaitInventory() {
   const rows = state.lures.filter((lure) => !isFlyLure(lure)).map((lure) => {
     return inventoryRow("lure", lure, [
       inventoryThumb(lure),
-      `<button class="inventory-gear-preview-link" type="button" data-inventory-lure-id="${escapeHtml(lure.id)}" aria-label="Open preview for ${escapeHtml(lure.name || "lure")}">${escapeHtml(lure.name || "-")}</button>`,
+      html`<button class="inventory-gear-preview-link" type="button" data-inventory-lure-id="${lure.id}" aria-label="Open preview for ${lure.name || "lure"}">${lure.name || "-"}</button>`,
       ...gearUsageCells("lure", lure.id),
-      escapeHtml(lure.type || "-"),
-      escapeHtml(lure.brand || "-"),
-      escapeHtml(lure.model || "-"),
-      escapeHtml(lure.color || "-"),
-      escapeHtml(lure.quantityAvailable === "" || lure.quantityAvailable === null || lure.quantityAvailable === undefined ? "-" : lure.quantityAvailable),
-      `<button class="button secondary inventory-edit-action" type="button" data-edit-lure="${escapeHtml(lure.id)}">Edit</button>`
+      String(lure.type || "-"),
+      String(lure.brand || "-"),
+      String(lure.model || "-"),
+      String(lure.color || "-"),
+      String(lure.quantityAvailable === "" || lure.quantityAvailable === null || lure.quantityAvailable === undefined ? "-" : lure.quantityAvailable),
+      html`<button class="button secondary inventory-edit-action" type="button" data-edit-lure="${lure.id}">Edit</button>`
     ]);
   });
   renderInventoryTable(els.baitInventoryTable, ["Photo", "Lure", "Fish caught", "Last used", "Type", "Brand", "Model", "Color", "Owned", ""], rows, "No saved lures yet.");
 }
 
-function renderFlyInventory() {
+export function renderFlyInventory() {
   const rows = state.lures.filter(isFlyLure).map((fly) => inventoryRow("lure", fly, [
     inventoryThumb(fly),
-    `<button class="inventory-gear-preview-link" type="button" data-inventory-lure-id="${escapeHtml(fly.id)}" aria-label="Open preview for ${escapeHtml(fly.name || "fly")}">${escapeHtml(fly.name || "-")}</button>`,
+    html`<button class="inventory-gear-preview-link" type="button" data-inventory-lure-id="${fly.id}" aria-label="Open preview for ${fly.name || "fly"}">${fly.name || "-"}</button>`,
     ...gearUsageCells("lure", fly.id),
-    escapeHtml(fly.flyCategory || "Other"),
-    escapeHtml(fly.flyPattern || "-"),
-    escapeHtml(fly.flyHookSize || "-"),
-    escapeHtml(fly.color || "-"),
-    escapeHtml(fly.quantityAvailable === "" || fly.quantityAvailable === null || fly.quantityAvailable === undefined ? "-" : fly.quantityAvailable),
-    `<button class="button secondary inventory-edit-action" type="button" data-edit-lure="${escapeHtml(fly.id)}">Edit</button>`
+    String(fly.flyCategory || "Other"),
+    String(fly.flyPattern || "-"),
+    String(fly.flyHookSize || "-"),
+    String(fly.color || "-"),
+    String(fly.quantityAvailable === "" || fly.quantityAvailable === null || fly.quantityAvailable === undefined ? "-" : fly.quantityAvailable),
+    html`<button class="button secondary inventory-edit-action" type="button" data-edit-lure="${fly.id}">Edit</button>`
   ]));
   renderInventoryTable(els.flyInventoryTable, ["Photo", "Fly", "Fish caught", "Last used", "Category", "Pattern", "Hook size", "Color", "Owned", ""], rows, "No saved flies yet. Add a fly from any category to build your fly box.");
 }
 
-function renderFlasherInventory() {
+export function renderFlasherInventory() {
   const rows = state.flashers.map((flasher) => {
     return inventoryRow("flasher", flasher, [
       inventoryThumb(flasher),
-      escapeHtml(flasher.name || "-"),
+      String(flasher.name || "-"),
       ...gearUsageCells("flasher", flasher.id),
-      escapeHtml(flasher.type || "-"),
-      escapeHtml(flasher.brand || "-"),
-      escapeHtml(flasher.model || "-"),
-      escapeHtml(flasher.color || "-"),
-      `<button class="button secondary inventory-edit-action" type="button" data-edit-flasher="${escapeHtml(flasher.id)}">Edit</button>`
+      String(flasher.type || "-"),
+      String(flasher.brand || "-"),
+      String(flasher.model || "-"),
+      String(flasher.color || "-"),
+      html`<button class="button secondary inventory-edit-action" type="button" data-edit-flasher="${flasher.id}">Edit</button>`
     ]);
   });
   renderInventoryTable(els.flasherInventoryTable, ["Photo", "Flasher", "Fish caught", "Last used", "Type", "Brand", "Model", "Color", ""], rows, "No saved flashers yet.");
 }
 
-function setGearTab(tab) {
-  activeGearTab = tab;
+export function setGearTab(tab) {
+  ui.activeGearTab = tab;
   document.querySelectorAll("[data-gear-tab]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.gearTab === tab);
   });
@@ -336,7 +406,7 @@ function setGearTab(tab) {
   applyInventoryTableControls();
 }
 
-function renderGearLibrary() {
+export function renderGearLibrary() {
   renderReelInventory();
   renderRodInventory();
   renderComboInventory();
@@ -344,5 +414,6 @@ function renderGearLibrary() {
   renderBaitInventory();
   renderFlyInventory();
   renderFlasherInventory();
-  setGearTab(activeGearTab);
+  setGearTab(ui.activeGearTab);
 }
+

@@ -1,15 +1,14 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert");
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
-const context = { console, fishCount: () => 1 };
-vm.createContext(context);
-vm.runInContext(fs.readFileSync("static/js/leaderboard.js", "utf8"), context);
+installBrowserEnv();
+const { anglerLeaderboardRows, fishingGearLeaderboardRows } = await import("../static/js/leaderboard.js");
 
 const gear = {
   lures: [
     { id: "silver-lure", name: "Silver Streak" },
-    { id: "green-lure", name: "Green Machine" }
+    { id: "green-lure", name: "Green Machine" },
   ],
   flashers: [{ id: "chrome-flasher", name: "Chrome Spin Doctor" }],
   rods: [{ id: "trolling-rod", brand: "Okuma", name: "Classic Pro" }],
@@ -18,14 +17,14 @@ const gear = {
     id: "main-combo",
     shortName: "Main trolling combo",
     rodId: "trolling-rod",
-    reelId: "line-counter"
-  }]
+    reelId: "line-counter",
+  }],
 };
 
 const people = [
   { id: "alex", name: "Alex" },
   { id: "sam", name: "Sam" },
-  { id: "no-trips", name: "New Angler" }
+  { id: "no-trips", name: "New Angler" },
 ];
 
 const trips = [
@@ -39,7 +38,7 @@ const trips = [
         flasherId: "chrome-flasher",
         rodId: "trolling-rod",
         reelId: "line-counter",
-        comboId: "main-combo"
+        comboId: "main-combo",
       },
       {
         id: "line-2",
@@ -47,19 +46,19 @@ const trips = [
         flasherId: "chrome-flasher",
         rodId: "trolling-rod",
         reelId: "line-counter",
-        comboId: "main-combo"
-      }
+        comboId: "main-combo",
+      },
     ],
     catches: [
       { id: "catch-1", setupLineId: "line-1", personId: "alex" },
       { id: "catch-2", setupLineId: "line-1", personId: "alex" },
       { id: "catch-3", setupLineId: "line-2", personId: "sam" },
-      { id: "unattributed", setupLineId: "", personId: "" }
+      { id: "unattributed", setupLineId: "", personId: "" },
     ],
     lostFish: [
       { id: "lost-1", setupLineId: "line-1", personId: "alex" },
-      { id: "lost-2", setupLineId: "line-2", personId: "sam" }
-    ]
+      { id: "lost-2", setupLineId: "line-2", personId: "sam" },
+    ],
   },
   {
     id: "trip-2",
@@ -70,28 +69,18 @@ const trips = [
       flasherId: "chrome-flasher",
       rodId: "trolling-rod",
       reelId: "line-counter",
-      comboId: "main-combo"
+      comboId: "main-combo",
     }],
     catches: [{ id: "catch-4", setupLineId: "line-3", personId: "sam" }],
-    lostFish: []
-  }
+    lostFish: [],
+  },
 ];
 
-context.resolveTripLineRecord = (record) => {
-  const line = (record.trip.gearUsed || []).find((item) => item.id === record.setupLineId);
-  return line ? { ...record, ...line, setupLine: line } : record;
-};
-
-const gearRows = vm.runInContext(
-  `fishingGearLeaderboardRows(${JSON.stringify(trips)}, ${JSON.stringify(gear)})`,
-  context
-);
-const gearResult = JSON.parse(JSON.stringify(gearRows));
-
+const gearResult = structuredClone(fishingGearLeaderboardRows(trips, gear));
 assert.equal(gearResult.length, 6);
 assert.deepEqual(
   [...new Set(gearResult.map((row) => row.gearType))].sort(),
-  ["combo", "flasher", "lure", "reel", "rod"]
+  ["combo", "flasher", "lure", "reel", "rod"],
 );
 assert.equal(gearResult.some((row) => row.id === "port-rigger"), false);
 assert.equal(gearResult.some((row) => row.name === "Cisco Holder"), false);
@@ -117,12 +106,7 @@ assert.equal(combo.lost, 2);
 assert.equal(combo.trips, 2);
 assert.equal(Math.round(combo.catchShare), 100);
 
-const anglerRows = vm.runInContext(
-  `anglerLeaderboardRows(${JSON.stringify(trips)}, ${JSON.stringify(people)})`,
-  context
-);
-const anglerResult = JSON.parse(JSON.stringify(anglerRows));
-
+const anglerResult = structuredClone(anglerLeaderboardRows(trips, people));
 assert.equal(anglerResult.length, 3);
 assert.equal(anglerResult[0].id, "alex");
 assert.equal(anglerResult[0].landed, 2);
@@ -137,28 +121,14 @@ assert.equal(sam.lost, 1);
 assert.equal(sam.trips, 2);
 assert.equal(sam.catchesPerTrip, 1);
 
-context.state = {
-  trips,
-  settings: {},
-  ...gear
-};
-context.fishCount = () => 1;
-context.escapeHtml = (value) => String(value);
-
-const filteredGearRows = vm.runInContext(
-  `fishingGearLeaderboardRows(${JSON.stringify(trips)}, ${JSON.stringify(gear)}, {
-    recordFilter: (record) => record.personId === "alex"
-  })`,
-  context
-);
-const filteredResult = JSON.parse(JSON.stringify(filteredGearRows));
+const filteredResult = structuredClone(fishingGearLeaderboardRows(trips, gear, {
+  recordFilter: (record) => record.personId === "alex",
+}));
 assert.equal(filteredResult.find((row) => row.id === "silver-lure").landed, 2);
 assert.equal(filteredResult.find((row) => row.id === "green-lure").landed, 0);
 
-const indexMarkup = fs.readFileSync("standalone.html", "utf8");
+const indexMarkup = await readFile(new URL("../standalone.html", import.meta.url), "utf8");
 assert.doesNotMatch(indexMarkup, /Boat leaderboard|Deck performance|statsEquipmentLeaderboard/);
 assert.match(indexMarkup, /id="leaderboardPanel"/);
 assert.match(indexMarkup, /id="statsLureLeaderboard"/);
 assert.match(indexMarkup, /People Leaderboard/);
-
-console.log("leaderboard tests passed");

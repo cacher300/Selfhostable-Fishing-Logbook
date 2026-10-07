@@ -1,30 +1,39 @@
-let checklistSaveTimer = null;
-let activeChecklistPointer = null;
+import { html, joinHtml, setHtml } from "./html.js";
+import { createId } from "./app-defaults.js";
+import { state } from "./app-state.js";
+import { replaceChecklists } from "./actions.js";
+import { els } from "./app-elements.js";
+import { settingsUi } from "./settings-core.js";
+import { checklistDraftFromSettings, checklistsFromDraft } from "./settings-draft.js";
 
-function savedChecklists() {
+
+export let checklistSaveTimer = null;
+export let activeChecklistPointer = null;
+
+export function savedChecklists() {
   return Array.isArray(state.settings?.checklists) ? state.settings.checklists : [];
 }
 
-function checklistItemMarkup(item = {}) {
-  return `
-    <li class="checklist-item" data-checklist-item-id="${escapeHtml(item.id || createId())}">
+export function checklistItemMarkup(item = {}, checklistIndex = 0, itemIndex = 0) {
+  return html`
+    <li class="checklist-item" data-checklist-item-id="${item.id || createId()}">
       <span class="checklist-drag-handle" aria-hidden="true" title="Drag to reorder">⠿</span>
-      <input class="checklist-item-done" type="checkbox" ${item.done ? "checked" : ""} aria-label="Mark checklist item complete" />
-      <input class="checklist-item-label" type="text" maxlength="120" value="${escapeHtml(item.label || "")}" placeholder="Checklist item" aria-label="Checklist item" />
+      <input class="checklist-item-done" type="checkbox" ${item.done ? "checked" : ""} data-settings-draft="checklistsDraft" data-settings-bind="${checklistIndex}.items.${itemIndex}.done" aria-label="Mark checklist item complete" />
+      <input class="checklist-item-label" type="text" maxlength="120" value="${item.label || ""}" data-settings-draft="checklistsDraft" data-settings-bind="${checklistIndex}.items.${itemIndex}.label" placeholder="Checklist item" aria-label="Checklist item" />
       <button class="icon-button" type="button" data-delete-checklist-item aria-label="Delete checklist item">×</button>
     </li>
   `;
 }
 
-function checklistCardMarkup(checklist, index, total) {
+export function checklistCardMarkup(checklist, index, total) {
   const done = checklist.items.filter((item) => item.done).length;
   const percent = checklist.items.length ? Math.round((done / checklist.items.length) * 100) : 0;
-  return `
-    <article class="checklist-card" data-checklist-id="${escapeHtml(checklist.id)}">
+  return html`
+    <article class="checklist-card" data-checklist-id="${checklist.id}">
       <header class="checklist-card-header">
         <span class="checklist-drag-handle" aria-hidden="true" title="Drag to reorder">⠿</span>
         <div class="checklist-title-block">
-          <input class="checklist-name" type="text" maxlength="60" value="${escapeHtml(checklist.name)}" aria-label="Checklist name" />
+          <input class="checklist-name" type="text" maxlength="60" value="${checklist.name}" data-settings-draft="checklistsDraft" data-settings-bind="${index}.name" aria-label="Checklist name" />
           <span class="checklist-progress-label">${done} of ${checklist.items.length} complete</span>
         </div>
         <div class="checklist-card-actions">
@@ -33,7 +42,7 @@ function checklistCardMarkup(checklist, index, total) {
         </div>
       </header>
       <div class="checklist-progress" aria-hidden="true"><span style="width: ${percent}%"></span></div>
-      <ul class="checklist-items">${checklist.items.map(checklistItemMarkup).join("")}</ul>
+      <ul class="checklist-items">${joinHtml(checklist.items.map((item, itemIndex) => checklistItemMarkup(item, index, itemIndex)))}</ul>
       <footer class="checklist-card-footer">
         <button class="button secondary" type="button" data-add-checklist-item>Add Item</button>
         <button class="button secondary" type="button" data-reset-checklist ${done ? "" : "disabled"}>Reset Checklist</button>
@@ -43,41 +52,26 @@ function checklistCardMarkup(checklist, index, total) {
   `;
 }
 
-function renderChecklists({ focusChecklistId = "", focusItemId = "" } = {}) {
+export function renderChecklists({ focusChecklistId = "", focusItemId = "" } = {}) {
   if (!els.checklistList) return;
-  const checklists = savedChecklists();
-  els.checklistList.innerHTML = checklists.map((checklist, index) => checklistCardMarkup(checklist, index, checklists.length)).join("");
+  if (!settingsUi.checklistsDraft) settingsUi.checklistsDraft = checklistDraftFromSettings(state.settings || {});
+  const checklists = settingsUi.checklistsDraft;
+  setHtml(els.checklistList, joinHtml(checklists.map((checklist, index) => checklistCardMarkup(checklist, index, checklists.length))));
   els.checklistsEmpty?.classList.toggle("hidden", checklists.length > 0);
   if (focusItemId) els.checklistList.querySelector(`[data-checklist-item-id="${CSS.escape(focusItemId)}"] .checklist-item-label`)?.focus();
   else if (focusChecklistId) els.checklistList.querySelector(`[data-checklist-id="${CSS.escape(focusChecklistId)}"] .checklist-name`)?.select();
 }
 
-function checklistsFromView() {
-  const existing = savedChecklists();
-  return [...els.checklistList?.querySelectorAll(".checklist-card") || []].map((card) => {
-    const id = card.dataset.checklistId || createId();
-    const previous = existing.find((checklist) => checklist.id === id) || {};
-    const previousItems = new Map((previous.items || []).map((item) => [item.id, item]));
-    return {
-      ...previous,
-      id,
-      name: card.querySelector(".checklist-name")?.value ?? previous.name ?? "",
-      items: [...card.querySelectorAll(".checklist-item")].flatMap((item) => {
-        const itemId = item.dataset.checklistItemId || createId();
-        const label = item.querySelector(".checklist-item-label")?.value ?? "";
-        if (!label.trim()) return [];
-        return [{
-          ...(previousItems.get(itemId) || {}),
-          id: itemId,
-          label,
-          done: item.querySelector(".checklist-item-done")?.checked === true
-        }];
-      })
-    };
-  });
+export function currentChecklistDraft() {
+  if (!settingsUi.checklistsDraft) settingsUi.checklistsDraft = checklistDraftFromSettings(state.settings || {});
+  return settingsUi.checklistsDraft;
 }
 
-function setChecklistSaveStatus(card, message, stateName = "") {
+export function checklistsFromDraftState() {
+  return checklistsFromDraft(currentChecklistDraft(), savedChecklists());
+}
+
+export function setChecklistSaveStatus(card, message, stateName = "") {
   const status = card?.querySelector(".checklist-save-status");
   if (!status) return;
   status.textContent = message;
@@ -85,12 +79,11 @@ function setChecklistSaveStatus(card, message, stateName = "") {
   status.classList.toggle("is-error", stateName === "error");
 }
 
-async function persistChecklistsFromView({ rerender = false } = {}) {
+export async function persistChecklistsDraft({ rerender = false } = {}) {
   clearTimeout(checklistSaveTimer);
-  const source = checklistsFromView();
-  state.settings.checklists = source;
+  const source = checklistsFromDraftState();
   try {
-    await saveState();
+    await replaceChecklists(source);
     if (rerender) renderChecklists();
     else els.checklistList?.querySelectorAll(".checklist-card").forEach((card) => setChecklistSaveStatus(card, "Saved"));
   } catch (error) {
@@ -99,50 +92,51 @@ async function persistChecklistsFromView({ rerender = false } = {}) {
   }
 }
 
-function queueChecklistSave(card) {
+export function queueChecklistSave(card) {
   clearTimeout(checklistSaveTimer);
   setChecklistSaveStatus(card, "Saving…", "saving");
-  checklistSaveTimer = setTimeout(() => persistChecklistsFromView(), 500);
+  checklistSaveTimer = setTimeout(() => persistChecklistsDraft(), 500);
 }
 
-function updateChecklistCardProgress(card) {
-  const items = [...card.querySelectorAll(".checklist-item")];
-  const done = items.filter((item) => item.querySelector(".checklist-item-done")?.checked).length;
+export function updateChecklistCardProgress(card) {
+  const checklist = currentChecklistDraft().find((item) => item.id === card?.dataset.checklistId);
+  const items = checklist?.items || [];
+  const done = items.filter((item) => item.done).length;
   const percent = items.length ? Math.round((done / items.length) * 100) : 0;
   card.querySelector(".checklist-progress-label").textContent = `${done} of ${items.length} complete`;
   card.querySelector(".checklist-progress span").style.width = `${percent}%`;
   card.querySelector("[data-reset-checklist]").disabled = done === 0;
 }
 
-async function createChecklist() {
-  const checklists = checklistsFromView();
+export async function createChecklist() {
+  const checklists = currentChecklistDraft();
   const checklist = { id: createId(), name: "New Checklist", items: [] };
-  state.settings.checklists = [...checklists, checklist];
-  await saveState();
+  settingsUi.checklistsDraft = [...checklists, checklist];
+  await replaceChecklists(checklistsFromDraftState());
+  settingsUi.checklistsDraft = checklistDraftFromSettings(state.settings || {});
   renderChecklists({ focusChecklistId: checklist.id });
 }
 
-async function handleChecklistAction(event) {
+export async function handleChecklistAction(event) {
   const card = event.target.closest(".checklist-card");
   if (!card) return;
   if (event.target.closest("[data-delete-checklist-item]")) {
-    event.target.closest(".checklist-item")?.remove();
-    state.settings.checklists = checklistsFromView();
-    await saveState();
+    const checklistIndex = Number([...els.checklistList.querySelectorAll(".checklist-card")].indexOf(card));
+    const itemIndex = Number([...card.querySelectorAll(".checklist-item")].indexOf(event.target.closest(".checklist-item")));
+    currentChecklistDraft()[checklistIndex]?.items?.splice(itemIndex, 1);
+    await replaceChecklists(checklistsFromDraftState());
     renderChecklists();
     return;
   }
-  state.settings.checklists = checklistsFromView();
-  const checklists = state.settings.checklists;
+  const checklists = currentChecklistDraft();
   const checklistIndex = checklists.findIndex((item) => item.id === card.dataset.checklistId);
   if (checklistIndex < 0) return;
   const checklist = checklists[checklistIndex];
 
   if (event.target.closest("[data-add-checklist-item]")) {
     const itemId = createId();
-    card.querySelector(".checklist-items").insertAdjacentHTML("beforeend", checklistItemMarkup({ id: itemId }));
-    updateChecklistCardProgress(card);
-    card.querySelector(`[data-checklist-item-id="${CSS.escape(itemId)}"] .checklist-item-label`)?.focus();
+    checklist.items.push({ id: itemId, label: "", done: false });
+    renderChecklists({ focusItemId: itemId });
     return;
   }
   if (event.target.closest("[data-duplicate-checklist]")) {
@@ -152,35 +146,34 @@ async function handleChecklistAction(event) {
       items: checklist.items.map((item) => ({ ...item, id: createId(), done: false }))
     };
     checklists.splice(checklistIndex + 1, 0, copy);
-    state.settings.checklists = checklists;
-    await saveState();
+    await replaceChecklists(checklists);
     renderChecklists({ focusChecklistId: copy.id });
     return;
   }
   if (event.target.closest("[data-delete-checklist]")) {
     if (!confirm(`Delete ${checklist.name}?`)) return;
     checklists.splice(checklistIndex, 1);
-    state.settings.checklists = checklists;
-    await saveState();
+    await replaceChecklists(checklists);
     renderChecklists();
     return;
   }
   if (event.target.closest("[data-reset-checklist]")) {
     if (checklist.items.some((item) => item.done) && !confirm(`Reset all completed items in ${checklist.name}?`)) return;
     checklist.items.forEach((item) => { item.done = false; });
-    await saveState();
+    settingsUi.checklistsDraft = checklists;
+    await replaceChecklists(checklistsFromDraftState());
     renderChecklists();
     return;
   }
 }
 
-function clearChecklistDragState() {
+export function clearChecklistDragState() {
   els.checklistList?.querySelectorAll(".is-dragging, .is-drag-over").forEach((element) => {
     element.classList.remove("is-dragging", "is-drag-over");
   });
 }
 
-function checklistPointerTarget(event) {
+export function checklistPointerTarget(event) {
   const element = document.elementFromPoint(event.clientX, event.clientY);
   const item = element?.closest(".checklist-item");
   if (item) return { type: "item", element: item };
@@ -188,7 +181,7 @@ function checklistPointerTarget(event) {
   return card ? { type: "checklist", element: card } : null;
 }
 
-function moveChecklistDragSource(event) {
+export function moveChecklistDragSource(event) {
   const drag = activeChecklistPointer;
   const target = checklistPointerTarget(event);
   if (!drag || !target || drag.type !== target.type || drag.source === target.element) return;
@@ -203,7 +196,7 @@ function moveChecklistDragSource(event) {
   }
 }
 
-function bindChecklistDragEvents() {
+export function bindChecklistDragEvents() {
   els.checklistList?.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || event.target.closest("input, button, select, textarea")) return;
     const item = event.target.closest(".checklist-item");
@@ -238,13 +231,22 @@ function bindChecklistDragEvents() {
     const didReorder = drag.active;
     activeChecklistPointer = null;
     clearChecklistDragState();
-    if (didReorder) persistChecklistsFromView({ rerender: true }).catch((error) => console.error("Checklist reorder failed.", error));
+    if (didReorder) {
+      settingsUi.checklistsDraft = [...els.checklistList.querySelectorAll(".checklist-card")].map((card) => {
+        const checklist = currentChecklistDraft().find((item) => item.id === card.dataset.checklistId) || {};
+        const items = [...card.querySelectorAll(".checklist-item")].map((row) => (
+          (checklist.items || []).find((item) => item.id === row.dataset.checklistItemId) || {}
+        ));
+        return { ...checklist, items };
+      });
+      persistChecklistsDraft({ rerender: true }).catch((error) => console.error("Checklist reorder failed.", error));
+    }
   };
   els.checklistList?.addEventListener("pointerup", finishPointerDrag);
   els.checklistList?.addEventListener("pointercancel", finishPointerDrag);
 }
 
-function bindChecklistEvents() {
+export function bindChecklistEvents() {
   els.newChecklistButton?.addEventListener("click", () => createChecklist().catch((error) => alert(error.message || "The checklist could not be created.")));
   els.emptyNewChecklistButton?.addEventListener("click", () => createChecklist().catch((error) => alert(error.message || "The checklist could not be created.")));
   els.checklistList?.addEventListener("click", (event) => {

@@ -1,37 +1,43 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert");
+import assert from "node:assert/strict";
+import { installBrowserEnv, okJson, setFetch } from "./helpers/browser-env.mjs";
 
-vm.runInThisContext(fs.readFileSync("static/js/app-persistence.js", "utf8"));
+installBrowserEnv();
+const { defaults } = await import("../static/js/app-defaults.js");
+const appState = await import("../static/js/app-state.js");
+const { commit, replaceState } = await import("../static/js/store.js");
 
-const saved = { trips: [{ id: "trip", notePhotos: [] }] };
-const storage = new Map([["logbook", JSON.stringify(saved)]]);
-global.storageKey = "logbook";
-global.localStorage = {
-  getItem: (key) => storage.get(key) || null,
-  setItem: (key, value) => storage.set(key, value)
+const saved = {
+  ...structuredClone(defaults),
+  trips: [{ id: "trip", notePhotos: [] }],
 };
-global.location = { protocol: "https:" };
-global.logbookRevision = '"1"';
-global.validateState = (value) => structuredClone(value);
-global.state = structuredClone(saved);
-rememberPersistedState(state);
 
-async function testFailedSaveRestoresLastPersistedState() {
-  state.trips[0].notePhotos.push({ path: "trip-photos/unsaved.jpg" });
-  global.protectedFetch = async () => ({
-    ok: false,
-    json: async () => ({ error: "simulated save failure" })
-  });
+replaceState(saved, { revision: '"1"' });
+setFetch(async (url) => {
+  if (url === "/api/csrf-token") return okJson({ csrfToken: "test-token" });
+  return okJson({ error: "simulated save failure" }, { status: 500 });
+});
 
-  await assert.rejects(saveState(), /simulated save failure/);
-  assert.deepEqual(state, saved);
-  assert.deepEqual(JSON.parse(storage.get("logbook")), saved);
-}
+await assert.rejects(
+  commit((draft) => {
+    draft.trips[0].notePhotos.push({ id: "unsaved", category: "trip-photos", filename: "unsaved.jpg" });
+  }),
+  /simulated save failure/,
+);
+assert.deepEqual(appState.state, saved, "failed commits leave state unchanged");
 
-testFailedSaveRestoresLastPersistedState()
-  .then(() => console.log("media save failure tests passed"))
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  });
+const calls = [];
+setFetch(async (url, options = {}) => {
+  calls.push({ url, options });
+  if (url === "/api/csrf-token") return okJson({ csrfToken: "test-token" });
+  return okJson({}, { headers: { ETag: '"2"' } });
+});
+
+await commit((draft) => {
+  draft.trips[0].notePhotos.push({ id: "saved", category: "trip-photos", filename: "saved.jpg" });
+});
+assert.equal(appState.state.trips[0].notePhotos.length, 1);
+const saveCall = calls.find((call) => call.url === "/api/logbook");
+assert(saveCall, "successful edits save the logbook");
+assert.equal(saveCall.options.method, "PUT");
+assert.equal(saveCall.options.headers.get("If-Match"), '"1"');
+assert.deepEqual(JSON.parse(saveCall.options.body), appState.state);

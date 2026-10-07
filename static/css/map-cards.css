@@ -1,0 +1,53 @@
+/* Map pop-up cards (map clicks and stations): cards.js. Shared with the Great Lakes Trolling site. */
+.gl-popup .leaflet-popup-content-wrapper { padding: 0; border-radius: 16px; background: var(--panel-solid, var(--panel)); }
+.gl-popup .leaflet-popup-tip { background: var(--panel-solid, var(--panel)); }
+.gl-popup .leaflet-popup-content { margin: 0; font: inherit; }
+.gl-popup a.leaflet-popup-close-button { top: 11px; right: 10px; width: 26px; height: 26px; border-radius: 999px; font: 400 19px/25px system-ui, sans-serif; }
+.gl-popup a.leaflet-popup-close-button:hover { background: var(--hover); }
+
+.gl-card { display: grid; }
+.gl-card-head { display: grid; gap: 3px; padding: 14px 44px 12px; text-align: center; }
+.gl-card-title { font-size: 16px; font-weight: 800; line-height: 1.25; }
+.gl-card.is-loading .gl-card-title { color: var(--muted); font-weight: 600; }
+.gl-card-sub { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+.gl-reading { display: grid; gap: 2px; padding: 12px 16px 14px; border-top: 1px solid var(--line); text-align: center; }
+.gl-reading-label { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.gl-reading-value { display: flex; align-items: baseline; justify-content: center; gap: 5px; margin-top: 3px; }
+.gl-reading-value strong { font-size: 30px; font-weight: 800; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.gl-reading-value > span { color: var(--muted); font-size: 15px; font-weight: 700; }
+.gl-reading-note { color: var(--muted); font-size: 12.5px; }
+.gl-direction { flex: none; width: 22px; height: 22px; align-self: center; margin-right: 3px; fill: var(--green); }
+
+.gl-rows { display: grid; margin: 10px 0 0; }
+.gl-rows div { display: flex; align-items: baseline; justify-content: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.gl-rows dt { color: var(--muted); }
+.gl-rows dd { margin: 0; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+
+.gl-card-action { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; width: 100%; margin-top: 12px; padding: 9px 12px; border: 1px solid var(--chip-line); border-radius: 10px; background: var(--active-bg); color: var(--active-text); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.gl-card-action > span { grid-column: 2; min-width: 0; text-align: center; }
+.gl-card-action > svg { grid-column: 3; justify-self: end; }
+.gl-card-action:hover { filter: brightness(1.15); }
+.gl-card-action:disabled { cursor: wait; opacity: .7; }
+.gl-card-action svg, .gl-card-link svg { flex: none; width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.gl-current-table { display: grid; max-height: 170px; margin-top: 8px; overflow: auto; font-size: 12.5px; }
+.gl-current-table > div { display: grid; grid-template-columns: 52px 66px 1fr; align-items: center; gap: 6px; padding: 7px 0; border-top: 1px solid var(--line); text-align: center; }
+.gl-current-table > div > span:first-child { color: var(--muted); }
+.gl-current-table strong { font-variant-numeric: tabular-nums; }
+.gl-current-table > div > span:last-child { display: flex; align-items: center; justify-content: center; gap: 5px; }
+.gl-current-table .gl-direction { width: 13px; height: 13px; margin: 0; }
+.gl-reading .gl-current-table + .gl-reading-note { margin-top: 6px; }
+
+/* A station's saved readings: one small line chart per measurement. */
+.gl-station-history { display: grid; gap: 8px; padding: 12px 16px 14px; border-top: 1px solid var(--line); text-align: center; }
+.gl-spark { display: grid; gap: 3px; text-align: left; }
+.gl-spark-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
+.gl-spark-head strong { color: var(--text); font-size: 13px; font-variant-numeric: tabular-nums; }
+.gl-spark svg { display: block; width: 100%; height: 52px; overflow: visible; border-radius: 6px; background: var(--field); }
+.gl-spark path { fill: none; stroke: #5fb8f5; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.gl-spark-marker { stroke: #fcda24; stroke-width: 1.4; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
+.gl-spark-axis { display: flex; justify-content: space-between; gap: 6px; color: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+
+.gl-card-link { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 16px 13px; border-top: 1px solid var(--line); color: #8fc3f0; font-size: 13px; font-weight: 700; text-decoration: none; }
+.gl-card-link:hover { color: #b9dbf8; }

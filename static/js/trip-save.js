@@ -1,285 +1,80 @@
-function collectTripFromForm() {
-  const trolling = isTrollingTrip();
-  const people = collectPeople();
-  const existingTrip = state.trips.find((trip) => trip.id === getValue("tripId"));
-  const existingTripMetadata = { ...(existingTrip || {}) };
-  const gearUsed = [...els.tripGearRows.querySelectorAll(".gear-used-row")]
-    .map((row) => ({
-      // Setup lines are extensible shared records. Preserve valid v2 fields
-      // owned by another client (for example per-line person attribution).
-      ...(existingTrip?.gearUsed?.find((line) => line.id === row.dataset.gearId) || {}),
-      id: row.dataset.gearId || createId(),
-      startTime: row.querySelector(".trip-gear-start-time").value,
-      endTime: row.querySelector(".trip-gear-end-time").value,
-      changeNote: row.querySelector(".trip-gear-change-note").value.trim(),
-      side: trolling ? row.querySelector(".trip-gear-side").value : "",
-      lineLabel: trolling ? row.querySelector(".trip-gear-line-label").value.trim() : "",
-      hasLeadcore: trolling && isLeadcoreCapablePresentation(row.querySelector(".catch-presentation").value)
-        ? row.querySelector(".trip-gear-leadcore").checked
-        : false,
-      comboId: row.querySelector(".trip-gear-combo").value,
-      rodId: selectedComboForRow(row)?.rodId || "",
-      reelId: selectedComboForRow(row)?.reelId || "",
-      lureId: row.querySelector(".trip-gear-lure").value,
-      rigging: isSoftPlasticLureRow(row) ? row.querySelector(".trip-gear-rigging").value : "",
-      riggingDetails: isSoftPlasticLureRow(row) ? row.querySelector(".trip-gear-rigging-details").value.trim() : "",
-      leader: isFlyFishingTrip() ? row.querySelector(".trip-gear-leader").value.trim() : "",
-      tippet: isFlyFishingTrip() ? row.querySelector(".trip-gear-tippet").value.trim() : "",
-      flasherId: trolling ? row.querySelector(".trip-gear-flasher").value : "",
-      presentation: trolling ? row.querySelector(".catch-presentation").value : "",
-      distanceBehind: trolling ? row.querySelector(".trip-gear-distance-behind").value.trim() : "",
-      dipseyDiverColor: trolling && isDipseyDiverColorPresentation(row.querySelector(".catch-presentation").value)
-        ? row.querySelector(".trip-gear-dipsey-diver-color").value.trim()
-        : "",
-      attachedWeightOz: trolling && isAttachedWeightPresentation(row.querySelector(".catch-presentation").value)
-        ? row.querySelector(".trip-gear-attached-weight").value.trim()
-        : "",
-      hasCheater: trolling && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
-        ? row.querySelector(".trip-gear-cheater").checked
-        : false,
-      cheaterLureId: trolling
-        && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
-        && row.querySelector(".trip-gear-cheater").checked
-        ? row.querySelector(".trip-gear-cheater-lure").value
-        : "",
-      lureMinutes: row.querySelector(".trip-gear-lure").value ? setupMinutesFromRow(row) : 0,
-      flasherMinutes: trolling && row.querySelector(".trip-gear-flasher").value ? setupMinutesFromRow(row) : 0
-    }))
-    .filter((item) => (
-      item.startTime
-      || item.endTime
-      || item.changeNote
-      || item.lineLabel
-      || item.hasLeadcore
-      || item.comboId
-      || item.rodId
-      || item.reelId
-      || item.lureId
-      || item.rigging
-      || item.riggingDetails
-      || item.flasherId
-      || item.lureMinutes
-      || item.flasherMinutes
-      || item.presentation
-      || item.distanceBehind
-      || item.dipseyDiverColor
-      || item.attachedWeightOz
-      || item.hasCheater
-      || item.cheaterLureId
-    ));
+﻿import { state, ui } from "./app-state.js";
+import { generatedTripTitle } from "./app-normalization.js";
+import { saveTripRecord, upsertListValueInDraft } from "./actions.js";
+import { cleanupDeletedMedia, markMediaEditSessionSaved, mediaReferenceKeys } from "./app-media.js";
+import { enrichTripWithWeather, resolveTripWaveSnapshot, weatherWindText } from "./location-weather.js";
+import { renderAll } from "./dashboard.js";
+import { closeTripDialog, confirmTripSaveWarnings, deleteTripById, mergePeople, setTripSaveLoading, setValue, showTripFormMessage, validateTripForm } from "./trip-editor.js";
+import { sourceTripForDraft, tripDraftIsPristine, tripFromDraft } from "./trip-draft.js";
 
-  const collectFishRows = (container, lost = false) => [...container.querySelectorAll(".catch-row")]
-    .map((row) => {
-      const casting = isCastingTrip();
-      const detailsUnknown = !lost && Boolean(row.querySelector(".catch-details-unknown")?.checked);
-      const spotSelection = row.querySelector(".catch-spot")?.value || "__automatic__";
-      const existingFish = (lost ? existingTrip?.lostFish : existingTrip?.catches)?.find((fish) => fish.id === row.dataset.catchId);
-      const base = {
-        // Preserve valid v2 fish fields not represented by this editor, such
-        // as quantity and cheater depth, as well as additive client metadata.
-        ...(existingFish || {}),
-        id: row.dataset.catchId || createId(),
-        detailsUnknown,
-        personId: detailsUnknown ? "" : row.querySelector(".catch-person").value,
-        species: lost ? "" : row.querySelector(".catch-species").value.trim(),
-        possibleSpecies: lost ? row.querySelector(".catch-possible-species").value.trim() : "",
-        released: detailsUnknown || lost ? false : !row.querySelector(".catch-released").checked,
-        length: lost ? "" : row.querySelector(".catch-length").value.trim(),
-        weight: lost ? "" : row.querySelector(".catch-weight").value.trim(),
-        spotAssignmentMode: spotSelection === "__automatic__" ? "automatic" : "manual",
-        spotId: spotSelection.startsWith("__") ? "" : spotSelection,
-        structureType: detailsUnknown ? "" : row.querySelector(".catch-structure").value,
-        time: detailsUnknown ? "" : row.querySelector(".catch-time").value,
-        timeUnknown: detailsUnknown ? false : row.querySelector(".catch-time-unknown").checked,
-        waterDepth: detailsUnknown ? "" : row.querySelector(".catch-water-depth").value.trim(),
-        depthDown: detailsUnknown ? "" : row.querySelector(".catch-depth-down").value.trim(),
-        presentation: !detailsUnknown && trolling ? row.querySelector(".catch-presentation").value : "",
-        direction: !detailsUnknown && trolling ? row.querySelector(".catch-direction").value : "",
-        fowCaught: !detailsUnknown && (trolling || lost) ? row.querySelector(".catch-fow").value.trim() : "",
-        gpsSpeed: !detailsUnknown && trolling ? row.querySelector(".catch-gps-speed").value.trim() : "",
-        ballSpeed: !detailsUnknown && trolling ? row.querySelector(".catch-ball-speed").value.trim() : "",
-        ballTemp: !detailsUnknown && trolling ? row.querySelector(".catch-ball-temp").value.trim() : "",
-        shaker: !detailsUnknown && trolling ? row.querySelector(".catch-shaker").checked : false,
-        retrieve: !detailsUnknown && casting ? row.querySelector(".catch-retrieve").value.trim() : "",
-        flyPresentation: !detailsUnknown && isFlyFishingTrip() ? row.querySelector(".catch-fly-presentation").value : "",
-        rigging: !detailsUnknown && !trolling && isSoftPlasticLureRow(row) ? row.querySelector(".catch-rigging").value : "",
-        riggingDetails: !detailsUnknown && !trolling && isSoftPlasticLureRow(row) ? row.querySelector(".catch-rigging-details").value.trim() : "",
-        ballDepth: !detailsUnknown && trolling ? row.querySelector(".catch-ball-depth").value.trim() : "",
-        deepestRigger: !detailsUnknown && trolling
-          && ["downrigger", "Downrigger"].includes(row.querySelector(".catch-presentation").value)
-          && !row.querySelector(".catch-setup-line").value.endsWith("::cheater")
-          ? row.querySelector(".catch-deepest-rigger").checked
-          : false,
-        flatlineWeightOz: !detailsUnknown && trolling ? row.querySelector(".catch-flatline-weight-oz").value.trim() : "",
-        lineBehindBoard: !detailsUnknown && trolling ? row.querySelector(".catch-line-behind-board").value.trim() : "",
-        leadcoreColors: !detailsUnknown && trolling ? row.querySelector(".catch-leadcore-colors").value.trim() : "",
-        estimatedLureDepth: !detailsUnknown && trolling ? row.querySelector(".catch-estimated-lure-depth").value.trim() : "",
-        dipseySetting: !detailsUnknown && trolling ? row.querySelector(".catch-dipsey-setting").value.trim() : "",
-        lineOut: !detailsUnknown && trolling ? row.querySelector(".catch-line-out").value.trim() : "",
-        estimatedDepth: !detailsUnknown && trolling ? row.querySelector(".catch-estimated-depth").value.trim() : "",
-        notes: row.querySelector(".catch-notes").value.trim(),
-        metadataLocks: detailsUnknown ? { time: false, location: false, fow: false } : catchMetadataLocksPayload(row),
-        lockedLocationCoordinates: detailsUnknown ? null : lockedPhotoCoordinatesFromRow(row),
-        manualCoordinates: detailsUnknown ? null : manualCoordinatesFromRow(row),
-        coordinates: detailsUnknown ? null : fishCoordinatesFromRow(row),
-        photoLocationId: detailsUnknown ? "" : (catchPhotoLocationById(row)?.id || ""),
-        heroPhotoId: detailsUnknown ? "" : (selectedCatchHeroPhoto(row)?.id || ""),
-        photos: detailsUnknown ? [] : collectCatchPhotos(row)
-      };
-      const selectedRodId = row.querySelector(".catch-rod")?.selectedOptions?.[0]?.dataset.rodId || "";
-      if (!detailsUnknown && row.catchWeatherData) base.weatherData = row.catchWeatherData;
-      else if (detailsUnknown) delete base.weatherData;
-      if (!detailsUnknown && hasCatchDepthData(row.catchDepthData)) {
-        Object.assign(base, row.catchDepthData);
-      }
-      return !detailsUnknown && trolling
-        ? {
-            ...base,
-            setupLineId: row.querySelector(".catch-setup-line").value.split("::")[0],
-            setupLineTarget: row.querySelector(".catch-setup-line").value.endsWith("::cheater") ? "cheater" : "",
-            lureId: row.querySelector(".catch-lure").value
-          }
-        : {
-            ...base,
-            setupLineId: row.querySelector(".catch-rod").value || "",
-            setupLineTarget: "",
-            rodId: selectedRodId,
-            lureId: row.querySelector(".catch-lure").value,
-            presentation: ""
-          };
-    })
-    .filter((item) => (
-      item.species
-      || item.possibleSpecies
-      || item.time
-      || item.length
-      || item.weight
-      || item.detailsUnknown
-      || item.timeUnknown
-      || item.waterDepth
-      || item.structureType
-      || item.depthDown
-      || item.rodId
-      || item.setupLineId
-      || item.lureId
-      || item.presentation
-      || item.direction
-      || item.fowCaught
-      || item.gpsSpeed
-      || item.ballSpeed
-      || item.ballTemp
-      || item.shaker
-      || item.retrieve
-      || item.rigging
-      || item.riggingDetails
-      || item.ballDepth
-      || item.deepestRigger
-      || item.flatlineWeightOz
-      || item.lineBehindBoard
-      || item.leadcoreColors
-      || item.estimatedLureDepth
-      || item.dipseySetting
-      || item.lineOut
-      || item.estimatedDepth
-      || isUsableCoordinates(item.manualCoordinates)
-      || item.notes
-      || item.photos.length
-    ));
+function weatherRefreshInputsChanged(source, trip) {
+  if (!source) return true;
+  return ["date", "locationId", "launchId", "launchTime", "linesPulledTime", "waveHeight"]
+    .some((field) => String(source[field] ?? "") !== String(trip[field] ?? ""));
+}
 
-  const catches = collectFishRows(els.catchRows);
-  const lostFish = collectFishRows(els.lostFishRows, true);
-
-  const location = state.locations.find((item) => item.id === getValue("tripLocation"));
-  const launch = findLaunchByIdOrName(location, getValue("tripLaunch"), "");
-  const weatherData = activeTripWeatherData || null;
-  const waveHeight = getValue("waveHeight");
-  const waveChop = chopLabelForWaveHeight(waveHeight);
-
+async function maybeRefreshTripWeather(trip, source) {
+  if (source && !weatherRefreshInputsChanged(source, trip)) return trip;
+  const refreshed = await enrichTripWithWeather(trip);
+  const status = refreshed.weatherData?.status || "";
+  if (status === "error" || status === "missing-date" || status === "missing-coordinates") {
+    return {
+      ...trip,
+      weatherData: source?.weatherData ?? trip.weatherData ?? null,
+      wind: source?.wind ?? trip.wind ?? "",
+      weather: source?.weather ?? trip.weather ?? ""
+    };
+  }
+  const withWave = resolveTripWaveSnapshot(refreshed);
   return {
-    // Keep v2 trip data that the desktop editor does not expose (live-trip
-    // events/state and location coordinates, for example) when editing.
-    ...existingTripMetadata,
-    id: getValue("tripId") || createId(),
-    title: getValue("tripTitle"),
-    date: getValue("tripDate"),
-    expeditionId: getValue("tripExpedition"),
-    location: location?.name || "",
-    locationId: location?.id || "",
-    launch: launch?.name || "",
-    launchId: launch?.id || "",
-    launchTime: getValue("launchTime"),
-    linesPulledTime: getValue("linesPulledTime"),
-    idleHours: idleHoursFromForm(),
-    hours: Math.max(0, calculateHours(getValue("launchTime"), getValue("linesPulledTime")) - idleHoursFromForm()),
-    targetSpecies: getValue("targetSpecies"),
-    method: getValue("method"),
-    intent: getTripIntent(),
-    tripRating: tripRatingValue({ tripRating: els.tripRating.value }),
-    waterTemp: getValue("waterTemp"),
-    probeTemperatureProfile: collectProbeTemperatureProfile(),
-    waterClarity: getValue("waterClarity"),
-    flyHatch: isFlyFishingTrip() ? getValue("flyHatch") : "",
-    waterLevel: isFlyFishingTrip() ? getValue("waterLevel") : "",
-    weather: getValue("weather"),
-    waveHeight,
-    waveChop,
-    wind: weatherWindText(weatherData),
-    weatherData,
-    structure: getValue("structure"),
-    notes: getValue("tripNotes"),
-    notePhotos: collectNotePhotos(),
-    people,
-    gearUsed,
-    catches,
-    lostFish
+    ...withWave,
+    wind: weatherWindText(withWave.weatherData)
   };
 }
 
-function upsertListValue(listName, value) {
-  if (value && !state[listName].includes(value)) state[listName].push(value);
-}
-
-async function saveTrip(event) {
+export async function saveTrip(event) {
   return persistTrip(event, { draft: false });
 }
 
-async function saveTripAsDraft(event) {
+export async function saveTripAsDraft(event) {
   return persistTrip(event, { draft: true });
 }
 
-async function persistTrip(event, { draft = false } = {}) {
+export async function persistTrip(event, { draft = false } = {}) {
   event.preventDefault();
   if (!draft && !validateTripForm()) return;
   if (!draft && !confirmTripSaveWarnings()) return;
   setTripSaveLoading(true, draft ? "draft" : "save");
 
   try {
-    let trip = collectTripFromForm();
+    const sourceTrip = sourceTripForDraft(ui.tripDraft);
+    const pristineDraft = tripDraftIsPristine(ui.tripDraft);
+    const unchangedEditor = Boolean(sourceTrip && ui.tripFormInitialSnapshot === JSON.stringify(ui.tripDraft || {}));
+    let trip = unchangedEditor ? structuredClone(sourceTrip) : tripFromDraft(ui.tripDraft, { state });
     // Keep a stable id in the form so a retry after a failed request updates
     // the same in-memory trip instead of creating a duplicate.
     setValue("tripId", trip.id);
-    trip.isDraft = draft;
-    trip.title = trip.title || generatedTripTitle(trip, state.trips);
-    state.people = mergePeople(state.people, trip.people);
-    upsertListValue("species", trip.targetSpecies);
-    upsertListValue("methods", trip.method);
-    upsertListValue("waterClarities", trip.waterClarity);
-    upsertListValue("waterLevels", trip.waterLevel);
-    trip.catches.forEach((catchItem) => upsertListValue("flyPresentations", catchItem.flyPresentation));
-    upsertListValue("weatherTypes", trip.weather);
-    trip.catches.forEach((catchItem) => upsertListValue("species", catchItem.species));
-    trip.lostFish.forEach((fish) => upsertListValue("species", fish.possibleSpecies));
-    trip = await enrichTripWithWeather(trip);
-    trip = resolveTripWaveSnapshot(trip);
-    trip.wind = weatherWindText(trip.weatherData);
-    activeTripWeatherData = trip.weatherData || null;
+    if (ui.tripDraft) ui.tripDraft.id = trip.id;
+    if (draft || (!unchangedEditor && Object.hasOwn(sourceTrip || {}, "isDraft"))) trip.isDraft = draft;
+    if (!pristineDraft && !unchangedEditor) trip.title = trip.title || generatedTripTitle(trip, state.trips);
+    if (!pristineDraft && !unchangedEditor) trip = await maybeRefreshTripWeather(trip, sourceTrip);
+    ui.activeTripWeatherData = trip.weatherData || null;
+    if (ui.tripDraft) ui.tripDraft.weatherData = trip.weatherData || null;
 
     const index = state.trips.findIndex((item) => item.id === trip.id);
     const previousMedia = index >= 0 ? [...mediaReferenceKeys(state.trips[index])] : [];
-    if (index >= 0) state.trips[index] = trip;
-    else state.trips.push(trip);
 
-    await saveState();
+    await saveTripRecord(trip, (draftState) => {
+      draftState.people = mergePeople(draftState.people, trip.people);
+      upsertListValueInDraft(draftState, "species", trip.targetSpecies);
+      upsertListValueInDraft(draftState, "methods", trip.method);
+      upsertListValueInDraft(draftState, "waterClarities", trip.waterClarity);
+      upsertListValueInDraft(draftState, "waterLevels", trip.waterLevel);
+      trip.catches.forEach((catchItem) => upsertListValueInDraft(draftState, "flyPresentations", catchItem.flyPresentation));
+      upsertListValueInDraft(draftState, "weatherTypes", trip.weather);
+      trip.catches.forEach((catchItem) => upsertListValueInDraft(draftState, "species", catchItem.species));
+      trip.lostFish.forEach((fish) => upsertListValueInDraft(draftState, "species", fish.possibleSpecies));
+    });
     markMediaEditSessionSaved("trip");
     const currentMedia = mediaReferenceKeys(trip);
     await cleanupDeletedMedia(previousMedia.filter((key) => !currentMedia.has(key)));
@@ -292,10 +87,10 @@ async function persistTrip(event, { draft = false } = {}) {
   }
 }
 
-async function deleteActiveTrip() {
-  if (!activeTripId) return;
+export async function deleteActiveTrip() {
+  if (!ui.activeTripId) return;
   try {
-    await deleteTripById(activeTripId, { closeEditor: true });
+    await deleteTripById(ui.activeTripId, { closeEditor: true });
   } catch (error) {
     console.error("Could not delete trip.", error);
     showTripFormMessage(error.message || "The trip could not be deleted.");

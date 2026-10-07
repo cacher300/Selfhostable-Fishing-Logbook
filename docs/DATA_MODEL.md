@@ -55,6 +55,7 @@ Compatibility-sensitive fields include `settings.defaultPeople`, `units`, `timeF
 | `flyCategories`, `flyPresentations`, `waterLevels`, `lureBladeTypes`, `lureSpoonSizes` | string arrays | Other current form choices. |
 | `meatRigTypes` | string array | Current editable meat-rig bait/presentation choices. |
 | `softPlasticTypes` | string array | Current editable soft-plastic shape/style choices. |
+| `lureBeadSizes` | string array | Optional editable bead-size choices; clients fall back to the defaults when absent. |
 | `trollingPresentations` | `{value,label}[]` | Presentation choices. |
 | `trollingDirections` | string array | Direction choices. |
 | `setupLineSides` | `{value,label}[]` | Port/center/starboard choices. |
@@ -146,7 +147,7 @@ An optional numeric `quantity` is honored by analytics. The desktop form has no 
 
 ## Gear Entities
 
-- Lure: `id`, `name`, `type`, optional `meatRigType` when `type` is `Meat Rig`, optional `softPlasticType` when `type` is `Soft Plastic`, `brand`, `color`, `notes`, media fields. Starter soft-plastic styles cover tail shapes, flukes, worms, grubs, tubes, craws, creatures, and other common bodies. Settings → Categories can edit both subtype lists. These classify the lure itself; setup/catch rigging remains separate.
+- Lure: `id`, `name`, `type`, optional `meatRigType` when `type` is `Meat Rig`, optional `softPlasticType` when `type` is `Soft Plastic`, optional `beadSize` when `type` is `Bead`, optional `bladeType` when `type` is `Worm Harness` or `Spinnerbait`, `brand`, `color`, `notes`, media fields. Starter soft-plastic styles cover tail shapes, flukes, worms, grubs, tubes, craws, creatures, and other common bodies. Settings → Categories can edit these subtype lists. These classify the lure itself; setup/catch rigging remains separate.
 - Flasher: same core shape as lure.
 - Rod: `id`, `shortName`, `type`, `brand`, `name`, `length`, `power`, `action`, `lureRating`, `purchaseAmount`, `dateBought`, `notes`, media fields.
 - Reel: `id`, `shortName`, `style`, `brand`, `name`, `size`, `weight`, `gearRatio`, `retrieveRate`, `maxDrag`, `monoCapacity`, `braidCapacity`, `purchaseAmount`, `dateBought`, `notes`, media fields, `lineHistory[]`.

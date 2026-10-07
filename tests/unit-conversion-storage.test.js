@@ -1,33 +1,22 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert");
+import assert from "node:assert/strict";
+import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
-const context = {
-  console,
-  structuredClone,
-  crypto: { randomUUID: () => "test-id" },
-  localStorage: { getItem: () => null, setItem: () => {} },
-  location: { protocol: "file:" }
-};
-context.globalThis = context;
-vm.createContext(context);
-vm.runInContext(fs.readFileSync("static/js/app-config.js", "utf8"), context);
-vm.runInContext(fs.readFileSync("static/js/app-defaults.js", "utf8"), context);
-vm.runInContext(fs.readFileSync("static/js/app-state.js", "utf8"), context);
-vm.runInContext(fs.readFileSync("static/js/app-units.js", "utf8"), context);
+installBrowserEnv();
+const appState = await import("../static/js/app-state.js");
+const { convertStoredMeasurements, convertUnitValue, displayStoredMeasurement } = await import("../static/js/app-units.js");
 
 const previousUnits = {
   depth: "ft", speed: "mph", windSpeed: "mph", waterTemperature: "F",
-  waveHeight: "ft", fishLength: "in", fishWeight: "lb"
+  waveHeight: "ft", fishLength: "in", fishWeight: "lb",
 };
 const nextUnits = {
   ...previousUnits,
   depth: "m", speed: "kph", windSpeed: "kph", waterTemperature: "C",
-  waveHeight: "m", fishLength: "cm", fishWeight: "kg"
+  waveHeight: "m", fishLength: "cm", fishWeight: "kg",
 };
 
-vm.runInContext(`state = {
-  settings: { units: ${JSON.stringify(nextUnits)} },
+appState.setState({
+  settings: { units: nextUnits },
   reels: [{ maxDrag: "20", lineHistory: [{ weight: "30" }] }],
   trips: [{
     waterTemp: "50",
@@ -37,16 +26,15 @@ vm.runInContext(`state = {
     catches: [{
       length: "24", weight: "5 lb", waterDepth: "50", depthDown: "20",
       fowCaught: "40 FOW", gpsSpeed: "2", ballSpeed: "1.8", ballTemp: "50 F", ballDepth: "15", lineBehindBoard: "60",
-      estimatedLureDepth: "18", lineOut: "75", estimatedDepth: "22"
+      estimatedLureDepth: "18", lineOut: "75", estimatedDepth: "22",
     }],
     lostFish: [],
-    gearUsed: []
-  }]
-};`, context);
+    gearUsed: [],
+  }],
+});
 
-context.convertStoredMeasurements(previousUnits, nextUnits);
-const state = vm.runInContext("state", context);
-const trip = state.trips[0];
+convertStoredMeasurements(previousUnits, nextUnits);
+const trip = appState.state.trips[0];
 const catchItem = trip.catches[0];
 
 assert.equal(trip.waterTemp, "10");
@@ -61,11 +49,9 @@ assert.equal(catchItem.gpsSpeed, "3.219");
 assert.equal(catchItem.ballSpeed, "2.897");
 assert.equal(catchItem.ballTemp, "10 °C");
 assert.equal(catchItem.lineOut, "22.86");
-assert.equal(state.reels[0].maxDrag, "9.072");
-assert.equal(state.reels[0].lineHistory[0].weight, "13.608");
-assert.equal(context.displayStoredMeasurement(catchItem.waterDepth, "depth"), "15.24 m");
-assert.equal(context.displayStoredMeasurement(catchItem.fowCaught, "depth"), "12.192 FOW (m)");
-assert.equal(context.convertUnitValue(1, "kg", "lb").toFixed(5), "2.20462");
-assert.equal(context.convertUnitValue(1, "kn", "mph").toFixed(5), "1.15078");
-
-console.log("unit storage conversion tests passed");
+assert.equal(appState.state.reels[0].maxDrag, "9.072");
+assert.equal(appState.state.reels[0].lineHistory[0].weight, "13.608");
+assert.equal(displayStoredMeasurement(catchItem.waterDepth, "depth"), "15.24 m");
+assert.equal(displayStoredMeasurement(catchItem.fowCaught, "depth"), "12.192 FOW (m)");
+assert.equal(convertUnitValue(1, "kg", "lb").toFixed(5), "2.20462");
+assert.equal(convertUnitValue(1, "kn", "mph").toFixed(5), "1.15078");

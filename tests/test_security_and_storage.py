@@ -7,10 +7,10 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from pathlib import Path
-from unittest.mock import patch
 
-from backend import logbook_store
+from backend import logbook_repository, logbook_store
 from backend.backend_config import DEFAULT_LOGBOOK
+from backend.storage.local import LocalLogbookStore
 
 
 def document(**changes):
@@ -123,9 +123,9 @@ class LogbookStoreTests(unittest.TestCase):
         }
         payload = document(trips=[trip_record])
         with tempfile.TemporaryDirectory() as directory:
-            with patch.object(logbook_store, "DATABASE_FILE", Path(directory) / "logbook.sqlite3"):
-                logbook_store.write_logbook(payload)
-                stored = logbook_store.read_logbook()
+            store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
+            store.write(payload, None)
+            stored = store.read().document
         self.assertEqual(trip_record, stored["trips"][0])
 
     def test_round_trip_preserves_all_collections_and_unknown_current_metadata(self):
@@ -136,9 +136,9 @@ class LogbookStoreTests(unittest.TestCase):
         payload = document(trips=[trip(catches=[fish])], customTopLevelField={"kept": True})
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "logbook.sqlite3"
-            with patch.object(logbook_store, "DATABASE_FILE", file):
-                logbook_store.write_logbook(payload)
-                stored = logbook_store.read_logbook()
+            store = LocalLogbookStore(file)
+            store.write(payload, None)
+            stored = store.read().document
             with closing(sqlite3.connect(file)) as connection:
                 self.assertEqual("ok", connection.execute("PRAGMA integrity_check").fetchone()[0])
                 self.assertEqual(1, connection.execute("SELECT COUNT(*) FROM logbook_entries WHERE collection_name='riggings'").fetchone()[0] > 0)
@@ -150,13 +150,59 @@ class LogbookStoreTests(unittest.TestCase):
                             "capturedAt": "2026-09-22T09:00:00Z"}]}
         payload = document(trips=[trip(catches=[fish])])
         with tempfile.TemporaryDirectory() as directory:
-            with patch.object(logbook_store, "DATABASE_FILE", Path(directory) / "logbook.sqlite3"):
-                logbook_store.write_logbook(payload)
-                edited = logbook_store.read_logbook()
-                edited["trips"][0]["title"] = "Renamed"
-                logbook_store.write_logbook(edited)
-                stored = logbook_store.read_logbook()
+            store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
+            store.write(payload, None)
+            edited = store.read().document
+            edited["trips"][0]["title"] = "Renamed"
+            store.write(edited, None)
+            stored = store.read().document
         self.assertEqual(fish, stored["trips"][0]["catches"][0])
+
+    def test_optional_lure_subtype_collections_preserve_presence(self):
+        absent = document()
+        del absent["meatRigTypes"]
+        del absent["softPlasticTypes"]
+        del absent["lureBeadSizes"]
+        with tempfile.TemporaryDirectory() as directory:
+            store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
+            store.write(absent, None)
+            stored = store.read().document
+            self.assertNotIn("meatRigTypes", stored)
+            self.assertNotIn("softPlasticTypes", stored)
+            self.assertNotIn("lureBeadSizes", stored)
+
+            present_empty = document(meatRigTypes=[], softPlasticTypes=[], lureBeadSizes=[])
+            store.write(present_empty, None)
+            stored = store.read().document
+            self.assertEqual([], stored["meatRigTypes"])
+            self.assertEqual([], stored["softPlasticTypes"])
+            self.assertEqual([], stored["lureBeadSizes"])
+
+    def test_optional_lure_subtype_collections_migrate_from_extra_to_rows(self):
+        old_collection_keys = tuple(key for key in logbook_store.COLLECTION_KEYS if key not in {"lureBeadSizes", "meatRigTypes", "softPlasticTypes"})
+        payload = document(meatRigTypes=["Custom strip"], softPlasticTypes=["Custom tail"])
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / "logbook.sqlite3"
+            logbook_repository.write(file, payload, old_collection_keys, logbook_store.OBJECT_COLLECTION_KEYS)
+            store = LocalLogbookStore(file)
+            self.assertEqual(["Custom strip"], store.read().document["meatRigTypes"])
+            edited = store.read().document
+            edited["settings"]["theme"] = "dark"
+            store.write(edited, None)
+            with closing(sqlite3.connect(file)) as connection:
+                self.assertEqual(1, connection.execute("SELECT COUNT(*) FROM logbook_entries WHERE collection_name='meatRigTypes'").fetchone()[0])
+                extra = connection.execute("SELECT value_json FROM logbook_metadata WHERE key='extra'").fetchone()[0]
+                self.assertNotIn("meatRigTypes", extra)
+
+    def test_optional_lure_subtype_collection_can_be_added_later(self):
+        payload = document()
+        del payload["meatRigTypes"]
+        with tempfile.TemporaryDirectory() as directory:
+            store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
+            store.write(payload, None)
+            store.write({**payload, "meatRigTypes": ["Custom strip"]}, None)
+            stored = store.read().document
+            self.assertEqual(["Custom strip"], stored["meatRigTypes"])
 
     def test_named_spread_default_must_reference_a_saved_spread(self):
         settings = deepcopy(DEFAULT_LOGBOOK["settings"])
@@ -212,18 +258,20 @@ class LogbookStoreTests(unittest.TestCase):
 
     def test_read_returns_v2_defaults_before_database_exists(self):
         with tempfile.TemporaryDirectory() as directory:
-            with patch.object(logbook_store, "DATABASE_FILE", Path(directory) / "missing.sqlite3"):
-                self.assertEqual(document(), logbook_store.read_logbook())
+            store = LocalLogbookStore(Path(directory) / "missing.sqlite3")
+            self.assertEqual(document(), store.read().document)
 
     def test_concurrent_writes_leave_one_complete_v2_document(self):
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "logbook.sqlite3"
-            with patch.object(logbook_store, "DATABASE_FILE", file):
-                def write(index):
-                    logbook_store.write_logbook(document(trips=[trip(id=f"trip-{index}")]))
-                with ThreadPoolExecutor(max_workers=8) as executor:
-                    list(executor.map(write, range(30)))
-                stored = logbook_store.read_logbook()
+            store = LocalLogbookStore(file)
+
+            def write(index):
+                store.write(document(trips=[trip(id=f"trip-{index}")]), None)
+
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                list(executor.map(write, range(30)))
+            stored = store.read().document
             self.assertTrue(logbook_store.validate_logbook(stored)[0])
             self.assertEqual(1, len(stored["trips"]))
 

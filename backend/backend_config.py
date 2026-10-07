@@ -1,30 +1,37 @@
+"""Static application constants.
+
+Runtime settings (data directory, bind address, secret key, storage backend)
+live in :mod:`backend.config`. The ``FISH_*`` cloud values below are read here
+only because the frozen cloud client module imports them directly.
+"""
+
 from __future__ import annotations
 
 import os
-import secrets
-from copy import deepcopy
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-configured_data_dir = os.environ.get("FISH_DATA_DIR", "").strip()
-DATA_DIR = Path(configured_data_dir or ROOT / "data").expanduser().resolve()
-DATABASE_FILE = DATA_DIR / "logbook.sqlite3"
-UPLOADS_DIR = DATA_DIR / "uploads"
-HOST = os.environ.get("HOST", "127.0.0.1")
-PORT = int(os.environ.get("PORT", "8080"))
-SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 FISH_STORAGE_BACKEND = os.environ.get("FISH_STORAGE_BACKEND", "local").strip().lower()
 FISH_CLOUD_API_URL = os.environ.get("FISH_CLOUD_API_URL", "").strip()
 FISH_API_TOKEN = os.environ.get("FISH_API_TOKEN", "")
 FISH_API_TOKEN_FILE = os.environ.get("FISH_API_TOKEN_FILE", "").strip()
-UPLOAD_CATEGORIES = {
-    "catch-photos", "trip-photos", "lures",
-    "flashers", "reels", "rods", "queue",
-}
-ALLOWED_IMAGE_EXTENSIONS = {".avif", ".gif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".webp"}
-ALLOWED_VIDEO_EXTENSIONS = {".mov", ".mp4", ".m4v", ".webm", ".avi", ".mpeg", ".mpg", ".3gp"}
-ALLOWED_MEDIA_EXTENSIONS = ALLOWED_IMAGE_EXTENSIONS | ALLOWED_VIDEO_EXTENSIONS
+_SCHEMA_DIR = ROOT / "schema"
+
+
+def _load_schema_json(name: str) -> object:
+    import json
+
+    with (_SCHEMA_DIR / name).open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+_SCHEMA_CONSTANTS = _load_schema_json("constants.json")
+SCHEMA_CONSTANTS = _SCHEMA_CONSTANTS
+UPLOAD_CATEGORIES = set(_SCHEMA_CONSTANTS["uploadCategories"])
+ALLOWED_IMAGE_EXTENSIONS = set(_SCHEMA_CONSTANTS["allowedImageExtensions"])
+ALLOWED_VIDEO_EXTENSIONS = set(_SCHEMA_CONSTANTS["allowedVideoExtensions"])
+ALLOWED_MEDIA_EXTENSIONS = set(_SCHEMA_CONSTANTS["allowedMediaExtensions"])
 PREVIEW_DIRNAME = "_previews"
 PREVIEW_MAX_SIZE = (1200, 1200)
 OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
@@ -55,221 +62,7 @@ MARINE_QUERY_KEYS = {
     "hourly",
 }
 ASTRONOMY_QUERY_KEYS = {"lat", "lng", "date", "timezone", "time_format"}
-WEATHER_HOURLY_FIELDS = [
-    "temperature_2m",
-    "apparent_temperature",
-    "relative_humidity_2m",
-    "dew_point_2m",
-    "precipitation",
-    "rain",
-    "snowfall",
-    "weather_code",
-    "surface_pressure",
-    "pressure_msl",
-    "cloud_cover",
-    "wind_speed_10m",
-    "wind_direction_10m",
-    "wind_gusts_10m",
-]
 MARINE_HOURLY_FIELDS = ["wave_height", "wave_direction", "wave_period"]
-WEATHER_DAILY_FIELDS = [
-    "weather_code",
-    "temperature_2m_max",
-    "temperature_2m_min",
-    "precipitation_sum",
-    "rain_sum",
-    "snowfall_sum",
-    "sunshine_duration",
-    "daylight_duration",
-    "sunrise",
-    "sunset",
-    "wind_speed_10m_max",
-    "wind_gusts_10m_max",
-    "wind_direction_10m_dominant",
-]
-DEFAULT_UNITS = {
-    "depth": "ft",
-    "distance": "km",
-    "speed": "mph",
-    "windSpeed": "kph",
-    "pressure": "hPa",
-    "airTemperature": "C",
-    "waterTemperature": "F",
-    "precipitation": "mm",
-    "waveHeight": "ft",
-    "fishLength": "in",
-    "fishWeight": "lb",
-}
-
-DEFAULT_SPECIES_MAP_COLORS = {
-    "Atlantic Salmon": "#c96a4a",
-    "Black Bullhead": "#343a40",
-    "Black Crappie": "#3d4b55",
-    "Bluegill": "#3f7fa3",
-    "Brown Bullhead": "#805a43",
-    "Brown Trout": "#8a5a3b",
-    "Chinook Salmon": "#a66a2c",
-    "Coho Salmon": "#c47a43",
-    "Lake Trout": "#496b7a",
-    "Largemouth Bass": "#8dbb55",
-    "Muskie": "#496b45",
-    "Northern Pike": "#7e9e55",
-    "Perch": "#e58a2b",
-    "Rainbow Trout": "#b9c8d4",
-    "Rock Bass": "#9a6a4a",
-    "Smallmouth Bass": "#27643d",
-    "Walleye": "#c2a34d",
-    "White Crappie": "#b9c6d1",
-    "Yellow Bullhead": "#c59a37",
-}
-
-BATHYMETRY_LAKES = ("Erie", "Ontario", "St. Clair", "Huron", "Michigan", "Superior")
-UNIT_OPTIONS = {
-    "depth": {"m", "ft"},
-    "distance": {"km", "mi"},
-    "speed": {"kph", "mph", "kn"},
-    "windSpeed": {"kph", "mph", "kn"},
-    "pressure": {"hPa", "kPa", "inHg", "mmHg"},
-    "airTemperature": {"C", "F"},
-    "waterTemperature": {"C", "F"},
-    "precipitation": {"mm", "in"},
-    "waveHeight": {"m", "ft"},
-    "fishLength": {"in", "cm"},
-    "fishWeight": {"lb", "kg"},
-}
-
-
-DEFAULT_LOGBOOK = {
-    "schemaVersion": 2,
-    "species": [
-        "Lake Trout",
-        "Largemouth Bass",
-        "Smallmouth Bass",
-        "Chinook Salmon",
-        "Coho Salmon",
-        "Rainbow Trout",
-        "Brown Trout",
-        "Walleye",
-        "Northern Pike",
-        "Muskie",
-        "Rock Bass",
-        "Perch",
-        "Black Crappie",
-        "White Crappie",
-        "Black Bullhead",
-        "Brown Bullhead",
-        "Yellow Bullhead",
-        "Bluegill",
-    ],
-    "methods": [
-        "Trolling",
-        "Casting",
-        "Jigging",
-        "Fly Fishing",
-        "Bait Fishing",
-        "Ice Fishing",
-        "Shore Fishing",
-    ],
-    "lureTypes": [
-        "Blade Bait",
-        "Crankbait",
-        "Dropshot",
-        "Flasher/Fly",
-        "Fly",
-        "Jerkbait",
-        "Jig",
-        "Meat Rig",
-        "Topwater",
-        "Other",
-        "Plug",
-        "Soft Plastic",
-        "Spinner",
-        "Spoon",
-        "Swimbait",
-        "Worm Harness",
-    ],
-    "flasherTypes": [
-        "Paddle",
-        "Spin Doctor",
-    ],
-    "waterClarities": [
-        "Crystal Clear",
-        "Clear",
-        "Slightly Stained",
-        "Stained",
-        "Muddy",
-    ],
-    "weatherTypes": [
-        "Sunny",
-        "Partly Cloudy",
-        "Overcast",
-        "Light Rain",
-        "Heavy Rain",
-        "Thunderstorms",
-        "Fog",
-        "Snow",
-        "Mixed",
-    ],
-    "reelStyles": ["Baitcaster", "Spinning", "Linecounter", "Centerpin", "Fly"],
-    "rodTypes": ["Baitcaster", "Spinning", "Downrigging", "Dipsey", "Centerpin", "Fly", "Tipup"],
-    "lineTypes": ["Braid", "Mono", "Fluorocarbon", "Fly Line", "Leadcore", "Wire", "Copper", "Other"],
-    "riggings": ["Wacky", "Texas", "Carolina", "Neko", "Weightless", "Drop-shot", "Jika", "Jighead", "Ned", "Other"],
-    "structureOptions": ["Drop-off", "Weedline", "Rocky bottom", "Sand bottom", "Vegetation", "Bait"],
-    "flyCategories": ["Dry Fly", "Emerger", "Nymph", "Streamer", "Terrestrial", "Egg", "Midge", "Leech", "Popper", "Junk", "Other"],
-    "flyPresentations": ["Dead Drift", "Swing", "Strip / Retrieve", "Indicator", "Euro Nymph", "Other"],
-    "waterLevels": ["Low", "Normal", "High"],
-    "lureBladeTypes": ["Colorado", "Willow Leaf", "Indiana", "Butterfly"],
-    "lureSpoonSizes": ["Micro", "Small", "Standard", "Magnum"],
-    "meatRigTypes": ["Herring Strip", "Sucker Belly Strip", "Whole Herring", "Whole Anchovy", "Whole Alewife", "Cut-Plug Herring"],
-    "softPlasticTypes": ["Paddle Tail", "Split/Fork Tail", "Fluke/Soft Jerkbait", "Straight Tail Minnow", "Straight Tail Worm", "Curly Tail Worm", "Stick Worm", "Grub/Curly Tail", "Tube", "Craw/Crayfish", "Creature Bait", "Lizard", "Frog/Toad", "Leech", "Shrimp", "Urchin", "Other"],
-    "trollingPresentations": [
-        {"value": "Outside Board", "label": "Outside Board"},
-        {"value": "Inside Board", "label": "Inside Board"},
-        {"value": "High Diver", "label": "High Diver"},
-        {"value": "Low Diver", "label": "Low Diver"},
-        {"value": "Downrigger", "label": "Downrigger"},
-        {"value": "Chute Rod", "label": "Chute Rod"},
-    ],
-    "trollingDirections": ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
-    "setupLineSides": [
-        {"value": "Port", "label": "Port"},
-        {"value": "Center", "label": "Center"},
-        {"value": "Starboard", "label": "Starboard"},
-    ],
-    "lures": [],
-    "flashers": [],
-    "reels": [],
-    "rods": [],
-    "rodReelCombos": [],
-    "settings": {
-        "theme": "light",
-        "speciesMapColors": deepcopy(DEFAULT_SPECIES_MAP_COLORS),
-        "defaultHomeLake": "",
-        "defaultPeople": [],
-        "hasFishHawk": True,
-        "timeFormat": "24",
-        "bathymetryLakeCalibrationsFeet": {
-            lake: {"shallowOffsetFeet": 0, "offshoreOffsetFeet": 0}
-            for lake in BATHYMETRY_LAKES
-        },
-        "units": deepcopy(DEFAULT_UNITS),
-        "chopRanges": [
-            {"id": "calm", "label": "Calm", "maxFeet": 0.5},
-            {"id": "light", "label": "Light Chop", "maxFeet": 1},
-            {"id": "moderate", "label": "Moderate Chop", "maxFeet": 1.5},
-            {"id": "very-choppy", "label": "Very Choppy", "maxFeet": 2},
-            {"id": "rough", "label": "Rough", "maxFeet": None},
-        ],
-        "trollingSpreads": [],
-        "defaultTrollingSpreadId": "",
-        "savedSetups": [],
-        "defaultSavedSetupIds": {},
-        "checklists": [],
-        "privatePhotoLocations": [],
-    },
-    "people": [],
-    "locations": [],
-    "spots": [],
-    "expeditions": [],
-    "trips": [],
-}
+BATHYMETRY_LAKES = tuple(_SCHEMA_CONSTANTS["bathymetryLakes"])
+UNIT_OPTIONS = {key: set(values) for key, values in _SCHEMA_CONSTANTS["unitOptions"].items()}
+DEFAULT_LOGBOOK = _load_schema_json("default-logbook.json")
