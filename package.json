@@ -11,6 +11,7 @@
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/*.test.js tests/*.test.mjs",
     "schema:generate": "node scripts/generate-schema-artifacts.mjs",
     "schema:check": "node scripts/generate-schema-artifacts.mjs --check",
+    "schema:check:desktop": "node scripts/generate-schema-artifacts.mjs --check --desktop-only",
     "test:e2e": "playwright test",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:ui": "playwright test --ui",

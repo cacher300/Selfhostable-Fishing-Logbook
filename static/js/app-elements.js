@@ -46,6 +46,7 @@ export const els = {
   mapDirectionArrowsToggle: document.querySelector("#mapDirectionArrowsToggle"),
   mapNoaaChartsToggle: document.querySelector("#mapNoaaChartsToggle"),
   mapBathymetryToggle: document.querySelector("#mapBathymetryToggle"),
+  mapBathymetryStatus: document.querySelector("#mapBathymetryStatus"),
   mapDepthContoursToggle: document.querySelector("#mapDepthContoursToggle"),
   mapDepthContoursStatus: document.querySelector("#mapDepthContoursStatus"),
   statsMethodFilter: document.querySelector("#statsMethodFilter"),

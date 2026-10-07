@@ -16,6 +16,7 @@ APP_ROUTES = (
     "/map", "/gear", "/gallery", "/checklists", "/wiki", "/settings",
 )
 STATIC_SUFFIXES = {".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".webp", ".woff", ".woff2", ".map"}
+PUBLIC_STATIC_JSON_ASSETS = {"data/bathymetry/manifest.json"}
 
 
 @blueprint.get("/healthz")
@@ -65,6 +66,9 @@ def static_files(filename: str) -> Response:
         abort(404)
     static_root = (PROJECT_ROOT / "static").resolve()
     requested = (static_root / filename).resolve()
-    if static_root not in requested.parents or requested.suffix.lower() not in STATIC_SUFFIXES:
+    if (
+        static_root not in requested.parents
+        or (requested.suffix.lower() not in STATIC_SUFFIXES and filename not in PUBLIC_STATIC_JSON_ASSETS)
+    ):
         abort(404)
     return send_from_directory(static_root, filename)

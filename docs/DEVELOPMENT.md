@@ -59,7 +59,7 @@ docker compose down
 - `backend/logbook_store.py`: v2 validation (shared schema + semantic rules). `backend/logbook_repository.py`: SQLite I/O and revisions.
 - `backend/media_service.py`, `backend/archive_service.py`, `backend/shared_trip_archive.py`: media helpers, whole-logbook archives, Shared Trip ZIPs.
 - `backend/weather_service.py`, `bathymetry_service.py`, `great_lakes_service.py`: environmental proxies.
-- `schema/`: the shared v2 JSON Schema, constants, and canonical default document. `npm run schema:generate` regenerates `static/js/generated/` and the mobile copies under `..\Mobile\src\domain\generated`; `npm run schema:check` fails when they are stale.
+- `schema/`: the shared v2 JSON Schema, constants, and canonical default document. `npm run schema:generate` regenerates `static/js/generated/` and the mobile copies under `..\Mobile\src\domain\generated`; `npm run schema:check` checks both clients when the adjacent Mobile checkout is available. GitLab runs `npm run schema:check:desktop` because its checkout contains only this repository.
 - `templates/index.html` and `templates/partials/`: server-rendered shell, screens, dialogs, and row templates.
 - `static/js/`: ES modules by concern. `store.js` owns every logbook change (`commit`), `actions.js` holds domain actions, `html.js` the auto-escaping `html` template tag, `router.js` history navigation, `vendor.js` third-party libraries.
 - `static/css/`: styles by concern, bundled from `app.css`.

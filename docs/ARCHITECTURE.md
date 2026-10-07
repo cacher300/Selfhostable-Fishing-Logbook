@@ -42,6 +42,10 @@ The browser code is ES modules under `static/js/`, bundled by esbuild (`npm run 
 
 HTML IDs/classes and `data-*` attributes remain internal APIs shared by templates, renderers, CSS, and tests.
 
+#### Global Map layers
+
+`maps.js` draws NOAA NCEI Great Lakes bathymetry from the bundled rasters described by `static/data/bathymetry/manifest.json`. The public manifest is explicitly allowlisted by `pages.static_files`; other JSON files remain blocked by the static-file suffix policy. The **NOAA depth shading** toggle adds raster overlays for the lakes in view; **NOAA depth contours** separately loads view-relevant GeoJSON through `/api/bathymetry/contours/{lake}`. The depth-shading pane sits above NOAA chart and Great Lakes model overlays so it remains visible when those layers are enabled, while contour lines sit above the shading. These bathymetry products are static bottom-depth context, not live forecasts.
+
 ### Backend
 
 `server.py` is only the entry point: it builds an `AppConfig` from the environment once (`backend/config.py`) and calls `create_app(config)` in `backend/app_factory.py`. Tests and tools pass their own `AppConfig` instead of patching module globals.

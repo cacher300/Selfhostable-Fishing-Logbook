@@ -31,7 +31,7 @@ test_javascript:
   script:
     - node --version
     - npm ci --no-audit --no-fund
-    - npm run schema:check
+    - npm run schema:check:desktop
     - npm test
 
 cloud_worker_tests:

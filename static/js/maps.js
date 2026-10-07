@@ -102,11 +102,18 @@ function mapBathymetryManifest() {
 
 export function syncMapPageBathymetryOverlay(map) {
   if (!map) return;
+  const setStatus = (message, isError = false) => {
+    if (!els.mapBathymetryStatus) return;
+    els.mapBathymetryStatus.textContent = message;
+    els.mapBathymetryStatus.classList.toggle("is-error", isError);
+  };
   const visible = savedMapBathymetry();
   if (els.mapBathymetryToggle) els.mapBathymetryToggle.checked = visible;
   if (!map.getPane("bathymetryPane")) {
     const pane = map.createPane("bathymetryPane");
-    pane.style.zIndex = "350";
+    // Keep the depth shading above NOAA chart and Great Lakes model overlays
+    // (Leaflet's default overlay pane is 400), as on the standalone map.
+    pane.style.zIndex = "420";
     pane.style.pointerEvents = "none";
   }
   const group = map._logbookBathymetryGroup || (map._logbookBathymetryGroup = L.layerGroup());
@@ -116,9 +123,12 @@ export function syncMapPageBathymetryOverlay(map) {
   }
   if (!visible) {
     if (map.hasLayer(group)) map.removeLayer(group);
+    setStatus("");
     return;
   }
+  setStatus("Loading NOAA depth shading…");
   mapBathymetryManifest().then((manifest) => {
+    if (!savedMapBathymetry()) return;
     const lakeLayers = map._logbookBathymetryLakeLayers || (map._logbookBathymetryLakeLayers = {});
     const view = map.getBounds();
     Object.entries(manifest.lakes || {}).forEach(([slug, lake]) => {
@@ -129,14 +139,21 @@ export function syncMapPageBathymetryOverlay(map) {
         layer = lakeLayers[slug] = L.imageOverlay(lake.image, bounds, {
           pane: "bathymetryPane", opacity: 0.72, interactive: false, className: "noaa-bathymetry-overlay"
         });
+        layer.on("error", () => setStatus("NOAA depth shading could not be loaded.", true));
       }
       if (view.intersects(bounds)) group.addLayer(layer);
       else group.removeLayer(layer);
     });
-    if (savedMapBathymetry() && group.getLayers().length && !map.hasLayer(group)) group.addTo(map);
-    else if ((!savedMapBathymetry() || !group.getLayers().length) && map.hasLayer(group)) map.removeLayer(group);
+    if (group.getLayers().length) {
+      if (!map.hasLayer(group)) group.addTo(map);
+      setStatus("Showing NOAA depth shading.");
+    } else {
+      if (map.hasLayer(group)) map.removeLayer(group);
+      setStatus("Move the map over a Great Lake to show depth shading.");
+    }
   }).catch(() => {
     if (els.mapBathymetryToggle) els.mapBathymetryToggle.title = "NOAA bathymetry could not be loaded";
+    setStatus("NOAA depth shading could not be loaded.", true);
   });
 }
 
@@ -723,7 +740,7 @@ function setupMapPageDepthContours(map) {
 
   if (!map.getPane("depthContoursPane")) {
     const pane = map.createPane("depthContoursPane");
-    pane.style.zIndex = "370";
+    pane.style.zIndex = "430";
     pane.style.pointerEvents = "none";
   }
   const refresh = async () => {
