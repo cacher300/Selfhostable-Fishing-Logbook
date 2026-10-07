@@ -48,7 +48,7 @@ window.noaaGreatLakesApi = {
   }
 };
 
-// Fast: frames every 0.7 s, each fading in over 0.5 s.
+// Fast: frames every 0.7 s, fading throughout the interval.
 localStorage.setItem("glc.AnimationSpeed", "fast");
 const map = L.map("fishMap", { zoomAnimation: false, fadeAnimation: false }).setView([42.5, -81], 7);
 conditions.ensureGreatLakesConditions(map);
@@ -84,7 +84,9 @@ assert.equal(overlays.length, 3);
 // Frames are opaque inside a pane that carries the layer opacity, so a frame
 // fading in over another never lets the map show through.
 // Playback starts fading toward the next frame immediately, without a hold.
-assert.deepEqual(overlays.map((image) => image.style.opacity), ["1", "1", "0"]);
+await waitFor(() => Number(overlays[1].style.opacity) > 0 && Number(overlays[1].style.opacity) < 1, "the next frame to blend in");
+assert.equal(overlays[0].style.opacity, "1");
+assert.equal(overlays[2].style.opacity, "0");
 play.click();
 assert.deepEqual(overlays.map((image) => image.style.opacity), ["1", "0", "0"]);
 assert.equal(overlays[0].parentElement.style.opacity, "0.9");
@@ -103,7 +105,9 @@ slider.value = "2";
 slider.dispatchEvent(new Event("input", { bubbles: true }));
 assert.equal(play.getAttribute("aria-pressed"), "false");
 // The new frame fades in over the old one, which stays drawn until the fade is done.
-assert.deepEqual(overlays.map((image) => image.style.opacity), ["1", "0", "1"]);
+assert.equal(overlays[0].style.opacity, "1");
+assert.equal(overlays[1].style.opacity, "0");
+await waitFor(() => Number(overlays[2].style.opacity) > 0 && Number(overlays[2].style.opacity) < 1, "the scrubbed frame to blend in");
 assert.ok(Number(overlays[2].style.zIndex) > Number(overlays[0].style.zIndex));
 await waitFor(() => overlays[0].style.opacity === "0", "the old frame to be hidden after the fade");
 assert.deepEqual(overlays.map((image) => image.style.opacity), ["0", "0", "1"]);

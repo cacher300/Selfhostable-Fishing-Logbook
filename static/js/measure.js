@@ -10,7 +10,6 @@ const currentUnitSystem = () => (unitPreference("depth") === "m" ? "metric" : "i
 const EARTH_RADIUS_METERS = 6371008.8;
 const METERS_PER_MILE = 1609.344;
 const METERS_PER_FOOT = 0.3048;
-const METERS_PER_NAUTICAL_MILE = 1852;
 const LINE_COLOR = "#ffffff";
 const HALO_COLOR = "rgba(0, 0, 0, 0.55)";
 
@@ -36,14 +35,13 @@ function fixed(value) {
   return value.toFixed(value < 10 ? 2 : 1);
 }
 
-// "12.4 mi · 10.8 nmi" (imperial) or "20.0 km · 10.8 nmi" (metric); short distances in ft or m.
+// "12.4 mi" (imperial) or "20.0 km" (metric); short distances in ft or m.
 export function formatDistance(meters, system = currentUnitSystem()) {
-  const nautical = `${fixed(meters / METERS_PER_NAUTICAL_MILE)} nmi`;
   if (system === "metric") {
-    return `${meters < 1000 ? `${Math.round(meters)} m` : `${fixed(meters / 1000)} km`} · ${nautical}`;
+    return `${meters < 1000 ? `${Math.round(meters)} m` : `${fixed(meters / 1000)} km`}`;
   }
   const miles = meters / METERS_PER_MILE;
-  return `${miles < 0.2 ? `${Math.round(meters / METERS_PER_FOOT)} ft` : `${fixed(miles)} mi`} · ${nautical}`;
+  return `${miles < 0.2 ? `${Math.round(meters / METERS_PER_FOOT)} ft` : `${fixed(miles)} mi`}`;
 }
 
 export function formatBearing(degrees) {

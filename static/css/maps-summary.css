@@ -154,6 +154,9 @@
   box-shadow: none;
 }
 
+.map-bathymetry-status { display: block; min-height: 0; margin: -4px 0 8px 24px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+.map-bathymetry-status.is-error { color: var(--error); }
+
 .map-basemap-select { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; font-weight: 800; }
 .map-basemap-select span { display: block; margin-bottom: 3px; }
 .map-basemap-select select { width: 100%; }
@@ -625,7 +628,7 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 .leaflet-marker-icon:is(.great-lakes-wave-arrow, .great-lakes-current-arrow) { transition: opacity var(--gl-frame-fade, 1000ms) linear; }
 .great-lakes-timeline-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 8px; margin-top: 2px; }
 .great-lakes-timeline-meta .great-lakes-timeline-label { flex: 1 0 auto; margin-top: 0; }
-/* "Past 30 days": step back and forth by hour or day, or pick a time. Saved hours are surface maps without an animation. */
+/* "Past 90 days": step between saved sample times or days. Saved maps are surface only, without animation. */
 .great-lakes-history { display: none; margin-top: 7px; }
 #greatLakesConditions.has-history .great-lakes-history { display: block; }
 #greatLakesConditions.has-history :is(.great-lakes-depth-control, .great-lakes-timeline) { display: none; }
@@ -673,6 +676,10 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 .great-lakes-control p.is-error { color: #a92c2c; }
 .great-lakes-legend { display: none; align-items: center; gap: 5px; margin: 5px 0 7px; }
 #greatLakesConditions.has-temperature-layer .great-lakes-legend { display: flex; }
+.great-lakes-color-mode { display: none; }
+#greatLakesConditions.has-temperature-layer .great-lakes-color-mode,
+#greatLakesConditions.has-temperature-background .great-lakes-color-mode { display: flex; align-items: center; gap: 7px; margin: 0 0 7px; font-size: 12px; cursor: pointer; }
+.great-lakes-color-mode input[type="checkbox"] { width: 16px; height: 16px; flex: none; margin: 0; padding: 0; accent-color: var(--green); }
 .great-lakes-legend i { height: 9px; flex: 1; border-radius: 5px; background: linear-gradient(90deg, #3a28a8, #245ce2 13%, #0e98f2 27%, #0cccde 40%, #22d088 53%, #96de30 66%, #fcda24 78%, #fc8c1c 89%, #e42834); }
 .great-lakes-legend small { width: 100%; margin-top: 2px; font-size: 10px; }
 .great-lakes-thermocline-legend { display: none; align-items: center; gap: 5px; margin: 5px 0 7px; }

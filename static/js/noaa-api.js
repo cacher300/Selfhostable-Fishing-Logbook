@@ -1,6 +1,6 @@
 // NOAA Great Lakes API client. Endpoint details stay separate from Leaflet UI.
 
-// Saved past hours ("Past 30 days") come from the Great Lakes Trolling site,
+// Saved past samples ("Past 90 days") come from the Great Lakes Trolling site,
 // which records them; the desktop server passes these requests on.
 async function historyJson(path, params, signal) {
   const response = await fetch(`/api/great-lakes/history${path}?${new URLSearchParams(params)}`, { signal });

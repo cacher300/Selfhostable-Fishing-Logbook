@@ -117,13 +117,13 @@ NOAA runs each Great Lakes Operational Forecast System (LSOFS for Superior, LMHO
 
 The "Upwelling & downwelling" layer (`great_lakes_upwelling.py`, shared with the Great Lakes Trolling site) marks where a shore's surface water is being replaced. NOAA's lake models publish no wind or vertical motion, so it is worked out from the temperature volumes the map already downloads: blue (upwelling) where the surface is clearly colder than the open water (at least 10 m deep) within about 25 km, and more so if it cooled over the last 24 hours; red (downwelling) where it is warmer than its surroundings, warmed over the day, or the thermocline sits much deeper. Only patches of at least 20 km² that reach within 10 km of a shore are marked, on a fixed ±8 °F scale. The surface 24 hours earlier is one level downloaded from the model run one day older at the same forecast hour. `/api/great-lakes/upwelling-raster` draws it and `/api/great-lakes/upwelling-value` explains a point.
 
-### Great Lakes past 30 days
+### Great Lakes past 90 days
 
 Forecast animation matches a water-temperature background to each current frame by forecast hour rather than by list position. Frame events include the corresponding temperature metadata. Measurement stations are hidden while animation is active, including when paused, and restored on stop without changing the user's stations setting.
 
 Playing starts the next image's linear fade immediately, lasts for the entire frame interval, and starts the following fade without a hold. Older images are hidden instantly at the handoff so their cleanup cannot fade the map through. Current particles keep their trails and interpolate the eastward/northward velocity between the adjacent forecast grids. Reduced motion keeps discrete frame steps.
 
-The map's "Past 30 days" choice shows the conditions as they were at any hour of the last 30 days: each layer's surface map, point readings and water-column profiles (with the thermocline), and station readings, plus a 30-day chart in each station's popup. The desktop app does not run around the clock, so it does not record this itself: the Great Lakes Trolling site's server saves "Now" every hour (never forecasts) and `great_lakes_history_client.py` reads it from that site's public API (`GREAT_LAKES_HISTORY_URL`, default `https://greatlakestrolling.com`). `/api/great-lakes/history/...` passes the answers on to the browser, serves the saved map images through this app, and keeps recent maps and images in memory. Without a connection to the site, "Past 30 days" says the saved conditions are unavailable.
+The map's "Past 90 days" choice offers only the timestamps the website has saved, currently four samples per day (six hours apart): each layer's surface map, point readings and water-column profiles (with the thermocline), and station readings, plus a 90-day chart in each station popup. The desktop app does not keep this history locally: `great_lakes_history_client.py` requests it from the Great Lakes Trolling site's public API (`GREAT_LAKES_HISTORY_URL`, default `https://greatlakestrolling.com`). The `/api/great-lakes/history/...` routes pass JSON through, serve the website's saved map images through this app, and keep only recent responses in memory. Historical data needs a connection to the site.
 
 ### Great Lakes waves
 
@@ -147,3 +147,19 @@ Current protections include session-backed CSRF tokens for mutations, path resol
 ## Deployment and Automation
 
 Local Python defaults to `127.0.0.1:8080`. Docker listens on `0.0.0.0:8080` inside the container and publishes it to `127.0.0.1:8080` on the host by default, mounts `./data`, and restarts unless stopped. Set `APP_PORT` when a different loopback proxy target is required. Backups are host-managed; this repository has no backup scheduler or restore tool. No in-process background worker or scheduler exists.
+
+
+### NOAA publication freshness
+
+Run discovery accepts partial regular-grid cycles. Each requested time uses the
+newest cycle containing that exact hour, retaining older cycles for forecasts
+still being published. Cache keys and status versions include selected coverage.
+Source checks run independently of the single background preparation job, so
+downloading and drawing cannot delay detection of newer NOAA files.
+
+Incomplete thermocline updates retain the last complete layer and its original
+valid time. Availability metadata distinguishes a delayed fallback, waiting
+without a saved layer, and an outage lasting three hours. Incomplete current
+updates can retain the last complete map for the same forecast hour and depth.
+These responses use no-store; the map retries them even when the NOAA version
+is unchanged.

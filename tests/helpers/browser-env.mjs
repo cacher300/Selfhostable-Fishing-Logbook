@@ -79,7 +79,9 @@ function installBrowserStubs(window) {
   window.CSS.escape ??= (value) => String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
 
   globalThis.matchMedia = window.matchMedia.bind(window);
-  globalThis.requestAnimationFrame = window.requestAnimationFrame.bind(window);
+  // Application code uses the host performance clock. jsdom's callback
+  // timestamps have a different origin, so translate them to that same clock.
+  globalThis.requestAnimationFrame = callback => window.requestAnimationFrame(() => callback(performance.now()));
   globalThis.cancelAnimationFrame = window.cancelAnimationFrame.bind(window);
   globalThis.CSS = window.CSS;
 }

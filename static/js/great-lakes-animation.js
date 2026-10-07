@@ -422,7 +422,7 @@ function buildFrames(map, background) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (layer === "waves") {
     if (greatLakesControlValue("wave-display") === "flow" && !reduced && state.payloads[0]?.arrows?.length) {
-      state.particles = createParticleLayer(map, waveParticleFields(state.payloads[0].arrows)).addTo(map);
+      state.particles = createParticleLayer(map, waveParticleFields(state.payloads[0].arrows), { clipToGreatLakesWater: true }).addTo(map);
     }
     return;
   }

@@ -18,9 +18,9 @@ assert.equal(formatBearing(359.7), "0° N");
 assert.equal(formatBearing(112), "112° ESE");
 
 // Imperial shows miles (feet when short); metric shows km (m when short); both add nautical miles.
-assert.equal(formatDistance(20000, "imperial"), "12.4 mi · 10.8 nmi");
-assert.equal(formatDistance(250, "imperial"), "820 ft · 0.13 nmi");
-assert.equal(formatDistance(20000, "metric"), "20.0 km · 10.8 nmi");
-assert.equal(formatDistance(640, "metric"), "640 m · 0.35 nmi");
-assert.equal(formatDistance(5000, "metric"), "5.00 km · 2.70 nmi");
-assert.equal(measurementText(toronto, rochester, "imperial"), "95.4 mi · 82.9 nmi · 110° ESE");
+assert.equal(formatDistance(20000, "imperial"), "12.4 mi");
+assert.equal(formatDistance(250, "imperial"), "820 ft");
+assert.equal(formatDistance(20000, "metric"), "20.0 km");
+assert.equal(formatDistance(640, "metric"), "640 m");
+assert.equal(formatDistance(5000, "metric"), "5.00 km");
+assert.equal(measurementText(toronto, rochester, "imperial"), "95.4 mi · 110° ESE");

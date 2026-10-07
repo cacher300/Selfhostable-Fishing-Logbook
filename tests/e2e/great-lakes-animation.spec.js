@@ -76,7 +76,7 @@ test("currents animate temperature backgrounds and temporarily hide stations", a
   await expect(page.locator(".great-lakes-station-marker")).toHaveCount(0);
   await page.screenshot({ path: path.join(os.tmpdir(), "desktop-current-temperature-animation.png") });
   await page.locator("[data-gl-play]").click();
-  await expect(slider).toHaveValue("0");
+  await expect(slider).toHaveAttribute("aria-valuetext", /^Now /);
   await page.locator("[data-gl-play]").click();
   await page.locator("[data-gl-animation-stop]").click();
   await expect(page.locator(".great-lakes-station-marker")).toHaveCount(1);

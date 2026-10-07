@@ -12,6 +12,7 @@ import threading
 from array import array
 from collections import OrderedDict
 from dataclasses import dataclass
+from pathlib import Path
 
 from . import great_lakes_cache as cache
 
@@ -199,6 +200,11 @@ def load_volume(kind: str, model: str, run_id: str, hour: int, base_url: str, ny
 def cached_volume(kind: str, model: str, run_id: str, hour: int, ny: int, nx: int) -> Volume | None:
     """The full volume only if it is already in memory or on disk (never downloads)."""
     return _load(kind, model, run_id, hour, "", ny, nx, [], [], None, False)
+
+
+def cached_volume_file(kind: str, model: str, run_id: str, hour: int, path: Path) -> Volume | None:
+    """Read a saved volume file when catalog metadata is unavailable."""
+    return _from_record(kind, model, run_id, hour, cache.read_record(path))
 
 
 def load_level(kind: str, model: str, run_id: str, hour: int, base_url: str, ny: int, nx: int,

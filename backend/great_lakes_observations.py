@@ -2,15 +2,20 @@
 
 These are real measurements (buoys, shore gauges, and buoy-mounted current
 profilers), unlike the forecast-model layers in ``great_lakes_service``.
-Every request fetches them fresh; they are small enough not to need caching.
+One shared 30-minute snapshot limits NOAA requests and remains available during
+provider outages.
 """
 
 from __future__ import annotations
 
+import threading
+import time
 import urllib.request
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+
+from . import great_lakes_cache as cache
 
 NDBC = "https://www.ndbc.noaa.gov"
 ACTIVE_STATIONS_URL = f"{NDBC}/activestations.xml"
@@ -23,6 +28,11 @@ STATION_TYPE_LABELS = {"buoy": "Buoy", "fixed": "Shore station", "other": "Buoy"
 # A current-meter file holds 45 days of readings (up to ~2 MB), newest first.
 # Its first 4 KB always contain the newest reading.
 ADCP_HEAD_BYTES = 4096
+OBSERVATIONS_CACHE_FILE = "observations/latest.json"
+OBSERVATIONS_LOCK_FILE = "observations-refresh.lock"
+OBSERVATIONS_CACHE_TTL_SECONDS = 30 * 60
+OBSERVATIONS_FAILURE_BACKOFF_SECONDS = 5 * 60
+_refresh_lock = threading.Lock()
 
 
 def _get(url: str, max_bytes: int | None = None) -> str:
@@ -198,6 +208,73 @@ def _build_payload() -> dict:
     return {"generatedAt": _iso(now), "source": "NOAA National Data Buoy Center", "stations": results}
 
 
+def _read_cached_payload() -> dict | None:
+    saved = cache.read_json(cache.path_for(OBSERVATIONS_CACHE_FILE))
+    if not isinstance(saved, dict) or not isinstance(saved.get("payload"), dict):
+        return None
+    return saved
+
+
+def _is_fresh(saved: dict, now: float) -> bool:
+    return now - float(saved.get("savedAt", 0)) < OBSERVATIONS_CACHE_TTL_SECONDS
+
+
+def _serve_cached(saved: dict, *, stale: bool = False) -> dict:
+    payload = saved["payload"]
+    return {**payload, "stale": True} if stale else payload
+
+
 def great_lakes_observations() -> dict:
-    """Latest readings from every reporting Great Lakes station (about 400 KB from NDBC)."""
-    return _build_payload()
+    """Reuse one shared NOAA snapshot and keep serving it during provider outages."""
+    now = time.time()
+    saved = _read_cached_payload()
+    if saved and _is_fresh(saved, now):
+        return _serve_cached(saved)
+    if saved and now - float(saved.get("checkedAt", 0)) < OBSERVATIONS_FAILURE_BACKOFF_SECONDS:
+        return _serve_cached(saved, stale=True)
+
+    with _refresh_lock:
+        now = time.time()
+        saved = _read_cached_payload()
+        if saved and _is_fresh(saved, now):
+            return _serve_cached(saved)
+        if saved and now - float(saved.get("checkedAt", 0)) < OBSERVATIONS_FAILURE_BACKOFF_SECONDS:
+            return _serve_cached(saved, stale=True)
+
+        process_lock = cache.LeaderLock(cache.path_for(OBSERVATIONS_LOCK_FILE))
+        if not process_lock.acquire():
+            if saved:
+                return _serve_cached(saved, stale=True)
+            deadline = time.monotonic() + 35
+            while time.monotonic() < deadline:
+                time.sleep(0.2)
+                saved = _read_cached_payload()
+                if saved:
+                    return _serve_cached(saved, stale=not _is_fresh(saved, time.time()))
+            raise RuntimeError("NOAA station refresh is already in progress")
+
+        try:
+            now = time.time()
+            saved = _read_cached_payload()
+            if saved and _is_fresh(saved, now):
+                return _serve_cached(saved)
+            try:
+                payload = _build_payload()
+            except Exception:
+                if saved:
+                    saved["checkedAt"] = now
+                    try:
+                        cache.write_json(cache.path_for(OBSERVATIONS_CACHE_FILE), saved)
+                    except OSError:
+                        pass
+                    return _serve_cached(saved, stale=True)
+                raise
+
+            snapshot = {"savedAt": time.time(), "checkedAt": time.time(), "payload": payload}
+            try:
+                cache.write_json(cache.path_for(OBSERVATIONS_CACHE_FILE), snapshot)
+            except OSError:
+                pass
+            return payload
+        finally:
+            process_lock.release()

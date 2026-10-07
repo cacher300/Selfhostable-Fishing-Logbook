@@ -59,6 +59,7 @@ _raster_cache: dict[tuple, dict] = {}
 _thermocline_raster_cache: dict[tuple, dict] = {}
 TEMPERATURE_RASTER_RENDER_VERSION = 5
 THERMOCLINE_RASTER_RENDER_VERSION = 28
+THERMOCLINE_ERROR_AFTER_SECONDS = 3 * 60 * 60
 CURRENT_RENDER_VERSION = 4
 # A requested depth this far below a lake's deepest model level has no water there.
 DEEPEST_LEVEL_TOLERANCE_METERS = 0.5
@@ -116,6 +117,7 @@ _current_profile_cache: dict[tuple, dict] = {}
 MAX_PAYLOAD_CACHE_ENTRIES = 16
 MAX_FIELD_CACHE_ENTRIES = 8
 MAX_PROFILE_CACHE_ENTRIES = 64
+MAX_SAVED_POINT_PROFILES = 512
 # Drawn layers are keyed by run and hour, so older files are never reused.
 RENDERED_MAX_AGE_SECONDS = 3 * 3600
 _build_locks: dict[tuple, threading.Lock] = {}
@@ -132,6 +134,96 @@ _mesh_locks: dict[tuple[str, str], threading.Lock] = {}
 MODEL_LAKE_NAMES = {"LSOFS": "Superior", "LEOFS": "Erie", "LOOFS": "Ontario"}
 MICHIGAN_HURON_SPLIT_LONGITUDE = -84.75
 _bathymetry_cache: dict[str, dict] = {}
+
+
+def _forecast_run(model: str, forecast_hour: int) -> dict:
+    return select_forecast_run(discovered_runs((model,))[model], forecast_hour)
+
+
+
+def select_forecast_run(run: dict, forecast_hour: int, now: float | None = None) -> dict:
+    """Newest run containing the exact requested hour; never clamp a partial run.
+
+    Legacy cached runs have no fallback list and retain their old selection
+    until the next catalog check upgrades them.
+    """
+    if "fallbacks" not in run:
+        return run
+    now = time.time() if now is None else now
+    for candidate in (run, *run["fallbacks"]):
+        hour = math.floor((now - float(candidate["cycleEpoch"])) / 3600 + 0.5) + int(forecast_hour)
+        if hour in candidate.get("files", {}):
+            return candidate
+    return {"id": run.get("id"), "error": "No published NOAA file covers the requested forecast hour"}
+
+
+
+def _thermocline_with_fallback(payload: dict, forecast_hour: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None) -> dict:
+    """Use the last complete thermocline layer while NOAA is missing one or more lakes."""
+    path = _thermocline_fallback_path(forecast_hour, resolution, models, scale)
+    now = time.time()
+    with _cache_lock:
+        state = gl_cache.read_json(path)
+        if not isinstance(state, dict):
+            state = {}
+
+        if _complete(payload):
+            state = {"lastGoodPayload": payload, "lastGoodAt": now, "unavailableSince": None}
+            try:
+                gl_cache.write_json(path, state)
+            except OSError:
+                pass
+            _touch(path, payload)
+            return payload
+
+        unavailable_since = state.get("unavailableSince")
+        try:
+            unavailable_since = float(unavailable_since)
+        except (TypeError, ValueError):
+            unavailable_since = now
+        if not math.isfinite(unavailable_since) or unavailable_since > now:
+            unavailable_since = now
+        if state.get("unavailableSince") != unavailable_since:
+            state["unavailableSince"] = unavailable_since
+            try:
+                gl_cache.write_json(path, state)
+            except OSError:
+                pass
+
+        last_good = state.get("lastGoodPayload")
+        last_good_at = state.get("lastGoodAt")
+        outage_seconds = max(0, int(now - unavailable_since))
+        availability = {
+            "state": "error" if outage_seconds >= THERMOCLINE_ERROR_AFTER_SECONDS else "fallback" if isinstance(last_good, dict) else "waiting",
+            "missingModels": [item.get("model") for item in payload.get("metadata", {}).get("models", []) if not item.get("available", True)],
+            "outageSeconds": outage_seconds,
+            "errorAfterSeconds": THERMOCLINE_ERROR_AFTER_SECONDS,
+        }
+        if last_good_at is not None:
+            availability["lastGoodAt"] = datetime.fromtimestamp(float(last_good_at), timezone.utc).isoformat().replace("+00:00", "Z")
+        if isinstance(last_good, dict):
+            fallback = {**last_good, "metadata": {**last_good.get("metadata", {}), "availability": availability}}
+            _touch(path, fallback)
+            return fallback
+
+        payload["metadata"]["availability"] = availability
+        return payload
+
+
+
+def _thermocline_fallback_path(forecast_hour: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None):
+    key = (THERMOCLINE_RASTER_RENDER_VERSION, forecast_hour, resolution, models, scale)
+    name = hashlib.sha1(repr(key).encode("utf-8")).hexdigest() + ".json"
+    return gl_cache.path_for("thermocline-fallbacks", name)
+
+
+
+def selected_data_key(runs: dict[str, dict], forecast_hour: int, now: float | None = None) -> tuple:
+    """The actual run and file selected for each lake, including publication fallbacks."""
+    now = time.time() if now is None else now
+    selected = {model: select_forecast_run(run, forecast_hour, now) for model, run in runs.items()}
+    return tuple((model, run.get("id"), select_forecast_hour(run, forecast_hour, now) if run.get("files") else None) for model, run in selected.items())
+
 
 
 def _cache_bucket() -> int:
@@ -157,7 +249,7 @@ def served_offsets(now: float | None = None) -> tuple[int, ...]:
 
 def _data_key(models: tuple[str, ...], forecast_hour: int) -> tuple:
     runs = discovered_runs(models)
-    return tuple((model, runs[model].get("id"), select_forecast_hour(runs[model], forecast_hour) if runs[model].get("files") else None) for model in models)
+    return selected_data_key(runs, forecast_hour)
 
 
 def _cache_store(cache: dict, key: tuple, value: object, max_entries: int) -> None:
@@ -196,6 +288,101 @@ _incomplete_until: dict[tuple, float] = {}
 
 def _complete(payload: dict) -> bool:
     return all(item.get("available", True) for item in payload.get("metadata", {}).get("models", []))
+
+
+def _current_fallback_path(forecast_hour: int, depth: int, models: tuple[str, ...], scale: tuple[float, float] | None):
+    key = (CURRENT_RENDER_VERSION, forecast_hour, depth, models, scale)
+    name = hashlib.sha1(repr(key).encode("utf-8")).hexdigest() + ".json"
+    return gl_cache.path_for("current-fallbacks", name)
+
+
+def _last_cached_current_payload(forecast_hour: int, depth: int, models: tuple[str, ...], now: float) -> dict | None:
+    """Find the newest complete cached current map for this forecast choice."""
+    directory = gl_cache.path_for("rendered")
+    try:
+        paths = sorted(directory.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    except OSError:
+        return None
+    expected_models = set(models)
+    for candidate_path in paths:
+        try:
+            if now - candidate_path.stat().st_mtime > 24 * 3600:
+                break
+        except OSError:
+            continue
+        candidate = gl_cache.read_json(candidate_path)
+        if not isinstance(candidate, dict):
+            continue
+        metadata = candidate.get("metadata", {})
+        candidate_models = metadata.get("models", [])
+        if (
+            "FVCOM sigma-layer" not in str(metadata.get("depthNote", ""))
+            or metadata.get("forecastHour") != forecast_hour
+            or metadata.get("requestedDepthMeters") != depth
+            or {item.get("model") for item in candidate_models} != expected_models
+            or not _complete(candidate)
+            or not candidate.get("rasters")
+        ):
+            continue
+        return candidate
+    return None
+
+
+def _currents_with_fallback(payload: dict, forecast_hour: int, depth: int, models: tuple[str, ...], scale: tuple[float, float] | None) -> dict:
+    """Keep the last complete current map visible when NOAA current files fail."""
+    path = _current_fallback_path(forecast_hour, depth, models, scale)
+    now = time.time()
+    with _cache_lock:
+        state = gl_cache.read_json(path)
+        if not isinstance(state, dict):
+            state = {}
+
+        if _complete(payload):
+            state = {"lastGoodPayload": payload, "lastGoodAt": now, "unavailableSince": None}
+            try:
+                gl_cache.write_json(path, state)
+            except OSError:
+                pass
+            _touch(path, payload)
+            return payload
+
+        unavailable_since = state.get("unavailableSince")
+        try:
+            unavailable_since = float(unavailable_since)
+        except (TypeError, ValueError):
+            unavailable_since = now
+        if not math.isfinite(unavailable_since) or unavailable_since > now:
+            unavailable_since = now
+
+        last_good = state.get("lastGoodPayload")
+        if not isinstance(last_good, dict):
+            last_good = _last_cached_current_payload(forecast_hour, depth, models, now)
+            if isinstance(last_good, dict):
+                generated_at = last_good.get("metadata", {}).get("generatedAt")
+                try:
+                    saved_at = datetime.fromisoformat(str(generated_at).replace("Z", "+00:00")).timestamp()
+                except (TypeError, ValueError):
+                    saved_at = now
+                state["lastGoodPayload"] = last_good
+                state["lastGoodAt"] = saved_at
+        state["unavailableSince"] = unavailable_since
+        try:
+            gl_cache.write_json(path, state)
+        except OSError:
+            pass
+
+        missing = [item.get("model") for item in payload.get("metadata", {}).get("models", []) if not item.get("available", True)]
+        if not isinstance(last_good, dict):
+            return payload
+        availability = {
+            "state": "fallback",
+            "missingModels": missing,
+            "outageSeconds": max(0, int(now - unavailable_since)),
+            "lastGoodAt": datetime.fromtimestamp(float(state.get("lastGoodAt", now)), timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
+        fallback = {**last_good, "metadata": {**last_good.get("metadata", {}), "availability": availability}}
+        _touch(path, fallback)
+        return fallback
 
 
 def _from_memory(memory: dict, key: tuple) -> dict | None:
@@ -341,33 +528,31 @@ def runs_from_catalog(xml_text: str) -> list[dict]:
 
 
 def _discover_model(model: str) -> dict:
-    """Newest run whose regular-grid files (what the map uses) are complete.
+    """Published regular-grid runs, newest first, without waiting for f120.
 
-    NOAA publishes a run's raw ``fields`` files before its regular-grid files,
-    so a run with only complete fields output must not replace the previous
-    run yet. Fields-only runs are a fallback for when no complete regular-grid
-    run exists at all.
+    Keep earlier runs so each requested hour can fall back independently.
+    New native fields must not displace usable regular-grid output.
     """
-    runs = [run for day_url in _day_catalogs(model, 2) for run in runs_from_catalog(_get(day_url))]
-    for run in runs:
-        if run["complete"] and run["kind"] == "regulargrid":
-            return run
-    for run in runs:
-        if run["complete"]:
-            return run
-    if runs:
-        return runs[0]
+    runs = sorted(
+        [run for day_url in _day_catalogs(model, 2) for run in runs_from_catalog(_get(day_url))],
+        key=lambda run: run["cycleEpoch"], reverse=True,
+    )
+    preferred = [run for run in runs if run["kind"] == "regulargrid"] or runs
+    if preferred:
+        return {**preferred[0], "fallbacks": preferred[1:]}
     raise RuntimeError("No forecast dataset found in the newest NOAA catalogs")
 
 
 def _normalize_run(run: dict) -> dict:
     if "files" in run:
         run = {**run, "files": {int(hour): path for hour, path in run["files"].items()}}
+    if "fallbacks" in run:
+        run = {**run, "fallbacks": [_normalize_run(candidate) for candidate in run["fallbacks"]]}
     return run
 
 
 def discovered_runs(models: tuple[str, ...] = MODELS, refresh: bool = False) -> dict[str, dict]:
-    """Newest complete run per model.
+    """Published runs per model, including earlier runs for unpublished hours.
 
     Runs are checked at most every RUNS_MAX_AGE_SECONDS (the background
     refresher checks more often around publication times) and shared with
@@ -523,7 +708,7 @@ class LakeTooShallow(Exception):
 
 def _model_volume(kind: str, model: str, forecast_hour: int) -> tuple[dict, int, str, dict[str, str], volumes.Volume]:
     """The cached 3D volume for one model's selected forecast hour."""
-    run = discovered_runs((model,))[model]
+    run = _forecast_run(model, forecast_hour)
     if "error" in run:
         raise RuntimeError(str(run["error"]))
     hour = select_forecast_hour(run, forecast_hour)
@@ -545,7 +730,7 @@ def _model_depth(kind: str, model: str, forecast_hour: int, depth: float) -> tup
     view and fetches the full volume in the background, so changing depth or
     switching to the thermocline is fast afterwards.
     """
-    run = discovered_runs((model,))[model]
+    run = _forecast_run(model, forecast_hour)
     if "error" in run:
         raise RuntimeError(str(run["error"]))
     hour = select_forecast_hour(run, forecast_hour)
@@ -577,7 +762,7 @@ def warm_model_hour(model: str, forecast_hour: int = 0) -> None:
 
 
 def _sample_model(model: str, kind: str, forecast_hour: int, depth: int) -> tuple[list[dict], dict]:
-    run = discovered_runs((model,))[model]
+    run = _forecast_run(model, forecast_hour)
     if "error" in run:
         raise RuntimeError(str(run["error"]))
     hours = run["files"]  # type: ignore[assignment]
@@ -598,7 +783,7 @@ def _sample_model(model: str, kind: str, forecast_hour: int, depth: int) -> tupl
             lat, lon, mask, east, north = _numbers(raw, "Latitude"), _numbers(raw, "Longitude"), _numbers(raw, "mask"), _numbers(raw, variables["u"]), _numbers(raw, variables["v"])
             data = [{"latitude": a, "longitude": _great_lakes_longitude(b), "u": u, "v": v, "speed": math.hypot(u, v), "direction": (math.degrees(math.atan2(u, v)) + 360) % 360, "depthMeters": depths[layer] if depths else depth, "model": model} for a, b, wet, u, v in zip(lat, lon, mask, east, north) if wet > 0 and all(math.isfinite(value) for value in (a, b, u, v)) and abs(u) <= 10 and abs(v) <= 10]
         valid = datetime.strptime(f"{run['date']}{run['cycle']:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp() + available_hour * 3600
-        return data, {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": datetime.fromtimestamp(valid, timezone.utc).isoformat().replace("+00:00", "Z"), "available": True, "variables": variables, "selectedForecastHour": available_hour, "selectedDepthMeters": depths[layer] if depths else depth}
+        return data, {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": datetime.fromtimestamp(valid, timezone.utc).isoformat().replace("+00:00", "Z"), "available": True, "variables": variables, "run": run["id"], "selectedForecastHour": available_hour, "selectedDepthMeters": depths[layer] if depths else depth}
     if kind == "temperature":
         nodes, _ = _field_dimensions(path)
         raw = _ascii(path, f"lat[0:90:{nodes - 1}],lon[0:90:{nodes - 1}],{variables['temperature']}[0][{layer}][0:90:{nodes - 1}]")
@@ -610,7 +795,7 @@ def _sample_model(model: str, kind: str, forecast_hour: int, depth: int) -> tupl
         lat, lon, east, north = _numbers(raw, "latc"), _numbers(raw, "lonc"), _numbers(raw, variables["u"]), _numbers(raw, variables["v"])
         data = [{"latitude": a, "longitude": _great_lakes_longitude(b), "u": u, "v": v, "speed": math.hypot(u, v), "direction": (math.degrees(math.atan2(u, v)) + 360) % 360, "depthMeters": depth, "model": model} for a, b, u, v in zip(lat, lon, east, north) if all(math.isfinite(value) for value in (a, b, u, v)) and abs(u) <= 10 and abs(v) <= 10]
     valid = datetime.strptime(f"{run['date']}{run['cycle']:02d}", "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp() + available_hour * 3600
-    return data, {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": datetime.fromtimestamp(valid, timezone.utc).isoformat().replace("+00:00", "Z"), "available": True, "variables": variables, "selectedForecastHour": available_hour, "selectedSigmaLayer": layer}
+    return data, {"model": model, "datasetUrl": f"{THREDDS}/dodsC/{path}", "validTime": datetime.fromtimestamp(valid, timezone.utc).isoformat().replace("+00:00", "Z"), "available": True, "variables": variables, "run": run["id"], "selectedForecastHour": available_hour, "selectedSigmaLayer": layer}
 
 
 def great_lakes_payload(kind: str, forecast_hour: int, depth: int, models: tuple[str, ...] = MODELS, scale: tuple[float, float] | None = None) -> dict:
@@ -618,7 +803,8 @@ def great_lakes_payload(kind: str, forecast_hour: int, depth: int, models: tuple
     depth = snap_depth(depth, models)
     if kind == "currents":
         cache_key = (CURRENT_RENDER_VERSION, _data_key(models, forecast_hour), depth, models, scale, _cache_bucket())
-        return _shared_payload(_current_payload_cache, cache_key, lambda: _build_payload(kind, forecast_hour, depth, models, scale), MAX_PAYLOAD_CACHE_ENTRIES)
+        payload = _shared_payload(_current_payload_cache, cache_key, lambda: _build_payload(kind, forecast_hour, depth, models, scale), MAX_PAYLOAD_CACHE_ENTRIES)
+        return _currents_with_fallback(payload, forecast_hour, depth, models, scale)
     return _build_payload(kind, forecast_hour, depth, models)
 
 
@@ -1129,7 +1315,8 @@ def _regular_thermocline_grid(model: str, forecast_hour: int, resolution: int) -
 def great_lakes_thermocline_rasters(forecast_hour: int, resolution: int, models: tuple[str, ...] = MODELS, scale: tuple[float, float] | None = None) -> dict:
     """Thermocline depth for every lake. ``scale`` fixes the palette's (min, max) metres instead of fitting this frame."""
     cache_key = (THERMOCLINE_RASTER_RENDER_VERSION, _data_key(models, forecast_hour), resolution, models, scale, _cache_bucket())
-    return _shared_payload(_thermocline_raster_cache, cache_key, lambda: _build_thermocline_rasters(forecast_hour, resolution, models, scale), MAX_PAYLOAD_CACHE_ENTRIES)
+    payload = _shared_payload(_thermocline_raster_cache, cache_key, lambda: _build_thermocline_rasters(forecast_hour, resolution, models, scale), MAX_PAYLOAD_CACHE_ENTRIES)
+    return _thermocline_with_fallback(payload, forecast_hour, resolution, models, scale)
 
 
 def _build_thermocline_rasters(forecast_hour: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None = None) -> dict:
@@ -1252,6 +1439,34 @@ def great_lakes_temperature_value(forecast_hour: int, depth: int, resolution: in
 
 
 def great_lakes_temperature_profile(forecast_hour: int, latitude: float, longitude: float, models: tuple[str, ...] = MODELS) -> dict:
+    cache_path = _point_temperature_profile_cache_path(forecast_hour, latitude, longitude, models)
+    try:
+        profile = _great_lakes_temperature_profile_live(forecast_hour, latitude, longitude, models)
+    except Exception:
+        saved = gl_cache.read_json(cache_path)
+        if not isinstance(saved, dict) or not isinstance(saved.get("profile"), dict):
+            fallback = _last_saved_temperature_profile(latitude, longitude, models)
+            if fallback is not None:
+                return fallback
+            raise
+        return _stale_temperature_profile(saved)
+
+    if profile.get("available"):
+        try:
+            gl_cache.write_json(cache_path, {"profile": profile, "savedAt": datetime.now(timezone.utc).isoformat()})
+            _prune_saved_point_profiles(cache_path.parent, cache_path)
+        except OSError:
+            pass
+        return profile
+
+    saved = gl_cache.read_json(cache_path)
+    if isinstance(saved, dict) and isinstance(saved.get("profile"), dict):
+        return _stale_temperature_profile(saved)
+    fallback = _last_saved_temperature_profile(latitude, longitude, models)
+    return fallback if fallback is not None else profile
+
+
+def _great_lakes_temperature_profile_live(forecast_hour: int, latitude: float, longitude: float, models: tuple[str, ...] = MODELS) -> dict:
     for model in models:
         # The refresher keeps whole model-hours on disk; reading those is instant.
         try:
@@ -1262,7 +1477,7 @@ def great_lakes_temperature_profile(forecast_hour: int, latitude: float, longitu
             if cached.get("available"):
                 return cached
             continue
-        run = discovered_runs((model,))[model]
+        run = _forecast_run(model, forecast_hour)
         if "error" in run:
             continue
         hours = run["files"]  # type: ignore[assignment]
@@ -1296,6 +1511,112 @@ def great_lakes_temperature_profile(forecast_hour: int, latitude: float, longitu
     return {"available": False}
 
 
+def _last_saved_temperature_profile(latitude: float, longitude: float, models: tuple[str, ...]) -> dict | None:
+    return _last_cached_temperature_profile(latitude, longitude, models) or _last_history_temperature_profile(latitude, longitude)
+
+
+def _last_cached_temperature_profile(latitude: float, longitude: float, models: tuple[str, ...]) -> dict | None:
+    candidates = []
+    now = time.time()
+    for model in models:
+        model_directory = gl_cache.path_for("models", model)
+        try:
+            run_directories = list(model_directory.iterdir())
+        except OSError:
+            continue
+        for run_directory in run_directories:
+            run_match = re.fullmatch(r"(\d{8})t(\d{2})z", run_directory.name)
+            if not run_match or not run_directory.is_dir():
+                continue
+            try:
+                cycle_epoch = datetime.strptime("".join(run_match.groups()), "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp()
+                files = list(run_directory.glob("temperature-f*-*x*-v*.bin"))
+            except (OSError, ValueError):
+                continue
+            for path in files:
+                file_match = re.fullmatch(r"temperature-f(\d{3})-\d+x\d+-v\d+\.bin", path.name)
+                if not file_match:
+                    continue
+                hour = int(file_match.group(1))
+                valid_epoch = cycle_epoch + hour * 3600
+                if valid_epoch <= now:
+                    try:
+                        candidates.append((valid_epoch, path.stat().st_mtime, model, run_directory.name, cycle_epoch, hour, path))
+                    except OSError:
+                        continue
+
+    for _, _, model, run_id, cycle_epoch, hour, path in sorted(candidates, reverse=True):
+        try:
+            volume = volumes.cached_volume_file("temperature", model, run_id, hour, path)
+            if volume is None:
+                continue
+            cell = _nearest_wet_cell(volume, latitude, longitude)
+            if cell is None:
+                continue
+            temperature_field = next(iter(volume.variables), None)
+            if temperature_field is None:
+                continue
+            temperatures = volume.profile(temperature_field, cell)
+            values = [{"depthMeters": depth, "temperatureC": temperature} for depth, temperature in zip(volume.depths, temperatures) if math.isfinite(temperature) and -5 <= temperature <= 45]
+            if not values:
+                continue
+            profile = _temperature_profile_result(
+                model, {"id": run_id, "cycleEpoch": cycle_epoch}, hour, latitude, longitude,
+                volume.latitude_axis[cell // volume.columns], volume.longitude_axis[cell % volume.columns], values,
+            )
+            profile["stale"] = True
+            profile["lastAvailableAt"] = profile["validTime"]
+            return profile
+        except Exception:
+            continue
+    return None
+
+
+def _last_history_temperature_profile(latitude: float, longitude: float) -> dict | None:
+    try:
+        from . import great_lakes_history_client as saved_history
+
+        index = saved_history.index()
+        hours = index.get("hours", []) if isinstance(index, dict) else []
+        profile_times = [item.get("time") for item in hours if isinstance(item, dict) and item.get("profile") and item.get("time")]
+        for saved_time in reversed(profile_times[-12:]):
+            profile = saved_history.point("temperature-profile", {"time": saved_time, "latitude": latitude, "longitude": longitude})
+            if profile.get("available"):
+                profile = dict(profile)
+                profile["stale"] = True
+                profile["lastAvailableAt"] = profile.get("historyTime") or saved_time
+                return profile
+    except Exception:
+        return None
+    return None
+
+
+def _point_temperature_profile_cache_path(forecast_hour: int, latitude: float, longitude: float, models: tuple[str, ...]):
+    key = f"{forecast_hour}|{','.join(models)}|{latitude:.3f}|{longitude:.3f}"
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+    return gl_cache.path_for("point-profiles", f"{digest}.json")
+
+
+def _stale_temperature_profile(saved: dict) -> dict:
+    profile = dict(saved["profile"])
+    profile["stale"] = True
+    profile["lastAvailableAt"] = saved.get("savedAt")
+    return profile
+
+
+def _prune_saved_point_profiles(directory, current_path) -> None:
+    try:
+        files = list(directory.glob("*.json"))
+        if len(files) <= MAX_SAVED_POINT_PROFILES:
+            return
+        files.sort(key=lambda path: path.stat().st_mtime)
+        for path in files[:len(files) - MAX_SAVED_POINT_PROFILES]:
+            if path != current_path:
+                path.unlink(missing_ok=True)
+    except OSError:
+        return
+
+
 def _distance_km(latitude: float, longitude: float, other_latitude: float, other_longitude: float) -> float:
     first, second = math.radians(latitude), math.radians(other_latitude)
     delta_latitude = second - first
@@ -1306,7 +1627,7 @@ def _distance_km(latitude: float, longitude: float, other_latitude: float, other
 
 def _cached_volume_for_point(kind: str, model: str, forecast_hour: int) -> tuple[dict, int, dict[str, str], volumes.Volume] | None:
     """A model-hour volume the refresher already saved, without downloading anything."""
-    run = discovered_runs((model,))[model]
+    run = _forecast_run(model, forecast_hour)
     if "error" in run:
         return None
     hour = select_forecast_hour(run, forecast_hour)
@@ -1416,7 +1737,7 @@ def _current_profile_values(depths: list[float], east: list[float], north: list[
 
 
 def _current_profile_for_model(model: str, forecast_hour: int, latitude: float, longitude: float) -> dict:
-    run = discovered_runs((model,))[model]
+    run = _forecast_run(model, forecast_hour)
     if "error" in run:
         raise RuntimeError(str(run["error"]))
     hours = run["files"]  # type: ignore[assignment]
