@@ -16,7 +16,7 @@ import { displayDateForCalendar, expeditionDateRange, populateTripExpeditionSele
 import { renderNotePhotos } from "./photos.js";
 import { addCatchRow, addLostFishRow, addTripGearRow, populateSetupLineSelects, setupLineLabel } from "./trip-rows.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
-import { greatLakesControlValue, greatLakesLoadedModelsKey } from "./great-lakes-conditions.js";
+import { tripConditionsTime } from "./trip-condition-time.js";
 import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
 import { calculateMinutes } from "./stats.js";
 import { isTrollingTrip, trimNumber } from "./form-utils.js";
@@ -605,15 +605,14 @@ export async function importNoaaProbeTemperatureProfile(button) {
   button.textContent = "Loading NOAA…";
   setProbeProfileImportStatus("Loading NOAA water-column profile…");
   try {
-    const forecastHour = typeof greatLakesControlValue === "function" ? greatLakesControlValue("forecast") : "0";
-    const models = typeof greatLakesLoadedModelsKey === "string" ? greatLakesLoadedModelsKey : "";
-    const profile = await window.noaaGreatLakesApi?.profile({
-      forecastHour: forecastHour || "0",
+    const time = tripConditionsTime(ui.tripDraft || {});
+    const conditions = await window.noaaGreatLakesApi?.fishingConditions({
+      time,
       latitude: coordinates.latitude,
-      longitude: coordinates.longitude,
-      models
+      longitude: coordinates.longitude
     });
-    if (!profile?.available) throw new Error("NOAA profile unavailable");
+    const profile = conditions?.temperatureProfile;
+    if (!profile?.available) throw new Error("No saved NOAA profile for the trip date");
     const importedProfile = noaaProbeTemperatureProfileEntries(profile);
     if (!importedProfile.length) throw new Error("NOAA profile contains no usable readings");
     if (!probeProfileCoordinatesMatch(coordinates, probeProfileImportSource()?.coordinates)) {

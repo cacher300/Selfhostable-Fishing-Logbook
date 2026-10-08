@@ -180,6 +180,10 @@ Deletes a non-queue upload only when it exists and is not referenced. Returns 40
 
 Files are served from their category paths. Category validation occurs through the media path helper.
 
+### Great Lakes historical fishing conditions
+
+GET `/api/great-lakes/history/point/fishing-conditions?time=<ISO-8601>&latitude=<degrees>&longitude=<degrees>` proxies one historical sample from GreatLakesTrolling. It returns temperature readings and the thermocline NOAA derives from the profile, plus the underwater current profile and nearest model-cell location. The desktop server forwards this request to the configured GREAT_LAKES_HISTORY_URL; the site retains temperature profiles for 90 days and full-depth current profiles for 30 days.
+
 ## SPA and Static Routes
 
 - `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, `/wiki`, and `/settings` render `templates/index.html` and its feature partials. `/` selects the Trips view.

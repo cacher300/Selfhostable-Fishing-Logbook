@@ -26,6 +26,7 @@ setupApi();
 const api = window.noaaGreatLakesApi;
 await api.conditions({ layer: "thermocline", forecastHour: 0, depth: 0, resolution: 512, models: "LOOFS", time: "2026-10-05T03:00:00Z" });
 await api.profile({ forecastHour: 0, latitude: 43.5, longitude: -79.5, models: "LOOFS", time: "2026-10-05T03:00:00Z" });
+await api.fishingConditions({ time: "2026-10-05T03:00:00Z", latitude: 43.5, longitude: -79.5 });
 await api.observations({ time: "2026-10-05T03:00:00Z" });
 await api.history();
 await api.stationHistory({ id: "45012" });
@@ -33,6 +34,7 @@ await api.profile({ forecastHour: 6, latitude: 43.5, longitude: -79.5, models: "
 assert.deepEqual(requested, [
   "/api/great-lakes/history/layers/thermocline?time=2026-10-05T03%3A00%3A00Z",
   "/api/great-lakes/history/point/temperature-profile?time=2026-10-05T03%3A00%3A00Z&latitude=43.5&longitude=-79.5",
+  "/api/great-lakes/history/point/fishing-conditions?time=2026-10-05T03%3A00%3A00Z&latitude=43.5&longitude=-79.5",
   "/api/great-lakes/history/stations?time=2026-10-05T03%3A00%3A00Z",
   "/api/great-lakes/history?",
   "/api/great-lakes/history/stations/45012?",

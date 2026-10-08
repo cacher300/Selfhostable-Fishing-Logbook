@@ -43,6 +43,8 @@ def test_saved_past_conditions_come_from_the_site_with_images_served_here(monkey
 
     point = client.get("/api/great-lakes/history/point/temperature-profile?time=t&latitude=43.5&longitude=-79.5&models=LOOFS").get_json()
     assert point == {"path": "/point/temperature-profile", "params": {"time": "t", "depth": None, "latitude": "43.5", "longitude": "-79.5"}}
+    conditions = client.get("/api/great-lakes/history/point/fishing-conditions?time=t&latitude=43.5&longitude=-79.5").get_json()
+    assert conditions == {"path": "/point/fishing-conditions", "params": {"time": "t", "depth": None, "latitude": "43.5", "longitude": "-79.5"}}
     assert client.get("/api/great-lakes/history/point/salinity?time=t").status_code == 404
     assert client.get("/api/great-lakes/history/stations?time=t").get_json()["path"] == "/stations"
     assert client.get("/api/great-lakes/history/stations/45012").get_json()["path"] == "/stations/45012"

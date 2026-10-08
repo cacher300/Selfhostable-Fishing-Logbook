@@ -45,6 +45,9 @@ export function setup() {
       if (!response.ok) throw new Error("NOAA profile lookup failed");
       return response.json();
     },
+    async fishingConditions(options) {
+      return historyJson("/point/fishing-conditions", { time: options.time, latitude: options.latitude, longitude: options.longitude });
+    },
     async currentProfile(options) {
       if (options.time) return historyJson("/point/current-profile", { time: options.time, latitude: options.latitude, longitude: options.longitude });
       const response = await fetch(`/api/great-lakes/current-profile?${new URLSearchParams(options)}`);

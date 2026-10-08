@@ -17,6 +17,7 @@ installBrowserEnv(`<!doctype html><html><body>
 </body></html>`);
 
 const { els } = await import("../static/js/app-elements.js");
+const { tripConditionsTime } = await import("../static/js/trip-condition-time.js");
 const { setState, ui } = await import("../static/js/app-state.js");
 const { selectedTripLocationCoordinates } = await import("../static/js/locations.js");
 const {
@@ -40,6 +41,7 @@ setState({
   }],
   people: [],
 });
+ui.tripDraft = { date: "2026-10-05", launchTime: "06:30" };
 
 const exactProfile = noaaProbeTemperatureProfileEntries({
   values: [
@@ -152,17 +154,28 @@ assert.equal(document.querySelector("#probeProfileImportStatus").textContent, "N
 
 renderProbeTemperatureProfile([], { exactDepths: true });
 globalThis.confirm = () => true;
-window.noaaGreatLakesApi = { profile: async () => ({ available: false }) };
+window.noaaGreatLakesApi = { fishingConditions: async () => ({ temperatureProfile: { available: false } }) };
 await importNoaaProbeTemperatureProfile(button);
 assert.match(document.querySelector("#probeProfileImportStatus").textContent, /not changed/, "an unavailable profile preserves the current readings");
 
+const requestedConditions = [];
 window.noaaGreatLakesApi = {
-  profile: async () => ({
-    available: true,
-    values: [{ depthMeters: 2.5, temperatureC: 16.25 }],
-  }),
+  fishingConditions: async (options) => {
+    requestedConditions.push(options);
+    return {
+      temperatureProfile: {
+        available: true,
+        values: [{ depthMeters: 2.5, temperatureC: 16.25 }],
+      },
+    };
+  },
 };
 await importNoaaProbeTemperatureProfile(button);
+assert.deepEqual(requestedConditions[0], {
+  time: tripConditionsTime(ui.tripDraft),
+  latitude: 43.6,
+  longitude: -77.2,
+}, "NOAA import requests the saved trip date and launch time at the selected launch");
 const imported = collectProbeTemperatureProfile();
 assert.deepStrictEqual(structuredClone(imported), [{ depthFeet: 8.202, temperature: "61.25" }], "available NOAA data replaces the grid");
 assert.equal([...document.querySelectorAll("#probeTemperatureGrid [data-probe-depth-feet]")].length, 1, "NOAA renders only its returned depths");

@@ -14,6 +14,7 @@ import { positionLabel } from "./cards.js";
 import { addMeasureControl, isMeasuring } from "./measure.js";
 import { formatDate } from "./dashboard.js";
 import { displayFowValue } from "./trip-summary.js";
+import { bindCatchFishingConditions } from "./map-catch-fishing-conditions.js";
 
 
 export function catchMapRecordForTrip(trip, catchItem, catchIndex) {
@@ -131,9 +132,38 @@ export function syncMapPageBathymetryOverlay(map) {
     if (!savedMapBathymetry()) return;
     const lakeLayers = map._logbookBathymetryLakeLayers || (map._logbookBathymetryLakeLayers = {});
     const view = map.getBounds();
-    Object.entries(manifest.lakes || {}).forEach(([slug, lake]) => {
-      if (!lake?.image || !Array.isArray(lake.bounds)) return;
-      const bounds = L.latLngBounds(lake.bounds[0], lake.bounds[1]);
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    const lakeEntries = Object.entries(manifest.lakes || {}).flatMap(([slug, lake]) => {
+      if (!lake?.image || !Array.isArray(lake.bounds)) return [];
+      return [{ slug, lake, bounds: L.latLngBounds(lake.bounds[0], lake.bounds[1]) }];
+    });
+    // Neighboring NOAA raster bounds overlap slightly. At close zooms, draw
+    // only the lake under (or nearest to) the map center so shared pixels aren't blended twice.
+    const focusedLakes = lakeEntries.filter(({ bounds }) => bounds.contains(center));
+    const focusCandidates = focusedLakes.length
+      ? focusedLakes
+      : lakeEntries.filter(({ bounds }) => view.intersects(bounds));
+    const focusedLake = zoom > 6
+      ? focusCandidates.sort((first, second) => {
+        const area = (bounds) => {
+          const northEast = bounds.getNorthEast();
+          const southWest = bounds.getSouthWest();
+          return (northEast.lat - southWest.lat) * (northEast.lng - southWest.lng);
+        };
+        const boundsDistance = (bounds) => {
+          const northEast = bounds.getNorthEast();
+          const southWest = bounds.getSouthWest();
+          const latitude = Math.max(southWest.lat - center.lat, center.lat - northEast.lat, 0);
+          const longitude = Math.max(southWest.lng - center.lng, center.lng - northEast.lng, 0);
+          return latitude ** 2 + longitude ** 2;
+        };
+        return focusedLakes.length
+          ? area(first.bounds) - area(second.bounds)
+          : boundsDistance(first.bounds) - boundsDistance(second.bounds);
+      })[0]
+      : null;
+    lakeEntries.forEach(({ slug, lake, bounds }) => {
       let layer = lakeLayers[slug];
       if (!layer) {
         layer = lakeLayers[slug] = L.imageOverlay(lake.image, bounds, {
@@ -141,12 +171,13 @@ export function syncMapPageBathymetryOverlay(map) {
         });
         layer.on("error", () => setStatus("NOAA depth shading could not be loaded.", true));
       }
-      if (view.intersects(bounds)) group.addLayer(layer);
+      const visible = focusedLake ? slug === focusedLake.slug : view.intersects(bounds);
+      if (visible) group.addLayer(layer);
       else group.removeLayer(layer);
     });
     if (group.getLayers().length) {
       if (!map.hasLayer(group)) group.addTo(map);
-      setStatus("Showing NOAA depth shading.");
+      setStatus("");
     } else {
       if (map.hasLayer(group)) map.removeLayer(group);
       setStatus("Move the map over a Great Lake to show depth shading.");
@@ -226,9 +257,11 @@ export function addMapMarker(layerGroup, record, options = {}) {
   const popupHtml = mapPopupHtml(record);
   const popupOptions = options.autoPanPopup === false ? { autoPan: false } : undefined;
   if (shouldShowMapDirectionArrow(record, options)) {
-    return mapDirectionMarker(record, color, fillColor, popupHtml, popupOptions).addTo(layerGroup);
+    const marker = mapDirectionMarker(record, color, fillColor, popupHtml, popupOptions);
+    bindCatchFishingConditions(marker, record);
+    return marker.addTo(layerGroup);
   }
-  return L.circleMarker([record.coordinates.latitude, record.coordinates.longitude], {
+  const marker = L.circleMarker([record.coordinates.latitude, record.coordinates.longitude], {
     radius: record.type === "catch" ? 8 : 7,
     color,
     fillColor,
@@ -236,7 +269,9 @@ export function addMapMarker(layerGroup, record, options = {}) {
     weight: options.colorByYear ? 3 : 2,
     bubblingMouseEvents: false,
     pane: record.type === "catch" ? "fishMarkers" : "tripMediaMarkers"
-  }).bindPopup(String(popupHtml), popupOptions).addTo(layerGroup);
+  }).bindPopup(String(popupHtml), popupOptions);
+  bindCatchFishingConditions(marker, record);
+  return marker.addTo(layerGroup);
 }
 
 export function ensureMapMarkerPanes(map) {
@@ -637,6 +672,7 @@ export function mapPopupHtml(record) {
         <span class="map-popup-date">${formatDate(trip.date)}</span>
       </div>
       ${detailRows.length ? html`<div class="map-popup-details" aria-label="Map record details">${joinHtml(detailRows)}</div>` : ""}
+      ${record.type === "catch" ? html`<div class="map-catch-conditions" data-catch-fishing-conditions role="status"><span class="map-catch-conditions-heading">Saved NOAA conditions</span><small>Open the catch to load its historical water profile.</small></div>` : ""}
       <button class="map-popup-trip-link" type="button" data-view-trip="${trip.id}">View Trip</button>
     </div>
   `;
@@ -774,7 +810,7 @@ function setupMapPageDepthContours(map) {
     const failed = results.length - layers.length;
     if (failed && layers.length) setStatus("Some lake contours could not be loaded; the other visible contours are shown.", true);
     else if (failed) setStatus("NOAA depth contours could not be loaded.", true);
-    else setStatus(lakes.length > 1 ? "Showing nearby Great Lakes depth contours." : "Showing NOAA depth contours.");
+    else setStatus("");
   };
 
   control?.addEventListener("change", () => {

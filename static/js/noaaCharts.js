@@ -28,7 +28,10 @@ export function normalizeNOAAExportBbox(layer) {
 }
 
 export function createNOAAChartLayer() {
-  if (!window.L?.esri?.dynamicMapLayer) {
+  // Leaflet installs its own global `window.L` before the bundled Esri
+  // namespace is merged into the app's local map object. Use that bundle here
+  // so the overlay is available even when the global was already populated.
+  if (!L.esri?.dynamicMapLayer) {
     warnNOAAChartLayerFailure("Esri Leaflet is unavailable; keeping the OpenStreetMap basemap visible.");
     return null;
   }
