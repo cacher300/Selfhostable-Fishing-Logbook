@@ -5,7 +5,8 @@ import { sortTrollingSetupRows, syncLastTrollingSpreadImportButton, updateRowSum
 import { updateRiggingVisibility } from "./gear-pickers.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { findDraftRecord, updateTripRow } from "./draft-binding.js";
-import { ui } from "./app-state.js";
+import { state, ui } from "./app-state.js";
+import { isGreatLakesFishingTrip } from "./trip-fishing-conditions.js";
 
 function draftCollectionForFishRow(row) {
   return row?.classList?.contains?.("lost-fish-row") ? "lostFish" : "catches";
@@ -44,6 +45,8 @@ export function updateTrollingVisibility() {
   const trolling = isTrollingTrip();
   const casting = isCastingTrip();
   const flyFishing = isFlyFishingTrip();
+  const greatLakesFishing = isGreatLakesFishingTrip(ui.tripDraft, state.locations);
+  const tripDialog = document.querySelector("#tripDialog");
   if (!trolling) {
     document.querySelectorAll(".trip-gear-side").forEach((select) => {
       select.value = "";
@@ -53,7 +56,12 @@ export function updateTrollingVisibility() {
   document.querySelectorAll("#tripDialog .gear-used-row .gear-lure-field > span").forEach((label) => {
     label.textContent = casting ? "Lure (optional)" : "Lure";
   });
-  document.querySelector("#tripDialog")?.classList.toggle("is-trolling", trolling);
+  tripDialog?.classList.toggle("is-trolling", trolling);
+  tripDialog?.classList.toggle("is-great-lakes-fishing", greatLakesFishing);
+  document.querySelector("#tripThermoclineDepth")?.closest(".trip-thermocline-field")?.classList.toggle("hidden", !greatLakesFishing);
+  document.querySelectorAll("#tripDialog .great-lakes-current-field").forEach((element) => {
+    element.classList.toggle("hidden", !greatLakesFishing);
+  });
   document.querySelectorAll("#tripDialog .trolling-field").forEach((element) => {
     element.classList.toggle("hidden", !trolling);
   });

@@ -5,7 +5,7 @@ import { automaticSpotId, choiceLabel, optionChoices, optionLabels, spotName, tr
 import { formatDisplayTime } from "./app-units.js";
 import { els } from "./app-elements.js";
 import { isUsableCoordinates } from "./app-media.js";
-import { flashAutoFilledField, updateCatchLocationSummary } from "./locations.js";
+import { flashAutoFilledField, tripLocationCoordinates, updateCatchLocationSummary } from "./locations.js";
 import { syncUnitLabels } from "./settings.js";
 import { formatDate, populateChoiceSelect, populateOptionSelect } from "./dashboard.js";
 import { fishCoordinatesFromRow, manualCoordinatesFromRow, renderCatchPhotos, updateMetadataLockButtons } from "./photos.js";
@@ -15,7 +15,9 @@ import { populateComboSelect, populateFlasherSelect, populateLureSelect, renderF
 import { defaultSetupLineSide, renderLiveTrollingSpread, setupLineAutoLabel, setupLineSideLabel } from "./trolling-spread.js";
 import { isTrollingTrip, populateStructureSelect, updateCheaterDepth, updateLeadcoreEstimatedDepth, updatePresentationFields, updateTrollingVisibility } from "./form-utils.js";
 import { applyTripDraftBindings, findDraftRecord, insertTripRow, replaceDraftRecord, replaceTripRows, updateTripRow } from "./draft-binding.js";
+import { catchCurrentDisplayValues, isGreatLakesFishingTrip, loadSavedFishingConditions } from "./trip-fishing-conditions.js";
 
+const catchFishingRequestIds = new WeakMap();
 
 export function addCatchRow(catchItem = {}) {
   return addFishRow(catchItem, { container: els.catchRows, lost: false });
@@ -37,6 +39,64 @@ export function expandAndRevealTripRow(row) {
 
 export function defaultFishTime(catchItem = {}) {
   return catchItem.timeUnknown ? "" : (catchItem.time ?? (ui.tripDraft?.launchTime || getValue("launchTime") || defaultTimeValue));
+}
+
+export function refreshCatchFishingConditions(row, tripOverride = null) {
+  const speedInput = row?.querySelector(".catch-current-speed");
+  const directionInput = row?.querySelector(".catch-current-direction");
+  if (!speedInput || !directionInput) return;
+  const requestId = (catchFishingRequestIds.get(row) || 0) + 1;
+  catchFishingRequestIds.set(row, requestId);
+  const trip = tripOverride || ui.tripDraft || {};
+  if (!isGreatLakesFishingTrip(trip, state.locations)) {
+    speedInput.value = "";
+    directionInput.value = "";
+    speedInput.title = "";
+    directionInput.title = "";
+    return;
+  }
+  if (!els.tripDialog?.open || !row.isConnected) return;
+
+  const catchItem = findDraftRecord(row.classList.contains("lost-fish-row") ? "lostFish" : "catches", row.dataset.catchId) || {};
+  const coordinates = fishCoordinatesFromRow(row) || tripLocationCoordinates(trip);
+  if (!isUsableCoordinates(coordinates)) {
+    speedInput.value = "No map pin";
+    directionInput.value = "No map pin";
+    speedInput.title = "Add a map pin to the catch or trip location to load current conditions.";
+    directionInput.title = speedInput.title;
+    return;
+  }
+
+  speedInput.value = "Loading…";
+  directionInput.value = "Loading…";
+  loadSavedFishingConditions(trip, coordinates, catchItem).then((conditions) => {
+    if (!row.isConnected || catchFishingRequestIds.get(row) !== requestId) return;
+    const values = catchCurrentDisplayValues(conditions || {}, catchItem);
+    speedInput.value = values.speed;
+    directionInput.value = values.direction;
+    const current = conditions?.currentProfile || {};
+    const sampleTime = current.historyTime || conditions?.time || "Saved NOAA sample";
+    const location = current.modelLocation;
+    const hasModelLocation = typeof location?.latitude === "number" && Number.isFinite(location.latitude)
+      && typeof location?.longitude === "number" && Number.isFinite(location.longitude);
+    const hasSampleDistance = typeof current.sampleDistanceKm === "number" && Number.isFinite(current.sampleDistanceKm);
+    const modelPoint = hasModelLocation
+      ? `Model cell ${location.latitude.toFixed(3)}, ${location.longitude.toFixed(3)}${hasSampleDistance ? ` (${current.sampleDistanceKm.toFixed(1)} km away)` : ""}`
+      : "";
+    const title = [values.note, modelPoint, sampleTime].filter(Boolean).join(" · ");
+    speedInput.title = title;
+    directionInput.title = title;
+  }).catch(() => {
+    if (!row.isConnected || catchFishingRequestIds.get(row) !== requestId) return;
+    speedInput.value = "Unavailable";
+    directionInput.value = "Unavailable";
+    speedInput.title = "No saved current reading was available for this catch time and location.";
+    directionInput.title = speedInput.title;
+  });
+}
+
+export function refreshAllCatchFishingConditions(tripOverride = null) {
+  document.querySelectorAll("#tripDialog .catch-row").forEach((row) => refreshCatchFishingConditions(row, tripOverride));
 }
 
 export function populateCatchSpotSelect(row, catchItem = {}) {
@@ -415,6 +475,7 @@ export function addFishRow(catchItem = {}, { container, lost }) {
   updateCatchDetailsUnknown(node);
   updateAllRowSummaries();
   renderLiveTrollingSpread();
+  if (els.tripDialog?.open) refreshCatchFishingConditions(node);
   return node;
 }
 

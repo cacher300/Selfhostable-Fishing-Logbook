@@ -101,6 +101,8 @@ Typed fishing measurements such as `waterTemp`, `weight`, and `fowCaught` are st
 
 Coordinates must be within latitude/longitude bounds and cannot be `(0,0)`. A person is `{ id, name }`; trips reference the top-level people library by ID.
 
+The optional greatLakesOverride field is a manual yes/no correction. When unset, the app checks whether the waterbody map pin falls inside one of the five Great Lakes using bundled simplified outlines. Both waterbody editors fill the checkbox from the pin and let the user correct it. Launch pins do not determine Great Lakes membership; small islands and shoreline-edge positions may need the checkbox correction.
+
 ## Fishing Spot
 
 A spot is `{ id, name, coordinates, radiusMeters }`. Names and IDs are unique, coordinates are required, and radius is stored in meters from 25 through 500. Spots are global geographic circles rather than children of waterbodies.

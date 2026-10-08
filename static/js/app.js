@@ -126,7 +126,9 @@ export async function init() {
 }
 
 export function setup() {
-  document.querySelector("#method").addEventListener("change", () => updateMethodVisibility({ applyStartupSpread: true }));
+  document.querySelector("#method").addEventListener("change", () => {
+    queueMicrotask(() => updateMethodVisibility({ applyStartupSpread: true }));
+  });
 
   document.querySelector("#targetSpecies").addEventListener("change", () => updateMethodVisibility());
 

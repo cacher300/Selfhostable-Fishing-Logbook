@@ -157,5 +157,37 @@ assert.equal(shown.temperatureMetadata.forecastHour, 4);
 play.click();
 await waitFor(() => shown.temperatureMetadata.forecastHour === 0, "temperature playback to loop with currents");
 animation.stopGreatLakesAnimation();
+// Clear thermocline cells must reveal the map gradually, not keep the old
+// colour until frame cleanup. Exercise both forward playback and the loop.
+const thermoclineFrames = frames.slice(0, 2).map((frame) => ({ ...frame, url: `${frame.url}&kind=thermocline` }));
+window.noaaGreatLakesApi.animation = async () => ({ ready: true, frames: thermoclineFrames });
+window.noaaGreatLakesApi.animationFrame = async () => ({
+  rasters: [{ imageUrl: "/thermocline-with-transparent-cells.webp", bounds: [[41, -84], [43, -78]] }],
+  metadata: { minDepthMeters: 0, maxDepthMeters: 30, models: [] }
+});
+document.querySelector("[data-gl-layer]").value = "thermocline";
+animation.animationState.active = true;
+assert.equal(await animation.loadGreatLakesAnimation(map, { layer: "thermocline", depth: "0", isCurrent: () => true }), true);
+animation.syncTimelineControls();
+const thermoclineImages = animation.animationState.overlays.map(([overlay]) => overlay.getElement());
+const opacity = (index) => Number(thermoclineImages[index].style.opacity);
+play.click();
+await waitFor(() => opacity(0) < 0.8 && opacity(0) > 0.2, "outgoing thermocline colours to fade during playback");
+assert.ok(opacity(1) > 0.2 && opacity(1) < 0.8, "incoming colours blend at the same time");
+assert.ok(Math.abs(opacity(0) + opacity(1) - 1) < 0.05);
+await waitFor(() => animation.animationState.index === 1, "the second thermocline frame");
+await waitFor(() => opacity(1) < 0.8 && opacity(1) > 0.2, "outgoing thermocline colours to fade on the loop");
+assert.ok(opacity(0) > 0.2 && opacity(0) < 0.8);
+play.click();
+assert.deepEqual(thermoclineImages.map((image) => image.style.opacity), ["0", "1"]);
+slider.value = "0";
+slider.dispatchEvent(new Event("input", { bubbles: true }));
+await waitFor(() => opacity(1) < 0.8 && opacity(1) > 0.2, "thermocline scrubbing to fade the old frame");
+await waitFor(() => opacity(0) === 1 && opacity(1) === 0, "thermocline scrubbing to settle");
+window.matchMedia = () => ({ matches: true });
+slider.value = "1";
+slider.dispatchEvent(new Event("input", { bubbles: true }));
+assert.deepEqual(thermoclineImages.map((image) => image.style.opacity), ["0", "1"]);
+animation.stopGreatLakesAnimation();
 map.remove();
 process.exit(0);

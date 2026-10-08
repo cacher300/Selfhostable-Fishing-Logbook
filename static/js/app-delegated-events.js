@@ -7,8 +7,8 @@ import { addPredefinedOption as addPredefinedOptionDraft, removePredefinedOption
 import { collectFishingSpotSettings, collectPrivatePhotoLocationSettings, renderFishingSpotSettings, renderPrivatePhotoLocationSettings, saveFishingSpots, savePrivatePhotoLocations } from "./settings-locations.js";
 import { renderTrips } from "./dashboard.js";
 import { addCatchPhotos, applyPhotoCaptureTimeToCatch, applyPhotoLocationToCatch, catchPhotoById, claimQueuedPhoto, deleteQueuedPhoto, isCatchMetadataLocked, openPhotoQueue, renderCatchPhotos, renderNotePhotos, setCatchMetadataLock } from "./photos.js";
-import { addProbeProfileDepth, clearProbeProfileLocation, clearTripFormMessage, closeTripDialog, collectProbeTemperatureProfile, importNoaaProbeTemperatureProfile, isTripFormDirty, markTripFormChanged, openProbeProfileLocationDialog, openTripDialog, populatePersonSelects, renderProbeTemperatureProfileChart, saveProbeProfileLocation, setProbeProfileImportStatus, setValue, syncTripFormChrome } from "./trip-editor.js";
-import { duplicateCatchRow, populateCatchRodSelects, populateSetupLineSelects, sortTrollingSetupRows, syncCatchMethodToSetupLine, syncCatchRiggingFromSetupLine, syncDirectCatchRodToLure, syncTripTimesToBlankRows, updateAllRowSummaries, updateCatchDetailsUnknown, updateRowSummary, updateUnknownTimeField } from "./trip-rows.js";
+import { addProbeProfileDepth, clearProbeProfileLocation, clearTripFormMessage, closeTripDialog, collectProbeTemperatureProfile, importNoaaProbeTemperatureProfile, isTripFormDirty, markTripFormChanged, openProbeProfileLocationDialog, openTripDialog, populatePersonSelects, refreshTripEnvironmentalConditions, renderProbeTemperatureProfileChart, saveProbeProfileLocation, setProbeProfileImportStatus, setValue, syncTripFormChrome } from "./trip-editor.js";
+import { duplicateCatchRow, populateCatchRodSelects, populateSetupLineSelects, refreshCatchFishingConditions, sortTrollingSetupRows, syncCatchMethodToSetupLine, syncCatchRiggingFromSetupLine, syncDirectCatchRodToLure, syncTripTimesToBlankRows, updateAllRowSummaries, updateCatchDetailsUnknown, updateRowSummary, updateUnknownTimeField } from "./trip-rows.js";
 import { openQueuedGearImagePreview, previewSelectedGearUploads, removeExistingGearPhoto, renderQueuedGearImage } from "./gear-core.js";
 import { populateLuresForType, renderFlasherPreview, renderLurePreview, renderLureTypeOptions, reopenLurePicker, syncComboToRow } from "./gear-pickers.js";
 import { deleteFlasher, deleteLure, openComboDialog, openFlasherDialog, openFlasherInfoDialog, openLureDialog, openLureInfoDialog, openReelDialog, openRodDialog } from "./gear-dialogs.js";
@@ -25,6 +25,10 @@ import { closeGalleryLightbox, deleteGalleryItems, findGalleryItem, galleryCateg
 import { openStructureDialog } from "./app-control-events.js";
 
 export function setup() {
+  document.addEventListener("fishingconditionschange", (event) => {
+    refreshCatchFishingConditions(event.target.closest?.(".catch-row"));
+  });
+
   document.addEventListener("click", (event) => {
     const galleryQuickFilterButton = event.target.closest("[data-gallery-quick-filter]");
     if (galleryQuickFilterButton) {
@@ -752,7 +756,7 @@ export function setup() {
       return;
     }
     if (event.target.matches(".catch-photo-input")) {
-      addCatchPhotos(event);
+      addCatchPhotos(event).finally(() => refreshCatchFishingConditions(event.target.closest(".catch-row")));
       return;
     }
     if (event.target.matches("#lureImage")) {
@@ -778,11 +782,14 @@ export function setup() {
     if (event.target.matches("#launchTime, #linesPulledTime")) {
       syncTripTimesToBlankRows();
       scheduleTripWeatherPreview(true);
+      if (event.target.matches("#launchTime")) refreshTripEnvironmentalConditions();
     }
-    if (event.target.matches("#tripDate, #tripLocation, #tripLaunch")) {
+    if (event.target.matches("#tripDate, #tripDateValue, #tripLocation, #tripLaunch")) {
       if (event.target.matches("#tripLocation")) populateLaunchSelect();
       updateLocationControls();
+      refreshTripEnvironmentalConditions();
     }
+    if (event.target.matches("#method")) refreshTripEnvironmentalConditions();
     if (event.target.matches("#waveHeight")) {
       scheduleTripWeatherPreview(true);
     }
@@ -820,9 +827,11 @@ export function setup() {
     }
     if (event.target.matches(".catch-time, .catch-time-unknown")) {
       populateSetupLineSelects();
+      refreshCatchFishingConditions(event.target.closest(".catch-row"));
     }
     if (event.target.matches(".catch-details-unknown")) {
       updateCatchDetailsUnknown(event.target.closest(".catch-row"), { clear: event.target.checked });
+      refreshCatchFishingConditions(event.target.closest(".catch-row"));
     }
     if (event.target.matches(".catch-presentation, .trip-gear-cheater, .trip-gear-leadcore")) {
       updatePresentationFields(event.target.closest(".catch-row, .gear-used-row"));

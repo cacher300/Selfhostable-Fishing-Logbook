@@ -288,6 +288,8 @@ export const els = {
   locationParentRow: document.querySelector("#locationParentRow"),
   locationParentName: document.querySelector("#locationParentName"),
   locationName: document.querySelector("#locationName"),
+  locationGreatLakesField: document.querySelector("#locationGreatLakesField"),
+  locationGreatLakes: document.querySelector("#locationGreatLakes"),
   locationLatitude: document.querySelector("#locationLatitude"),
   locationLongitude: document.querySelector("#locationLongitude"),
   deleteTripButton: document.querySelector("#deleteTripButton"),

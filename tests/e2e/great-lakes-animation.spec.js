@@ -83,3 +83,43 @@ test("currents animate temperature backgrounds and temporarily hide stations", a
   await expect(page.locator("[data-gl-stations]")).toBeChecked();
   expect(errors).toEqual([]);
 });
+
+test("thermocline clears outgoing colours smoothly during playback and scrubbing", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.addInitScript(() => localStorage.setItem("glc.AnimationSpeed", "slow"));
+  await page.route("**/api/great-lakes/**", async route => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname.includes("/qa-thermocline-image-")) {
+      const x = pathname.endsWith("-0") ? 20 : 100;
+      await route.fulfill({ contentType: "image/svg+xml", body: `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect x="${x}" width="80" height="100" fill="#28c888"/></svg>` });
+      return;
+    }
+    let payload = { rasters: [], metadata: { models: [] } };
+    if (pathname.endsWith("/status")) payload = { version: "thermocline-qa", models: {} };
+    else if (pathname.includes("/animation/")) payload = {
+      ready: true, frames: [0, 1].map(i => ({ forecastHour: i * 3, validTime: `2026-10-05T${i ? "15" : "12"}:00:00Z`, url: `/api/great-lakes/qa-thermocline-frame-${i}` }))
+    };
+    else if (pathname.includes("/qa-thermocline-frame-")) payload.rasters = [{
+      imageUrl: `/api/great-lakes/qa-thermocline-image-${pathname.at(-1)}`, bounds: [[43.2, -79.8], [44.3, -76.4]]
+    }];
+    await route.fulfill({ json: payload });
+  });
+  await page.goto("/map");
+  await expect(page).toHaveTitle("Fishing Logbook");
+  await page.locator(".map-layers-menu > summary").click();
+  await page.locator("[data-gl-layer]").selectOption("thermocline");
+  await page.locator("[data-gl-play]").click();
+  const images = page.locator(".great-lakes-animation-frame");
+  await expect(images).toHaveCount(2);
+  const blending = () => images.evaluateAll(xs => xs.every(x => +x.style.opacity > 0.2 && +x.style.opacity < 0.8));
+  await expect.poll(blending).toBe(true);
+  const opacities = await images.evaluateAll(xs => xs.map(x => +x.style.opacity));
+  expect(Math.abs(opacities[0] + opacities[1] - 1)).toBeLessThan(0.05);
+  await page.locator("[data-gl-play]").click();
+  await page.locator("[data-gl-frame]").evaluate(x => { x.value = "1"; x.dispatchEvent(new Event("input", { bubbles: true })); });
+  await expect.poll(blending).toBe(true);
+  await expect(images.nth(0)).toHaveCSS("opacity", "0");
+  await expect(images.nth(1)).toHaveCSS("opacity", "1");
+  expect(errors).toEqual([]);
+});

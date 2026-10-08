@@ -124,6 +124,9 @@ export function setup() {
   });
 
   els.locationForm.addEventListener("submit", saveLocationPin);
+  els.locationGreatLakes?.addEventListener("change", () => {
+    if (ui.activeLocationPickerMode !== "launch") ui.locationGreatLakesOverrideTouched = true;
+  });
 
   els.structureForm.addEventListener("submit", saveStructureOption);
 

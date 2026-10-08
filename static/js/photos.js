@@ -587,6 +587,7 @@ export function applyPhotoCaptureTimeToCatch(row, photos) {
       draft.timeUnknown = false;
     }
     flashAutoFilledField(timeInput);
+    row.dispatchEvent?.(new Event("fishingconditionschange", { bubbles: true }));
     return true;
   }
   return false;
@@ -605,6 +606,7 @@ export function applyPhotoLocationToCatch(row, photo) {
   }
   const changed = catchCoordinateFlashKey(previousCoordinates) !== catchCoordinateFlashKey(photo.coordinates);
   if (changed) flashAutoFilledField(row.querySelector(".pick-catch-location"));
+  row.dispatchEvent?.(new Event("fishingconditionschange", { bubbles: true }));
   return changed;
 }
 

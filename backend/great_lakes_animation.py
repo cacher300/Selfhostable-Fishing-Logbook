@@ -85,6 +85,7 @@ ZERO_BASED = {"currents", "waves"}
 INDEX_WAIT_SECONDS = 3.0
 MAX_JOBS = 32
 SCALE_MAX_AGE_SECONDS = 12 * 3600
+PREPARATION_PROGRESS_MAX_AGE_SECONDS = 5 * 60
 
 _scales: OrderedDict[tuple, tuple[float, float]] = OrderedDict()
 _jobs: OrderedDict[tuple, "_Job"] = OrderedDict()
@@ -139,7 +140,63 @@ def _key(layer: str, depth: float | None, offsets: tuple[int, ...], version: str
 
 
 def _scale_path(key: tuple):
-    return cache.path_for("animation", hashlib.sha1(repr(key).encode("utf-8")).hexdigest() + ".json")
+    return cache.path_for("animation", _key_hash(key) + ".json")
+
+
+def _key_hash(key: tuple) -> str:
+    return hashlib.sha1(repr(key).encode("utf-8")).hexdigest()
+
+
+def _prepared_path(key: tuple):
+    return cache.path_for("animation", f"prepared-{_key_hash(key)}.json")
+
+
+def _progress_path(key: tuple):
+    return cache.path_for("animation", f"preparing-{_key_hash(key)}.json")
+
+
+def _stored_prepared(key: tuple) -> dict | None:
+    stored = cache.read_json(_prepared_path(key))
+    if isinstance(stored, dict) and isinstance(stored.get("scale"), dict) and isinstance(stored.get("frames"), list):
+        return stored
+    return None
+
+
+def _remember_prepared(key: tuple, prepared: dict) -> None:
+    try:
+        cache.write_json(_prepared_path(key), prepared)
+    except OSError:
+        pass
+
+
+def _remember_progress(key: tuple, job: _Job) -> None:
+    try:
+        cache.write_json(_progress_path(key), {
+            "updatedAt": time.time(),
+            "done": min(job.done, job.total),
+            "total": job.total,
+        })
+    except OSError:
+        pass
+
+
+def _stored_progress(key: tuple) -> dict | None:
+    progress = cache.read_json(_progress_path(key))
+    if not isinstance(progress, dict):
+        return None
+    try:
+        updated_at = float(progress["updatedAt"])
+        done = max(0, int(progress["done"]))
+        total = max(1, int(progress["total"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+    if time.time() - updated_at > PREPARATION_PROGRESS_MAX_AGE_SECONDS:
+        return None
+    return {"done": min(done, total), "total": total}
+
+
+def _clear_progress(key: tuple) -> None:
+    _progress_path(key).unlink(missing_ok=True)
 
 
 def _stored_scale(key: tuple) -> tuple[float, float] | None:
@@ -212,11 +269,13 @@ def _available(payload: dict) -> bool:
     return bool(models) and all(item.get("available", True) for item in models)
 
 
-def _prepare(layer: str, depth: float | None, offsets: tuple[int, ...], version: str, job: _Job) -> dict:
+def _prepare(layer: str, depth: float | None, offsets: tuple[int, ...], version: str, job: _Job, progress_key: tuple | None = None) -> dict:
     key = _key(layer, depth, offsets, version)
 
     def step() -> None:
         job.done += 1
+        if progress_key is not None:
+            _remember_progress(progress_key, job)
 
     scale = _stored_scale(key)
     if scale is None:
@@ -226,8 +285,12 @@ def _prepare(layer: str, depth: float | None, offsets: tuple[int, ...], version:
         _remember_scale(key, scale)
     else:
         job.done += len(offsets)
+        if progress_key is not None:
+            _remember_progress(progress_key, job)
     frames = []
     for forecast_hour in offsets:
+        if progress_key is not None:
+            _remember_progress(progress_key, job)
         payload = layer_payload(layer, forecast_hour, depth or 0.0, scale)
         frames.append({
             "forecastHour": forecast_hour,
@@ -240,15 +303,18 @@ def _prepare(layer: str, depth: float | None, offsets: tuple[int, ...], version:
 
 
 def _run(job: _Job, layer: str, depth: float | None, offsets: tuple[int, ...], version: str) -> None:
+    key = _key(layer, depth, offsets, version)
     try:
-        job.result = _prepare(layer, depth, offsets, version, job)
+        job.result = _prepare(layer, depth, offsets, version, job, key)
+        _remember_prepared(key, job.result)
     except Exception as error:  # Reported to the client, which can try again.
         job.error = str(error) or error.__class__.__name__
     finally:
+        _clear_progress(key)
         job.finished.set()
 
 
-def _job(layer: str, depth: float | None, offsets: tuple[int, ...], version: str) -> _Job:
+def _job(layer: str, depth: float | None, offsets: tuple[int, ...], version: str) -> _Job | None:
     key = _key(layer, depth, offsets, version)
     with _lock:
         job = _jobs.get(key)
@@ -256,10 +322,13 @@ def _job(layer: str, depth: float | None, offsets: tuple[int, ...], version: str
         if job is not None and not (job.finished.is_set() and job.error):
             _jobs.move_to_end(key)
             return job
+        if _stored_progress(key) is not None:
+            return None
         job = _Job(len(offsets) * 2)
         _jobs[key] = job
         while len(_jobs) > MAX_JOBS:
             _jobs.popitem(last=False)
+        _remember_progress(key, job)
     _executor.submit(_run, job, layer, depth, offsets, version)
     return job
 
@@ -269,7 +338,43 @@ def index(layer: str, depth: float = 0.0, wait_seconds: float = INDEX_WAIT_SECON
     offsets = service.animation_offsets()
     level = _depth(layer, depth)
     version = _version(layer)
+    key = _key(layer, level, offsets, version)
+    total = len(offsets) * 2
+    prepared = _stored_prepared(key)
+    if prepared is not None:
+        return {
+            "layer": layer,
+            "depthMeters": level,
+            "stepHours": service.ANIMATION_STEP_HOURS,
+            "spanHours": service.ANIMATION_SPAN_HOURS,
+            "version": version,
+            "ready": True,
+            "progress": {"done": total, "total": total},
+            **prepared,
+        }
     job = _job(layer, level, offsets, version)
+    if job is None:
+        prepared = _stored_prepared(key)
+        if prepared is not None:
+            return {
+                "layer": layer,
+                "depthMeters": level,
+                "stepHours": service.ANIMATION_STEP_HOURS,
+                "spanHours": service.ANIMATION_SPAN_HOURS,
+                "version": version,
+                "ready": True,
+                "progress": {"done": total, "total": total},
+                **prepared,
+            }
+        return {
+            "layer": layer,
+            "depthMeters": level,
+            "stepHours": service.ANIMATION_STEP_HOURS,
+            "spanHours": service.ANIMATION_SPAN_HOURS,
+            "version": version,
+            "ready": False,
+            "progress": _stored_progress(key) or {"done": 0, "total": total},
+        }
     job.finished.wait(wait_seconds)
     result = {
         "layer": layer,
@@ -292,16 +397,56 @@ def prepare(layer: str, depth: float = 0.0) -> dict:
     offsets = service.animation_offsets()
     level = _depth(layer, depth)
     version = _version(layer)
-    job = _Job(len(offsets) * 2)
-    result = _prepare(layer, level, offsets, version, job)
     key = _key(layer, level, offsets, version)
-    job.result = result
-    job.finished.set()
-    with _lock:
-        _jobs[key] = job
-        while len(_jobs) > MAX_JOBS:
-            _jobs.popitem(last=False)
-    return result
+    prepared = _stored_prepared(key)
+    if prepared is not None:
+        return prepared
+
+    deadline = time.monotonic() + 30 * 60
+    while True:
+        owner = False
+        remote_progress = False
+        with _lock:
+            job = _jobs.get(key)
+            if job is not None and not job.finished.is_set():
+                pass
+            elif _stored_progress(key) is not None:
+                job = None
+                remote_progress = True
+            else:
+                job = _Job(len(offsets) * 2)
+                _jobs[key] = job
+                while len(_jobs) > MAX_JOBS:
+                    _jobs.popitem(last=False)
+                _remember_progress(key, job)
+                owner = True
+
+        if owner:
+            try:
+                job.result = _prepare(layer, level, offsets, version, job, key)
+                _remember_prepared(key, job.result)
+                return job.result
+            except Exception as error:
+                job.error = str(error) or error.__class__.__name__
+                raise
+            finally:
+                _clear_progress(key)
+                job.finished.set()
+
+        if job is not None:
+            job.finished.wait()
+            if job.result is not None:
+                return job.result
+            raise RuntimeError(job.error or "NOAA data for this animation is unavailable")
+
+        prepared = _stored_prepared(key)
+        if prepared is not None:
+            return prepared
+        if not remote_progress or _stored_progress(key) is None:
+            continue
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Wave animation preparation is still in progress")
+        time.sleep(0.5)
 
 
 def prune(max_age_seconds: float = SCALE_MAX_AGE_SECONDS) -> None:

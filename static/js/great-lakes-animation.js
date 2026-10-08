@@ -27,7 +27,8 @@ import { createPaletteFilter, fitPaletteToView, paletteOverlays } from "./great-
 // so colours only change where the water does. Every frame is downloaded
 // first, then each frame fades in over the one before it (which stays drawn
 // underneath, so colours blend straight into each other and never dip to the
-// map) for the full frame interval. Currents
+// map) for the full frame interval. Thermocline also fades the outgoing frame
+// away, so areas becoming mixed water clear gradually. Currents
 // keep their particles flowing and only swap the field under them.
 // Time per frame and the share of it spent fading into the next, per speed.
 export const ANIMATION_SPEEDS = Object.freeze({
@@ -471,8 +472,9 @@ function animateOverlayOpacity(overlay, target, durationMs = 0) {
   overlay._glOpacityFrame = requestAnimationFrame(update);
 }
 
-// The new frame fades in over the one on screen. During playback, older frames
-// are cleared at the next handoff so only the adjacent pair stays on the map.
+// The new frame fades in over the one on screen. Thermocline must fade out too:
+// its transparent cells represent no thermocline, so retaining the outgoing
+// image there would hold old colours until they abruptly disappear at handoff.
 function crossfadeTo(index, fade) {
   const pane = state.map?.getPane(ANIMATION_PANE);
   // Flush the starting opacity before enabling the transition, including at
@@ -482,6 +484,11 @@ function crossfadeTo(index, fade) {
   const { fadeMs } = speedTiming();
   const duration = fade ? fadeMs : 0;
   state.stack += 1;
+  if (state.layer === "thermocline" && duration > 0) {
+    state.overlays.forEach((overlays, frame) => {
+      if (frame !== index) overlays.forEach((overlay) => animateOverlayOpacity(overlay, 0, duration));
+    });
+  }
   (state.overlays[index] || []).forEach((overlay) => {
     overlay.setZIndex(state.stack);
     animateOverlayOpacity(overlay, 1, duration);

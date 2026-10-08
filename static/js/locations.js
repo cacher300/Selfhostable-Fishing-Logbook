@@ -12,6 +12,7 @@ import { refreshCatchSpotSelect, updateRowSummary } from "./trip-rows.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
 import { draftRecordForRow, updateTripRow } from "./draft-binding.js";
+import { isPointInsideGreatLake } from "./great-lakes-boundaries.js";
 
 
 export const LOCATION_FOCUS_ZOOM = 15;
@@ -164,9 +165,23 @@ export function locationFormCoordinates() {
   return isUsableCoordinates(coordinates) ? coordinates : null;
 }
 
+function locationCoordinatesKey(coordinates) {
+  return isUsableCoordinates(coordinates)
+    ? `${Number(coordinates.latitude).toFixed(6)},${Number(coordinates.longitude).toFixed(6)}`
+    : "";
+}
+
 export function setLocationFormCoordinates(coordinates) {
   els.locationLatitude.value = coordinates?.latitude ?? "";
   els.locationLongitude.value = coordinates?.longitude ?? "";
+  if (ui.activeLocationPickerMode !== "launch" && !ui.locationGreatLakesOverrideTouched) {
+    if (locationCoordinatesKey(coordinates) !== ui.locationGreatLakesInitialCoordinatesKey) {
+      ui.locationGreatLakesSavedOverride = undefined;
+    }
+    els.locationGreatLakes.checked = typeof ui.locationGreatLakesSavedOverride === "boolean"
+      ? ui.locationGreatLakesSavedOverride
+      : isPointInsideGreatLake(coordinates);
+  }
   if (!window.L || !ui.locationPickerMap || !isUsableCoordinates(coordinates)) return;
   const point = [coordinates.latitude, coordinates.longitude];
   if (!ui.locationPickerMarker) {
@@ -208,6 +223,14 @@ export function selectedTripLocationCoordinates() {
   return null;
 }
 
+export function tripLocationCoordinates(trip = {}) {
+  const location = state.locations.find((item) => item.id === trip.locationId || item.name === trip.location);
+  const launch = findLaunchByIdOrName(location, trip.launchId, trip.launch);
+  if (isUsableCoordinates(launch?.coordinates)) return launch.coordinates;
+  if (isUsableCoordinates(location?.coordinates)) return location.coordinates;
+  return null;
+}
+
 export function catchLocationFromRow(row) {
   const coordinates = {
     latitude: Number(row.querySelector(".catch-latitude")?.value),
@@ -235,6 +258,7 @@ export function setCatchLocationForRow(row, coordinates) {
   updateCatchLocationSummary(row);
   updateRowSummary(row);
   renderLiveTrollingSpread();
+  row.dispatchEvent?.(new Event("fishingconditionschange", { bubbles: true }));
 }
 
 export function flashAutoFilledField(target) {
@@ -401,6 +425,16 @@ export function openLocationDialog(mode = "location", locationId = "", launchId 
   const editingLaunch = mode === "launch";
   els.locationDialogTitle.textContent = editingLaunch ? (launch ? "Edit Launch / Area Fished" : "Add Launch / Area Fished") : (location ? "Edit Location" : "Add Location");
   els.locationParentRow.classList.toggle("hidden", !editingLaunch);
+  ui.locationGreatLakesOverrideTouched = false;
+  ui.locationGreatLakesSavedOverride = typeof location?.greatLakesOverride === "boolean"
+    ? location.greatLakesOverride
+    : undefined;
+  ui.locationGreatLakesInitialCoordinatesKey = locationCoordinatesKey(location?.coordinates);
+  els.locationGreatLakesField?.classList.toggle("hidden", editingLaunch);
+  if (els.locationGreatLakes) {
+    els.locationGreatLakes.checked = ui.locationGreatLakesSavedOverride
+      ?? isPointInsideGreatLake(location?.coordinates);
+  }
   els.locationParentName.value = location?.name || "";
   document.querySelector("#locationPickerInstruction").textContent = editingLaunch
     ? "Press the launch or area fished on the map to place the pin."
@@ -450,12 +484,18 @@ export async function saveLocationPin(event) {
   } else {
     const existing = state.locations.find((item) => item.id === ui.activeLocationPickerLocationId)
       || state.locations.find((item) => item.name.toLowerCase() === name.toLowerCase());
+    const greatLakesOverride = ui.locationGreatLakesOverrideTouched
+      ? Boolean(els.locationGreatLakes?.checked)
+      : ui.locationGreatLakesSavedOverride;
     const location = {
+      ...(existing || {}),
       id: existing?.id || slugId("loc", name),
       name,
       coordinates,
       launches: existing?.launches || []
     };
+    if (typeof greatLakesOverride === "boolean") location.greatLakesOverride = greatLakesOverride;
+    else delete location.greatLakesOverride;
     try {
       await saveLocation(location);
       populateLocationSelect(location.id);

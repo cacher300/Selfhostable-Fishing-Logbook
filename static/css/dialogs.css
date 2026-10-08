@@ -281,6 +281,34 @@
   width: min(900px, calc(100vw - 32px));
 }
 
+.location-name-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 310px) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.location-name-row > label {
+  min-width: 0;
+}
+
+.location-great-lakes-control {
+  display: flex;
+  align-items: flex-end;
+}
+
+.location-great-lakes-control .checkbox-label {
+  align-self: auto;
+  font-weight: 400;
+}
+
+@media (max-width: 560px) {
+  .location-name-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 #catchLocationDialog .dialog-content {
   display: grid;
   gap: 16px;

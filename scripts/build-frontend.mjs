@@ -41,6 +41,14 @@ const options = {
 };
 
 function writeManifest() {
+  // Leaflet's runtime looks for these conventional filenames relative to the
+  // stylesheet folder. esbuild also emits hashed copies referenced by its CSS,
+  // but the runtime marker URLs still need the original names.
+  const leafletImageDirectory = path.join(root, "node_modules", "leaflet", "dist", "images");
+  for (const filename of ["marker-icon.png", "marker-icon-2x.png", "marker-shadow.png"]) {
+    fs.copyFileSync(path.join(leafletImageDirectory, filename), path.join(outdir, filename));
+  }
+
   // Content hashes become ?v= query strings so browsers refetch changed
   // assets without hand-maintained version strings.
   const manifest = {};

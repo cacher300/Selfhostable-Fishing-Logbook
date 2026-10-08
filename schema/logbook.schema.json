@@ -430,6 +430,9 @@
         "coordinates": {
           "$ref": "#/$defs/coordinates"
         },
+        "greatLakesOverride": {
+          "type": "boolean"
+        },
         "launches": {
           "type": "array",
           "items": {

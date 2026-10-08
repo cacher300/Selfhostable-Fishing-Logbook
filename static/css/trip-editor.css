@@ -2387,6 +2387,18 @@
   gap: 12px;
 }
 
+#tripDialog.is-trolling .catch-trolling-details-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+#tripDialog:not(.is-trolling) .catch-trolling-details-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#tripDialog .catch-trolling-details-fields:not(.hidden) {
+  display: contents;
+}
+
 #tripDialog .catch-trolling-details-grid > label:first-child,
 #tripDialog .catch-trolling-details-grid .catch-direction,
 #tripDialog .catch-trolling-details-grid input {

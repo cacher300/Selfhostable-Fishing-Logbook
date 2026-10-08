@@ -245,3 +245,24 @@ def test_wave_routes_and_status_version(monkeypatch, tmp_path) -> None:
     assert response.json["metadata"]["forecastHour"] == 6
     assert response.headers["Cache-Control"] == "private, max-age=600"
     assert client.get("/api/great-lakes/wave-value?forecastHour=0&latitude=nope&longitude=-81").status_code == 400
+
+
+def test_wave_animation_failure_keeps_refresher_eligible_for_retry(monkeypatch) -> None:
+    run = {"id": "20261002t20z", "cycleEpoch": _epoch("2026-10-02T20:00:00"), "hours": list(range(49))}
+    clock = [_epoch("2026-10-02T20:10:00")]
+    monkeypatch.setattr(waves, "known_run", lambda: run)
+    monkeypatch.setattr(waves, "warm_wave_hours", lambda *args: None)
+    monkeypatch.setattr(waves, "wave_rasters", lambda *args: {"metadata": {"models": [{"available": True}]}})
+    def unavailable(layer):
+        raise RuntimeError("animation unavailable")
+    monkeypatch.setattr(animation, "prepare", unavailable)
+    worker = refresher.GreatLakesRefresher(clock=lambda: clock[0])
+    worker.refresh_waves(check_source=False)
+    assert worker.waves_signature is None
+    assert worker.wave_retry_at == clock[0] + refresher.RETRY_SECONDS
+    assert "lastWaveWarm" not in worker.state
+    monkeypatch.setattr(animation, "prepare", lambda layer: {})
+    clock[0] = worker.wave_retry_at
+    worker.refresh_waves(check_source=False)
+    assert worker.waves_signature == (run["id"], waves.select_wave_hour(run, 0, clock[0]))
+    assert worker.wave_retry_at == 0 and "lastWaveWarm" in worker.state

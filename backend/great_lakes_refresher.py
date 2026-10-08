@@ -296,8 +296,8 @@ class GreatLakesRefresher:
         if self._task("wave forecasts", lambda: waves.warm_wave_hours(service.served_offsets(now), now)):
             drawn = [self._task(f"pre-drawn {offset} h waves", lambda offset=offset: _require_all_lakes(waves.wave_rasters(offset, MAP_RESOLUTION, service.MODELS)))
                      for offset in service.FORECAST_OFFSETS]
-            self._task("waves animation", lambda: animation.prepare("waves"))
-            if all(drawn):
+            animation_ready = self._task("waves animation", lambda: animation.prepare("waves"))
+            if all(drawn) and animation_ready:
                 self.waves_signature = signature
                 with self._state_lock:
                     self.state["lastWaveWarm"] = _iso(now)

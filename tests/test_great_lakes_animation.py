@@ -66,11 +66,11 @@ def test_index_prepares_frames_on_one_scale_then_reuses_it(monkeypatch) -> None:
                                   "url": "/api/great-lakes/temperature-raster?forecastHour=2&depth=4&resolution=512&models=LSOFS%2CLMHOFS%2CLEOFS%2CLOOFS&animation=1&data=v1"}
     assert index["frames"][2]["available"] is False
 
-    # Another worker (empty memory) finds the scale on disk and only draws the frames.
+    # Another worker (empty memory) reuses the prepared index without redrawing.
     calls.clear()
     animation.clear_memory()
     again = animation.index("temperature", 3.0, wait_seconds=5)
-    assert again["scale"] == index["scale"] and [call[3] for call in calls] == [(10.0, 15.5)] * 3
+    assert again["scale"] == index["scale"] and again["frames"] == index["frames"] and calls == []
 
     # A single frame request uses the same scale.
     calls.clear()
@@ -130,3 +130,37 @@ def test_animation_routes(monkeypatch, tmp_path) -> None:
     assert client.get("/api/great-lakes/animation/waves").json["scale"] == {"min": 0, "max": 1}
     assert client.get("/api/great-lakes/animation/waves").status_code == 503
     assert client.get("/api/great-lakes/animation/salinity").status_code == 404
+
+
+def test_remote_animation_progress_prevents_duplicate_preparation(monkeypatch) -> None:
+    monkeypatch.setattr(service, "animation_offsets", lambda now=None: (0, 3))
+    monkeypatch.setattr(refresher, "data_status", lambda models=service.MODELS: {"version": "v-remote", "wavesVersion": "w-remote"})
+    key = animation._key("waves", None, (0, 3), "w-remote")
+    job = animation._Job(4)
+    job.done = 2
+    animation._remember_progress(key, job)
+    with patch.object(animation, "_executor") as executor:
+        waiting = animation.index("waves", wait_seconds=0)
+    executor.submit.assert_not_called()
+    assert waiting["ready"] is False and waiting["progress"] == {"done": 2, "total": 4}
+    prepared = {"scale": {"min": 0, "max": 4}, "frames": []}
+    animation._remember_prepared(key, prepared)
+    with patch.object(animation, "_executor") as executor:
+        done = animation.index("waves", wait_seconds=0)
+        assert animation.prepare("waves") == prepared
+    executor.submit.assert_not_called()
+    assert done["ready"] is True and done["scale"] == prepared["scale"]
+
+
+def test_stale_animation_progress_allows_retry(monkeypatch) -> None:
+    monkeypatch.setattr(service, "animation_offsets", lambda now=None: (0, 3))
+    monkeypatch.setattr(refresher, "data_status", lambda models=service.MODELS: {"version": "v-stale", "wavesVersion": "w-stale"})
+    key = animation._key("waves", None, (0, 3), "w-stale")
+    animation.cache.write_json(animation._progress_path(key), {
+        "updatedAt": animation.time.time() - animation.PREPARATION_PROGRESS_MAX_AGE_SECONDS - 1,
+        "done": 1, "total": 4,
+    })
+    with patch.object(animation, "_executor") as executor:
+        waiting = animation.index("waves", wait_seconds=0)
+    executor.submit.assert_called_once()
+    assert waiting["ready"] is False and waiting["progress"] == {"done": 0, "total": 4}

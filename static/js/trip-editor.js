@@ -7,14 +7,14 @@ import { convertUnitValue, explicitMeasurementUnit, unitPreference, unitSymbol }
 import { deleteTrip } from "./actions.js";
 import { els } from "./app-elements.js";
 import { beginMediaEditSession, cleanupDeletedMedia, isUsableCoordinates, mediaReferenceKeys } from "./app-media.js";
-import { LOCATION_FOCUS_ZOOM, coordinateText, populateLaunchSelect, populateLocationSelect, selectedTripLocationCoordinates } from "./locations.js";
+import { LOCATION_FOCUS_ZOOM, coordinateText, populateLaunchSelect, populateLocationSelect, selectedTripLocationCoordinates, tripLocationCoordinates } from "./locations.js";
 import { renderWeatherSummary, scheduleTripWeatherPreview, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel } from "./location-weather.js";
 import { syncUnitLabels } from "./settings.js";
 import { populateDatalist, populateOptionSelect, renderAll } from "./dashboard.js";
 import { ExpeditionAnalytics } from "./expedition-analytics.js";
 import { displayDateForCalendar, expeditionDateRange, populateTripExpeditionSelect, syncCalendarDate } from "./expeditions.js";
 import { renderNotePhotos } from "./photos.js";
-import { addCatchRow, addLostFishRow, addTripGearRow, populateSetupLineSelects, setupLineLabel } from "./trip-rows.js";
+import { addCatchRow, addLostFishRow, addTripGearRow, populateSetupLineSelects, refreshAllCatchFishingConditions, setupLineLabel } from "./trip-rows.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { tripConditionsTime } from "./trip-condition-time.js";
 import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
@@ -23,6 +23,9 @@ import { isTrollingTrip, trimNumber } from "./form-utils.js";
 import { updateMethodVisibility } from "./app.js";
 import { createTripDraft } from "./trip-draft.js";
 import { applyTripDraftBindings } from "./draft-binding.js";
+import { isGreatLakesFishingTrip, loadSavedFishingConditions, thermoclineDisplayValue } from "./trip-fishing-conditions.js";
+
+const tripThermoclineRequestIds = new WeakMap();
 
 export function clearTripFormMessage() {
   els.tripFormMessage.classList.add("hidden");
@@ -120,6 +123,51 @@ export function updateTripDialogHeader() {
 export function syncTripFormChrome() {
   els.tripSaveBar?.classList.toggle("is-dirty", ui.tripFormUserChanged && isTripFormDirty());
   updateTripDialogHeader();
+}
+
+export function refreshTripEnvironmentalConditions() {
+  const field = document.querySelector(".trip-thermocline-field");
+  const input = document.querySelector("#tripThermoclineDepth");
+  const trip = ui.tripDraft || {};
+  const eligible = isGreatLakesFishingTrip(trip, state.locations);
+  els.tripDialog?.classList.toggle("is-great-lakes-fishing", eligible);
+  field?.classList.toggle("hidden", !eligible);
+  document.querySelectorAll("#tripDialog .great-lakes-current-field").forEach((element) => {
+    element.classList.toggle("hidden", !eligible);
+  });
+
+  const requestId = input ? (tripThermoclineRequestIds.get(input) || 0) + 1 : 0;
+  if (input) tripThermoclineRequestIds.set(input, requestId);
+  if (!eligible) {
+    if (input) {
+      input.value = "";
+      input.title = "";
+    }
+    refreshAllCatchFishingConditions(trip);
+    return;
+  }
+
+  const coordinates = tripLocationCoordinates(trip);
+  if (!coordinates) {
+    if (input) {
+      input.value = "No map pin";
+      input.title = "Add a map pin to the selected launch or waterbody to load thermocline depth.";
+    }
+    refreshAllCatchFishingConditions(trip);
+    return;
+  }
+
+  if (input) input.value = "Loading…";
+  loadSavedFishingConditions(trip, coordinates).then((conditions) => {
+    if (!input?.isConnected || tripThermoclineRequestIds.get(input) !== requestId) return;
+    input.value = thermoclineDisplayValue(conditions || {});
+    input.title = conditions?.temperatureProfile?.historyTime || conditions?.time || "Saved NOAA historical conditions";
+  }).catch(() => {
+    if (!input?.isConnected || tripThermoclineRequestIds.get(input) !== requestId) return;
+    input.value = "Unavailable";
+    input.title = "Saved thermocline data is unavailable for this trip time and location.";
+  });
+  refreshAllCatchFishingConditions(trip);
 }
 
 export function markTripFormChanged() {
@@ -395,6 +443,7 @@ export function openTripDialog(trip = null) {
   renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
   syncUnitLabels(els.tripForm);
   els.tripDialog.showModal();
+  refreshTripEnvironmentalConditions();
   els.tripForm.scrollTop = 0;
   requestAnimationFrame(() => {
     applyTripDraftBindings(els.tripDialog);
