@@ -285,7 +285,7 @@
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: minmax(0, 310px) auto;
-  align-items: center;
+  align-items: end;
   gap: 12px;
 }
 
