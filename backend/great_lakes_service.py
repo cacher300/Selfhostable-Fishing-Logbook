@@ -58,7 +58,7 @@ _runs_lock = threading.Lock()
 _raster_cache: dict[tuple, dict] = {}
 _thermocline_raster_cache: dict[tuple, dict] = {}
 TEMPERATURE_RASTER_RENDER_VERSION = 5
-THERMOCLINE_RASTER_RENDER_VERSION = 28
+THERMOCLINE_RASTER_RENDER_VERSION = 29
 THERMOCLINE_ERROR_AFTER_SECONDS = 3 * 60 * 60
 CURRENT_RENDER_VERSION = 4
 # A requested depth this far below a lake's deepest model level has no water there.
@@ -73,15 +73,14 @@ CURRENT_RASTER_RESOLUTION = 512
 # native resolution (Superior is halved) while bounding its one-time download.
 WATER_MASK_MAX_COLUMNS = 1000
 _water_mask_cache: dict[tuple, WaterMask] = {}
-THERMOCLINE_MIN_DEPTH_METERS = 3.048  # 10 ft below the surface
+THERMOCLINE_REFERENCE_DEPTH_METERS = 1.0  # Use 1 m (~3 ft) to discount a sun-warmed surface skin.
 THERMOCLINE_BOTTOM_CLEARANCE_METERS = 3.048  # Never classify the final 10 ft as a thermocline.
 # The band's layers cool at least this fast (about 0.1 °F per 10 ft): gentle thermoclines under a
 # perfectly flat warm layer are real; the contrast with the warm layer is what rules out noise.
 THERMOCLINE_MIN_GRADIENT_C_PER_METER = 0.02
-# A thermocline is where the slope changes: a warm top layer at least 10 ft thick (below 10 ft)
-# over a band that cools at least THERMOCLINE_MIN_CONTRAST times faster, by at least 0.5 °F: the
-# water-column chart draws a column that varies less than that as one straight line.
-THERMOCLINE_MIN_WARM_LAYER_METERS = 3.048
+# A thermocline is where the slope changes: the warm layer must extend from the 1 m reference to
+# at least 2 m (~7 ft), above a band that cools at least THERMOCLINE_MIN_CONTRAST times faster.
+THERMOCLINE_MIN_WARM_LAYER_METERS = 1.0
 THERMOCLINE_MIN_CONTRAST = 3.0
 THERMOCLINE_MIN_BAND_DROP_C = 0.5 / 1.8
 # The top is the deepest depth where the warm layer above still cools at most a fifth as fast as
@@ -112,6 +111,7 @@ THERMOCLINE_SPATIAL_OUTLIER_METERS = 12.0
 _temperature_field_cache: dict[tuple, list[dict]] = {}
 _current_payload_cache: dict[tuple, dict] = {}
 _current_profile_cache: dict[tuple, dict] = {}
+_range_metadata_cache: dict[tuple, dict] = {}
 # Cache keys end with an hourly bucket and include client-selected
 # depth/resolution values, so both age and entry count must be bounded.
 MAX_PAYLOAD_CACHE_ENTRIES = 16
@@ -140,7 +140,6 @@ def _forecast_run(model: str, forecast_hour: int) -> dict:
     return select_forecast_run(discovered_runs((model,))[model], forecast_hour)
 
 
-
 def select_forecast_run(run: dict, forecast_hour: int, now: float | None = None) -> dict:
     """Newest run containing the exact requested hour; never clamp a partial run.
 
@@ -155,7 +154,6 @@ def select_forecast_run(run: dict, forecast_hour: int, now: float | None = None)
         if hour in candidate.get("files", {}):
             return candidate
     return {"id": run.get("id"), "error": "No published NOAA file covers the requested forecast hour"}
-
 
 
 def _thermocline_with_fallback(payload: dict, forecast_hour: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None) -> dict:
@@ -210,12 +208,10 @@ def _thermocline_with_fallback(payload: dict, forecast_hour: int, resolution: in
         return payload
 
 
-
 def _thermocline_fallback_path(forecast_hour: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None):
     key = (THERMOCLINE_RASTER_RENDER_VERSION, forecast_hour, resolution, models, scale)
     name = hashlib.sha1(repr(key).encode("utf-8")).hexdigest() + ".json"
     return gl_cache.path_for("thermocline-fallbacks", name)
-
 
 
 def selected_data_key(runs: dict[str, dict], forecast_hour: int, now: float | None = None) -> tuple:
@@ -223,7 +219,6 @@ def selected_data_key(runs: dict[str, dict], forecast_hour: int, now: float | No
     now = time.time() if now is None else now
     selected = {model: select_forecast_run(run, forecast_hour, now) for model, run in runs.items()}
     return tuple((model, run.get("id"), select_forecast_hour(run, forecast_hour, now) if run.get("files") else None) for model, run in selected.items())
-
 
 
 def _cache_bucket() -> int:
@@ -456,14 +451,15 @@ def prune_model_hours(model: str, run: dict, keep_hours: set[int]) -> None:
 
 
 def prune_rendered(max_age_seconds: float = RENDERED_MAX_AGE_SECONDS) -> None:
-    directory = gl_cache.path_for("rendered")
-    cutoff = time.time() - max_age_seconds
-    try:
-        stale = [item for item in directory.iterdir() if item.stat().st_mtime < cutoff]
-    except OSError:
-        return
-    for item in stale:
-        item.unlink(missing_ok=True)
+    for name, age in (("rendered", max_age_seconds), ("ranges", max_age_seconds), ("dataset-info", 7 * 24 * 3600)):
+        directory = gl_cache.path_for(name)
+        cutoff = time.time() - age
+        try:
+            stale = [item for item in directory.glob("*.json") if item.stat().st_mtime < cutoff]
+        except OSError:
+            continue
+        for item in stale:
+            item.unlink(missing_ok=True)
 
 
 def _get(url: str) -> str:
@@ -622,18 +618,32 @@ def _run_key(path: str) -> str:
 
 
 def _dds(path: str) -> str:
-    """Dataset structure, fetched once per model run rather than once per hourly file."""
+    """Dataset structure, shared on disk by every worker and hour of a run."""
     key = _run_key(path)
     with _cache_lock:
         cached = _dds_cache.get(key)
     if cached is not None:
         return cached
-    text = _get(f"{THREDDS}/dodsC/{path}.dds")
+    def valid(value):
+        return isinstance(value, dict) and isinstance(value.get("dds"), str) and bool(re.search(r"\bDataset\s*\{", value["dds"]))
+
+    def fetch():
+        result = {"dds": _get(f"{THREDDS}/dodsC/{path}.dds")}
+        if not valid(result):
+            raise RuntimeError("NOAA returned an invalid dataset structure")
+        return result
+
+    text = gl_cache.get_or_create_json(_dataset_info_path("dds", key), fetch, valid=valid)["dds"]
     with _cache_lock:
         _dds_cache[key] = text
         while len(_dds_cache) > MAX_DATASET_INFO_ENTRIES:
             del _dds_cache[next(iter(_dds_cache))]
     return text
+
+
+def _dataset_info_path(kind: str, key: str):
+    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()
+    return gl_cache.path_for("dataset-info", f"{kind}-{digest}.json")
 
 
 def _metadata(path: str) -> dict[str, str]:
@@ -666,14 +676,27 @@ def _regular_grid_dimensions(path: str) -> tuple[int, int, list[float]]:
         cached = _dimensions_cache.get(key)
     if cached is not None:
         return cached
-    dds = _dds(path)
-    match = re.search(r"Latitude\[ny = (\d+)\]\[nx = (\d+)\]", dds)
-    depth_match = re.search(r"Depth\[Depth = (\d+)\]", dds)
-    if not match or not depth_match:
-        result: tuple[int, int, list[float]] = (0, 0, [])
-    else:
-        depths = gl_cache.fetch_dods(f"{THREDDS}/dodsC/{path}", f"Depth[0:1:{int(depth_match.group(1)) - 1}]")["Depth"][1]
-        result = (int(match.group(1)), int(match.group(2)), [float(depth) for depth in depths])
+    def valid(value):
+        return (isinstance(value, dict) and isinstance(value.get("rows"), int)
+                and isinstance(value.get("columns"), int) and isinstance(value.get("depths"), list)
+                and value["rows"] > 0 and value["columns"] > 0 and bool(value["depths"])
+                and all(isinstance(depth, (int, float)) and math.isfinite(depth) for depth in value["depths"]))
+
+    def fetch():
+        dds = _dds(path)
+        match = re.search(r"Latitude\[ny = (\d+)\]\[nx = (\d+)\]", dds)
+        depth_match = re.search(r"Depth\[Depth = (\d+)\]", dds)
+        if not match or not depth_match:
+            return {"rows": 0, "columns": 0, "depths": []}
+        count = int(depth_match.group(1))
+        depths = gl_cache.fetch_dods(f"{THREDDS}/dodsC/{path}", f"Depth[0:1:{count - 1}]")["Depth"][1]
+        result = {"rows": int(match.group(1)), "columns": int(match.group(2)), "depths": [float(depth) for depth in depths]}
+        if len(depths) != count or not valid(result):
+            raise RuntimeError("NOAA returned incomplete grid dimensions")
+        return result
+
+    saved = gl_cache.get_or_create_json(_dataset_info_path("dimensions", key), fetch, valid=valid)
+    result = (saved["rows"], saved["columns"], saved["depths"])
     with _cache_lock:
         _dimensions_cache[key] = result
         while len(_dimensions_cache) > MAX_DATASET_INFO_ENTRIES:
@@ -808,7 +831,7 @@ def great_lakes_payload(kind: str, forecast_hour: int, depth: int, models: tuple
     return _build_payload(kind, forecast_hour, depth, models)
 
 
-def _build_payload(kind: str, forecast_hour: int, depth: int, models: tuple[str, ...], scale: tuple[float, float] | None = None) -> dict:
+def _build_payload(kind: str, forecast_hour: int, depth: int, models: tuple[str, ...], scale: tuple[float, float] | None = None, *, render: bool = True) -> dict:
     selected_models, data, model_metadata, fields, render_inputs = models, [], [], [], []
 
     def load_model(model: str) -> tuple[list[dict], dict, dict | None]:
@@ -864,7 +887,8 @@ def _build_payload(kind: str, forecast_hour: int, depth: int, models: tuple[str,
                 0.0, 0.98, 0.0,
             )
             maximum = max(maximum, CURRENT_MIN_COLOR_MAX_METERS_PER_SECOND)
-        rasters = _render_rasters(render_inputs, CURRENT_SPEED_COLOR_STOPS, 0.0, maximum, CURRENT_RASTER_RESOLUTION)
+        if render:
+            rasters = _render_rasters(render_inputs, CURRENT_SPEED_COLOR_STOPS, 0.0, maximum, CURRENT_RASTER_RESOLUTION)
         metadata["minSpeedMetersPerSecond"], metadata["maxSpeedMetersPerSecond"] = 0.0, maximum
     payload = {"data": data, "fields": fields if kind == "currents" else None, "metadata": metadata}
     if kind == "currents":
@@ -975,7 +999,7 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
 
     A thermocline is where the slope of the temperature curve changes: a warm
     top layer that cools slowly (or not at all) over a band that cools clearly
-    faster. Everything is measured from 10 ft down, so a sun-warmed skin on a
+    faster. The warm-layer comparison starts at 1 m (about 3 ft), so a sun-warmed skin on a
     calm afternoon does not count.
 
     **Bottom**: from the strongest cooling below the warm layer, the band ends
@@ -983,9 +1007,9 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
     than THERMOCLINE_MIN_GRADIENT_C_PER_METER), interpolated between the
     levels' midpoints.
 
-    **Is it a thermocline?** For each model level from 20 ft down to the
+    **Is it a thermocline?** For each model level from 2 m (about 7 ft) down to the
     strongest cooling, compare the band's average cooling below it with the
-    warm layer's average cooling above it (from 10 ft). The best ratio must be
+    warm layer's average cooling above it (from 1 m, about 3 ft). The best ratio must be
     at least THERMOCLINE_MIN_CONTRAST, and the band must cool by at least
     0.5 °F. The ratio, not the size of the drop, is what tells a thermocline
     from water that cools steadily from the surface: a flat warm layer over a
@@ -1015,13 +1039,13 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
     for depth, temperature in sorted(profile, key=lambda point: point[0]):
         if not ordered or depth > ordered[-1][0]:
             ordered.append((float(depth), float(temperature)))
-    reference_depth = THERMOCLINE_MIN_DEPTH_METERS
+    reference_depth = THERMOCLINE_REFERENCE_DEPTH_METERS
     if len(ordered) < 2 or ordered[-1][0] <= reference_depth:
         return None, "mixed"
     bed = max(ordered[-1][0], bottom_depth or 0.0)
     deepest_top = bed - THERMOCLINE_BOTTOM_CLEARANCE_METERS
     reference = _temperature_at_depth(ordered, reference_depth)
-    # Cooling somewhere below 10 ft, but no thermocline, is "gradual".
+    # Cooling somewhere below the 1 m reference, but no thermocline, is "gradual".
     no_band = "gradual" if reference - min(temperature for depth, temperature in ordered if depth >= reference_depth) >= THERMOCLINE_MIN_BAND_DROP_C else "mixed"
     warm_top = reference_depth + THERMOCLINE_MIN_WARM_LAYER_METERS
     layers = [(d0, d1, (t0 - t1) / (d1 - d0)) for (d0, t0), (d1, t1) in zip(ordered, ordered[1:])]
@@ -1081,7 +1105,7 @@ def _thermocline_analysis(profile: list[tuple[float, float]], bottom_depth: floa
 def _band_lead_in(layers: list[tuple[float, float, float]], peak: int, warm_top: float, deepest_top: float) -> float | None:
     """The last level of the straight part above the band, or ``None``.
 
-    The shallowest level (from 20 ft down to the strongest cooling) where the
+    The shallowest level (from 2 m, about 7 ft, down to the strongest cooling) where the
     curve bends (the layer below cools THERMOCLINE_LOCAL_BEND_RATIO times
     faster than the layer above), the layer below cools by at least
     THERMOCLINE_MIN_LEAD_DROP_C, and every layer from there down to the
@@ -1232,7 +1256,7 @@ def _temperature_inputs(forecast_hour: int, depth: int, resolution: int, models:
     return inputs, model_metadata, fields
 
 
-def _build_temperature_rasters(fields_key: tuple, forecast_hour: int, depth: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None = None) -> dict:
+def _build_temperature_rasters(fields_key: tuple, forecast_hour: int, depth: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None = None, *, render: bool = True) -> dict:
     inputs, model_metadata, fields = _temperature_inputs(forecast_hour, depth, resolution, models)
     _cache_store(_temperature_field_cache, fields_key, fields, MAX_FIELD_CACHE_ENTRIES)
     metadata = {"generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "forecastHour": forecast_hour, "requestedDepthMeters": depth, "models": model_metadata}
@@ -1244,7 +1268,8 @@ def _build_temperature_rasters(fields_key: tuple, forecast_hour: int, depth: int
             [value for item in inputs for value, ok in zip(item["grid"].values, item["grid"].valid) if ok],
             0.005, 0.995, TEMPERATURE_MIN_COLOR_SPAN_C,
         )
-        rasters = _render_rasters(inputs, TEMPERATURE_COLOR_STOPS, minimum, maximum, resolution)
+        if render:
+            rasters = _render_rasters(inputs, TEMPERATURE_COLOR_STOPS, minimum, maximum, resolution)
         metadata["minC"], metadata["maxC"] = minimum, maximum
     return {"rasters": rasters, "metadata": metadata}
 
@@ -1319,7 +1344,7 @@ def great_lakes_thermocline_rasters(forecast_hour: int, resolution: int, models:
     return _thermocline_with_fallback(payload, forecast_hour, resolution, models, scale)
 
 
-def _build_thermocline_rasters(forecast_hour: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None = None) -> dict:
+def _build_thermocline_rasters(forecast_hour: int, resolution: int, models: tuple[str, ...], scale: tuple[float, float] | None = None, *, render: bool = True) -> dict:
     inputs, model_metadata = [], []
     with ThreadPoolExecutor(max_workers=len(models)) as executor:
         futures = {model: executor.submit(_regular_thermocline_grid, model, forecast_hour, resolution) for model in models}
@@ -1340,7 +1365,8 @@ def _build_thermocline_rasters(forecast_hour: int, resolution: int, models: tupl
             0.02, 0.98, THERMOCLINE_MIN_COLOR_SPAN_METERS,
         )
         minimum = max(0.0, minimum)
-        rasters = _render_rasters(inputs, THERMOCLINE_COLOR_STOPS, minimum, maximum, resolution)
+        if render:
+            rasters = _render_rasters(inputs, THERMOCLINE_COLOR_STOPS, minimum, maximum, resolution)
         metadata["minDepthMeters"], metadata["maxDepthMeters"] = minimum, maximum
     return {"rasters": rasters, "metadata": metadata}
 
@@ -1924,3 +1950,47 @@ def great_lakes_model_points(kind: str, bounds: tuple[float, float, float, float
     if not payload["tooMany"]:
         payload["points"] = [coordinate for point in selected for coordinate in (round(point[0], 5), round(point[1], 5))]
     return payload
+
+
+def current_range_metadata(forecast_hour: int, depth: float, models: tuple[str, ...] = MODELS) -> dict:
+    """Current colour range from the same fields as the raster, without encoding images."""
+    depth = snap_depth(depth, models)
+    key = ("currents", CURRENT_RENDER_VERSION, _data_key(models, forecast_hour), depth, models)
+    return _cached_range_metadata(key, ("minSpeedMetersPerSecond", "maxSpeedMetersPerSecond"),
+                                  lambda: _build_payload("currents", forecast_hour, depth, models, render=False)["metadata"])
+
+
+def _cached_range_metadata(key: tuple, fields: tuple[str, str], build) -> dict:
+    """Reuse a frame's complete range when hourly offsets select the same files."""
+    memory_key = (*key, _cache_bucket())
+    with _cache_lock:
+        remembered = _range_metadata_cache.get(memory_key)
+    if remembered is not None:
+        return remembered
+
+    def valid(value):
+        return (isinstance(value, dict) and bool(value.get("models"))
+                and _complete({"metadata": value})
+                and all(isinstance(value.get(field), (int, float)) and math.isfinite(value[field]) for field in fields))
+
+    path = gl_cache.path_for("ranges", hashlib.sha1(repr(key).encode("utf-8")).hexdigest() + ".json")
+    metadata = gl_cache.get_or_create_json(path, build, valid=valid)
+    if valid(metadata):
+        _touch(path, {})
+        _cache_store(_range_metadata_cache, memory_key, metadata, MAX_DATASET_INFO_ENTRIES)
+    return metadata
+
+
+def thermocline_range_metadata(forecast_hour: int, resolution: int, models: tuple[str, ...] = MODELS) -> dict:
+    """Thermocline colour range from the same grids as the raster, without encoding images."""
+    key = ("thermocline", THERMOCLINE_RASTER_RENDER_VERSION, _data_key(models, forecast_hour), resolution, models)
+    return _cached_range_metadata(key, ("minDepthMeters", "maxDepthMeters"),
+                                  lambda: _build_thermocline_rasters(forecast_hour, resolution, models, render=False)["metadata"])
+
+
+def temperature_range_metadata(forecast_hour: int, depth: float, resolution: int, models: tuple[str, ...] = MODELS) -> dict:
+    """Fit temperatures to the desktop range without encoding frame images."""
+    depth = snap_depth(depth, models)
+    key = ("temperature", TEMPERATURE_RASTER_RENDER_VERSION, _data_key(models, forecast_hour), depth, resolution, models)
+    return _cached_range_metadata(key, ("minC", "maxC"), lambda: _build_temperature_rasters(
+        _temperature_fields_key(forecast_hour, depth, resolution, models), forecast_hour, depth, resolution, models, render=False)["metadata"])

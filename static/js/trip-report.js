@@ -254,6 +254,8 @@ export function renderTripReport(trip) {
   const biggestFish = biggestCatchMeasurement(trip.catches);
   const hours = tripHours(trip);
   const fishPerHour = hours ? trimNumber(landed / hours) : "";
+  const statCards = [["Landed", landed], ["Missed / lost", lost], ["Biggest fish", biggestFish ? displayStoredMeasurement(biggestFish.value, biggestFish.unit) : ""], ["Fish / hr", fishPerHour], ["Hours", trimNumber(hours)], ["Species", species.count]]
+    .filter(([, value]) => value !== "" && value !== null && value !== undefined);
   const tripPhotos = trip.notePhotos || [];
   const catchPhotos = catchPhotosByPriority(trip);
   const hero = [...tripPhotos, ...catchPhotos].find((photo) => !isVideoMedia(photo) && previewImage(photo));
@@ -263,7 +265,7 @@ export function renderTripReport(trip) {
   const mapRecords = catchMapRecordsForTrip(trip);
   return html`<article class="trip-report">
     <header class="report-header${hero ? " has-hero" : ""}">${hero ? html`<div class="report-header-media" aria-hidden="true">${mediaMarkup(hero, "report-hero-asset", { download: false })}</div>` : ""}<div class="report-header-copy"><p class="report-date">${reportMeta}${trip.location ? ` · ${displayTitleText(trip.location)}` : ""}</p><h3>${displayTitleText(trip.title || trip.location || "Trip report")}</h3><p class="report-subtitle">${[trip.targetSpecies, trip.method].filter(Boolean).map(displayTitleText).join(" · ") || "Fishing trip report"}</p><div class="report-actions"><button class="button primary" type="button" data-report-action="edit">Edit trip</button><button class="button secondary" type="button" data-report-action="share">Share trip</button></div></div></header>
-    <section class="report-stat-strip">${joinHtml([["Landed", landed], ["Missed / lost", lost], ["Biggest fish", biggestFish ? displayStoredMeasurement(biggestFish.value, biggestFish.unit) : ""], ["Fish / hr", fishPerHour], ["Hours", trimNumber(hours)], ["Species", species.count]].map(([label, value]) => html`<div><span>${label}</span><strong>${String(value === "" || value === null || value === undefined ? "Not logged" : value)}</strong></div>`), "")}</section>
+    <section class="report-stat-strip">${joinHtml(statCards.map(([label, value]) => html`<div><span>${label}</span><strong>${String(value)}</strong></div>`), "")}</section>
     <section class="report-notes"><h3>Trip notes</h3><p>${trip.notes || "Not logged"}</p></section>
     <div class="report-fact-grid report-overview-grid">${renderReportKeyValue("Trip details", overview)}${renderReportKeyValue("Conditions", conditions)}${hasFishHawk() ? html`<section class="report-fact-section report-probe-section"><h3>Probe temperature profile</h3>${renderProbeTemperatureProfileReport(trip.probeTemperatureProfile, trip.catches)}</section>` : ""}</div>
     ${isTrollingTripRecord(trip) ? html`<section class="report-spread"><div class="report-section-title"><h3>Trolling spread</h3></div>${renderTrollingSpread(trip)}</section>` : ""}

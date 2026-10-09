@@ -88,7 +88,7 @@ Returns a modelled Great Lakes water-temperature value for numeric `forecastHour
 
 ### `GET /api/great-lakes/profile`
 
-Returns the modelled water-column temperature profile and estimated thermocline for numeric `forecastHour`, `latitude`, and `longitude`, with the same optional `models` selection.
+Returns the modelled water-column temperature profile and estimated thermocline for numeric `forecastHour`, `latitude`, and `longitude`, with the same optional `models` selection. A thermocline can start at the 2 m model level (about 7 ft); its comparison uses water at 1 m (about 3 ft) as a reference to disregard a sun-warmed surface skin.
 
 ### `GET /api/great-lakes/<layer>`
 

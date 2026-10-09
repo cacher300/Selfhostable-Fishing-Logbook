@@ -171,6 +171,14 @@ the background, and `GREAT_LAKES_CACHE_DIR` (default
 `<system temp>/fishing-logbook-great-lakes`) holds that shared download cache.
 The cache is disposable and is never part of a backup. See
 [Great Lakes data refresh](ARCHITECTURE.md#great-lakes-data-refresh).
+`GREAT_LAKES_PREPARE_WORKERS` controls drawing processes (default: up to four,
+limited by available CPU cores; set `1` for minimal memory use). Workers stay
+alive across preparation batches and hourly refreshes. Up to four lake models
+download concurrently. Run metadata and complete animation-frame ranges are
+shared on disk; temperature keeps its fitted desktop colour range, while waves
+and upwelling skip range scans because their colour domains are fixed. New
+value images use faster WebP encoding at quality 97, trading larger files for
+less preparation time. Restart the app after changing this setting.
 `GREAT_LAKES_HISTORY_URL` (default `https://greatlakestrolling.com`) is the
 Great Lakes Trolling site the map's "Past 90 days" reads saved conditions from;
 point it at a local copy (`http://127.0.0.1:8090`) while developing both.

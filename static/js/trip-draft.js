@@ -147,12 +147,11 @@ function normalizeMaybeChangedRecord(record, sourceRecords, normalize) {
   return preserveUnchangedFields(normalize(record), record, source);
 }
 
-export function createTripDraft(trip = null, options = {}) {
-  const today = options.today || new Date().toISOString().slice(0, 10);
+export function createTripDraft(trip = null) {
   const draft = trip ? structuredClone(trip) : {
     id: "",
     title: "",
-    date: today,
+    date: "",
     expeditionId: "",
     location: "",
     locationId: "",

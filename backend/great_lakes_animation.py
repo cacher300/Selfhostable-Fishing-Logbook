@@ -5,9 +5,9 @@ Each frame is the layer drawn on a colour scale shared by every frame, so a
 colour means the same temperature (or thermocline depth, current speed, wave
 height) in each one and the map only changes where the water does.
 
-Finding that scale needs every frame's own range, so preparing an animation
-draws each frame twice: once as usual and once on the shared scale. The
-refresher prepares the surface animations in the background; others (a
+Finding that scale uses cached frame ranges without encoding images; layers
+with fixed colour domains skip that scan. Each frame is then drawn on the
+shared scale. The refresher prepares surface animations in the background; others (a
 deeper temperature or current level) are prepared on request, and the API
 reports progress while that runs.
 """
@@ -226,10 +226,37 @@ def _remember_scale(key: tuple, scale: tuple[float, float], write: bool = True) 
 
 
 def _compute_scale(layer: str, depth: float | None, offsets: tuple[int, ...], progress=None) -> tuple[float, float] | None:
+    fixed = {"waves": waves.WAVE_COLOR_RANGE_METERS,
+             "upwelling": (-upwelling.SCORE_LIMIT_F, upwelling.SCORE_LIMIT_F)}
+    if layer in fixed:
+        # These renderers always use one domain. No first pass through every
+        # frame is needed; the drawing pass still checks frame availability.
+        if progress:
+            for _ in offsets:
+                progress()
+        return fixed[layer]
     ranges = []
     for forecast_hour in offsets:
-        payload = layer_payload(layer, forecast_hour, depth or 0.0)
-        found = frame_range(layer, payload.get("metadata", {}))
+        metadata = {}
+        try:
+            if layer == "temperature":
+                metadata = service.temperature_range_metadata(forecast_hour, depth or 0.0, RESOLUTION, MODELS)
+            elif layer == "currents":
+                metadata = service.current_range_metadata(forecast_hour, depth or 0.0, MODELS)
+            elif layer == "thermocline":
+                metadata = service.thermocline_range_metadata(forecast_hour, RESOLUTION, MODELS)
+        except Exception:
+            # Keep the existing rendered-layer fallback when a range-only
+            # model lookup cannot supply the frame's range.
+            pass
+        if any(not model.get("available", True) for model in metadata.get("models", [])):
+            # A rendered layer may use the last complete frame during an
+            # outage; its colour range must be used as well.
+            metadata = {}
+        found = frame_range(layer, metadata)
+        if found is None:
+            payload = layer_payload(layer, forecast_hour, depth or 0.0)
+            found = frame_range(layer, payload.get("metadata", {}))
         if found:
             ranges.append(found)
         if progress:
@@ -238,7 +265,7 @@ def _compute_scale(layer: str, depth: float | None, offsets: tuple[int, ...], pr
 
 
 def scale_for(layer: str, depth: float = 0.0, offsets: tuple[int, ...] | None = None) -> tuple[float, float] | None:
-    """The shared colour scale of a layer's animation now, worked out (by drawing every frame) if needed."""
+    """The shared colour scale of a layer's animation now, computed from cached model ranges if needed."""
     offsets = tuple(offsets or service.animation_offsets())
     level = _depth(layer, depth)
     key = _key(layer, level, offsets, _version(layer))
@@ -299,6 +326,8 @@ def _prepare(layer: str, depth: float | None, offsets: tuple[int, ...], version:
             "url": layer_url(layer, forecast_hour, depth, version),
         })
         step()
+    if not any(frame["available"] for frame in frames):
+        raise RuntimeError("NOAA data for this animation is unavailable")
     return {"scale": {"min": scale[0], "max": scale[1]}, "frames": frames}
 
 

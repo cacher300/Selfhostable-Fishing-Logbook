@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import multiprocessing
+
 from flask import Flask, Response, jsonify, request
 
 from . import cloud_storage
@@ -55,7 +57,8 @@ def create_app(config: AppConfig | None = None, *, storage: Storage | None = Non
         app.register_blueprint(module.blueprint)
     great_lakes_cache.configure(config.great_lakes_cache_dir or None)
     great_lakes_history_client.configure(config.great_lakes_history_url or None)
-    if config.great_lakes_background_refresh and not config.testing:
+    if (config.great_lakes_background_refresh and not config.testing
+            and multiprocessing.current_process().name == "MainProcess"):
         app.extensions["fish.great_lakes_refresher"] = GreatLakesRefresher().start()
     return app
 

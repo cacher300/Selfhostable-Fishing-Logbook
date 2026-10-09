@@ -140,7 +140,7 @@ def test_refresher_tick_checks_runs_and_warms_each_new_hour(monkeypatch) -> None
     monkeypatch.setattr(refresher.GreatLakesRefresher, "predraw", lambda self, offset=0: events.append(f"predraw +{offset}"))
     monkeypatch.setattr(service, "prune_rendered", lambda: events.append("prune-drawn"))
     monkeypatch.setattr(service, "prune_model_hours", lambda model, run, keep: events.append("keep " + ",".join(map(str, sorted(keep)))))
-    monkeypatch.setattr(animation, "prepare", lambda layer: events.append(f"animate {layer}"))
+    monkeypatch.setattr(animation, "prepare", lambda layer, depth=0: events.append(f"animate {layer}") or {"frames": [{"available": True}]})
     monkeypatch.setattr(animation, "prune", lambda: events.append("prune-animation"))
     monkeypatch.setattr(refresher.GreatLakesRefresher, "refresh_waves", lambda self, **kwargs: None)
     monkeypatch.setattr(service.time, "time", lambda: clock[0])
@@ -319,10 +319,10 @@ def test_requested_depths_snap_to_the_levels_noaa_stores(monkeypatch) -> None:
 def test_predraw_draws_exactly_what_the_map_requests(monkeypatch) -> None:
     calls = []
     monkeypatch.setattr(service, "depth_levels", lambda models=service.MODELS: [0.0, 2.0, 10.0, 30.0, 60.0])
-    monkeypatch.setattr(service, "great_lakes_temperature_rasters", lambda hour, depth, resolution, models: calls.append(("temperature", hour, depth, resolution, models)))
-    monkeypatch.setattr(service, "great_lakes_payload", lambda kind, hour, depth, models: calls.append((kind, hour, depth, None, models)))
-    monkeypatch.setattr(service, "great_lakes_thermocline_rasters", lambda hour, resolution, models: calls.append(("thermocline", hour, None, resolution, models)))
-    monkeypatch.setattr(upwelling, "upwelling_rasters", lambda hour, resolution, models: calls.append(("upwelling", hour, None, resolution, models)))
+    monkeypatch.setattr(service, "great_lakes_temperature_rasters", lambda hour, depth, resolution, models, scale=None: calls.append(("temperature", hour, depth, resolution, models)) or {})
+    monkeypatch.setattr(service, "great_lakes_payload", lambda kind, hour, depth, models, scale=None: calls.append((kind, hour, depth, None, models)) or {})
+    monkeypatch.setattr(service, "great_lakes_thermocline_rasters", lambda hour, resolution, models, scale=None: calls.append(("thermocline", hour, None, resolution, models)) or {})
+    monkeypatch.setattr(upwelling, "upwelling_rasters", lambda hour, resolution, models, scale=None: calls.append(("upwelling", hour, None, resolution, models)) or {})
     worker = refresher.GreatLakesRefresher()
 
     worker.predraw(0)

@@ -357,6 +357,7 @@ def wave_rasters(forecast_hour: int, resolution: int, models: tuple[str, ...] = 
 
     ``scale`` fixes the palette's (min, max) metres instead of fitting this frame.
     """
+    scale = None
     run = discovered_wave_run()
     if not run.get("id"):
         return _unavailable(forecast_hour, models, str(run.get("error") or "NOAA wave data is unavailable"))

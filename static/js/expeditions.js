@@ -48,6 +48,24 @@ export function syncCalendarDate(inputId) {
   return parsed;
 }
 
+function localCalendarDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function setCalendarDate(inputId, value) {
+  const valueInput = document.querySelector(`#${inputId}`);
+  const displayInput = document.querySelector(`[data-calendar-field="${inputId}"] .styled-date-display`);
+  if (!valueInput || !displayInput) return false;
+  valueInput.value = value;
+  displayInput.value = displayDateForCalendar(value);
+  displayInput.setCustomValidity("");
+  displayInput.dispatchEvent(new Event("input", { bubbles: true }));
+  return true;
+}
+
 export function renderCalendar(inputId) {
   const valueInput = document.querySelector(`#${inputId}`);
   const popover = document.querySelector(`[data-calendar-popover="${inputId}"]`);
@@ -326,6 +344,13 @@ export function setup() {
   els.addExpeditionFromTripButton?.addEventListener("click", () => openExpeditionDialog(null, { fromTripEditor: true }));
 
   document.addEventListener("click", (event) => {
+    const todayButton = event.target.closest("[data-calendar-today-button]");
+    if (todayButton) {
+      setCalendarDate(todayButton.dataset.calendarTodayButton, localCalendarDateInputValue());
+      todayButton.classList.add("hidden");
+      closeCalendars();
+      return;
+    }
     const calendarTrigger = event.target.closest("[data-calendar-trigger]");
     if (calendarTrigger) {
       event.preventDefault();
@@ -342,12 +367,7 @@ export function setup() {
       }
       const day = event.target.closest("[data-calendar-date]");
       if (day) {
-        const valueInput = document.querySelector(`#${activeCalendarInputId}`);
-        const displayInput = document.querySelector(`[data-calendar-field="${activeCalendarInputId}"] .styled-date-display`);
-        valueInput.value = day.dataset.calendarDate;
-        displayInput.value = displayDateForCalendar(valueInput.value);
-        displayInput.setCustomValidity("");
-        displayInput.dispatchEvent(new Event("input", { bubbles: true }));
+        setCalendarDate(activeCalendarInputId, day.dataset.calendarDate);
         closeCalendars();
         return;
       }
@@ -361,12 +381,7 @@ export function setup() {
         return;
       }
       if (event.target.closest("[data-calendar-today]")) {
-        const valueInput = document.querySelector(`#${activeCalendarInputId}`);
-        const displayInput = document.querySelector(`[data-calendar-field="${activeCalendarInputId}"] .styled-date-display`);
-        valueInput.value = new Date().toISOString().slice(0, 10);
-        displayInput.value = displayDateForCalendar(valueInput.value);
-        displayInput.setCustomValidity("");
-        displayInput.dispatchEvent(new Event("input", { bubbles: true }));
+        setCalendarDate(activeCalendarInputId, localCalendarDateInputValue());
         closeCalendars();
         return;
       }
@@ -386,7 +401,12 @@ export function setup() {
   });
 
   document.querySelectorAll(".styled-date-display").forEach((input) => {
-    input.addEventListener("input", () => syncCalendarDate(input.closest(".styled-date-field")?.dataset.calendarField));
+    const hideTodayButton = () => input.closest(".trip-date-field-row")?.querySelector("[data-calendar-today-button]")?.classList.add("hidden");
+    input.addEventListener("pointerdown", hideTodayButton);
+    input.addEventListener("input", () => {
+      syncCalendarDate(input.closest(".styled-date-field")?.dataset.calendarField);
+      hideTodayButton();
+    });
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();

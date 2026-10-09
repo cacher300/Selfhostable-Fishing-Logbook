@@ -4,7 +4,7 @@ import { addListValue } from "./actions.js";
 import { els } from "./app-elements.js";
 import { finishMediaEditSession } from "./app-media.js";
 import { clearActiveCatchLocation, deleteActiveLocationFromDialog, handleLocationManagerDragEnd, handleLocationManagerDragOver, handleLocationManagerDragStart, handleLocationManagerDrop, openLocationDialog, renderLocationManager, saveCatchLocationFromPicker, saveLocationPin } from "./locations.js";
-import { resyncTripWeather } from "./location-weather.js";
+import { markTripWaterTemperatureManual, resyncTripWeather } from "./location-weather.js";
 import { exportArchive, importArchive, scheduleSettingsAutosave, setSettingsSaveStatus, settingsUi } from "./settings-core.js";
 import { addTrollingSpread, addTrollingSpreadRowToCard, cancelTrollingSpreadDraft, deleteTrollingSpread, editTrollingSpread, finishTrollingSpreadEdit, refreshTrollingSpreadCardPreview, saveDefaultHomeLake, saveDefaultPeople, saveDefaultTrollingSpreadId, saveFishHawkPreference, saveSpeciesMapColors, saveThemePreference, saveTimeFormatPreference, saveUnitSettings, scheduleTrollingSpreadAutosave, setSettingsTab, setTrollingSpreadSettingsMessage, syncSpeciesMapColorPreview, syncTrollingSpreadRowFields } from "./settings.js";
 import { openSavedSetupPicker } from "./saved-setups.js";
@@ -12,7 +12,7 @@ import { cancelChopRangeEditing, savePredefinedFieldSettings, toggleChopRangeEdi
 import { collectFishingSpotSettings, collectPrivatePhotoLocationSettings, fishingSpotDefaultCoordinates, fishingSpotRadiusMeters, fishingSpotRadiusText, nextFishingSpotName, privateLocationDefaultCoordinates, privateLocationRadiusMeters, privateLocationRadiusText, privatePhotoLocations, saveFishingSpots, savePrivatePhotoLocations, updateFishingSpotRadiusControl, updatePrivateLocationRadiusControl } from "./settings-locations.js";
 import { renderTrips, tripSortFromSelect } from "./dashboard.js";
 import { addNotePhotos, addPhotosToQueue, openPhotoQueue, restoreDialogAfterPhotoQueue } from "./photos.js";
-import { addPersonRow, closeTripDialog, focusTripValidationField, getValue, isTripFormDirty, openTripDialog, updateTripRatingLabel } from "./trip-editor.js";
+import { addPersonRow, closeTripDialog, focusTripValidationField, getValue, isTripFormDirty, openTripDialog, syncTripContinuationGate, updateTripRatingLabel } from "./trip-editor.js";
 import { addCatchRow, addLostFishRow, addTripGearRow, expandAndRevealTripRow, importLastTrollingSpread } from "./trip-rows.js";
 import { deleteActiveTrip, saveTrip, saveTripAsDraft } from "./trip-save.js";
 import { autofillCatchesFromPhotoQueue } from "./photo-queue-autofill.js";
@@ -101,8 +101,16 @@ export function setup() {
   els.newTripButton.addEventListener("click", () => openTripDialog());
 
   els.tripForm.addEventListener("submit", saveTrip);
-  els.tripDialog.addEventListener("input", handleTripDraftControlEvent);
-  els.tripDialog.addEventListener("change", handleTripDraftControlEvent);
+  els.tripDialog.addEventListener("input", (event) => {
+    handleTripDraftControlEvent(event);
+    if (event.target.matches("#waterTemp")) markTripWaterTemperatureManual();
+    syncTripContinuationGate();
+  });
+  els.tripDialog.addEventListener("change", (event) => {
+    handleTripDraftControlEvent(event);
+    if (event.target.matches("#waterTemp")) markTripWaterTemperatureManual();
+    syncTripContinuationGate();
+  });
   [els.lureDialog, els.flasherDialog, els.reelDialog, els.rodDialog, els.comboDialog].forEach((dialog) => {
     dialog.addEventListener("input", handleGearDraftControlEvent);
     dialog.addEventListener("change", handleGearDraftControlEvent);

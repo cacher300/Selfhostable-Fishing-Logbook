@@ -1081,10 +1081,9 @@ export function thermoclineRangeLabel(thermocline, noThermocline) {
   return depthRangeLabel(thermoclineBand(thermocline)) || (noThermocline === "gradual" ? "None" : "None (mixed)");
 }
 
-export const CURRENT_TRAIL_SEGMENTS = 12;
-export const CURRENT_TRAIL_POINT_FRAMES = 2.5;
-// Particles per 1280×800 px of map; scaled with the visible area.
-export const CURRENT_PARTICLE_DENSITY = { low: 350, medium: 850, high: 1600 };
+export const CURRENT_PARTICLE_DENSITY = { low: 4500, medium: 9500, high: 14000 };
+const CURRENT_FRAME_MS = 1000 / 60;
+const CURRENT_TRAIL_RETENTION = 0.972;
 
 // These small transparent NOAA bathymetry previews double as a shoreline mask
 // for wave flow. Keep their bounds aligned with the images used on the map.
@@ -1188,7 +1187,7 @@ export function waveParticleFields(arrows) {
 // Screen-space step so the flow reads at every zoom: still water barely
 // drifts, ordinary 0.1 m/s currents glide, and jets streak.
 export function currentPixelsPerFrame(speed) {
-  return speed > 0 ? 0.25 + 6.5 * speed ** 0.75 : 0;
+  return speed >= 0.0015 ? Math.min(2.6, 0.5 * (speed / 0.1) ** 0.7) : 0;
 }
 
 export function blendCurrentVectors(from, to, fraction) {
@@ -1215,11 +1214,13 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
   let sample;
   const speedColors = speedBinColors();
   const particles = [];
+  let seeds = [];
   const baseDensity = CURRENT_PARTICLE_DENSITY[greatLakesControlValue("density")] || CURRENT_PARTICLE_DENSITY.medium;
   const speedScale = { slow: 0.5, normal: 1, fast: 1.9 }[greatLakesControlValue("animation-speed")] || 1;
   let frame = null, last = 0, active = true, origin = L.point(0, 0), size = L.point(0, 0), zoom = null;
   // Warm-up frames are excluded: image decoding makes the first second slow.
   let frameTime = 16.67, framesSinceTrim = -120, minimumCount = 0;
+  let fieldTransition = null;
 
   const toLatLng = (x, y) => map.layerPointToLatLng([x, y]);
   const inView = (x, y) => x >= origin.x && y >= origin.y && x <= origin.x + size.x && y <= origin.y + size.y;
@@ -1270,19 +1271,21 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
   sample = createCurrentFieldSampler(fields, allowedPoint);
 
   function spawn(particle) {
-    particle.trail = [];
-    particle.dying = false;
+    particle.vector = null;
+    if (!seeds.length) return particle;
     for (let attempt = 0; attempt < 6; attempt += 1) {
-      const x = origin.x + Math.random() * size.x, y = origin.y + Math.random() * size.y;
+      const seed = seeds[Math.floor(Math.random() * seeds.length)];
+      const x = seed.x + (Math.random() - 0.5) * seed.width;
+      const y = seed.y + (Math.random() - 0.5) * seed.height;
       const latlng = toLatLng(x, y);
       const vector = sample(latlng.lat, latlng.lng);
-      if (vector) {
-        particle.trail.push([x, y, Math.hypot(vector.u, vector.v)]);
+      // Fast water paints more pixels, so give slower eddies more seeds.
+      if (vector && currentPixelsPerFrame(Math.hypot(vector.u, vector.v)) && Math.random() * (1 + 2.2 * Math.hypot(vector.u, vector.v)) < 1) {
+        particle.x = x;
+        particle.y = y;
         particle.vector = vector;
-        particle.sinceCommit = 0;
-        particle.provisional = false;
         particle.age = 0;
-        particle.maxAge = 60 + Math.random() * 90;
+        particle.maxAge = 120 + Math.random() * 200;
         particle.wait = 0;
         return particle;
       }
@@ -1293,10 +1296,25 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
   }
 
   function reset() {
-    const count = Math.round(baseDensity * Math.min(1.8, Math.max(0.35, (size.x * size.y) / (1280 * 800))));
+    // Stratify the spawn area. Land-heavy views get fewer particles rather
+    // than concentrating a whole screen's budget in a narrow strip of water.
+    seeds = [];
+    let waterArea = 0;
+    for (let y = 0; y < size.y; y += 24) for (let x = 0; x < size.x; x += 24) {
+      const width = Math.min(24, size.x - x), height = Math.min(24, size.y - y);
+      const point = { x: origin.x + x + width / 2, y: origin.y + y + height / 2, width, height };
+      const latlng = toLatLng(point.x, point.y);
+      const vector = sample(latlng.lat, latlng.lng);
+      if (!vector || !currentPixelsPerFrame(Math.hypot(vector.u, vector.v))) continue;
+      seeds.push(point);
+      waterArea += width * height;
+    }
+    const count = Math.round(baseDensity * Math.min(1.8, waterArea / (1280 * 800)));
     minimumCount = Math.round(count * 0.45);
-    particles.length = 0;
-    for (let index = 0; index < count; index += 1) {
+    // Preserve moving heads through a pan/resize; only new slots are seeded.
+    if (map.getZoom() !== zoom) particles.length = 0;
+    particles.length = Math.min(particles.length, count);
+    for (let index = particles.length; index < count; index += 1) {
       const particle = spawn({});
       particle.age = Math.random() * (particle.maxAge || 0);
       particles.push(particle);
@@ -1306,7 +1324,7 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
   function position() {
     size = map.getSize();
     origin = map.containerPointToLayerPoint([0, 0]);
-    const ratio = window.devicePixelRatio || 1;
+    const ratio = Math.min(2, window.devicePixelRatio || 1);
     L.DomUtil.setPosition(canvas, origin);
     canvas.width = Math.round(size.x * ratio);
     canvas.height = Math.round(size.y * ratio);
@@ -1316,65 +1334,54 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
     rebuildWaterMask();
   }
 
-  function advance(particle, steps) {
-    if (particle.wait > 0) { particle.wait -= 1; if (!particle.wait) spawn(particle); return; }
-    if (!particle.trail.length) { spawn(particle); return; }
-    if (particle.dying) {
-      particle.trail.shift();
-      if (particle.trail.length < 2) spawn(particle);
-      return;
-    }
-    const [x, y] = particle.trail[particle.trail.length - 1];
-    const vector = particle.vector;
-    particle.age += steps;
-    if (!vector || particle.age > particle.maxAge) { particle.dying = true; return; }
-    const speed = Math.hypot(vector.u, vector.v);
-    if (!speed) { particle.dying = true; return; }
-    const distance = currentPixelsPerFrame(speed) * speedScale * steps;
-    const nextX = x + vector.u / speed * distance, nextY = y - vector.v / speed * distance;
-    if (!inView(nextX, nextY)) { particle.dying = true; return; }
-    const next = toLatLng(nextX, nextY);
-    particle.vector = sample(next.lat, next.lng);
-    if (!particle.vector) { particle.dying = true; return; }
-    // Each trail point keeps the speed there, for speed-coloured flow.
-    const point = [nextX, nextY, Math.hypot(particle.vector.u, particle.vector.v)];
-    // The head moves every frame, but trail points are only committed every
-    // few frames so a fixed number of segments spans a longer, smoother tail.
-    if (particle.provisional) particle.trail[particle.trail.length - 1] = point;
-    else particle.trail.push(point);
-    particle.sinceCommit += steps;
-    particle.provisional = particle.sinceCommit < CURRENT_TRAIL_POINT_FRAMES;
-    if (!particle.provisional) particle.sinceCommit = 0;
-    if (particle.trail.length > CURRENT_TRAIL_SEGMENTS + 1) particle.trail.shift();
-  }
-
-  function draw() {
-    ctx.clearRect(0, 0, size.x, size.y);
+  function draw(steps) {
+    // Fade the existing image by elapsed time, then paint only each head's new
+    // movement. No discrete tail commits, shifting arrays or full trail redraws.
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.fillStyle = `rgba(0, 0, 0, ${CURRENT_TRAIL_RETENTION ** steps})`;
+    ctx.fillRect(0, 0, size.x, size.y);
+    ctx.globalCompositeOperation = "source-over";
     if (clipToGreatLakesWater && !waterMaskPixels) return;
-    // Butt caps: round caps overlap at every joint (beading) and cost ~4×.
-    ctx.lineCap = "butt";
+
     const { rgb, halo, bySpeed } = flowColorParts(greatLakesFlowColor);
-    if (bySpeed) drawBySpeed(halo);
-    // One path per trail segment age keeps this to a few dozen strokes a frame.
-    else for (let segment = CURRENT_TRAIL_SEGMENTS - 1; segment >= 0; segment -= 1) {
-      ctx.beginPath();
-      let any = false;
-      for (const particle of particles) {
-        const trail = particle.trail, head = trail.length - 1 - segment;
-        if (head < 1) continue;
-        ctx.moveTo(trail[head - 1][0] - origin.x, trail[head - 1][1] - origin.y);
-        ctx.lineTo(trail[head][0] - origin.x, trail[head][1] - origin.y);
-        any = true;
+    const paths = new Array(bySpeed ? SPEED_FLOW_COLOR_BINS : 3).fill(null);
+    for (const particle of particles) {
+      if (particle.wait > 0) { particle.wait = Math.max(0, particle.wait - steps); continue; }
+      if (!particle.vector || particle.age >= particle.maxAge || !inView(particle.x, particle.y)) {
+        spawn(particle);
+        if (!particle.vector) continue;
       }
-      if (!any) continue;
-      const strength = (1 - segment / CURRENT_TRAIL_SEGMENTS) ** 1.35;
-      ctx.strokeStyle = `rgba(${halo}, ${(0.26 * strength).toFixed(3)})`;
-      ctx.lineWidth = 3.2;
-      ctx.stroke();
-      ctx.strokeStyle = `rgba(${rgb}, ${(0.95 * strength).toFixed(3)})`;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      const speed = Math.hypot(particle.vector.u, particle.vector.v);
+      const distance = currentPixelsPerFrame(speed) * speedScale * steps;
+      if (!distance) { particle.vector = null; continue; }
+      const x = particle.x, y = particle.y;
+      const nextX = x + particle.vector.u / speed * distance;
+      const nextY = y - particle.vector.v / speed * distance;
+      if (!inView(nextX, nextY)) { particle.vector = null; continue; }
+      const next = toLatLng(nextX, nextY);
+      const vector = sample(next.lat, next.lng);
+      if (!vector) { particle.vector = null; continue; }
+      particle.x = nextX;
+      particle.y = nextY;
+      particle.vector = vector;
+      particle.age += steps;
+      const bin = bySpeed ? speedColorBin(speed, greatLakesCurrentSpeedMax) : speed > 0.4 ? 2 : speed > 0.1 ? 1 : 0;
+      const path = paths[bin] || (paths[bin] = new Path2D());
+      path.moveTo(x - origin.x, y - origin.y);
+      path.lineTo(nextX - origin.x, nextY - origin.y);
     }
+    ctx.lineCap = "round";
+    paths.forEach((path, bin) => {
+      if (!path) return;
+      // A restrained outline keeps coloured/black flow readable on any basemap.
+      ctx.lineWidth = bySpeed ? 2.2 : 1.8;
+      ctx.strokeStyle = `rgba(${halo}, ${1 - 0.88 ** steps})`;
+      ctx.stroke(path);
+      ctx.lineWidth = bySpeed ? 1.3 : 1.05;
+      const opacity = bySpeed ? 0.55 : [0.3, 0.46, 0.5][bin];
+      ctx.strokeStyle = `rgba(${bySpeed ? speedColors[bin] : rgb}, ${1 - (1 - opacity) ** steps})`;
+      ctx.stroke(path);
+    });
     if (waterMaskCanvas) {
       ctx.save();
       ctx.globalCompositeOperation = "destination-in";
@@ -1383,75 +1390,32 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
     }
   }
 
-  // Same idea, split by speed bin: each segment takes the colour of the
-  // current speed where it ends. Lines are a little wider so the colour reads.
-  // Trail segments are faded in pairs and the dark outline is drawn once per
-  // pair for every colour, which keeps this to about 66 strokes a frame
-  // (one per segment and colour, twice over, was about 240 and visibly slower).
-  const SPEED_TRAIL_TIERS = CURRENT_TRAIL_SEGMENTS / 2;
-  const speedTierStrength = Array.from({ length: SPEED_TRAIL_TIERS }, (_, tier) => (1 - (tier * 2 + 0.5) / CURRENT_TRAIL_SEGMENTS) ** 1.35);
-  const speedTierColors = speedTierStrength.map((strength) => speedColors.map((rgb) => `rgba(${rgb}, ${strength.toFixed(3)})`));
-  let speedTierHalos = null, speedTierHaloKey = "";
-
-  function drawBySpeed(halo) {
-    const maximum = greatLakesCurrentSpeedMax;
-    if (speedTierHaloKey !== halo) {
-      speedTierHalos = speedTierStrength.map((strength) => `rgba(${halo}, ${(0.4 * strength).toFixed(3)})`);
-      speedTierHaloKey = halo;
-    }
-    for (let tier = SPEED_TRAIL_TIERS - 1; tier >= 0; tier -= 1) {
-      const outline = new Path2D();
-      const paths = new Array(SPEED_FLOW_COLOR_BINS).fill(null);
-      let any = false;
-      for (let segment = tier * 2; segment < tier * 2 + 2; segment += 1) {
-        for (const particle of particles) {
-          const trail = particle.trail, head = trail.length - 1 - segment;
-          if (head < 1) continue;
-          const x0 = trail[head - 1][0] - origin.x, y0 = trail[head - 1][1] - origin.y;
-          const x1 = trail[head][0] - origin.x, y1 = trail[head][1] - origin.y;
-          const bin = speedColorBin(trail[head][2], maximum);
-          const path = paths[bin] || (paths[bin] = new Path2D());
-          path.moveTo(x0, y0);
-          path.lineTo(x1, y1);
-          outline.moveTo(x0, y0);
-          outline.lineTo(x1, y1);
-          any = true;
-        }
-      }
-      if (!any) continue;
-      ctx.strokeStyle = speedTierHalos[tier];
-      ctx.lineWidth = 3.8;
-      ctx.stroke(outline);
-      ctx.lineWidth = 2.2;
-      paths.forEach((path, bin) => {
-        if (!path) return;
-        ctx.strokeStyle = speedTierColors[tier][bin];
-        ctx.stroke(path);
-      });
-    }
-  }
-
   function tick(now) {
     if (!active) return;
     frame = requestAnimationFrame(tick);
-    if (document.hidden || canvas.style.visibility === "hidden") { last = now; return; }
-    const elapsed = last ? now - last : 16.67;
-    const steps = Math.min(3, elapsed / 16.67);
+    if (document.hidden || canvas.style.visibility === "hidden") { last = 0; return; }
+    const elapsed = last ? now - last : CURRENT_FRAME_MS;
+    const steps = Math.min(2.5, elapsed / CURRENT_FRAME_MS);
     last = now;
-    // Slow devices shed particles instead of stuttering.
+    // Retire completed blends rather than retaining a chain of old fields.
+    if (fieldTransition && now >= fieldTransition.ends) {
+      sample = fieldTransition.target;
+      fieldTransition = null;
+    }
     frameTime = frameTime * 0.95 + Math.min(elapsed, 100) * 0.05;
-    if (++framesSinceTrim > 90 && frameTime > 34 && particles.length > minimumCount) {
+    if (++framesSinceTrim > 60 && frameTime > 22 && particles.length > minimumCount) {
       particles.length = Math.max(minimumCount, Math.round(particles.length * 0.85));
       framesSinceTrim = 0;
     }
-    particles.forEach((particle) => advance(particle, steps));
-    draw();
+    draw(steps);
   }
 
   function hide() { canvas.style.visibility = "hidden"; }
   function refresh() {
     position();
-    if (map.getZoom() !== zoom) { zoom = map.getZoom(); reset(); }
+    reset();
+    zoom = map.getZoom();
+    last = 0;
     canvas.style.visibility = "";
   }
 
@@ -1466,8 +1430,9 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
     },
     setFields(next, { durationMs = 0 } = {}) {
       const target = createCurrentFieldSampler(next, allowedPoint);
-      if (!durationMs) { sample = target; return; }
+      if (!durationMs) { sample = target; fieldTransition = null; return; }
       const previous = sample, started = performance.now();
+      fieldTransition = { target, ends: started + durationMs };
       sample = (latitude, longitude) => {
         const fraction = Math.min(1, (performance.now() - started) / durationMs);
         if (fraction >= 1) return target(latitude, longitude);

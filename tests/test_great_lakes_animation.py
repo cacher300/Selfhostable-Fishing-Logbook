@@ -54,6 +54,7 @@ def test_index_prepares_frames_on_one_scale_then_reuses_it(monkeypatch) -> None:
     monkeypatch.setattr(service, "snap_depth", lambda depth, models: 4.0)
     monkeypatch.setattr(refresher, "data_status", lambda models=service.MODELS: {"version": "v1", "wavesVersion": "w1"})
     monkeypatch.setattr(animation, "layer_payload", _fake_layers(calls))
+    monkeypatch.setattr(service, "temperature_range_metadata", lambda *args: {})
 
     index = animation.index("temperature", 3.0, wait_seconds=5)
     assert index["ready"] is True and index["progress"] == {"done": 6, "total": 6}
@@ -92,7 +93,7 @@ def test_index_reports_progress_and_errors(monkeypatch) -> None:
     assert waiting["ready"] is False and waiting["progress"]["total"] == 4 and "frames" not in waiting
     release.set()
     done = animation.index("waves", wait_seconds=5)
-    assert done["ready"] is True and done["depthMeters"] is None and done["scale"] == {"min": 0.0, "max": 1.0}
+    assert done["ready"] is True and done["depthMeters"] is None and done["scale"] == {"min": 0.0, "max": 6.0}
 
     monkeypatch.setattr(refresher, "data_status", lambda models=service.MODELS: {"version": "v3", "wavesVersion": "w3"})
     monkeypatch.setattr(animation, "layer_payload", lambda layer, forecast_hour, depth=0.0, scale=None: {"rasters": [], "metadata": {"models": []}})
@@ -105,6 +106,7 @@ def test_refresher_preparation_is_shared_with_requests(monkeypatch) -> None:
     monkeypatch.setattr(service, "animation_offsets", lambda now=None: (0, 1))
     monkeypatch.setattr(refresher, "data_status", lambda models=service.MODELS: {"version": "v4", "wavesVersion": "w4"})
     monkeypatch.setattr(animation, "layer_payload", _fake_layers(calls))
+    monkeypatch.setattr(service, "temperature_range_metadata", lambda *args: {})
     prepared = animation.prepare("temperature")
     calls.clear()
     with patch.object(animation, "_executor") as executor:

@@ -77,6 +77,46 @@ def read_json(target: Path, max_age_seconds: float | None = None) -> object | No
         return None
 
 
+def get_or_create_json(target: Path, build, *, valid, timeout: float = 150.0,
+                       max_age_seconds: float | None = None):
+    """Share an expensive lookup across threads, processes, and restarts.
+
+    Only validated results are saved. The OS releases the lock if a worker
+    exits; a bounded wait lets callers retry rather than wait indefinitely.
+    """
+    saved = read_json(target, max_age_seconds)
+    if valid(saved):
+        return saved
+    lock = LeaderLock(target.with_suffix(".lock"))
+    deadline = time.monotonic() + timeout
+    try:
+        while True:
+            try:
+                acquired = lock.acquire()
+            except OSError:
+                return build()  # Cache permissions must not block NOAA data.
+            if acquired:
+                break
+            saved = read_json(target, max_age_seconds)
+            if valid(saved):
+                return saved
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"Timed out waiting for cached {target.name}")
+            time.sleep(0.05)
+        saved = read_json(target, max_age_seconds)
+        if valid(saved):
+            return saved
+        result = build()
+        if valid(result):
+            try:
+                write_json(target, result)
+            except OSError:
+                pass  # A successful lookup still works with a read-only cache.
+        return result
+    finally:
+        lock.release()
+
+
 def write_record(target: Path, header: dict, arrays: dict[str, array]) -> None:
     """Store a JSON header plus little-endian numeric arrays in one file."""
     layout, chunks = [], []

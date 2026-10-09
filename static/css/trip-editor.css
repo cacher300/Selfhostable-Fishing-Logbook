@@ -79,6 +79,14 @@
   padding-top: 4px;
 }
 
+#tripDialog .trip-continuation-message {
+  width: min(100%, 740px);
+  margin: 12px 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
 #tripDialog .section-heading h3 {
   margin: 0;
   font-size: 19px;
@@ -113,6 +121,22 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
+}
+
+#tripDialog .trip-date-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+#tripDialog .trip-date-field-row .styled-date-field {
+  min-width: 0;
+}
+
+#tripDialog .trip-date-field-row [data-calendar-today-button] {
+  min-height: 36px;
+  white-space: nowrap;
 }
 
 #tripDialog .trip-overview-layout > .weather-fetch-panel {
@@ -1823,13 +1847,13 @@
 .probe-temperature-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 8px;
 }
 
 .probe-temperature-source-note {
-  max-width: 480px;
-  margin-top: 6px !important;
+  max-width: 740px;
+  margin-top: 0 !important;
   color: var(--muted) !important;
   font-size: 12px !important;
   font-weight: 650;
@@ -2360,20 +2384,42 @@
   min-width: 0;
 }
 
-#tripDialog .catch-depth-fields {
+#tripDialog .catch-depth-current-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
-#tripDialog.is-trolling .catch-depth-fields {
+#tripDialog.is-great-lakes-fishing:not(.is-trolling) .catch-depth-current-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+#tripDialog.is-trolling .catch-depth-current-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#tripDialog:not(.is-trolling) .catch-depth-current-grid .catch-depth-fields,
+#tripDialog:not(.is-trolling) .catch-depth-current-grid .catch-trolling-details-grid {
+  display: contents;
+}
+
+#tripDialog.is-trolling .catch-depth-current-grid .catch-depth-fields {
   display: none;
 }
 
-#tripDialog .catch-depth-fields > label,
-#tripDialog .catch-depth-fields input {
+#tripDialog .catch-depth-current-grid .catch-trolling-details-grid {
+  grid-column: 1 / -1;
+}
+
+#tripDialog .catch-depth-current-grid label,
+#tripDialog .catch-depth-current-grid input {
   width: 100%;
   max-width: none;
+}
+
+#tripDialog .catch-equipment-grid > label:not(.checkbox-label) > span,
+#tripDialog .catch-depth-current-grid label > span {
+  min-height: 2.4em;
 }
 
 #tripDialog .catch-row .catch-depth-fields > label {
@@ -2389,6 +2435,8 @@
 
 #tripDialog.is-trolling .catch-trolling-details-grid {
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-flow: row;
+  justify-content: start;
 }
 
 #tripDialog:not(.is-trolling) .catch-trolling-details-grid {

@@ -8,7 +8,7 @@ import { deleteTrip } from "./actions.js";
 import { els } from "./app-elements.js";
 import { beginMediaEditSession, cleanupDeletedMedia, isUsableCoordinates, mediaReferenceKeys } from "./app-media.js";
 import { LOCATION_FOCUS_ZOOM, coordinateText, populateLaunchSelect, populateLocationSelect, selectedTripLocationCoordinates, tripLocationCoordinates } from "./locations.js";
-import { renderWeatherSummary, scheduleTripWeatherPreview, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel } from "./location-weather.js";
+import { refreshTripWaterTemperature, renderWeatherSummary, resetTripWaterTemperatureAutofill, scheduleTripWeatherPreview, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel } from "./location-weather.js";
 import { syncUnitLabels } from "./settings.js";
 import { populateDatalist, populateOptionSelect, renderAll } from "./dashboard.js";
 import { ExpeditionAnalytics } from "./expedition-analytics.js";
@@ -19,7 +19,7 @@ import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { tripConditionsTime } from "./trip-condition-time.js";
 import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
 import { calculateMinutes } from "./stats.js";
-import { isTrollingTrip, trimNumber } from "./form-utils.js";
+import { isTrollingTrip, syncFishHawkVisibility, trimNumber } from "./form-utils.js";
 import { updateMethodVisibility } from "./app.js";
 import { createTripDraft } from "./trip-draft.js";
 import { applyTripDraftBindings } from "./draft-binding.js";
@@ -125,12 +125,41 @@ export function syncTripFormChrome() {
   updateTripDialogHeader();
 }
 
+export function syncTripContinuationGate() {
+  const missing = [
+    { value: document.querySelector("#tripDateValue")?.value, label: "Date" },
+    { value: document.querySelector("#tripLocation")?.value, label: "Waterbody" },
+    { value: document.querySelector("#method")?.value, label: "Method" }
+  ].filter(({ value }) => !String(value || "").trim());
+  const complete = missing.length === 0;
+  const sections = document.querySelector("#tripContinuationSections");
+  const message = document.querySelector("#tripContinuationMessage");
+  sections?.classList.toggle("hidden", !complete);
+  if (sections) {
+    sections.inert = !complete;
+    sections.setAttribute("aria-hidden", String(!complete));
+  }
+  message?.classList.toggle("hidden", complete);
+  if (message) {
+    const labels = missing.map(({ label }) => label);
+    const list = labels.length < 2
+      ? labels[0] || ""
+      : `${labels.slice(0, -1).join(", ")}, and ${labels.at(-1)}`;
+    message.textContent = complete ? "" : `Fill out these fields to continue. Still needed: ${list}.`;
+  }
+  document.querySelectorAll("#tripDialog [data-trip-continuation-link]").forEach((link) => {
+    link.classList.toggle("hidden", !complete);
+  });
+  return complete;
+}
+
 export function refreshTripEnvironmentalConditions() {
   const field = document.querySelector(".trip-thermocline-field");
   const input = document.querySelector("#tripThermoclineDepth");
   const trip = ui.tripDraft || {};
   const eligible = isGreatLakesFishingTrip(trip, state.locations);
   els.tripDialog?.classList.toggle("is-great-lakes-fishing", eligible);
+  syncFishHawkVisibility();
   field?.classList.toggle("hidden", !eligible);
   document.querySelectorAll("#tripDialog .great-lakes-current-field").forEach((element) => {
     element.classList.toggle("hidden", !eligible);
@@ -194,6 +223,7 @@ export function validateTripForm() {
   const requiredFields = [
     { field: tripDateDisplay, label: "Date" },
     { field: document.querySelector("#tripLocation"), label: "Location / waterbody" },
+    { field: document.querySelector("#method"), label: "Method" },
     { field: document.querySelector("#targetSpecies"), label: "Target species" }
   ];
   const missing = requiredFields.filter(({ field }) => !field.value.trim());
@@ -357,6 +387,7 @@ export function ensureProbeTemperatureProfileDisclosure() {
 }
 
 export function openTripDialog(trip = null) {
+  resetTripWaterTemperatureAutofill();
   beginMediaEditSession("trip");
   ui.activeTripId = trip?.id || null;
   ui.tripDraft = createTripDraft(trip);
@@ -375,11 +406,11 @@ export function openTripDialog(trip = null) {
   setHtml(els.personRows, html``);
   ui.activeNotePhotos = structuredClone(tripDraft.notePhotos || []);
 
-  const today = localDateInputValue();
   setValue("tripId", tripDraft.id || "");
   setValue("tripTitle", tripDraft.title || "");
-  setValue("tripDateValue", tripDraft.date || today);
-  setValue("tripDate", displayDateForCalendar(tripDraft.date || today));
+  setValue("tripDateValue", tripDraft.date || "");
+  setValue("tripDate", displayDateForCalendar(tripDraft.date || ""));
+  document.querySelector("#tripDateTodayButton")?.classList.remove("hidden");
   populateTripExpeditionSelect(tripDraft.expeditionId || "");
   const location = findLocationByIdOrName(tripDraft.locationId, tripDraft.location);
   populateLocationSelect(location?.id || "");
@@ -439,6 +470,7 @@ export function openTripDialog(trip = null) {
   populateSetupLineSelects();
   applyTripDraftBindings(els.tripDialog);
   updateMethodVisibility({ applyStartupSpread: !trip });
+  syncTripContinuationGate();
   renderLiveTrollingSpread();
   renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
   syncUnitLabels(els.tripForm);
@@ -447,9 +479,18 @@ export function openTripDialog(trip = null) {
   els.tripForm.scrollTop = 0;
   requestAnimationFrame(() => {
     applyTripDraftBindings(els.tripDialog);
+    const continuationReady = syncTripContinuationGate();
     els.tripForm.scrollTop = 0;
-    els.personRows.querySelector("[data-focus-person-name='true'] .person-name")?.focus({ preventScroll: true });
+    const initialFocus = continuationReady
+      ? els.personRows.querySelector("[data-focus-person-name='true'] .person-name")
+      : [
+        { selector: "#tripDate", value: document.querySelector("#tripDateValue")?.value },
+        { selector: "#tripLocation", value: document.querySelector("#tripLocation")?.value },
+        { selector: "#method", value: document.querySelector("#method")?.value }
+      ].find(({ value }) => !String(value || "").trim())?.selector;
+    (typeof initialFocus === "string" ? document.querySelector(initialFocus) : initialFocus)?.focus({ preventScroll: true });
     ui.tripDraftHydrating = false;
+    void refreshTripWaterTemperature();
     resetTripFormSnapshot();
     updateTripDialogHeader();
   });

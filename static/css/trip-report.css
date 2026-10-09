@@ -16,7 +16,7 @@
 .trip-summary-body .report-header .report-subtitle { margin: 8px 0 0; color: var(--muted); font-size: 18px; font-weight: 500; line-height: 1.35; letter-spacing: 0; }
 .trip-summary-body .report-header .report-actions { display: flex; flex: 0 0 auto; align-self: flex-start; flex-wrap: wrap; justify-content: flex-start; gap: 8px; margin-top: 14px; margin-left: 0; }
 
-.report-stat-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); }
+.report-stat-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); }
 .report-stat-strip div { min-width: 0; padding: 14px 17px; border-right: 1px solid var(--line); }.report-stat-strip div:last-child { border-right: 0; }
 .report-stat-strip span { display: block; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }.report-stat-strip strong { display: block; margin-top: 4px; color: var(--text); font-size: 24px; line-height: 1.05; }
 

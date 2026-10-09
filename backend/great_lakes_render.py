@@ -290,7 +290,8 @@ def _encode_values(image: Image.Image) -> str:
     if features.check("webp"):
         # exact: keep the grey levels under transparent pixels (filled from the nearby water), or the
         # encoder blanks them and they bleed into the shoreline's half-transparent edge as wrong values.
-        image.save(buffer, format="WEBP", quality=97, alpha_quality=100, method=3, exact=True)
+        # Prioritize preparation speed over file size, retaining quality and exact alpha.
+        image.save(buffer, format="WEBP", quality=97, alpha_quality=100, method=0, exact=True)
         return f"data:image/webp;base64,{base64.b64encode(buffer.getvalue()).decode('ascii')}"
     image.save(buffer, format="PNG", optimize=True)
     return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode('ascii')}"

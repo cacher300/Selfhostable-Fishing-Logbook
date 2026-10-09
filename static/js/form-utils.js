@@ -103,8 +103,11 @@ export function updateTrollingVisibility() {
 }
 
 export function syncFishHawkVisibility() {
+  const method = String(ui.tripDraft?.method || "").trim().toLowerCase();
+  const greatLakesJigging = method === "jigging" && isGreatLakesFishingTrip(ui.tripDraft, state.locations);
+  const availableForTrip = isTrollingTrip() || greatLakesJigging;
   document.querySelectorAll(".fish-hawk-field").forEach((element) => {
-    element.classList.toggle("hidden", !hasFishHawk() || !isTrollingTrip());
+    element.classList.toggle("hidden", !hasFishHawk() || !availableForTrip);
   });
 }
 

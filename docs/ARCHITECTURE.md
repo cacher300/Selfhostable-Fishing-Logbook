@@ -94,6 +94,8 @@ When opened via `file:`, commits skip the server and only update localStorage. T
 4. The browser reduces raw series to trip-window summaries, trends, marine snapshot, sun/moon, and nearest-hour catch weather.
 5. Trip save remains successful if enrichment fails; an error/missing status is stored.
 
+The trip editor also fills an empty water-temperature field from a Great Lakes surface reading at the selected launch or waterbody pin when one is available. Past trip times use saved readings; near-future times use the forecast. Manual values are preserved, and unavailable readings do not affect saving.
+
 ### Great Lakes current inspection
 
 1. The operator selects a lake, the Underwater currents layer, a forecast time, and a map depth. `great-lakes-conditions.js` renders the available flow overlay.
@@ -115,12 +117,19 @@ NOAA runs each Great Lakes Operational Forecast System (LSOFS for Superior, LMHO
 
 1. Discovery only uses complete runs (the f120 frame exists), falling back to the previous day's catalog during a partial 00z run, and keeps the last good run if NOAA is unreachable. Results are shared through `runs.json`.
 2. One binary OPeNDAP download per model-hour (`.dods`, every depth level) is stored on disk as a temperature volume and a velocity volume. Every depth on the slider, the thermocline, the current field, and the speed and temperature rasters are derived from those two files. A model's grid coordinates and wet mask never change, so they are downloaded once and left out of later requests; file structure and depth levels are looked up once per run.
+
+   File structure and dimensions/depth levels are shared in `dataset-info/`, keyed by the actual run. A file lock coordinates simultaneous misses across threads and spawned processes. Complete temperature, thermocline, and current ranges are shared in `ranges/`, keyed by actual source files, drawing version, depth, and resolution where applicable. Their calculation uses the same fitted ranges as drawing without encoding images. Incomplete ranges are retried. Waves and upwelling use their existing fixed domains and skip the range scan; ordinary wave forecasts and animation frames share their cached drawing.
 3. When the server runs with `GREAT_LAKES_BACKGROUND_REFRESH` on, one process holds `refresher.lock` and:
    - checks for a new run every 5 minutes from 10 minutes before to 2 hours after each model's expected publication, and every 30 minutes otherwise;
    - downloads every forecast choice ("Now", 6, 12, 24, and 48 h) for every lake at every depth (about 45 MB per choice, roughly 180 MB an hour) whenever a run arrives or "Now" moves to the next hour, "Now" first; precomputes their thermoclines; and deletes older runs and hours the map no longer shows;
    - draws the map's all-lakes layers (temperature, thermocline, and currents at full detail) for "Now" at every depth level down to 30 m (about 100 ft) and for each forecast at the surface, so they open without waiting;
    - downloads the static model meshes and water masks once;
    - keeps the wave layer current (see [Great Lakes waves](#great-lakes-waves)) before the slower GLOFS work in each pass.
+
+   Download preparation warms up to four lake models concurrently. Drawing uses a bounded pool of spawned processes, retained across batches and hourly refreshes so loaded data stays usable. `GREAT_LAKES_PREPARE_WORKERS` overrides the default of up to four available CPU cores. The pool is replaced after a worker crash and shut down before refresher leadership is released; spawned workers cannot start another refresher. Failed drawing or animation tasks keep preparation incomplete and are retried.
+
+   Value images retain WebP quality 97, exact alpha, and hidden shoreline values, using method 0 for speed at the cost of larger files. Encoding-only changes reuse existing drawings. Range records are pruned after three hours without reuse, and dataset metadata after seven days; lock files remain so cleanup cannot replace an active lock.
+
    Requests for anything not prepared (for example another depth before its hour is warm, or with background refresh off) fetch only the displayed depth level first (about 0.2–0.4 MB per lake), then the full volume in the background; both stay cached until the next run. Drawn layers are stored on disk (`rendered/`) for every worker and dropped after three hours. Buoy observations are small and are fetched live on each request instead (most stations report hourly, about 25 minutes after the hour; an open map refetches them every 10 minutes). Other gunicorn workers read the same disk cache and take over the lock if the leader exits.
 4. `GET /api/great-lakes/status` reports the run and hour being served and when the next run is expected. An open map polls it every 5 minutes (and when the tab becomes visible) and reloads the layer only when that version changes. Layers always cover all four lakes at one fixed resolution, so panning and zooming never request new data; requested depths are snapped to the nearest model level before cache lookup. Layer requests carry the version so the browser's HTTP cache never returns an older frame.
 

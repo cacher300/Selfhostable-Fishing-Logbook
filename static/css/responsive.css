@@ -1053,6 +1053,10 @@
 }
 
 @media (max-width: 760px) {
+  #tripDialog.is-great-lakes-fishing:not(.is-trolling) .catch-depth-current-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   #tripDialog .gear-used-row .collapsible-row-body {
     grid-template-columns: minmax(0, 1fr);
   }

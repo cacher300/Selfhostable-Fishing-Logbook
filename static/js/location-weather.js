@@ -1,15 +1,20 @@
 import { state, ui } from "./app-state.js";
 import { findLaunchByIdOrName, tripWeatherCoordinates } from "./app-normalization.js";
-import { displayStoredMeasurement, formatDisplayTime, formatUnitValue } from "./app-units.js";
+import { displayStoredMeasurement, formatDisplayTime, formatUnitValue, unitPreference } from "./app-units.js";
 import { els } from "./app-elements.js";
 import { isUsableCoordinates } from "./app-media.js";
 import { chopLabelForWaveHeight } from "./settings-core.js";
-import { getValue } from "./trip-editor.js";
+import { getValue, setValue } from "./trip-editor.js";
 import { updateTripField } from "./draft-binding.js";
+import { tripWaterTemperatureLocationAvailable, tripWaterTemperatureLookup, tripWaterTemperatureText } from "./trip-water-temperature.js";
 
 export const weatherRequestCache = new Map();
 export const marineRequestCache = new Map();
 export const astronomyRequestCache = new Map();
+
+let tripWaterTemperatureAutoValue = "";
+let tripWaterTemperatureKey = "";
+let tripWaterTemperatureRequestId = 0;
 
 export function tripDraftForWeather() {
   const draft = ui.tripDraft || {};
@@ -20,7 +25,7 @@ export function tripDraftForWeather() {
   return {
     id: draft.id || els.tripId.value || "",
     date: draft.date || getValue("tripDate"),
-    launchTime: draft.launchTime || getValue("launchTime"),
+    launchTime: draft.launchTime || draft.linesSetTime || getValue("launchTime"),
     linesPulledTime: draft.linesPulledTime || getValue("linesPulledTime"),
     location: location?.name || "",
     locationId: location?.id || "",
@@ -825,6 +830,67 @@ export async function refreshTripWeatherPreview(force = false) {
   }
 }
 
+export function resetTripWaterTemperatureAutofill() {
+  tripWaterTemperatureAutoValue = "";
+  tripWaterTemperatureKey = "";
+  tripWaterTemperatureRequestId += 1;
+}
+
+export function markTripWaterTemperatureManual() {
+  tripWaterTemperatureAutoValue = "";
+  tripWaterTemperatureRequestId += 1;
+}
+
+export async function refreshTripWaterTemperature() {
+  if (!els.tripDialog?.open) return;
+  const trip = tripDraftForWeather();
+  const source = tripWeatherCoordinates(trip);
+  const coordinates = source?.coordinates;
+  const unit = unitPreference("waterTemperature");
+  const lookup = coordinates && tripWaterTemperatureLocationAvailable(trip, coordinates) ? tripWaterTemperatureLookup(trip) : null;
+  const key = JSON.stringify({
+    date: trip.date,
+    launchTime: trip.launchTime,
+    locationId: trip.locationId,
+    launchId: trip.launchId,
+    coordinates,
+    unit,
+    lookup
+  });
+  if (key === tripWaterTemperatureKey) return;
+
+  const previousAutoValue = tripWaterTemperatureAutoValue;
+  const field = document.querySelector("#waterTemp");
+  const currentValue = String(field?.value || "").trim();
+  const mayReplace = !currentValue || (previousAutoValue && currentValue === previousAutoValue);
+  tripWaterTemperatureKey = key;
+  tripWaterTemperatureAutoValue = "";
+  const requestId = ++tripWaterTemperatureRequestId;
+
+  if (previousAutoValue && currentValue === previousAutoValue) {
+    setValue("waterTemp", "");
+    updateTripField("waterTemp", "");
+  }
+  if (!mayReplace || !coordinates || !lookup || !window.noaaGreatLakesApi?.temperatureValue) return;
+
+  try {
+    const options = lookup.time
+      ? { time: lookup.time, depth: 0, latitude: coordinates.latitude, longitude: coordinates.longitude }
+      : { forecastHour: lookup.forecastHour, depth: 0, resolution: 320, latitude: coordinates.latitude, longitude: coordinates.longitude };
+    const reading = await window.noaaGreatLakesApi.temperatureValue(options);
+    if (requestId !== tripWaterTemperatureRequestId || !reading?.available) return;
+    const value = tripWaterTemperatureText(reading.temperatureC, unit);
+    if (!value) return;
+    const latestValue = String(document.querySelector("#waterTemp")?.value || "").trim();
+    if (latestValue && latestValue !== previousAutoValue) return;
+    tripWaterTemperatureAutoValue = value;
+    setValue("waterTemp", value);
+    updateTripField("waterTemp", value);
+  } catch {
+    // Temperature data is optional; an unavailable lookup should not block saving.
+  }
+}
+
 export async function resyncTripWeather() {
   weatherRequestCache.clear();
   marineRequestCache.clear();
@@ -847,7 +913,10 @@ export async function resyncTripWeather() {
 export function scheduleTripWeatherPreview(force = false) {
   if (!els.tripDialog?.open) return;
   clearTimeout(ui.weatherPreviewTimer);
-  ui.weatherPreviewTimer = setTimeout(() => refreshTripWeatherPreview(force), 350);
+  ui.weatherPreviewTimer = setTimeout(() => {
+    void refreshTripWeatherPreview(force);
+    void refreshTripWaterTemperature();
+  }, 350);
 }
 
 export function weatherValue(value, suffix = "") {

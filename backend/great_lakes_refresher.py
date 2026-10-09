@@ -30,8 +30,12 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import multiprocessing
+import os
 import threading
 import time
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, ThreadPoolExecutor, wait
+from concurrent.futures.process import BrokenProcessPool
 from datetime import datetime, timezone
 
 from . import great_lakes_cache as cache
@@ -64,6 +68,30 @@ WAVE_RUN_CHECK_SECONDS = 5 * 60
 LOCK_FILE = "refresher.lock"
 
 logger = logging.getLogger(__name__)
+
+
+def preparation_workers() -> int:
+    """Use up to four CPU processes unless explicitly configured."""
+    try:
+        return max(1, int(os.environ.get("GREAT_LAKES_PREPARE_WORKERS", str(min(4, os.cpu_count() or 1)))))
+    except ValueError:
+        return 1
+
+
+def _configure_preparation(cache_directory: str) -> None:
+    cache.configure(cache_directory)
+
+
+def _draw_view(kind: str, offset: int, depth: float) -> None:
+    """Small picklable job; desktop layers and URLs stay owned by this app."""
+    from . import great_lakes_animation as animation
+
+    if kind.startswith("animation:"):
+        result = animation.prepare(kind.split(":", 1)[1], depth)
+        if not result.get("frames") or not all(frame.get("available") for frame in result["frames"]):
+            raise RuntimeError("Animation has unavailable frames")
+    else:
+        _require_all_lakes(animation.layer_payload(kind, offset, depth))
 
 
 def _iso(epoch: float | None) -> str | None:
@@ -149,6 +177,8 @@ class GreatLakesRefresher:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._work_thread: threading.Thread | None = None
+        self._pool: ProcessPoolExecutor | None = None
+        self._pool_workers = 0
         self._state_lock = threading.Lock()
         self._lock = cache.LeaderLock(cache.path_for(LOCK_FILE))
         self.next_run_check = 0.0
@@ -173,6 +203,7 @@ class GreatLakesRefresher:
         # The loop retains leadership until preparation has stopped, so a
         # replacement cannot prune or write the same cache concurrently.
         if self._thread is None:
+            self._close_drawing_pool()
             self._lock.release()
 
     def _loop(self) -> None:
@@ -194,6 +225,7 @@ class GreatLakesRefresher:
         finally:
             if self._work_thread:
                 self._work_thread.join()
+            self._close_drawing_pool()
             self._lock.release()
 
     def _prepare(self) -> None:
@@ -249,15 +281,14 @@ class GreatLakesRefresher:
                 if self._stop.is_set():
                     return
                 ok = self._warm(runs, offset) and ok
-                self._task(f"pre-drawn {offset} h views", lambda offset=offset: self.predraw(offset))
+                ok = self._task(f"pre-drawn {offset} h views", lambda offset=offset: self.predraw(offset)) and ok
             for offset in animation_only:
                 if self._stop.is_set():
                     return
                 ok = self._warm(runs, offset) and ok
-            for layer in ANIMATED_MODEL_LAYERS:
-                if self._stop.is_set():
-                    return
-                self._task(f"{layer} animation", lambda layer=layer: animation.prepare(layer))
+            ok = self._task("surface animations", self.prepare_animations) and ok
+            if self._stop.is_set():
+                return
             if ok:
                 self.warmed_signature = signature
                 with self._state_lock:
@@ -338,18 +369,23 @@ class GreatLakesRefresher:
         depths = [0.0]
         if offset == 0:
             depths = [depth for depth in service.depth_levels(models) if depth <= PREDRAW_MAX_DEPTH_METERS] or [0.0]
-        for depth in depths:
-            service.great_lakes_temperature_rasters(offset, depth, MAP_RESOLUTION, models)
-            service.great_lakes_payload("currents", offset, depth, models)
-        service.great_lakes_thermocline_rasters(offset, MAP_RESOLUTION, models)
-        upwelling.upwelling_rasters(offset, MAP_RESOLUTION, models)
+        tasks = [(layer, offset, depth) for depth in depths for layer in ("temperature", "currents")]
+        tasks.extend((layer, offset, 0.0) for layer in ("thermocline", "upwelling"))
+        self._draw_tasks(tasks, f"{offset} h maps")
 
     def _warm(self, runs: dict[str, dict], offset: int = 0) -> bool:
-        ok = True
-        for model, run in runs.items():
-            if run.get("files"):
-                ok = self._task(f"{model} +{offset} h", lambda model=model: service.warm_model_hour(model, offset)) and ok
-        return ok
+        models = [model for model, run in runs.items() if run.get("files")]
+        if not models or self._stop.is_set():
+            return not self._stop.is_set()
+
+        def warm(model):
+            return self._task(f"{model} +{offset} h", lambda: service.warm_model_hour(model, offset))
+
+        # At most four independent NOAA requests; each lake's temperature,
+        # thermocline, and velocity preparation stays in order.
+        with ThreadPoolExecutor(max_workers=min(4, len(models)), thread_name_prefix="great-lakes-download") as pool:
+            results = list(pool.map(warm, models))
+        return all(results)
 
     def _task(self, label: str, action) -> bool:
         started = time.monotonic()
@@ -364,3 +400,72 @@ class GreatLakesRefresher:
             self.state.setdefault("errors", {}).pop(label, None)
         logger.debug("Great Lakes refresh of %s took %.1fs", label, time.monotonic() - started)
         return True
+
+
+    def _draw_tasks(self, tasks: list[tuple[str, int, float]], phase: str) -> None:
+        """Bound outstanding jobs and use processes for CPU-heavy drawing."""
+        workers = preparation_workers()
+        if self._pool is not None and self._pool_workers != workers:
+            self._close_drawing_pool()
+        done = 0
+        ok = True
+
+        def record(task, action):
+            nonlocal done, ok
+            ok = self._task(f"{task[0]} +{task[1]} h at {task[2]:g} m", action) and ok
+            done += 1
+            with self._state_lock:
+                self.state["preparation"] = {"phase": phase, "done": done, "total": len(tasks), "workers": workers}
+            self._save_state()
+
+        if workers == 1:
+            for task in tasks:
+                if self._stop.is_set():
+                    return
+                record(task, lambda task=task: _draw_view(*task))
+        else:
+            pool = self._drawing_pool(workers)
+            broken = False
+            try:
+                remaining = iter(tasks)
+                pending = {}
+                while True:
+                    while len(pending) < workers and not self._stop.is_set():
+                        task = next(remaining, None)
+                        if task is None:
+                            break
+                        pending[pool.submit(_draw_view, *task)] = task
+                    if not pending:
+                        break
+                    finished, _ = wait(pending, return_when=FIRST_COMPLETED)
+                    for future in finished:
+                        broken = isinstance(future.exception(), BrokenProcessPool) or broken
+                        record(pending.pop(future), future.result)
+            except BrokenProcessPool:
+                broken = True
+                raise
+            finally:
+                if broken:
+                    self._close_drawing_pool()
+        if not ok:
+            raise RuntimeError(f"Some {phase} failed; background preparation will retry")
+
+    def _drawing_pool(self, workers: int) -> ProcessPoolExecutor:
+        """Retain loaded metadata and volumes across forecast batches and hours."""
+        if self._pool is None:
+            # Spawn avoids inheriting gunicorn/refresher threads and their locks.
+            self._pool = ProcessPoolExecutor(
+                max_workers=workers, mp_context=multiprocessing.get_context("spawn"),
+                initializer=_configure_preparation, initargs=(str(cache.cache_dir()),))
+            self._pool_workers = workers
+        return self._pool
+
+    def _close_drawing_pool(self) -> None:
+        pool, self._pool = self._pool, None
+        self._pool_workers = 0
+        if pool is not None:
+            pool.shutdown(wait=True, cancel_futures=True)
+
+    def prepare_animations(self) -> None:
+        """Prepare the desktop's existing surface animation selection."""
+        self._draw_tasks([(f"animation:{layer}", 0, 0.0) for layer in ANIMATED_MODEL_LAYERS], "animations")

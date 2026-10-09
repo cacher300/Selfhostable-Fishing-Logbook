@@ -12,6 +12,7 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8080
+      GREAT_LAKES_PREPARE_WORKERS: ${GREAT_LAKES_PREPARE_WORKERS:-4}
       # The production deploy sets this to true after HTTPS is enforced at
       # Nginx/Cloudflare. Leave development HTTP usable by default.
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
