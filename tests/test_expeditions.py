@@ -4,11 +4,11 @@ import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
-from unittest.mock import patch
 
 from backend import logbook_store
 from backend.backend_config import DEFAULT_LOGBOOK
-from server import create_app
+from backend.storage.local import LocalLogbookStore
+from conftest import make_app
 
 
 class ExpeditionStorageTests(unittest.TestCase):
@@ -71,16 +71,16 @@ class ExpeditionStorageTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as directory:
             database_file = Path(directory) / "logbook.sqlite3"
-            with patch.object(logbook_store, "DATABASE_FILE", database_file):
-                logbook_store.write_logbook(payload)
-                loaded = logbook_store.read_logbook()
+            store = LocalLogbookStore(database_file)
+            store.write(payload, None)
+            loaded = store.read().document
         self.assertEqual("exp-1", loaded["expeditions"][0]["id"])
         self.assertEqual("exp-1", loaded["trips"][0]["expeditionId"])
 
     def test_expeditions_route_serves_the_spa(self) -> None:
-        app = create_app({"TESTING": True, "SECRET_KEY": "expeditions-route-test"})
-        with app.test_client() as client:
-            response = client.get("/expeditions")
+        with tempfile.TemporaryDirectory() as directory:
+            fish = make_app(Path(directory), SECRET_KEY="expeditions-route-test")
+            response = fish.client.get("/expeditions")
         self.assertEqual(200, response.status_code)
         self.assertIn(b'id="expeditionsPanel"', response.data)
 

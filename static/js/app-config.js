@@ -1,7 +1,7 @@
-const storageKey = "fishing-logbook-v2";
-let csrfTokenPromise;
+export const storageKey = "fishing-logbook-v2";
+export let csrfTokenPromise;
 
-async function protectedFetch(url, options = {}, retry = true) {
+export async function protectedFetch(url, options = {}, retry = true) {
   const method = String(options.method || "GET").toUpperCase();
   if (["GET", "HEAD", "OPTIONS"].includes(method)) return fetch(url, options);
 

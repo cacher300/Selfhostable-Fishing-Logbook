@@ -6,7 +6,7 @@ This roadmap is derived from verified code gaps, not from assumed product commit
 
 1. Add authentication or document a supported reverse-proxy authentication configuration; bind Docker safely by default.
 2. Add upload-size limits, rate limiting, and stronger upload content validation.
-3. Add backup/restore verification; SQLite writes are already atomic and serialized, but concurrent browser saves remain last-write-wins.
+3. Add backup/restore verification; SQLite writes are atomic and revision-checked (stale saves are refused), but there is no automatic merge of concurrent edits yet.
 
 ## Priority 1: Establish Schema and Quality Guardrails
 
@@ -27,7 +27,6 @@ This roadmap is derived from verified code gaps, not from assumed product commit
 1. Keep browser weather enrichment and backend proxy behavior covered by focused tests as either side changes.
 2. Add backup status/restore documentation and non-destructive restore tooling.
 3. Add health/readiness endpoints and structured logs for container operation.
-4. Pin third-party frontend assets or self-host Leaflet to reduce CDN dependency.
 
 ## Priority 4: Usability and Scale
 

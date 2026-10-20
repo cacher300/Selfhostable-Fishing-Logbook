@@ -53,8 +53,19 @@ class Statement {
 
   async all() {
     let rows = [...this.db.media.values()];
-    if (this.sql.includes("WHERE category = ?")) rows = rows.filter((row) => row.category === this.values[0]);
-    return { results: rows };
+    const values = [...this.values];
+    const limit = values.pop();
+    if (this.sql.includes("category = ?")) {
+      const category = values.shift();
+      rows = rows.filter((row) => row.category === category);
+    }
+    if (this.sql.includes("uploaded_at < ?")) {
+      const [uploadedAt, , objectKey] = values;
+      rows = rows.filter((row) => row.uploaded_at < uploadedAt || (row.uploaded_at === uploadedAt && row.object_key < objectKey));
+    }
+    rows.sort((a, b) => a.uploaded_at < b.uploaded_at ? 1 : a.uploaded_at > b.uploaded_at ? -1
+      : a.object_key < b.object_key ? 1 : a.object_key > b.object_key ? -1 : 0);
+    return { results: rows.slice(0, limit) };
   }
 }
 
@@ -238,4 +249,38 @@ test("media upload rejects unsafe filenames and empty objects", async () => {
   assert.equal(empty.status, 400);
   assert.equal(env.FISH_MEDIA.objects.size, 0);
   assert.equal(env.FISH_DB.media.size, 0);
+});
+
+test("media pagination covers older files and timestamp ties without duplicates", async () => {
+  const env = environment();
+  for (let index = 0; index < 1003; index += 1) {
+    const category = index % 2 ? "lures" : "trip-photos";
+    const object_key = `media/${category}/${String(index).padStart(4, "0")}.jpg`;
+    env.FISH_DB.media.set(object_key, { object_key, category, filename: `${index}.jpg`, uploaded_at: "2026-10-09T12:00:00Z", metadata_json: "{}" });
+  }
+  for (const category of [null, "trip-photos"]) {
+    const keys = [];
+    let cursor = null;
+    let pages = 0;
+    do {
+      const query = new URLSearchParams({ limit: "500" });
+      if (category) query.set("category", category);
+      if (cursor) query.set("cursor", cursor);
+      const response = await worker.fetch(request(`/api/media?${query}`, authorized()), env);
+      assert.equal(response.status, 200);
+      const payload = await response.json();
+      assert(payload.media.length <= 500);
+      keys.push(...payload.media.map((item) => item.object_key));
+      cursor = payload.nextCursor;
+      pages += 1;
+    } while (cursor);
+    const expected = [...env.FISH_DB.media.values()].filter((item) => !category || item.category === category).map((item) => item.object_key).sort().reverse();
+    assert.deepEqual(keys, expected);
+    assert.equal(new Set(keys).size, keys.length);
+    assert.equal(pages, category ? 2 : 3);
+  }
+  for (const cursor of ["not base64", btoa("null"), btoa(JSON.stringify({ uploadedAt: 1, objectKey: "x" }))]) {
+    const response = await worker.fetch(request(`/api/media?cursor=${encodeURIComponent(cursor)}`, authorized()), env);
+    assert.equal(response.status, 400);
+  }
 });

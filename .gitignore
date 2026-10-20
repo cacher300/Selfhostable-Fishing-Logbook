@@ -1,13 +1,5 @@
 # Local fishing logbook data. This can contain names, locations, notes, and photos.
-data/uploads/
-data/mobile-direct-import.zip
-data/fishing-logbook-v2-mobile-import.zip
-data/fishing-logbook-v2-mobile-import-before-may-7-trip.zip
-data/fishing-logbook-v2-mobile-import-before-retired-setting-cleanup.zip
-data/logbook-export-0v48qym2.zip
-data/.secret_key
-data/mobile-direct-logbook.json
-data/logbook.sqlite3.bak-*
+/data/
 
 # Python runtime/cache files.
 __pycache__/
@@ -24,8 +16,12 @@ relaunch-desktop.ps1
 .DS_Store
 Thumbs.db
 
-# Local agent instructions.
-AGENTS.md
+# Repository agent instructions are intentionally committed.
+
+# Browser test artifacts.
+node_modules/
+playwright-report/
+test-results/
 
 # Future local database/backups.
 backups/
@@ -38,3 +34,8 @@ backups/
 # Cloudflare Worker dependencies and rendered production binding config.
 cloud/worker/node_modules/
 cloud/worker/wrangler.generated.json
+
+# Generated frontend build output (npm run build / scripts/build-standalone.py).
+static/dist/
+standalone.html
+static/data/depth-indexes/

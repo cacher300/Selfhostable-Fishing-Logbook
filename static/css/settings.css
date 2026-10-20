@@ -94,6 +94,82 @@
   line-height: 1.55;
 }
 
+.settings-section--map-pins > .map-pin-settings-content {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 16px;
+  min-width: 0;
+}
+
+.map-pin-settings-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.map-pin-settings-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 28px;
+  min-width: 0;
+}
+
+.map-pin-settings-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  min-height: 72px;
+  border-bottom: 1px solid var(--line);
+}
+
+.map-pin-settings-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.map-pin-settings-color-picker {
+  position: relative;
+  display: block;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.map-pin-settings-swatch {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--species-map-color);
+}
+
+.map-pin-settings-color-picker input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.map-pin-settings-color-picker:focus-within {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .settings-section-copy--action {
   grid-template-columns: 1fr;
 }
@@ -139,35 +215,6 @@
   color: var(--muted);
   font-size: 12px;
   font-weight: 500;
-}
-
-.default-trolling-spread-list {
-  display: grid;
-  gap: 10px;
-}
-
-.default-trolling-spread-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.2fr) auto;
-  align-items: end;
-  gap: 10px;
-}
-
-.default-trolling-spread-row label {
-  display: grid;
-  min-width: 0;
-  gap: 5px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.default-trolling-spread-row select {
-  min-width: 0;
-}
-
-.default-trolling-spread-row .button {
-  min-height: 42px;
 }
 
 .trolling-spread-settings-controls {
@@ -323,6 +370,10 @@
   flex: 1.25 1 160px;
 }
 
+.trolling-spread-row .trolling-spread-dipsey-color-field {
+  flex: 1 1 160px;
+}
+
 .trolling-spread-row select {
   min-width: 0;
 }
@@ -409,18 +460,49 @@
 .saved-setup-method-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(330px, 0.9fr);
-  align-items: end;
+  align-items: start;
   gap: 18px 28px;
 }
 
-.saved-setup-method-header > div:first-child {
-  display: grid;
-  gap: 5px;
-}
-
-.saved-setup-method-header h4 {
+.saved-setup-method-header .saved-setup-method-heading {
   margin: 0;
   font-size: 17px;
+}
+
+.saved-setup-method-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.saved-setup-method-toggle:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 4px;
+}
+
+.saved-setup-method-toggle svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  transition: transform 140ms ease;
+}
+
+.saved-setup-method-toggle[aria-expanded="false"] svg {
+  transform: rotate(-90deg);
 }
 
 .saved-setup-method-header p,
@@ -457,6 +539,10 @@
   display: grid;
   gap: 14px;
   min-width: 0;
+}
+
+.saved-setup-list[hidden] {
+  display: none;
 }
 
 .saved-setup-card {
@@ -555,13 +641,6 @@
   .trolling-spread-row .button {
     justify-self: start;
   }
-}
-
-.settings-section > .default-trolling-spread-preview.default-trolling-spread-preview {
-  grid-column: 1 / -1;
-  width: min(100%, 1180px);
-  justify-self: center;
-  margin-top: 8px;
 }
 
 .settings-section--home-location {
@@ -941,5 +1020,11 @@
 
   .saved-setup-method-controls .button {
     justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saved-setup-method-toggle svg {
+    transition: none;
   }
 }

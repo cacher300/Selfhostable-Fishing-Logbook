@@ -1,11 +1,13 @@
-const NOAA_MARITIME_CHART_SERVICE_URL = "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/MapServer";
-const NOAA_MARITIME_VISIBLE_LAYER_IDS = [0, 1, 2, 3, 4, 5, 6, 7];
+import { L } from "./vendor.js";
 
-function warnNOAAChartLayerFailure(message, error) {
+export const NOAA_MARITIME_CHART_SERVICE_URL = "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/MapServer";
+export const NOAA_MARITIME_VISIBLE_LAYER_IDS = [0, 1, 2, 3, 4, 5, 6, 7];
+
+export function warnNOAAChartLayerFailure(message, error) {
   console.warn(`[NOAA charts] ${message}`, error || "");
 }
 
-function normalizeNOAAExportBbox(layer) {
+export function normalizeNOAAExportBbox(layer) {
   const calculateBbox = layer._calculateBbox?.bind(layer);
   if (!calculateBbox) return;
 
@@ -25,8 +27,11 @@ function normalizeNOAAExportBbox(layer) {
   };
 }
 
-function createNOAAChartLayer() {
-  if (!window.L?.esri?.dynamicMapLayer) {
+export function createNOAAChartLayer() {
+  // Leaflet installs its own global `window.L` before the bundled Esri
+  // namespace is merged into the app's local map object. Use that bundle here
+  // so the overlay is available even when the global was already populated.
+  if (!L.esri?.dynamicMapLayer) {
     warnNOAAChartLayerFailure("Esri Leaflet is unavailable; keeping the OpenStreetMap basemap visible.");
     return null;
   }
@@ -76,4 +81,6 @@ function createNOAAChartLayer() {
   }
 }
 
-window.createNOAAChartLayer = createNOAAChartLayer;
+export function setup() {
+  window.createNOAAChartLayer = createNOAAChartLayer;
+}

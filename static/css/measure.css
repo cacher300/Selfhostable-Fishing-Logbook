@@ -1,0 +1,51 @@
+/* Map measure tool (measure.js). Shared with the Great Lakes Trolling site. */
+.glc-tool button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.glc-tool button:hover { background: var(--hover); }
+.glc-tool svg { width: 18px; height: 18px; fill: none; stroke: var(--text); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.glc-locate svg circle:first-child { fill: var(--text); }
+.glc-locate button.is-locating svg { stroke: #5aa9f0; animation: glc-pulse 1s ease-in-out infinite; }
+.glc-measure button[aria-pressed="true"] { background: var(--active-bg); }
+.glc-measure button[aria-pressed="true"] svg { stroke: var(--active-text); }
+
+@keyframes glc-pulse { 50% { opacity: 0.35; } }
+
+/* Measuring distance between two points. */
+.leaflet-container.is-measuring, .leaflet-container.is-measuring .leaflet-interactive { cursor: crosshair; }
+.measure-point { display: grid; place-items: center; cursor: grab; }
+.measure-point span { width: 14px; height: 14px; border: 3px solid #fff; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 1px 4px rgba(0, 0, 0, 0.5); }
+.leaflet-tooltip.measure-label { padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--text); font-weight: 700; box-shadow: var(--shadow); white-space: nowrap; }
+.leaflet-tooltip.measure-label::before { display: none; }
+.measure-hint {
+  position: absolute;
+  z-index: 1000;
+  top: 12px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 24px);
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+}
+.measure-hint.has-result { font-weight: 700; }
+.measure-hint span { overflow: hidden; text-overflow: ellipsis; }
+.measure-hint button { flex: none; padding: 5px 12px; border: 1px solid var(--chip-line); border-radius: 999px; background: var(--active-bg); color: var(--active-text); font-weight: 700; cursor: pointer; }

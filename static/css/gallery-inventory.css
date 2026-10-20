@@ -107,14 +107,17 @@
 }
 
 .gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 18px;
 }
 
 .gallery-card {
   position: relative;
   overflow: hidden;
+  flex: 0 1 24rem;
+  max-width: 100%;
   border: 1px solid transparent;
   border-radius: 8px;
   background: var(--panel);
@@ -559,10 +562,6 @@
   .gallery-tools {
     grid-template-columns: 1fr;
     min-width: 0;
-  }
-
-  .gallery-grid {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
   }
 
   .gallery-hover-overlay {

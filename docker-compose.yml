@@ -15,6 +15,7 @@ services:
       # The production deploy sets this to true after HTTPS is enforced at
       # Nginx/Cloudflare. Leave development HTTP usable by default.
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      GREAT_LAKES_API_URL: ${GREAT_LAKES_API_URL:-https://greatlakestrolling.com}
       FISH_STORAGE_BACKEND: ${FISH_STORAGE_BACKEND:-local}
       FISH_CLOUD_API_URL: ${FISH_CLOUD_API_URL:-}
       FISH_API_TOKEN: ${FISH_API_TOKEN:-}

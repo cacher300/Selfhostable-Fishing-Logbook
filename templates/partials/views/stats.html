@@ -1,7 +1,7 @@
 <section class="stats-page hidden" id="advancedStatsPanel" aria-label="Fishing performance statistics">
           <header class="stats-page-header">
             <div class="stats-scope" id="statsActiveScope" aria-live="polite">All time · All methods</div>
-            <div class="stats-page-actions">
+            <div>
               <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
               <button class="button secondary" id="leaderboardViewButton" type="button">Leaderboard</button>
             </div>
@@ -99,16 +99,84 @@
             <div id="statsActivityHeatmap"></div>
           </section>
           <section class="stats-overview-grid" aria-label="Stats overview">
-            <article class="analytics-card stats-overview-primary show-chart" data-default-view="chart">
-              <h3>Catch Overview</h3>
-              <div class="analytics-table" id="tripTrendStatsTable"></div>
-            </article>
             <article class="analytics-card show-chart" data-default-view="chart">
               <h3>Top Species</h3>
               <div class="analytics-table" id="speciesOverviewStatsTable"></div>
             </article>
           </section>
           <div class="analytics-groups">
+            <details class="stats-group stats-group-compare" open>
+              <summary>
+                <span>Compare what's working</span>
+                <small>Catch rates by lure color, size, and glow, plus dipsey diver color, flasher color, and any comparison you build</small>
+              </summary>
+              <div class="analytics-grid">
+                <article class="analytics-card wide-card">
+                  <h3>What's Working</h3>
+                  <div class="analytics-table" id="comparisonHighlightsTable"></div>
+                </article>
+                <article class="analytics-card wide-card show-chart stats-compare-card" data-default-view="chart">
+                  <h3>Comparison Builder</h3>
+                  <div class="stats-compare-controls">
+                    <label>
+                      <span>Compare</span>
+                      <select id="statsCompareBySelect"></select>
+                    </label>
+                    <label>
+                      <span>Split by</span>
+                      <select id="statsCompareSplitSelect"></select>
+                    </label>
+                    <label id="statsCompareMetricField">
+                      <span>Show</span>
+                      <select id="statsCompareMetricSelect"></select>
+                    </label>
+                  </div>
+                  <p class="stats-compare-note" id="statsCompareNote"></p>
+                  <div class="analytics-table" id="comparisonBuilderTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Color Performance</h3>
+                  <div class="analytics-table" id="lureColorStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Color Family</h3>
+                  <div class="analytics-table" id="lureColorFamilyStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Size Performance</h3>
+                  <div class="analytics-table" id="lureSizeStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Lure Type Performance</h3>
+                  <div class="analytics-table" id="lureTypeStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Glow vs Non-Glow</h3>
+                  <div class="analytics-table" id="lureGlowStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart">
+                  <h3>Blade Type Performance</h3>
+                  <div class="analytics-table" id="bladeTypeStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
+                  <h3>Dipsey Diver Color</h3>
+                  <div class="analytics-table" id="dipseyColorStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
+                  <h3>Dipsey Setting</h3>
+                  <div class="analytics-table" id="dipseySettingStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
+                  <h3>Flasher Color Performance</h3>
+                  <div class="analytics-table" id="flasherColorStatsTable"></div>
+                </article>
+                <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
+                  <h3>Lure + Flasher Color</h3>
+                  <div class="analytics-table" id="lureFlasherColorStatsTable"></div>
+                </article>
+              </div>
+            </details>
+
             <details class="stats-group">
               <summary>
                 <span>Catch results &amp; patterns</span>
@@ -155,14 +223,6 @@
                 <article class="analytics-card wide-card">
                   <h3>Lure Spread Context</h3>
                   <div class="analytics-table" id="lureSpreadStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Lure Type Performance</h3>
-                  <div class="analytics-table" id="lureTypeStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Lure Color Performance</h3>
-                  <div class="analytics-table" id="lureColorStatsTable"></div>
                 </article>
                 <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
                   <h3>Flasher Performance</h3>
@@ -327,10 +387,6 @@
                 <article class="analytics-card">
                   <h3>Sunshine</h3>
                   <div class="analytics-table" id="sunshineStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Weather Trend</h3>
-                  <div class="analytics-table" id="weatherTrendStatsTable"></div>
                 </article>
                 <article class="analytics-card">
                   <h3>Front Tag</h3>

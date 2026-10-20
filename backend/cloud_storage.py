@@ -156,8 +156,25 @@ def list_media(category: str | None = None) -> list[dict]:
     query = {"limit": "500"}
     if category:
         query["category"] = category
-    payload, _, _ = _json_request("GET", f"/api/media?{urlencode(query)}")
-    return payload.get("media", [])
+    items: list[dict] = []
+    seen_cursors: set[str] = set()
+    while True:
+        payload, _, _ = _json_request("GET", f"/api/media?{urlencode(query)}")
+        page = payload.get("media") if isinstance(payload, dict) else None
+        if not isinstance(page, list) or any(not isinstance(item, dict) for item in page):
+            raise CloudStorageError("Cloud storage returned an invalid media inventory")
+        # An older Worker cannot prove that a full page is the entire library.
+        # Refuse incomplete backups/scans instead of silently losing media.
+        if "nextCursor" not in payload and len(page) >= 500:
+            raise CloudStorageError("Cloud media inventory reached its 500-item limit. Update the Worker to support pagination before exporting or scanning media.", 503)
+        items.extend(page)
+        cursor = payload.get("nextCursor")
+        if cursor is None:
+            return items
+        if not isinstance(cursor, str) or not cursor or cursor in seen_cursors or not page:
+            raise CloudStorageError("Cloud storage returned an invalid media cursor")
+        seen_cursors.add(cursor)
+        query["cursor"] = cursor
 
 
 def inventory_item(category: str, filename: str) -> dict | None:

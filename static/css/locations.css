@@ -50,12 +50,13 @@ label > small,
 
 .location-manager-list {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
   border-top: 0;
 }
 
 .settings-section--waterbodies {
-  row-gap: 8px;
+  row-gap: 14px;
 }
 
 .waterbody-settings-actions {
@@ -68,19 +69,19 @@ label > small,
 
 .location-manager-card {
   display: grid;
-  gap: 6px;
+  gap: 0;
   align-self: start;
-  padding: 10px 14px;
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
-  box-shadow: 0 1px 2px rgba(7, 21, 46, 0.04), 0 10px 26px rgba(7, 21, 46, 0.04);
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  border-radius: 14px;
+  background: var(--panel-soft);
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
 .location-manager-card:hover {
-  border-color: rgba(17, 135, 83, 0.24);
-  box-shadow: 0 1px 2px rgba(7, 21, 46, 0.04), 0 14px 32px rgba(7, 21, 46, 0.07);
+  border-color: var(--green);
+  background: var(--panel);
 }
 
 .location-manager-card.is-dragging {
@@ -89,47 +90,41 @@ label > small,
 }
 
 .location-manager-heading,
-.location-manager-launches > div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
+.location-manager-launch-row {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .location-manager-heading {
-  min-height: 34px;
-  padding: 0;
-  list-style: none;
-  cursor: pointer;
-}
-
-.location-manager-heading::-webkit-details-marker {
-  display: none;
+  align-items: flex-start;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--line);
+  cursor: grab;
 }
 
 .location-manager-title-row {
   display: flex;
-  align-items: start;
-  gap: 10px;
+  align-items: flex-start;
   min-width: 0;
 }
 
 .location-manager-title-row > div {
   display: grid;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 
-.location-manager-drag-handle {
-  color: var(--muted);
-  cursor: grab;
-  font-size: 15px;
+.location-manager-title-row strong {
+  font-size: 17px;
   line-height: 1.25;
-  opacity: 0.72;
+  overflow-wrap: anywhere;
 }
 
-.location-manager-card span,
-.location-manager-launches span {
+.location-manager-title-row span,
+.location-manager-empty {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
@@ -137,52 +132,80 @@ label > small,
   overflow-wrap: anywhere;
 }
 
+.location-manager-actions,
+.location-manager-row-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.location-manager-action {
+  min-height: 30px;
+  border: 0;
+  border-radius: 7px;
+  padding: 5px 8px;
+  background: transparent;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.location-manager-action:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.location-manager-action:focus-visible {
+  outline: 3px solid rgba(17, 135, 83, 0.22);
+  outline-offset: 1px;
+}
+
+.location-manager-content {
+  display: grid;
+  gap: 12px;
+  padding: 12px 18px 16px;
+}
+
 .location-manager-launches {
   display: grid;
-  gap: 3px;
-  padding: 2px 0 0 29px;
-  border-top: 0;
-}
-
-.location-manager-launches.empty-launch-list {
-  padding-top: 8px;
-  padding-bottom: 4px;
-}
-
-.location-manager-launches > div {
-  min-height: 26px;
-  border-bottom: 0;
-}
-
-.location-manager-launches > div:last-child {
-  border-bottom: 0;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
 }
 
 .location-manager-launch-row {
-  padding: 0;
+  padding: 10px 12px;
+}
+
+.location-manager-launch-row:not(:last-child) {
+  border-bottom: 1px solid var(--line);
 }
 
 .location-manager-launch-row > span {
-  display: flex;
-  align-items: center;
+  min-width: 0;
   color: var(--text);
+  font-size: 13px;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
-.location-manager-launch-row > span:first-child::before {
-  content: "•";
-  flex: 0 0 auto;
-  margin-right: 8px;
-  color: var(--muted);
+.location-manager-empty {
+  margin: 2px 0 0;
+  font-weight: 600;
 }
 
 .location-manager-add-launch {
   justify-self: start;
   min-height: 30px;
-  margin-left: 29px;
+  margin: 0;
   padding: 0 10px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .location-manager-search {
@@ -195,6 +218,10 @@ label > small,
 }
 
 @media (max-width: 720px) {
+  .location-manager-list {
+    grid-template-columns: 1fr;
+  }
+
   .waterbody-settings-actions {
     grid-template-columns: 1fr;
     justify-content: stretch;
@@ -203,80 +230,6 @@ label > small,
   .waterbody-settings-actions .button {
     justify-self: start;
   }
-}
-
-.overflow-menu {
-  position: relative;
-  justify-self: end;
-}
-
-.overflow-menu > summary {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border-radius: 8px;
-  color: var(--muted);
-  font-size: 20px;
-  font-weight: 900;
-  line-height: 1;
-  list-style: none;
-  cursor: pointer;
-}
-
-.overflow-menu > summary::-webkit-details-marker {
-  display: none;
-}
-
-.overflow-menu > summary:hover,
-.overflow-menu[open] > summary {
-  background: var(--hover);
-  color: var(--text);
-}
-
-.overflow-menu > div {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 10;
-  display: grid;
-  min-width: 140px;
-  padding: 6px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-}
-
-.overflow-menu button {
-  min-height: 34px;
-  border: 0;
-  border-radius: 7px;
-  padding: 0 10px;
-  background: transparent;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 800;
-  text-align: left;
-}
-
-.overflow-menu button:hover {
-  background: var(--hover);
-}
-
-.overflow-menu button[data-delete-managed-location],
-.overflow-menu button[data-delete-managed-launch] {
-  color: var(--red);
-}
-
-.location-manager-launch-row .overflow-menu {
-  opacity: 0;
-  transition: opacity 140ms ease;
-}
-
-.location-manager-launch-row:hover .overflow-menu,
-.location-manager-launch-row:focus-within .overflow-menu {
-  opacity: 1;
 }
 
 .private-location-layout {

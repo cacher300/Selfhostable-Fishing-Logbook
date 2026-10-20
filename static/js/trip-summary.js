@@ -1,4 +1,16 @@
-function tripSpeciesSummary(trip) {
+import { html, joinHtml } from "./html.js";
+import { state } from "./app-state.js";
+import { spotName } from "./app-normalization.js";
+import { displayStoredMeasurement, formatDisplayTime, formatUnitValue } from "./app-units.js";
+import { isVideoMedia, mediaMarkup, originalMediaUrl, previewImage } from "./app-media.js";
+import { barometricTrendLabel, celsiusText, hourlyWindText, timeText, weatherValue, weatherValueWithTrend, weatherWindText } from "./location-weather.js";
+import { fishCount } from "./dashboard.js";
+import { flasherName, gearPhotos, lureName, rodName } from "./gear-core.js";
+import { isTrollingTripRecord, resolveTripLineRecord, setupLineSideLabel } from "./trolling-spread.js";
+import { reportDepthDown, reportDepthValue, reportPersonName } from "./trip-report.js";
+import { presentationLabel } from "./stats.js";
+
+export function tripSpeciesSummary(trip) {
   const speciesCounts = new Map();
   (trip.catches || []).forEach((catchItem) => {
     const species = String(catchItem.species || "").trim();
@@ -11,9 +23,9 @@ function tripSpeciesSummary(trip) {
     top: topSpecies ? `${displayTitleText(topSpecies[0])} (${topSpecies[1]})` : "None"
   };
 }
-const displayLowercaseTokens = new Set(["mph", "hPa", "kph", "km", "mm", "cm", "lb", "lbs", "ft", "in"]);
+export const displayLowercaseTokens = new Set(["mph", "hPa", "kph", "km", "mm", "cm", "lb", "lbs", "ft", "in"]);
 
-function displayTitleText(value = "") {
+export function displayTitleText(value = "") {
   const text = String(value || "").trim();
   if (!text) return "";
   return text.replace(/\S+/g, (word) => {
@@ -26,54 +38,54 @@ function displayTitleText(value = "") {
     return `${word.slice(0, firstLetterIndex)}${word[firstLetterIndex].toUpperCase()}${word.slice(firstLetterIndex + 1)}`;
   });
 }
-function displaySentenceText(value = "") {
+export function displaySentenceText(value = "") {
   const text = String(value || "").trim();
   if (!text) return "";
   return text.replace(/(^|[.!?]\s+)([a-z])/g, (match, prefix, letter) => `${prefix}${letter.toUpperCase()}`);
 }
-function displayPhotoTitle(photo) {
+export function displayPhotoTitle(photo) {
   return displaySentenceText(photo.caption || "Trip photo");
 }
 
-function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
-  if (!photos.length) return `<div class="empty-state compact-empty"><p>${escapeHtml(emptyText)}</p></div>`;
+export function summaryPhotoGrid(photos = [], emptyText = "No photos", options = {}) {
+  if (!photos.length) return html`<div class="empty-state compact-empty"><p>${emptyText}</p></div>`;
   const className = ["summary-photo-grid", options.compact ? "compact-photo-grid" : "", options.hero ? "hero-photo-grid" : ""].filter(Boolean).join(" ");
-  return `
+  return html`
     <div class="${className}">
-      ${photos.map((photo, index) => `
+      ${joinHtml(photos.map((photo, index) => html`
         <figure class="summary-photo-card">
-          ${options.openable && !isVideoMedia(photo) ? `<button class="summary-photo-open" type="button" data-report-photo-index="${index}" aria-label="Enlarge ${escapeHtml(displayPhotoTitle(photo))}">${mediaMarkup(photo, "summary-photo-asset")}</button>` : mediaMarkup(photo, "summary-photo-asset")}
-          ${!options.hideCaptions && photo.caption ? `<figcaption>${escapeHtml(displayPhotoTitle(photo))}</figcaption>` : ""}
+          ${options.openable && !isVideoMedia(photo) ? html`<button class="summary-photo-open" type="button" data-report-photo-index="${index}" aria-label="Enlarge ${displayPhotoTitle(photo)}">${mediaMarkup(photo, "summary-photo-asset")}</button>` : mediaMarkup(photo, "summary-photo-asset")}
+          ${!options.hideCaptions && photo.caption ? html`<figcaption>${displayPhotoTitle(photo)}</figcaption>` : ""}
         </figure>
-      `).join("")}
+      `), "")}
     </div>
   `;
 }
-function catchMediaAltText(speciesOrTitle = "", index = 0, options = {}) {
+export function catchMediaAltText(speciesOrTitle = "", index = 0, options = {}) {
   const label = displayTitleText(speciesOrTitle || "Catch");
   const mediaType = options.video ? "video" : "photo";
   if (options.thumbnail) return `${label} catch ${mediaType} ${index + 1}`;
   return `${label} catch ${mediaType}`;
 }
 
-function catchMediaPreview(photo, speciesOrTitle, index, options = {}) {
+export function catchMediaPreview(photo, speciesOrTitle, index, options = {}) {
   const source = previewImage(photo);
   if (!source) return "";
   const isVideo = isVideoMedia(photo);
   const alt = options.decorative ? "" : catchMediaAltText(speciesOrTitle, index, { thumbnail: options.thumbnail, video: isVideo });
   if (isVideo && options.thumbnail) {
     const videoSource = originalMediaUrl(photo) || source;
-    return `<video class="${escapeHtml(options.className || "")}" src="${escapeHtml(videoSource)}" muted playsinline preload="metadata" aria-hidden="true"></video>`;
+    return html`<video class="${options.className || ""}" src="${videoSource}" muted playsinline preload="metadata" aria-hidden="true"></video>`;
   }
   if (isVideo && !options.thumbnail) {
     const videoSource = originalMediaUrl(photo) || source;
-    return `<video class="${escapeHtml(options.className || "")}" src="${escapeHtml(videoSource)}" controls preload="metadata" playsinline aria-label="${escapeHtml(catchMediaAltText(speciesOrTitle, index, { video: true }))}"></video>`;
+    return html`<video class="${options.className || ""}" src="${videoSource}" controls preload="metadata" playsinline aria-label="${catchMediaAltText(speciesOrTitle, index, { video: true })}"></video>`;
   }
-  const imageMarkup = `<img class="${escapeHtml(options.className || "")}" src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" ${options.loading ? `loading="${escapeHtml(options.loading)}"` : ""}>`;
+  const imageMarkup = html`<img class="${options.className || ""}" src="${source}" alt="${alt}" ${options.loading ? html`loading="${options.loading}"` : ""}>`;
   return imageMarkup;
 }
 
-function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {}) {
+export function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {}) {
   if (!photos.length) return "";
   const photoCount = photos.length;
   const heroIndex = options.heroPhotoId
@@ -94,25 +106,25 @@ function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {})
     showAllThumbnails ? "is-scrollable" : ""
   ].filter(Boolean).join(" ");
   const openButton = options.context === "summary"
-    ? `
+    ? html`
       <button
         class="featured-image-button"
         type="button"
         data-catch-gallery-open
-        data-open-photo-index="${escapeHtml(String(selectedIndex))}"
-        aria-label="${escapeHtml(`Open ${catchMediaAltText(speciesOrTitle, selectedIndex, { video: isVideoMedia(selectedPhoto) })} in gallery`)}"
+        data-open-photo-index="${String(selectedIndex)}"
+        aria-label="${`Open ${catchMediaAltText(speciesOrTitle, selectedIndex, { video: isVideoMedia(selectedPhoto) })} in gallery`}"
       ></button>
     `
     : "";
-  return `
+  return html`
     <section
       class="${galleryClasses}"
       data-catch-media-gallery
-      data-gallery-context="${escapeHtml(options.context || "summary")}"
-      data-catch-index="${escapeHtml(String(options.catchIndex ?? ""))}"
-      data-catch-type="${escapeHtml(options.catchType || "catch")}"
-      data-selected-index="${escapeHtml(String(selectedIndex))}"
-      data-photo-count="${escapeHtml(String(photoCount))}"
+      data-gallery-context="${options.context || "summary"}"
+      data-catch-index="${String(options.catchIndex ?? "")}"
+      data-catch-type="${options.catchType || "catch"}"
+      data-selected-index="${String(selectedIndex)}"
+      data-photo-count="${String(photoCount)}"
       data-show-all-thumbnails="${showAllThumbnails ? "true" : "false"}"
       style="--catch-gallery-thumb-count:${Math.max(1, visibleThumbnailPhotos.length)};"
     >
@@ -126,42 +138,42 @@ function renderCatchMediaGallery(photos = [], speciesOrTitle = "", options = {})
         </span>
         ${openButton}
       </div>
-      ${visibleThumbnailPhotos.length ? `
+      ${visibleThumbnailPhotos.length ? html`
         <div class="thumbnail-column" aria-label="Catch media thumbnails">
-          ${visibleThumbnailPhotos.map(({ photo, index: actualIndex }, thumbIndex) => {
+          ${joinHtml(visibleThumbnailPhotos.map(({ photo, index: actualIndex }, thumbIndex) => {
             const isActive = actualIndex === selectedIndex;
             const isMoreButton = hiddenThumbnailCount > 0 && thumbIndex === visibleThumbnailPhotos.length - 1;
-            return `
+            return html`
               <button
                 class="thumbnail-button ${isActive ? "is-active" : ""}"
                 type="button"
                 ${isMoreButton ? "data-catch-gallery-open" : "data-catch-gallery-thumb"}
-                data-photo-index="${escapeHtml(String(actualIndex))}"
-                ${isMoreButton ? `data-open-photo-index="${escapeHtml(String(actualIndex))}"` : ""}
-                aria-label="${escapeHtml(isMoreButton ? `Open ${hiddenThumbnailCount} more catch media items` : `Show ${catchMediaAltText(speciesOrTitle, actualIndex, { thumbnail: true, video: isVideoMedia(photo) })}`)}"
+                data-photo-index="${String(actualIndex)}"
+                ${isMoreButton ? html`data-open-photo-index="${String(actualIndex)}"` : ""}
+                aria-label="${isMoreButton ? `Open ${hiddenThumbnailCount} more catch media items` : `Show ${catchMediaAltText(speciesOrTitle, actualIndex, { thumbnail: true, video: isVideoMedia(photo) })}`}"
                 aria-pressed="${isActive ? "true" : "false"}"
               >
                 ${catchMediaPreview(photo, speciesOrTitle, actualIndex, { className: "thumbnail-image", loading: "lazy", thumbnail: true, decorative: true })}
-                ${isMoreButton ? `<span class="more-overlay">+${hiddenThumbnailCount}</span>` : ""}
+                ${isMoreButton ? html`<span class="more-overlay">+${hiddenThumbnailCount}</span>` : ""}
               </button>
             `;
-          }).join("")}
+          }), "")}
         </div>
       ` : ""}
     </section>
   `;
 }
 
-function displaySpeedValue(value) {
+export function displaySpeedValue(value) {
   return displayStoredMeasurement(value, "speed");
 }
 
-function displayFowValue(value) {
+export function displayFowValue(value) {
   const text = displayStoredMeasurement(value, "depth");
   return /\bFOW\b/i.test(text) ? text : `${text} FOW`;
 }
 
-function compactSetupDisplayLabel(record = {}) {
+export function compactSetupDisplayLabel(record = {}) {
   const lineLabel = displayTitleText(record.lineLabel || "");
   const side = displayTitleText(setupLineSideLabel(record.side));
   const presentation = displayTitleText(presentationLabel(record.presentation));
@@ -170,7 +182,7 @@ function compactSetupDisplayLabel(record = {}) {
   return [side, presentation].filter(Boolean).join(" ") || rod;
 }
 
-function tripWeatherSummaryData(trip) {
+export function tripWeatherSummaryData(trip) {
   const weatherData = trip.weatherData || {};
   const window = weatherData.tripWindow || {};
   const daily = weatherData.daily || {};
@@ -179,10 +191,6 @@ function tripWeatherSummaryData(trip) {
   const barometricTrend = window.pressureTrendRateHpa3h === null || window.pressureTrendRateHpa3h === undefined
     ? ""
     : `${window.pressureTrendRateHpa3h > 0 ? "+" : ""}${formatUnitValue(Math.abs(window.pressureTrendRateHpa3h), "pressure", "hPa", { decimals: 1 })} / 3 hr / ${window.pressureTrendRateLabel || barometricTrendLabel(window.pressureTrendRateHpa3h)}`;
-  const windTrend = [
-    trend.windTrend,
-    trend.windDirectionShiftDegrees ? `${trend.windDirectionShiftDegrees} deg wind shift` : ""
-  ].filter(Boolean).join(" / ");
   const primaryWindText = (trip.wind || weatherWindText(weatherData) || formatUnitValue(daily.windSpeedMaxMph, "windSpeed", "mph"))
     .split(",")[0]
     .trim();
@@ -201,7 +209,7 @@ function tripWeatherSummaryData(trip) {
   };
 }
 
-const CATCH_DETAIL_GROUPS = Object.freeze([
+export const CATCH_DETAIL_GROUPS = Object.freeze([
   { id: "overview", label: "Catch overview" },
   { id: "tackle", label: "Tackle" },
   { id: "location", label: "Location & depth" },
@@ -211,20 +219,20 @@ const CATCH_DETAIL_GROUPS = Object.freeze([
   { id: "notes", label: "Notes", wide: true }
 ]);
 
-function catchDetailValueMarkup(row) {
+export function catchDetailValueMarkup(row) {
   if (row.kind === "lure" && row.lureId) {
     const lure = state.lures.find((item) => item.id === row.lureId);
     const preview = gearPhotos(lure)[0];
     const previewMarkup = preview ? mediaMarkup(preview, "catch-detail-lure-preview") : "";
-    return `<button class="catch-detail-lure-link${previewMarkup ? " has-preview" : ""}" type="button" data-catch-lure-id="${escapeHtml(row.lureId)}" aria-label="View lure details for ${escapeHtml(row.value)}">${previewMarkup}<span class="catch-detail-lure-label">${escapeHtml(row.value)}</span></button>`;
+    return html`<button class="catch-detail-lure-link${previewMarkup ? " has-preview" : ""}" type="button" data-catch-lure-id="${row.lureId}" aria-label="View lure details for ${row.value}">${previewMarkup}<span class="catch-detail-lure-label">${row.value}</span></button>`;
   }
   if (row.kind === "flasher" && row.lureId) {
-    return `<button class="catch-detail-lure-link" type="button" data-catch-flasher-id="${escapeHtml(row.lureId)}" aria-label="View flasher details for ${escapeHtml(row.value)}">${escapeHtml(row.value)}</button>`;
+    return html`<button class="catch-detail-lure-link" type="button" data-catch-flasher-id="${row.lureId}" aria-label="View flasher details for ${row.value}">${row.value}</button>`;
   }
-  return escapeHtml(row.value);
+  return html`${row.value}`;
 }
 
-function catchDetailRows(trip, catchItem, catchIndex, catchType = "catch") {
+export function catchDetailRows(trip, catchItem, catchIndex, catchType = "catch") {
   const record = resolveTripLineRecord({ ...catchItem, trip });
   const trollingTrip = isTrollingTripRecord(trip);
   const isLost = catchType === "lost";
@@ -274,24 +282,24 @@ function catchDetailRows(trip, catchItem, catchIndex, catchType = "catch") {
     ...group,
     rows: rows.filter((row) => row.group === group.id)
   })).filter(({ rows: groupRows }) => groupRows.length);
-  return `<section class="catch-detail-fields-wrap" aria-label="Catch details"><div class="catch-detail-groups">${visibleGroups.map((group) => `
+  return html`<section class="catch-detail-fields-wrap" aria-label="Catch details"><div class="catch-detail-groups">${joinHtml(visibleGroups.map((group) => html`
     <section class="catch-detail-group catch-detail-group-${group.id}${group.wide ? " catch-detail-group-wide" : ""}" aria-labelledby="catch-detail-group-${group.id}">
-      <h3 id="catch-detail-group-${group.id}">${escapeHtml(group.label)}</h3>
-      <dl class="catch-detail-fields${group.rows.length === 1 ? " catch-detail-fields-single" : ""}">${group.rows.map((row) => `
+      <h3 id="catch-detail-group-${group.id}">${group.label}</h3>
+      <dl class="catch-detail-fields${group.rows.length === 1 ? " catch-detail-fields-single" : ""}">${joinHtml(group.rows.map((row) => html`
         <div class="catch-detail-field${row.wide ? " catch-detail-field-wide" : ""}${row.kind === "notes" ? " catch-detail-field-notes" : ""}">
-          <dt class="${row.hideLabel ? "visually-hidden" : ""}">${escapeHtml(row.label)}</dt>
+          <dt class="${row.hideLabel ? "visually-hidden" : ""}">${row.label}</dt>
           <dd>${catchDetailValueMarkup(row)}</dd>
         </div>
-      `).join("")}</dl>${group.id === "location" ? `
+      `), "")}</dl>${group.id === "location" ? html`
       <div class="catch-detail-location-action">
-        ${!isLost ? `<button class="button secondary compact-action" type="button" data-show-catch-map data-catch-index="${catchIndex}" aria-controls="catchDetailLocationPopout" aria-label="Show ${escapeHtml(displayTitleText(catchItem.species || catchItem.possibleSpecies || "catch"))} location on map">Show on map</button>` : ""}
+        ${!isLost ? html`<button class="button secondary compact-action" type="button" data-show-catch-map data-catch-index="${catchIndex}" aria-controls="catchDetailLocationPopout" aria-label="Show ${displayTitleText(catchItem.species || catchItem.possibleSpecies || "catch")} location on map">Show on map</button>` : ""}
         <div id="catchDetailLocationHost"></div>
       </div>` : ""}
     </section>
-  `).join("")}</div></section>`;
+  `), "")}</div></section>`;
 }
 
-function reportAdditionalConditionRows(trip) {
+export function reportAdditionalConditionRows(trip) {
   const {
     weatherData,
     window,
@@ -314,8 +322,8 @@ function reportAdditionalConditionRows(trip) {
   ];
 }
 
-function renderCatchDetailPopout(trip, catchItem, index, selectedIndex, catchType = "catch") {
-  return `
+export function renderCatchDetailPopout(trip, catchItem, index, selectedIndex, catchType = "catch") {
+  return html`
     <div class="catch-detail-popout" id="catchDetailPopout" role="dialog" aria-modal="true" aria-label="Catch details">
       <div class="catch-detail-panel">
         <div class="catch-detail-controls">
@@ -335,15 +343,15 @@ function renderCatchDetailPopout(trip, catchItem, index, selectedIndex, catchTyp
   `;
 }
 
-function renderCatchDetailLocationPopout(trip, catchItem, index) {
+export function renderCatchDetailLocationPopout(trip, catchItem, index) {
   const title = displayTitleText(catchItem.species || "Catch location");
-  return `
+  return html`
     <div class="catch-detail-location-popout" id="catchDetailLocationPopout" data-catch-index="${index}" data-catch-location-scope="trip" role="dialog" aria-modal="true" aria-labelledby="catchDetailLocationTitle">
       <div class="catch-detail-location-panel">
         <div class="catch-detail-location-header">
           <div>
             <p class="eyebrow">Catch location</p>
-            <h2 id="catchDetailLocationTitle">${escapeHtml(title)}</h2>
+            <h2 id="catchDetailLocationTitle">${title}</h2>
           </div>
           <button class="icon-button" type="button" data-close-catch-map aria-label="Close catch location map"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>

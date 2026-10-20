@@ -7,11 +7,11 @@
           </div>
           <nav class="trip-section-nav" aria-label="Trip form sections">
             <a href="#tripBasicsSection" class="is-active">Basics</a>
-            <a href="#tripPeopleSection">People</a>
-            <a href="#tripSetupSection">Setup</a>
-            <a href="#tripCatchesSection">Catches</a>
-            <a href="#tripLostFishSection">Lost</a>
-            <a href="#tripNotesSection">Photos</a>
+            <a class="hidden" data-trip-continuation-link href="#tripPeopleSection">People</a>
+            <a class="hidden" data-trip-continuation-link href="#tripSetupSection">Setup</a>
+            <a class="hidden" data-trip-continuation-link href="#tripCatchesSection">Catches</a>
+            <a class="hidden" data-trip-continuation-link href="#tripLostFishSection">Lost</a>
+            <a class="hidden" data-trip-continuation-link href="#tripNotesSection">Photos</a>
           </nav>
           <div class="trip-dialog-header-actions">
             <button class="button secondary" type="button" data-close-dialog>Cancel</button>
@@ -39,11 +39,14 @@
             </label>
             <label>
               <span>Date</span>
-              <div class="styled-date-field" data-calendar-field="tripDateValue">
-                <input id="tripDate" class="styled-date-display" type="text" inputmode="numeric" autocomplete="off" required placeholder="mm/dd/yyyy" aria-label="Trip date" />
-                <input id="tripDateValue" class="styled-date-value" type="date" tabindex="-1" aria-hidden="true" />
-                <button class="calendar-trigger" type="button" data-calendar-trigger="tripDateValue" aria-label="Open trip date calendar">▾</button>
-                <div class="calendar-popover hidden" data-calendar-popover="tripDateValue"></div>
+              <div class="trip-date-field-row">
+                <div class="styled-date-field" data-calendar-field="tripDateValue">
+                  <input id="tripDate" class="styled-date-display" type="text" inputmode="numeric" autocomplete="off" required placeholder="mm/dd/yyyy" aria-label="Trip date" />
+                  <input id="tripDateValue" class="styled-date-value" type="date" tabindex="-1" aria-hidden="true" />
+                  <button class="calendar-trigger" type="button" data-calendar-trigger="tripDateValue" aria-label="Open trip date calendar">▾</button>
+                  <div class="calendar-popover hidden" data-calendar-popover="tripDateValue"></div>
+                </div>
+                <button id="tripDateTodayButton" class="button secondary compact-action" type="button" data-calendar-today-button="tripDateValue">Today</button>
               </div>
             </label>
             <label class="trip-expedition-field">
@@ -76,17 +79,17 @@
             </label>
             <label>
               <span>Method</span>
-              <select id="method"></select>
+              <select id="method" required></select>
             </label>
             <fieldset class="trip-time-field">
               <div class="trip-time-inputs">
                 <label>
                   <span>Start time</span>
-                  <input id="launchTime" type="time" />
+                  <input id="launchTime" type="time" min="00:00" max="23:59" step="60" />
                 </label>
                 <label>
                   <span>End time</span>
-                  <input id="linesPulledTime" type="time" />
+                  <input id="linesPulledTime" type="time" min="00:00" max="23:59" step="60" />
                 </label>
                 <label>
                   <span>Idle time (hours)</span>
@@ -98,6 +101,10 @@
               <label>
                 <span data-unit-label="waterTemperature" data-unit-label-text="Water temperature">Water temperature</span>
                 <input id="waterTemp" type="text" placeholder="54 F" />
+              </label>
+              <label class="trip-thermocline-field hidden">
+                <span>Thermocline depth</span>
+                <input id="tripThermoclineDepth" type="text" readonly aria-readonly="true" placeholder="Saved NOAA conditions" />
               </label>
               <label>
                 <span>Water clarity</span>
@@ -166,8 +173,11 @@
           </aside>
         </div>
 
-        <details class="probe-temperature-section trip-probe-temperature-section fish-hawk-field trolling-field">
+        <details class="probe-temperature-section trip-probe-temperature-section fish-hawk-field">
           <summary class="probe-temperature-heading">
+            <span class="row-collapse-icon" aria-hidden="true">
+              <svg viewBox="0 0 16 16"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
+            </span>
             <div>
               <h4 id="probeTemperatureHeading">Water temperature profile</h4>
             </div>
@@ -210,6 +220,8 @@
           </div>
         </details>
 
+        <p id="tripContinuationMessage" class="trip-continuation-message" role="status" aria-live="polite">Fill out these fields to continue: Date, Waterbody, and Method.</p>
+        <div id="tripContinuationSections" class="trip-continuation-sections hidden" inert aria-hidden="true">
         <section class="trip-form-section people-editor" id="tripPeopleSection">
           <div class="section-heading">
             <div>
@@ -253,7 +265,7 @@
               <button class="button secondary" id="addCatchButton" type="button">Add Catch</button>
             </div>
           </div>
-          <p class="catch-queue-autofill-status" id="catchQueueAutofillStatus" role="status" aria-live="polite"></p>
+          <p id="catchQueueAutofillStatus" role="status" aria-live="polite"></p>
           <div id="catchRows" class="catch-rows"></div>
         </section>
 
@@ -291,13 +303,14 @@
           </label>
           <div id="notePhotoGrid" class="note-photo-grid"></div>
         </section>
+        </div>
 
         <div class="dialog-actions trip-save-bar" id="tripSaveBar" aria-live="polite">
           <button class="button danger" id="deleteTripButton" type="button">Delete</button>
           <div>
             <button class="button secondary" type="button" data-close-dialog>Cancel</button>
             <button class="button secondary" type="button" data-trip-draft-save>Save Draft</button>
-            <button class="button primary" id="saveTripButton" type="submit" data-trip-save>Save Changes</button>
+            <button class="button primary" type="submit" data-trip-save>Save Changes</button>
           </div>
         </div>
       </form>

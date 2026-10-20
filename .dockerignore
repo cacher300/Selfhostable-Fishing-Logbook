@@ -1,12 +1,17 @@
 .git/
 .idea/
 .venv/
+node_modules/
 __pycache__/
 *.py[cod]
 
-# Keep private/local logbook data out of images.
-data/logbook.json
+# Keep private/local logbook data and generated output out of images.
+data/
 backups/
+static/dist/
+standalone.html
+test-results/
+playwright-report/
 
 # Local/editor noise.
 .DS_Store

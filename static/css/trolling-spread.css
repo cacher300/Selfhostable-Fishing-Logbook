@@ -27,10 +27,11 @@
 
 .spread-design-stage {
   position: absolute;
-  top: 25.8%;
-  left: 2%;
-  width: 44.1%;
+  top: 50%;
+  left: 9%;
+  width: 38%;
   aspect-ratio: 1717 / 916;
+  transform: translateY(-50%);
 }
 
 .spread-boat-image {
@@ -125,12 +126,16 @@
   position: absolute;
   z-index: 6;
   width: max-content;
-  max-width: min(260px, 40vw);
+  box-sizing: border-box;
+  max-width: min(260px, 80%);
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(223, 243, 251, 0.96);
   color: #111827;
   font-size: clamp(8px, 0.85vw, 12px);
   font-weight: 900;
   line-height: 1.15;
-  transform: translate(7px, -50%);
+  transform: translate(-100%, -50%);
   white-space: normal;
   overflow-wrap: break-word;
 }
@@ -165,7 +170,8 @@
   flex-wrap: wrap;
   align-items: center;
   box-sizing: border-box;
-  width: min(390px, 28vw);
+  width: 80%;
+  max-width: 380px;
   gap: 4px;
   padding: 0;
   color: #111827;
@@ -210,6 +216,22 @@
   flex: 0 0 100%;
 }
 
+@media (max-width: 600px) {
+  .spread-gear-list,
+  .spread-stat-text {
+    flex: 0 1 auto;
+  }
+
+  .spread-cheater-label {
+    transform: translate(-100%, -100%);
+  }
+
+  .spread-group[data-spread-slot="portDownRigger"] .spread-inline-name,
+  .spread-group[data-spread-slot="starboardHighDiver"] .spread-inline-name {
+    transform: translate(-50%, 0);
+  }
+}
+
 .trolling-spread-editor {
   display: grid;
   gap: 12px;
@@ -234,27 +256,12 @@
   box-shadow: inset 0 0 60px rgba(14, 116, 144, 0.06);
 }
 
-#defaultTrollingSpreadPreview .spread-diagram-wrap {
-  box-shadow: inset 0 0 60px rgba(14, 116, 144, 0.06);
-}
-
 #tripTrollingSpreadCanvas {
-  min-width: 0;
-}
-
-#defaultTrollingSpreadCanvas {
   min-width: 0;
 }
 
 #tripTrollingSpreadPreview .spread-diagram {
   width: 100%;
-  min-height: 0;
-  margin: 0 auto;
-}
-
-#defaultTrollingSpreadPreview .spread-diagram {
-  width: 100%;
-  aspect-ratio: 1400 / 850;
   min-height: 0;
   margin: 0 auto;
 }
@@ -311,10 +318,9 @@
   background: var(--hover);
 }
 
-.trolling-spread-picker-option-copy {
-  display: grid;
-  gap: 4px;
+.trolling-spread-picker-option-title {
   min-width: 0;
+  font-size: 14px;
 }
 
 .saved-setup-picker-option-copy {
@@ -323,15 +329,10 @@
   min-width: 0;
 }
 
-.trolling-spread-picker-option-copy strong {
-  font-size: 14px;
-}
-
 .saved-setup-picker-option-copy strong {
   font-size: 14px;
 }
 
-.trolling-spread-picker-option-copy small,
 .trolling-spread-picker-empty,
 .saved-setup-picker-option-copy small,
 .saved-setup-picker-empty {

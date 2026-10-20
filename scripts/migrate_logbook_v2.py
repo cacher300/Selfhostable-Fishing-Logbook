@@ -3,7 +3,8 @@
 The running application accepts and persists canonical schema-v2 documents only.
 This module is intentionally a script boundary: it is never imported by the
 server or browser. Use it to convert an old SQLite snapshot or portable mobile
-archive before opening it with the current application.
+archive before opening it with the current application. It also updates the
+former date-first default trip titles in otherwise canonical v2 documents.
 """
 
 from __future__ import annotations
@@ -32,11 +33,11 @@ if str(PROJECT_ROOT) not in sys.path:
 from backend import logbook_repository, logbook_store  # noqa: E402
 from backend.backend_config import (  # noqa: E402
     BATHYMETRY_LAKES,
-    DATABASE_FILE,
     DEFAULT_LOGBOOK,
     UNIT_OPTIONS,
     UPLOAD_CATEGORIES,
 )
+from backend.config import AppConfig  # noqa: E402
 from backend.media_service import referenced_uploads  # noqa: E402
 
 
@@ -102,7 +103,7 @@ TEXT_OPTION_KEYS = (
     "trollingDirections",
 )
 CHOICE_OPTION_KEYS = ("trollingPresentations", "setupLineSides")
-OPTIONAL_MODERN_SETTINGS = {"shareAppearancePresets"}
+LEGACY_GENERATED_TRIP_TITLE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}\b.*\bTrip$")
 
 
 class MigrationError(ValueError):
@@ -124,6 +125,37 @@ def _as_list(value: object) -> list:
     return value if isinstance(value, list) else []
 
 
+def _trip_naming_key(trip: dict) -> tuple[str, str]:
+    return tuple(str(trip.get(field) or "").strip().casefold() for field in ("targetSpecies", "method"))
+
+
+def _is_legacy_generated_trip_title(trip: object) -> bool:
+    return isinstance(trip, dict) and bool(LEGACY_GENERATED_TRIP_TITLE_PATTERN.fullmatch(str(trip.get("title") or "").strip()))
+
+
+def _generated_trip_title(trip: dict, trips: list[dict], index: int) -> str:
+    number = sum(_trip_naming_key(item) == _trip_naming_key(trip) for item in trips[: index + 1])
+    labels = [str(trip.get(field) or "").strip() for field in ("targetSpecies", "method") if str(trip.get(field) or "").strip()]
+    return f"{' '.join(labels) or 'Fishing'} Trip #{number}"
+
+
+def migrate_legacy_trip_titles(document: dict) -> dict:
+    """Replace date-first generated titles without changing user-authored titles."""
+    trips = _as_list(document.get("trips"))
+    migrated = deepcopy(document)
+    migrated_trips = deepcopy(trips)
+    for index, trip in enumerate(trips):
+        if not _is_legacy_generated_trip_title(trip):
+            continue
+        migrated_trips[index]["title"] = _generated_trip_title(trip, trips, index)
+    migrated["trips"] = migrated_trips
+    return migrated
+
+
+def legacy_trip_title_count(document: dict) -> int:
+    return sum(_is_legacy_generated_trip_title(trip) for trip in _as_list(document.get("trips")))
+
+
 def _stable_id(prefix: str, *parts: object) -> str:
     seed = ":".join([prefix, *(str(part or "").strip().casefold() for part in parts)])
     return str(uuid.uuid5(MIGRATION_NAMESPACE, seed))
@@ -139,10 +171,6 @@ def _finite_number(value: object, fallback: float = 0) -> float:
 
 def _rounded_number(value: object, fallback: float = 0) -> float:
     return round(_finite_number(value, fallback), 2)
-
-
-def _slug(value: object) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", str(value or "").strip().casefold()).strip("-")
 
 
 def _basename(value: object) -> str:
@@ -243,11 +271,15 @@ def _normalize_spread_rows(value: object) -> list[dict]:
         presentation = str(item.get("presentation") or "").strip()
         if not side or not presentation:
             continue
-        result.append({
+        row = {
             "comboId": combo_id,
             "side": side,
             "presentation": presentation,
-        })
+        }
+        dipsey_diver_color = item.get("dipseyDiverColor")
+        if isinstance(dipsey_diver_color, str):
+            row["dipseyDiverColor"] = dipsey_diver_color
+        result.append(row)
     return result
 
 
@@ -515,7 +547,7 @@ def _normalize_locations(source: object) -> list[dict]:
             "launches": [],
         }
         location.pop("location", None)
-        for launch_index, launch in enumerate(_as_list(item.get("launches"))):
+        for launch in _as_list(item.get("launches")):
             if isinstance(launch, str):
                 launch = {"name": launch}
             if not isinstance(launch, dict):
@@ -575,7 +607,7 @@ def _normalize_trip(trip: object, index: int, locations: list[dict]) -> dict:
         result["launchId"] = launch["id"]
 
     normalized_gear = []
-    for line_index, item in enumerate(_as_list(result.get("gearUsed"))):
+    for item in _as_list(result.get("gearUsed")):
         if not isinstance(item, dict):
             continue
         line = deepcopy(item)
@@ -667,7 +699,7 @@ def migrate_document(source: dict) -> dict:
     if not isinstance(source, dict):
         raise MigrationError("Logbook must be a JSON object")
     if not audit_document(source) and source.get("schemaVersion") == 2:
-        return deepcopy(source)
+        return migrate_legacy_trip_titles(source)
 
     document = deepcopy(DEFAULT_LOGBOOK)
     document.update(deepcopy(source))
@@ -693,7 +725,7 @@ def migrate_document(source: dict) -> dict:
         _normalize_trip(trip, index, document["locations"])
         for index, trip in enumerate(_as_list(source.get("trips")))
     ]
-    return document
+    return migrate_legacy_trip_titles(document)
 
 
 def _read_database(path: Path) -> dict:
@@ -850,6 +882,7 @@ def _print_report(path: Path, before: dict, after: dict, label: str) -> None:
     print(f"{label}: {path}")
     print(f"Before schema: {before.get('schemaVersion')}; after schema: {after.get('schemaVersion')}")
     print(f"Trips: {len(_as_list(after.get('trips')))}")
+    print(f"Date-first default titles to migrate: {legacy_trip_title_count(before)}")
     if findings:
         print("Legacy fields found:")
         for key, count in sorted(findings.items()):
@@ -874,7 +907,7 @@ def main() -> int:
     args = parser.parse_args()
 
     is_archive = args.archive is not None
-    input_path = (args.archive or args.database or DATABASE_FILE).resolve()
+    input_path = (args.archive or args.database or AppConfig.from_env().database_file).resolve()
     media_root = args.media_root.resolve() if args.media_root else None
     manifest = None
     archive_names = None
@@ -904,13 +937,16 @@ def main() -> int:
         _vacuum(input_path)
         final = _read_database(input_path)
     final_findings = audit_document(final)
+    final_title_count = legacy_trip_title_count(final)
     valid, error = logbook_store.validate_logbook(final)
     if not valid:
         raise MigrationError(error or "Persisted database is invalid")
     if final_findings:
         raise MigrationError(f"Legacy fields remain after migration: {dict(final_findings)}")
+    if final_title_count:
+        raise MigrationError(f"Date-first default titles remain after migration: {final_title_count}")
     print(f"Applied. Backup: {backup}")
-    print("Post-migration audit: no known legacy fields")
+    print("Post-migration audit: no known legacy fields or date-first titles")
     return 0
 
 

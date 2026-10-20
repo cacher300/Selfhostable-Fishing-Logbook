@@ -11,8 +11,25 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend import cloud_storage
 from backend.backend_config import PREVIEW_DIRNAME, UPLOAD_CATEGORIES
-from backend.logbook_store import read_logbook
-from backend.media_service import read_upload_metadata, upload_category_path, upload_media_type
+from backend.config import AppConfig
+from backend.media_service import UploadLibrary, upload_media_type
+from backend.storage.local import LocalLogbookStore
+
+_CONFIG = AppConfig.from_env()
+_LOCAL_LOGBOOK = LocalLogbookStore(_CONFIG.database_file)
+_LOCAL_UPLOADS = UploadLibrary(_CONFIG.uploads_dir, lambda: _LOCAL_LOGBOOK.read().document)
+
+
+def read_logbook() -> dict:
+    return _LOCAL_LOGBOOK.read().document
+
+
+def read_upload_metadata(category: str, filename: str) -> dict:
+    return _LOCAL_UPLOADS.read_metadata(category, filename)
+
+
+def upload_category_path(category: str) -> Path:
+    return _LOCAL_UPLOADS.category_path(category)
 
 
 def totals(logbook: dict) -> tuple[int, int]:

@@ -1,0 +1,86 @@
+{
+  "sourceUrl": "https://www.ncei.noaa.gov/products/great-lakes-bathymetry",
+  "depthUnits": "metres",
+  "lakes": {
+    "erie": {
+      "name": "Lake Erie",
+      "image": "/static/data/bathymetry/lake-erie.webp",
+      "bounds": [
+        [
+          41.0,
+          -84.0008333333333
+        ],
+        [
+          43.0008333332533,
+          -78.00000000024001
+        ]
+      ],
+      "maxDepthMeters": 62.6,
+      "source": "NOAA NCEI Great Lakes bathymetry 3-arc-second GeoTIFF"
+    },
+    "huron": {
+      "name": "Lake Huron",
+      "image": "/static/data/bathymetry/lake-huron.webp",
+      "bounds": [
+        [
+          43.0,
+          -84.5008333333333
+        ],
+        [
+          46.5008333331933,
+          -79.6800000001928
+        ]
+      ],
+      "maxDepthMeters": 224.3,
+      "source": "NOAA NCEI Great Lakes bathymetry 3-arc-second GeoTIFF"
+    },
+    "michigan": {
+      "name": "Lake Michigan",
+      "image": "/static/data/bathymetry/lake-michigan.webp",
+      "bounds": [
+        [
+          41.62,
+          -88.0008333333333
+        ],
+        [
+          46.0908333331545,
+          -84.50000000014
+        ]
+      ],
+      "maxDepthMeters": 275.9,
+      "source": "NOAA NCEI Great Lakes bathymetry 3-arc-second GeoTIFF"
+    },
+    "ontario": {
+      "name": "Lake Ontario",
+      "image": "/static/data/bathymetry/lake-ontario.webp",
+      "bounds": [
+        [
+          43.15,
+          -79.90083333333331
+        ],
+        [
+          44.2508333332893,
+          -76.05000000015401
+        ]
+      ],
+      "maxDepthMeters": 243.9,
+      "source": "NOAA NCEI Great Lakes bathymetry 3-arc-second GeoTIFF"
+    },
+    "superior": {
+      "name": "Lake Superior",
+      "image": "/static/data/bathymetry/lake-superior.webp",
+      "bounds": [
+        [
+          46.0,
+          -92.2008333333333
+        ],
+        [
+          49.5008333331933,
+          -84.000000000328
+        ]
+      ],
+      "maxDepthMeters": 405.1,
+      "source": "NOAA NCEI Great Lakes bathymetry 3-arc-second GeoTIFF"
+    }
+  }
+}

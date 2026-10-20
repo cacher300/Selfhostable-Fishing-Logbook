@@ -11,10 +11,18 @@
             <span>Waterbody</span>
             <input id="locationParentName" type="text" readonly />
           </label>
-          <label>
-            <span>Name</span>
-            <input id="locationName" type="text" required placeholder="Lake Ontario" />
-          </label>
+          <div class="location-name-row">
+            <label>
+              <span>Name</span>
+              <input id="locationName" type="text" required placeholder="Lake Ontario" />
+            </label>
+            <div class="location-great-lakes-control hidden" id="locationGreatLakesField">
+              <label class="checkbox-label" for="locationGreatLakes">
+                <input id="locationGreatLakes" type="checkbox" />
+                <span>Great Lake</span>
+              </label>
+            </div>
+          </div>
           <input id="locationLatitude" type="hidden" required />
           <input id="locationLongitude" type="hidden" required />
         </div>

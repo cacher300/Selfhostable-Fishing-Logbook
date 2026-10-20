@@ -1,6 +1,7 @@
 <section class="settings-page hidden" id="settingsPanel" aria-label="Settings">
           <nav class="settings-tabs" aria-label="Settings sections">
             <button class="settings-tab is-active" type="button" data-settings-tab="general" aria-selected="true">General</button>
+            <button class="settings-tab" type="button" data-settings-tab="map-pins" aria-selected="false">Map Pins</button>
             <button class="settings-tab" id="settingsWikiButton" type="button">Wiki</button>
             <button class="settings-tab" type="button" data-settings-tab="trolling-spread" aria-selected="false">Trolling Spread</button>
             <button class="settings-tab" type="button" data-settings-tab="saved-setups" aria-selected="false">Saved Setups</button>
@@ -77,22 +78,33 @@
               <section class="settings-section" aria-labelledby="databaseSettingsHeading">
                 <div class="settings-section-copy">
                   <h4 id="databaseSettingsHeading">Database Archive</h4>
-                  <p>Downloads and imports the SQLite database together with uploaded photos and videos.</p>
+                  <p>Downloads and imports a .logbook ZIP archive.</p>
                 </div>
                 <div class="settings-row database-backup-actions">
-                  <button class="button secondary" id="exportDatabaseButton" type="button"><span class="button-loading-icon" aria-hidden="true"></span><span>Export Archive</span></button>
-                  <button class="button secondary" id="importDatabaseButton" type="button"><span class="button-loading-icon" aria-hidden="true"></span><span>Import Archive</span></button>
-                  <input class="visually-hidden" id="importDatabaseInput" type="file" accept=".zip,application/zip" />
+                  <button class="button secondary" id="exportDatabaseButton" type="button"><span class="button-loading-icon" aria-hidden="true"></span><span>Export .logbook</span></button>
+                  <button class="button secondary" id="importDatabaseButton" type="button"><span class="button-loading-icon" aria-hidden="true"></span><span>Import .logbook</span></button>
+                  <input class="visually-hidden" id="importDatabaseInput" type="file" accept=".logbook,.zip,application/zip" />
                   <span class="database-backup-status" id="databaseBackupStatus" role="status" aria-live="polite"></span>
                 </div>
               </section>
               <section class="settings-section" aria-labelledby="sharedTripSettingsHeading">
                 <div class="settings-section-copy">
                   <h4 id="sharedTripSettingsHeading">Shared Trips</h4>
-                  <p>Import a trip shared by another logbook without replacing your database.</p>
+                  <p>Import a .trip ZIP shared by another logbook without replacing your database.</p>
                 </div>
                 <div class="settings-row database-backup-actions">
-                  <button class="button secondary" id="importSharedTripButton" type="button">Import Shared Trip</button>
+                  <button class="button secondary" id="importSharedTripButton" type="button">Import .trip</button>
+                </div>
+              </section>
+            </div>
+            <div class="settings-tab-panel" data-settings-panel="map-pins" hidden>
+              <section class="settings-section settings-section--map-pins" aria-labelledby="mapPinSettingsHeading">
+                <div class="settings-section-copy">
+                  <h4 id="mapPinSettingsHeading">Map pin colors</h4>
+                  <p>Choose the color used for each species on the Fish Map and in its legend. Changes save automatically.</p>
+                </div>
+                <div class="map-pin-settings-content">
+                  <div class="map-pin-settings-list" id="speciesMapColorRows"></div>
                 </div>
               </section>
             </div>
@@ -184,14 +196,13 @@
                       <input id="locationManagerSearch" type="search" placeholder="Search waterbodies..." />
                     </label>
                     <button class="button primary settings-button-with-icon" id="settingsAddLocationButton" type="button">
-                      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg>
                       Add Waterbody
                     </button>
                   </div>
                 </div>
                 <div class="location-manager-list" id="locationManagerList"></div>
               </section>
-              <section class="settings-section settings-section--fishing-spots" aria-labelledby="fishingSpotSettingsHeading">
+              <section class="settings-section" aria-labelledby="fishingSpotSettingsHeading">
                 <div class="settings-section-header">
                   <div class="settings-section-copy">
                     <h4 id="fishingSpotSettingsHeading">Fishing Spots</h4>
@@ -202,7 +213,7 @@
                     Add Spot
                   </button>
                 </div>
-                <div class="private-location-layout fishing-spot-layout">
+                <div class="private-location-layout">
                   <div class="private-location-list" id="fishingSpotList"></div>
                   <div class="private-location-map-panel">
                     <div id="fishingSpotMap" class="fish-map location-picker-map private-location-map"></div>

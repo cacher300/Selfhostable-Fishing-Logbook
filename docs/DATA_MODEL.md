@@ -29,6 +29,21 @@ erDiagram
 
 Relationships are string IDs enforced primarily by UI behavior, not backend referential validation.
 
+## Desktop/Mobile Interchange
+
+The desktop SQLite file and the mobile native SQLite file are different implementation stores. Mobile also has an IndexedDB projection for web export. The canonical cross-client boundary is the validated JSON document inside a versioned archive:
+
+| Boundary | Contract |
+|---|---|
+| Full archive | Downloaded as `.logbook`; the file remains a ZIP containing `archiveVersion: 2`, `format: "fishing-logbook-archive"`, `schemaVersion: 2`, `manifest.json`, `logbook.json`, and `media/<category>/<filename>` entries. |
+| Full document | Every top-level collection in this document is required, including option lists, gear, people, locations, spots, expeditions, and trips. Unknown/additive properties must round-trip. |
+| Mobile local storage | Native SQLite and web IndexedDB are projections of the canonical document; do not copy the desktop SQLite file or depend on mobile table names. |
+| Shared Trip | Downloaded as `.trip`; the file remains a ZIP with `format: "fishing-logbook-shared-trip"`, version 2, containing one trip and only the required people, location/launch, spots, gear, and media. It is not a backup or whole-logbook replacement. |
+
+Mobile archive import currently validates the version and referenced media, then replaces local data only after an explicit user-confirmed operation. The clients do not have continuous synchronization. The desktop whole-document `PUT /api/logbook` is a compatibility/bootstrap path, not a safe offline multi-device sync protocol.
+
+Compatibility-sensitive fields include `settings.defaultPeople`, `units`, `timeFormat`, `chopRanges`, `savedSetups`, `defaultSavedSetupIds`, `privatePhotoLocations`, and bathymetry calibrations; trip live state and events; setup-line person/timing and gear references; catch/lost setup resolution, quantity, spot/location/photo/depth/weather context; and complete reel `lineHistory`. When changing any of these fields or an overlapping mobile workflow, update the adjacent mobile types, validator, archive/shared-trip code, tests, and parity documentation as part of the same change.
+
 ## Top-Level Logbook
 
 | Field | Type | Purpose |
@@ -38,6 +53,9 @@ Relationships are string IDs enforced primarily by UI behavior, not backend refe
 | `waterClarities`, `weatherTypes` | string arrays | Manual condition choices. |
 | `reelStyles`, `rodTypes`, `lineTypes`, `riggings`, `structureOptions` | string arrays | Inventory and structure choices. |
 | `flyCategories`, `flyPresentations`, `waterLevels`, `lureBladeTypes`, `lureSpoonSizes` | string arrays | Other current form choices. |
+| `meatRigTypes` | string array | Current editable meat-rig bait/presentation choices. |
+| `softPlasticTypes` | string array | Current editable soft-plastic shape/style choices. |
+| `lureBeadSizes` | string array | Optional editable bead-size choices; clients fall back to the defaults when absent. |
 | `trollingPresentations` | `{value,label}[]` | Presentation choices. |
 | `trollingDirections` | string array | Direction choices. |
 | `setupLineSides` | `{value,label}[]` | Port/center/starboard choices. |
@@ -49,6 +67,7 @@ Relationships are string IDs enforced primarily by UI behavior, not backend refe
 
 - `timeFormat`: `"12"` or `"24"`.
 - `theme`: `"light"` or `"dark"` (desktop display preference; preserved by mobile).
+- `speciesMapColors`: object mapping species names to six-digit `#RRGGBB` Fish Map pin colors (editable in both desktop and mobile; unspecified species use curated defaults or the fallback palette).
 - `hasFishHawk`: boolean for Fish Hawk-specific fields and preferences.
 - `defaultHomeLake`: `""`, `Superior`, `Michigan`, `Huron`, `Erie`, or `Ontario`.
 - `defaultPeople[]`: person IDs preselected for new trips.
@@ -57,7 +76,7 @@ Relationships are string IDs enforced primarily by UI behavior, not backend refe
 - `checklists[]`: independent named preparation lists whose item completion remains saved until reset.
 - `privatePhotoLocations[]`: `{ id, name, coordinates, radiusMeters }`; IDs are unique, coordinates are required, and the privacy radius is 25–10,000 m. Names need not be unique because multiple private pins may share a label.
 - `bathymetryLakeCalibrationsFeet`: per-Great-Lake `{ shallowOffsetFeet, offshoreOffsetFeet }` calibration values.
-- `trollingSpreads[]`: named reusable trolling setup templates. Each item is `{ id, name, spread[] }`, where each spread row contains `comboId`, `side`, and `presentation`.
+- `trollingSpreads[]`: named reusable trolling setup templates. Each item is `{ id, name, spread[] }`, where each spread row contains `comboId`, `side`, `presentation`, and the optional `dipseyDiverColor` for High Diver or Low Diver rows.
 - `defaultTrollingSpreadId`: optional ID of the saved trolling spread used to seed new trolling trips. The Settings label is `Trolling default`; it is not tied to target species.
 - `savedSetups[]`: named reusable non-trolling setup templates. Each item is `{ id, name, method, rows[] }`, where each row contains only `comboId`. Multiple setups may belong to the same method.
 - `defaultSavedSetupIds`: object mapping a non-trolling method name to the optional saved setup ID used to seed new trips for that method.
@@ -66,6 +85,12 @@ Relationships are string IDs enforced primarily by UI behavior, not backend refe
 These are the canonical settings used by both clients.
 
 Typed fishing measurements such as `waterTemp`, `weight`, and `fowCaught` are strings. When a unit preference changes, the client converts persisted numeric fishing values in the same save transaction, then updates the preference. This keeps existing trips, catches, lost fish, analytics, and edit forms physically consistent in the newly selected display unit. Free-form nonnumeric text is left unchanged.
+
+Desktop landed, released, kept, and shaker totals sum catch quantities rather
+than catch records. Speed reports honor the selected unit and explicit unit
+suffixes; plausibility limits and slower/matched/faster comparisons use the
+same physical speeds across mph, kph, and knots. These rendering fixes do not
+reshape imported records or change the v2 archive/schema boundary.
 
 ## Location and Person
 
@@ -81,6 +106,8 @@ Typed fishing measurements such as `waterTemp`, `weight`, and `fowCaught` are st
 ```
 
 Coordinates must be within latitude/longitude bounds and cannot be `(0,0)`. A person is `{ id, name }`; trips reference the top-level people library by ID.
+
+The optional greatLakesOverride field is a manual yes/no correction. When unset, the app checks whether the waterbody map pin falls inside one of the five Great Lakes using bundled simplified outlines. Both waterbody editors fill the checkbox from the pin and let the user correct it. Launch pins do not determine Great Lakes membership; small islands and shoreline-edge positions may need the checkbox correction.
 
 ## Fishing Spot
 
@@ -112,7 +139,7 @@ The trip start time is stored in `launchTime`; the end of fishing is stored in `
 
 ## Setup Line (`trip.gearUsed[]`)
 
-`id`, optional `personId`, `startTime`, `endTime`, `changeNote`, `side`, `lineLabel`, `comboId`, `rodId`, `reelId`, `lureId`, `flasherId`, `presentation`, `hasLeadcore`, `hasCheater`, `cheaterLureId`, `distanceBehind`, `attachedWeightOz`, `lureMinutes`, `flasherMinutes`, `rigging`, and `riggingDetails`. `attachedWeightOz` is used for Outside Board, Inside Board, and Chute Rod setup lines.
+`id`, optional `personId`, `startTime`, `endTime`, `changeNote`, `side`, `lineLabel`, `comboId`, `rodId`, `reelId`, `lureId`, `flasherId`, `presentation`, `dipseyDiverColor`, `hasLeadcore`, `hasCheater`, `cheaterLureId`, `distanceBehind`, `attachedWeightOz`, `lureMinutes`, `flasherMinutes`, `rigging`, and `riggingDetails`. `dipseyDiverColor` is a free-form string used by High Diver and Low Diver setup lines. `attachedWeightOz` is used for Outside Board, Inside Board, and Chute Rod setup lines.
 
 Setup rows intentionally do not collect fish-specific speed/depth parameters.
 
@@ -128,7 +155,7 @@ An optional numeric `quantity` is honored by analytics. The desktop form has no 
 
 ## Gear Entities
 
-- Lure: `id`, `name`, `type`, `brand`, `color`, `notes`, media fields.
+- Lure: `id`, `name`, `type`, optional `meatRigType` when `type` is `Meat Rig`, optional `softPlasticType` when `type` is `Soft Plastic`, optional `beadSize` when `type` is `Bead`, optional `bladeType` when `type` is `Worm Harness` or `Spinnerbait`, `brand`, `color`, `notes`, media fields. Starter soft-plastic styles cover tail shapes, flukes, worms, grubs, tubes, craws, creatures, and other common bodies. Settings → Categories can edit these subtype lists. These classify the lure itself; setup/catch rigging remains separate.
 - Flasher: same core shape as lure.
 - Rod: `id`, `shortName`, `type`, `brand`, `name`, `length`, `power`, `action`, `lureRating`, `purchaseAmount`, `dateBought`, `notes`, media fields.
 - Reel: `id`, `shortName`, `style`, `brand`, `name`, `size`, `weight`, `gearRatio`, `retrieveRate`, `maxDrag`, `monoCapacity`, `braidCapacity`, `purchaseAmount`, `dateBought`, `notes`, media fields, `lineHistory[]`.

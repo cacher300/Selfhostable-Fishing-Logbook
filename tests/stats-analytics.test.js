@@ -1,7 +1,8 @@
-const fs = require("fs");
-const vm = require("vm");
-const assert = require("assert");
-vm.runInThisContext(fs.readFileSync("static/js/stats-analytics.js", "utf8"));
+import assert from "node:assert/strict";
+import { installBrowserEnv } from "./helpers/browser-env.mjs";
+
+installBrowserEnv();
+const { StatsAnalytics } = await import("../static/js/stats-analytics.js");
 
 const strong = StatsAnalytics.performanceMetrics({ landed: 4, lost: 1, missed: 1, hours: 8, trips: 4, totalHours: 20, totalLanded: 10 });
 assert.equal(strong.landedRate, 0.5);
@@ -18,4 +19,3 @@ assert.equal(missing.timeShare, null);
 assert.equal(missing.efficiencyIndex, null);
 assert.equal(StatsAnalytics.safeDivide(1, 0), null);
 assert.equal(StatsAnalytics.confidence(15, 6), "High");
-console.log("stats analytics tests passed");

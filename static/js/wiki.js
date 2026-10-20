@@ -1,14 +1,14 @@
-function wikiTopics() {
+export function wikiTopics() {
   return [...document.querySelectorAll("[data-wiki-topic]")];
 }
 
-function setWikiTopicsOpen(open) {
+export function setWikiTopicsOpen(open) {
   wikiTopics().forEach((topic) => {
     topic.open = open;
   });
 }
 
-function filterWikiTopics() {
+export function filterWikiTopics() {
   const query = String(document.querySelector("#wikiSearch")?.value || "").trim().toLocaleLowerCase();
   const topics = wikiTopics();
   let matches = 0;
@@ -26,6 +26,10 @@ function filterWikiTopics() {
   if (status) status.textContent = query ? `${matches} topic${matches === 1 ? "" : "s"} found for “${query}”.` : "";
 }
 
-document.querySelector("#wikiSearch")?.addEventListener("input", filterWikiTopics);
-document.querySelector("#wikiExpandAllButton")?.addEventListener("click", () => setWikiTopicsOpen(true));
-document.querySelector("#wikiCollapseAllButton")?.addEventListener("click", () => setWikiTopicsOpen(false));
+export function setup() {
+  document.querySelector("#wikiSearch")?.addEventListener("input", filterWikiTopics);
+
+  document.querySelector("#wikiExpandAllButton")?.addEventListener("click", () => setWikiTopicsOpen(true));
+
+  document.querySelector("#wikiCollapseAllButton")?.addEventListener("click", () => setWikiTopicsOpen(false));
+}

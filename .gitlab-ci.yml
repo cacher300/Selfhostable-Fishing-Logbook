@@ -1,8 +1,8 @@
 stages:
   - validate
+  - build
   - smoke_test
   - docker_check
-  - deploy
 
 default:
   tags:
@@ -10,6 +10,7 @@ default:
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  npm_config_cache: "$CI_PROJECT_DIR/.cache/npm"
   PYTHONUNBUFFERED: "1"
   HOST: "127.0.0.1"
   PORT: "8080"
@@ -17,53 +18,75 @@ variables:
 
 test_python_app:
   stage: validate
-  image: python:3.12-slim
+  image: python:3.13-slim
   script:
     - python --version
-    - pip install -r requirements.txt
-    - python -m compileall server.py backend
+    - pip install -r requirements-dev.txt
+    - python -m compileall -q server.py backend scripts
     - python -m pytest tests -v
-    - test -f server.py
-    - test -f requirements.txt
-    - test -f index.html
-    - test -f templates/index.html
 
 test_javascript:
   stage: validate
-  image: node:22-alpine
+  image: node:22
   script:
     - node --version
-    - node --test tests/*.test.js
-
-test_cloud_worker:
-  stage: validate
-  image: node:22-alpine
-  before_script:
-    - cd cloud/worker
-    - npm ci
-  script:
+    - npm ci --no-audit --no-fund
+    - npm run schema:check:desktop
     - npm test
-    - CLOUDFLARE_D1_DATABASE_ID=00000000-0000-4000-8000-000000000000 npm run config:render
-    - npx wrangler deploy --dry-run --config wrangler.generated.json --outdir /tmp/fish-worker-dry-run
-  rules:
-    - changes:
-        - cloud/worker/**/*
-        - .gitlab-ci.yml
 
-smoke_test_flask_server:
-  stage: smoke_test
-  image: python:3.12-slim
-  needs:
-    - test_python_app
+cloud_worker_tests:
+  stage: validate
+  image: node:22
+  # The Cloudflare Worker is not actively developed; keep its own tests
+  # visible without blocking web-client pipelines.
+  allow_failure: true
   script:
+    - cd cloud/worker
+    - npm ci --no-audit --no-fund
+    - npm test
+
+build_frontend:
+  stage: build
+  image: python:3.13-slim
+  needs: []
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates gnupg
+    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    - apt-get install -y --no-install-recommends nodejs
+  script:
+    - npm ci --no-audit --no-fund
+    - npm run build
     - pip install -r requirements.txt
-    - mkdir -p data/uploads backups
-    - python server.py &
-    - SERVER_PID=$!
-    - sleep 5
-    - >-
-      python -c "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8080', timeout=10); print('Status:', r.status); exit(0 if r.status < 400 else 1)"
-    - kill "$SERVER_PID"
+    - python scripts/build-standalone.py
+    - test -f static/dist/app.js
+    - test -f static/dist/manifest.json
+    - test -f standalone.html
+  artifacts:
+    paths:
+      - static/dist/
+      - standalone.html
+    expire_in: 1 day
+
+browser_smoke_tests:
+  stage: smoke_test
+  image: python:3.13
+  needs:
+    - build_frontend
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates gnupg
+    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    - apt-get install -y --no-install-recommends nodejs
+  script:
+    - python -m venv .venv
+    - .venv/bin/pip install -r requirements.txt
+    - npm ci --no-audit --no-fund
+    - npx playwright install --with-deps chromium
+    - CI=1 npm run test:e2e
+  artifacts:
+    when: on_failure
+    paths:
+      - /tmp/fishing-logbook-playwright/
+    expire_in: 3 days
 
 docker_compose_config_check:
   stage: docker_check
@@ -75,116 +98,3 @@ docker_compose_config_check:
     - exists:
         - docker-compose.yml
         - compose.yml
-
-deploy_production:
-  stage: deploy
-  image: alpine:3.20
-  resource_group: fish-production
-  needs:
-    - job: test_python_app
-    - job: test_javascript
-    - job: smoke_test_flask_server
-    - job: docker_compose_config_check
-      optional: true
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-  environment:
-    name: production
-    url: https://fish.zionkoudijs.com
-  before_script:
-    - apk add --no-cache openssh-client
-    - install -d -m 700 ~/.ssh
-    - |
-      : "${DEPLOY_SSH_KEY:?DEPLOY_SSH_KEY must be configured as a protected CI/CD variable}"
-      if [ -f "$DEPLOY_SSH_KEY" ]; then
-        cp "$DEPLOY_SSH_KEY" ~/.ssh/id_ed25519
-      else
-        printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
-      fi
-      chmod 600 ~/.ssh/id_ed25519
-      if ! ssh-keygen -lf ~/.ssh/id_ed25519 >/dev/null 2>&1; then
-        normalized_key=$(mktemp)
-        {
-          printf '%s\n' '-----BEGIN OPENSSH PRIVATE KEY-----'
-          sed -e '1s/^DEPLOY_SSH_KEY=//' \
-            -e '/^-----BEGIN OPENSSH PRIVATE KEY-----$/d' \
-            -e '/^-----END OPENSSH PRIVATE KEY-----$/d' \
-            ~/.ssh/id_ed25519 | tr -d '[:space:]'
-          printf '\n%s\n' '-----END OPENSSH PRIVATE KEY-----'
-        } > "$normalized_key"
-        if ssh-keygen -lf "$normalized_key" >/dev/null 2>&1; then
-          mv "$normalized_key" ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-        else
-          rm -f "$normalized_key"
-          echo 'DEPLOY_SSH_KEY is not a valid OpenSSH private key' >&2
-          exit 1
-        fi
-      fi
-      ssh-keygen -lf ~/.ssh/id_ed25519
-    - |
-      : "${DEPLOY_KNOWN_HOSTS:?DEPLOY_KNOWN_HOSTS must be configured as a protected CI/CD variable}"
-      if [ -f "$DEPLOY_KNOWN_HOSTS" ]; then
-        cp "$DEPLOY_KNOWN_HOSTS" ~/.ssh/known_hosts
-      else
-        printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-      fi
-      chmod 644 ~/.ssh/known_hosts
-      test -s ~/.ssh/known_hosts
-      wc -l ~/.ssh/known_hosts
-  script:
-    - |
-      : "${DEPLOY_HOST:?DEPLOY_HOST must be configured}"
-      : "${DEPLOY_USER:?DEPLOY_USER must be configured}"
-      : "${DEPLOY_PATH:?DEPLOY_PATH must be configured}"
-      : "${DEPLOY_DATA_PATH:?DEPLOY_DATA_PATH must be configured}"
-      ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
-        "$DEPLOY_USER@$DEPLOY_HOST" /bin/sh -s -- \
-        "$DEPLOY_PATH" "$DEPLOY_DATA_PATH" "$CI_COMMIT_SHA" <<'REMOTE_SCRIPT'
-      set -eu
-      DEPLOY_PATH=$1
-      DEPLOY_DATA_PATH=$2
-      CI_COMMIT_SHA=$3
-      cd "$DEPLOY_PATH"
-      git fetch --prune origin
-      git cat-file -e "$CI_COMMIT_SHA^{commit}"
-      git reset --hard "$CI_COMMIT_SHA"
-      mkdir -p "$DEPLOY_DATA_PATH/uploads"
-      export APP_PORT=8081 FISH_DATA_DIR="$DEPLOY_DATA_PATH" SESSION_COOKIE_SECURE=true COMPOSE_PROJECT_NAME=fish-logbook
-      docker compose build
-      if docker compose up -d --remove-orphans --wait --wait-timeout 180; then
-        docker compose ps
-      else
-        deploy_status=$?
-        echo 'Production startup failed; collecting container and health-check diagnostics.' >&2
-        docker compose ps --all || true
-        docker compose logs --no-color --tail 200 || true
-        for container_id in $(docker compose ps --all --quiet); do
-          docker inspect --format '{{json .State}}' "$container_id" || true
-        done
-        exit "$deploy_status"
-      fi
-      REMOTE_SCRIPT
-
-deploy_cloudflare_worker:
-  stage: deploy
-  image: node:22-alpine
-  resource_group: fish-cloudflare-production
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      changes:
-        - cloud/worker/**/*
-        - .gitlab-ci.yml
-  environment:
-    name: production
-  before_script:
-    - cd cloud/worker
-    - npm ci
-    - |
-      : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN must be configured as a protected production variable}"
-      : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID must be configured as a protected production variable}"
-      : "${CLOUDFLARE_D1_DATABASE_ID:?CLOUDFLARE_D1_DATABASE_ID must be configured as a protected production variable}"
-  script:
-    - npm run config:render
-    - npm run migrate:remote
-    - npm run deploy

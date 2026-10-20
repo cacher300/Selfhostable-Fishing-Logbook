@@ -1,18 +1,26 @@
 # HTTP API
 
-Base URL defaults to `http://127.0.0.1:8080`. Application, API, and upload routes are unauthenticated. Mutating requests require the CSRF token returned by `GET /api/csrf-token` in the `X-CSRF-Token` header. Every Flask response includes `Cache-Control: no-store`.
+Base URL defaults to `http://127.0.0.1:8080`. Routes are grouped into Flask blueprints under `backend/routes/` (`pages`, `logbook`, `media`, `environment`) and reach storage only through the `LogbookStore`/`MediaStore` interfaces in `backend/storage/`. Application, API, and upload routes are unauthenticated. Mutating requests require the CSRF token returned by `GET /api/csrf-token` in the `X-CSRF-Token` header. Every Flask response includes `Cache-Control: no-store`, except `/static/` assets (Flask's default file caching) and successful upload original/preview GET and HEAD responses (`private, max-age=3600`). Upload media can be reused from the browser cache for one hour; shared proxies must not cache it. Local media supports ETag revalidation and range requests. Errors remain `no-store`. Replacing or deleting media at the same URL can leave the previous browser copy available until that hour expires or the user forces a reload. This is a desktop HTTP policy; the canonical archive format and mobile storage are unchanged.
+
+The desktop browser uses the same public `/api/v1` API as the mobile app, defaulting to `https://greatlakestrolling.com`. It requests forecast layers, points, stations, model points, animations, and history directly from that host. Set `GREAT_LAKES_API_URL` to use another compatible host. When the configured host differs from the desktop app origin, it must allow browser cross-origin requests. Flask does not proxy Great Lakes conditions or history.
 
 ## Logbook
 
 ### `GET /api/logbook`
 
-Returns the complete v2 logbook reconstructed from SQLite. A missing or empty database returns the canonical v2 defaults; invalid stored data returns a server error.
+Returns the complete v2 logbook reconstructed from SQLite, with an `ETag` header carrying the document revision (for example `"12"`). A missing or empty database returns the canonical v2 defaults. If the local database is corrupt, unreadable, or incompatible, the route returns `503 {"error": "...", "databaseUnavailable": true}`; the web shell remains available in fallback mode so the browser can show cached data or its built-in starter state without changing the original database.
+
+### Revisions and `If-Match`
+
+Every successful write increments a revision stored with the document. Writes accept an optional `If-Match` header with the revision the client last read; when another client saved first, the write is refused with `412 {"error": "...", "revisionConflict": true}` and the current revision in `ETag`, and nothing is changed. Successful writes return the new revision in `ETag`. Without `If-Match` a write is unconditional.
 
 ### `PUT /api/logbook`
 
-Replaces the complete logbook document.
+Replaces the complete logbook document. The browser saves every change this way, sending `If-Match` with the revision it last read. If startup cannot read a valid server document with an ETag, the browser permits viewing its cached copy but refuses changed saves until a successful reload. It never sends an unconditional PUT from fallback state. The direct-file fallback can still save locally.
 
 The request must be a complete v2 document. It is validated before replacement; ordinary reads, writes, and imports preserve the document without reshaping. Documents without `schemaVersion` and unsupported schema versions are rejected.
+
+When the existing local database cannot be read, ordinary saves return `503` with `databaseUnavailable: true` rather than replacing the unreadable file with a browser fallback. Use an explicit archive import to repair or replace that database.
 
 Required top-level JSON types:
 
@@ -23,27 +31,28 @@ Required top-level JSON types:
 - `spots` must contain uniquely identified/named records with valid coordinates and a radius from 25 through 500 meters.
 - `expeditions` must contain uniquely identified records with a name and ordered ISO start/end dates.
 
-Success: `200 {"ok": true}`. Shape failure: `400 {"error": "..."}`. Validation recursively checks JSON values and known nested record structures; see `DATA_MODEL.md`.
+Success: `200 {"ok": true}` with the new `ETag`. Shape failure: `400 {"error": "..."}`. Validation uses the shared JSON Schema in `schema/logbook.schema.json` plus the semantic rules in `backend/logbook_store.py` (unique IDs and names, date order); error messages start with the failing path such as `settings.checklists[0].items[0].done`. See `DATA_MODEL.md`.
+
 
 ### `GET /api/archive`
 
-Returns an `archiveVersion` 2 ZIP containing `manifest.json`, the canonical v2 logbook at `logbook.json`, and uploaded media under `media/<category>/`. This format is shared by desktop and mobile and contains no platform-specific database file.
+Returns the `.logbook` download: an `archiveVersion` 2 ZIP containing `manifest.json`, the canonical v2 logbook at `logbook.json`, and uploaded media under `media/<category>/`. This format is shared by desktop and mobile and contains no platform-specific database file.
 
 ### `POST /api/archive`
 
-Imports an archiveVersion 2 logbook/media archive and replaces the current logbook and media after validation.
+Imports a `.logbook` file containing an archiveVersion 2 ZIP and replaces the current logbook and media after validation. Media files are staged and promoted as one transaction; if installing the logbook fails, every promoted file is rolled back and overwritten files are restored. When the existing database cannot accept SQL, the validated archive is installed into a fresh database and the old file is kept in a recovery folder. Existing `.zip` logbook archives remain importable.
 
 ### `GET /api/trips/<trip_id>/shared-archive`
 
-Downloads a versioned `fishing-logbook-shared-trip` ZIP for one trip. It includes only that trip, its required people, locations, spots, used gear, and referenced media; unrelated history, preferences, and expeditions are excluded.
+Downloads a `.trip` file containing a versioned `fishing-logbook-shared-trip` ZIP for one trip. It includes only that trip, its required people, locations, spots, used gear, and referenced media; unrelated history, preferences, and expeditions are excluded.
 
 ### `POST /api/shared-trip-archive/preview`
 
-Accepts multipart field `archive` containing a Shared Trip ZIP and returns its trip summary, normalized-name person suggestions, and likely local overlap candidates. It does not change the logbook.
+Accepts multipart field `archive` containing a `.trip` file (ZIP) and returns its trip summary, normalized-name person suggestions, and likely local overlap candidates. It does not change the logbook.
 
 ### `POST /api/shared-trip-archive/import`
 
-Accepts multipart `archive`, JSON `personMappings` (`sourcePersonId` to existing local person ID), `duplicateAction` (`add`, `replace`, or `keep-local`), and `replacementTripId` for `replace`. It merges the one imported trip without replacing unrelated logbook data. Imported media is copied under collision-free filenames. `replace` is allowed only for a candidate returned by preview.
+Accepts multipart `archive` containing a `.trip` file (ZIP), JSON `personMappings` (`sourcePersonId` to existing local person ID), `duplicateAction` (`add`, `replace`, or `keep-local`), and `replacementTripId` for `replace`. It merges the one imported trip without replacing unrelated logbook data. Imported media is copied under collision-free filenames. `replace` is allowed only for a candidate returned by preview.
 
 ## Environmental Proxies
 
@@ -69,27 +78,11 @@ Proxy errors return an upstream status where available or `503` for network/time
 
 ### `GET /api/bathymetry/depth`
 
-Looks up the nearest Great Lakes bathymetry feature for numeric `latitude` and `longitude` coordinates. The response includes `depth_m`, `depth_ft`, `lake_name`, and `depth_source`; when a feature is unavailable, the depth fields are null. The request uses the saved per-lake FOW calibration settings.
+Looks up Great Lakes depth for numeric latitude and longitude coordinates. It searches the bundled NOAA contour data within 500 m first, then uses cached NOAA lake-model bathymetry for offshore points, with Esri Canada contours as the final fallback. Cold model downloads are shared and each point request waits at most three seconds for them; remote contour requests use a two-second timeout. Model failures remain errors rather than being reported as land. Local contour indexes persist in the Great Lakes cache and invalidate when the bundled geometry changes. The response includes depth_m, depth_ft, lake_name, and depth_source; points on land or outside every lake return null depth fields. The request uses the saved per-lake FOW calibration settings.
 
-### `GET /api/great-lakes/temperature-value`
+### `GET /api/bathymetry/contours/{lake}`
 
-Returns a modelled Great Lakes water-temperature value for numeric `forecastHour`, `depth`, `resolution`, `latitude`, and `longitude` query values. `forecastHour` is snapped to `0`, `6`, `12`, `24`, or `48`; depth is bounded to 0–500 meters and resolution to 128–512 pixels. An optional comma-separated `models` list selects known NOAA models.
-
-### `GET /api/great-lakes/profile`
-
-Returns the modelled water-column temperature profile and estimated thermocline for numeric `forecastHour`, `latitude`, and `longitude`, with the same optional `models` selection.
-
-### `GET /api/great-lakes/<layer>`
-
-Returns the current model payload for `temperature` or `currents`. The optional `forecastHour`, `depth`, and `models` query values select the model view.
-
-### `GET /api/great-lakes/temperature-raster`
-
-Returns a server-rendered temperature raster payload for the optional `forecastHour`, `depth`, `resolution`, and `models` query values.
-
-### `GET /api/great-lakes/thermocline-raster`
-
-Returns a server-rendered thermocline-depth raster payload for the optional `forecastHour`, `resolution`, and `models` query values.
+Streams the bundled NOAA bathymetry contours for one of Erie, Huron, Michigan, Ontario, or Superior as GeoJSON. Optional `detail=6|9|12|full` selects geometry simplified for the map zoom; the default is `full`, and invalid detail values return 400. Optional `detail=6|9|12|full` selects geometry simplified for the map zoom; the default is `full`, and invalid detail values return 400. The desktop map loads only contours that intersect the current view and caches the parsed layer in memory for later pans.
 
 ## Uploads and Media
 
@@ -112,7 +105,11 @@ Returns `{ "photos": [...] }`, newest modified first.
 
 ### `POST /api/photo-queue/claim`
 
-JSON body: `{ "filename": "...", "targetCategory": "..." }`. Moves a queued file, sidecar, and preview to a non-queue category under a new UUID name. Returns the new media reference.
+JSON body: `{ "filename": "...", "targetCategory": "..." }`. Moves a queued file, sidecar, and preview to a non-queue category under a new UUID name. The move is transactional: a failure restores the queued files. Returns the new media reference.
+
+### `POST /api/photo-queue/copy`
+
+Same body as claim. Copies a queued file (and preview) to a non-queue category for autofill while keeping the queue original for review. Returns the new media reference.
 
 ### `DELETE /api/photo-queue/<filename>`
 
@@ -139,6 +136,11 @@ Files are served from their category paths. Category validation occurs through t
 
 ## SPA and Static Routes
 
-- `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, and `/settings` render `templates/index.html` and its feature partials. `/` selects the Trips view.
-- `/static/<path:filename>` serves only `.css`, `.js`, `.png`, `.jpg`, `.jpeg`, `.svg`, and `.webp` files beneath `static/`.
+- `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, `/wiki`, and `/settings` render `templates/index.html` and its feature partials. `/` selects the Trips view.
+- `/static/<path:filename>` serves only `.css`, `.js`, `.map`, `.png`, `.jpg`, `.jpeg`, `.svg`, `.webp`, `.woff`, and `.woff2` files beneath `static/`. The page loads the built bundle `static/dist/app.js` and `static/dist/app-styles.css` with content-hash `?v=` query strings from `static/dist/manifest.json`.
 - `/favicon.ico` returns 204.
+
+
+### Bathymetry indexes
+
+The Docker image includes bundled NOAA contour assets and prepares their local indexes during the image build. Local installations can prepare the same indexes with `.venv\Scripts\python.exe scripts/prepare-depth-indexes.py`; generated indexes live under `static/data/depth-indexes/` outside the private logbook data directory.

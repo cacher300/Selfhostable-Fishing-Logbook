@@ -213,16 +213,35 @@ async function listMedia(request, env) {
   if (category && !ALLOWED_MEDIA_CATEGORIES.has(category)) {
     return json({ error: "Invalid media category" }, 400);
   }
-  const limit = Math.max(1, Math.min(500, Number(url.searchParams.get("limit") || 200) || 200));
-  const query = category
-    ? env.FISH_DB.prepare(
-      "SELECT object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by, metadata_json FROM media_objects WHERE category = ? ORDER BY uploaded_at DESC LIMIT ?",
-    ).bind(category, limit)
-    : env.FISH_DB.prepare(
-      "SELECT object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by, metadata_json FROM media_objects ORDER BY uploaded_at DESC LIMIT ?",
-    ).bind(limit);
+  const requestedLimit = Number(url.searchParams.get("limit") || 200);
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(500, Math.floor(requestedLimit) || 200)) : 200;
+  const clauses = [];
+  const bindings = [];
+  if (category) {
+    clauses.push("category = ?");
+    bindings.push(category);
+  }
+  const cursor = url.searchParams.get("cursor");
+  if (cursor) {
+    let position;
+    try {
+      if (cursor.length > 2048) throw new Error("Invalid cursor");
+      position = JSON.parse(atob(cursor));
+      if (typeof position?.uploadedAt !== "string" || !position.uploadedAt || position.uploadedAt.length > 100
+        || typeof position?.objectKey !== "string" || !position.objectKey || position.objectKey.length > 1024) throw new Error("Invalid cursor");
+    } catch {
+      return json({ error: "Invalid media cursor" }, 400);
+    }
+    clauses.push("(uploaded_at < ? OR (uploaded_at = ? AND object_key < ?))");
+    bindings.push(position.uploadedAt, position.uploadedAt, position.objectKey);
+  }
+  const where = clauses.length ? ` WHERE ${clauses.join(" AND ")}` : "";
+  const query = env.FISH_DB.prepare(
+    `SELECT object_key, category, filename, original_name, content_type, byte_size, etag, uploaded_at, uploaded_by, metadata_json FROM media_objects${where} ORDER BY uploaded_at DESC, object_key DESC LIMIT ?`,
+  ).bind(...bindings, limit + 1);
   const result = await query.all();
-  const media = (result.results || []).map((item) => {
+  const rows = result.results || [];
+  const media = rows.slice(0, limit).map((item) => {
     let metadata = {};
     try {
       metadata = JSON.parse(item.metadata_json || "{}");
@@ -232,7 +251,11 @@ async function listMedia(request, env) {
     const { metadata_json: ignored, ...inventory } = item;
     return { ...inventory, metadata };
   });
-  return json({ media });
+  const last = media.at(-1);
+  const nextCursor = rows.length > limit
+    ? btoa(JSON.stringify({ uploadedAt: last.uploaded_at, objectKey: last.object_key }))
+    : null;
+  return json({ media, nextCursor });
 }
 
 async function putMedia(request, env, media) {

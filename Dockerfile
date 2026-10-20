@@ -1,4 +1,16 @@
-FROM python:3.12-slim
+# Build the browser bundle with Node, then ship only the built assets.
+FROM node:22-slim AS frontend
+
+WORKDIR /build
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY scripts/build-frontend.mjs ./scripts/
+COPY schema ./schema
+COPY static ./static
+RUN node scripts/build-frontend.mjs --production
+
+
+FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -18,7 +30,12 @@ COPY server.py index.html ./
 COPY docker-entrypoint.sh ./
 COPY templates ./templates
 COPY backend ./backend
-COPY static ./static
+COPY schema ./schema
+COPY static/img ./static/img
+COPY static/data ./static/data
+COPY scripts/prepare-depth-indexes.py ./scripts/
+RUN python scripts/prepare-depth-indexes.py
+COPY --from=frontend /build/static/dist ./static/dist
 RUN mkdir -p data/uploads
 
 EXPOSE 8080

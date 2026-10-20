@@ -7,10 +7,10 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from pathlib import Path
-from unittest.mock import patch
 
-from backend import logbook_store
+from backend import logbook_repository, logbook_store
 from backend.backend_config import DEFAULT_LOGBOOK
+from backend.storage.local import LocalLogbookStore
 
 
 def document(**changes):
@@ -28,6 +28,32 @@ def trip(**changes):
 
 
 class LogbookStoreTests(unittest.TestCase):
+    def test_meat_rig_choices_and_lure_type_are_optional_v2_additions(self):
+        old = document()
+        del old["meatRigTypes"]
+        self.assertTrue(logbook_store.validate_logbook(old)[0])
+
+        current = document(meatRigTypes=["Custom strip"], lures=[{
+            "id": "meat-1", "name": "Custom head", "type": "Meat Rig", "meatRigType": "Custom strip"
+        }])
+        self.assertTrue(logbook_store.validate_logbook(current)[0])
+        self.assertIn("meatRigTypes[0]", logbook_store.validate_logbook(document(meatRigTypes=[4]))[1])
+        current["lures"][0]["meatRigType"] = 4
+        self.assertIn("lures[0].meatRigType", logbook_store.validate_logbook(current)[1])
+
+    def test_soft_plastic_choices_and_lure_style_are_optional_v2_additions(self):
+        old = document()
+        del old["softPlasticTypes"]
+        self.assertTrue(logbook_store.validate_logbook(old)[0])
+
+        current = document(softPlasticTypes=["Custom tail"], lures=[{
+            "id": "plastic-1", "name": "Custom shad", "type": "Soft Plastic", "softPlasticType": "Custom tail"
+        }])
+        self.assertTrue(logbook_store.validate_logbook(current)[0])
+        self.assertIn("softPlasticTypes[0]", logbook_store.validate_logbook(document(softPlasticTypes=[4]))[1])
+        current["lures"][0]["softPlasticType"] = 4
+        self.assertIn("lures[0].softPlasticType", logbook_store.validate_logbook(current)[1])
+
     def test_empty_document_is_canonical_v2(self):
         payload = document()
         self.assertEqual(2, payload["schemaVersion"])
@@ -38,6 +64,8 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertEqual(["Port", "Center", "Starboard"], [item["value"] for item in payload["setupLineSides"]])
         self.assertEqual("light", payload["settings"]["theme"])
         self.assertIs(payload["settings"]["hasFishHawk"], True)
+        self.assertEqual("#8dbb55", payload["settings"]["speciesMapColors"]["Largemouth Bass"])
+        self.assertEqual("#e58a2b", payload["settings"]["speciesMapColors"]["Perch"])
 
     def test_current_settings_are_validated_at_the_v2_boundary(self):
         settings = deepcopy(DEFAULT_LOGBOOK["settings"])
@@ -65,6 +93,8 @@ class LogbookStoreTests(unittest.TestCase):
         self.assertIn("settings.bathymetryLakeCalibrationsFeet.Ontario.offshoreOffsetFeet", logbook_store.validate_logbook(document(settings=invalid_calibration))[1])
         invalid_chop = {**settings, "chopRanges": [{"id": "calm", "label": "Calm", "maxFeet": "0.5"}]}
         self.assertIn("settings.chopRanges[0].maxFeet", logbook_store.validate_logbook(document(settings=invalid_chop))[1])
+        invalid_species_map = {**settings, "speciesMapColors": {"Largemouth Bass": "green"}}
+        self.assertIn("settings.speciesMapColors.Largemouth Bass", logbook_store.validate_logbook(document(settings=invalid_species_map))[1])
 
     def test_unsupported_schema_and_missing_collection_are_rejected(self):
         payload = document(schemaVersion=3)
@@ -93,9 +123,9 @@ class LogbookStoreTests(unittest.TestCase):
         }
         payload = document(trips=[trip_record])
         with tempfile.TemporaryDirectory() as directory:
-            with patch.object(logbook_store, "DATABASE_FILE", Path(directory) / "logbook.sqlite3"):
-                logbook_store.write_logbook(payload)
-                stored = logbook_store.read_logbook()
+            store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
+            store.write(payload, None)
+            stored = store.read().document
         self.assertEqual(trip_record, stored["trips"][0])
 
     def test_round_trip_preserves_all_collections_and_unknown_current_metadata(self):
@@ -106,9 +136,9 @@ class LogbookStoreTests(unittest.TestCase):
         payload = document(trips=[trip(catches=[fish])], customTopLevelField={"kept": True})
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "logbook.sqlite3"
-            with patch.object(logbook_store, "DATABASE_FILE", file):
-                logbook_store.write_logbook(payload)
-                stored = logbook_store.read_logbook()
+            store = LocalLogbookStore(file)
+            store.write(payload, None)
+            stored = store.read().document
             with closing(sqlite3.connect(file)) as connection:
                 self.assertEqual("ok", connection.execute("PRAGMA integrity_check").fetchone()[0])
                 self.assertEqual(1, connection.execute("SELECT COUNT(*) FROM logbook_entries WHERE collection_name='riggings'").fetchone()[0] > 0)
@@ -120,13 +150,59 @@ class LogbookStoreTests(unittest.TestCase):
                             "capturedAt": "2026-09-22T09:00:00Z"}]}
         payload = document(trips=[trip(catches=[fish])])
         with tempfile.TemporaryDirectory() as directory:
-            with patch.object(logbook_store, "DATABASE_FILE", Path(directory) / "logbook.sqlite3"):
-                logbook_store.write_logbook(payload)
-                edited = logbook_store.read_logbook()
-                edited["trips"][0]["title"] = "Renamed"
-                logbook_store.write_logbook(edited)
-                stored = logbook_store.read_logbook()
+            store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
+            store.write(payload, None)
+            edited = store.read().document
+            edited["trips"][0]["title"] = "Renamed"
+            store.write(edited, None)
+            stored = store.read().document
         self.assertEqual(fish, stored["trips"][0]["catches"][0])
+
+    def test_optional_lure_subtype_collections_preserve_presence(self):
+        absent = document()
+        del absent["meatRigTypes"]
+        del absent["softPlasticTypes"]
+        del absent["lureBeadSizes"]
+        with tempfile.TemporaryDirectory() as directory:
+            store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
+            store.write(absent, None)
+            stored = store.read().document
+            self.assertNotIn("meatRigTypes", stored)
+            self.assertNotIn("softPlasticTypes", stored)
+            self.assertNotIn("lureBeadSizes", stored)
+
+            present_empty = document(meatRigTypes=[], softPlasticTypes=[], lureBeadSizes=[])
+            store.write(present_empty, None)
+            stored = store.read().document
+            self.assertEqual([], stored["meatRigTypes"])
+            self.assertEqual([], stored["softPlasticTypes"])
+            self.assertEqual([], stored["lureBeadSizes"])
+
+    def test_optional_lure_subtype_collections_migrate_from_extra_to_rows(self):
+        old_collection_keys = tuple(key for key in logbook_store.COLLECTION_KEYS if key not in {"lureBeadSizes", "meatRigTypes", "softPlasticTypes"})
+        payload = document(meatRigTypes=["Custom strip"], softPlasticTypes=["Custom tail"])
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / "logbook.sqlite3"
+            logbook_repository.write(file, payload, old_collection_keys, logbook_store.OBJECT_COLLECTION_KEYS)
+            store = LocalLogbookStore(file)
+            self.assertEqual(["Custom strip"], store.read().document["meatRigTypes"])
+            edited = store.read().document
+            edited["settings"]["theme"] = "dark"
+            store.write(edited, None)
+            with closing(sqlite3.connect(file)) as connection:
+                self.assertEqual(1, connection.execute("SELECT COUNT(*) FROM logbook_entries WHERE collection_name='meatRigTypes'").fetchone()[0])
+                extra = connection.execute("SELECT value_json FROM logbook_metadata WHERE key='extra'").fetchone()[0]
+                self.assertNotIn("meatRigTypes", extra)
+
+    def test_optional_lure_subtype_collection_can_be_added_later(self):
+        payload = document()
+        del payload["meatRigTypes"]
+        with tempfile.TemporaryDirectory() as directory:
+            store = LocalLogbookStore(Path(directory) / "logbook.sqlite3")
+            store.write(payload, None)
+            store.write({**payload, "meatRigTypes": ["Custom strip"]}, None)
+            stored = store.read().document
+            self.assertEqual(["Custom strip"], stored["meatRigTypes"])
 
     def test_named_spread_default_must_reference_a_saved_spread(self):
         settings = deepcopy(DEFAULT_LOGBOOK["settings"])
@@ -134,6 +210,30 @@ class LogbookStoreTests(unittest.TestCase):
         valid, error = logbook_store.validate_logbook(document(settings=settings))
         self.assertFalse(valid)
         self.assertEqual("settings.defaultTrollingSpreadId: must reference a saved trolling spread", error)
+
+    def test_dipsey_diver_color_is_validated_on_spreads_and_setup_lines(self):
+        settings = deepcopy(DEFAULT_LOGBOOK["settings"])
+        settings["trollingSpreads"] = [{
+            "id": "spread",
+            "name": "Morning",
+            "spread": [{"comboId": "combo", "side": "Port", "presentation": "High Diver", "dipseyDiverColor": "Purple"}],
+        }]
+        valid, error = logbook_store.validate_logbook(document(settings=settings, trips=[trip(gearUsed=[{
+            "id": "line", "startTime": "08:00", "presentation": "Low Diver", "dipseyDiverColor": "Green",
+        }])]))
+        self.assertTrue(valid, error)
+
+        invalid_spread = deepcopy(settings)
+        invalid_spread["trollingSpreads"][0]["spread"][0]["dipseyDiverColor"] = 4
+        valid, error = logbook_store.validate_logbook(document(settings=invalid_spread))
+        self.assertFalse(valid)
+        self.assertEqual("settings.trollingSpreads[0].spread[0].dipseyDiverColor: must be a string", error)
+
+        valid, error = logbook_store.validate_logbook(document(settings=settings, trips=[trip(gearUsed=[{
+            "id": "line", "startTime": "08:00", "dipseyDiverColor": 4,
+        }])]))
+        self.assertFalse(valid)
+        self.assertEqual("trips[0].gearUsed[0].dipseyDiverColor: must be a string", error)
 
     def test_saved_setup_default_must_match_its_method(self):
         settings = deepcopy(DEFAULT_LOGBOOK["settings"])
@@ -158,18 +258,20 @@ class LogbookStoreTests(unittest.TestCase):
 
     def test_read_returns_v2_defaults_before_database_exists(self):
         with tempfile.TemporaryDirectory() as directory:
-            with patch.object(logbook_store, "DATABASE_FILE", Path(directory) / "missing.sqlite3"):
-                self.assertEqual(document(), logbook_store.read_logbook())
+            store = LocalLogbookStore(Path(directory) / "missing.sqlite3")
+            self.assertEqual(document(), store.read().document)
 
     def test_concurrent_writes_leave_one_complete_v2_document(self):
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "logbook.sqlite3"
-            with patch.object(logbook_store, "DATABASE_FILE", file):
-                def write(index):
-                    logbook_store.write_logbook(document(trips=[trip(id=f"trip-{index}")]))
-                with ThreadPoolExecutor(max_workers=8) as executor:
-                    list(executor.map(write, range(30)))
-                stored = logbook_store.read_logbook()
+            store = LocalLogbookStore(file)
+
+            def write(index):
+                store.write(document(trips=[trip(id=f"trip-{index}")]), None)
+
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                list(executor.map(write, range(30)))
+            stored = store.read().document
             self.assertTrue(logbook_store.validate_logbook(stored)[0])
             self.assertEqual(1, len(stored["trips"]))
 
