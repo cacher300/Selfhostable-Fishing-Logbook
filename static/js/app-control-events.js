@@ -8,7 +8,7 @@ import { markTripWaterTemperatureManual, resyncTripWeather } from "./location-we
 import { exportArchive, importArchive, scheduleSettingsAutosave, setSettingsSaveStatus, settingsUi } from "./settings-core.js";
 import { addTrollingSpread, addTrollingSpreadRowToCard, cancelTrollingSpreadDraft, deleteTrollingSpread, editTrollingSpread, finishTrollingSpreadEdit, refreshTrollingSpreadCardPreview, saveDefaultHomeLake, saveDefaultPeople, saveDefaultTrollingSpreadId, saveFishHawkPreference, saveSpeciesMapColors, saveThemePreference, saveTimeFormatPreference, saveUnitSettings, scheduleTrollingSpreadAutosave, setSettingsTab, setTrollingSpreadSettingsMessage, syncSpeciesMapColorPreview, syncTrollingSpreadRowFields } from "./settings.js";
 import { openSavedSetupPicker } from "./saved-setups.js";
-import { cancelChopRangeEditing, savePredefinedFieldSettings, toggleChopRangeEditing } from "./settings-fields.js";
+import { cancelChopRangeEditing, filterPredefinedFieldSettings, savePredefinedFieldSettings, syncPredefinedFieldSummary, toggleChopRangeEditing } from "./settings-fields.js";
 import { collectFishingSpotSettings, collectPrivatePhotoLocationSettings, fishingSpotDefaultCoordinates, fishingSpotRadiusMeters, fishingSpotRadiusText, nextFishingSpotName, privateLocationDefaultCoordinates, privateLocationRadiusMeters, privateLocationRadiusText, privatePhotoLocations, saveFishingSpots, savePrivatePhotoLocations, updateFishingSpotRadiusControl, updatePrivateLocationRadiusControl } from "./settings-locations.js";
 import { renderTrips, tripSortFromSelect } from "./dashboard.js";
 import { addNotePhotos, addPhotosToQueue, openPhotoQueue, restoreDialogAfterPhotoQueue } from "./photos.js";
@@ -394,11 +394,12 @@ export function setup() {
     }
     if (event.target.closest(".cancel-trolling-spread")) cancelTrollingSpreadDraft();
     if (event.target.closest(".delete-trolling-spread")) deleteTrollingSpread(card.dataset.trollingSpreadId).catch(() => {});
-    const clickedName = event.target.matches(".trolling-spread-name");
-    if ((!event.target.closest("button, input, select, textarea, a") || clickedName)
-      && card.dataset.trollingSpreadDraft !== "true"
-      && card.dataset.trollingSpreadEditing !== "true") {
-      editTrollingSpread(card.dataset.trollingSpreadId);
+    const editing = card.dataset.trollingSpreadEditing === "true";
+    const clickedNameControl = !editing && event.target.closest(".trolling-spread-name-control");
+    const clickedToggleArea = !event.target.closest("button, input, select, textarea, a, label") || clickedNameControl;
+    if (clickedToggleArea && card.dataset.trollingSpreadDraft !== "true") {
+      if (editing) finishTrollingSpreadEdit(card).catch(() => {});
+      else editTrollingSpread(card.dataset.trollingSpreadId);
     }
   });
 
@@ -420,6 +421,10 @@ export function setup() {
 
   document.querySelectorAll("[data-settings-tab]").forEach((tab) => {
     tab.addEventListener("click", () => setSettingsTab(tab.dataset.settingsTab));
+  });
+
+  document.querySelector("#categorySearch")?.addEventListener("input", (event) => {
+    filterPredefinedFieldSettings(event.target.value);
   });
 
   document.querySelectorAll("[data-time-format-option]").forEach((input) => {
@@ -448,11 +453,14 @@ export function setup() {
 
   els.predefinedFieldSettings?.addEventListener("input", (event) => {
     if (event.target.matches(".predefined-option-label")) {
-      const groupKey = event.target.closest(".predefined-field-group")?.dataset.predefinedKey;
+      const group = event.target.closest(".predefined-field-group");
+      const groupKey = group?.dataset.predefinedKey;
       if (groupKey) {
         if (!settingsUi.predefinedFieldsDirty) settingsUi.predefinedFieldsDirty = new Set();
         settingsUi.predefinedFieldsDirty.add(groupKey);
       }
+      syncPredefinedFieldSummary(group);
+      filterPredefinedFieldSettings();
       scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }));
     }
   });

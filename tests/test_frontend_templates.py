@@ -23,6 +23,7 @@ def test_frontend_template_renders_all_partials_once(fish) -> None:
     assert re.search(r'<html\b(?=[^>]*\blang="en")(?=[^>]*\bdata-theme="dark")[^>]*>', markup)
     assert "Fishing Logbook" in markup
     assert 'id="tripListPanel"' in markup
+    assert 'id="leaderboardPanel"' in markup
     assert 'id="tripDialog"' in markup
     assert 'id="deleteTripButton"' in markup
     assert 'id="summaryDeleteTripButton"' not in markup

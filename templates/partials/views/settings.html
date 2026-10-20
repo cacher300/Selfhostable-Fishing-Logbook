@@ -171,16 +171,25 @@
                 <div class="settings-section-copy">
                   <h4 id="fowCalibrationSettingsHeading">FOW Calibration</h4>
                   <p>Match calculated FOW to the lake's water level and your fishfinder.</p>
+                  <p>The adjustment blends in from 0 at 30 ft to its full value at 80 ft. Changes save automatically and affect future bathymetry lookups; existing catch and missed-fish FOW values are not recalculated.</p>
                 </div>
                 <div class="unit-settings-grid" id="fowCalibrationFields"></div>
               </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="lists" hidden>
-              <section class="settings-section" aria-labelledby="predefinedFieldSettingsHeading">
-                <div class="settings-section-copy">
-                  <h4 id="predefinedFieldSettingsHeading">Categories</h4>
+              <section class="settings-section settings-section--categories" aria-labelledby="predefinedFieldSettingsHeading">
+                <div class="categories-header">
+                  <div class="settings-section-copy">
+                    <h4 id="predefinedFieldSettingsHeading">Categories</h4>
+                    <p>Organize and browse your fishing data</p>
+                  </div>
+                  <label class="category-search">
+                    <span class="visually-hidden">Search categories</span>
+                    <input id="categorySearch" type="search" placeholder="Search categories..." autocomplete="off" />
+                  </label>
                 </div>
                 <div class="predefined-field-settings" id="predefinedFieldSettings"></div>
+                <p class="category-search-empty" id="categorySearchEmpty" role="status" hidden>No categories match that search.</p>
               </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="waterbodies" hidden>

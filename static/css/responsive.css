@@ -707,7 +707,37 @@
 
   .map-more-filters, .map-layers-menu, .map-more-filters summary, .map-layers-menu summary { width: 100%; }
   .map-more-filters-panel { right: auto; left: 0; width: 100%; box-sizing: border-box; }
-  .map-layers-menu-panel { right: 0; left: auto; width: 294px; max-width: calc(100vw - 24px); }
+  .map-layers-menu[open] > summary {
+    position: fixed;
+    z-index: 1201;
+    top: 0;
+    left: 12px;
+    width: min(376px, calc(100vw - 19px));
+    min-height: 34px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  .map-layers-menu-panel {
+    position: fixed;
+    z-index: 1200;
+    top: 34px;
+    bottom: 0;
+    left: 12px;
+    width: min(376px, calc(100vw - 19px));
+    max-width: none;
+    max-height: none;
+    border-top-right-radius: 0;
+    border-top-left-radius: 0;
+  }
+  .map-layers-menu-panel .great-lakes-control > label:first-child { margin-top: 0; }
+  .map-layers-menu-panel .great-lakes-control .gl-forecast-slider { gap: 0; }
+  .map-layers-menu-panel .great-lakes-control .gl-forecast-slider input[type="range"] { margin-top: 0; }
+  .map-layers-menu-panel .great-lakes-control .great-lakes-timeline { margin-top: 5px; }
+  .map-layers-menu-panel .great-lakes-depth-control { margin-top: 0; }
+  .map-layers-menu-panel .great-lakes-points-options { margin: 5px 0 24px; padding-top: 2px; }
+  .map-layers-menu-panel .great-lakes-points-options label { margin-top: 3px; }
   .fish-map {
     min-height: 360px;
   }

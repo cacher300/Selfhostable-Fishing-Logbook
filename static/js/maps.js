@@ -3,12 +3,12 @@ import { L } from "./vendor.js";
 import { fallbackSpeciesColor, speciesColor } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { spotName, tripWeatherCoordinates } from "./app-normalization.js";
-import { displayStoredMeasurement, formatUnitValue } from "./app-units.js";
+import { displayStoredMeasurement, formatMapUnitValue, savedMapUnitSystem, setMapUnitSystem } from "./app-units.js";
 import { els } from "./app-elements.js";
 import { isUsableCoordinates, isVideoMedia, mediaMarkup, previewImage } from "./app-media.js";
 import { coordinateText } from "./locations.js";
 import { fishingSpotRadiusText } from "./settings-locations.js";
-import { ensureGreatLakesConditions, GREAT_LAKES_MODEL_BOUNDS } from "./great-lakes-conditions.js";
+import { ensureGreatLakesConditions, greatLakesLayerLabel, GREAT_LAKES_MODEL_BOUNDS } from "./great-lakes-conditions.js";
 import { pauseGreatLakesAnimation } from "./great-lakes-animation.js";
 import { positionLabel } from "./cards.js";
 import { addMeasureControl, isMeasuring } from "./measure.js";
@@ -190,9 +190,9 @@ export function syncMapPageBathymetryOverlay(map) {
 export function savedMapBasemap() {
   try {
     const saved = localStorage.getItem(MAP_BASEMAP_STORAGE_KEY);
-    return MAP_BASEMAPS[saved] ? saved : "standard";
+    return MAP_BASEMAPS[saved] ? saved : "dark";
   } catch {
-    return "standard";
+    return "dark";
   }
 }
 
@@ -243,7 +243,7 @@ export function mapDirectionMarker(record, color, fillColor, popupHtml, popupOpt
     bubblingMouseEvents: false,
     pane: "fishMarkers",
     title: `${mapRecordTitle(record)} — trolling ${direction.label}`
-  }).bindPopup(String(popupHtml), popupOptions);
+  }).bindPopup(popupHtml, popupOptions);
 }
 
 export function shouldShowMapDirectionArrow(record, options = {}) {
@@ -253,7 +253,7 @@ export function shouldShowMapDirectionArrow(record, options = {}) {
 export function addMapMarker(layerGroup, record, options = {}) {
   const fillColor = mapRecordColor(record);
   const color = options.colorByYear ? mapYearColor(mapRecordYear(record)) : fillColor;
-  const popupHtml = mapPopupHtml(record);
+  const popupHtml = () => String(mapPopupHtml(record, { showLayer: options.showLayer }));
   const popupOptions = options.autoPanPopup === false ? { autoPan: false } : undefined;
   if (shouldShowMapDirectionArrow(record, options)) {
     const marker = mapDirectionMarker(record, color, fillColor, popupHtml, popupOptions);
@@ -267,7 +267,7 @@ export function addMapMarker(layerGroup, record, options = {}) {
     weight: options.colorByYear ? 3 : 2,
     bubblingMouseEvents: false,
     pane: record.type === "catch" ? "fishMarkers" : "tripMediaMarkers"
-  }).bindPopup(String(popupHtml), popupOptions);
+  }).bindPopup(popupHtml, popupOptions);
   return marker.addTo(layerGroup);
 }
 
@@ -331,15 +331,22 @@ export function setFishMapBasemap(basemap) {
 
 export function ensureFishMapBasemapControl() {
   const control = document.querySelector("#mapBasemap");
-  if (!control || control.dataset.bound) return;
-  control.value = savedMapBasemap();
-  control.dataset.bound = "true";
-  control.addEventListener("change", () => setFishMapBasemap(control.value));
+  if (control && !control.dataset.bound) {
+    control.value = savedMapBasemap();
+    control.dataset.bound = "true";
+    control.addEventListener("change", () => setFishMapBasemap(control.value));
+  }
+  const units = document.querySelector("#mapUnits");
+  if (units && !units.dataset.bound) {
+    units.value = savedMapUnitSystem();
+    units.dataset.bound = "true";
+    units.addEventListener("change", () => setMapUnitSystem(units.value));
+  }
 }
 
 export function mapDepthText(payload = {}) {
-  if (payload.depth_ft !== null && payload.depth_ft !== undefined && Number(payload.depth_ft) !== 0) return `${formatUnitValue(payload.depth_ft, "depth", "ft", { decimals: 1 })} FOW`;
-  if (payload.depth_m !== null && payload.depth_m !== undefined && Number(payload.depth_m) !== 0) return `${formatUnitValue(payload.depth_m, "depth", "m", { decimals: 1 })} FOW`;
+  if (payload.depth_ft !== null && payload.depth_ft !== undefined && Number(payload.depth_ft) !== 0) return `${formatMapUnitValue(payload.depth_ft, "depth", "ft", { decimals: 1 })} FOW`;
+  if (payload.depth_m !== null && payload.depth_m !== undefined && Number(payload.depth_m) !== 0) return `${formatMapUnitValue(payload.depth_m, "depth", "m", { decimals: 1 })} FOW`;
   if (payload.fowCaught) return displayFowValue(payload.fowCaught);
   return "";
 }
@@ -347,8 +354,8 @@ export function mapDepthText(payload = {}) {
 export function catchFowPopupValue(catchItem = {}) {
   const fow = String(catchItem.fowCaught || catchItem.waterDepth || "").trim();
   if (fow) return displayFowValue(fow);
-  if (catchItem.depth_ft !== null && catchItem.depth_ft !== undefined) return formatUnitValue(catchItem.depth_ft, "depth", "ft", { decimals: 1 });
-  if (catchItem.depth_m !== null && catchItem.depth_m !== undefined) return formatUnitValue(catchItem.depth_m, "depth", "m", { decimals: 1 });
+  if (catchItem.depth_ft !== null && catchItem.depth_ft !== undefined) return formatMapUnitValue(catchItem.depth_ft, "depth", "ft", { decimals: 1 });
+  if (catchItem.depth_m !== null && catchItem.depth_m !== undefined) return formatMapUnitValue(catchItem.depth_m, "depth", "m", { decimals: 1 });
   return "";
 }
 
@@ -652,7 +659,7 @@ export function renderMapLegend(records, options = {}) {
   `;
 }
 
-export function mapPopupHtml(record) {
+export function mapPopupHtml(record, options = {}) {
   const { trip, media } = record;
   const title = [mapRecordTitle(record), trip.location].filter(Boolean).join(" at ");
   const fowValue = record.type === "catch" ? catchFowPopupValue(record.catchItem) : "";
@@ -660,11 +667,13 @@ export function mapPopupHtml(record) {
   const assignedSpot = record.type === "catch" ? spotName(record.catchItem?.spotId) : "";
   const direction = mapRecordTrollingDirection(record)?.label || "";
   const method = record.type === "catch" ? mapRecordMethod(record) : "";
+  const layer = record.type === "catch" && options.showLayer ? greatLakesLayerLabel() : "";
   const detailRows = [
     sizeValue ? html`<div class="map-popup-detail"><span class="map-popup-label">Size</span><span class="map-popup-value">${sizeValue}</span></div>` : "",
     fowValue ? html`<div class="map-popup-detail"><span class="map-popup-label">FOW</span><span class="map-popup-value">${fowValue}</span></div>` : "",
     method ? html`<div class="map-popup-detail"><span class="map-popup-label">Method</span><span class="map-popup-value">${method}</span></div>` : "",
     direction ? html`<div class="map-popup-detail"><span class="map-popup-label">Direction</span><span class="map-popup-value">${direction}</span></div>` : "",
+    layer ? html`<div class="map-popup-detail"><span class="map-popup-label">Layer</span><span class="map-popup-value">${layer}</span></div>` : "",
     assignedSpot ? html`<div class="map-popup-detail"><span class="map-popup-label">Spot</span><span class="map-popup-value">${assignedSpot}</span></div>` : ""
   ].filter(Boolean);
   return html`
@@ -903,7 +912,8 @@ export function renderFishMap() {
     bounds.push(point);
     addMapMarker(ui.fishMapMarkers, record, {
       colorByYear: !ui.activeMapYearFilteringHidden,
-      showDirectionArrows: ui.activeMapShowDirectionArrows
+      showDirectionArrows: ui.activeMapShowDirectionArrows,
+      showLayer: true
     });
   });
   spots.forEach((spot) => {

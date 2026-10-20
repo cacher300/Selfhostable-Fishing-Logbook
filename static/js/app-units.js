@@ -25,6 +25,43 @@ export function unitPreference(key) {
   return normalizeUnits(state.settings?.units)[key] || defaultUnits[key] || "";
 }
 
+export const MAP_UNIT_SYSTEM_STORAGE_KEY = "logbook.mapUnits";
+const MAP_UNIT_SYSTEMS = Object.freeze({
+  imperial: Object.freeze({ depth: "ft", waveHeight: "ft", waterTemperature: "F", speed: "mph" }),
+  metric: Object.freeze({ depth: "m", waveHeight: "m", waterTemperature: "C", speed: "kph" }),
+  nautical: Object.freeze({ depth: "fm", waveHeight: "ft", waterTemperature: "F", speed: "kn" })
+});
+
+export function savedMapUnitSystem() {
+  try {
+    const saved = localStorage.getItem(MAP_UNIT_SYSTEM_STORAGE_KEY);
+    if (MAP_UNIT_SYSTEMS[saved]) return saved;
+  } catch { // storage unavailable
+  }
+  const current = normalizeUnits(state.settings?.units);
+  if (current.speed === "kn") return "nautical";
+  if (current.depth === "m" && current.waterTemperature === "C") return "metric";
+  return "imperial";
+}
+
+export function mapUnitPreference(key) {
+  return MAP_UNIT_SYSTEMS[savedMapUnitSystem()][key] || unitPreference(key);
+}
+
+export function setMapUnitSystem(system) {
+  const selected = MAP_UNIT_SYSTEMS[system] ? system : "imperial";
+  try { localStorage.setItem(MAP_UNIT_SYSTEM_STORAGE_KEY, selected); } catch { // storage unavailable
+  }
+  document.dispatchEvent(new CustomEvent("map-units-changed", { detail: { system: selected } }));
+}
+
+export function formatMapUnitValue(value, key, fromUnit, options = {}) {
+  const converted = convertUnitValue(value, fromUnit, mapUnitPreference(key));
+  if (converted === null) return "Not logged";
+  const decimals = options.decimals ?? (Math.abs(converted) < 10 && !Number.isInteger(converted) ? 1 : 0);
+  return `${trimNumber(Math.round(converted * (10 ** decimals)) / (10 ** decimals))} ${unitSymbolForValue(mapUnitPreference(key))}`;
+}
+
 export function unitSymbol(key) {
   const unit = unitPreference(key);
   if (unit === "C" || unit === "F") return `\u00b0${unit}`;
@@ -39,7 +76,7 @@ export function convertUnitValue(value, fromUnit, toUnit) {
   if (fromUnit === "F" && toUnit === "C") return (number - 32) * 5 / 9;
   const conversions = [
     { units: { kph: 1, mph: 1.609344, kn: 1.852 } },
-    { units: { m: 1, ft: 0.3048, km: 1000, mi: 1609.344, in: 0.0254, mm: 0.001, cm: 0.01 } },
+    { units: { m: 1, ft: 0.3048, fm: 1.8288, km: 1000, mi: 1609.344, in: 0.0254, mm: 0.001, cm: 0.01 } },
     { units: { kg: 1, lb: 0.45359237 } },
     { units: { hPa: 1, kPa: 10, inHg: 33.8638866667, mmHg: 1.33322387415 } }
   ];

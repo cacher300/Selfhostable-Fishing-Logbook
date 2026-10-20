@@ -24,7 +24,7 @@ export const PALETTE_STOPS = Object.freeze({
 });
 export const TEMPERATURE_COLOR_RANGE_C = Object.freeze([0, 30]);
 export const TEMPERATURE_COLOR_MODE_STORAGE_KEY = "glc.TemperatureColorMode";
-export const DEFAULT_TEMPERATURE_COLOR_MODE = "fixed";
+export const DEFAULT_TEMPERATURE_COLOR_MODE = "dynamic";
 // How the range is trimmed and how narrow it may get, as the server does for the whole map:
 // a few outlying pixels do not stretch the colours, and model noise in uniform water is not
 // blown up into dramatic colour changes. Current speed starts at still water; waves are fixed below.
@@ -46,12 +46,13 @@ let filterCount = 0;
 
 export function savedTemperatureColorMode() {
   try {
-    return localStorage.getItem(TEMPERATURE_COLOR_MODE_STORAGE_KEY) === "dynamic" ? "dynamic" : DEFAULT_TEMPERATURE_COLOR_MODE;
+    const saved = localStorage.getItem(TEMPERATURE_COLOR_MODE_STORAGE_KEY);
+    return saved === "fixed" || saved === "dynamic" ? saved : DEFAULT_TEMPERATURE_COLOR_MODE;
   } catch { return DEFAULT_TEMPERATURE_COLOR_MODE; }
 }
 
 export function setTemperatureColorMode(mode) {
-  const selected = mode === "dynamic" ? "dynamic" : DEFAULT_TEMPERATURE_COLOR_MODE;
+  const selected = mode === "fixed" || mode === "dynamic" ? mode : DEFAULT_TEMPERATURE_COLOR_MODE;
   try { localStorage.setItem(TEMPERATURE_COLOR_MODE_STORAGE_KEY, selected); } catch { /* storage unavailable */ }
   document.dispatchEvent(new CustomEvent("glc-temperature-color-mode-changed", { detail: { mode: selected } }));
 }

@@ -51,35 +51,45 @@
               <details class="map-layers-menu" name="map-toolbar-menu">
                 <summary>Layers</summary>
                 <div class="map-layers-menu-panel">
-                  <label class="map-basemap-select">
-                    <span>Basemap</span>
-                    <select id="mapBasemap">
-                      <option value="standard">Standard</option>
-                      <option value="dark">Dark</option>
-                      <option value="minimal">Minimal</option>
-                    </select>
-                  </label>
-                  <label class="inline-toggle map-chart-toggle">
-                    <input id="mapNoaaChartsToggle" type="checkbox" checked />
-                    <span>NOAA charts</span>
-                  </label>
-                  <label class="inline-toggle map-chart-toggle">
-                    <input id="mapBathymetryToggle" type="checkbox" />
-                    <span>NOAA depth shading</span>
-                  </label>
-                  <small id="mapBathymetryStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
+                  <div id="greatLakesConditions"></div>
+                  <div class="map-display-row">
+                    <label class="map-display-select">
+                      <span>Map styles</span>
+                      <select id="mapBasemap" aria-label="Map styles">
+                        <option value="standard">Standard</option>
+                        <option value="dark">Dark</option>
+                        <option value="minimal">Minimal</option>
+                      </select>
+                    </label>
+                    <label class="map-display-select">
+                      <span>Units</span>
+                      <select id="mapUnits" aria-label="Units">
+                        <option value="imperial" selected>Imperial</option>
+                        <option value="metric">Metric</option>
+                        <option value="nautical">Nautical</option>
+                      </select>
+                    </label>
+                  </div>
                   <label class="inline-toggle map-chart-toggle">
                     <input id="mapDepthContoursToggle" type="checkbox" />
-                    <span>NOAA depth contours</span>
+                    <span>Show depth contours</span>
                   </label>
                   <small id="mapDepthContoursStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
-                  <div id="greatLakesConditions"></div>
+                  <label class="inline-toggle map-chart-toggle">
+                    <input id="mapBathymetryToggle" type="checkbox" />
+                    <span>Show depth shading</span>
+                  </label>
+                  <small id="mapBathymetryStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
                   <fieldset class="great-lakes-points-options">
                     <legend>Data points</legend>
                     <label><input type="checkbox" data-gl-stations /> <span>Measurement stations</span></label>
                     <label><input type="checkbox" data-gl-model-points /> <span>NOAA Model calculation points</span></label>
                     <p data-gl-points-status role="status" aria-live="polite"></p>
                   </fieldset>
+                  <label class="inline-toggle map-chart-toggle">
+                    <input id="mapNoaaChartsToggle" type="checkbox" checked />
+                    <span>NOAA charts</span>
+                  </label>
                 </div>
               </details>
             </div>

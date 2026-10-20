@@ -36,6 +36,8 @@ export const predefinedFieldGroups = [
   { key: "setupLineSides", label: "Setup line sides", choice: true }
 ];
 
+let activeCategoryQuery = "";
+
 export function predefinedFieldItems(group) {
   return group.choice ? optionChoices(group.key) : optionLabels(group.key);
 }
@@ -52,7 +54,7 @@ export function renderPredefinedFieldSettings() {
   setHtml(els.predefinedFieldSettings, joinHtml(predefinedFieldGroups.map((group) => {
     const items = draft[group.key] || [];
     return html`
-      <details class="predefined-field-group" data-predefined-key="${group.key}" data-settings-draft-root="predefinedFieldsDraft">
+      <details class="predefined-field-group" data-predefined-key="${group.key}" data-settings-draft-root="predefinedFieldsDraft" data-category-search="${[group.label, ...items.map((item) => predefinedFieldValue(item))].join(" ").toLocaleLowerCase()}">
         <summary class="predefined-field-summary">
           <span>
             <strong>${group.label}</strong>
@@ -76,6 +78,7 @@ export function renderPredefinedFieldSettings() {
       </details>
     `;
   }), ""));
+  filterPredefinedFieldSettings();
 }
 
 function stateLikePredefinedFields() {
@@ -87,6 +90,30 @@ export function updatePredefinedFieldCount(group) {
   const count = group.querySelectorAll(".predefined-option-row").length;
   const label = group.querySelector(".predefined-field-count");
   if (label) label.textContent = `${count} ${count === 1 ? "item" : "items"}`;
+}
+
+export function syncPredefinedFieldSummary(group) {
+  if (!group) return;
+  const label = group.querySelector(".predefined-field-summary strong")?.textContent || "";
+  const values = [...group.querySelectorAll(".predefined-option-label")]
+    .map((input) => input.value.trim())
+    .filter(Boolean);
+  const preview = group.querySelector(".predefined-field-summary small");
+  if (preview) preview.textContent = `${values.slice(0, 3).join(", ")}${values.length > 3 ? "..." : ""}`;
+  group.setAttribute("data-category-search", [label, ...values].join(" ").toLocaleLowerCase());
+}
+
+export function filterPredefinedFieldSettings(query = activeCategoryQuery) {
+  activeCategoryQuery = String(query).trim().toLocaleLowerCase();
+  const groups = [...(els.predefinedFieldSettings?.querySelectorAll(".predefined-field-group") || [])];
+  let visibleCount = 0;
+  groups.forEach((group) => {
+    const matches = !activeCategoryQuery || (group.getAttribute("data-category-search") || "").includes(activeCategoryQuery);
+    group.hidden = !matches;
+    if (matches) visibleCount += 1;
+  });
+  const emptyState = document.querySelector("#categorySearchEmpty");
+  if (emptyState) emptyState.hidden = !activeCategoryQuery || visibleCount > 0;
 }
 
 export async function savePredefinedFieldSettings(options = {}) {
@@ -146,7 +173,7 @@ function renderPredefinedFieldSettingsFromDraft() {
   setHtml(els.predefinedFieldSettings, joinHtml(predefinedFieldGroups.map((group) => {
     const items = draft[group.key] || [];
     return html`
-      <details class="predefined-field-group" data-predefined-key="${group.key}" data-settings-draft-root="predefinedFieldsDraft" open>
+      <details class="predefined-field-group" data-predefined-key="${group.key}" data-settings-draft-root="predefinedFieldsDraft" data-category-search="${[group.label, ...items.map((item) => predefinedFieldValue(item))].join(" ").toLocaleLowerCase()}" open>
         <summary class="predefined-field-summary">
           <span><strong>${group.label}</strong><small>${items.slice(0, 3).map((item) => predefinedFieldValue(item)).join(", ")}${items.length > 3 ? "..." : ""}</small></span>
           <span class="predefined-field-count">${items.length} ${items.length === 1 ? "item" : "items"}</span>
@@ -165,6 +192,7 @@ function renderPredefinedFieldSettingsFromDraft() {
       </details>
     `;
   }), ""));
+  filterPredefinedFieldSettings();
 }
 
 export function renderChopRangeSettings() {

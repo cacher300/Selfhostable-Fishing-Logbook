@@ -3,12 +3,11 @@
 // cooling eases) shaded.
 import { html, joinHtml, setHtml } from "./html.js";
 import { friendlyTime, greatLakesDepthLabel, greatLakesDepthValueLabel, historyTimeLabel, waterTemperatureLabel } from "./great-lakes-conditions.js";
-import { convertUnitValue, unitPreference } from "./app-units.js";
+import { convertUnitValue, mapUnitPreference as unitPreference } from "./app-units.js";
 
-const FEET_PER_METER = 3.28084;
 const MODEL_LAKES = { LSOFS: "Lake Superior", LMHOFS: "Lakes Michigan and Huron", LEOFS: "Lake Erie", LOOFS: "Lake Ontario" };
 // Zoom presets in the display unit; only those shallower than the water are offered.
-const ZOOM_PRESETS = { ft: [50, 100, 200], m: [15, 30, 60] };
+const ZOOM_PRESETS = { ft: [50, 100, 200], fm: [25, 50, 100], m: [15, 30, 60] };
 // Less variation than this through the whole column draws as a straight line (0.5 °F in
 // either unit; the server never finds a thermocline in a column that varies less).
 const UNIFORM_SPAN = { F: 0.5, C: 0.5 / 1.8 };
@@ -17,14 +16,14 @@ let currentProfile = null;
 let chosenZoom = null; // null = automatic; 0 = whole column; otherwise a preset depth in display units.
 
 function depthUnit() {
-  return unitPreference("depth") === "ft" ? "ft" : "m";
+  return unitPreference("depth");
 }
 
 function temperatureUnit() {
   return unitPreference("waterTemperature") === "F" ? "F" : "C";
 }
 
-const toDisplayDepth = (meters) => depthUnit() === "ft" ? meters * FEET_PER_METER : meters;
+const toDisplayDepth = (meters) => convertUnitValue(meters, "m", depthUnit());
 // Plotted at the 0.1? the readings are shown with, so levels that read the same
 // line up vertically instead of drifting with model noise far below that.
 const toDisplayTemperature = (celsius) => Math.round(convertUnitValue(celsius, "C", temperatureUnit()) * 10) / 10;
@@ -68,7 +67,7 @@ export function temperatureAtDepth(values, depthMeters) {
 // The automatic zoom frames the thermocline with room below it; mixed or
 // shallow water shows the whole column.
 export function zoomOptions(maxDepthMeters, unit = depthUnit()) {
-  const maxDisplay = unit === "ft" ? maxDepthMeters * FEET_PER_METER : maxDepthMeters;
+  const maxDisplay = convertUnitValue(maxDepthMeters, "m", unit);
   return ZOOM_PRESETS[unit].filter((preset) => preset < maxDisplay * 0.8);
 }
 
@@ -84,7 +83,7 @@ export function thermoclineBand(thermocline) {
 export function depthRangeLabel(band) {
   if (!band) return "";
   const top = greatLakesDepthLabel(band.top), bottom = greatLakesDepthLabel(band.bottom);
-  return top === bottom ? top : `${top.replace(/\s*(ft|m)$/, "")}–${bottom}`;
+  return top === bottom ? top : `${top.replace(/\s*(fm|ft|m)$/, "")}–${bottom}`;
 }
 
 // "11 ft thick"; a band thinner than the depth units read is "a thin layer".
@@ -103,7 +102,7 @@ export function automaticZoom(profile, unit = depthUnit()) {
   const band = thermoclineBand(profile.thermocline);
   if (!band) return 0;
   // The whole band, with room below it.
-  const wanted = (unit === "ft" ? FEET_PER_METER : 1) * Math.max(band.top * 1.8, band.bottom * 1.25);
+  const wanted = convertUnitValue(Math.max(band.top * 1.8, band.bottom * 1.25), "m", unit);
   return zoomOptions(maxDepth, unit).find((preset) => preset >= wanted) || 0;
 }
 

@@ -1,7 +1,7 @@
 import { html, joinHtml } from "./html.js";
 import { L } from "./vendor.js";
 import { ui } from "./app-state.js";
-import { convertUnitValue, unitPreference } from "./app-units.js";
+import { convertUnitValue, mapUnitPreference as unitPreference } from "./app-units.js";
 import {
   TEMPERATURE_COLOR_STOPS, currentDirectionLabel, currentProfileDepthLabel, currentSpeedLabel,
   greatLakesControlValue, greatLakesHistoryMs, greatLakesModelsForView, greatLakesTimeParams, historyTimeLabel,

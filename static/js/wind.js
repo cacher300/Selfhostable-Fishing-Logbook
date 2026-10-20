@@ -1,5 +1,5 @@
 import { readingHtml } from "./cards.js";
-import { formatUnitValue } from "./app-units.js";
+import { formatMapUnitValue } from "./app-units.js";
 import { createParticleLayer, savedWindParticleColor, windParticleColorParts } from "./great-lakes-conditions.js";
 import { windParticleFields } from "./wind-fields.js";
 
@@ -15,7 +15,7 @@ export function windEnabled() {
 }
 
 export function windSpeedLabel(value) {
-  return formatUnitValue(value * 3.6, "speed", "kph", { decimals: 1 });
+  return formatMapUnitValue(value * 3.6, "speed", "kph", { decimals: 1 });
 }
 
 export function windReading(value) {
