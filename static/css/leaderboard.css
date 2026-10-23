@@ -13,7 +13,7 @@
   align-items: center;
   gap: 16px;
   min-width: 0;
-  padding: 15px 22px;
+  padding: 10px 22px;
   border-bottom: 1px solid var(--line);
   animation: leaderboard-row-in 280ms both;
   animation-delay: var(--leaderboard-delay, 0ms);
@@ -43,7 +43,7 @@
 
 .leaderboard-identity {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: 56px minmax(0, 1fr);
   align-items: center;
   gap: 11px;
   min-width: 0;
@@ -78,8 +78,8 @@
 
 .leaderboard-avatar {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
   overflow: hidden;
   place-items: center;
   border: 1px solid var(--chip-line);
@@ -120,7 +120,7 @@
 
 .leaderboard-metrics {
   display: grid;
-  grid-template-columns: repeat(5, minmax(72px, 1fr));
+  grid-template-columns: repeat(6, minmax(66px, 1fr));
   gap: 8px;
 }
 
@@ -160,6 +160,35 @@
 .leaderboard-empty span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.leaderboard-filters {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.leaderboard-person-filter {
+  display: grid;
+  width: min(280px, 100%);
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.leaderboard-person-filter select {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-soft);
+  color: var(--text);
+  font: inherit;
+}
+
+.leaderboard-person-filter select:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
 }
 
 .stats-leaderboard {
@@ -225,7 +254,7 @@
 .stats-leaderboard-board .leaderboard-row {
   grid-template-columns: 28px minmax(120px, 1fr) minmax(264px, 0.9fr);
   gap: 9px;
-  padding: 11px 12px;
+  padding: 8px 14px;
 }
 
 .stats-leaderboard-board .leaderboard-performance {
@@ -234,11 +263,11 @@
 }
 
 .stats-leaderboard-board .leaderboard-metrics {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
 }
 
-.stats-leaderboard-board .leaderboard-metrics > div:nth-child(n + 5) {
+.stats-leaderboard-board .leaderboard-metrics > div:nth-child(n + 7) {
   display: none;
 }
 
@@ -282,6 +311,19 @@
     gap: 10px;
   }
 
+  .leaderboard-identity {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .leaderboard-identity--text-only {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .leaderboard-avatar {
+    width: 52px;
+    height: 52px;
+  }
+
   .leaderboard-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 11px;
@@ -293,6 +335,14 @@
 
   .stats-leaderboard {
     padding: 14px;
+  }
+
+  .leaderboard-filters {
+    justify-content: stretch;
+  }
+
+  .leaderboard-person-filter {
+    width: 100%;
   }
 
   .stats-leaderboard-board .leaderboard-metrics {

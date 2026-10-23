@@ -273,6 +273,17 @@ export function renderFilters() {
   });
   const selectedYear = els.yearFilter.value || "All years";
   setHtml(els.yearFilter, joinHtml(years.map((year) => html`<option ${String(year) === selectedYear ? "selected" : ""}>${year}</option>`), ""));
+
+  if (els.monthFilter) {
+    const months = ["All months", ...Array.from({ length: 12 }, (_, index) => (
+      new Intl.DateTimeFormat(undefined, { month: "long" }).format(new Date(2020, index, 1))
+    ))];
+    const selectedMonth = els.monthFilter.value || "All months";
+    setHtml(els.monthFilter, joinHtml(months.map((month, index) => {
+      const value = index === 0 ? "All months" : String(index);
+      return html`<option value="${value}" ${value === selectedMonth ? "selected" : ""}>${month}</option>`;
+    }), ""));
+  }
 }
 
 export function renderStatsMethodFilter() {
@@ -316,9 +327,11 @@ export function renderStatsMethodFilter() {
     state.trips.flatMap((trip) => trip.people || [])
   ).map((person) => person.name)];
   if (!people.includes(activeStatsFilters.person)) activeStatsFilters.person = "All people";
-  setHtml(els.statsPersonFilter, joinHtml(people.map((item) => (
+  const peopleOptions = joinHtml(people.map((item) => (
     html`<option value="${item}" ${item === activeStatsFilters.person ? "selected" : ""}>${item}</option>`
-  )), ""));
+  )), "");
+  setHtml(els.statsPersonFilter, peopleOptions);
+  setHtml(els.leaderboardPersonFilter, peopleOptions);
 
   const locations = ["All locations", ...new Set([...locationNames(), ...state.trips.map((trip) => trip.location)].filter(Boolean))];
   if (!locations.includes(activeStatsFilters.location)) activeStatsFilters.location = "All locations";
@@ -374,6 +387,7 @@ export function filteredTrips() {
   const target = els.targetFilter.value;
   const method = els.methodFilter.value;
   const year = els.yearFilter.value;
+  const month = els.monthFilter?.value || "All months";
 
   const trips = state.trips.filter((trip) => {
     const haystack = [
@@ -403,8 +417,10 @@ export function filteredTrips() {
     const matchesQuery = !query || haystack.includes(query);
     const matchesTarget = target === "All targets" || trip.targetSpecies === target;
     const matchesMethod = method === "All methods" || trip.method === method;
-    const matchesYear = year === "All years" || String(new Date(`${trip.date}T12:00:00`).getFullYear()) === year;
-    return matchesQuery && matchesTarget && matchesMethod && matchesYear;
+    const tripDate = new Date(`${trip.date}T12:00:00`);
+    const matchesYear = year === "All years" || String(tripDate.getFullYear()) === year;
+    const matchesMonth = month === "All months" || String(tripDate.getMonth() + 1) === month;
+    return matchesQuery && matchesTarget && matchesMethod && matchesYear && matchesMonth;
   });
 
   return trips.sort(compareTripsByActiveSort);

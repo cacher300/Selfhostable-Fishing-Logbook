@@ -2,7 +2,7 @@ import { createId } from "./app-defaults.js";
 import { activePersonalBestsFilters, activeStatsFilters, returnToTripDialog, saveMapNoaaChartsPreference, state, ui } from "./app-state.js";
 import { addListValue } from "./actions.js";
 import { els } from "./app-elements.js";
-import { finishMediaEditSession } from "./app-media.js";
+import { canonicalMediaRef, finishMediaEditSession } from "./app-media.js";
 import { clearActiveCatchLocation, deleteActiveLocationFromDialog, handleLocationManagerDragEnd, handleLocationManagerDragOver, handleLocationManagerDragStart, handleLocationManagerDrop, openLocationDialog, renderLocationManager, saveCatchLocationFromPicker, saveLocationPin } from "./locations.js";
 import { markTripWaterTemperatureManual, resyncTripWeather } from "./location-weather.js";
 import { exportArchive, importArchive, scheduleSettingsAutosave, setSettingsSaveStatus, settingsUi } from "./settings-core.js";
@@ -11,8 +11,9 @@ import { openSavedSetupPicker } from "./saved-setups.js";
 import { cancelChopRangeEditing, filterPredefinedFieldSettings, savePredefinedFieldSettings, syncPredefinedFieldSummary, toggleChopRangeEditing } from "./settings-fields.js";
 import { collectFishingSpotSettings, collectPrivatePhotoLocationSettings, fishingSpotDefaultCoordinates, fishingSpotRadiusMeters, fishingSpotRadiusText, nextFishingSpotName, privateLocationDefaultCoordinates, privateLocationRadiusMeters, privateLocationRadiusText, privatePhotoLocations, saveFishingSpots, savePrivatePhotoLocations, updateFishingSpotRadiusControl, updatePrivateLocationRadiusControl } from "./settings-locations.js";
 import { renderTrips, tripSortFromSelect } from "./dashboard.js";
-import { addNotePhotos, addPhotosToQueue, openPhotoQueue, restoreDialogAfterPhotoQueue } from "./photos.js";
-import { addPersonRow, closeTripDialog, focusTripValidationField, getValue, isTripFormDirty, openTripDialog, syncTripContinuationGate, updateTripRatingLabel } from "./trip-editor.js";
+import { addNotePhotos, addPhotosToQueue, openPhotoQueue, restoreDialogAfterPhotoQueue, uploadImageFile } from "./photos.js";
+import { addPersonRow, closeTripDialog, focusTripValidationField, getValue, isTripFormDirty, markTripFormChanged, openTripDialog, setPersonPhotoForRow, syncTripContinuationGate, updateTripRatingLabel } from "./trip-editor.js";
+import { updateTripRow } from "./draft-binding.js";
 import { addCatchRow, addLostFishRow, addTripGearRow, expandAndRevealTripRow, importLastTrollingSpread } from "./trip-rows.js";
 import { deleteActiveTrip, saveTrip, saveTripAsDraft } from "./trip-save.js";
 import { autofillCatchesFromPhotoQueue } from "./photo-queue-autofill.js";
@@ -99,6 +100,33 @@ export function syncStatsUrl() {
 
 export function setup() {
   els.newTripButton.addEventListener("click", () => openTripDialog());
+
+  els.personRows.addEventListener("click", (event) => {
+    const button = event.target.closest(".person-photo-button");
+    if (!button) return;
+    button.closest(".person-row")?.querySelector(".person-photo-input")?.click();
+  });
+  els.personRows.addEventListener("change", async (event) => {
+    const input = event.target.closest(".person-photo-input");
+    const file = input?.files?.[0];
+    const row = input?.closest(".person-row");
+    if (!file || !row) return;
+    const button = row.querySelector(".person-photo-button");
+    button.disabled = true;
+    try {
+      if (!file.type.startsWith("image/")) throw new Error("Choose an image file for a person photo.");
+      const photo = canonicalMediaRef(await uploadImageFile(file, "people"));
+      if (!photo) throw new Error("The person photo could not be saved.");
+      setPersonPhotoForRow(row, photo);
+      updateTripRow("people", row.dataset.personId, { photo });
+      markTripFormChanged();
+    } catch (error) {
+      alert(error.message || "The person photo could not be uploaded.");
+    } finally {
+      input.value = "";
+      button.disabled = false;
+    }
+  });
 
   els.tripForm.addEventListener("submit", saveTrip);
   els.tripDialog.addEventListener("input", (event) => {
@@ -599,9 +627,17 @@ export function setup() {
   ].forEach(([key, control]) => {
     control.addEventListener("change", () => {
       activeStatsFilters[key] = control.value;
+      if (key === "person" && els.leaderboardPersonFilter) els.leaderboardPersonFilter.value = control.value;
       syncStatsUrl();
       renderAdvancedStats();
     });
+  });
+
+  els.leaderboardPersonFilter?.addEventListener("change", () => {
+    activeStatsFilters.person = els.leaderboardPersonFilter.value;
+    if (els.statsPersonFilter) els.statsPersonFilter.value = els.leaderboardPersonFilter.value;
+    syncStatsUrl();
+    renderAdvancedStats();
   });
 
   els.mapSpeciesFilter.addEventListener("change", () => {
@@ -718,7 +754,7 @@ export function setup() {
     setGallerySelectionMode(false);
   });
 
-  [els.searchInput, els.targetFilter, els.methodFilter, els.yearFilter].forEach((control) => {
+  [els.searchInput, els.targetFilter, els.methodFilter, els.yearFilter, els.monthFilter].filter(Boolean).forEach((control) => {
     control.addEventListener("input", () => {
       renderTrips();
     });

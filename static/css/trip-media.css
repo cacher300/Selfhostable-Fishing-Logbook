@@ -58,6 +58,21 @@
   padding-left: 16px;
 }
 
+.person-photo-preview {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--panel-soft);
+}
+
+.person-photo-button {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
 .note-photo-grid {
   display: flex;
   flex-wrap: wrap;

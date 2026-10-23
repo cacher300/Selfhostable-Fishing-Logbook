@@ -2,6 +2,7 @@ const ALLOWED_MEDIA_CATEGORIES = new Set([
   "catch-photos",
   "trip-photos",
   "lures",
+  "people",
   "flashers",
   "reels",
   "rods",

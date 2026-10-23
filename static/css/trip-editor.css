@@ -2156,6 +2156,10 @@
   stroke-width: 2;
 }
 
+.probe-catch-depth-marker[data-summary-catch-index] {
+  cursor: pointer;
+}
+
 .probe-catch-depth-connector {
   stroke: var(--probe-catch-color, #f0b35b);
   stroke-dasharray: 2 3;
@@ -2164,6 +2168,11 @@
 }
 
 .probe-catch-depth-points circle:focus {
+  outline: 2px solid var(--probe-catch-color, #f0b35b);
+  outline-offset: 3px;
+}
+
+.probe-catch-depth-marker[data-summary-catch-index]:focus-visible {
   outline: 2px solid var(--probe-catch-color, #f0b35b);
   outline-offset: 3px;
 }

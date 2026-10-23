@@ -26,7 +26,7 @@ export function getExifAscii(view, offset, count) {
 export async function uploadImageFile(file, category, metadata = {}) {
   const scope = {
     "trip-photos": "trip", "catch-photos": "trip",
-    lures: "lure", flashers: "flasher", reels: "reel", rods: "rod"
+    people: "trip", lures: "lure", flashers: "flasher", reels: "reel", rods: "rod"
   }[category];
   const session = scope ? mediaEditSession(scope) : null;
   if (scope && !session) throw new Error("Open an editor before uploading media.");

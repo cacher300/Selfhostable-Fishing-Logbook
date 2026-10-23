@@ -7,6 +7,7 @@ export const constants = {
     "catch-photos",
     "flashers",
     "lures",
+    "people",
     "queue",
     "reels",
     "rods",

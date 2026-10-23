@@ -928,6 +928,12 @@ export function setup() {
       if (trip) openTripSummary(trip);
       return;
     }
+    const probeCatchMarker = event.target.closest?.(".probe-catch-depth-marker[data-summary-catch-index]");
+    if (probeCatchMarker && ["Enter", " "].includes(event.key)) {
+      event.preventDefault();
+      openSummaryCatchDetail(Number(probeCatchMarker.dataset.summaryCatchIndex), undefined, probeCatchMarker.dataset.summaryCatchType);
+      return;
+    }
     const catchDetailCard = event.target.closest?.(".timeline-catch-card[data-summary-catch-index]");
     if (!catchDetailCard || !["Enter", " "].includes(event.key)) return;
     event.preventDefault();

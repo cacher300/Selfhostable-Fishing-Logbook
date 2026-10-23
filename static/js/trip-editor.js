@@ -6,7 +6,7 @@ import { findLaunchByIdOrName, findLocationByIdOrName, generatedTripTitle, optio
 import { convertUnitValue, explicitMeasurementUnit, unitPreference, unitSymbol } from "./app-units.js";
 import { deleteTrip } from "./actions.js";
 import { els } from "./app-elements.js";
-import { beginMediaEditSession, cleanupDeletedMedia, isUsableCoordinates, mediaReferenceKeys } from "./app-media.js";
+import { beginMediaEditSession, cleanupDeletedMedia, isUsableCoordinates, mediaReferenceKeys, previewImage } from "./app-media.js";
 import { LOCATION_FOCUS_ZOOM, coordinateText, populateLaunchSelect, populateLocationSelect, selectedTripLocationCoordinates, tripLocationCoordinates } from "./locations.js";
 import { refreshTripWaterTemperature, renderWeatherSummary, resetTripWaterTemperatureAutofill, scheduleTripWeatherPreview, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel } from "./location-weather.js";
 import { syncUnitLabels } from "./settings.js";
@@ -813,7 +813,10 @@ export function probeCatchDepthEntry(record = {}) {
 
 export function probeCatchDepths(catches = []) {
   return (Array.isArray(catches) ? catches : [])
-    .map(probeCatchDepthEntry)
+    .map((record, catchIndex) => {
+      const entry = probeCatchDepthEntry(record);
+      return entry ? { ...entry, catchIndex } : null;
+    })
     .filter((entry) => entry && Number.isFinite(entry.depthFeet))
     .sort((a, b) => a.depthFeet - b.depthFeet);
 }
@@ -1016,8 +1019,11 @@ export function renderProbeTemperatureProfileChartMarkup(readings, options = {})
     const spread = group.length > 1 ? (groupIndex - ((group.length - 1) / 2)) * 11 : 0;
     const markerX = Math.max(plot.left + 6, Math.min(width - plot.right - 6, x(profileTemperature) + spread));
     const color = probeCatchColor(species, speciesList);
+    const catchDetailsAttributes = options.catchDetails && Number.isInteger(entry.catchIndex)
+      ? html`data-summary-catch-index="${entry.catchIndex}" data-summary-catch-type="catch" role="button" aria-label="Open details for ${species} catch"`
+      : "";
     return html`<line class="probe-catch-depth-connector" x1="${x(profileTemperature).toFixed(2)}" y1="${y(depthFeet).toFixed(2)}" x2="${markerX.toFixed(2)}" y2="${y(depthFeet).toFixed(2)}" style="--probe-catch-color: ${color}" aria-hidden="true" />
-      <circle class="probe-catch-depth-marker" data-chart-point="catch" data-chart-temperature="${profileTemperature}" data-chart-depth="${depthFeet}" cx="${markerX.toFixed(2)}" cy="${y(depthFeet).toFixed(2)}" r="6" tabindex="0" style="--probe-catch-color: ${color}"><title>${label}</title></circle>`;
+      <circle class="probe-catch-depth-marker" data-chart-point="catch" data-chart-temperature="${profileTemperature}" data-chart-depth="${depthFeet}" ${catchDetailsAttributes} cx="${markerX.toFixed(2)}" cy="${y(depthFeet).toFixed(2)}" r="6" tabindex="0" style="--probe-catch-color: ${color}"><title>${label}</title></circle>`;
   }), "");
   const axisUnit = unitSymbol("waterTemperature");
   const depthUnit = unitSymbol("depth");
@@ -1025,11 +1031,10 @@ export function renderProbeTemperatureProfileChartMarkup(readings, options = {})
   const descriptionId = `${options.idPrefix || "probeTemperatureChart"}Description`;
   const catchDescription = catchDepths.length ? ` ${catchDepths.length} fish catch marker${catchDepths.length === 1 ? "" : "s"} appear on the temperature profile at their recorded depth.` : "";
   return html`
-    <svg class="probe-temperature-chart-svg" viewBox="0 0 ${width} ${height}" data-chart-scale-min="${scale.min}" data-chart-scale-max="${scale.max}" data-chart-depth-max="${depthMax}" data-chart-plot-left="${plot.left}" data-chart-plot-top="${plot.top}" data-chart-plot-width="${plotWidth}" data-chart-plot-height="${plotHeight}" role="img" aria-labelledby="${titleId} ${descriptionId}">
+    <svg class="probe-temperature-chart-svg" viewBox="0 0 ${width} ${height}" data-chart-scale-min="${scale.min}" data-chart-scale-max="${scale.max}" data-chart-depth-max="${depthMax}" data-chart-plot-left="${plot.left}" data-chart-plot-top="${plot.top}" data-chart-plot-width="${plotWidth}" data-chart-plot-height="${plotHeight}" role="${options.catchDetails ? "group" : "img"}" aria-labelledby="${titleId} ${descriptionId}">
       <title id="${titleId}">Probe temperature profile</title>
       <desc id="${descriptionId}">Water temperature in ${axisUnit} plotted against depth in ${depthUnit}; depth increases downward.${catchDescription}</desc>
       <g class="probe-temperature-grid-lines">${horizontalGrid}${verticalGrid}</g>
-      <line class="probe-temperature-axis" x1="${plot.left}" y1="${plot.top}" x2="${plot.left}" y2="${height - plot.bottom}" />
       <line class="probe-temperature-axis" x1="${plot.left}" y1="${plot.top}" x2="${width - plot.right}" y2="${plot.top}" />
       <g class="probe-temperature-axis-labels">${xLabels}${yLabels}</g>
       <text class="probe-temperature-axis-title" x="${width / 2}" y="${height - 7}" text-anchor="middle">Temperature (${axisUnit})</text>
@@ -1131,9 +1136,11 @@ export function addPersonRow(person = {}, { editNew = false } = {}) {
   node.dataset.personId = person.id || createId();
   node.dataset.rowId = node.dataset.personId;
   if (ui.tripDraft && !ui.tripDraftHydrating && !ui.tripDraft.people.some((item) => item.id === node.dataset.personId)) {
-    ui.tripDraft.people.push({ id: node.dataset.personId, name: person.name || "" });
+    ui.tripDraft.people.push({ id: node.dataset.personId, name: person.name || "", ...(person.photo ? { photo: person.photo } : {}) });
   }
   node.querySelector(".person-name").value = person.name || "";
+  const savedPerson = state.people.find((item) => item.id === node.dataset.personId);
+  setPersonPhotoForRow(node, savedPerson?.photo || person.photo || null);
   els.personRows.append(node);
   applyTripDraftBindings(node);
   populatePersonSelects();
@@ -1144,6 +1151,21 @@ export function addPersonRow(person = {}, { editNew = false } = {}) {
     input.classList.remove("hidden");
     node.dataset.focusPersonName = "true";
   }
+}
+
+export function setPersonPhotoForRow(row, photo) {
+  row.__personPhoto = photo || null;
+  const preview = row.querySelector(".person-photo-preview");
+  const source = previewImage(photo);
+  if (source) {
+    preview.src = source;
+    preview.classList.remove("hidden");
+  } else {
+    preview.removeAttribute("src");
+    preview.classList.add("hidden");
+  }
+  const button = row.querySelector(".person-photo-button");
+  if (button) button.textContent = source ? "Change photo" : "Add photo";
 }
 
 export function collectPeople() {
@@ -1162,12 +1184,14 @@ export function personFromRow(row) {
     return {
       ...existing,
       id: existing?.id || row.dataset.personId || selected,
-      name: existing?.name || select.selectedOptions[0]?.textContent?.trim() || ""
+      name: existing?.name || select.selectedOptions[0]?.textContent?.trim() || "",
+      ...(row.__personPhoto ? { photo: row.__personPhoto } : {})
     };
   }
   return {
     id: row.dataset.personId || createId(),
-    name: input?.value.trim() || ""
+    name: input?.value.trim() || "",
+    ...(row.__personPhoto ? { photo: row.__personPhoto } : {})
   };
 }
 
@@ -1179,7 +1203,7 @@ export function collectNewPeople({ excludeRow = null } = {}) {
       const input = row.querySelector(".person-name");
       if (select?.value !== "__new__") return null;
       const name = input?.value.trim();
-      return name ? { id: row.dataset.personId || createId(), name } : null;
+      return name ? { id: row.dataset.personId || createId(), name, ...(row.__personPhoto ? { photo: row.__personPhoto } : {}) } : null;
     })
     .filter(Boolean);
 }

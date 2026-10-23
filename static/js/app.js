@@ -6,7 +6,7 @@ import { applyThemePreference, renderSettings } from "./settings.js";
 import { applyStartupSavedSetup } from "./saved-setups.js";
 import { renderAll } from "./dashboard.js";
 import { renderExpeditions } from "./expeditions.js";
-import { populatePersonSelects } from "./trip-editor.js";
+import { populatePersonSelects, setPersonPhotoForRow } from "./trip-editor.js";
 import { applyStartupTrollingSpread, updateAllRowSummaries, updateCatchDetailsUnknown } from "./trip-rows.js";
 import { renderGearLibrary } from "./gear-inventory.js";
 import { renderFishMap } from "./maps.js";
@@ -144,6 +144,7 @@ export function setup() {
       const previousPersonId = row.dataset.personId || "";
       if (event.target.value === "__new__") {
         row.dataset.personId = createId();
+        setPersonPhotoForRow(row, null);
         input.classList.remove("hidden");
         input.focus();
         updateTripRow("people", row.dataset.personId, { id: row.dataset.personId, name: input.value || "" });
@@ -151,8 +152,10 @@ export function setup() {
         row.dataset.personId = event.target.value || createId();
         input.value = "";
         input.classList.add("hidden");
-        const person = state.people.find((item) => item.id === event.target.value);
-        updateTripRow("people", row.dataset.personId, { id: row.dataset.personId, name: person?.name || "" });
+        const person = state.people.find((item) => item.id === event.target.value)
+          || ui.tripDraft?.people?.find((item) => item.id === event.target.value);
+        setPersonPhotoForRow(row, person?.photo || null);
+        updateTripRow("people", row.dataset.personId, { id: row.dataset.personId, name: person?.name || "", ...(person?.photo ? { photo: person.photo } : {}) });
       }
       if (previousPersonId && previousPersonId !== row.dataset.personId) {
         const index = ui.tripDraft?.people?.findIndex((person) => person.id === previousPersonId) ?? -1;

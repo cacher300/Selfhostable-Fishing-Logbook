@@ -1,6 +1,6 @@
 .controls {
   display: grid;
-  grid-template-columns: minmax(260px, 1.25fr) minmax(180px, 0.9fr) minmax(160px, 0.75fr) minmax(140px, 0.65fr) minmax(170px, 0.75fr);
+  grid-template-columns: minmax(220px, 1.25fr) minmax(155px, 0.9fr) minmax(135px, 0.75fr) minmax(120px, 0.65fr) minmax(135px, 0.7fr) minmax(150px, 0.75fr);
   gap: 12px;
   margin-bottom: 16px;
   padding: 16px;

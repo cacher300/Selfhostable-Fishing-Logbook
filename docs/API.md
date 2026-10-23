@@ -86,7 +86,7 @@ Streams the bundled NOAA bathymetry contours for one of Erie, Huron, Michigan, O
 
 ## Uploads and Media
 
-Allowed categories: `catch-photos`, `trip-photos`, `lures`, `flashers`, `reels`, `rods`, `queue`.
+Allowed categories: `catch-photos`, `trip-photos`, `lures`, `flashers`, `reels`, `rods`, `people`, `queue`. The `people` category stores optional person portrait photos.
 
 Allowed image extensions: AVIF, GIF, HEIC/HEIF, JPEG, PNG, WebP. Allowed video extensions: MOV, MP4/M4V, WebM, AVI, MPEG/MPG, and 3GP. Extension matching is case-normalized. The app does not enforce an application-level upload size limit.
 

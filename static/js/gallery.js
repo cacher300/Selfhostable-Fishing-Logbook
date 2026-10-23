@@ -15,6 +15,7 @@ export const galleryCategoryLabels = {
   "catch-photos": "Catch photos",
   "trip-photos": "Trip photos",
   lures: "Lures",
+  people: "People",
   flashers: "Flashers",
   reels: "Reels",
   rods: "Rods",
@@ -28,6 +29,7 @@ export const galleryQuickFilters = [
   { value: "trip-photos", label: "Trip Photos" },
   { value: "catch-photos", label: "Catch Photos" },
   { value: "lures", label: "Lures" },
+  { value: "people", label: "People" },
   { value: "flashers", label: "Flashers" },
   { value: "reels", label: "Reels" },
   { value: "rods", label: "Rods" }
@@ -120,6 +122,7 @@ export function galleryStateCaptions(item) {
     Object.values(value).forEach(visit);
   };
   visit(state?.trips || []);
+  visit(state?.people || []);
   return captions;
 }
 

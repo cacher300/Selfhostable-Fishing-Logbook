@@ -35,9 +35,14 @@ export function renderAdvancedStats() {
   const flasherHours = flasherMinutes / 60;
   const bestTrip = [...trips].sort((a, b) => scopedTripFish(b) - scopedTripFish(a))[0];
   if (typeof renderStatsLeaderboard === "function") {
-    renderStatsLeaderboard(trips, (record, trip) => (
-      recordMatchesStatsFilters(resolveTripLineRecord({ ...record, trip }))
-    ));
+    const leaderboardRecordFilter = (record, trip) => {
+      const resolved = resolveTripLineRecord({ ...record, trip });
+      return recordMatchesStatsFilters({
+        ...resolved,
+        personId: resolved.personId || resolved.setupLine?.personId || ""
+      });
+    };
+    renderStatsLeaderboard(trips, leaderboardRecordFilter);
   }
 
   if (els.statsActiveScope) {

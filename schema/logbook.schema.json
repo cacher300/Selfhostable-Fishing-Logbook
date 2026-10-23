@@ -294,6 +294,7 @@
             "catch-photos",
             "flashers",
             "lures",
+            "people",
             "queue",
             "reels",
             "rods",
@@ -411,6 +412,9 @@
         },
         "name": {
           "$ref": "#/$defs/nonEmptyString"
+        },
+        "photo": {
+          "$ref": "#/$defs/mediaRef"
         }
       },
       "required": [

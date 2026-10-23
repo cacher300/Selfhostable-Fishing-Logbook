@@ -33,6 +33,7 @@ export const uploadMediaCategories = new Set([
   "catch-photos",
   "trip-photos",
   "lures",
+  "people",
   "flashers",
   "reels",
   "rods",

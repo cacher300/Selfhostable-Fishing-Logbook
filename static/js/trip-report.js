@@ -189,7 +189,7 @@ export function renderProbeTemperatureProfileReport(profile = [], catches = []) 
   const readings = probeTemperatureReadings(profile);
   if (!readings.length) return "Not logged";
   const catchDepthEntries = probeCatchDepths(catches);
-  return html`<div class="report-probe-chart-wrap"><div class="report-probe-chart">${renderProbeTemperatureProfileChartMarkup(readings, { compact: true, idPrefix: "reportProbeTemperature", catchDepths: catchDepthEntries })}</div>${probeTemperatureChartLegendMarkup(catchDepthEntries)}<div class="report-probe-values" aria-label="Recorded probe readings">${joinHtml(readings.map((entry) => html`<span><b>${formatUnitValue(Number(entry.depthFeet), "depth", "ft", { decimals: 0 })}</b><em>${displayProbeTemperatureMeasurement(entry.temperature)}</em></span>`), "")}</div></div>`;
+  return html`<div class="report-probe-chart-wrap"><div class="report-probe-chart">${renderProbeTemperatureProfileChartMarkup(readings, { compact: true, idPrefix: "reportProbeTemperature", catchDepths: catchDepthEntries, catchDetails: true })}</div>${probeTemperatureChartLegendMarkup(catchDepthEntries)}<div class="report-probe-values" aria-label="Recorded probe readings">${joinHtml(readings.map((entry) => html`<span><b>${formatUnitValue(Number(entry.depthFeet), "depth", "ft", { decimals: 0 })}</b><em>${displayProbeTemperatureMeasurement(entry.temperature)}</em></span>`), "")}</div></div>`;
 }
 
 export function biggestCatchMeasurement(catches = []) {
