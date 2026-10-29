@@ -17,6 +17,7 @@ import {
   setTemperatureLegendRange,
   setThermoclineLegendRange,
   setWaveLegendRange,
+  setWindLegendRange,
   showPaletteRange,
   tooShallowNote,
   waveParticleFields, savedWindParticleColor, windParticleColorParts
@@ -58,6 +59,7 @@ const RASTER_STYLES = {
   thermocline: { className: "great-lakes-thermocline-raster", opacity: 0.88 },
   currents: { className: "great-lakes-current-raster", opacity: 0.8 },
   waves: { className: "great-lakes-wave-raster", opacity: 0.86 },
+  wind: { className: "great-lakes-wind-raster", opacity: 0.8 },
   upwelling: { className: "great-lakes-upwelling-raster", opacity: 0.88 }
 };
 
@@ -404,7 +406,8 @@ export async function loadGreatLakesAnimation(map, { layer, depth, signal, isCur
     if (layer === "temperature") setTemperatureLegendRange(first);
     else if (layer === "thermocline") setThermoclineLegendRange(first);
     else if (layer === "waves") setWaveLegendRange(first);
-    else if (layer === "upwelling" || layer === "wind") { /* fixed legend */ }
+    else if (layer === "wind") setWindLegendRange(first);
+    else if (layer === "upwelling") { /* fixed legend */ }
     else {
       setCurrentLegendRange(first);
       setCurrentSpeedMax(first);
@@ -438,7 +441,6 @@ function buildFrames(map, background) {
         particleColor: windParticleColorParts(savedWindParticleColor())
       }).addTo(map);
     }
-    return;
   }
   const layer = state.layer;
   const rasterPayloads = layer === "currents"
@@ -642,7 +644,7 @@ function showFrame(index, { fade = true, preserveWaveArrows = false, preserveCur
   if (!state.frames.length) return;
   state.index = Math.max(0, Math.min(state.frames.length - 1, index));
   const payload = state.payloads[state.index] || {};
-  if (state.layer !== "wind") crossfadeTo(state.index, fade);
+  crossfadeTo(state.index, fade);
   if (state.layer === "wind") state.particles?.setFields(windParticleFields(payload.points || []));
   if (state.layer === "currents") {
     if (state.particles && payload.fields?.length) state.particles.setFields(payload.fields);
@@ -744,7 +746,7 @@ function scheduleNextFrame(frameAlreadyShown = false) {
   // Begin blending immediately; hand off to the next frame when the blend
   // finishes, then start the following blend without a hold between frames.
   if (fadeMs) {
-    if (state.layer !== "wind" && !scalarTransitionStarted) crossfadeTo(next, true);
+    if (!scalarTransitionStarted) crossfadeTo(next, true);
     const payload = state.payloads[next] || {};
     if (state.layer === "wind") state.particles?.setFields(windParticleFields(payload.points || []), { durationMs: frameMs });
     if (state.layer === "currents") state.particles?.setFields(payload.fields || [], { durationMs: frameMs });

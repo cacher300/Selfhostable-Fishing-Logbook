@@ -248,10 +248,10 @@ function renderStations() {
   const withCurrents = stations.filter((station) => station.current).length;
   const past = stationsPayload.historyTime;
   stationsMessage = past
-    ? (stations.length ? `${stations.length} stations with saved readings for ${historyTimeLabel(past)}${withCurrents ? `, ${withCurrents} with current meters` : ""}.` : `No saved station readings for ${historyTimeLabel(past)}.`)
+    ? (stations.length ? `${stations.length} buoys with saved readings for ${historyTimeLabel(past)}${withCurrents ? `, ${withCurrents} with current meters` : ""}.` : `No saved buoy readings for ${historyTimeLabel(past)}.`)
     : stations.length
-      ? `${stations.length} stations reporting${withCurrents ? `, ${withCurrents} with current meters` : ""}. Data last received at ${new Date(stationsLoadedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
-      : "No measurement stations are reporting right now.";
+      ? `${stations.length} buoys reporting${withCurrents ? `, ${withCurrents} with current meters` : ""}. Data last received at ${new Date(stationsLoadedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
+      : "No buoys are reporting right now.";
   setPointsStatus();
 }
 
@@ -259,7 +259,7 @@ async function loadStations() {
   if (!toggle("stations")?.checked) return;
   stationsRequest?.abort();
   stationsRequest = new AbortController();
-  stationsMessage = "Loading NOAA measurement stations…";
+  stationsMessage = "Loading NOAA buoys…";
   setPointsStatus();
   try {
     stationsPayload = await window.noaaGreatLakesApi.observations({ signal: stationsRequest.signal, ...greatLakesTimeParams() });
@@ -267,7 +267,7 @@ async function loadStations() {
     renderStations();
   } catch (error) {
     if (error.name === "AbortError") return;
-    stationsMessage = "NOAA measurement stations are unavailable. Try again shortly.";
+    stationsMessage = "NOAA buoys are unavailable. Try again shortly.";
     setPointsStatus();
   }
 }

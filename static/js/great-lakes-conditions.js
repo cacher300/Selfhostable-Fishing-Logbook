@@ -1,10 +1,11 @@
-import { setupWind, refreshWind, windReading } from "./wind.js";
+import { setupWind, refreshWind, windReading, windSpeedLabel } from "./wind.js";
 import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { L } from "./vendor.js";
 import { state, ui } from "./app-state.js";
 import { convertUnitValue, currentChopRanges, formatMapUnitValue as formatUnitValue, mapUnitPreference as unitPreference } from "./app-units.js";
 import { depthRangeLabel, showWaterColumnDialog, thermoclineBand, thicknessLabel } from "./water-column.js";
-import { createPaletteFilter, fitPaletteToView, paletteOverlays, savedTemperatureColorMode, setTemperatureColorMode } from "./great-lakes-palette.js";
+import { WAVE_DEFAULT_MAX_METERS, WIND_DEFAULT_MAX_METERS_PER_SECOND, createPaletteFilter, fitPaletteToView, paletteGradient, paletteOverlays, savedTemperatureColorMode, setTemperatureColorMode, waveStops, windStops } from "./great-lakes-palette.js";
+import { currentPixelsPerFrame, dramaticParticleSpeed } from "./particle-speed.js";
 import { currentProfileActionHtml, directionIconHtml, profileActionHtml, readingHtml } from "./cards.js";
 import {
   clearGreatLakesAnimationVisuals,
@@ -479,6 +480,7 @@ export function greatLakesConditionsHtml() {
     <div class="great-lakes-thermocline-legend"><span data-gl-thermocline-min>—</span><i></i><span data-gl-thermocline-max>—</span></div>
     <div class="great-lakes-thermocline-mixed"><b aria-hidden="true"></b>Clear: no thermocline</div>
     <div class="great-lakes-wave-legend"><span data-gl-wave-min>—</span><i></i><span data-gl-wave-max>—</span></div>
+    <div class="great-lakes-wind-legend"><span data-gl-wind-min>—</span><i></i><span data-gl-wind-max>—</span></div>
     <div class="great-lakes-upwelling-legend"><span>Upwelling</span><i></i><span>Downwelling</span></div>
     <p class="great-lakes-upwelling-note">Blue: cold water rising against a shore. Red: warm water piled up. Darker is stronger; clear water is neither.</p>
   </section>`;
@@ -998,8 +1000,21 @@ export function setCurrentLegendRange(metadata = {}) {
 export function setWaveLegendRange(metadata = {}) {
   const minimum = document.querySelector("[data-gl-wave-min]");
   const maximum = document.querySelector("[data-gl-wave-max]");
+  const bar = document.querySelector(".great-lakes-wave-legend i");
+  const high = Number(metadata.maxHeightMeters) > 0 ? Number(metadata.maxHeightMeters) : WAVE_DEFAULT_MAX_METERS;
   if (minimum) minimum.textContent = Number(metadata.minHeightMeters) > 0 ? waveHeightLabel(metadata.minHeightMeters) : "Calm";
-  if (maximum) maximum.textContent = waveHeightLabel(metadata.maxHeightMeters);
+  if (maximum) maximum.textContent = waveHeightLabel(high);
+  if (bar) bar.style.background = paletteGradient(waveStops(high));
+}
+
+export function setWindLegendRange(metadata = {}) {
+  const minimum = document.querySelector("[data-gl-wind-min]");
+  const maximum = document.querySelector("[data-gl-wind-max]");
+  const bar = document.querySelector(".great-lakes-wind-legend i");
+  const high = Number(metadata.maxSpeedMetersPerSecond) > 0 ? Number(metadata.maxSpeedMetersPerSecond) : WIND_DEFAULT_MAX_METERS_PER_SECOND;
+  if (minimum) minimum.textContent = Number(metadata.minSpeedMetersPerSecond) > 0 ? windSpeedLabel(metadata.minSpeedMetersPerSecond) : "Calm";
+  if (maximum) maximum.textContent = windSpeedLabel(high);
+  if (bar) bar.style.background = paletteGradient(windStops(high));
 }
 
 // The layer's colours follow what is on screen (great-lakes-palette.js); null without a layer.
@@ -1010,6 +1025,7 @@ export function showPaletteRange(kind, low, high) {
   if (kind === "temperature") setTemperatureLegendRange({ minC: low, maxC: high });
   else if (kind === "thermocline") setThermoclineLegendRange({ minDepthMeters: low, maxDepthMeters: high });
   else if (kind === "waves") setWaveLegendRange({ minHeightMeters: low, maxHeightMeters: high });
+  else if (kind === "wind") setWindLegendRange({ minSpeedMetersPerSecond: low, maxSpeedMetersPerSecond: high });
   else if (kind === "upwelling") { /* fixed colours: the legend never changes */ }
   else {
     setCurrentLegendRange({ minSpeedMetersPerSecond: low, maxSpeedMetersPerSecond: high });
@@ -1499,22 +1515,23 @@ export function createCurrentFieldSampler(fields, isAllowedPoint = null) {
 }
 
 // NOAA directions describe where waves come from. Convert to the travel
-// bearing and use period for a gentle, readable particle speed.
+// bearing. Particle speed follows wave height (particle-speed.js): still at
+// flat water, creeping through calm and chop, racing at 8 ft and above.
+export function waveParticleSpeed(heightMeters) {
+  return dramaticParticleSpeed(heightMeters, WAVE_DEFAULT_MAX_METERS);
+}
+
 export function waveParticleFields(arrows) {
   const points = arrows.flatMap((arrow) => {
-    if (!Number.isFinite(arrow.periodSeconds) || !Number.isFinite(arrow.directionDegrees)) return [];
+    if (!Number.isFinite(arrow.directionDegrees)) return [];
     const bearing = (arrow.directionDegrees + 180) * Math.PI / 180;
-    const speed = Math.max(0.12, Math.min(0.8, arrow.periodSeconds * 1.56 / 12));
+    const speed = waveParticleSpeed(arrow.heightMeters);
     return [{ latitude: arrow.latitude, longitude: arrow.longitude, u: Math.sin(bearing) * speed, v: Math.cos(bearing) * speed }];
   });
   return points.length ? [{ points }] : [];
 }
 
-// Screen-space step so the flow reads at every zoom: still water barely
-// drifts, ordinary 0.1 m/s currents glide, and jets streak.
-export function currentPixelsPerFrame(speed) {
-  return speed >= 0.0015 ? Math.min(2.6, 0.5 * (speed / 0.1) ** 0.7) : 0;
-}
+export { currentPixelsPerFrame };
 
 export function blendCurrentVectors(from, to, fraction) {
   if (!from || !to) return fraction < 0.5 ? from : to;
@@ -1930,6 +1947,7 @@ export async function loadGreatLakesConditions(map) {
         for (const raster of payload.rasters || []) L.imageOverlay(raster.imageUrl, raster.bounds, { opacity: 0.8, interactive: false }).addTo(greatLakesConditionsLayer);
         refreshWind();
       }
+      if (layer === "wind") drawPaletteRasters(payload.rasters || [], "wind", { opacity: 0.8, className: "great-lakes-wind-raster" });
       const missing = payload.metadata.models?.filter((model) => !model.available).length || 0;
       const matching = payload.metadata.models?.reduce((total, model) => total + (model.matchingCells || 0), 0) || 0;
       setGreatLakesStatus(layer === "wind" ? "NOAA wind at 10 m. Click the map for wind speed and gusts." : `${missing ? "Temperature data unavailable for one or more lakes. " : ""}${matching ? "Showing " + greatLakesControlValue("target-selection") + " matching depths. Click water for all matches." : "No matching temperature in the available water columns."}`, missing > 0);
@@ -2034,8 +2052,8 @@ export async function loadGreatLakesConditions(map) {
       renderGreatLakesUpwellingRasters(payload.rasters || [], loadRevision);
     }
     else if (layer === "waves") {
-      renderGreatLakesWaveRasters(payload.rasters || [], loadRevision);
       setWaveLegendRange(payload.metadata);
+      renderGreatLakesWaveRasters(payload.rasters || [], loadRevision);
       const display = greatLakesControlValue("wave-display");
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (display === "flow" && !reduced && (payload.arrows || []).length) greatLakesParticleLayer = createParticleLayer(map, waveParticleFields(payload.arrows), { clipToGreatLakesWater: true }).addTo(map);

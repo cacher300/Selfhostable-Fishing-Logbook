@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
 installBrowserEnv();
-const { PALETTE_STOPS, fitRange, paletteRgb, paletteTables, visibleHistogram } = await import("../static/js/great-lakes-palette.js");
+const { PALETTE_STOPS, WAVE_CALM_MAX_METERS, WAVE_DEFAULT_MAX_METERS, WIND_DEFAULT_MAX_METERS_PER_SECOND, fitRange, paletteRgb, paletteTables, visibleHistogram, waveStops, windStops } = await import("../static/js/great-lakes-palette.js");
 
 // The browser repaints with the server's palette: the ends and a middle stop are exact.
 const stops = PALETTE_STOPS.temperature;
@@ -45,3 +45,33 @@ assert.equal(westHalf.reduce((sum, count) => sum + count, 0), 4);
 const eastHalf = visibleHistogram([sample], { south: 39, west: -87.5, north: 42, east: -85 }, 0, 0.1);
 assert.equal(eastHalf.reduce((sum, count) => sum + count, 0), 0);
 assert.equal(visibleHistogram([sample], { south: 10, west: 10, north: 11, east: 11 }, 0, 0.1).reduce((sum, count) => sum + count, 0), 0);
+
+// Waves: red at 8 ft unless bigger waves are in view, then red at the highest wave.
+const calmLake = new Array(512).fill(0);
+calmLake[20] = 100;
+assert.deepEqual(fitRange(calmLake, 10 / 512, 0, "waves"), [0, WAVE_DEFAULT_MAX_METERS]);
+const roughLake = new Array(512).fill(0);
+roughLake[50] = 100;
+roughLake[200] = 3;
+const [, roughHigh] = fitRange(roughLake, 10 / 512, 0, "waves");
+assert.ok(roughHigh > 3.9 && roughHigh < 3.95, `red should be at the highest wave, got ${roughHigh}`);
+// Blues are only for calm water under 2 ft, whatever the scale's top.
+for (const top of [WAVE_DEFAULT_MAX_METERS, 4, 8]) {
+  const waveColors = waveStops(top);
+  assert.deepEqual(paletteRgb(1, waveColors), [222, 40, 92]);
+  assert.ok(Math.abs(waveColors[2][0] * top - WAVE_CALM_MAX_METERS) < 1e-9);
+}
+
+// Wind: calm blues under 5 kn; red at 25 kn unless stronger wind is on screen.
+const calmWind = new Array(512).fill(0);
+calmWind[30] = 100;
+assert.deepEqual(fitRange(calmWind, 40 / 512, 0, "wind"), [0, WIND_DEFAULT_MAX_METERS_PER_SECOND]);
+const galeWind = new Array(512).fill(0);
+galeWind[100] = 50;
+galeWind[230] = 2;
+assert.ok(fitRange(galeWind, 40 / 512, 0, "wind")[1] > 17.9);
+for (const top of [WIND_DEFAULT_MAX_METERS_PER_SECOND, 20]) {
+  const windColors = windStops(top);
+  assert.ok(Math.abs(windColors[2][0] * top - 5 * 0.514444) < 1e-9);
+  assert.deepEqual(paletteRgb(1, windColors), [222, 40, 92]);
+}

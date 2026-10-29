@@ -126,7 +126,7 @@ Forecast animation uses up to five days of published model hours at three-hour s
 
 ### Great Lakes past 90 days
 
-Forecast animation matches a water-temperature background to each current frame by forecast hour rather than by list position. Frame events include the corresponding temperature metadata. Measurement stations are hidden while animation is active, including when paused, and restored on stop without changing the user's stations setting.
+Forecast animation matches a water-temperature background to each current frame by forecast hour rather than by list position. Frame events include the corresponding temperature metadata. Buoys are hidden while animation is active, including when paused, and restored on stop without changing the user's stations setting.
 
 Playing starts the next image's linear fade immediately, lasts for the entire frame interval, and starts the following fade without a hold. Older images are hidden instantly at the handoff so their cleanup cannot fade the map through. Current particles keep their trails and interpolate the eastward/northward velocity between the adjacent forecast grids. Reduced motion keeps discrete frame steps.
 
@@ -134,7 +134,11 @@ The map's "Past 90 days" choice offers only the timestamps the website has saved
 
 ### Great Lakes waves
 
-Wave rasters, readings, and animation frames come from the public API. The desktop renders NOAA direction arrows or animated flow and clips flow to the bundled water-mask imagery.
+Wave rasters, readings, and animation frames come from the public API. The desktop renders NOAA direction arrows or animated flow and clips flow to the bundled water-mask imagery. Wave colours are refitted to the view in great-lakes-palette.js: blues are reserved for calm water under 2 ft, and red marks 8 ft or the highest wave on screen when bigger. Flow particle speed follows wave height (particle-speed.js): still at flat water, creeping when calm, and full speed at 8 ft.
+
+### Great Lakes wind
+
+Wind payloads carry GFS particle points plus asters[] that shade each lake by wind speed. The same calm-to-rough palette applies: blues under 5 kn, red at 25 kn or the strongest wind on screen. Particle speed follows wind speed on the same curve as waves, reaching full speed at 25 kn. Forecast animation frames show both the shading and the particles.
 
 ## Routing
 
