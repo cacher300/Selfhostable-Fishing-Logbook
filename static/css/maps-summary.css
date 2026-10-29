@@ -813,6 +813,8 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 .great-lakes-control p.is-error { color: #a92c2c; }
 .great-lakes-legend { display: none; align-items: center; gap: 5px; margin: 5px 0 7px; }
 #greatLakesConditions.has-temperature-layer .great-lakes-legend { display: flex; }
+#greatLakesConditions:is(.has-bottom-temperature-layer, .has-air-temperature-layer) .great-lakes-depth-control { display: none; }
+.great-lakes-control [data-gl-air-coverage-control][hidden] { display: none; }
 .great-lakes-color-mode { display: none; }
 #greatLakesConditions.has-gl-layer .great-lakes-color-mode { display: flex; align-items: center; gap: 9px; margin: 0 0 9px; font-size: 14px; line-height: 1.35; cursor: pointer; }
 .great-lakes-color-mode input[type="checkbox"] { width: 18px; height: 18px; flex: none; margin: 0; padding: 0; accent-color: var(--green); }

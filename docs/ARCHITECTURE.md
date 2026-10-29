@@ -124,6 +124,18 @@ The public API provides the "Upwelling & downwelling" evidence layer and point r
 
 Forecast animation uses up to five days of published model hours at three-hour steps; the wave model stops at 48 hours. The browser requests animation indexes and frames from the public API. The forecast date and time sit below the forecast slider.
 
+### Great Lakes bottom temperatures
+
+The Bottom temperatures layer requests `/api/v1/layers/bottom-temperature` and uses the existing temperature palette, legend, units, and fixed/fitted color preference. The public service chooses the deepest valid reading independently for each wet cell, constrained by model bathymetry when available. It covers all five lakes, including Michigan and Huron through their shared model. Click readings use `/point/bottom-temperature` and report both temperature and selected model depth. Animation clicks forward the displayed saved frame's `frame` and `inputs` identifiers. The depth slider is hidden and ignored; history is disabled because bottom maps are not archived. Bottom temperatures are not surface measurements, so their metadata is not passed to surface buoy coloring or trip-temperature autofill.
+
+### Great Lakes air temperature
+
+The Air temperature layer uses NOAA HRRR 2 m air temperature from the public `/layers/air-temperature` endpoint, not the lake water model. Responses and saved animation frames contain both regional `rasters` and lake-clipped `lakeRasters`; the Coverage selector defaults to Region and selects the corresponding array without another API request. `noaa-api.js` resolves image/value URLs in both arrays. The temperature unit preference controls C/F labels, but the palette kind is independent (`air-temperature`), with a fixed −40–50 °C range or a locally fitted visible range. Neither air metadata nor air palette ranges recolor surface buoys or populate trip surface water temperatures.
+
+Air freshness reads `/api/v1/status` with an independent status cache and `airTemperatureVersion`; GLOFS/wave updates cannot invalidate or conceal HRRR updates. The status summary updates remaining-horizon controls before requesting a layer. When `lakeCoverageAvailable` is false, Lakes only shows an explicit coverage error and no overlay, including animation, instead of treating the empty coverage as success or substituting regional imagery.
+
+Depth and history are disabled. Forecast choices respect `metadata.forecastHours` and the remaining `metadata.maxForecastHour`, never exceeding 48 hours. Animation uses only the available index frames, with no synthetic final-frame padding. Air snapshots step without crossfading/interpolation so `/point/air-temperature` can inspect the exact displayed hour and saved `frame` / `inputs`; failed or unidentifiable pinned readings remain unavailable rather than falling back to the live run. Point cards identify HRRR, 2 m height, and valid time without offering a water-column profile.
+
 ### Great Lakes past 90 days
 
 Forecast animation matches a water-temperature background to each current frame by forecast hour rather than by list position. Frame events include the corresponding temperature metadata. Buoys are hidden while animation is active, including when paused, and restored on stop without changing the user's stations setting.

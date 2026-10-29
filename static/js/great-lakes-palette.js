@@ -55,6 +55,7 @@ export const PALETTE_STOPS = Object.freeze({
   upwelling: [[0, [20, 54, 160]], [0.22, [38, 112, 222]], [0.38, [126, 196, 250]], [0.5, [236, 240, 245]], [0.62, [252, 178, 122]], [0.78, [232, 92, 54]], [1, [168, 24, 36]]]
 });
 export const TEMPERATURE_COLOR_RANGE_C = Object.freeze([0, 30]);
+export const AIR_TEMPERATURE_COLOR_RANGE_C = Object.freeze([-40, 50]);
 export const TEMPERATURE_COLOR_MODE_STORAGE_KEY = "glc.TemperatureColorMode";
 export const DEFAULT_TEMPERATURE_COLOR_MODE = "dynamic";
 // How the range is trimmed and how narrow it may get, as the server does for the whole map:
@@ -62,6 +63,7 @@ export const DEFAULT_TEMPERATURE_COLOR_MODE = "dynamic";
 // blown up into dramatic colour changes. Current speed, wave height, and wind start at zero.
 export const PALETTE_FIT = Object.freeze({
   temperature: { fixed: TEMPERATURE_COLOR_RANGE_C },
+  "air-temperature": { fixed: AIR_TEMPERATURE_COLOR_RANGE_C },
   temperatureDynamic: { low: 0.005, high: 0.995, minimumSpan: 3 },
   thermocline: { low: 0.02, high: 0.98, minimumSpan: 2, floor: 0 },
   currents: { low: 0, high: 0.98, zeroBased: true, minimumMaximum: 0.08 },
@@ -116,7 +118,7 @@ export function paletteTables(valueRange, low, high, stops) {
 
 // The range to colour: trimmed percentiles of what is on screen, widened to the minimum span.
 export function fitRange(histogram, binWidth, origin, kind, mode = "dynamic") {
-  const rule = kind === "temperature" && mode === "dynamic"
+  const rule = ["temperature", "air-temperature"].includes(kind) && mode === "dynamic"
     ? PALETTE_FIT.temperatureDynamic
     : PALETTE_FIT[kind] || PALETTE_FIT.temperature;
   if (rule.fixed) return [...rule.fixed];
@@ -250,6 +252,8 @@ export function paletteOverlays(rasters, filter, options) {
 // samples are in), works out the range across every raster set given (all animation frames
 // share one range) and updates the filter. onRange(low, high) updates the legend.
 export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
+  const temperatureLayer = ["temperature", "air-temperature"].includes(kind);
+  const fixedTemperatureRange = PALETTE_FIT[kind]?.fixed || TEMPERATURE_COLOR_RANGE_C;
   const stops = PALETTE_STOPS[kind] || PALETTE_STOPS.temperature;
   // Calm-to-rough colours change shape with the range: the calm blues keep their absolute height.
   const stopsFor = (high) => CALM_ROUGH_LAYERS[kind]?.stops(high) || stops;
@@ -266,14 +270,14 @@ export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
     if (samplePromise) return samplePromise;
     samplePromise = Promise.all(rasters.map((raster) => loadSample(raster).catch(() => null))).then((loaded) => {
       samples = loaded.filter(Boolean);
-      if (active && (kind !== "temperature" || temperatureMode === "dynamic")) refit();
+      if (active && (!temperatureLayer || temperatureMode === "dynamic")) refit();
     });
     return samplePromise;
   }
 
   function refit() {
     if (!active || !samples.length) return;
-    if (kind === "temperature" && temperatureMode !== "dynamic") return;
+    if (temperatureLayer && temperatureMode !== "dynamic") return;
     const bounds = map.getBounds();
     const view = { south: bounds.getSouth(), north: bounds.getNorth(), west: bounds.getWest(), east: bounds.getEast() };
     const range = fitRange(visibleHistogram(samples, view, origin, binWidth), binWidth, origin, kind, temperatureMode);
@@ -287,7 +291,7 @@ export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
   const schedule = () => { clearTimeout(timer); timer = setTimeout(refit, REFIT_DELAY_MS); };
 
   function applyTemperatureMode(mode) {
-    temperatureMode = mode === "dynamic" ? "dynamic" : DEFAULT_TEMPERATURE_COLOR_MODE;
+    temperatureMode = mode === "fixed" || mode === "dynamic" ? mode : DEFAULT_TEMPERATURE_COLOR_MODE;
     if (temperatureMode === "dynamic") {
       shown = null;
       if (rasters.length) {
@@ -295,7 +299,7 @@ export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
         if (samples.length) {
           refit();
         } else {
-          const [low, high] = PALETTE_FIT.temperature.fixed;
+          const [low, high] = fixedTemperatureRange;
           if (valueRange) filter.set(valueRange, low, high, stops);
           onRange?.(low, high);
           void ensureSamples();
@@ -305,14 +309,14 @@ export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
     }
     clearTimeout(timer);
     map.off("moveend zoomend resize", schedule);
-    const [low, high] = PALETTE_FIT.temperature.fixed;
+    const [low, high] = fixedTemperatureRange;
     shown = [low, high];
     if (valueRange) filter.set(valueRange, low, high, stops);
     onRange?.(low, high);
   }
 
   const modeChanged = (event) => applyTemperatureMode(event.detail?.mode);
-  if (kind === "temperature") {
+  if (temperatureLayer) {
     document.addEventListener("glc-temperature-color-mode-changed", modeChanged);
     applyTemperatureMode(temperatureMode);
     return {
