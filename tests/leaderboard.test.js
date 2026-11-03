@@ -127,8 +127,11 @@ const filteredResult = structuredClone(fishingGearLeaderboardRows(trips, gear, {
 assert.equal(filteredResult.find((row) => row.id === "silver-lure").landed, 2);
 assert.equal(filteredResult.find((row) => row.id === "green-lure").landed, 0);
 
-const indexMarkup = await readFile(new URL("../standalone.html", import.meta.url), "utf8");
-assert.doesNotMatch(indexMarkup, /Boat leaderboard|Deck performance|statsEquipmentLeaderboard/);
-assert.match(indexMarkup, /id="leaderboardPanel"/);
-assert.match(indexMarkup, /id="statsLureLeaderboard"/);
-assert.match(indexMarkup, /People Leaderboard/);
+const leaderboardMarkup = await readFile(
+  new URL("../templates/partials/views/leaderboard.html", import.meta.url),
+  "utf8",
+);
+assert.doesNotMatch(leaderboardMarkup, /Boat leaderboard|Deck performance|statsEquipmentLeaderboard/);
+assert.match(leaderboardMarkup, /id="leaderboardPanel"/);
+assert.match(leaderboardMarkup, /id="statsLureLeaderboard"/);
+assert.match(leaderboardMarkup, /People Leaderboard/);
