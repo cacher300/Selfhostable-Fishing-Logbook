@@ -31,7 +31,7 @@ test_javascript:
   script:
     - node --version
     - npm ci --no-audit --no-fund
-    - npm run schema:check
+    - npm run schema:check:desktop
     - npm test
 
 cloud_worker_tests:
@@ -70,6 +70,9 @@ build_frontend:
 browser_smoke_tests:
   stage: smoke_test
   image: python:3.13
+  variables:
+    PORT: "4173"
+    PW_ARTIFACTS_DIR: ".artifacts/playwright"
   needs:
     - build_frontend
   before_script:
@@ -85,7 +88,7 @@ browser_smoke_tests:
   artifacts:
     when: on_failure
     paths:
-      - /tmp/fishing-logbook-playwright/
+      - .artifacts/playwright/
     expire_in: 3 days
 
 docker_compose_config_check:

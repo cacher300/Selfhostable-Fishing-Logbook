@@ -3,7 +3,7 @@ import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
 installBrowserEnv();
 const { setState } = await import("../static/js/app-state.js");
-const { currentProfileHtml, dataGeneratedNote, friendlyTime, modelDepthNote, modelDepthShown, tooShallowNote } = await import("../static/js/great-lakes-conditions.js");
+const { currentProfileHtml, dataGeneratedNote, friendlyTime, friendlyWait, modelDepthNote, modelDepthShown, tooShallowNote } = await import("../static/js/great-lakes-conditions.js");
 setState({ settings: { units: { depth: "m", speed: "mph" } } });
 
 const profile = {
