@@ -26,7 +26,8 @@ async function resetLogbook(page, document) {
     },
     data: document
   });
-  await expect(response, "PUT /api/logbook").toBeOK();
+  const responseDetail = response.ok() ? "" : `: ${await response.text()}`;
+  await expect(response, `PUT /api/logbook${responseDetail}`).toBeOK();
 }
 
 async function freshLogbook(page, overrides = {}) {
@@ -47,6 +48,7 @@ async function freshLogbook(page, overrides = {}) {
       ...base.settings,
       theme: "light",
       defaultPeople: [],
+      homePort: undefined,
       checklists: [],
       trollingSpreads: [],
       defaultTrollingSpreadId: "",

@@ -20,7 +20,7 @@ test("home launch designation is shared with the saved waterbody and protected f
   await page.locator('[data-home-launch="home"]').click();
   await expect.poll(async () => (await (await page.request.get("/api/logbook")).json()).settings.homePort).toEqual({ locationId: "lake", launchId: "home" });
   await page.locator('[data-edit-managed-launch="home"]').click();
-  page.once("dialog", async dialog => { expect(dialog.message()).toContain("home port"); await dialog.accept(); });
+  page.once("dialog", async dialog => { expect(dialog.message()).toMatch(/home port/i); await dialog.accept(); });
   await page.locator("#deleteLocationDialogButton").click();
   await page.locator('#locationDialog [aria-label="Close"]').click();
   await page.locator('[data-home-launch="home"]').click();
