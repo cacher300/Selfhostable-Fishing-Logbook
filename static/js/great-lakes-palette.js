@@ -15,24 +15,62 @@ const TEMPERATURE_STOPS = [
   [0, [58, 40, 168]], [0.13, [36, 92, 226]], [0.27, [14, 152, 242]], [0.4, [12, 204, 222]], [0.53, [34, 208, 136]],
   [0.66, [150, 222, 48]], [0.78, [252, 218, 36]], [0.89, [252, 140, 28]], [1, [228, 40, 52]]
 ];
+// Wave heights for small boats: blues only for calm water under 2 ft, then green → red up to
+// the scale's top, which is 8 ft unless bigger waves are on screen (then red is the highest).
+// Wind uses the same palette: calm under 5 kn, red at 25 kn or the strongest wind on screen.
+// Mirrors calm_rough_color_stops in the Great Lakes Trolling server's render.py.
+export const WAVE_CALM_MAX_METERS = 0.6096;
+export const WAVE_DEFAULT_MAX_METERS = 2.4384;
+export const WIND_CALM_MAX_METERS_PER_SECOND = 5 * 0.514444;
+export const WIND_DEFAULT_MAX_METERS_PER_SECOND = 25 * 0.514444;
+const CALM_COLORS = [[0, [30, 64, 150]], [0.5, [26, 120, 210]], [1, [20, 190, 214]]];
+const ROUGH_COLORS = [[0.3, [118, 222, 122]], [0.55, [250, 224, 60]], [0.78, [250, 138, 40]], [1, [222, 40, 92]]];
+export function calmRoughStops(calm, maximum) {
+  const top = Math.max(Number(maximum) || calm * 4, calm * 1.5);
+  return [
+    ...CALM_COLORS.map(([fraction, color]) => [calm * fraction / top, color]),
+    ...ROUGH_COLORS.map(([fraction, color]) => [(calm + (top - calm) * fraction) / top, color])
+  ];
+}
+export function waveStops(maximum = WAVE_DEFAULT_MAX_METERS) {
+  return calmRoughStops(WAVE_CALM_MAX_METERS, maximum || WAVE_DEFAULT_MAX_METERS);
+}
+export function windStops(maximum = WIND_DEFAULT_MAX_METERS_PER_SECOND) {
+  return calmRoughStops(WIND_CALM_MAX_METERS_PER_SECOND, maximum || WIND_DEFAULT_MAX_METERS_PER_SECOND);
+}
+// Layers whose palette is reshaped for each range, with the top they start at.
+const CALM_ROUGH_LAYERS = Object.freeze({
+  waves: { stops: waveStops, defaultMaximum: WAVE_DEFAULT_MAX_METERS },
+  wind: { stops: windStops, defaultMaximum: WIND_DEFAULT_MAX_METERS_PER_SECOND }
+});
+export function paletteGradient(stops) {
+  return `linear-gradient(90deg, ${stops.map(([stop, color]) => `rgb(${color.join(", ")}) ${(stop * 100).toFixed(1)}%`).join(", ")})`;
+}
 export const PALETTE_STOPS = Object.freeze({
   temperature: TEMPERATURE_STOPS,
   thermocline: TEMPERATURE_STOPS,
   currents: [[0, [22, 58, 128]], [0.22, [40, 92, 178]], [0.45, [98, 70, 186]], [0.68, [172, 60, 170]], [0.86, [232, 86, 118]], [1, [252, 158, 72]]],
-  waves: [[0, [30, 64, 150]], [0.18, [26, 120, 210]], [0.36, [20, 190, 214]], [0.54, [118, 222, 122]], [0.7, [250, 224, 60]], [0.85, [250, 138, 40]], [1, [222, 40, 92]]],
+  waves: waveStops(),
+  wind: windStops(),
   upwelling: [[0, [20, 54, 160]], [0.22, [38, 112, 222]], [0.38, [126, 196, 250]], [0.5, [236, 240, 245]], [0.62, [252, 178, 122]], [0.78, [232, 92, 54]], [1, [168, 24, 36]]]
 });
 export const TEMPERATURE_COLOR_RANGE_C = Object.freeze([0, 30]);
+export const AIR_TEMPERATURE_COLOR_RANGE_C = Object.freeze([-40, 50]);
 export const TEMPERATURE_COLOR_MODE_STORAGE_KEY = "glc.TemperatureColorMode";
 export const DEFAULT_TEMPERATURE_COLOR_MODE = "dynamic";
 // How the range is trimmed and how narrow it may get, as the server does for the whole map:
 // a few outlying pixels do not stretch the colours, and model noise in uniform water is not
-// blown up into dramatic colour changes. Current speed starts at still water; waves are fixed below.
+// blown up into dramatic colour changes. Current speed, wave height, and wind start at zero.
 export const PALETTE_FIT = Object.freeze({
   temperature: { fixed: TEMPERATURE_COLOR_RANGE_C },
+  "air-temperature": { fixed: AIR_TEMPERATURE_COLOR_RANGE_C },
   temperatureDynamic: { low: 0.005, high: 0.995, minimumSpan: 3 },
   thermocline: { low: 0.02, high: 0.98, minimumSpan: 2, floor: 0 },
   currents: { low: 0, high: 0.98, zeroBased: true, minimumMaximum: 0.08 },
+  // Red at 8 ft, or at the highest waves on screen when they are bigger.
+  waves: { low: 0, high: 1, zeroBased: true, minimumMaximum: WAVE_DEFAULT_MAX_METERS },
+  // Red at 25 kn, or at the strongest wind on screen when it is stronger.
+  wind: { low: 0, high: 1, zeroBased: true, minimumMaximum: WIND_DEFAULT_MAX_METERS_PER_SECOND },
   // Upwelling strength (°F, negative upwelling) keeps one scale, so a colour always means the same strength.
   upwelling: { fixed: [-8, 8] }
 });
@@ -80,7 +118,7 @@ export function paletteTables(valueRange, low, high, stops) {
 
 // The range to colour: trimmed percentiles of what is on screen, widened to the minimum span.
 export function fitRange(histogram, binWidth, origin, kind, mode = "dynamic") {
-  const rule = kind === "temperature" && mode === "dynamic"
+  const rule = ["temperature", "air-temperature"].includes(kind) && mode === "dynamic"
     ? PALETTE_FIT.temperatureDynamic
     : PALETTE_FIT[kind] || PALETTE_FIT.temperature;
   if (rule.fixed) return [...rule.fixed];
@@ -214,7 +252,11 @@ export function paletteOverlays(rasters, filter, options) {
 // samples are in), works out the range across every raster set given (all animation frames
 // share one range) and updates the filter. onRange(low, high) updates the legend.
 export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
+  const temperatureLayer = ["temperature", "air-temperature"].includes(kind);
+  const fixedTemperatureRange = PALETTE_FIT[kind]?.fixed || TEMPERATURE_COLOR_RANGE_C;
   const stops = PALETTE_STOPS[kind] || PALETTE_STOPS.temperature;
+  // Calm-to-rough colours change shape with the range: the calm blues keep their absolute height.
+  const stopsFor = (high) => CALM_ROUGH_LAYERS[kind]?.stops(high) || stops;
   const rasters = rasterSets.flat().filter((raster) => raster?.valueUrl && raster.valueRange);
   let samples = [], timer = null, active = true, shown = null, samplePromise = null;
   let temperatureMode = savedTemperatureColorMode();
@@ -224,27 +266,18 @@ export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
   const binWidth = Math.max(end - origin, 1e-6) / HISTOGRAM_BINS;
   const valueRange = ranges[0];
 
-  // Wave heights keep the server's fixed domain when the user pans, zooms, or steps through frames.
-  if (kind === "waves" && valueRange) {
-    filter.set(valueRange, valueRange[0], valueRange[1], stops);
-    return {
-      refit() {},
-      stop() { active = false; clearTimeout(timer); filter.remove(); }
-    };
-  }
-
   function ensureSamples() {
     if (samplePromise) return samplePromise;
     samplePromise = Promise.all(rasters.map((raster) => loadSample(raster).catch(() => null))).then((loaded) => {
       samples = loaded.filter(Boolean);
-      if (active && (kind !== "temperature" || temperatureMode === "dynamic")) refit();
+      if (active && (!temperatureLayer || temperatureMode === "dynamic")) refit();
     });
     return samplePromise;
   }
 
   function refit() {
     if (!active || !samples.length) return;
-    if (kind === "temperature" && temperatureMode !== "dynamic") return;
+    if (temperatureLayer && temperatureMode !== "dynamic") return;
     const bounds = map.getBounds();
     const view = { south: bounds.getSouth(), north: bounds.getNorth(), west: bounds.getWest(), east: bounds.getEast() };
     const range = fitRange(visibleHistogram(samples, view, origin, binWidth), binWidth, origin, kind, temperatureMode);
@@ -252,13 +285,13 @@ export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
     // Small shifts while panning across uniform water are not worth a repaint.
     if (shown && Math.abs(range[0] - shown[0]) + Math.abs(range[1] - shown[1]) < (shown[1] - shown[0]) * 0.01) return;
     shown = range;
-    filter.set(valueRange, range[0], range[1], stops);
+    filter.set(valueRange, range[0], range[1], stopsFor(range[1]));
     onRange?.(range[0], range[1]);
   }
   const schedule = () => { clearTimeout(timer); timer = setTimeout(refit, REFIT_DELAY_MS); };
 
   function applyTemperatureMode(mode) {
-    temperatureMode = mode === "dynamic" ? "dynamic" : DEFAULT_TEMPERATURE_COLOR_MODE;
+    temperatureMode = mode === "fixed" || mode === "dynamic" ? mode : DEFAULT_TEMPERATURE_COLOR_MODE;
     if (temperatureMode === "dynamic") {
       shown = null;
       if (rasters.length) {
@@ -266,7 +299,7 @@ export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
         if (samples.length) {
           refit();
         } else {
-          const [low, high] = PALETTE_FIT.temperature.fixed;
+          const [low, high] = fixedTemperatureRange;
           if (valueRange) filter.set(valueRange, low, high, stops);
           onRange?.(low, high);
           void ensureSamples();
@@ -276,14 +309,14 @@ export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
     }
     clearTimeout(timer);
     map.off("moveend zoomend resize", schedule);
-    const [low, high] = PALETTE_FIT.temperature.fixed;
+    const [low, high] = fixedTemperatureRange;
     shown = [low, high];
     if (valueRange) filter.set(valueRange, low, high, stops);
     onRange?.(low, high);
   }
 
   const modeChanged = (event) => applyTemperatureMode(event.detail?.mode);
-  if (kind === "temperature") {
+  if (temperatureLayer) {
     document.addEventListener("glc-temperature-color-mode-changed", modeChanged);
     applyTemperatureMode(temperatureMode);
     return {
@@ -299,8 +332,15 @@ export function fitPaletteToView(map, rasterSets, kind, filter, onRange) {
   }
 
   if (rasters.length) {
-    // Until the samples are in, colour over the whole range as the server would.
-    filter.set(valueRange, valueRange[0], valueRange[1], stops);
+    const calmRough = CALM_ROUGH_LAYERS[kind];
+    if (calmRough) {
+      // Until the samples are in, use the default scale (red at 8 ft waves or 25 kn wind).
+      filter.set(valueRange, 0, calmRough.defaultMaximum, stopsFor(calmRough.defaultMaximum));
+      onRange?.(0, calmRough.defaultMaximum);
+    } else {
+      // Until the samples are in, colour over the whole range as the server would.
+      filter.set(valueRange, valueRange[0], valueRange[1], stops);
+    }
     void ensureSamples();
     map.on("moveend zoomend resize", schedule);
   }

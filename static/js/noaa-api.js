@@ -43,14 +43,16 @@ function absoluteApiUrl(value) {
 
 function normalizePayload(payload) {
   if (!payload || typeof payload !== "object") return payload;
+  const normalizeRasters = (rasters) => Array.isArray(rasters) ? rasters.map((raster) => ({
+    ...raster,
+    imageUrl: absoluteApiUrl(raster.imageUrl),
+    valueUrl: absoluteApiUrl(raster.valueUrl),
+    mixedUrl: absoluteApiUrl(raster.mixedUrl)
+  })) : rasters;
   return {
     ...payload,
-    rasters: Array.isArray(payload.rasters) ? payload.rasters.map((raster) => ({
-      ...raster,
-      imageUrl: absoluteApiUrl(raster.imageUrl),
-      valueUrl: absoluteApiUrl(raster.valueUrl),
-      mixedUrl: absoluteApiUrl(raster.mixedUrl)
-    })) : payload.rasters
+    rasters: normalizeRasters(payload.rasters),
+    lakeRasters: normalizeRasters(payload.lakeRasters)
   };
 }
 
@@ -111,6 +113,18 @@ export function setup() {
       return reading.temperature || { available: false };
     },
 
+    async bottomTemperatureValue(options = {}) {
+      return get(withQuery("/point/bottom-temperature", {
+        ...profileParams(options), frame: options.frame, inputs: options.inputs
+      }), options.signal);
+    },
+
+    async airTemperatureValue(options = {}) {
+      return get(withQuery("/point/air-temperature", {
+        ...profileParams(options), frame: options.frame, inputs: options.inputs
+      }), options.signal);
+    },
+
     async profile(options = {}) {
       if (options.time) {
         const reading = await pointReading(options);
@@ -159,7 +173,11 @@ export function setup() {
       }), options.signal);
     },
 
-    async status({ signal } = {}) {
+    async status({ signal, layer } = {}) {
+      if (layer === "air-temperature") {
+        const status = await get("/status", signal);
+        return { airTemperatureVersion: status.airTemperatureVersion || "", airTemperature: status.airTemperature };
+      }
       const manifest = await get("/manifest", signal);
       const waves = (manifest.layers || []).filter((layer) => layer.layer === "waves");
       const wavesVersion = waves.map((layer) => layer.hash || layer.validTime || layer.url).join("|") || manifest.version || "";

@@ -3,6 +3,7 @@ import { html, setHtml } from "./html.js";
 import { L } from "./vendor.js";
 import {
   announceGreatLakesLayer,
+  airTemperatureRasters,
   clearGreatLakesVisuals,
   createParticleLayer,
   createWaveArrowLayer,
@@ -17,7 +18,9 @@ import {
   setTemperatureLegendRange,
   setThermoclineLegendRange,
   setWaveLegendRange,
+  setWindLegendRange,
   showPaletteRange,
+  syncAirTemperatureForecast,
   tooShallowNote,
   waveParticleFields, savedWindParticleColor, windParticleColorParts
 } from "./great-lakes-conditions.js";
@@ -54,10 +57,12 @@ export const WAVE_ANIMATION_IDLE_LABEL = "Play up to 48 hours";
 // show through.
 const ANIMATION_PANE = "greatLakesAnimation";
 const RASTER_STYLES = {
+  "air-temperature": { className: "great-lakes-temperature-raster", opacity: 0.9 },
   temperature: { className: "great-lakes-temperature-raster", opacity: 0.9 },
   thermocline: { className: "great-lakes-thermocline-raster", opacity: 0.88 },
   currents: { className: "great-lakes-current-raster", opacity: 0.8 },
   waves: { className: "great-lakes-wave-raster", opacity: 0.86 },
+  wind: { className: "great-lakes-wind-raster", opacity: 0.8 },
   upwelling: { className: "great-lakes-upwelling-raster", opacity: 0.88 }
 };
 
@@ -103,7 +108,7 @@ export function savedAnimationSpeed() {
 function speedTiming() {
   const choice = document.querySelector("[data-gl-animation-speed-choice]");
   const speed = ANIMATION_SPEEDS[choice?.value] || ANIMATION_SPEEDS[savedAnimationSpeed()];
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reduced = state.layer === "air-temperature" || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   return { frameMs: speed.frameMs, fadeMs: reduced ? 0 : Math.round(speed.frameMs * ANIMATION_FADE_SHARE) };
 }
 
@@ -134,6 +139,14 @@ export function pauseGreatLakesAnimation() {
 // The hour the map is showing, for readings at a clicked point.
 export function greatLakesAnimationForecastHour() {
   return state.active && state.frames[state.index] ? String(state.frames[state.index].forecastHour) : null;
+}
+
+export function greatLakesAnimationPointParams() {
+  const frame = state.active && state.frames[state.index];
+  if (!frame) return {};
+  const query = new URLSearchParams((frame.url || "").split("?")[1] || "");
+  const identifier = frame.frame || query.get("frame");
+  return identifier ? { frame: identifier, inputs: frame.inputs || query.get("inputs") || undefined } : {};
 }
 
 export function greatLakesTimelineHtml() {
@@ -255,7 +268,7 @@ export function syncTimelineControls() {
     slider.step = state.playing ? "any" : "1";
     slider.value = String(state.index);
   }
-  if (label && !state.active) label.textContent = document.querySelector("[data-gl-layer]")?.value === "waves" ? WAVE_ANIMATION_IDLE_LABEL : ANIMATION_IDLE_LABEL;
+  if (label && !state.active) label.textContent = ["waves", "air-temperature"].includes(document.querySelector("[data-gl-layer]")?.value) ? WAVE_ANIMATION_IDLE_LABEL : ANIMATION_IDLE_LABEL;
 }
 
 export function stopGreatLakesAnimation() {
@@ -341,7 +354,7 @@ async function animationIndex(layer, depth, signal, isCurrent) {
 const IMAGE_PRELOAD_LIMIT_MS = 10000;
 
 function preloadImages(payload) {
-  const urls = (payload?.rasters || []).flatMap((raster) => raster.valueUrl ? [raster.valueUrl, raster.mixedUrl].filter(Boolean) : [raster.imageUrl]);
+  const urls = [...(payload?.rasters || []), ...(payload?.lakeRasters || [])].flatMap((raster) => raster.valueUrl ? [raster.valueUrl, raster.mixedUrl].filter(Boolean) : [raster.imageUrl]);
   return Promise.all(urls.map((url) => new Promise((resolve) => {
     const image = new Image();
     const timer = setTimeout(resolve, IMAGE_PRELOAD_LIMIT_MS);
@@ -372,6 +385,10 @@ export async function loadGreatLakesAnimation(map, { layer, depth, signal, isCur
       background === "temperature" ? animationIndex("temperature", depth, signal, isCurrent) : null
     ]);
     if (!isCurrent()) return false;
+    if (layer === "air-temperature") {
+      index.frames = (index.frames || []).filter((frame) => Number.isInteger(Number(frame.forecastHour)) && Number(frame.forecastHour) >= 0 && Number(frame.forecastHour) <= 48);
+    }
+    if (!index.frames?.length) throw new Error("No forecast frames available");
     const urls = [...index.frames.map((frame) => frame.url), ...(temperatureIndex?.frames || []).map((frame) => frame.url)];
     let loaded = 0;
     const payloads = await mapLimit(urls, ANIMATION_FETCH_CONCURRENCY, async (url) => {
@@ -385,7 +402,14 @@ export async function loadGreatLakesAnimation(map, { layer, depth, signal, isCur
     state.layer = layer;
     state.depth = Number(depth) || 0;
     state.frames = index.frames;
-    state.payloads = payloads.slice(0, index.frames.length);
+    state.payloads = payloads.slice(0, index.frames.length).map((payload) => layer === "air-temperature" ? { ...payload, rasters: airTemperatureRasters(payload) } : payload);
+    if (layer === "air-temperature") {
+      syncAirTemperatureForecast({
+        ...state.payloads[0]?.metadata,
+        maxForecastHour: Math.max(...index.frames.map((frame) => Number(frame.forecastHour))),
+        forecastHours: index.frames.map((frame) => Number(frame.forecastHour))
+      });
+    }
     // The two indexes can be prepared/cached independently. Match forecast
     // hours rather than assuming their frame positions describe the same time.
     const temperaturePayloads = new Map((temperatureIndex?.frames || []).map((frame, frameIndex) => [
@@ -401,10 +425,12 @@ export async function loadGreatLakesAnimation(map, { layer, depth, signal, isCur
       if (!isCurrent()) return false;
     }
     const first = state.payloads[0]?.metadata || {};
-    if (layer === "temperature") setTemperatureLegendRange(first);
+    if (layer === "air-temperature") setTemperatureLegendRange({ minC: -40, maxC: 50 });
+    else if (layer === "temperature" || layer === "bottom-temperature") setTemperatureLegendRange(first);
     else if (layer === "thermocline") setThermoclineLegendRange(first);
     else if (layer === "waves") setWaveLegendRange(first);
-    else if (layer === "upwelling" || layer === "wind") { /* fixed legend */ }
+    else if (layer === "wind") setWindLegendRange(first);
+    else if (layer === "upwelling") { /* fixed legend */ }
     else {
       setCurrentLegendRange(first);
       setCurrentSpeedMax(first);
@@ -421,9 +447,10 @@ export async function loadGreatLakesAnimation(map, { layer, depth, signal, isCur
     return true;
   } catch (error) {
     if (error.name !== "AbortError" && isCurrent()) {
+      if (layer === "air-temperature" && error.message.includes("lake coverage")) clearGreatLakesVisuals();
       state.playing = false;
       syncTimelineControls();
-      setGreatLakesStatus("The forecast animation is unavailable right now. Try again shortly.", true);
+      setGreatLakesStatus(layer === "air-temperature" && error.message.includes("lake coverage") ? error.message : "The forecast animation is unavailable right now. Try again shortly.", true);
     }
     return false;
   }
@@ -438,13 +465,12 @@ function buildFrames(map, background) {
         particleColor: windParticleColorParts(savedWindParticleColor())
       }).addTo(map);
     }
-    return;
   }
   const layer = state.layer;
   const rasterPayloads = layer === "currents"
     ? (background === "temperature" ? state.backgroundPayloads : background === "none" ? null : state.payloads)
     : state.payloads;
-  const kind = layer === "currents" && background === "temperature" ? "temperature" : layer;
+  const kind = (layer === "currents" && background === "temperature") || layer === "bottom-temperature" ? "temperature" : layer;
   const style = RASTER_STYLES[kind];
   const pane = map.getPane(ANIMATION_PANE) || map.createPane(ANIMATION_PANE);
   pane.style.zIndex = "395";
@@ -498,6 +524,7 @@ function hasScalarRasterFrame(index) {
 }
 
 function canInterpolateRasterPair(fromIndex, toIndex) {
+  if (state.layer === "air-temperature") return false;
   return hasScalarRasterFrame(fromIndex) && hasScalarRasterFrame(toIndex);
 }
 
@@ -642,7 +669,7 @@ function showFrame(index, { fade = true, preserveWaveArrows = false, preserveCur
   if (!state.frames.length) return;
   state.index = Math.max(0, Math.min(state.frames.length - 1, index));
   const payload = state.payloads[state.index] || {};
-  if (state.layer !== "wind") crossfadeTo(state.index, fade);
+  crossfadeTo(state.index, fade);
   if (state.layer === "wind") state.particles?.setFields(windParticleFields(payload.points || []));
   if (state.layer === "currents") {
     if (state.particles && payload.fields?.length) state.particles.setFields(payload.fields);
@@ -680,9 +707,9 @@ function showFrame(index, { fade = true, preserveWaveArrows = false, preserveCur
   if (labelNode) labelNode.textContent = label;
   const metadata = payload.metadata || {};
   const models = [...(metadata.models || []), ...(state.backgroundPayloads?.[state.index]?.metadata?.models || [])];
-  const unavailable = models.some((model) => !model.available);
-  const shownDepth = state.layer === "thermocline" || state.layer === "waves" || state.layer === "upwelling" ? null : modelDepthShown(state.backgroundPayloads?.[state.index]?.metadata || metadata);
-  setGreatLakesStatus(`${unavailable ? "Data is missing for one or more lakes in this frame. " : ""}${modelDepthNote(state.depth, shownDepth)}${tooShallowNote(models)}`, unavailable);
+  const unavailable = metadata.available === false || models.some((model) => !model.available);
+  const shownDepth = ["air-temperature", "bottom-temperature", "thermocline", "waves", "upwelling"].includes(state.layer) ? null : modelDepthShown(state.backgroundPayloads?.[state.index]?.metadata || metadata);
+  setGreatLakesStatus(`${state.layer === "air-temperature" ? "NOAA HRRR · 2 m air temperature. " : ""}${unavailable ? "Data is missing in this frame. " : ""}${modelDepthNote(state.depth, shownDepth)}${tooShallowNote(models)}`, unavailable);
   const temperatureMetadata = state.backgroundPayloads?.[state.index]?.metadata || (state.layer === "temperature" ? metadata : null);
   document.dispatchEvent(new CustomEvent("great-lakes-frame-shown", { detail: { layer: state.layer, metadata: { ...metadata, validTime: frame.validTime }, temperatureMetadata, depth: state.depth } }));
 }
@@ -744,7 +771,7 @@ function scheduleNextFrame(frameAlreadyShown = false) {
   // Begin blending immediately; hand off to the next frame when the blend
   // finishes, then start the following blend without a hold between frames.
   if (fadeMs) {
-    if (state.layer !== "wind" && !scalarTransitionStarted) crossfadeTo(next, true);
+    if (!scalarTransitionStarted) crossfadeTo(next, true);
     const payload = state.payloads[next] || {};
     if (state.layer === "wind") state.particles?.setFields(windParticleFields(payload.points || []), { durationMs: frameMs });
     if (state.layer === "currents") state.particles?.setFields(payload.fields || [], { durationMs: frameMs });

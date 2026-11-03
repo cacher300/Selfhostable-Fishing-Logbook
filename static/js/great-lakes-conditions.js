@@ -1,15 +1,17 @@
-import { setupWind, refreshWind, windReading } from "./wind.js";
+import { setupWind, refreshWind, windReading, windSpeedLabel } from "./wind.js";
 import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { L } from "./vendor.js";
 import { state, ui } from "./app-state.js";
 import { convertUnitValue, currentChopRanges, formatMapUnitValue as formatUnitValue, mapUnitPreference as unitPreference } from "./app-units.js";
 import { depthRangeLabel, showWaterColumnDialog, thermoclineBand, thicknessLabel } from "./water-column.js";
-import { createPaletteFilter, fitPaletteToView, paletteOverlays, savedTemperatureColorMode, setTemperatureColorMode } from "./great-lakes-palette.js";
+import { WAVE_DEFAULT_MAX_METERS, WIND_DEFAULT_MAX_METERS_PER_SECOND, createPaletteFilter, fitPaletteToView, paletteGradient, paletteOverlays, savedTemperatureColorMode, setTemperatureColorMode, waveStops, windStops } from "./great-lakes-palette.js";
+import { currentPixelsPerFrame, dramaticParticleSpeed } from "./particle-speed.js";
 import { currentProfileActionHtml, directionIconHtml, profileActionHtml, readingHtml } from "./cards.js";
 import {
   clearGreatLakesAnimationVisuals,
   greatLakesAnimationActive,
   greatLakesAnimationForecastHour,
+  greatLakesAnimationPointParams,
   greatLakesTimelineHtml,
   loadGreatLakesAnimation,
   setupGreatLakesTimeline,
@@ -37,6 +39,8 @@ export const GREAT_LAKES_FORECAST_PRESETS = Object.freeze([0, 1, 2, 3, 4, 5, 6, 
 export const GREAT_LAKES_LAYER_STORAGE_KEY = "logbook.greatLakesLayer";
 export const GREAT_LAKES_LAYER_OPTIONS = Object.freeze([
   ["temperature", "Water temperature"],
+  ["bottom-temperature", "Bottom temperatures"],
+  ["air-temperature", "Air temperature"],
   ["target-temperature", "Target-temperature depth"],
   ["thermocline", "Thermocline depth"],
   ["currents", "Underwater currents"],
@@ -48,6 +52,32 @@ export const GREAT_LAKES_LAYER_OPTIONS = Object.freeze([
 export const DEFAULT_GREAT_LAKES_LAYER = "temperature";
 export const GREAT_LAKES_CLIENT_CACHE_LIMIT = 12;
 export const greatLakesPayloadCache = new Map();
+let airTemperatureForecastMetadata = null;
+
+export function airTemperatureRasters(payload) {
+  if (greatLakesControlValue("air-coverage") === "lakes" && payload?.metadata?.lakeCoverageAvailable === false) {
+    throw new Error("NOAA HRRR lake coverage is unavailable. Choose Region coverage or try again later.");
+  }
+  return (greatLakesControlValue("air-coverage") === "lakes" ? payload?.lakeRasters : payload?.rasters) || [];
+}
+
+export function syncAirTemperatureForecast(metadata) {
+  airTemperatureForecastMetadata = metadata;
+  if (greatLakesControlValue("layer") === "air-temperature") syncGreatLakesLayerControls();
+}
+
+function airTemperatureHours() {
+  const horizon = Number(airTemperatureForecastMetadata?.maxForecastHour);
+  const maximum = Number.isFinite(horizon) ? Math.max(0, Math.min(48, horizon)) : 48;
+  const hours = airTemperatureForecastMetadata?.forecastHours;
+  return Array.isArray(hours)
+    ? [...new Set(hours.filter((hour) => Number.isInteger(hour) && hour >= 0 && hour <= maximum))].sort((a, b) => a - b)
+    : Array.from({ length: Math.floor(maximum) + 1 }, (_, hour) => hour);
+}
+
+function nearestAirTemperatureHour(hour) {
+  return airTemperatureHours().reduce((best, value) => Math.abs(value - hour) < Math.abs(best - hour) ? value : best, airTemperatureHours()[0] ?? 0);
+}
 
 export function cachedGreatLakesPayload(key) {
   const now = Date.now();
@@ -439,6 +469,7 @@ function forecastChoicesHtml() {
 export function greatLakesConditionsHtml() {
   return html`<section class="great-lakes-control" aria-label="Great Lakes Conditions">
     <label>Layer<select data-gl-layer>${layerOptionsHtml()}</select></label>
+    <label data-gl-air-coverage-control hidden>Coverage<select data-gl-air-coverage><option value="region">Region</option><option value="lakes">Lakes only</option></select></label>
     <div class="great-lakes-forecast-control">
       <span class="gl-forecast-title" id="glForecastTitle">Forecast</span>
       <select data-gl-forecast hidden aria-hidden="true" tabindex="-1">${forecastOptionsHtml()}</select>
@@ -479,6 +510,7 @@ export function greatLakesConditionsHtml() {
     <div class="great-lakes-thermocline-legend"><span data-gl-thermocline-min>—</span><i></i><span data-gl-thermocline-max>—</span></div>
     <div class="great-lakes-thermocline-mixed"><b aria-hidden="true"></b>Clear: no thermocline</div>
     <div class="great-lakes-wave-legend"><span data-gl-wave-min>—</span><i></i><span data-gl-wave-max>—</span></div>
+    <div class="great-lakes-wind-legend"><span data-gl-wind-min>—</span><i></i><span data-gl-wind-max>—</span></div>
     <div class="great-lakes-upwelling-legend"><span>Upwelling</span><i></i><span>Downwelling</span></div>
     <p class="great-lakes-upwelling-note">Blue: cold water rising against a shore. Red: warm water piled up. Darker is stronger; clear water is neither.</p>
   </section>`;
@@ -605,10 +637,13 @@ export function ensureGreatLakesConditions(map) {
     loadGreatLakesConditions(map);
   }));
   const forecastSlider = host.querySelector("[data-gl-forecast-slider]");
-  forecastSlider.addEventListener("input", () => syncGreatLakesForecastLabel(host, Number(forecastSlider.value)));
+  forecastSlider.addEventListener("input", () => {
+    if (greatLakesControlValue("layer") === "air-temperature") forecastSlider.value = String(nearestAirTemperatureHour(Number(forecastSlider.value)));
+    syncGreatLakesForecastLabel(host, Number(forecastSlider.value));
+  });
   forecastSlider.addEventListener("change", () => {
     const forecast = host.querySelector("[data-gl-forecast]");
-    const value = forecastSlider.value;
+    const value = greatLakesControlValue("layer") === "air-temperature" ? String(nearestAirTemperatureHour(Number(forecastSlider.value))) : forecastSlider.value;
     forecast.querySelector("[data-gl-custom-forecast]")?.remove();
     let option = [...forecast.options].find((item) => item.value === value);
     if (!option) {
@@ -714,23 +749,28 @@ export function syncGreatLakesLayerControls(host = document.querySelector("#grea
   if (!host) return;
   const layer = host.querySelector("[data-gl-layer]")?.value;
   const forecastOnly = ["target-temperature", "wind"].includes(layer);
+  const air = layer === "air-temperature";
+  const noHistory = forecastOnly || layer === "bottom-temperature" || air;
   const forecast = host.querySelector("[data-gl-forecast]");
-  if (forecastOnly && forecast?.value === HISTORY_FORECAST_VALUE) forecast.value = "0";
+  if (noHistory && forecast?.value === HISTORY_FORECAST_VALUE) forecast.value = "0";
   const historyOption = forecast?.querySelector(`option[value="${HISTORY_FORECAST_VALUE}"]`);
-  if (historyOption) historyOption.disabled = forecastOnly;
-  const maxHour = layer === "waves" ? 48 : GREAT_LAKES_MAX_FORECAST_HOUR;
+  if (historyOption) historyOption.disabled = noHistory;
+  const airHours = air ? airTemperatureHours() : null;
+  const maxHour = air ? airHours.at(-1) ?? 0 : layer === "waves" ? 48 : GREAT_LAKES_MAX_FORECAST_HOUR;
+  if (air && forecast) forecast.value = String(nearestAirTemperatureHour(Number(forecast.value)));
   if (forecast && forecast.value !== HISTORY_FORECAST_VALUE && Number(forecast.value) > maxHour) forecast.value = String(maxHour);
   const forecastSlider = host.querySelector("[data-gl-forecast-slider]");
   if (forecastSlider) {
     forecastSlider.max = String(maxHour);
-    forecastSlider.disabled = forecast?.value === HISTORY_FORECAST_VALUE;
+    forecastSlider.min = String(air ? airHours[0] ?? 0 : 0);
+    forecastSlider.disabled = forecast?.value === HISTORY_FORECAST_VALUE || (air && !airHours.length);
     if (!forecastSlider.disabled) forecastSlider.value = forecast?.value || "0";
   }
   forecast?.querySelectorAll("option").forEach((option) => {
-    if (option.value !== HISTORY_FORECAST_VALUE) option.disabled = Number(option.value) > maxHour;
+    if (option.value !== HISTORY_FORECAST_VALUE) option.disabled = Number(option.value) > maxHour || (air && !airHours.includes(Number(option.value)));
   });
   host.querySelectorAll("[data-gl-forecast-choices] input").forEach((choice) => {
-    choice.disabled = choice.value === HISTORY_FORECAST_VALUE ? forecastOnly : Number(choice.value) > maxHour;
+    choice.disabled = choice.value === HISTORY_FORECAST_VALUE ? noHistory : Number(choice.value) > maxHour || (air && !airHours.includes(Number(choice.value)));
     choice.checked = choice.value === forecast?.value;
   });
   syncGreatLakesForecastLabel(host);
@@ -741,7 +781,11 @@ export function syncGreatLakesLayerControls(host = document.querySelector("#grea
   host.classList.toggle("has-wind-layer", layer === "wind");
   host.classList.toggle("has-history", host.querySelector("[data-gl-forecast]")?.value === HISTORY_FORECAST_VALUE);
   host.classList.toggle("has-current-layer", layer === "currents");
-  host.classList.toggle("has-temperature-layer", layer === "temperature");
+  host.classList.toggle("has-temperature-layer", ["temperature", "bottom-temperature", "air-temperature"].includes(layer));
+  host.classList.toggle("has-bottom-temperature-layer", layer === "bottom-temperature");
+  host.classList.toggle("has-air-temperature-layer", air);
+  const coverage = host.querySelector("[data-gl-air-coverage-control]");
+  if (coverage) coverage.hidden = !air;
   host.classList.toggle("has-gl-layer", Boolean(layer));
   host.classList.toggle("has-thermocline-layer", layer === "thermocline");
   host.classList.toggle("has-wave-layer", layer === "waves");
@@ -924,6 +968,7 @@ export function greatLakesForecastHour() {
 
 // Saved past maps are surface only.
 export function greatLakesShownDepth() {
+  if (["bottom-temperature", "air-temperature"].includes(greatLakesControlValue("layer"))) return "0";
   return greatLakesHistoryMode() ? "0" : greatLakesControlValue("depth");
 }
 
@@ -998,8 +1043,21 @@ export function setCurrentLegendRange(metadata = {}) {
 export function setWaveLegendRange(metadata = {}) {
   const minimum = document.querySelector("[data-gl-wave-min]");
   const maximum = document.querySelector("[data-gl-wave-max]");
+  const bar = document.querySelector(".great-lakes-wave-legend i");
+  const high = Number(metadata.maxHeightMeters) > 0 ? Number(metadata.maxHeightMeters) : WAVE_DEFAULT_MAX_METERS;
   if (minimum) minimum.textContent = Number(metadata.minHeightMeters) > 0 ? waveHeightLabel(metadata.minHeightMeters) : "Calm";
-  if (maximum) maximum.textContent = waveHeightLabel(metadata.maxHeightMeters);
+  if (maximum) maximum.textContent = waveHeightLabel(high);
+  if (bar) bar.style.background = paletteGradient(waveStops(high));
+}
+
+export function setWindLegendRange(metadata = {}) {
+  const minimum = document.querySelector("[data-gl-wind-min]");
+  const maximum = document.querySelector("[data-gl-wind-max]");
+  const bar = document.querySelector(".great-lakes-wind-legend i");
+  const high = Number(metadata.maxSpeedMetersPerSecond) > 0 ? Number(metadata.maxSpeedMetersPerSecond) : WIND_DEFAULT_MAX_METERS_PER_SECOND;
+  if (minimum) minimum.textContent = Number(metadata.minSpeedMetersPerSecond) > 0 ? windSpeedLabel(metadata.minSpeedMetersPerSecond) : "Calm";
+  if (maximum) maximum.textContent = windSpeedLabel(high);
+  if (bar) bar.style.background = paletteGradient(windStops(high));
 }
 
 // The layer's colours follow what is on screen (great-lakes-palette.js); null without a layer.
@@ -1007,15 +1065,17 @@ export let greatLakesPaletteFit = null;
 
 // Legends, flow colours, and station dots follow the colour range on screen.
 export function showPaletteRange(kind, low, high) {
-  if (kind === "temperature") setTemperatureLegendRange({ minC: low, maxC: high });
+  if (kind === "temperature" || kind === "air-temperature") setTemperatureLegendRange({ minC: low, maxC: high });
   else if (kind === "thermocline") setThermoclineLegendRange({ minDepthMeters: low, maxDepthMeters: high });
   else if (kind === "waves") setWaveLegendRange({ minHeightMeters: low, maxHeightMeters: high });
+  else if (kind === "wind") setWindLegendRange({ minSpeedMetersPerSecond: low, maxSpeedMetersPerSecond: high });
   else if (kind === "upwelling") { /* fixed colours: the legend never changes */ }
   else {
     setCurrentLegendRange({ minSpeedMetersPerSecond: low, maxSpeedMetersPerSecond: high });
     setCurrentSpeedMax({ maxSpeedMetersPerSecond: high });
   }
-  document.dispatchEvent(new CustomEvent("great-lakes-palette-range", { detail: { kind, minimum: low, maximum: high, depth: Number(greatLakesShownDepth()) || 0 } }));
+  const readingKind = kind === "temperature" && greatLakesControlValue("layer") === "bottom-temperature" ? "bottom-temperature" : kind;
+  document.dispatchEvent(new CustomEvent("great-lakes-palette-range", { detail: { kind: readingKind, minimum: low, maximum: high, depth: Number(greatLakesShownDepth()) || 0 } }));
 }
 
 export function stopPaletteFit() {
@@ -1279,6 +1339,37 @@ export async function greatLakesMapInspection({ latitude, longitude }) {
   const depth = greatLakesShownDepth(), forecastHour = greatLakesForecastHour();
   const models = greatLakesLoadedModelsKey, timeParams = greatLakesTimeParams();
   const temperatureLabel = (value) => Number(value.depthMeters) > 0.25 ? `Temperature at ${greatLakesDepthLabel(Number(value.depthMeters))}` : "Surface temperature";
+  if (greatLakesActiveLayer === "air-temperature") {
+    try {
+      const pinned = greatLakesAnimationPointParams();
+      if (greatLakesAnimationActive() && !pinned.frame) throw new Error("Displayed frame has no snapshot identifier");
+      const value = await window.noaaGreatLakesApi.airTemperatureValue({ forecastHour, latitude, longitude, ...pinned });
+      return readingHtml({
+        label: "Air temperature",
+        value: value.available && Number.isFinite(value.temperatureC) ? waterTemperatureLabel(value.temperatureC) : "Unavailable",
+        note: value.available ? "NOAA HRRR · 2 m air temperature" : "NOAA HRRR air-temperature data is unavailable here.",
+        rows: value.available ? [["Height above ground", "2 m"], ["Model", value.model || "HRRR"], ...(value.validTime ? [["Valid time", historyTimeLabel(value.validTime)]] : [])] : []
+      });
+    } catch {
+      return readingHtml({ label: "Air temperature", value: "Unavailable", note: "The displayed NOAA HRRR air-temperature frame is unavailable. Try another forecast." });
+    }
+  }
+  if (greatLakesActiveLayer === "bottom-temperature") {
+    try {
+      const value = await window.noaaGreatLakesApi.bottomTemperatureValue({
+        forecastHour, latitude, longitude, ...greatLakesAnimationPointParams()
+      });
+      return readingHtml({
+        label: "Bottom temperature",
+        value: value.available ? waterTemperatureLabel(value.temperatureC) : "Unavailable",
+        note: value.available ? "Deepest valid model reading near the lakebed." : "NOAA bottom-temperature data is unavailable here.",
+        rows: value.available ? [["Model depth", greatLakesDepthLabel(value.depthMeters)]] : [],
+        action: profileActionHtml(latitude, longitude)
+      });
+    } catch {
+      return readingHtml({ label: "Bottom temperature", value: "Unavailable", note: "NOAA bottom-temperature data is temporarily unavailable." });
+    }
+  }
   if (greatLakesActiveLayer === "wind") {
     return windReading(await window.noaaGreatLakesApi.windValue({ forecastHour, latitude, longitude }).catch(() => null));
   }
@@ -1499,22 +1590,23 @@ export function createCurrentFieldSampler(fields, isAllowedPoint = null) {
 }
 
 // NOAA directions describe where waves come from. Convert to the travel
-// bearing and use period for a gentle, readable particle speed.
+// bearing. Particle speed follows wave height (particle-speed.js): still at
+// flat water, creeping through calm and chop, racing at 8 ft and above.
+export function waveParticleSpeed(heightMeters) {
+  return dramaticParticleSpeed(heightMeters, WAVE_DEFAULT_MAX_METERS);
+}
+
 export function waveParticleFields(arrows) {
   const points = arrows.flatMap((arrow) => {
-    if (!Number.isFinite(arrow.periodSeconds) || !Number.isFinite(arrow.directionDegrees)) return [];
+    if (!Number.isFinite(arrow.directionDegrees)) return [];
     const bearing = (arrow.directionDegrees + 180) * Math.PI / 180;
-    const speed = Math.max(0.12, Math.min(0.8, arrow.periodSeconds * 1.56 / 12));
+    const speed = waveParticleSpeed(arrow.heightMeters);
     return [{ latitude: arrow.latitude, longitude: arrow.longitude, u: Math.sin(bearing) * speed, v: Math.cos(bearing) * speed }];
   });
   return points.length ? [{ points }] : [];
 }
 
-// Screen-space step so the flow reads at every zoom: still water barely
-// drifts, ordinary 0.1 m/s currents glide, and jets streak.
-export function currentPixelsPerFrame(speed) {
-  return speed >= 0.0015 ? Math.min(2.6, 0.5 * (speed / 0.1) ** 0.7) : 0;
-}
+export { currentPixelsPerFrame };
 
 export function blendCurrentVectors(from, to, fraction) {
   if (!from || !to) return fraction < 0.5 ? from : to;
@@ -1781,11 +1873,13 @@ export let greatLakesLoadedDataVersion = "";
 let greatLakesAvailability = null;
 
 export async function greatLakesDataStatus(modelsKey, { fresh = false } = {}) {
-  const cached = greatLakesStatusCache.get(modelsKey);
+  const layer = greatLakesControlValue("layer");
+  const cacheKey = layer === "air-temperature" ? "air-temperature" : modelsKey;
+  const cached = greatLakesStatusCache.get(cacheKey);
   if (!fresh && cached && Date.now() - cached.at < 60 * 1000) return cached.status;
   try {
-    const status = await window.noaaGreatLakesApi.status({ models: modelsKey, signal: AbortSignal.timeout(5000) });
-    greatLakesStatusCache.set(modelsKey, { status, at: Date.now() });
+    const status = await window.noaaGreatLakesApi.status({ models: modelsKey, layer, signal: AbortSignal.timeout(5000) });
+    greatLakesStatusCache.set(cacheKey, { status, at: Date.now() });
     return status;
   } catch {
     return cached?.status || null;
@@ -1869,6 +1963,7 @@ export async function refreshGreatLakesIfStale(map) {
 // Waves come from a separate hourly NOAA model with its own version, so the
 // other layers are not reloaded every time a wave cycle arrives.
 export function greatLakesDataVersion(status, layer) {
+  if (layer === "air-temperature") return status?.airTemperatureVersion || "";
   return (layer === "waves" ? status?.wavesVersion : status?.version) || "";
 }
 
@@ -1930,6 +2025,7 @@ export async function loadGreatLakesConditions(map) {
         for (const raster of payload.rasters || []) L.imageOverlay(raster.imageUrl, raster.bounds, { opacity: 0.8, interactive: false }).addTo(greatLakesConditionsLayer);
         refreshWind();
       }
+      if (layer === "wind") drawPaletteRasters(payload.rasters || [], "wind", { opacity: 0.8, className: "great-lakes-wind-raster" });
       const missing = payload.metadata.models?.filter((model) => !model.available).length || 0;
       const matching = payload.metadata.models?.reduce((total, model) => total + (model.matchingCells || 0), 0) || 0;
       setGreatLakesStatus(layer === "wind" ? "NOAA wind at 10 m. Click the map for wind speed and gusts." : `${missing ? "Temperature data unavailable for one or more lakes. " : ""}${matching ? "Showing " + greatLakesControlValue("target-selection") + " matching depths. Click water for all matches." : "No matching temperature in the available water columns."}`, missing > 0);
@@ -1977,11 +2073,12 @@ export async function loadGreatLakesConditions(map) {
       return;
     }
   }
-  const forecastHour = historyMode ? "0" : greatLakesControlValue("forecast");
   const depth = greatLakesShownDepth();
   const timeParams = greatLakesTimeParams();
   const dataStatus = historyMode || layer === "wind" ? null : await greatLakesDataStatus(modelsKey);
   if (loadRevision !== greatLakesLoadRevision) return;
+  if (layer === "air-temperature" && dataStatus?.airTemperature) syncAirTemperatureForecast(dataStatus.airTemperature);
+  const forecastHour = historyMode ? "0" : greatLakesControlValue("forecast");
   const dataVersion = historyMode ? `history:${timeParams.time}` : greatLakesDataVersion(dataStatus, layer);
   if (!historyMode && greatLakesAnimationActive()) {
     greatLakesConditionsRequest = new AbortController();
@@ -2019,11 +2116,22 @@ export async function loadGreatLakesConditions(map) {
       temperatureBackground ? fetchLayer(temperatureCacheKey, { layer: "temperature", resolution: CURRENT_BACKGROUND_RESOLUTION }) : null
     ]);
     if (loadRevision !== greatLakesLoadRevision) return;
+    if (layer === "air-temperature") {
+      syncAirTemperatureForecast(payload.metadata);
+      if (airTemperatureHours().length && greatLakesControlValue("forecast") !== forecastHour) {
+        await loadGreatLakesConditions(map);
+        return;
+      }
+    }
     greatLakesActiveLayer = layer;
     greatLakesLoadedModelsKey = modelsKey;
     greatLakesAvailability = payload.metadata.availability?.state || null;
-    if (layer === "temperature") {
-      renderGreatLakesTemperatureRasters(payload.rasters || [], loadRevision);
+    if (layer === "air-temperature") {
+      setTemperatureLegendRange({ minC: -40, maxC: 50 });
+      drawPaletteRasters(airTemperatureRasters(payload), "air-temperature", { opacity: 0.9, className: "great-lakes-temperature-raster" });
+    }
+    else if (layer === "temperature" || layer === "bottom-temperature") {
+      renderGreatLakesTemperatureRasters(payload.rasters || [], loadRevision, layer);
       setTemperatureLegendRange(payload.metadata);
     }
     else if (layer === "thermocline") {
@@ -2034,8 +2142,8 @@ export async function loadGreatLakesConditions(map) {
       renderGreatLakesUpwellingRasters(payload.rasters || [], loadRevision);
     }
     else if (layer === "waves") {
-      renderGreatLakesWaveRasters(payload.rasters || [], loadRevision);
       setWaveLegendRange(payload.metadata);
+      renderGreatLakesWaveRasters(payload.rasters || [], loadRevision);
       const display = greatLakesControlValue("wave-display");
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (display === "flow" && !reduced && (payload.arrows || []).length) greatLakesParticleLayer = createParticleLayer(map, waveParticleFields(payload.arrows), { clipToGreatLakesWater: true }).addTo(map);
@@ -2062,12 +2170,12 @@ export async function loadGreatLakesConditions(map) {
       && metadataModels.every((model) => model.available);
     const unavailable = thermoclineAvailability
       ? thermoclineAvailability === "error" && !thermoclineFallbackAvailable
-      : metadataModels.some((model) => !model.available);
-    const validTime = metadataModels.find((model) => model.validTime)?.validTime;
-    const label = layer === "temperature" ? "Water temperature" : layer === "thermocline" ? "Thermocline depth" : layer === "upwelling" ? "Upwelling data" : layer === "waves" ? "Wave data" : temperaturePayload ? "Current or temperature data" : "Underwater current data";
+      : payload.metadata.available === false || metadataModels.some((model) => !model.available);
+    const validTime = payload.metadata.validTime || metadataModels.find((model) => model.validTime)?.validTime;
+    const label = layer === "air-temperature" ? "Air temperature" : layer === "temperature" ? "Water temperature" : layer === "bottom-temperature" ? "Bottom temperatures" : layer === "thermocline" ? "Thermocline depth" : layer === "upwelling" ? "Upwelling data" : layer === "waves" ? "Wave data" : temperaturePayload ? "Current or temperature data" : "Underwater current data";
     const sampledOnly = layer === "currents" && !(payload.fields || []).length && (payload.data || []).length;
-    const shownDepth = layer === "thermocline" || layer === "waves" || layer === "upwelling" ? null : modelDepthShown(temperaturePayload?.metadata || payload.metadata);
-    const source = historyMode ? "saved NOAA conditions" : layer === "waves" ? "the NOAA wave forecast" : "the NOAA forecast";
+    const shownDepth = ["air-temperature", "bottom-temperature", "thermocline", "waves", "upwelling"].includes(layer) ? null : modelDepthShown(temperaturePayload?.metadata || payload.metadata);
+    const source = layer === "air-temperature" ? "NOAA HRRR · 2 m air temperature" : historyMode ? "saved NOAA conditions" : layer === "waves" ? "the NOAA wave forecast" : "the NOAA forecast";
     const updateNote = historyMode ? " Past hours show the surface." : layer === "waves" ? waveDataGeneratedNote(dataStatus, payload.metadata) : dataGeneratedNote(dataStatus, payload.metadata);
     const when = validTime ? (historyMode ? historyTimeLabel(validTime) : friendlyTime(validTime)) : "";
     const currentsFallback = layer === "currents" && payload.metadata.availability?.state === "fallback";
@@ -2089,7 +2197,10 @@ export async function loadGreatLakesConditions(map) {
   } catch (error) {
     if (loadRevision !== greatLakesLoadRevision || error.name === "AbortError") return;
     if (historyMode) setGreatLakesStatus(/\(404\)/.test(error.message) ? "This layer was not saved for that hour. Pick another time." : "Saved conditions are unavailable. Try again shortly.", true);
-    else setGreatLakesStatus("NOAA Great Lakes model data is unavailable. Try again shortly.", true);
+    else {
+      if (layer === "air-temperature") greatLakesAvailability = "error";
+      setGreatLakesStatus(layer === "air-temperature" && error.message.includes("lake coverage") ? error.message : "NOAA Great Lakes model data is unavailable. Try again shortly.", true);
+    }
   } finally {
     if (loadRevision === greatLakesLoadRevision) setGreatLakesMapLoading(false);
   }

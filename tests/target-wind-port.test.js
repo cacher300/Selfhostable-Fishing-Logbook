@@ -13,6 +13,8 @@ function setUnitSystem(system) {
   setMapUnitSystem(system);
 }
 const { windSpeedLabel, windReading, windParticleFields } = await import("../static/js/wind.js");
+const { currentPixelsPerFrame, dramaticParticleSpeed } = await import("../static/js/particle-speed.js");
+const { WIND_FULL_SPEED_METERS_PER_SECOND } = await import("../static/js/wind-fields.js");
 const {
   DEFAULT_WIND_PARTICLE_COLOR, WIND_PARTICLE_COLOR_OPTIONS, WIND_PARTICLE_COLOR_STORAGE_KEY,
   greatLakesConditionsHtml, syncGreatLakesLayerControls, setTargetTemperature, setTargetTemperatureSurfaceRange,
@@ -43,7 +45,18 @@ setUnitSystem("nautical");
 assert.equal(windSpeedLabel(10), "19.4 kn");
 setUnitSystem("metric");
 assert.equal(windSpeedLabel(10), "36 kph");
-assert.deepEqual(windParticleFields([{latitude:43,longitude:-78,u:5,v:-2},{latitude:44,longitude:-77,u:NaN,v:1}]), [{points:[{latitude:43,longitude:-78,u:0.3,v:-0.12}]}]);
+const [{ points: [windPoint] }] = windParticleFields([{latitude:43,longitude:-78,u:5,v:-2},{latitude:44,longitude:-77,u:NaN,v:1}]);
+assert.ok(Math.abs(windPoint.u / windPoint.v - 5 / -2) < 1e-9, "wind particles keep the wind's direction");
+assert.ok(Math.abs(Math.hypot(windPoint.u, windPoint.v) - dramaticParticleSpeed(Math.hypot(5, 2), WIND_FULL_SPEED_METERS_PER_SECOND)) < 1e-9);
+// Still air does not move; light air creeps; full speed from 25 kn up.
+const windPixels = (metersPerSecond) => {
+  const [{ points: [point] }] = windParticleFields([{ latitude: 43, longitude: -78, u: metersPerSecond, v: 0 }]);
+  return currentPixelsPerFrame(Math.hypot(point.u, point.v));
+};
+assert.equal(windPixels(0), 0);
+assert.ok(windPixels(1) > 0 && windPixels(1) < 0.1);
+assert.ok(windPixels(10 * 0.514444) * 3.9 < windPixels(20 * 0.514444), "doubling the wind about quadruples the motion");
+assert.ok(Math.abs(windPixels(WIND_FULL_SPEED_METERS_PER_SECOND) - 2.6) < 1e-6);
 const windGrid = windParticleFields([
   { latitude: 43, longitude: -78, u: 0, v: 0 }, { latitude: 43, longitude: -77.75, u: 10, v: 0 },
   { latitude: 43.25, longitude: -78, u: 0, v: 20 }, { latitude: 43.25, longitude: -77.75, u: 10, v: 20 }
@@ -51,8 +64,12 @@ const windGrid = windParticleFields([
 const sampleWind = createCurrentFieldSampler(windGrid);
 assert.equal(windGrid[0].rows, 2);
 assert.equal(windGrid[0].columns, 2);
-assert.ok(Math.abs(sampleWind(43.125, -77.875).u - 0.3) < 1e-6);
-assert.ok(Math.abs(sampleWind(43.125, -77.875).v - 0.6) < 1e-6);
+const expectedWind = [[10, 0], [0, 20], [10, 20]].map(([u, v]) => {
+  const scale = dramaticParticleSpeed(Math.hypot(u, v), WIND_FULL_SPEED_METERS_PER_SECOND) / Math.hypot(u, v);
+  return [u * scale, v * scale];
+});
+assert.ok(Math.abs(sampleWind(43.125, -77.875).u - expectedWind.reduce((sum, [u]) => sum + u, 0) / 4) < 1e-6);
+assert.ok(Math.abs(sampleWind(43.125, -77.875).v - expectedWind.reduce((sum, [, v]) => sum + v, 0) / 4) < 1e-6);
 setTargetTemperature(10);
 assert.equal(document.querySelector("[data-gl-target-temperature]").value, "10");
 setUnitSystem("imperial");

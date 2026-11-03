@@ -4,6 +4,22 @@ Base URL defaults to `http://127.0.0.1:8080`. Routes are grouped into Flask blue
 
 The desktop browser uses the same public `/api/v1` API as the mobile app, defaulting to `https://greatlakestrolling.com`. It requests forecast layers, points, stations, model points, animations, and history directly from that host. Set `GREAT_LAKES_API_URL` to use another compatible host. When the configured host differs from the desktop app origin, it must allow browser cross-origin requests. Flask does not proxy Great Lakes conditions or history.
 
+### Bottom temperatures (public Great Lakes API)
+
+- `GET /api/v1/layers/bottom-temperature?forecastHour=6` returns temperature rasters for all five lakes, with `metadata.depthSelection: "bottom"` and `minC` / `maxC` on the fixed 0–30 C value range. Each wet cell uses its deepest valid model reading at or above the model lakebed; model metadata reports `bottomDepthSource: "bathymetry"` or `"deepest-valid-level"` when bathymetry is unavailable. The desktop uses its existing temperature palette and color preference.
+- `GET /api/v1/point/bottom-temperature?forecastHour=6&latitude=43.5&longitude=-77.5` returns `available`, `temperatureC`, `depthMeters` (selected model level), `model`, `validTime`, and `bottomDepthSource`. Saved-frame `frame` / `inputs` parameters pin animation readings to the displayed forecast.
+- `/api/v1/animation/bottom-temperature` and the public offline manifest include this layer. It ignores `depth`; the desktop hides the depth slider, disables saved history, and retains forecast choices and animation. Bottom temperatures are not used to recolor surface buoy observations or autofill surface trip temperatures.
+
+### Air temperature (public Great Lakes API)
+
+- `GET /api/v1/layers/air-temperature?forecastHour=n` returns `rasters` for the region and `lakeRasters` clipped to the lakes. Both contain the usual `imageUrl`, `valueUrl`, `valueRange`, and `bounds`; relative URLs in both arrays are resolved against the configured API host. The desktop Coverage selector defaults to **Region**, with **Lakes only** selecting `lakeRasters` (never falling back to regional imagery).
+- Metadata includes `source: "NOAA HRRR · 2 m air temperature"`, `run`, `runTime`, `validTime`, `forecastHour`, `minC: -40`, `maxC: 50`, `heightMeters: 2`, `available`, `maxForecastHour` (remaining horizon), and `forecastHours` (available UI offsets). Forecast controls are capped at 48 hours and narrowed/snapped to the available offsets. Depth and saved history are unavailable.
+- `/api/v1/animation/air-temperature` supplies the authoritative frame list. Frame payloads include both raster arrays. The desktop never pads the list or repeats a terminal frame to fill 48 hours; it loops only the actual frames. Air frames step without interpolating between snapshots, so point inspection identifies the exact displayed frame.
+- `GET /api/v1/point/air-temperature?forecastHour=n&latitude=...&longitude=...` returns `available`, `temperatureC`, `heightMeters: 2`, `model: "HRRR"`, and `validTime`. Saved `frame` / `inputs` query parameters pin animation readings. A missing snapshot identifier or failed pinned lookup shows unavailable, never a live fallback.
+- The desktop fits its own palette from the selected coverage's value images, using the existing C/F preference and fixed/fitted color switch. The air fixed range is **−40 to 50 °C**, distinct from water's 0–30 °C. It does not call `/palette/air-temperature`; other clients using that endpoint must pass `temperatureMode=fixed|dynamic` and `coverage=region|lakes` (default region).
+- Air-temperature metadata and palette events are isolated from surface-buoy coloring and surface trip-temperature autofill. This client depends on compatible upstream endpoints, browser CORS, and readable value images; Flask does not provide an HRRR fallback.
+- HRRR freshness uses `/api/v1/status` and its independent `airTemperatureVersion` / `airTemperature` availability and remaining-horizon summary, rather than GLOFS or wave versions. `metadata.lakeCoverageAvailable: false` is an explicit error for Lakes only (including animation), with a prompt to choose Region; it is not shown as a successful empty map.
+
 ## Logbook
 
 ### `GET /api/logbook`

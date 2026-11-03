@@ -1,9 +1,19 @@
-const WIND_PARTICLE_SPEED_SCALE = 0.06;
+import { dramaticParticleSpeed } from "./particle-speed.js";
+
+// Wind particles reach full speed at 25 kn (small-craft territory) and
+// barely creep in light air; see particle-speed.js.
+export const WIND_FULL_SPEED_METERS_PER_SECOND = 25 * 0.514444;
+
+function windVector(u, v) {
+  const speed = Math.hypot(u, v);
+  const scale = speed ? dramaticParticleSpeed(speed, WIND_FULL_SPEED_METERS_PER_SECOND) / speed : 0;
+  return { u: u * scale, v: v * scale };
+}
 
 export function windParticleFields(points) {
   const vectors = points.flatMap((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude)
     && Number.isFinite(point.u) && Number.isFinite(point.v)
-    ? [{ latitude: point.latitude, longitude: point.longitude, u: point.u * WIND_PARTICLE_SPEED_SCALE, v: point.v * WIND_PARTICLE_SPEED_SCALE }]
+    ? [{ latitude: point.latitude, longitude: point.longitude, ...windVector(point.u, point.v) }]
     : []);
   if (!vectors.length) return [];
 
