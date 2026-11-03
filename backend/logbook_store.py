@@ -11,6 +11,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 from .backend_config import ROOT, SCHEMA_CONSTANTS
+from .home_port import valid_home_port
 
 SCHEMA_VERSION = 2
 COLLECTION_KEYS = tuple(SCHEMA_CONSTANTS["collectionKeys"])
@@ -291,4 +292,11 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
         valid, error = rule(payload)
         if not valid:
             return valid, error
+    reference = payload["settings"].get("homePort")
+    if reference:
+        location = next((item for item in payload["locations"] if item.get("id") == reference["locationId"]), None)
+        launches = [item for item in (location or {}).get("launches", []) if item.get("id") == reference["launchId"]]
+        launch = launches[0] if len(launches) == 1 else None
+        if not launch or not isinstance(launch.get("name"), str) or not launch["name"].strip() or not valid_home_port(launch.get("coordinates")):
+            return _error("settings.homePort", "must reference a named saved launch on a Great Lake at least 1 km offshore")
     return True, None

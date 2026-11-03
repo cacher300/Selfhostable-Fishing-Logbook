@@ -75,6 +75,7 @@ Compatibility-sensitive fields include `settings.defaultPeople`, `units`, `timeF
 - `chopRanges[]`: `{ id, label, maxFeet }`; IDs are unique, labels are required, and `maxFeet` is a nonnegative number or `null` for an open end.
 - `checklists[]`: independent named preparation lists whose item completion remains saved until reset.
 - `privatePhotoLocations[]`: `{ id, name, coordinates, radiusMeters }`; IDs are unique, coordinates are required, and the privacy radius is 25–10,000 m. Names need not be unique because multiple private pins may share a label.
+- `homePort`: optional `{ locationId, launchId }` identifying a saved launch under a waterbody. Both clients let users designate the home launch; its pin must be on a Great Lake at least 1 km from shore. Mobile uses that launch's name and coordinates for Home conditions.
 - `bathymetryLakeCalibrationsFeet`: per-Great-Lake `{ shallowOffsetFeet, offshoreOffsetFeet }` calibration values.
 - `trollingSpreads[]`: named reusable trolling setup templates. Each item is `{ id, name, spread[] }`, where each spread row contains `comboId`, `side`, `presentation`, and the optional `dipseyDiverColor` for High Diver or Low Diver rows.
 - `defaultTrollingSpreadId`: optional ID of the saved trolling spread used to seed new trolling trips. The Settings label is `Trolling default`; it is not tied to target species.
@@ -111,7 +112,7 @@ The optional greatLakesOverride field is a manual yes/no correction. When unset,
 
 ## Fishing Spot
 
-A spot is `{ id, name, coordinates, radiusMeters }`. Names and IDs are unique, coordinates are required, and radius is stored in meters from 25 through 500. Spots are global geographic circles rather than children of waterbodies.
+A spot is `{ id, name, lake?, coordinates, radiusMeters }`. The optional `lake` is a descriptive lake or waterbody label; names and IDs are unique, coordinates are required, and radius is stored in meters from 25 through 500. Spots remain global geographic circles rather than children of waterbodies.
 
 Landed catches and lost fish use `spotId` plus `spotAssignmentMode` (`automatic` or `manual`). Automatic assignment uses manual catch coordinates before resolved/photo coordinates, matches the nearest spot whose radius contains the catch, and uses spot ID to break equal-distance ties. Manual assignment can select any existing spot regardless of distance or explicitly store no spot. Both record types can use the normal location picker, metadata locks, and media-derived coordinates.
 

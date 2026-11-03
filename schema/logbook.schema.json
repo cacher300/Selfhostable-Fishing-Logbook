@@ -459,6 +459,9 @@
         "name": {
           "$ref": "#/$defs/nonEmptyString"
         },
+        "lake": {
+          "type": "string"
+        },
         "coordinates": {
           "$ref": "#/$defs/coordinates"
         },
@@ -846,6 +849,25 @@
               "radiusMeters"
             ]
           }
+        },
+        "homePort": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true,
+          "properties": {
+            "locationId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "launchId": {
+              "$ref": "#/$defs/nonEmptyString"
+            }
+          },
+          "required": [
+            "locationId",
+            "launchId"
+          ]
         },
         "trollingSpreads": {
           "type": "array",

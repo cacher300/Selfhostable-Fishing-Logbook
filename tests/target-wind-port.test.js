@@ -2,7 +2,16 @@ import assert from "node:assert/strict";
 import { installBrowserEnv } from "./helpers/browser-env.mjs";
 installBrowserEnv();
 const { setState } = await import("../static/js/app-state.js");
-function setUnitSystem(system) { setState({ settings: { units: system === "metric" ? { waterTemperature: "C", speed: "kph" } : system === "nautical" ? { waterTemperature: "F", speed: "kn" } : { waterTemperature: "F", speed: "mph" } } }); }
+const { setMapUnitSystem } = await import("../static/js/app-units.js");
+function setUnitSystem(system) {
+  const units = system === "metric"
+    ? { depth: "m", waterTemperature: "C", speed: "kph" }
+    : system === "nautical"
+      ? { waterTemperature: "F", speed: "kn" }
+      : { waterTemperature: "F", speed: "mph" };
+  setState({ settings: { units } });
+  setMapUnitSystem(system);
+}
 const { windSpeedLabel, windReading, windParticleFields } = await import("../static/js/wind.js");
 const {
   DEFAULT_WIND_PARTICLE_COLOR, WIND_PARTICLE_COLOR_OPTIONS, WIND_PARTICLE_COLOR_STORAGE_KEY,

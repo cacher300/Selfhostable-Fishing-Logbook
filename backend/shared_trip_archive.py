@@ -535,6 +535,7 @@ def _merge_referenced_spots(local: dict, incoming: dict, trip: dict) -> dict[str
             (
                 item for item in local["spots"]
                 if normalized_name(item.get("name")) == normalized_name(source_spot.get("name"))
+                and normalized_name(item.get("lake")) == normalized_name(source_spot.get("lake"))
                 and item.get("coordinates") == source_spot.get("coordinates")
                 and item.get("radiusMeters") == source_spot.get("radiusMeters")
             ),

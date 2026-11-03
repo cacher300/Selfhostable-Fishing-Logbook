@@ -161,7 +161,7 @@ export function waterColumnChartSvg(profile, zoom, width, height) {
   const unit = depthUnit(), tempUnit = temperatureUnit();
   const fullDepthDisplay = toDisplayDepth(values[values.length - 1].depthMeters);
   const maxDisplayDepth = zoom > 0 ? Math.min(zoom, fullDepthDisplay) : fullDepthDisplay;
-  const maxDepthMeters = unit === "ft" ? maxDisplayDepth / FEET_PER_METER : maxDisplayDepth;
+  const maxDepthMeters = convertUnitValue(maxDisplayDepth, unit, "m");
   const shown = values.filter((item) => item.depthMeters <= maxDepthMeters + 1e-6);
   const edge = temperatureAtDepth(values, maxDepthMeters);
   if (shown[shown.length - 1].depthMeters < maxDepthMeters - 1e-6 && edge !== null) shown.push({ depthMeters: maxDepthMeters, temperatureC: edge, interpolated: true });
@@ -191,7 +191,7 @@ export function waterColumnChartSvg(profile, zoom, width, height) {
   const depthTicks = niceTicks(0, maxDisplayDepth, Math.max(4, Math.round((plot.bottom - plot.top) / 70)));
   const depthTick = (display) => display === 0 ? "Surface" : `${Number(display.toFixed(1))} ${unit}`;
   const gridY = joinHtml(depthTicks.map((display) => {
-    const meters = unit === "ft" ? display / FEET_PER_METER : display;
+    const meters = convertUnitValue(display, unit, "m");
     return html`<line class="wc-grid" x1="${plot.left}" x2="${plot.right}" y1="${y(meters)}" y2="${y(meters)}"/><text class="wc-axis" x="${plot.left - 8}" y="${y(meters) + 4}" text-anchor="end">${depthTick(display)}</text>`;
   }), "");
   const gridX = joinHtml(tempTicks.map((temperature) => html`<line class="wc-grid" x1="${x(temperature)}" x2="${x(temperature)}" y1="${plot.top}" y2="${plot.bottom}"/><text class="wc-axis" x="${x(temperature)}" y="${plot.top - 10}" text-anchor="middle">${Number(temperature.toFixed(1))}°</text>`), "");

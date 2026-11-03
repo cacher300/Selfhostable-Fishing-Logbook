@@ -1,6 +1,6 @@
 import { activeStatsChartMetric, activeStatsTableSort, state, ui } from "./app-state.js";
 import { els } from "./app-elements.js";
-import { deleteManagedLaunch, deleteManagedLocation, locationFormCoordinates, openCatchLocationDialog, openLocationDialog, populateLaunchSelect, setLocationFormCoordinates, updateCatchFowFromLocation, updateCatchLocationSummary, updateLocationControls } from "./locations.js";
+import { deleteManagedLaunch, deleteManagedLocation, locationFormCoordinates, openCatchLocationDialog, openLocationDialog, populateLaunchSelect, setLocationFormCoordinates, toggleHomeLaunch, updateCatchFowFromLocation, updateCatchLocationSummary, updateLocationControls } from "./locations.js";
 import { scheduleTripWeatherPreview } from "./location-weather.js";
 import { scheduleSettingsAutosave, settingsUi } from "./settings-core.js";
 import { addPredefinedOption as addPredefinedOptionDraft, removePredefinedOption as removePredefinedOptionDraft, savePredefinedFieldSettings, updatePredefinedFieldCount } from "./settings-fields.js";
@@ -451,6 +451,13 @@ export function setup() {
         .catch((error) => alert(error.message || "The waterbody could not be deleted."));
     }
   
+    const homeLaunch = event.target.closest("[data-home-launch]");
+    if (homeLaunch) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleHomeLaunch(homeLaunch.dataset.locationId, homeLaunch.dataset.homeLaunch).catch(error => alert(error.message || "Could not update Home Port."));
+    }
+
     const editManagedLaunch = event.target.closest("[data-edit-managed-launch]");
     if (editManagedLaunch) {
       event.preventDefault();

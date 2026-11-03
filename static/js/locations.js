@@ -2,7 +2,7 @@ import { html, joinHtml, setHtml } from "./html.js";
 import { L } from "./vendor.js";
 import { state, ui } from "./app-state.js";
 import { findLaunchByIdOrName, slugId } from "./app-normalization.js";
-import { deleteLaunch, deleteLocation, reorderLocations, saveLocation } from "./actions.js";
+import { deleteLaunch, deleteLocation, reorderLocations, saveLocation, updateSettings } from "./actions.js";
 import { els } from "./app-elements.js";
 import { isUsableCoordinates } from "./app-media.js";
 import { scheduleTripWeatherPreview } from "./location-weather.js";
@@ -12,7 +12,7 @@ import { refreshCatchSpotSelect, updateRowSummary } from "./trip-rows.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
 import { draftRecordForRow, updateTripRow } from "./draft-binding.js";
-import { isPointInsideGreatLake } from "./great-lakes-boundaries.js";
+import { checkGreatLakesHomePort, isPointInsideGreatLake } from "./great-lakes-boundaries.js";
 
 
 export const LOCATION_FOCUS_ZOOM = 15;
@@ -142,8 +142,9 @@ export function renderLocationManager() {
         <div class="location-manager-launches">
           ${joinHtml(launches.map((launch) => html`
             <div class="location-manager-launch-row">
-              <span>${launch.name}</span>
+              <span>${launch.name}${state.settings?.homePort?.locationId === location.id && state.settings?.homePort?.launchId === launch.id ? " · Home Port" : ""}</span>
               <div class="location-manager-row-actions">
+                <button class="location-manager-action" type="button" data-location-id="${location.id}" data-home-launch="${launch.id}">${state.settings?.homePort?.locationId === location.id && state.settings?.homePort?.launchId === launch.id ? "Clear Home Port" : "Set as Home Port"}</button>
                 <button class="location-manager-action" type="button" data-location-id="${location.id}" data-edit-managed-launch="${launch.id}">Edit</button>
               </div>
             </div>
@@ -155,6 +156,19 @@ export function renderLocationManager() {
     </article>
   `;
   }), ""));
+}
+
+export async function toggleHomeLaunch(locationId, launchId) {
+  const location = state.locations.find(item => item.id === locationId);
+  const launch = location?.launches?.find(item => item.id === launchId);
+  if (!launch) return;
+  const selected = state.settings?.homePort?.locationId === locationId && state.settings?.homePort?.launchId === launchId;
+  if (!selected && !checkGreatLakesHomePort(launch.coordinates)) {
+    alert("The Home Port must be on a Great Lake at least 1 km offshore.");
+    return;
+  }
+  await updateSettings(settings => { if (selected) delete settings.homePort; else settings.homePort = { locationId, launchId }; });
+  renderLocationManager();
 }
 
 export function locationFormCoordinates() {
@@ -471,6 +485,10 @@ export async function saveLocationPin(event) {
       name,
       coordinates
     };
+    if (state.settings?.homePort?.locationId === location.id && state.settings?.homePort?.launchId === launch.id && !checkGreatLakesHomePort(coordinates)) {
+      alert("The Home Port must be on a Great Lake at least 1 km offshore. Clear its Home Port designation before moving it.");
+      return;
+    }
     try {
       await saveLocation(location, { mode: "launch", launch: { existingId: existing?.id || "", record: launch } });
       populateLocationSelect(location.id);
@@ -523,6 +541,7 @@ export function tripUsesLaunch(trip, location, launch) {
 export async function deleteManagedLocation(locationId) {
   const location = state.locations.find((item) => item.id === locationId);
   if (!location) return false;
+  if (state.settings?.homePort?.locationId === locationId) { alert("Clear or change the Home Port before deleting this waterbody."); return false; }
   const usedTrips = state.trips.filter((trip) => tripUsesLocation(trip, location));
   if (usedTrips.length) {
     alert(`This waterbody is used by ${usedTrips.length} saved trip${usedTrips.length === 1 ? "" : "s"}. Edit those trips before deleting it.`);
@@ -540,6 +559,7 @@ export async function deleteManagedLaunch(locationId, launchId) {
   const location = state.locations.find((item) => item.id === locationId);
   const launch = findLaunchByIdOrName(location, launchId, "");
   if (!location || !launch) return false;
+  if (state.settings?.homePort?.locationId === locationId && state.settings?.homePort?.launchId === launchId) { alert("Clear or change the Home Port before deleting this launch."); return false; }
   const usedTrips = state.trips.filter((trip) => tripUsesLaunch(trip, location, launch));
   if (usedTrips.length) {
     alert(`This launch / area fished is used by ${usedTrips.length} saved trip${usedTrips.length === 1 ? "" : "s"}. Edit those trips before deleting it.`);

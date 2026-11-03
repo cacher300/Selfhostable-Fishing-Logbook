@@ -40,3 +40,25 @@ export function isPointInsideGreatLake(coordinates) {
     || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return false;
   return GREAT_LAKES.some(polygon => pointInPolygon(longitude, latitude, polygon));
 }
+
+export function checkGreatLakesHomePort(coordinates) {
+  if (!coordinates || typeof coordinates.latitude !== "number" || typeof coordinates.longitude !== "number"
+    || !Number.isFinite(coordinates.latitude) || !Number.isFinite(coordinates.longitude)
+    || !isPointInsideGreatLake(coordinates)) return false;
+  const { latitude, longitude } = coordinates;
+  const radians = Math.PI / 180;
+  const scaleX = radians * Math.cos(latitude * radians) * 6371000;
+  const scaleY = radians * 6371000;
+  let closest = Infinity;
+  for (const polygon of GREAT_LAKES) {
+    for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+      const a = polygon[previous], b = polygon[index];
+      const x = (a[0] - longitude) * scaleX, y = (a[1] - latitude) * scaleY;
+      const dx = (b[0] - a[0]) * scaleX, dy = (b[1] - a[1]) * scaleY;
+      const length = dx * dx + dy * dy;
+      const projection = length ? Math.max(0, Math.min(1, -(x * dx + y * dy) / length)) : 0;
+      closest = Math.min(closest, Math.hypot(x + projection * dx, y + projection * dy));
+    }
+  }
+  return closest >= 1000;
+}

@@ -3,8 +3,10 @@ import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
 installBrowserEnv();
 const { setState } = await import("../static/js/app-state.js");
+const { setMapUnitSystem } = await import("../static/js/app-units.js");
 const { currentProfileHtml, dataGeneratedNote, friendlyTime, friendlyWait, modelDepthNote, modelDepthShown, tooShallowNote } = await import("../static/js/great-lakes-conditions.js");
 setState({ settings: { units: { depth: "m", speed: "mph" } } });
+setMapUnitSystem("metric");
 
 const profile = {
   validTime: "2026-09-28T12:00:00Z",

@@ -56,14 +56,22 @@ export function nextFishingSpotName() {
 
 export function collectFishingSpotSettings() {
   const current = new Map(fishingSpots().map((spot) => [spot.id, spot]));
-  return (settingsUi.fishingSpotsDraft || fishingSpots().map((spot) => ({ ...spot, radiusDisplay: fishingSpotRadiusDisplayValue(spot.radiusMeters) }))).map((spot) => ({
-    ...(current.get(spot.id) || {}),
-    ...spot,
-    name: String(spot.name || "").trim() || "Spot",
-    radiusMeters: String(spot.radiusDisplay ?? "") === String(fishingSpotRadiusDisplayValue((current.get(spot.id) || spot).radiusMeters || 100))
-      ? (current.get(spot.id) || spot).radiusMeters
-      : fishingSpotRadiusMeters(spot.radiusDisplay ?? fishingSpotRadiusDisplayValue(spot.radiusMeters || 100))
-  })).map(({ radiusDisplay, ...spot }) => spot);
+  return (settingsUi.fishingSpotsDraft || fishingSpots().map((spot) => ({ ...spot, radiusDisplay: fishingSpotRadiusDisplayValue(spot.radiusMeters) }))).map((spot) => {
+    const currentSpot = current.get(spot.id) || {};
+    const currentFields = { ...currentSpot };
+    delete currentFields.lake;
+    const { radiusDisplay, lake, ...spotFields } = spot;
+    const normalizedLake = String(lake || "").trim();
+    return {
+      ...currentFields,
+      ...spotFields,
+      ...(normalizedLake ? { lake: normalizedLake } : {}),
+      name: String(spot.name || "").trim() || "Spot",
+      radiusMeters: String(radiusDisplay ?? "") === String(fishingSpotRadiusDisplayValue(currentSpot.radiusMeters || spot.radiusMeters || 100))
+        ? (currentSpot.radiusMeters || spot.radiusMeters)
+        : fishingSpotRadiusMeters(radiusDisplay ?? fishingSpotRadiusDisplayValue(spot.radiusMeters || 100))
+    };
+  });
 }
 
 export function validateFishingSpots(spots) {
@@ -74,6 +82,7 @@ export function validateFishingSpots(spots) {
     const id = String(spot?.id || "");
     const name = String(spot.name || "").trim();
     const nameKey = name.toLowerCase();
+    if (spot.lake !== undefined && typeof spot.lake !== "string") throw new Error(`Fishing spot “${name}” lake must be text.`);
     const radiusMeters = Number(spot.radiusMeters);
     if (!id || ids.has(id)) throw new Error("Fishing spots need unique IDs.");
     if (!name) throw new Error("Every fishing spot needs a name.");
@@ -135,6 +144,10 @@ export function renderFishingSpotSettings() {
           <button class="button secondary private-location-edit-pin" type="button" data-edit-fishing-spot-pin="${spot.id}" aria-label="Edit map pin for ${spot.name}">Edit pin</button>
           <button class="button danger${isEditing ? "" : " hidden"}" type="button" data-delete-fishing-spot="${spot.id}">Delete</button>
         </div>
+        <label class="settings-control fishing-spot-lake-control">
+          <span>Lake</span>
+          <input class="fishing-spot-lake" type="text" value="${spot.lake || ""}" data-settings-draft="fishingSpotsDraft" data-settings-bind="${settingsUi.fishingSpotsDraft.findIndex((item) => item.id === spot.id)}.lake" aria-label="Lake for ${spot.name}" placeholder="Lake Ontario" />
+        </label>
         <p class="fishing-spot-assignment-count">${count} assigned ${count === 1 ? "catch" : "catches"}</p>
         <label class="settings-control private-location-radius-control">
         <span>Radius <output class="private-location-radius-value fishing-spot-radius-value">${fishingSpotRadiusText(spot.radiusMeters)}</output></span>
