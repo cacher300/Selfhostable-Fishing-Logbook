@@ -1,8 +1,8 @@
-<dialog id="savedSetupPickerDialog" class="dialog small-dialog">
+<dialog id="savedSetupPickerDialog" class="dialog small-dialog" aria-labelledby="savedSetupPickerTitle">
   <div class="dialog-content">
     <div class="dialog-header">
       <div>
-        <h2>Pick Setup</h2>
+        <h2 id="savedSetupPickerTitle">Pick Setup</h2>
         <p class="dialog-supporting-text">Choose a saved rod setup for this fishing method.</p>
       </div>
       <button class="icon-button" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
@@ -10,6 +10,35 @@
     <div id="savedSetupPickerList" class="saved-setup-picker-list"></div>
     <div class="dialog-actions end-only">
       <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+      <button class="button primary" id="createSavedSetupButton" type="button">Create Setup</button>
     </div>
   </div>
+</dialog>
+
+<dialog id="newSavedSetupDialog" class="dialog small-dialog" aria-labelledby="newSavedSetupTitle">
+  <form data-settings-draft-root="newSavedSetupDraft">
+    <div class="dialog-header">
+      <div>
+        <h2 id="newSavedSetupTitle">Create Setup</h2>
+        <p class="dialog-supporting-text" id="newSavedSetupMethod"></p>
+      </div>
+      <button class="icon-button" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+    </div>
+    <p class="form-message hidden" role="alert"></p>
+    <div class="saved-setup-card-body">
+      <label class="settings-control">
+        <span>Setup name</span>
+        <input name="setupName" type="text" maxlength="60" data-settings-bind="name" required autofocus />
+      </label>
+      <div class="saved-setup-card-section-heading">
+        <strong>Rods</strong>
+        <button class="button secondary add-saved-setup-row" type="button">Add Rod</button>
+      </div>
+      <div class="saved-setup-list"></div>
+    </div>
+    <div class="dialog-actions end-only">
+      <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+      <button class="button primary" type="submit">Save Setup</button>
+    </div>
+  </form>
 </dialog>

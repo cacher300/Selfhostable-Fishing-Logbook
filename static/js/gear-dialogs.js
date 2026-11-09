@@ -5,7 +5,7 @@ import { optionLabels } from "./app-normalization.js";
 import { unitSymbol } from "./app-units.js";
 import { deleteCombo as deleteComboRecord, deleteFlasher as deleteFlasherRecord, deleteLure as deleteLureRecord, deleteReel as deleteReelRecord, deleteRod as deleteRodRecord, saveRecord, updateLogbook, upsertListValueInDraft } from "./actions.js";
 import { els } from "./app-elements.js";
-import { beginMediaEditSession, canonicalMediaRef, cleanupReplacedMedia, isVideoMedia, markMediaEditSessionSaved, mediaMarkup } from "./app-media.js";
+import { beginMediaEditSession, canonicalMediaRef, cleanupReplacedMedia, displayMedia, isVideoMedia, markMediaEditSessionSaved, mediaMarkup } from "./app-media.js";
 import { populateOptionSelect, renderAll } from "./dashboard.js";
 import { uploadImageFile } from "./photos.js";
 import { getValue, setValue } from "./trip-editor.js";
@@ -365,6 +365,12 @@ export function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget
   els.lureDialog.showModal();
 }
 
+function gearInfoMediaMarkup(item) {
+  const photos = gearPhotos(item);
+  if (!photos.length) return "";
+  return html`<div class="lure-info-media">${mediaMarkup(displayMedia(item) || photos[0])}</div>`;
+}
+
 export function openLureInfoDialog(lure, pendingRowId = "") {
   if (!lure) return;
   prepareInlineGearDialog("lureInfo", pendingRowId);
@@ -396,7 +402,7 @@ export function openLureInfoDialog(lure, pendingRowId = "") {
   document.querySelector("#lureInfoTitle").textContent = lure.name || "Lure";
   els.lureInfoDialog.dataset.lureId = lure.id;
   setHtml(els.lureInfoContent, html`
-    ${gearPhotos(lure).length ? html`<div class="lure-info-media">${mediaMarkup(gearPhotos(lure)[0], "", { download: false })}</div>` : ""}
+    ${gearInfoMediaMarkup(lure)}
     <dl class="lure-info-list">
       ${joinHtml(details.map(([label, value]) => html`
         <div><dt>${label}</dt><dd>${String(value)}</dd></div>
@@ -494,7 +500,7 @@ export function openFlasherInfoDialog(flasher, pendingRowId = "") {
   document.querySelector("#flasherInfoTitle").textContent = flasher.name || "Flasher";
   els.flasherInfoDialog.dataset.flasherId = flasher.id;
   setHtml(els.flasherInfoContent, html`
-    ${gearPhotos(flasher).length ? html`<div class="lure-info-media">${mediaMarkup(gearPhotos(flasher)[0], "", { download: false })}</div>` : ""}
+    ${gearInfoMediaMarkup(flasher)}
     <dl class="lure-info-list">
       ${joinHtml(details.map(([label, value]) => html`
         <div><dt>${label}</dt><dd>${String(value)}</dd></div>

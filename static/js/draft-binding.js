@@ -274,6 +274,7 @@ function syncDerivedRecordFields(record, path, control) {
   if (path === "rodSelect") {
     const option = selectedOption(control);
     record.setupLineId = record.rodSelect || "";
+    record.setupLineValue = record.setupLineId;
     record.rodId = option?.getAttribute("data-rod-id") || "";
     record.lureId = option?.getAttribute("data-lure-id") || record.lureId || "";
   }

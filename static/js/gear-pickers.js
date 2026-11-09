@@ -136,8 +136,7 @@ export function gearPickerLabel(item, fallback) {
   return [item?.name || fallback, item?.color].filter(Boolean).join(" - ");
 }
 
-export function gearPickerMedia(item, type) {
-  const source = previewImage(item);
+function gearPickerMedia(source, type) {
   if (!source) {
     if (type === "lure") return "";
     return html`<span class="gear-picker-photo-placeholder" aria-hidden="true">F</span>`;
@@ -155,7 +154,7 @@ export function closeGearPickers(except = null) {
 }
 
 export function gearPickerOptionMarkup(item, type, selected) {
-  const media = gearPickerMedia(item, type);
+  const media = gearPickerMedia(previewImage(item), type);
   return html`
     <button
       class="gear-picker-option ${media ? "" : "gear-picker-option-no-media"} ${item.id === selected?.id ? "is-selected" : ""}"
@@ -198,14 +197,24 @@ export function renderGearPicker(select, type) {
   const selected = items.find((item) => item.id === select.value);
   const placeholder = type === "lure" ? "Select lure" : "No flasher";
   const trigger = picker.querySelector(".gear-picker-trigger");
+  const cardButton = picker.querySelector(".gear-picker-card-button");
   const menu = picker.querySelector(".gear-picker-options");
   const count = picker.querySelector(".gear-picker-count");
   const empty = picker.querySelector(".gear-picker-empty");
-  const pickerMedia = gearPickerMedia(selected, type);
+  const source = previewImage(selected);
+  const pickerMedia = gearPickerMedia(source, type);
+  const hasPhoto = Boolean(source);
+  picker.classList.toggle("has-gear-photo", hasPhoto);
+  if (cardButton) {
+    cardButton.classList.toggle("hidden", !hasPhoto);
+    cardButton.setAttribute(`data-preview-${type}-id`, hasPhoto ? selected.id : "");
+    if (hasPhoto) cardButton.setAttribute("aria-label", `Open ${type} card for ${gearPickerLabel(selected, type)}`);
+    setHtml(cardButton, hasPhoto ? pickerMedia : "");
+  }
   empty?.classList.add("hidden");
   if (trigger) {
     setHtml(trigger, html`
-      ${pickerMedia ? html`<span class="gear-picker-trigger-media">${pickerMedia}</span>` : ""}
+      ${pickerMedia && !hasPhoto ? html`<span class="gear-picker-trigger-media">${pickerMedia}</span>` : ""}
       <span class="gear-picker-trigger-copy">
         <strong>${selected ? gearPickerLabel(selected, placeholder) : placeholder}</strong>
         ${selected ? html`<small>${[selected.type, selected.brand].filter(Boolean).join(" / ") || "Saved gear"}</small>` : ""}
@@ -261,6 +270,7 @@ export function enhanceGearSelect(select, type) {
     select.tabIndex = -1;
     select.setAttribute("aria-hidden", "true");
     insertHtml(picker, "beforeend", html`
+      <button class="gear-picker-trigger-media gear-picker-card-button hidden" type="button" aria-haspopup="dialog" title="Open ${type} card"></button>
       <button class="gear-picker-trigger" type="button" aria-haspopup="listbox" aria-expanded="false"></button>
       <div class="gear-picker-menu hidden">
         <div class="gear-picker-search-row">
@@ -338,6 +348,12 @@ export function syncComboToRow(row) {
 
 export function setup() {
   document.addEventListener("click", (event) => {
+    const cardButton = event.target.closest(".gear-picker-card-button");
+    if (cardButton) {
+      closeGearPickers();
+      cardButton.focus();
+      return;
+    }
     const trigger = event.target.closest(".gear-picker-trigger");
     if (trigger) {
       event.preventDefault();

@@ -82,6 +82,17 @@ async function pointReading(options = {}, time = options.time) {
   return get(withQuery(time ? "/history/point" : "/point", params), options.signal);
 }
 
+export async function getBathymetryV2Tiles() {
+  const manifest = await get("/bathymetry/tiles/manifest");
+  if (typeof manifest?.tileUrl !== "string" || !manifest.tileUrl.includes("{style}") || !Array.isArray(manifest.bounds)) {
+    throw new Error("Invalid depth tile manifest");
+  }
+  return {
+    url: absoluteApiUrl(manifest.tileUrl.replace("{style}", "v2")),
+    bounds: manifest.bounds
+  };
+}
+
 export function setup() {
   window.noaaGreatLakesApi = {
     async conditions({ layer, forecastHour, depth, targetC, selection, time, signal }) {

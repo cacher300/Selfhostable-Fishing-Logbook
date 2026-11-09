@@ -1,4 +1,4 @@
-import { html, joinHtml, setHtml } from "./html.js";
+import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { protectedFetch } from "./app-config.js";
 import { createId } from "./app-defaults.js";
 import { returnToTripDialog, state, ui } from "./app-state.js";
@@ -761,14 +761,15 @@ export async function loadPhotoQueue() {
   const response = await fetch("/api/photo-queue");
   if (!response.ok) throw new Error("Could not load photo queue");
   const payload = await response.json();
-  return [...(payload.photos || [])].sort((a, b) => {
-    const aTime = photoQueueTimestampValue(a);
-    const bTime = photoQueueTimestampValue(b);
-    if (aTime === null && bTime === null) return String(a.filename || "").localeCompare(String(b.filename || ""));
-    if (aTime === null) return 1;
-    if (bTime === null) return -1;
-    return aTime - bTime;
-  });
+  return [...(payload.photos || [])].sort(compareQueuedPhotos);
+}
+
+function compareQueuedPhotos(a, b) {
+  const aTime = photoQueueTimestampValue(a) ?? Infinity;
+  const bTime = photoQueueTimestampValue(b) ?? Infinity;
+  return aTime === Infinity && bTime === Infinity
+    ? String(a.filename || "").localeCompare(String(b.filename || ""))
+    : aTime - bTime;
 }
 
 export function photoQueueTimestampValue(photo) {
@@ -798,15 +799,20 @@ export function photoQueueMetadataMarkup(photo) {
   return joinHtml(metadata.map((value) => html`<span>${value}</span>`), "");
 }
 
-export async function renderPhotoQueue() {
-  const photos = await loadPhotoQueue();
-  els.photoQueueStatus.textContent = photos.length === 1 ? "1 queued photo" : `${photos.length} queued photos`;
-  if (!photos.length) {
-    setHtml(els.photoQueueGrid, html`<div class="empty-state"><p>No queued photos. Upload from your phone, then pick them here while logging.</p></div>`);
-    return;
-  }
+const queuedPhotos = [];
+let queueLoad = null;
+let queueListed = false;
 
-  setHtml(els.photoQueueGrid, joinHtml(photos.map((photo) => html`
+function updatePhotoQueueCount() {
+  const count = queuedPhotos.length;
+  els.photoQueueStatus.textContent = count === 1 ? "1 queued photo" : `${count} queued photos`;
+  if (!count) {
+    setHtml(els.photoQueueGrid, html`<div class="empty-state"><p>No queued photos. Upload from your phone, then pick them here while logging.</p></div>`);
+  }
+}
+
+function queuedPhotoCard(photo) {
+  return html`
     <article class="photo-queue-card" data-queue-photo="${photo.filename}" ${ui.activePhotoQueueTarget ? html`data-select-queued-photo="${photo.filename}" tabindex="0" role="button"` : ""}>
       <div class="photo-queue-image-wrap">
         ${mediaMarkup(photo, "", { download: false })}
@@ -819,7 +825,21 @@ export async function renderPhotoQueue() {
         ${ui.activePhotoQueueTarget ? html`<button class="button primary" type="button" data-select-queued-photo="${photo.filename}">Use Photo</button>` : ""}
       </div>
     </article>
-  `), ""));
+  `;
+}
+
+function insertQueuedPhoto(photo) {
+  if (queuedPhotos.some((item) => item.filename === photo.filename)) return;
+  if (!queuedPhotos.length) els.photoQueueGrid.replaceChildren();
+
+  const nextIndex = queuedPhotos.findIndex((item) => compareQueuedPhotos(photo, item) < 0);
+  if (nextIndex === -1) {
+    queuedPhotos.push(photo);
+    insertHtml(els.photoQueueGrid, "beforeend", queuedPhotoCard(photo));
+  } else {
+    queuedPhotos.splice(nextIndex, 0, photo);
+    insertHtml(els.photoQueueGrid.children[nextIndex], "beforebegin", queuedPhotoCard(photo));
+  }
 }
 
 export async function openPhotoQueue(target = null) {
@@ -830,7 +850,32 @@ export async function openPhotoQueue(target = null) {
   returnToTripDialog.reelImage = target?.type === "reel" && els.reelDialog.open;
   returnToTripDialog.rodImage = target?.type === "rod" && els.rodDialog.open;
   els.photoQueueDialog.showModal();
-  await renderPhotoQueue();
+  queuedPhotos.length = 0;
+  queueListed = false;
+  els.photoQueueGrid.replaceChildren();
+  const load = { removed: new Set() };
+  queueLoad = load;
+  els.photoQueueStatus.textContent = "Loading queue…";
+  if (!els.photoQueueInput.disabled) els.photoQueueUploadStatus.textContent = "";
+  try {
+    const photos = await loadPhotoQueue();
+    if (queueLoad !== load) return;
+    const remaining = photos.filter((photo) => !load.removed.has(photo.filename));
+    if (queuedPhotos.length) {
+      remaining.forEach(insertQueuedPhoto);
+    } else {
+      queuedPhotos.push(...remaining);
+      setHtml(els.photoQueueGrid, joinHtml(remaining.map(queuedPhotoCard)));
+    }
+    queueListed = true;
+    updatePhotoQueueCount();
+  } catch (error) {
+    if (queueLoad !== load) return;
+    console.error("Could not load photo queue.", error);
+    els.photoQueueStatus.textContent = "Could not load the queue. Close and reopen it to try again.";
+  } finally {
+    if (queueLoad === load) queueLoad = null;
+  }
 }
 
 export function restoreDialogAfterPhotoQueue() {
@@ -852,24 +897,50 @@ export function restoreDialogAfterPhotoQueue() {
 }
 
 export async function addPhotosToQueue(event) {
-  const files = [...event.target.files];
+  const input = event.target;
+  const files = [...input.files];
   if (!files.length) return;
-  els.photoQueueStatus.textContent = "Uploading photos...";
+  input.disabled = true;
+  let finished = 0;
+  const failures = [];
+  const showProgress = () => {
+    els.photoQueueUploadStatus.textContent = `Uploading to queue… ${finished} of ${files.length} processed`;
+  };
+  showProgress();
   els.photoQueueUploadButton?.classList.add("is-loading");
-  if (els.photoQueueInput) els.photoQueueInput.disabled = true;
+  // Limit concurrent reads and uploads so large selections don't overload the connection.
+  const pendingFiles = files.values();
+  const uploadFiles = async () => {
+    for (const file of pendingFiles) {
+      try {
+        const metadata = await extractMediaMetadata(file);
+        const photo = await uploadImageFile(file, "queue", metadata);
+        insertQueuedPhoto(photo);
+        if (queueListed) updatePhotoQueueCount();
+      } catch (error) {
+        console.error("Could not add file to photo queue.", error);
+        failures.push(error);
+      }
+      finished += 1;
+      showProgress();
+    }
+  };
+
   try {
-    await Promise.all(files.map(async (file) => {
-      const metadata = await extractMediaMetadata(file);
-      return uploadImageFile(file, "queue", metadata);
-    }));
-    event.target.value = "";
-    await renderPhotoQueue();
-  } catch (error) {
-    console.error("Could not add photos to queue.", error);
-    els.photoQueueStatus.textContent = error.message || "Photos could not be uploaded.";
+    await Promise.all([uploadFiles(), uploadFiles()]);
+    if (failures.length) {
+      const error = failures[0];
+      const message = error instanceof TypeError || error instanceof SyntaxError
+        ? "Close and reopen the queue to check for these files before retrying."
+        : error.message || "Please try again.";
+      els.photoQueueUploadStatus.textContent = `${failures.length} of ${files.length} uploads could not be confirmed. ${message}`;
+    } else {
+      els.photoQueueUploadStatus.textContent = "";
+    }
   } finally {
     els.photoQueueUploadButton?.classList.remove("is-loading");
-    if (els.photoQueueInput) els.photoQueueInput.disabled = false;
+    input.value = "";
+    input.disabled = false;
   }
 }
 
@@ -940,7 +1011,6 @@ export async function claimQueuedPhoto(filename) {
       renderQueuedGearImage("rod");
     }
 
-    await renderPhotoQueue();
     if (["lure", "flasher", "reel", "rod"].includes(target.type)) {
       els.photoQueueDialog.close();
     }
@@ -954,7 +1024,13 @@ export async function deleteQueuedPhoto(filename) {
   try {
     const response = await protectedFetch(`/api/photo-queue/${encodeURIComponent(filename)}`, { method: "DELETE" });
     if (!response.ok) throw new Error("Could not delete queued photo");
-    await renderPhotoQueue();
+    queueLoad?.removed.add(filename);
+    const index = queuedPhotos.findIndex((photo) => photo.filename === filename);
+    if (index >= 0) {
+      queuedPhotos.splice(index, 1);
+      els.photoQueueGrid.children[index].remove();
+    }
+    if (queueListed) updatePhotoQueueCount();
   } catch (error) {
     console.error("Could not delete queued photo.", error);
     els.photoQueueStatus.textContent = error.message || "Queued photo could not be deleted.";

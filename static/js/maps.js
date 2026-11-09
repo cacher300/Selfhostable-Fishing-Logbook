@@ -14,6 +14,7 @@ import { positionLabel } from "./cards.js";
 import { addMeasureControl, isMeasuring } from "./measure.js";
 import { formatDate } from "./dashboard.js";
 import { displayFowValue } from "./trip-summary.js";
+import { getBathymetryV2Tiles } from "./noaa-api.js";
 
 
 export function catchMapRecordForTrip(trip, catchItem, catchIndex) {
@@ -74,14 +75,21 @@ export let fishMapBasemapLayer = null;
 
 const MAP_BATHYMETRY_STORAGE_KEY = "logbook.mapBathymetry";
 let mapBathymetryManifestPromise;
+let mapBathymetryV2ManifestPromise;
+let fallbackMapBathymetryStyle = "";
 
-function savedMapBathymetry() {
-  try { return localStorage.getItem(MAP_BATHYMETRY_STORAGE_KEY) === "true"; }
-  catch { return false; }
+function savedMapBathymetryStyle() {
+  try {
+    const saved = localStorage.getItem(MAP_BATHYMETRY_STORAGE_KEY);
+    return saved === "true" ? "v1" : saved === "v2" ? "v2" : "";
+  } catch {
+    return fallbackMapBathymetryStyle;
+  }
 }
 
-export function saveMapBathymetryPreference(show) {
-  try { localStorage.setItem(MAP_BATHYMETRY_STORAGE_KEY, String(Boolean(show))); }
+export function saveMapBathymetryPreference(show, style = "v1") {
+  fallbackMapBathymetryStyle = show ? style : "";
+  try { localStorage.setItem(MAP_BATHYMETRY_STORAGE_KEY, show && style === "v2" ? "v2" : String(Boolean(show))); }
   catch { /* The local overlay still works without browser storage. */ }
 }
 
@@ -100,6 +108,76 @@ function mapBathymetryManifest() {
   return mapBathymetryManifestPromise;
 }
 
+function setupMapPageBathymetryV2(map) {
+  const legend = els.mapBathymetryV2Legend;
+  const updateLegend = () => {
+    if (!legend) return;
+    const min = formatMapUnitValue(0, "depth", "m");
+    const max = formatMapUnitValue(400, "depth", "m");
+    legend.querySelector("[data-depth-min]").textContent = min;
+    legend.querySelector("[data-depth-max]").textContent = max;
+    legend.setAttribute("aria-label", `Depth scale from ${min} to ${max}`);
+  };
+  document.addEventListener("map-units-changed", updateLegend);
+  const setStatus = (message, isError = false) => {
+    const status = els.mapBathymetryV2Status;
+    if (!status) return;
+    status.textContent = message;
+    status.classList.toggle("is-error", isError);
+  };
+  const showFailure = () => setStatus("Depth tiles could not load. Toggle version 2 to retry.", true);
+  let enabled = false;
+  let sequence = 0;
+  let layer = null;
+
+  return async (visible) => {
+    if (enabled === visible) return;
+    enabled = visible;
+    const request = ++sequence;
+    legend?.classList.toggle("hidden", !visible);
+    if (!visible) {
+      layer?.remove();
+      layer = null;
+      setStatus("");
+      return;
+    }
+
+    updateLegend();
+    setStatus("Loading depth tiles…");
+    try {
+      mapBathymetryV2ManifestPromise ||= getBathymetryV2Tiles().catch((error) => {
+        mapBathymetryV2ManifestPromise = null;
+        throw error;
+      });
+      const { url, bounds } = await mapBathymetryV2ManifestPromise;
+      if (request !== sequence) return;
+      const current = L.tileLayer(url, {
+        pane: "bathymetryPane", bounds, noWrap: true, maxNativeZoom: 19, maxZoom: 20,
+        keepBuffer: 3, updateWhenIdle: true, attribution: "Depth: NOAA NCEI"
+      });
+      layer = current;
+      let tileFailed = false;
+      current.on("loading", () => {
+        if (layer !== current) return;
+        tileFailed = false;
+        setStatus("Loading depth tiles…");
+      });
+      current.on("tileerror", () => {
+        if (layer !== current) return;
+        tileFailed = true;
+        showFailure();
+      });
+      current.on("load", () => {
+        if (layer === current && !tileFailed) setStatus("");
+      });
+      setStatus("");
+      current.addTo(map);
+    } catch {
+      if (request === sequence) showFailure();
+    }
+  };
+}
+
 export function syncMapPageBathymetryOverlay(map) {
   if (!map) return;
   const setStatus = (message, isError = false) => {
@@ -107,8 +185,10 @@ export function syncMapPageBathymetryOverlay(map) {
     els.mapBathymetryStatus.textContent = message;
     els.mapBathymetryStatus.classList.toggle("is-error", isError);
   };
-  const visible = savedMapBathymetry();
+  const style = savedMapBathymetryStyle();
+  const visible = style === "v1";
   if (els.mapBathymetryToggle) els.mapBathymetryToggle.checked = visible;
+  if (els.mapBathymetryV2Toggle) els.mapBathymetryV2Toggle.checked = style === "v2";
   if (!map.getPane("bathymetryPane")) {
     const pane = map.createPane("bathymetryPane");
     // Keep the depth shading above NOAA chart and Great Lakes model overlays
@@ -116,6 +196,8 @@ export function syncMapPageBathymetryOverlay(map) {
     pane.style.zIndex = "420";
     pane.style.pointerEvents = "none";
   }
+  map._logbookBathymetryV2Sync ||= setupMapPageBathymetryV2(map);
+  void map._logbookBathymetryV2Sync(style === "v2");
   const group = map._logbookBathymetryGroup || (map._logbookBathymetryGroup = L.layerGroup());
   if (!map._logbookBathymetryMoveBound) {
     map.on("moveend", () => syncMapPageBathymetryOverlay(map));
@@ -128,7 +210,7 @@ export function syncMapPageBathymetryOverlay(map) {
   }
   setStatus("Loading NOAA depth shading…");
   mapBathymetryManifest().then((manifest) => {
-    if (!savedMapBathymetry()) return;
+    if (savedMapBathymetryStyle() !== "v1") return;
     const lakeLayers = map._logbookBathymetryLakeLayers || (map._logbookBathymetryLakeLayers = {});
     const view = map.getBounds();
     const center = map.getCenter();
@@ -182,6 +264,7 @@ export function syncMapPageBathymetryOverlay(map) {
       setStatus("Move the map over a Great Lake to show depth shading.");
     }
   }).catch(() => {
+    if (savedMapBathymetryStyle() !== "v1") return;
     if (els.mapBathymetryToggle) els.mapBathymetryToggle.title = "NOAA bathymetry could not be loaded";
     setStatus("NOAA depth shading could not be loaded.", true);
   });

@@ -1,8 +1,8 @@
-<dialog id="photoQueueDialog" class="dialog">
+<dialog id="photoQueueDialog" class="dialog" aria-labelledby="photoQueueTitle">
       <div class="photo-queue-shell">
         <div class="dialog-header">
           <div>
-            <h2>Photo Queue</h2>
+            <h2 id="photoQueueTitle">Photo Queue</h2>
           </div>
           <button class="icon-button" value="cancel" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
@@ -11,7 +11,10 @@
             Upload to Queue
             <input id="photoQueueInput" type="file" accept="image/*,.heic,.heif,video/*" multiple />
           </label>
-          <span id="photoQueueStatus" class="map-summary">No queued photos loaded</span>
+          <div class="map-summary">
+            <div id="photoQueueStatus" role="status">No queued photos loaded</div>
+            <div id="photoQueueUploadStatus" role="status"></div>
+          </div>
         </div>
         <div id="photoQueueGrid" class="photo-queue-grid"></div>
         <div class="dialog-actions end-only">

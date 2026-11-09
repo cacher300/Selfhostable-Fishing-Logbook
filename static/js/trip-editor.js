@@ -22,7 +22,7 @@ import { calculateMinutes } from "./stats.js";
 import { isTrollingTrip, syncFishHawkVisibility, trimNumber } from "./form-utils.js";
 import { updateMethodVisibility } from "./app.js";
 import { createTripDraft } from "./trip-draft.js";
-import { applyTripDraftBindings } from "./draft-binding.js";
+import { applyTripDraftBindings, findDraftRecord, updateTripRow } from "./draft-binding.js";
 import { isGreatLakesFishingTrip, loadSavedFishingConditions, thermoclineDisplayValue } from "./trip-fishing-conditions.js";
 
 const tripThermoclineRequestIds = new WeakMap();
@@ -1222,25 +1222,35 @@ export function currentPeople() {
   return mergePeople(state.people, collectPeople());
 }
 
-export function populatePersonSelect(select, selectedId = "") {
+export function populatePersonSelect(select, selectedId = "", { autoAssign = true } = {}) {
   syncPersonRowIds();
   const people = mergePeople(collectPeople());
-  const assignedPersonId = selectedId || (people.length === 1 ? people[0].id : "");
+  const assignedPersonId = selectedId
+    ? (people.some((person) => person.id === selectedId) ? selectedId : "")
+    : (autoAssign && people.length === 1 ? people[0].id : "");
   setHtml(select, joinHtml([
     html`<option value="">Select person</option>`,
-    ...people.map((person) => (
-    html`<option value="${person.id}" ${person.id === selectedId ? "selected" : ""}>${person.name}</option>`
-    ))
+    ...people.map((person) => html`<option value="${person.id}">${person.name}</option>`)
   ]));
   select.value = assignedPersonId;
+  return assignedPersonId;
+}
+
+export function syncFishPersonSelect(row) {
+  const collection = row.classList.contains("lost-fish-row") ? "lostFish" : "catches";
+  const id = row.dataset.catchId;
+  const record = findDraftRecord(collection, id);
+  const selectedId = record?.personId || "";
+  // Only default missing assignments when adding fish or editing the roster.
+  const autoAssign = !ui.tripDraftHydrating && !record?.detailsUnknown;
+  const personId = populatePersonSelect(row.querySelector(".catch-person"), selectedId, { autoAssign });
+  if (record && personId !== selectedId) updateTripRow(collection, id, { personId });
 }
 
 export function populatePersonSelects() {
   populateDatalist(els.personOptions, currentPeople().map((person) => person.name).filter(Boolean));
   populatePersonRowSelects();
-  document.querySelectorAll(".catch-person").forEach((select) => {
-    populatePersonSelect(select, select.value);
-  });
+  els.tripForm.querySelectorAll(".catch-row").forEach(syncFishPersonSelect);
 }
 
 export function populatePersonRowSelects() {

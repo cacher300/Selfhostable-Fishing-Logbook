@@ -152,6 +152,7 @@
 
 .map-layers-menu-panel .map-chart-toggle {
   display: flex;
+  justify-content: flex-start;
   min-height: 32px;
   margin-bottom: 3px;
   gap: 9px;
@@ -206,6 +207,23 @@
 .map-bathymetry-status { display: block; min-height: 0; margin: -1px 0 4px 27px; color: var(--muted); font-size: 12px; line-height: 1.35; }
 .map-bathymetry-status:empty { display: none; }
 .map-bathymetry-status.is-error { color: var(--error); }
+
+.map-depth-v2-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px 27px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.map-depth-v2-gradient {
+  width: 104px;
+  height: 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: linear-gradient(90deg, #f7e4b0 0%, #e8c87a .43%, #b0ba88 1.54%, #6caca0 3.12%, #3a8ca3 5.43%, #246491 11.15%, #183f6f 25.7%, #102246 48.39%, #060d21 100%);
+}
 
 .map-basemap-select { display: block; margin-bottom: 10px; color: var(--muted); font-size: 14px; font-weight: 800; }
 .map-basemap-select span { display: block; margin-bottom: 3px; }

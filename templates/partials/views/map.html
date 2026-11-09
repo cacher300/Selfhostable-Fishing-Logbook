@@ -80,6 +80,14 @@
                     <span>Show depth shading</span>
                   </label>
                   <small id="mapBathymetryStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
+                  <label class="inline-toggle map-chart-toggle">
+                    <input id="mapBathymetryV2Toggle" type="checkbox" />
+                    <span>Depth shading version 2</span>
+                  </label>
+                  <div id="mapBathymetryV2Legend" class="map-depth-v2-legend hidden" role="img" aria-label="Depth scale">
+                    <span data-depth-min></span><span class="map-depth-v2-gradient"></span><span data-depth-max></span>
+                  </div>
+                  <small id="mapBathymetryV2Status" class="map-bathymetry-status" role="status" aria-live="polite"></small>
                   <fieldset class="great-lakes-points-options">
                     <legend>Data points</legend>
                     <label><input type="checkbox" data-gl-stations /> <span>Buoys</span></label>

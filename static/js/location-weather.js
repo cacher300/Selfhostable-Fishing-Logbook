@@ -58,7 +58,7 @@ export function marineWaveHeightPlaceholderText(weatherData) {
   if (marine?.marineDataAvailable && marine.waveHeightM !== null && marine.waveHeightM !== undefined) {
     return formatMarineWaveHeightM(marine.waveHeightM);
   }
-  return "Wave height not available for this location";
+  return "Not available";
 }
 
 export function updateMarineWaveHeightPlaceholder(weatherData) {

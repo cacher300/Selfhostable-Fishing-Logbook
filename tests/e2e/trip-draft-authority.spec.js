@@ -132,6 +132,46 @@ test.describe("trip draft is the editor authority", () => {
     expect(catches.map((item) => item.length)).toEqual(["20 in", "12 in"]);
   });
 
+  test("solo person assignments shown on fish rows save without warnings", async ({ page }) => {
+    await resetWith(page);
+    await page.goto("/trips", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "New Trip", exact: true }).click();
+    await fillBasics(page);
+
+    await page.getByRole("button", { name: "Add Catch", exact: true }).click();
+    const first = page.locator("#catchRows .catch-row").first();
+    await first.locator(".catch-species").selectOption({ label: "Walleye" });
+    await expect(first.locator(".catch-person")).toHaveValue("");
+
+    await page.locator("#personRows .person-name").fill("Avery");
+    const personId = await page.locator("#personRows .person-row").getAttribute("data-person-id");
+    await expect(first.locator(".catch-person")).toHaveValue(personId);
+    await page.getByRole("button", { name: "Add Catch", exact: true }).click();
+    const second = page.locator("#catchRows .catch-row").nth(1);
+    await second.locator(".catch-species").selectOption({ label: "Perch" });
+    await expect(second.locator(".catch-person")).toHaveValue(personId);
+
+    await page.getByRole("button", { name: "Add Missed Fish", exact: true }).click();
+    const lost = page.locator("#lostFishRows .catch-row");
+    await lost.locator("[data-toggle-row]").click();
+    await lost.locator(".catch-possible-species").selectOption({ label: "Walleye" });
+    await expect(lost.locator(".catch-person")).toHaveValue(personId);
+
+    const warnings = [];
+    page.on("dialog", (dialog) => {
+      warnings.push(dialog.message());
+      return dialog.accept();
+    });
+    await page.locator("#tripDialog [data-trip-save]").first().click();
+    await expect(page.locator("#tripDialog")).toBeHidden();
+    expect(warnings).toEqual([]);
+
+    const [trip] = (await readLogbook(page)).trips;
+    expect(trip.people).toMatchObject([{ id: personId, name: "Avery" }]);
+    expect(trip.catches.map((item) => item.personId)).toEqual([personId, personId]);
+    expect(trip.lostFish.map((item) => item.personId)).toEqual([personId]);
+  });
+
   test("saved setups and trolling spreads persist applied gear rows", async ({ page }) => {
     const gear = {
       rods: [
@@ -199,6 +239,137 @@ test.describe("trip draft is the editor authority", () => {
       longitude: -82.9002,
       manual: true
     });
+  });
+
+  test("creates and picks a setup without leaving the trip draft", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await resetWith(page, {
+      rods: [{ id: "drift-rod", name: "Drift Rod" }],
+      reels: [{ id: "drift-reel", name: "Drift Reel" }],
+      rodReelCombos: [{ id: "drift-combo", rodId: "drift-rod", reelId: "drift-reel" }],
+      settings: { savedSetups: [], defaultSavedSetupIds: {} }
+    });
+    await page.goto("/trips", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "New Trip", exact: true }).click();
+    await fillBasics(page, { title: "Morning drift", method: "Drifting" });
+    await page.getByRole("button", { name: "Pick Setup", exact: true }).click();
+    const picker = page.getByRole("dialog", { name: "Pick Setup" });
+    await expect(picker).toContainText("No saved Drifting setups yet.");
+    await picker.getByRole("button", { name: "Create Setup", exact: true }).click();
+    const editor = page.getByRole("dialog", { name: "Create Setup" });
+    await expect(editor).toContainText("Drifting");
+    const name = editor.getByRole("textbox", { name: "Setup name" });
+    await name.fill("Discarded draft");
+    await editor.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(editor).toBeHidden();
+    await picker.getByRole("button", { name: "Create Setup", exact: true }).click();
+    await expect(name).toBeEmpty();
+    await name.fill("Drift pair");
+    await editor.getByRole("combobox", { name: "Rod / reel combo" }).selectOption("drift-combo");
+    await editor.getByRole("button", { name: "Add Rod", exact: true }).click();
+    await editor.getByRole("button", { name: "Save Setup", exact: true }).click();
+    await expect(editor.getByRole("alert")).toContainText("Choose a combo");
+    await editor.getByRole("combobox", { name: "Rod / reel combo" }).last().selectOption("drift-combo");
+    await editor.getByRole("button", { name: "Save Setup", exact: true }).click();
+    await expect(editor).toBeHidden();
+
+    const setup = picker.getByRole("button", { name: /Drift pair/ });
+    await expect(setup).toBeFocused();
+    await expect(page.locator("#tripGearRows .gear-used-row")).toHaveCount(0);
+    await setup.click();
+    await expect(picker).toBeHidden();
+    await expect(page.locator("#tripTitle")).toHaveValue("Morning drift");
+    await expect(page.locator("#tripGearRows .gear-used-row")).toHaveCount(2);
+    await saveTrip(page);
+
+    const document = await readLogbook(page);
+    expect(document.settings.savedSetups).toMatchObject([
+      { name: "Drift pair", method: "Drifting", rows: [{ comboId: "drift-combo" }, { comboId: "drift-combo" }] }
+    ]);
+    expect(document.trips[0].gearUsed.map((row) => row.comboId)).toEqual(["drift-combo", "drift-combo"]);
+  });
+
+  test("defaults a new catch to the only rod and aligns its depth fields", async ({ page }) => {
+    await resetWith(page, {
+      rods: [{ id: "rod-one", name: "First Rod" }, { id: "rod-two", name: "Second Rod" }],
+      reels: [{ id: "reel-one", name: "Reel" }],
+      rodReelCombos: [
+        { id: "combo-one", rodId: "rod-one", reelId: "reel-one" },
+        { id: "combo-two", rodId: "rod-two", reelId: "reel-one" }
+      ],
+      settings: { savedSetups: [], defaultSavedSetupIds: {} }
+    });
+    await page.goto("/trips", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "New Trip", exact: true }).click();
+    await fillBasics(page);
+
+    const addRod = page.getByRole("button", { name: "Add Rod", exact: true });
+    const addCatch = page.getByRole("button", { name: "Add Catch", exact: true });
+    const gearRows = page.locator("#tripGearRows .gear-used-row");
+    const catches = page.locator("#catchRows .catch-row");
+    await addRod.click();
+    await gearRows.first().locator(".trip-gear-combo").selectOption("combo-one");
+    const firstLine = await gearRows.first().getAttribute("data-gear-id");
+    await addCatch.click();
+    const firstCatch = catches.first();
+    await expect(firstCatch.locator(".catch-rod")).toHaveValue(firstLine);
+    await firstCatch.locator(".catch-species").selectOption({ label: "Walleye" });
+    const fields = await firstCatch.locator(".catch-rod-field, .catch-water-depth-field, .catch-depth-down-field")
+      .evaluateAll((labels) => labels.map((label) => {
+        const title = label.querySelector("span").getBoundingClientRect();
+        const control = label.querySelector("input, select").getBoundingClientRect();
+        return { top: control.top, height: control.height, gap: control.top - title.bottom };
+      }));
+    expect(fields).toHaveLength(3);
+    for (const field of fields) {
+      expect(field.top).toBeCloseTo(fields[0].top);
+      expect(field.height).toBeCloseTo(fields[0].height);
+      expect(field.gap).toBeLessThanOrEqual(8);
+    }
+
+    await addRod.click();
+    await gearRows.last().locator(".trip-gear-combo").selectOption("combo-two");
+    await addCatch.click();
+    await expect(catches.last().locator(".catch-rod")).toHaveValue("");
+    await catches.last().locator(".catch-species").selectOption({ label: "Perch" });
+    await expect(firstCatch.locator(".catch-rod")).toHaveValue(firstLine);
+    await saveTrip(page);
+
+    const [walleye, perch] = (await readLogbook(page)).trips[0].catches;
+    expect(walleye).toMatchObject({ setupLineId: firstLine, rodId: "rod-one" });
+    expect(perch).toMatchObject({ setupLineId: "", rodId: "" });
+  });
+
+  test("defaults a single trolling line but leaves main and cheater choices open", async ({ page }) => {
+    await resetWith(page, {
+      rods: [{ id: "trolling-rod", name: "Trolling Rod" }],
+      reels: [{ id: "trolling-reel", name: "Trolling Reel" }],
+      rodReelCombos: [{ id: "trolling-combo", rodId: "trolling-rod", reelId: "trolling-reel" }],
+      settings: { trollingSpreads: [], defaultTrollingSpreadId: "" }
+    });
+    await page.goto("/trips", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "New Trip", exact: true }).click();
+    await fillBasics(page, { method: "Trolling" });
+    await page.getByRole("button", { name: "Add Rod", exact: true }).click();
+    const gear = page.locator("#tripGearRows .gear-used-row");
+    await gear.locator(".trip-gear-combo").selectOption("trolling-combo");
+    await gear.locator(".catch-presentation").selectOption({ label: "Downrigger" });
+    const lineId = await gear.getAttribute("data-gear-id");
+
+    const addCatch = page.getByRole("button", { name: "Add Catch", exact: true });
+    const catches = page.locator("#catchRows .catch-row");
+    await addCatch.click();
+    await expect(catches.first().locator(".catch-setup-line")).toHaveValue(lineId);
+    await catches.first().locator(".catch-species").selectOption({ label: "Walleye" });
+    await gear.locator(".trip-gear-cheater").check();
+    await addCatch.click();
+    await expect(catches.last().locator(".catch-setup-line")).toHaveValue("");
+    await catches.last().locator(".catch-species").selectOption({ label: "Perch" });
+    await saveTrip(page);
+
+    const [walleye, perch] = (await readLogbook(page)).trips[0].catches;
+    expect(walleye).toMatchObject({ setupLineId: lineId, presentation: "Downrigger" });
+    expect(perch).toMatchObject({ setupLineId: "" });
   });
 
   test("photo queue autofill persists photo reference and capture time", async ({ page }) => {

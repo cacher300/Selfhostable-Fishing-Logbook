@@ -151,7 +151,9 @@ export function setup() {
   els.saveTripDraftButtons.forEach((button) => button.addEventListener("click", saveTripAsDraft));
 
   els.tripForm.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") event.preventDefault();
+    if (event.key === "Enter" && !event.target.matches(".gear-picker-card-button")) {
+      event.preventDefault();
+    }
   });
 
   els.tripValidationList?.addEventListener("click", (event) => {
@@ -708,6 +710,11 @@ export function setup() {
 
   els.mapBathymetryToggle?.addEventListener("change", () => {
     saveMapBathymetryPreference(Boolean(els.mapBathymetryToggle.checked));
+    syncMapPageBathymetryOverlay(ui.fishMap);
+  });
+
+  els.mapBathymetryV2Toggle?.addEventListener("change", () => {
+    saveMapBathymetryPreference(Boolean(els.mapBathymetryV2Toggle.checked), "v2");
     syncMapPageBathymetryOverlay(ui.fishMap);
   });
 

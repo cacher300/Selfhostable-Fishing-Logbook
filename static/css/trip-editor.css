@@ -1172,9 +1172,7 @@
   align-self: end;
 }
 
-/* Keep the equipment controls in one row visually consistent, including the
-   lure picker that includes a thumbnail. */
-#tripDialog .direct-catch-gear > select,
+/* Match the inline gear actions to the thumbnail pickers. */
 #tripDialog .direct-catch-gear .gear-picker-trigger,
 #tripDialog .add-lure-inline,
 #tripDialog .gear-lure-field .gear-picker-trigger,
@@ -1249,6 +1247,25 @@
 
 #tripDialog .gear-picker-trigger:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--green) 24%, transparent);
+  outline-offset: 1px;
+}
+
+#tripDialog .gear-media-picker.has-gear-photo .gear-picker-trigger {
+  padding-left: 51px;
+}
+
+.gear-picker-card-button {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  z-index: 1;
+  padding: 0;
+  transform: translateY(-50%);
+}
+
+.gear-picker-card-button:hover,
+.gear-picker-card-button:focus-visible {
+  outline: 2px solid var(--green);
   outline-offset: 1px;
 }
 
@@ -2362,6 +2379,16 @@
   display: none;
 }
 
+@media (min-width: 1250px) {
+  #tripDialog .catch-row.has-soft-plastic-rigging:not(.details-unknown) .catch-editor-lower {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
+#tripDialog .catch-equipment-panel {
+  container: catch-equipment / inline-size;
+}
+
 #tripDialog .catch-equipment-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
@@ -2385,6 +2412,24 @@
 #tripDialog .catch-row .catch-equipment-grid .add-lure-inline {
   grid-column: auto;
   margin-left: 0;
+}
+
+@container catch-equipment (min-width: 650px) {
+  #tripDialog .catch-row.has-soft-plastic-rigging .catch-equipment-grid {
+    grid-template-columns: minmax(190px, 1.2fr) max-content minmax(110px, .75fr) minmax(180px, 1fr);
+  }
+
+  #tripDialog .catch-row.has-soft-plastic-rigging .catch-equipment-grid .catch-rigging-details-field {
+    grid-column: auto;
+  }
+
+  #tripDialog .catch-equipment-grid :is(.catch-rigging, .catch-rigging-details) {
+    height: 58px;
+  }
+
+  #tripDialog .catch-equipment-grid .catch-rigging {
+    background-position: calc(100% - 18px) 25px, calc(100% - 12px) 25px;
+  }
 }
 
 #tripDialog .catch-rod,
@@ -2424,11 +2469,6 @@
 #tripDialog .catch-depth-current-grid input {
   width: 100%;
   max-width: none;
-}
-
-#tripDialog .catch-equipment-grid > label:not(.checkbox-label) > span,
-#tripDialog .catch-depth-current-grid label > span {
-  min-height: 2.4em;
 }
 
 #tripDialog .catch-row .catch-depth-fields > label {

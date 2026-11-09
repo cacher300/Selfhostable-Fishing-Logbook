@@ -1,8 +1,8 @@
 const { expect, test } = require("@playwright/test");
 const { fillDate, freshLogbook, resetLogbook, seededLocation, stubExternalApis } = require("./helpers");
 
-async function openCastingCatch(page) {
-  await resetLogbook(page, await freshLogbook(page, { locations: [seededLocation()] }));
+async function openCastingCatch(page, overrides = {}) {
+  await resetLogbook(page, await freshLogbook(page, { locations: [seededLocation()], ...overrides }));
   await stubExternalApis(page);
   await page.goto("/trips");
   await page.getByRole("button", { name: "New Trip", exact: true }).click();
@@ -72,4 +72,69 @@ test("stacks casting catch equipment controls on a narrow screen", async ({ page
   expect(mobileBoxes.map((box) => box.top)).toEqual([...mobileBoxes].sort((a, b) => a - b).map((box) => box.top));
   await page.mouse.move(0, 0);
   await page.screenshot({ path: testInfo.outputPath("trip-catch-equipment-mobile.png") });
+});
+
+test("the selected lure thumbnail opens the lure card separately from the picker", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const imagePath = "/uploads/lures/_previews/paddletail.jpg";
+  await page.route(`**${imagePath}`, (route) => route.fulfill({
+    contentType: "image/svg+xml",
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160"><rect width="240" height="160" fill="white"/></svg>'
+  }));
+  const row = await openCastingCatch(page, {
+    lures: [{
+      id: "paddletail", name: "Paddletail", type: "Soft Plastic", color: "White",
+      media: [{ id: "paddletail-photo", category: "lures", filename: "paddletail-original.jpg", previewFilename: "paddletail.jpg" }]
+    }]
+  });
+  const field = row.locator(".catch-lure-field");
+  const trigger = field.locator(".gear-picker-trigger");
+  await trigger.click();
+  await field.getByRole("option", { name: /Soft Plastic/ }).click();
+  await field.getByRole("option", { name: /Paddletail/ }).click();
+  const lureControls = row.locator(".catch-lure-field .gear-picker-trigger, .add-lure-inline, .catch-rigging, .catch-rigging-details");
+  const controlBoxes = () => lureControls.evaluateAll((nodes) => nodes.map((node) => {
+    const { left, right, top, height } = node.getBoundingClientRect();
+    return { left, right, top, height };
+  }));
+  const narrow = await controlBoxes();
+  expect(narrow[2].top).toBeGreaterThan(narrow[0].top);
+  expect(narrow[3].top).toBeGreaterThan(narrow[2].top);
+
+  await page.setViewportSize({ width: 1365, height: 960 });
+  await expect.poll(async () => {
+    const wide = await controlBoxes();
+    return wide.length === 4 && wide.every((control, index) => (
+      Math.abs(control.top - wide[0].top) < 1
+      && Math.abs(control.height - wide[0].height) < 1
+      && (index === 0 || control.left >= wide[index - 1].right)
+    ));
+  }).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const thumbnail = field.getByRole("button", { name: "Open lure card for Paddletail - White" });
+  const thumbnailWidth = (await thumbnail.boundingBox()).width;
+  await thumbnail.locator("img").click();
+
+  const card = page.getByRole("dialog", { name: "Paddletail" });
+  const image = card.locator("img");
+  await expect(image).toHaveAttribute("src", imagePath);
+  await expect(image).toHaveJSProperty("naturalWidth", 240);
+  expect((await image.boundingBox()).width).toBeGreaterThan(thumbnailWidth);
+  await expect(card.getByText("Soft Plastic", { exact: true })).toBeVisible();
+  await expect(card.getByText("White", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(card).toBeHidden();
+  await expect(thumbnail).toBeFocused();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+  await thumbnail.press("Enter");
+  await card.getByRole("button", { name: "Edit Lure", exact: true }).click();
+  const editor = page.locator("#lureDialog");
+  await expect(editor.locator("#lureName")).toHaveValue("Paddletail");
+  await editor.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(thumbnail).toBeVisible();
+  await trigger.click();
+  await field.getByRole("option", { name: "Clear selection" }).click();
+  await expect(thumbnail).toBeHidden();
 });

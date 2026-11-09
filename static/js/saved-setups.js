@@ -7,7 +7,7 @@ import { els } from "./app-elements.js";
 import { runSettingsSave, scheduleSettingsAutosave, cancelSettingsAutosave, settingsUi } from "./settings-core.js";
 import { getValue, syncTripFormChrome } from "./trip-editor.js";
 import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, updateAllRowSummaries } from "./trip-rows.js";
-import { replaceTripRows } from "./draft-binding.js";
+import { handleSettingsDraftControlEvent, replaceTripRows } from "./draft-binding.js";
 import { comboName } from "./gear-core.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { isTrollingTrip } from "./form-utils.js";
@@ -51,6 +51,8 @@ export function savedSetupDefaultId(method, defaults = state.settings?.defaultSa
 
 export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex = "", setupIndex = 0 } = {}) {
   const comboId = String(item.comboId || "");
+  const rowPath = `rows.${sourceIndex === "" ? 0 : sourceIndex}.comboId`;
+  const bindPath = setupIndex === null ? rowPath : `${setupIndex}.${rowPath}`;
   const comboOptions = joinHtml(state.rodReelCombos.map((combo) => (
     html`<option value="${combo.id}" ${combo.id === comboId ? "selected" : ""}>${comboName(combo.id) || "Rod / reel combo"}</option>`
   )), "");
@@ -58,7 +60,7 @@ export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex =
     <div class="saved-setup-row"${sourceIndex === "" ? "" : html` data-source-index="${sourceIndex}"`}>
       <label>
         <span>Rod / reel combo</span>
-        <select class="saved-setup-combo" data-settings-draft="savedSetupsDraft" data-settings-bind="${setupIndex}.rows.${sourceIndex === "" ? 0 : sourceIndex}.comboId"${disabled ? " disabled" : ""}>
+        <select class="saved-setup-combo" ${setupIndex === null ? "" : html`data-settings-draft="savedSetupsDraft"`} data-settings-bind="${bindPath}"${disabled ? " disabled" : ""}>
           <option value="">Select rod / reel combo</option>
           ${comboOptions}
         </select>
@@ -255,44 +257,53 @@ export function scheduleSavedSetupAutosave(card) {
   });
 }
 
-export async function saveSavedSetupCard(card, options = {}) {
-  const next = collectSavedSetupCard(card);
-  const wasDraft = card?.dataset.savedSetupDraft === "true";
-  if (!next.name) {
-    if (!options.silentInvalid) setSavedSetupSettingsMessage("Enter a name for this setup before saving.");
-    if (!options.silentInvalid) card?.querySelector(".saved-setup-name")?.focus();
-    return;
-  }
-  if (!next.rows.length) {
-    if (!options.silentInvalid) setSavedSetupSettingsMessage("Add at least one rod with a rod / reel combo before saving.");
-    return;
-  }
+function savedSetupValidationError(next, setups, { autosave = false } = {}) {
+  if (!next.name) return { message: "Enter a name for this setup before saving.", focusName: true };
+  if (!next.rows.length) return { message: "Add at least one rod with a rod / reel combo before saving." };
   if (next.rows.some((row) => !row.comboId)) {
-    if (!options.silentInvalid) setSavedSetupSettingsMessage(options.autosave
-      ? "Autosave paused. Choose a combo or remove the empty rod row to continue."
-      : "Choose a combo or remove the empty rod row before saving.");
-    return;
+    return {
+      message: autosave
+        ? "Autosave paused. Choose a combo or remove the empty rod row to continue."
+        : "Choose a combo or remove the empty rod row before saving."
+    };
   }
-  const setups = [...currentSavedSetups()];
   const duplicate = setups.some((setup) => (
     setup.id !== next.id
     && setup.method.toLowerCase() === next.method.toLowerCase()
     && setup.name.toLowerCase() === next.name.toLowerCase()
   ));
-  if (duplicate) {
-    if (!options.silentInvalid) setSavedSetupSettingsMessage("Setup names must be unique within each method.");
-    if (!options.silentInvalid) card?.querySelector(".saved-setup-name")?.focus();
+  return duplicate ? { message: "Setup names must be unique within each method.", focusName: true } : null;
+}
+
+function persistSavedSetup(next, options = {}) {
+  return updateSettings((settings) => {
+    const setups = settings.savedSetups ?? [];
+    const validation = savedSetupValidationError(next, setups, options);
+    if (validation) throw new Error(validation.message);
+    const index = setups.findIndex((setup) => setup.id === next.id);
+    if (index >= 0) setups[index] = next;
+    else setups.push(next);
+    settings.savedSetups = setups;
+  });
+}
+
+export async function saveSavedSetupCard(card, options = {}) {
+  const next = collectSavedSetupCard(card);
+  const wasDraft = card?.dataset.savedSetupDraft === "true";
+  const validation = savedSetupValidationError(next, currentSavedSetups(), options);
+  if (validation) {
+    if (!options.silentInvalid) {
+      setSavedSetupSettingsMessage(validation.message);
+      if (validation.focusName) card?.querySelector(".saved-setup-name")?.focus();
+    }
     return;
   }
-  const index = setups.findIndex((setup) => setup.id === next.id);
-  if (index >= 0) setups[index] = next;
-  else setups.push(next);
   savedSetupDraft = null;
   activeSavedSetupEditorId = next.id;
   setSavedSetupSettingsMessage("");
   try {
     await runSettingsSave(
-      () => updateSettings((settings) => { settings.savedSetups = setups; }),
+      () => persistSavedSetup(next, options),
       "The saved setup could not be saved.",
       options
     );
@@ -375,7 +386,9 @@ export function renderSavedSetupPicker() {
   };
   setHtml(els.savedSetupPickerList, setups.length
     ? joinHtml(setups.map(renderOption))
-    : html`<p class="saved-setup-picker-empty">No saved ${method || "fishing"} setups yet. Create one in Settings → Saved Setups.</p>`);
+    : html`<p class="saved-setup-picker-empty">${method ? `No saved ${method} setups yet.` : "Choose a fishing method on the trip to pick or create a setup."}</p>`);
+  const createButton = document.querySelector("#createSavedSetupButton");
+  if (createButton) createButton.disabled = !method;
 }
 
 export function openSavedSetupPicker() {
@@ -431,7 +444,88 @@ export function applyStartupSavedSetup() {
   return true;
 }
 
+function setupCreateSavedSetupDialog() {
+  const dialog = document.querySelector("#newSavedSetupDialog");
+  if (!dialog) return;
+  const form = dialog.querySelector("form");
+  const rows = form.querySelector(".saved-setup-list");
+  const message = form.querySelector(".form-message");
+  const addRod = form.querySelector(".add-saved-setup-row");
+  const save = form.querySelector('button[type="submit"]');
+  let saving = false;
+
+  function showMessage(text = "") {
+    message.textContent = text;
+    message.classList.toggle("hidden", !text);
+  }
+
+  function renderRows() {
+    setHtml(rows, joinHtml(settingsUi.newSavedSetupDraft.rows.map((row, index) => savedSetupRowMarkup(row, {
+      sourceIndex: index, setupIndex: null
+    }))));
+  }
+
+  document.querySelector("#createSavedSetupButton")?.addEventListener("click", () => {
+    const method = getValue("method");
+    if (!method || isTrollingTrip()) return;
+    const hasCombos = state.rodReelCombos.length > 0;
+    settingsUi.newSavedSetupDraft = { id: createId(), method, name: "", rows: hasCombos ? [{ comboId: "" }] : [] };
+    form.reset();
+    form.querySelector("#newSavedSetupMethod").textContent = method;
+    showMessage(hasCombos ? "" : "Create a rod / reel combo in Gear before saving a setup.");
+    addRod.disabled = save.disabled = !hasCombos;
+    renderRows();
+    dialog.showModal();
+  });
+
+  form.addEventListener("input", handleSettingsDraftControlEvent);
+  form.addEventListener("change", handleSettingsDraftControlEvent);
+  form.addEventListener("click", (event) => {
+    const draft = settingsUi.newSavedSetupDraft;
+    if (event.target.closest(".add-saved-setup-row")) {
+      draft.rows.push({ comboId: "" });
+      renderRows();
+      rows.querySelector(".saved-setup-row:last-child select")?.focus();
+    }
+    const remove = event.target.closest(".remove-saved-setup-row");
+    if (remove) {
+      const row = remove.closest(".saved-setup-row");
+      draft.rows.splice(Number(row.dataset.sourceIndex), 1);
+      renderRows();
+      addRod.focus();
+    }
+  });
+  dialog.addEventListener("cancel", (event) => {
+    if (saving) event.preventDefault();
+  });
+  dialog.addEventListener("close", () => {
+    if (!dialog.open) settingsUi.newSavedSetupDraft = null;
+  });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (saving || save.disabled) return;
+    const next = savedSetupFromDraft(settingsUi.newSavedSetupDraft);
+    const controls = [...form.querySelectorAll("input, select, button")];
+    saving = true;
+    showMessage();
+    controls.forEach((control) => { control.disabled = true; });
+    try {
+      await persistSavedSetup(next);
+      dialog.close();
+      renderSavedSetupPicker();
+      els.savedSetupPickerList?.querySelector(`[data-pick-saved-setup="${CSS.escape(next.id)}"]`)?.focus();
+    } catch (error) {
+      showMessage(error.message || "The setup could not be saved.");
+    } finally {
+      saving = false;
+      controls.forEach((control) => { control.disabled = false; });
+      if (dialog.open) save.focus();
+    }
+  });
+}
+
 export function setup() {
+  setupCreateSavedSetupDialog();
   els.savedSetupMethodSections?.addEventListener("click", (event) => {
     const methodToggle = event.target.closest("[data-saved-setup-method-toggle]");
     if (methodToggle) {

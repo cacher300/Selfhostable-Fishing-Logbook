@@ -279,10 +279,8 @@ export function setup() {
       const personId = removePerson.closest(".person-row").dataset.personId;
       removeDraftRecord("people", personId);
       removePerson.closest(".person-row").remove();
-      document.querySelectorAll(".catch-person").forEach((select) => {
-        if (select.value === personId) select.value = "";
-      });
       populatePersonSelects();
+      updateAllRowSummaries();
       markTripFormChanged();
     }
   

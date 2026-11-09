@@ -9,7 +9,7 @@ import { flashAutoFilledField, tripLocationCoordinates, updateCatchLocationSumma
 import { syncUnitLabels } from "./settings.js";
 import { formatDate, populateChoiceSelect, populateOptionSelect } from "./dashboard.js";
 import { fishCoordinatesFromRow, manualCoordinatesFromRow, renderCatchPhotos, updateMetadataLockButtons } from "./photos.js";
-import { getValue, populatePersonSelect, syncTripFormChrome } from "./trip-editor.js";
+import { getValue, syncFishPersonSelect, syncTripFormChrome } from "./trip-editor.js";
 import { comboName, lureName, rodName } from "./gear-core.js";
 import { populateComboSelect, populateFlasherSelect, populateLureSelect, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
 import { defaultSetupLineSide, renderLiveTrollingSpread, setupLineAutoLabel, setupLineSideLabel } from "./trolling-spread.js";
@@ -20,7 +20,11 @@ import { catchCurrentDisplayValues, isGreatLakesFishingTrip, loadSavedFishingCon
 const catchFishingRequestIds = new WeakMap();
 
 export function addCatchRow(catchItem = {}) {
-  return addFishRow(catchItem, { container: els.catchRows, lost: false });
+  return addFishRow(catchItem, {
+    container: els.catchRows,
+    lost: false,
+    defaultRod: !ui.tripDraftHydrating && !catchItem.id
+  });
 }
 
 export function addLostFishRow(fishItem = {}) {
@@ -205,6 +209,7 @@ export function clearUnknownCatchDetails(row) {
     setupLineValue: "",
     setupLineId: "",
     setupLineTarget: "",
+    rodSelect: "",
     rodId: "",
     lureId: "",
     rigging: "",
@@ -356,7 +361,7 @@ function hydratedGearRecord(gearItem = {}, { id, rowIndex = 0 } = {}) {
   };
 }
 
-export function addFishRow(catchItem = {}, { container, lost }) {
+export function addFishRow(catchItem = {}, { container, lost, defaultRod = false }) {
   const template = document.querySelector("#catchRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
   if (lost) node.classList.add("lost-fish-row");
@@ -405,7 +410,7 @@ export function addFishRow(catchItem = {}, { container, lost }) {
   node.querySelector(".catch-photo-editor").classList.remove("hidden");
   node.querySelector(".catch-spot-field").classList.remove("hidden");
 
-  populatePersonSelect(node.querySelector(".catch-person"), draftRecord.personId || "");
+  syncFishPersonSelect(node);
   populateOptionSelect(node.querySelector(".catch-species"), state.species, "Select species");
   populateOptionSelect(node.querySelector(".catch-possible-species"), state.species, "Select possible species");
   populateStructureSelect(node.querySelector(".catch-structure"), draftRecord.structureType || "");
@@ -472,6 +477,7 @@ export function addFishRow(catchItem = {}, { container, lost }) {
   populateSetupLineSelects();
   updateTrollingVisibility();
   populateCatchRodSelects();
+  if (defaultRod) selectOnlyCatchRod(node);
   updateCatchDetailsUnknown(node);
   updateAllRowSummaries();
   renderLiveTrollingSpread();
@@ -763,7 +769,7 @@ export function sortTrollingSetupRows() {
 
 export function rodOptionFromGearRecord(record = {}, index = 0) {
   const combo = selectedComboForRecord(record);
-  const rodId = combo?.rodId || "";
+  const rodId = combo?.rodId || record.rodId || "";
   const lureId = String(record.lureId || "").startsWith("__type__:") ? "" : (record.lureId || "");
   const fallbackLabel = setupLineLabel(record, index);
   const label = [
@@ -804,6 +810,30 @@ export function populateCatchRodSelects() {
     const record = fishRecordForRow(select.closest(".catch-row"));
     populateCatchRodSelect(select, record.rodId || "", record.setupLineId || record.rodSelect || "");
   });
+}
+
+function selectOnlyCatchRod(row) {
+  const record = fishRecordForRow(row);
+  if (record.detailsUnknown || record.rodId || record.setupLineId || record.setupLineValue) return;
+  const rods = catchRodOptions();
+  if (rods.length !== 1) return;
+  const [rod] = rods;
+  if (!isTrollingTrip()) {
+    row.querySelector(".catch-rod").value = rod.id;
+    updateTripRow("catches", record.id, { rodSelect: rod.id, setupLineId: rod.id, setupLineValue: rod.id });
+    syncDirectCatchRodToLure(row);
+    return;
+  }
+
+  const time = record.timeUnknown ? "" : record.time;
+  const eligibleLines = setupLineOptions().filter((option) => (
+    option.id.split("::")[0] === rod.id && setupLineIsActiveAtTime(option, time)
+  ));
+  if (eligibleLines.length !== 1) return;
+  const [line] = eligibleLines;
+  row.querySelector(".catch-setup-line").value = line.id;
+  updateTripRow("catches", record.id, { setupLineValue: line.id });
+  syncCatchMethodToSetupLine(row);
 }
 
 export function syncDirectCatchRodToLure(row) {

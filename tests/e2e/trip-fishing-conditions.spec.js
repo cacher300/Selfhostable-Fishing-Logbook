@@ -37,6 +37,7 @@ test("Great Lakes trolling and jigging trips show saved thermocline and catch cu
   await page.locator("#method").selectOption({ label: "Trolling" });
 
   const dialog = page.locator("#tripDialog");
+  await expect(dialog.locator("#waveHeight")).toHaveAttribute("placeholder", "Not available");
   const thermocline = dialog.locator("#tripThermoclineDepth");
   await expect(thermocline).toBeVisible();
   await expect(thermocline).toHaveValue("39.4 ft");

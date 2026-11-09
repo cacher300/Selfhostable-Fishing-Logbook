@@ -45,7 +45,7 @@ HTML IDs/classes and `data-*` attributes remain internal APIs shared by template
 
 #### Global Map layers
 
-`maps.js` draws NOAA NCEI Great Lakes bathymetry from the bundled rasters described by `static/data/bathymetry/manifest.json`. The public manifest is explicitly allowlisted by `pages.static_files`; other JSON files remain blocked by the static-file suffix policy. The **NOAA depth shading** toggle adds raster overlays for the lakes in view; **NOAA depth contours** separately loads view-relevant GeoJSON through `/api/bathymetry/contours/{lake}`. The depth-shading pane sits above NOAA chart and Great Lakes model overlays so it remains visible when those layers are enabled, while contour lines sit above the shading. These bathymetry products are static bottom-depth context, not live forecasts.
+`maps.js` draws the original NOAA NCEI Great Lakes shading from the bundled rasters described by `static/data/bathymetry/manifest.json`. The public manifest is explicitly allowlisted by `pages.static_files`. **Depth shading version 2** uses viewport tiles from the configured Great Lakes Trolling API. It loads their versioned URL from `/api/v1/bathymetry/tiles/manifest` and shows a depth scale in the selected map units. The API receives the visible tile coordinates while v2 is enabled. Only one shading style is displayed at a time, and the browser remembers the selected style. **Depth contours** separately loads view-relevant GeoJSON through `/api/bathymetry/contours/{lake}`. The depth-shading pane sits above NOAA charts and Great Lakes model overlays, with contour lines above the shading. Both shading styles depict static bottom depth.
 
 ### Backend
 
