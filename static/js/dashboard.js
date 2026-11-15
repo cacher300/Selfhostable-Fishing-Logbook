@@ -17,6 +17,21 @@ import { calculateHours, parseFirstNumber, renderAdvancedStats } from "./stats.j
 import { renderPersonalBests } from "./personal-bests.js";
 import { trimNumber } from "./form-utils.js";
 
+const ANYTHING_TARGET_SPECIES = "Anything";
+
+function isAnythingTargetSpecies(value) {
+  return String(value || "").trim().toLocaleLowerCase() === ANYTHING_TARGET_SPECIES.toLocaleLowerCase();
+}
+
+export function targetSpeciesOptions(options = state.species) {
+  const species = Array.isArray(options) ? options.filter((item) => !isAnythingTargetSpecies(item)) : [];
+  return [ANYTHING_TARGET_SPECIES, ...species];
+}
+
+export function catchSpeciesOptions(options = state.species) {
+  return (Array.isArray(options) ? options : []).filter((item) => !isAnythingTargetSpecies(item));
+}
+
 
 export function formatDate(value) {
   if (!value) return "";
@@ -313,7 +328,7 @@ export function renderStatsMethodFilter() {
     html`<option value="${method}" ${method === ui.activeStatsMethod ? "selected" : ""}>${method}</option>`
   )), ""));
 
-  const species = ["All species", ...new Set([...state.species, ...state.trips.flatMap((trip) => [
+  const species = ["All species", ...new Set([...catchSpeciesOptions(), ...state.trips.flatMap((trip) => [
     ...(trip.catches || []).map((catchItem) => catchItem.species),
     ...(trip.lostFish || []).map((fish) => fish.possibleSpecies || fish.species)
   ])].filter(Boolean))];
@@ -547,7 +562,7 @@ export function renderSelectOptions() {
   populateLocationSelect();
   populateTripExpeditionSelect();
   populateDatalist(els.personOptions, state.people.map((person) => person.name).filter(Boolean));
-  populateOptionSelect(document.querySelector("#targetSpecies"), state.species, "Select target species");
+  populateOptionSelect(document.querySelector("#targetSpecies"), targetSpeciesOptions(), "Select target species");
   populateOptionSelect(document.querySelector("#method"), state.methods, "Select method");
   populateOptionSelect(document.querySelector("#waterClarity"), optionLabels("waterClarities"), "Select water clarity");
   populateOptionSelect(document.querySelector("#weather"), optionLabels("weatherTypes"), "Select weather");
@@ -557,8 +572,8 @@ export function renderSelectOptions() {
   populateOptionSelect(document.querySelector("#lureSpoonSize"), optionLabels("lureSpoonSizes"), "Select spoon size");
   populateOptionSelect(document.querySelector("#lureBeadSize"), optionLabels("lureBeadSizes"), "Select bead size");
   populateOptionSelect(document.querySelector("#lureMeatRigType"), optionLabels("meatRigTypes"), "Select meat rig type");
-  document.querySelectorAll(".catch-species").forEach((select) => populateOptionSelect(select, state.species, "Select species"));
-  document.querySelectorAll(".catch-possible-species").forEach((select) => populateOptionSelect(select, state.species, "Select possible species"));
+  document.querySelectorAll(".catch-species").forEach((select) => populateOptionSelect(select, catchSpeciesOptions(), "Select species"));
+  document.querySelectorAll(".catch-possible-species").forEach((select) => populateOptionSelect(select, catchSpeciesOptions(), "Select possible species"));
   document.querySelectorAll(".catch-presentation").forEach((select) => populateChoiceSelect(select, optionChoices("trollingPresentations"), "Select method"));
   document.querySelectorAll(".catch-direction").forEach((select) => populateOptionSelect(select, optionLabels("trollingDirections"), "Select direction"));
   document.querySelectorAll(".trip-gear-side").forEach((select) => populateChoiceSelect(select, optionChoices("setupLineSides"), "Select side"));

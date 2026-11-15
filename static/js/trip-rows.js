@@ -7,7 +7,7 @@ import { els } from "./app-elements.js";
 import { isUsableCoordinates } from "./app-media.js";
 import { flashAutoFilledField, tripLocationCoordinates, updateCatchLocationSummary } from "./locations.js";
 import { syncUnitLabels } from "./settings.js";
-import { formatDate, populateChoiceSelect, populateOptionSelect } from "./dashboard.js";
+import { catchSpeciesOptions, formatDate, populateChoiceSelect, populateOptionSelect } from "./dashboard.js";
 import { fishCoordinatesFromRow, manualCoordinatesFromRow, renderCatchPhotos, updateMetadataLockButtons } from "./photos.js";
 import { getValue, syncFishPersonSelect, syncTripFormChrome } from "./trip-editor.js";
 import { comboName, lureName, rodName } from "./gear-core.js";
@@ -417,8 +417,8 @@ export function addFishRow(catchItem = {}, { container, lost, defaultRod = false
   node.querySelector(".catch-spot-field").classList.remove("hidden");
 
   syncFishPersonSelect(node);
-  populateOptionSelect(node.querySelector(".catch-species"), state.species, "Select species");
-  populateOptionSelect(node.querySelector(".catch-possible-species"), state.species, "Select possible species");
+  populateOptionSelect(node.querySelector(".catch-species"), catchSpeciesOptions(), "Select species");
+  populateOptionSelect(node.querySelector(".catch-possible-species"), catchSpeciesOptions(), "Select possible species");
   populateStructureSelect(node.querySelector(".catch-structure"), draftRecord.structureType || "");
   populateOptionSelect(node.querySelector(".catch-rigging"), state.riggings, "Select rigging");
   populateChoiceSelect(node.querySelector(".catch-presentation"), optionChoices("trollingPresentations"), "Select method", draftRecord.presentation || "");
