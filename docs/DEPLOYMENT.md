@@ -11,6 +11,10 @@ That pipeline should deploy only its intended website branch after its own
 checks pass. The deployment checkout must already exist on the server and have
 its `origin` set to the GitLab repository.
 
+When run manually, `launch-container.sh` fast-forward pulls the current branch.
+It skips that pull under CI so a deployment job stays on the exact commit tested
+by its pipeline.
+
 Use a dedicated deployment directory, for example:
 
 ```text

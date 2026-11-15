@@ -16,6 +16,13 @@ else
   exit 1
 fi
 
+if [ "${CI:-false}" = "true" ]; then
+  echo "CI detected; leaving the pipeline-selected revision unchanged."
+else
+  echo "Pulling latest fast-forward changes..."
+  git pull --ff-only
+fi
+
 echo "Stopping any running Selfhostable Fishing Logbook container..."
 $COMPOSE down --remove-orphans
 

@@ -48,7 +48,7 @@ docker compose up --build -d
 docker compose down
 ```
 
-`launch-container.sh` removes current/legacy named containers, rebuilds, and starts Compose. It does not run or schedule backups.
+When run manually, `launch-container.sh` first runs `git pull --ff-only` for the current branch; under CI it preserves the pipeline-selected revision. It then removes current/legacy named containers, rebuilds, and starts Compose. It does not run or schedule backups.
 
 ## Repository Map
 
