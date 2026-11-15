@@ -48,7 +48,7 @@ Compatibility-sensitive fields include `settings.defaultPeople`, `units`, `timeF
 
 | Field | Type | Purpose |
 |---|---|---|
-| `species`, `methods` | string arrays | User-managed form choices. |
+| `species`, `methods` | string arrays | User-managed form choices. The starter species choices include `Anything` at the end, preserving the existing first-choice behavior. Existing logbooks can add it under Settings → Categories. |
 | `lureTypes`, `flasherTypes` | string arrays | Gear classification choices. |
 | `waterClarities`, `weatherTypes` | string arrays | Manual condition choices. |
 | `reelStyles`, `rodTypes`, `lineTypes`, `riggings`, `structureOptions` | string arrays | Inventory and structure choices. |

@@ -245,7 +245,8 @@ export const defaultLogbook = {
     "Smallmouth Bass",
     "Walleye",
     "White Crappie",
-    "Yellow Bullhead"
+    "Yellow Bullhead",
+    "Anything"
   ],
   "methods": [
     "Trolling",
