@@ -8,6 +8,7 @@ import { collectFishingSpotSettings, collectPrivatePhotoLocationSettings, render
 import { renderTrips } from "./dashboard.js";
 import { addCatchPhotos, applyPhotoCaptureTimeToCatch, applyPhotoLocationToCatch, catchPhotoById, claimQueuedPhoto, deleteQueuedPhoto, isCatchMetadataLocked, openPhotoQueue, renderCatchPhotos, renderNotePhotos, setCatchMetadataLock } from "./photos.js";
 import { addProbeProfileDepth, clearProbeProfileLocation, clearTripFormMessage, closeTripDialog, collectProbeTemperatureProfile, importNoaaProbeTemperatureProfile, isTripFormDirty, markTripFormChanged, openProbeProfileLocationDialog, openTripDialog, populatePersonSelects, refreshTripEnvironmentalConditions, renderProbeTemperatureProfileChart, saveProbeProfileLocation, setProbeProfileImportStatus, setValue, syncTripFormChrome } from "./trip-editor.js";
+import { refreshBeadRigEditor } from "./bead-rig-editor.js";
 import { duplicateCatchRow, populateCatchRodSelects, populateSetupLineSelects, refreshCatchFishingConditions, sortTrollingSetupRows, syncCatchMethodToSetupLine, syncCatchRiggingFromSetupLine, syncDirectCatchRodToLure, syncTripTimesToBlankRows, updateAllRowSummaries, updateCatchDetailsUnknown, updateRowSummary, updateUnknownTimeField } from "./trip-rows.js";
 import { openQueuedGearImagePreview, previewSelectedGearUploads, removeExistingGearPhoto, renderQueuedGearImage } from "./gear-core.js";
 import { populateLuresForType, renderFlasherPreview, renderLurePreview, renderLureTypeOptions, reopenLurePicker, syncComboToRow } from "./gear-pickers.js";
@@ -825,7 +826,7 @@ export function setup() {
       populateCatchRodSelects();
     }
     if (event.target.matches(".catch-setup-line")) {
-      syncCatchMethodToSetupLine(event.target.closest(".catch-row"));
+      syncCatchMethodToSetupLine(event.target.closest(".catch-row"), true);
     }
     if (event.target.matches(".catch-time-unknown")) {
       updateUnknownTimeField(event.target.closest(".catch-row"));
@@ -861,7 +862,7 @@ export function setup() {
       });
     }
     const row = event.target.closest(".catch-row, .gear-used-row");
-    if (row) updateRowSummary(row);
+    if (row) { refreshBeadRigEditor(row); updateRowSummary(row); }
     if (event.target.closest("#tripForm")) {
       renderLiveTrollingSpread();
       renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());
@@ -904,7 +905,7 @@ export function setup() {
       updateLeadcoreEstimatedDepth(event.target.closest(".catch-row"));
     }
     const row = event.target.closest(".catch-row, .gear-used-row");
-    if (row) updateRowSummary(row);
+    if (row) { refreshBeadRigEditor(row); updateRowSummary(row); }
     if (event.target.closest("#tripForm")) {
       renderLiveTrollingSpread();
       renderProbeTemperatureProfileChart(collectProbeTemperatureProfile());

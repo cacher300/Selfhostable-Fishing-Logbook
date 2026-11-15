@@ -2679,3 +2679,27 @@
   margin: 0;
   padding-inline: 10px;
 }
+
+/* Keep bead rig controls aligned with the setup and catch form grids. */
+#tripDialog .bead-rig-editor {
+  grid-column: 1 / -1;
+}
+
+#tripDialog .bead-rig-editor .form-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#tripDialog .bead-rig-editor .form-grid label,
+#tripDialog .bead-rig-editor input,
+#tripDialog .bead-rig-editor select {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  #tripDialog .bead-rig-editor .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

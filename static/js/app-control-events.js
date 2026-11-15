@@ -4,7 +4,7 @@ import { addListValue } from "./actions.js";
 import { els } from "./app-elements.js";
 import { canonicalMediaRef, finishMediaEditSession } from "./app-media.js";
 import { clearActiveCatchLocation, deleteActiveLocationFromDialog, handleLocationManagerDragEnd, handleLocationManagerDragOver, handleLocationManagerDragStart, handleLocationManagerDrop, openLocationDialog, renderLocationManager, saveCatchLocationFromPicker, saveLocationPin } from "./locations.js";
-import { markTripWaterTemperatureManual, resyncTripWeather } from "./location-weather.js";
+import { markTripWaterClarityManual, markTripWaterTemperatureManual, resyncTripWeather } from "./location-weather.js";
 import { exportArchive, importArchive, scheduleSettingsAutosave, setSettingsSaveStatus, settingsUi } from "./settings-core.js";
 import { addTrollingSpread, addTrollingSpreadRowToCard, cancelTrollingSpreadDraft, deleteTrollingSpread, editTrollingSpread, finishTrollingSpreadEdit, refreshTrollingSpreadCardPreview, saveDefaultHomeLake, saveDefaultPeople, saveDefaultTrollingSpreadId, saveFishHawkPreference, saveSpeciesMapColors, saveThemePreference, saveTimeFormatPreference, saveUnitSettings, scheduleTrollingSpreadAutosave, setSettingsTab, setTrollingSpreadSettingsMessage, syncSpeciesMapColorPreview, syncTrollingSpreadRowFields } from "./settings.js";
 import { openSavedSetupPicker } from "./saved-setups.js";
@@ -132,11 +132,13 @@ export function setup() {
   els.tripDialog.addEventListener("input", (event) => {
     handleTripDraftControlEvent(event);
     if (event.target.matches("#waterTemp")) markTripWaterTemperatureManual();
+    if (event.target.matches("#waterClarity")) markTripWaterClarityManual();
     syncTripContinuationGate();
   });
   els.tripDialog.addEventListener("change", (event) => {
     handleTripDraftControlEvent(event);
     if (event.target.matches("#waterTemp")) markTripWaterTemperatureManual();
+    if (event.target.matches("#waterClarity")) markTripWaterClarityManual();
     syncTripContinuationGate();
   });
   [els.lureDialog, els.flasherDialog, els.reelDialog, els.rodDialog, els.comboDialog].forEach((dialog) => {

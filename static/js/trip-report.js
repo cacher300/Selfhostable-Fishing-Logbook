@@ -1,3 +1,4 @@
+import { beadRigDetails } from "./bead-rig.js";
 import { html, insertHtml, joinHtml } from "./html.js";
 import { storageKey } from "./app-config.js";
 import { state, ui } from "./app-state.js";
@@ -226,11 +227,11 @@ export function catchPhotosByPriority(trip) {
 export function renderReportSetupTable(trip) {
   const rows = trip.gearUsed || [];
   const trolling = isTrollingTripRecord(trip);
-  const columns = ["#", "Start", "End", "Side", "Line", "Combo", "Rod", "Reel", "Lure", ...(trolling ? ["Flasher", "Presentation", "Distance Behind", "Dipsey Diver Color", "Leadcore", "Cheater", "Cheater Lure", "Lure Minutes", "Flasher Minutes"] : []), "Change Note"];
+  const columns = ["#", "Start", "End", "Side", "Line", "Combo", "Rod", "Reel", "Lure", "Bead rig", ...(trolling ? ["Flasher", "Presentation", "Distance Behind", "Dipsey Diver Color", "Leadcore", "Cheater", "Cheater Lure", "Lure Minutes", "Flasher Minutes"] : []), "Change Note"];
   const values = (gearItem, index) => [
     index + 1, gearItem.startTime ? formatTimelineDisplayTime(gearItem.startTime) : "", gearItem.endTime ? formatTimelineDisplayTime(gearItem.endTime) : "",
     setupLineSideLabel(gearItem.side), gearItem.lineLabel, comboName(gearItem.comboId), rodName(gearItem.rodId), reelName(gearItem.reelId),
-    lureName(gearItem.lureId), ...(trolling ? [
+    lureName(gearItem.lureId), beadRigDetails(gearItem, lureName).map(([label, value]) => `${label}: ${value}`).join(" · "), ...(trolling ? [
       flasherName(gearItem.flasherId), presentationLabel(gearItem.presentation), reportDepthValue(gearItem.distanceBehind), gearItem.dipseyDiverColor,
       gearItem.hasLeadcore ? "Yes" : "No", gearItem.hasCheater ? "Yes" : "No", lureName(gearItem.cheaterLureId),
       gearItem.lureMinutes, gearItem.flasherMinutes

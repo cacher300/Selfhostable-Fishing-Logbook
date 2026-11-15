@@ -17,6 +17,9 @@ import { isTrollingTrip, populateStructureSelect, updateCheaterDepth, updateLead
 import { applyTripDraftBindings, findDraftRecord, insertTripRow, replaceDraftRecord, replaceTripRows, updateTripRow } from "./draft-binding.js";
 import { catchCurrentDisplayValues, isGreatLakesFishingTrip, loadSavedFishingConditions } from "./trip-fishing-conditions.js";
 
+import { mountBeadRigEditor, refreshBeadRigEditor } from "./bead-rig-editor.js";
+import { BEAD_RIG_FIELDS, beadRigPatch } from "./bead-rig.js";
+
 const catchFishingRequestIds = new WeakMap();
 
 export function addCatchRow(catchItem = {}) {
@@ -155,6 +158,9 @@ export function setControlValue(control, value = "") {
 }
 
 export function clearUnknownCatchDetails(row) {
+  const record = fishRecordForRow(row);
+  BEAD_RIG_FIELDS.forEach((key) => { delete record[key]; });
+  refreshBeadRigEditor(row, true);
   [
     ".catch-person",
     ".catch-time",
@@ -471,6 +477,7 @@ export function addFishRow(catchItem = {}, { container, lost, defaultRod = false
   updateMetadataLockButtons(node);
   updatePresentationFields(node);
 
+  mountBeadRigEditor(node);
   container.append(node);
   applyTripDraftBindings(node);
   syncUnitLabels(node);
@@ -552,6 +559,7 @@ export function addTripGearRow(gearItem = {}) {
   renderFlasherPreview(node);
   updatePresentationFields(node);
 
+  mountBeadRigEditor(node);
   els.tripGearRows.append(node);
   applyTripDraftBindings(node);
   syncUnitLabels(node);
@@ -833,7 +841,7 @@ function selectOnlyCatchRod(row) {
   const [line] = eligibleLines;
   row.querySelector(".catch-setup-line").value = line.id;
   updateTripRow("catches", record.id, { setupLineValue: line.id });
-  syncCatchMethodToSetupLine(row);
+  syncCatchMethodToSetupLine(row, true);
 }
 
 export function syncDirectCatchRodToLure(row) {
@@ -851,17 +859,18 @@ export function syncDirectCatchRodToLure(row) {
     populateLureSelect(lureSelect, lureId);
   }
   updateTripRow(row.classList.contains("lost-fish-row") ? "lostFish" : "catches", row.dataset?.catchId || row.dataset?.rowId, patch);
-  syncCatchRiggingFromSetupLine(row);
+  syncCatchRiggingFromSetupLine(row, true);
   renderLurePreview(row);
   updateRowSummary(row);
 }
 
-export function syncCatchRiggingFromSetupLine(row) {
+export function syncCatchRiggingFromSetupLine(row, copyBeads = false) {
   if (!row) return;
   const record = fishRecordForRow(row);
   const setup = findDraftRecord("gearUsed", record.setupLineId || record.rodSelect || "");
   if (!setup) return;
 
+  if (copyBeads === true) BEAD_RIG_FIELDS.forEach((key) => { delete record[key]; });
   const rigging = row.querySelector(".catch-rigging");
   const riggingDetails = row.querySelector(".catch-rigging-details");
   const riggingValue = setup.rigging || "";
@@ -870,11 +879,13 @@ export function syncCatchRiggingFromSetupLine(row) {
   if (riggingDetails) riggingDetails.value = riggingDetailsValue;
   updateTripRow(row.classList.contains("lost-fish-row") ? "lostFish" : "catches", row.dataset?.catchId || row.dataset?.rowId, {
     rigging: riggingValue,
-    riggingDetails: riggingDetailsValue
+    riggingDetails: riggingDetailsValue,
+    ...(copyBeads && (setup.beadCount || state.lures.find((item) => item.id === setup.lureId)?.type?.toLowerCase() === "bead") ? beadRigPatch({ beadCount: 1, ...setup }) : {})
   });
+  refreshBeadRigEditor(row, true);
 }
 
-export function syncCatchMethodToSetupLine(row) {
+export function syncCatchMethodToSetupLine(row, copyBeads = false) {
   const record = fishRecordForRow(row);
   const selectedValue = record.setupLineValue || record.setupLineId || "";
   const presentationSelect = row.querySelector(".catch-presentation");
@@ -896,6 +907,7 @@ export function syncCatchMethodToSetupLine(row) {
     setupLineTarget: isCheater ? "cheater" : "",
     presentation
   });
+  if (copyBeads === true) syncCatchRiggingFromSetupLine(row, true);
   updatePresentationFields(row);
   updateCheaterDepth(row);
   updateLeadcoreEstimatedDepth(row);
@@ -958,6 +970,7 @@ export function updateRowSummary(row) {
 
   const pieces = [
     `Rod ${rowNumber(row, ".gear-used-row")}`,
+    gearRecordForRow(row).beadCount ? `${gearRecordForRow(row).beadCount} beads` : "",
     isTrollingTrip() ? setupLineSideLabel(gearRecordForRow(row).side) : "",
     choiceLabel("trollingPresentations", gearRecordForRow(row).presentation) || gearRecordForRow(row).presentation || ""
   ].filter(Boolean);

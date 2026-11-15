@@ -160,3 +160,21 @@ Files are served from their category paths. Category validation occurs through t
 ### Bathymetry indexes
 
 The Docker image includes bundled NOAA contour assets and prepares their local indexes during the image build. Local installations can prepare the same indexes with `.venv\Scripts\python.exe scripts/prepare-depth-indexes.py`; generated indexes live under `static/data/depth-indexes/` outside the private logbook data directory.
+
+## Niagara River clarity
+
+The public Great Lakes API now supplies `GET /api/v1/clarity/niagara` and
+`?time=<ISO timestamp with timezone>`. The full response includes current
+conditions, hourly clarity/wind/wave history and forecast, upper/lower water
+temperatures, and source metadata. The time query returns one hourly reading.
+Unavailable hours return `available: false`; stale snapshots return 503.
+Desktop automatically fills an empty Niagara River trip clarity field using
+its date/start time. Manual and saved values are preserved; failed requests
+never block saving. Green is included in starter clarity choices. Existing
+logbooks receive the category in the field without replacing their defaults.
+The API base uses the existing Great Lakes API host setting. The website
+endpoint must be deployed on that host before this works in released clients.
+
+### Optional bead fields in v2 documents
+
+Lures accept optional string `beadMaterial` and `beadFinish`. Setup lines, catches, and lost fish accept optional integer `beadCount` (1–3), string `secondBeadLureId`, `thirdBeadLureId`, `beadAttachment`, `beadToHookDistance`, `beadSpacing`, and `thirdBeadSpacing`. The existing `lureId` is bead 1. Distances include their units as free-form text. These fields round-trip through whole-logbook and Shared Trip archives; the latter includes and remaps all referenced beads and media. No endpoint or archive-version change is required.

@@ -75,13 +75,13 @@ def _referenced_trip_ids(trip: dict) -> dict[str, set[str]]:
         for record in trip.get(record_group, []):
             if not isinstance(record, dict):
                 continue
-            for key, field in (("people", "personId"), ("spots", "spotId"), ("lures", "lureId"), ("flashers", "flasherId"), ("rods", "rodId")):
+            for key, field in (("people", "personId"), ("spots", "spotId"), ("lures", "secondBeadLureId"), ("lures", "thirdBeadLureId"), ("lures", "lureId"), ("flashers", "flasherId"), ("rods", "rodId")):
                 if record.get(field):
                     referenced[key].add(str(record[field]))
     for setup in trip.get("gearUsed", []):
         if not isinstance(setup, dict):
             continue
-        for key, field in (("lures", "lureId"), ("flashers", "flasherId"), ("reels", "reelId"), ("rods", "rodId"), ("rodReelCombos", "comboId")):
+        for key, field in (("lures", "secondBeadLureId"), ("lures", "thirdBeadLureId"), ("lures", "lureId"), ("flashers", "flasherId"), ("reels", "reelId"), ("rods", "rodId"), ("rodReelCombos", "comboId")):
             if setup.get(field):
                 referenced[key].add(str(setup[field]))
     return referenced
@@ -597,13 +597,13 @@ def _merge_referenced_gear(local: dict, incoming: dict, trip: dict, referenced: 
         imported_gear_ids["rodReelCombos"].add(copied["id"])
 
     for setup in trip.get("gearUsed", []):
-        for collection, field in (("lures", "lureId"), ("flashers", "flasherId"), ("reels", "reelId"), ("rods", "rodId"), ("rodReelCombos", "comboId")):
+        for collection, field in (("lures", "secondBeadLureId"), ("lures", "thirdBeadLureId"), ("lures", "lureId"), ("flashers", "flasherId"), ("reels", "reelId"), ("rods", "rodId"), ("rodReelCombos", "comboId")):
             source_id = str(setup.get(field) or "")
             if source_id in id_maps[collection]:
                 setup[field] = id_maps[collection][source_id]
     for record_group in ("catches", "lostFish"):
         for record in trip.get(record_group, []):
-            for collection, field in (("lures", "lureId"), ("flashers", "flasherId"), ("rods", "rodId")):
+            for collection, field in (("lures", "secondBeadLureId"), ("lures", "thirdBeadLureId"), ("lures", "lureId"), ("flashers", "flasherId"), ("rods", "rodId")):
                 source_id = str(record.get(field) or "")
                 if source_id in id_maps[collection]:
                     record[field] = id_maps[collection][source_id]

@@ -183,6 +183,11 @@ export function deleteLure(id) {
   return commit((draft) => {
     draft.lures = ensureArray(draft, "lures").filter((item) => item.id !== id);
     ensureArray(draft, "trips").forEach((trip) => {
+      [...(trip.gearUsed || []), ...(trip.catches || []), ...(trip.lostFish || [])].forEach((record) => {
+        for (const key of ["secondBeadLureId", "thirdBeadLureId"]) if (record[key] === id) record[key] = "";
+      });
+    });
+    ensureArray(draft, "trips").forEach((trip) => {
       (trip.gearUsed || []).forEach((gearItem) => {
         if (gearItem.lureId === id) gearItem.lureId = "";
         if (gearItem.cheaterLureId === id) gearItem.cheaterLureId = "";

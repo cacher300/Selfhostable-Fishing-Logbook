@@ -12,6 +12,8 @@ test("saves a bead with a bead size", async ({ page }) => {
   await expect(page.locator("#lureBladeTypeField")).toBeHidden();
   await page.locator("#lureName").fill("Test bead");
   await page.locator("#lureBeadSize").selectOption("10mm");
+  await page.locator("#lureBeadMaterial").fill("Glass");
+  await page.locator("#lureBeadFinish").fill("Translucent");
   await page.locator('#lureForm button[type="submit"]').click();
   await expect(page.locator("#lureDialog")).toBeHidden();
 
@@ -19,8 +21,12 @@ test("saves a bead with a bead size", async ({ page }) => {
   const savedLure = saved.lures.find((lure) => lure.name === "Test bead");
   expect(savedLure?.type).toBe("Bead");
   expect(savedLure?.beadSize).toBe("10mm");
+  expect(savedLure?.beadMaterial).toBe("Glass");
+  expect(savedLure?.beadFinish).toBe("Translucent");
 
   await page.locator(`#baitInventoryTable [data-edit-lure="${savedLure.id}"]`).click();
   await expect(page.locator("#lureBeadSize")).toHaveValue("10mm");
+  await expect(page.locator("#lureBeadMaterial")).toHaveValue("Glass");
+  await expect(page.locator("#lureBeadFinish")).toHaveValue("Translucent");
   expect(pageErrors).toEqual([]);
 });

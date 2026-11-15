@@ -8,7 +8,7 @@ import { deleteTrip } from "./actions.js";
 import { els } from "./app-elements.js";
 import { beginMediaEditSession, cleanupDeletedMedia, isUsableCoordinates, mediaReferenceKeys, previewImage } from "./app-media.js";
 import { LOCATION_FOCUS_ZOOM, coordinateText, populateLaunchSelect, populateLocationSelect, selectedTripLocationCoordinates, tripLocationCoordinates } from "./locations.js";
-import { refreshTripWaterTemperature, renderWeatherSummary, resetTripWaterTemperatureAutofill, scheduleTripWeatherPreview, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel } from "./location-weather.js";
+import { refreshTripWaterClarity, refreshTripWaterTemperature, renderWeatherSummary, resetTripWaterTemperatureAutofill, scheduleTripWeatherPreview, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel } from "./location-weather.js";
 import { syncUnitLabels } from "./settings.js";
 import { populateDatalist, populateOptionSelect, renderAll } from "./dashboard.js";
 import { ExpeditionAnalytics } from "./expedition-analytics.js";
@@ -424,6 +424,10 @@ export function openTripDialog(trip = null) {
   setTripIntent(tripIntent(tripDraft || {}));
   setTripRating(tripRatingValue(tripDraft || {}));
   setValue("waterTemp", tripDraft.waterTemp || "");
+  const claritySelect = document.querySelector("#waterClarity");
+  if (tripDraft.waterClarity && claritySelect && ![...claritySelect.options].some(option => option.value === tripDraft.waterClarity)) {
+    claritySelect.add(new Option(tripDraft.waterClarity, tripDraft.waterClarity));
+  }
   setValue("waterClarity", tripDraft.waterClarity || "");
   populateOptionSelect(document.querySelector("#waterLevel"), optionLabels("waterLevels"), "Select level");
   setValue("flyHatch", tripDraft.flyHatch || "");
@@ -491,6 +495,7 @@ export function openTripDialog(trip = null) {
     (typeof initialFocus === "string" ? document.querySelector(initialFocus) : initialFocus)?.focus({ preventScroll: true });
     ui.tripDraftHydrating = false;
     void refreshTripWaterTemperature();
+    void refreshTripWaterClarity();
     resetTripFormSnapshot();
     updateTripDialogHeader();
   });

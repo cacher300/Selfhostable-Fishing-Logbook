@@ -211,6 +211,10 @@ export function setup() {
       return get("/history", signal);
     },
 
+    clarity({ time, signal } = {}) {
+      return get(withQuery("/clarity/niagara", { time }), signal);
+    },
+
     stationHistory({ id, signal }) {
       return get(`/history/stations/${encodeURIComponent(id)}`, signal);
     },

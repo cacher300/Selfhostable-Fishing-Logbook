@@ -1,3 +1,4 @@
+import { beadRigDetails } from "./bead-rig.js";
 import { html, joinHtml } from "./html.js";
 import { state } from "./app-state.js";
 import { spotName } from "./app-normalization.js";
@@ -252,6 +253,7 @@ export function catchDetailRows(trip, catchItem, catchIndex, catchType = "catch"
     { key: "depthDown", group: "location", label: "Depth down", value: reportDepthDown(record, catchItem) },
     { key: "rod", group: "tackle", label: "Rod", value: displayTitleText(rodName(record.rodId)) },
     { key: "lure", group: "tackle", label: "Lure", value: displayTitleText(lureName(record.lureId)), kind: "lure", lureId: record.lureId },
+    ...beadRigDetails(record, lureName).map(([label, value], index) => ({ key: `bead-${index}`, group: "tackle", label, value })),
     { key: "rigging", group: "tackle", label: "Rigging", value: trollingTrip ? "" : record.rigging },
     { key: "riggingDetails", group: "tackle", label: "Rig details", value: trollingTrip ? "" : record.riggingDetails },
     { key: "flasher", group: "tackle", label: "Flasher", value: displayTitleText(flasherName(record.flasherId)), kind: "flasher", lureId: record.flasherId },

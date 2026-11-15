@@ -6,6 +6,8 @@ const lower = (value) => text(value).toLowerCase();
 const gearEmptyDefaults = new Map([
   ["arbor", ""],
   ["beadSize", ""],
+  ["beadMaterial", ""],
+  ["beadFinish", ""],
   ["bladeType", ""],
   ["braidCapacity", ""],
   ["brand", ""],
@@ -146,6 +148,8 @@ export function lureFromDraft(draft = {}, context = {}) {
     bladeType: isBladeLureType(type) ? text(draft.bladeType) : "",
     spoonSize: isSpoonType(type) ? text(draft.spoonSize) : "",
     beadSize: isBeadType(type) ? text(draft.beadSize) : "",
+    beadMaterial: isBeadType(type) ? text(draft.beadMaterial) : "",
+    beadFinish: isBeadType(type) ? text(draft.beadFinish) : "",
     meatRigType: isMeatRigType(type) ? text(draft.meatRigType) : "",
     softPlasticType: isSoftPlasticType(type) ? text(draft.softPlasticType) : "",
     flyCategory: isFlyType(type) ? text(draft.flyCategory) : "",

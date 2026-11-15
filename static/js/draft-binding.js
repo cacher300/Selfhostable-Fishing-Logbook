@@ -357,7 +357,7 @@ export function handleTripDraftControlEvent(event) {
 
 const gearBindingsById = new Map([
   ["lureName", "name"], ["lureType", "type"], ["lureDivingDepth", "divingDepth"], ["lureBladeType", "bladeType"],
-  ["lureSpoonSize", "spoonSize"], ["lureBeadSize", "beadSize"], ["lureMeatRigType", "meatRigType"], ["lureSoftPlasticType", "softPlasticType"],
+  ["lureSpoonSize", "spoonSize"], ["lureBeadSize", "beadSize"], ["lureBeadMaterial", "beadMaterial"], ["lureBeadFinish", "beadFinish"], ["lureMeatRigType", "meatRigType"], ["lureSoftPlasticType", "softPlasticType"],
   ["flyCategory", "flyCategory"], ["flyPattern", "flyPattern"], ["flyHookSize", "flyHookSize"], ["lureBrand", "brand"],
   ["lureModel", "model"], ["lureColor", "color"], ["lureWeight", "weight"], ["lureQuantityAvailable", "quantityAvailable"],
   ["lureGlow", "glow"], ["lureNotes", "notes"],

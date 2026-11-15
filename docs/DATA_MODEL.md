@@ -195,3 +195,11 @@ Backend validation recursively checks JSON value types, requires schema version 
 ## Shared Trip ZIP
 
 A Shared Trip ZIP is a portable, single-trip snapshot rather than a database backup. Its manifest format is `fishing-logbook-shared-trip` version 2 and its `logbook.json` contains exactly one trip with only the people, location/launch, spots, used gear, and media references required to display it. Import creates a new local trip ID, maps people through the recipient's reviewed choices, and never imports another user's settings, expedition history, or unrelated records.
+
+## Bead lures and rigs
+
+Bead lures optionally store `beadMaterial` (such as Soft, Hard plastic, or Glass) and `beadFinish` (such as Translucent or Opaque), alongside existing `beadSize`, color, brand/model, glow, quantity, and media.
+
+Setup rows, catches, and lost fish optionally store `beadCount` as an integer from 1 through 3. The existing `lureId` is bead 1; `secondBeadLureId` and `thirdBeadLureId` reference the other bead variants. Repeating the same lure ID is allowed. `beadAttachment`, `beadToHookDistance` (nearest bead to hook), `beadSpacing` (beads 1–2), and `thirdBeadSpacing` (beads 2–3) are strings. Distances are explicit text with units (e.g. `12 in`), remain unchanged by unit preference changes, and are not numeric depth values. Bead numbering follows the primary lure and subsequent selections, without imposing a direction along the leader.
+
+Selecting a setup copies its bead rig onto the fish as an editable snapshot. Opening or editing a setup does not replace existing catch snapshots. Reducing the bead count clears unused extra bead references and spacing. Shared Trip export includes all selected beads and their media; import remaps all three references, and gear deletion clears the extra references. Fish quantities and landed/lost separation are unchanged. Existing lure analytics attribute fish to the primary `lureId`; extra beads describe the rig and do not multiply catches or lure fishing time. The fields are optional for older v2 archives and supported by both clients.

@@ -378,6 +378,12 @@
         },
         "beadSize": {
           "type": "string"
+        },
+        "beadMaterial": {
+          "type": "string"
+        },
+        "beadFinish": {
+          "type": "string"
         }
       }
     },
@@ -535,6 +541,29 @@
           "items": {
             "$ref": "#/$defs/mediaRef"
           }
+        },
+        "beadCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "secondBeadLureId": {
+          "type": "string"
+        },
+        "thirdBeadLureId": {
+          "type": "string"
+        },
+        "beadToHookDistance": {
+          "type": "string"
+        },
+        "beadAttachment": {
+          "type": "string"
+        },
+        "beadSpacing": {
+          "type": "string"
+        },
+        "thirdBeadSpacing": {
+          "type": "string"
         }
       }
     },
@@ -559,6 +588,29 @@
             "additionalProperties": true,
             "properties": {
               "dipseyDiverColor": {
+                "type": "string"
+              },
+              "beadCount": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3
+              },
+              "secondBeadLureId": {
+                "type": "string"
+              },
+              "thirdBeadLureId": {
+                "type": "string"
+              },
+              "beadToHookDistance": {
+                "type": "string"
+              },
+              "beadAttachment": {
+                "type": "string"
+              },
+              "beadSpacing": {
+                "type": "string"
+              },
+              "thirdBeadSpacing": {
                 "type": "string"
               }
             }

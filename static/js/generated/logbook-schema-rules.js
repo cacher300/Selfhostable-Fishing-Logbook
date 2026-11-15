@@ -295,6 +295,7 @@ export const defaultLogbook = {
   "waterClarities": [
     "Crystal Clear",
     "Clear",
+    "Green",
     "Slightly Stained",
     "Stained",
     "Muddy"

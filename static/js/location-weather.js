@@ -7,6 +7,7 @@ import { chopLabelForWaveHeight } from "./settings-core.js";
 import { getValue, setValue } from "./trip-editor.js";
 import { updateTripField } from "./draft-binding.js";
 import { tripWaterTemperatureLocationAvailable, tripWaterTemperatureLookup, tripWaterTemperatureText } from "./trip-water-temperature.js";
+import { clarityLookupTime } from "./trip-water-clarity.js";
 
 export const weatherRequestCache = new Map();
 export const marineRequestCache = new Map();
@@ -15,6 +16,46 @@ export const astronomyRequestCache = new Map();
 let tripWaterTemperatureAutoValue = "";
 let tripWaterTemperatureKey = "";
 let tripWaterTemperatureRequestId = 0;
+let clarityAutoValue = "";
+let clarityKey = "";
+let clarityRequestId = 0;
+
+export function markTripWaterClarityManual() {
+  clarityAutoValue = "";
+  clarityRequestId += 1;
+}
+
+export async function refreshTripWaterClarity() {
+  if (!els.tripDialog?.open) return;
+  const trip = tripDraftForWeather();
+  const time = clarityLookupTime(trip);
+  const key = JSON.stringify([trip.locationId, trip.location, time]);
+  if (key === clarityKey) return;
+  clarityKey = key;
+  const requestId = ++clarityRequestId;
+  const previous = clarityAutoValue;
+  clarityAutoValue = "";
+  const field = document.querySelector("#waterClarity");
+  if (!field || (field.value && field.value !== previous)) return;
+  if (previous && field.value === previous) {
+    setValue("waterClarity", "");
+    updateTripField("waterClarity", "");
+  }
+  if (!time || !window.noaaGreatLakesApi?.clarity) return;
+  try {
+    const data = await window.noaaGreatLakesApi.clarity({ time });
+    if (requestId !== clarityRequestId || !els.tripDialog?.open || !data.available || !data.reading?.category) return;
+    if (field.value && field.value !== previous) return;
+    const value = data.reading.category;
+    if (![...field.options].some(option => option.value === value)) field.add(new Option(value, value));
+    clarityAutoValue = value;
+    setValue("waterClarity", value);
+    updateTripField("waterClarity", value);
+  } catch {
+    if (requestId === clarityRequestId) clarityKey = "";
+    // Forecast availability never blocks saving a trip.
+  }
+}
 
 export function tripDraftForWeather() {
   const draft = ui.tripDraft || {};
@@ -831,6 +872,9 @@ export async function refreshTripWeatherPreview(force = false) {
 }
 
 export function resetTripWaterTemperatureAutofill() {
+  clarityAutoValue = "";
+  clarityKey = "";
+  clarityRequestId += 1;
   tripWaterTemperatureAutoValue = "";
   tripWaterTemperatureKey = "";
   tripWaterTemperatureRequestId += 1;
@@ -916,6 +960,7 @@ export function scheduleTripWeatherPreview(force = false) {
   ui.weatherPreviewTimer = setTimeout(() => {
     void refreshTripWeatherPreview(force);
     void refreshTripWaterTemperature();
+    void refreshTripWaterClarity();
   }, 350);
 }
 

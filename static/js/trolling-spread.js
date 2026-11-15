@@ -1,3 +1,4 @@
+import { beadRigPatch } from "./bead-rig.js";
 import { html, joinHtml, setHtml } from "./html.js";
 import { createId } from "./app-defaults.js";
 import { choiceLabel } from "./app-normalization.js";
@@ -40,6 +41,7 @@ export function resolveTripLineRecord(record) {
   const onCheater = record.setupLineTarget === "cheater";
   const trolling = isTrollingTripRecord(record.trip);
   return {
+    ...beadRigPatch(line),
     ...record,
     comboId: line.comboId || record.comboId || "",
     rodId: line.rodId || record.rodId || "",

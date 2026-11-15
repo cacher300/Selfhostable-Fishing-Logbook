@@ -174,3 +174,7 @@ The logbook is stored in SQLite at `data/logbook.sqlite3`; the browser works wit
 - Technical capabilities counted: **14**.
 
 These six mutually exclusive sections contain **113 rows**. “Not implemented” rows are retained for audit completeness but excluded from the verified capability count.
+
+## Bead rig extension
+
+Gear → Lures supports bead material and finish/opacity in addition to bead size. Trip setup, landed catch, and lost-fish editors show a Bead rig section for Bead lures, with 1, 2, or 3 beads, individual bead selections, attachment, nearest-bead-to-hook distance, and separate spacing for beads 1–2 and 2–3. Catch details and setup reports display these values. Shared Trip transfer includes all bead dependencies. Existing lure comparisons and fishing-time attribution use the primary bead; additional beads do not inflate fish totals. Mobile supports the same fields in inventory, historical trips, live lines, and live catch details.

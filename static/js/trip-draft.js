@@ -6,6 +6,8 @@ import { chopLabelForWaveHeight } from "./settings-core.js";
 import { calculateHours, calculateMinutes } from "./stats.js";
 import { weatherWindText } from "./location-weather.js";
 
+import { beadRigPatch } from "./bead-rig.js";
+
 const draftSources = new WeakMap();
 const emptyDefaults = new Map([
   ["idleHours", 0],
@@ -210,6 +212,7 @@ function normalizeSetupLine(line = {}, context = {}) {
   const downrigger = ["downrigger", "Downrigger"].includes(presentation);
   const normalized = {
     ...line,
+    ...beadRigPatch(line),
     id: line.id || createId(),
     startTime: trimText(line.startTime),
     endTime: trimText(line.endTime),
@@ -262,6 +265,7 @@ function normalizeFish(fish = {}, context = {}) {
   const mainDownrigger = ["downrigger", "Downrigger"].includes(presentation);
   const base = {
     ...fish,
+    ...beadRigPatch(fish),
     id: fish.id || createId(),
     detailsUnknown,
     personId: detailsUnknown ? "" : trimText(fish.personId),

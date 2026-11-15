@@ -322,6 +322,8 @@ export function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget
     bladeType: lure?.bladeType || "",
     spoonSize: lure?.spoonSize || "",
     beadSize: lure?.beadSize || "",
+    beadMaterial: lure?.beadMaterial || "",
+    beadFinish: lure?.beadFinish || "",
     meatRigType: lure?.meatRigType || "",
     softPlasticType: lure?.softPlasticType || "",
     flyCategory: lure?.flyCategory || "",
@@ -347,6 +349,8 @@ export function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget
   setValue("lureBladeType", lure?.bladeType || "");
   setValue("lureSpoonSize", lure?.spoonSize || "");
   setValue("lureBeadSize", lure?.beadSize || "");
+  setValue("lureBeadMaterial", lure?.beadMaterial || "");
+  setValue("lureBeadFinish", lure?.beadFinish || "");
   setValue("lureMeatRigType", lure?.meatRigType || "");
   setValue("lureSoftPlasticType", lure?.softPlasticType || "");
   setValue("flyCategory", lure?.flyCategory || "");
@@ -387,6 +391,8 @@ export function openLureInfoDialog(lure, pendingRowId = "") {
     ["Blade type", hasBladeType ? lure.bladeType : ""],
     ["Spoon size", hasSpoonSize ? lure.spoonSize : ""],
     ["Bead size", hasBeadSize ? lure.beadSize : ""],
+    ["Bead material", hasBeadSize ? lure.beadMaterial : ""],
+    ["Bead finish / opacity", hasBeadSize ? lure.beadFinish : ""],
     ["Meat rig type", hasMeatRigType ? lure.meatRigType : ""],
     ["Soft plastic style", hasSoftPlasticType ? lure.softPlasticType : ""],
     ["Brand", lure.brand],
@@ -420,7 +426,7 @@ export function updateLureDivingDepthField() {
   document.querySelector("#lureDivingDepthField").classList.toggle("hidden", !hasDivingDepth);
   document.querySelector("#lureBladeTypeField").classList.toggle("hidden", !isBladeLureType(lureType));
   document.querySelector("#lureSpoonSizeField").classList.toggle("hidden", !isSpoonType(lureType));
-  document.querySelector("#lureBeadSizeField").classList.toggle("hidden", !isBeadType(lureType));
+  document.querySelectorAll("#lureBeadSizeField, #lureBeadMaterialField, #lureBeadFinishField").forEach((field) => field.classList.toggle("hidden", !isBeadType(lureType)));
   document.querySelector("#lureMeatRigTypeField").classList.toggle("hidden", !isMeatRigType(lureType));
   document.querySelector("#lureSoftPlasticTypeField").classList.toggle("hidden", !isSoftPlasticType(lureType));
   document.querySelectorAll("#flyCategoryField, #flyPatternField, #flyHookSizeField").forEach((field) => field.classList.toggle("hidden", !fly));

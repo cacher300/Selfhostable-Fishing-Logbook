@@ -1,3 +1,4 @@
+import { refreshBeadRigEditor } from "./bead-rig-editor.js";
 import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { returnToTripDialog, state } from "./app-state.js";
 import { els } from "./app-elements.js";
@@ -27,6 +28,7 @@ export function updateRiggingVisibility(row) {
 
 export function renderLurePreview(row) {
   updateRiggingVisibility(row);
+  refreshBeadRigEditor(row);
   const preview = row.querySelector(".lure-preview");
   const lureId = row.querySelector(".catch-lure, .trip-gear-lure")?.value;
   const lure = state.lures.find((item) => item.id === lureId);
