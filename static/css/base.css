@@ -405,13 +405,17 @@ button {
 }
 
 .topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
+}
+
+.topbar-title {
+  min-width: 0;
 }
 
 .eyebrow {
@@ -426,18 +430,11 @@ button {
   font-size: 30px;
 }
 
-.topbar-actions,
 .dialog-actions,
 .end-only {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.topbar-actions {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  row-gap: 8px;
 }
 
 .view-nav,
@@ -449,6 +446,7 @@ button {
 
 .view-nav {
   flex-wrap: wrap;
+  justify-self: center;
   padding: 0;
   background: transparent;
   box-shadow: none;
@@ -461,6 +459,7 @@ button {
   padding: 0 14px;
   background: var(--field);
   color: var(--text);
+  text-decoration: none;
   box-shadow: none;
 }
 
@@ -479,6 +478,10 @@ button {
 
 .view-nav {
   scrollbar-width: none;
+}
+
+.utility-actions {
+  justify-self: end;
 }
 
 .view-nav::-webkit-scrollbar {
