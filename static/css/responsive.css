@@ -14,12 +14,17 @@
 
 @media (max-width: 1180px) {
   .topbar {
-    align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .topbar-actions {
-    justify-content: flex-start;
+  .view-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .utility-actions {
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 
@@ -282,7 +287,8 @@
     top: 0;
     z-index: 4;
     align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
     margin: 0 -12px 12px;
     padding: 10px 12px 10px;
     background: rgba(255, 255, 255, 0.98);
@@ -295,13 +301,11 @@
   }
 
   .topbar,
-  .topbar-actions,
   .dialog-actions {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .topbar-actions,
   .utility-actions,
   .dialog-actions > div,
   .section-actions,
@@ -312,7 +316,10 @@
 
   .view-nav {
     display: flex;
+    grid-column: 1;
+    grid-row: 2;
     flex-wrap: nowrap;
+    justify-self: stretch;
     gap: 6px;
     margin: 0 -12px;
     padding: 4px 12px 8px;
@@ -340,6 +347,9 @@
 
   .utility-actions {
     display: grid;
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: stretch;
     grid-template-columns: 1fr auto;
     align-items: center;
     gap: 8px;
