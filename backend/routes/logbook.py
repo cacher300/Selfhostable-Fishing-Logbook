@@ -65,7 +65,7 @@ def update_logbook() -> tuple[Response, int] | Response:
     refused = _refuse_unreadable_storage()
     if refused:
         return refused
-    revision = storage().logbook.write(payload, request.headers.get("If-Match"))
+    revision = storage().logbook.write_validated(payload, request.headers.get("If-Match"))
     return _with_revision(jsonify({"ok": True}), revision)
 
 

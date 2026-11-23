@@ -46,38 +46,50 @@ export function predefinedFieldValue(item) {
   return typeof item === "object" ? item.label : item;
 }
 
+function predefinedFieldGroupMarkup(group, items, { open = false } = {}) {
+  const summary = [group.label, ...items.map((item) => predefinedFieldValue(item))].join(" ").toLocaleLowerCase();
+  return html`
+    <details class="predefined-field-group" name="predefined-field-groups" data-predefined-key="${group.key}" data-settings-draft-root="predefinedFieldsDraft" data-category-search="${summary}" ${open ? "open" : ""}>
+      <summary class="predefined-field-summary">
+        <span>
+          <strong>${group.label}</strong>
+          <small>${items.slice(0, 3).map((item) => predefinedFieldValue(item)).join(", ")}${items.length > 3 ? "..." : ""}</small>
+        </span>
+        <span class="predefined-field-count">${items.length} ${items.length === 1 ? "item" : "items"}</span>
+      </summary>
+      <div class="predefined-field-body">
+        <div class="predefined-option-actions predefined-option-actions--top">
+          <button class="button secondary add-predefined-option" type="button">Add</button>
+        </div>
+        <div class="predefined-option-list">
+          ${joinHtml(items.map((item, index) => html`
+            <div class="predefined-option-row" data-option-index="${index}">
+              <input class="predefined-option-delete-select" type="checkbox" aria-label="Select ${predefinedFieldValue(item)} for deletion" />
+              <input class="predefined-option-label" type="text" value="${predefinedFieldValue(item)}" data-settings-bind="${group.key}.${index}.label" aria-label="${group.label} option" />
+            </div>
+          `), "")}
+        </div>
+        <div class="predefined-option-actions predefined-option-actions--bottom">
+          <button class="button secondary add-predefined-option" type="button">Add</button>
+          <div class="predefined-delete-actions">
+            <p class="predefined-delete-hint hidden" aria-live="polite"></p>
+            <button class="button danger predefined-delete-entries" type="button" aria-label="Delete entries from ${group.label}" ${items.length ? "" : "disabled"}>Delete Entries</button>
+            <button class="button secondary predefined-delete-cancel hidden" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </details>
+  `;
+}
+
 export function renderPredefinedFieldSettings() {
   if (!els.predefinedFieldSettings) return;
   settingsUi.predefinedFieldsDraft = predefinedFieldsDraftFromState(predefinedFieldGroups, stateLikePredefinedFields());
   settingsUi.predefinedFieldsDirty = new Set();
   const draft = settingsUi.predefinedFieldsDraft;
-  setHtml(els.predefinedFieldSettings, joinHtml(predefinedFieldGroups.map((group) => {
-    const items = draft[group.key] || [];
-    return html`
-      <details class="predefined-field-group" data-predefined-key="${group.key}" data-settings-draft-root="predefinedFieldsDraft" data-category-search="${[group.label, ...items.map((item) => predefinedFieldValue(item))].join(" ").toLocaleLowerCase()}">
-        <summary class="predefined-field-summary">
-          <span>
-            <strong>${group.label}</strong>
-            <small>${items.slice(0, 3).map((item) => predefinedFieldValue(item)).join(", ")}${items.length > 3 ? "..." : ""}</small>
-          </span>
-          <span class="predefined-field-count">${items.length} ${items.length === 1 ? "item" : "items"}</span>
-        </summary>
-        <div class="predefined-field-body">
-          <div class="predefined-option-list">
-            ${joinHtml(items.map((item, index) => html`
-              <div class="predefined-option-row" data-option-index="${index}">
-                <input class="predefined-option-label" type="text" value="${predefinedFieldValue(item)}" data-settings-bind="${group.key}.${index}.label" aria-label="${group.label} option" />
-                <button class="button danger remove-predefined-option" type="button">Delete</button>
-              </div>
-            `), "")}
-            </div>
-          <div class="predefined-field-header">
-            <button class="button secondary add-predefined-option" type="button">Add</button>
-          </div>
-        </div>
-      </details>
-    `;
-  }), ""));
+  setHtml(els.predefinedFieldSettings, joinHtml(predefinedFieldGroups.map((group) => (
+    predefinedFieldGroupMarkup(group, draft[group.key] || [])
+  )), ""));
   filterPredefinedFieldSettings();
 }
 
@@ -158,40 +170,82 @@ export function addPredefinedOption(groupKey) {
 }
 
 export function removePredefinedOption(groupKey, index) {
+  removePredefinedOptions(groupKey, [index]);
+}
+
+export function removePredefinedOptions(groupKey, indices) {
   if (!settingsUi.predefinedFieldsDraft) settingsUi.predefinedFieldsDraft = predefinedFieldsDraftFromState(predefinedFieldGroups, stateLikePredefinedFields());
   if (!settingsUi.predefinedFieldsDirty) settingsUi.predefinedFieldsDirty = new Set();
-  settingsUi.predefinedFieldsDirty.add(groupKey);
   const rows = settingsUi.predefinedFieldsDraft[groupKey];
-  if (Array.isArray(rows)) rows.splice(index, 1);
+  if (!Array.isArray(rows)) return;
+  const selected = new Set(indices.map(Number).filter((index) => Number.isInteger(index) && index >= 0 && index < rows.length));
+  if (!selected.size) return;
+  settingsUi.predefinedFieldsDirty.add(groupKey);
+  settingsUi.predefinedFieldsDraft[groupKey] = rows.filter((_, index) => !selected.has(index));
   renderPredefinedFieldSettingsFromDraft();
+}
+
+export function syncPredefinedDeleteControls(group) {
+  if (!group) return;
+  const deleteMode = group.classList.contains("is-delete-mode");
+  const selectedCount = group.querySelectorAll(".predefined-option-delete-select:checked").length;
+  const rowCount = group.querySelectorAll(".predefined-option-row").length;
+  group.querySelectorAll(".predefined-option-label").forEach((input) => { input.disabled = deleteMode; });
+  group.querySelectorAll(".add-predefined-option").forEach((button) => { button.disabled = deleteMode; });
+  const deleteButton = group.querySelector(".predefined-delete-entries");
+  if (deleteButton) {
+    deleteButton.disabled = deleteMode ? selectedCount === 0 : rowCount === 0;
+    deleteButton.setAttribute("aria-label", deleteMode
+      ? `Delete selected entries from ${group.querySelector(".predefined-field-summary strong")?.textContent || "category"}`
+      : `Select entries to delete from ${group.querySelector(".predefined-field-summary strong")?.textContent || "category"}`);
+  }
+  group.querySelector(".predefined-delete-cancel")?.classList.toggle("hidden", !deleteMode);
+  const hint = group.querySelector(".predefined-delete-hint");
+  if (hint) {
+    hint.textContent = deleteMode
+      ? (selectedCount ? `${selectedCount} selected` : "Select entries to delete")
+      : "";
+    hint.classList.toggle("hidden", !deleteMode);
+  }
+}
+
+export function handlePredefinedEntryDeleteClick(group) {
+  if (!group) return false;
+  if (!group.classList.contains("is-delete-mode")) {
+    group.classList.add("is-delete-mode");
+    syncPredefinedDeleteControls(group);
+    group.querySelector(".predefined-option-delete-select")?.focus();
+    return false;
+  }
+
+  const selectedRows = [...group.querySelectorAll(".predefined-option-delete-select:checked")];
+  if (!selectedRows.length) return false;
+  const groupLabel = group.querySelector(".predefined-field-summary strong")?.textContent?.trim() || "category";
+  const count = selectedRows.length;
+  const entryLabel = count === 1 ? "entry" : "entries";
+  if (!window.confirm(`Delete ${count} selected ${groupLabel.toLocaleLowerCase()} ${entryLabel}?`)) return false;
+
+  const indices = selectedRows.map((input) => Number(input.closest(".predefined-option-row")?.dataset.optionIndex));
+  removePredefinedOptions(group.dataset.predefinedKey || "", indices);
+  return true;
+}
+
+export function cancelPredefinedEntryDeletion(group) {
+  if (!group) return;
+  group.classList.remove("is-delete-mode");
+  group.querySelectorAll(".predefined-option-delete-select").forEach((input) => { input.checked = false; });
+  syncPredefinedDeleteControls(group);
 }
 
 function renderPredefinedFieldSettingsFromDraft() {
   const draft = settingsUi.predefinedFieldsDraft;
   settingsUi.predefinedFieldsDraft = draft;
   if (!els.predefinedFieldSettings || !draft) return;
-  setHtml(els.predefinedFieldSettings, joinHtml(predefinedFieldGroups.map((group) => {
-    const items = draft[group.key] || [];
-    return html`
-      <details class="predefined-field-group" data-predefined-key="${group.key}" data-settings-draft-root="predefinedFieldsDraft" data-category-search="${[group.label, ...items.map((item) => predefinedFieldValue(item))].join(" ").toLocaleLowerCase()}" open>
-        <summary class="predefined-field-summary">
-          <span><strong>${group.label}</strong><small>${items.slice(0, 3).map((item) => predefinedFieldValue(item)).join(", ")}${items.length > 3 ? "..." : ""}</small></span>
-          <span class="predefined-field-count">${items.length} ${items.length === 1 ? "item" : "items"}</span>
-        </summary>
-        <div class="predefined-field-body">
-          <div class="predefined-option-list">
-            ${joinHtml(items.map((item, index) => html`
-              <div class="predefined-option-row" data-option-index="${index}">
-                <input class="predefined-option-label" type="text" value="${predefinedFieldValue(item)}" data-settings-bind="${group.key}.${index}.label" aria-label="${group.label} option" />
-                <button class="button danger remove-predefined-option" type="button">Delete</button>
-              </div>
-            `), "")}
-          </div>
-          <div class="predefined-field-header"><button class="button secondary add-predefined-option" type="button">Add</button></div>
-        </div>
-      </details>
-    `;
-  }), ""));
+  const openGroups = new Set([...els.predefinedFieldSettings.querySelectorAll(".predefined-field-group[open]")]
+    .map((group) => group.dataset.predefinedKey));
+  setHtml(els.predefinedFieldSettings, joinHtml(predefinedFieldGroups.map((group) => (
+    predefinedFieldGroupMarkup(group, draft[group.key] || [], { open: openGroups.has(group.key) })
+  )), ""));
   filterPredefinedFieldSettings();
 }
 

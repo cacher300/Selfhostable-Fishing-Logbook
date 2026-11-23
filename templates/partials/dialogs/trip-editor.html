@@ -159,6 +159,8 @@
             <div class="weather-summary" id="weatherSummary" aria-live="polite">
               <div class="weather-data-row"><span>Temperature</span><b id="weatherSummaryTemperature">-</b></div>
               <label class="weather-data-row weather-control-row"><span>Weather</span><select id="weather"></select></label>
+              <label class="weather-data-row weather-control-row"><span>Weather front</span><select id="weatherFront" data-bind="weatherFront"></select></label>
+              <small id="weatherFrontHint" aria-live="polite"></small>
               <div class="weather-data-row"><span>Wind</span><b id="weatherSummaryWind">-</b></div>
               <div class="weather-data-row"><span>Gusts</span><b id="weatherSummaryGusts">-</b></div>
               <div class="weather-data-row"><span>Cloud Cover</span><b id="weatherSummaryCloudCover">-</b></div>
@@ -241,6 +243,7 @@
             </div>
             <div class="section-actions">
               <button class="button secondary non-trolling-field" id="pickSavedSetupButton" type="button">Pick Setup</button>
+              <button class="button secondary non-trolling-field" id="importLastTripSetupButton" type="button" title="Import rods from the latest earlier trip with the same method and target species.">Import from Last Trip</button>
               <button class="button secondary trolling-field" id="pickTrollingSpreadButton" type="button">Pick Spread</button>
               <button class="button secondary trolling-field" id="importLastTrollingSpreadButton" type="button">Import Last Spread</button>
               <button class="button secondary" id="addTripGearButton" type="button">Add Rod</button>

@@ -1,10 +1,12 @@
 ﻿import { state, ui } from "./app-state.js";
 import { generatedTripTitle } from "./app-normalization.js";
+import { automaticWeatherFrontPatch, resetAutomaticWeatherFront } from "./weather-front.js";
 import { saveTripRecord, upsertListValueInDraft } from "./actions.js";
 import { cleanupDeletedMedia, markMediaEditSessionSaved, mediaReferenceKeys } from "./app-media.js";
 import { enrichTripWithWeather, resolveTripWaveSnapshot, weatherWindText } from "./location-weather.js";
 import { renderAll } from "./dashboard.js";
-import { closeTripDialog, confirmTripSaveWarnings, deleteTripById, mergePeople, setTripSaveLoading, setValue, showTripFormMessage, validateTripForm } from "./trip-editor.js";
+import { refreshOpenTripSummary } from "./trip-timeline.js";
+import { closeTripDialog, confirmTripSaveWarnings, deleteTripById, mergePeople, setTripSaveFailed, setTripSaveLoading, setValue, showTripFormMessage, validateTripForm } from "./trip-editor.js";
 import { sourceTripForDraft, tripDraftIsPristine, tripFromDraft } from "./trip-draft.js";
 
 function weatherRefreshInputsChanged(source, trip) {
@@ -15,15 +17,18 @@ function weatherRefreshInputsChanged(source, trip) {
 
 async function maybeRefreshTripWeather(trip, source) {
   if (source && !weatherRefreshInputsChanged(source, trip)) return trip;
+  const contextChanged = source && ["date", "locationId", "launchId", "launchTime", "linesPulledTime"].some(field => String(source[field] ?? "") !== String(trip[field] ?? ""));
+  if (contextChanged) trip = resetAutomaticWeatherFront(trip);
   const refreshed = await enrichTripWithWeather(trip);
   const status = refreshed.weatherData?.status || "";
   if (status === "error" || status === "missing-date" || status === "missing-coordinates") {
-    return {
+    const fallback = {
       ...trip,
       weatherData: source?.weatherData ?? trip.weatherData ?? null,
       wind: source?.wind ?? trip.wind ?? "",
       weather: source?.weather ?? trip.weather ?? ""
     };
+    return contextChanged ? resetAutomaticWeatherFront(fallback) : fallback;
   }
   const withWave = resolveTripWaveSnapshot(refreshed);
   return {
@@ -57,7 +62,11 @@ export async function persistTrip(event, { draft = false } = {}) {
     if (ui.tripDraft) ui.tripDraft.id = trip.id;
     if (draft || (!unchangedEditor && Object.hasOwn(sourceTrip || {}, "isDraft"))) trip.isDraft = draft;
     if (!pristineDraft && !unchangedEditor) trip.title = trip.title || generatedTripTitle(trip, state.trips);
-    if (!pristineDraft && !unchangedEditor) trip = await maybeRefreshTripWeather(trip, sourceTrip);
+    // Drafts must persist independently of weather providers. A draft may be
+    // incomplete, and waiting on enrichment here can leave the user's work
+    // unsaved if the external request is slow or unavailable.
+    if (!draft && !pristineDraft && !unchangedEditor) trip = await maybeRefreshTripWeather(trip, sourceTrip);
+    trip = { ...trip, ...automaticWeatherFrontPatch(trip) };
     ui.activeTripWeatherData = trip.weatherData || null;
     if (ui.tripDraft) ui.tripDraft.weatherData = trip.weatherData || null;
 
@@ -92,12 +101,22 @@ export async function persistTrip(event, { draft = false } = {}) {
     });
     markMediaEditSessionSaved("trip");
     const currentMedia = mediaReferenceKeys(state);
-    await cleanupDeletedMedia(previousMedia.filter((key) => !currentMedia.has(key)));
-    closeTripDialog({ force: true });
+    const removedMedia = previousMedia.filter((key) => !currentMedia.has(key));
+    if (draft) {
+      closeTripDialog({ force: true });
+      void cleanupDeletedMedia(removedMedia).catch((error) => {
+        console.warn("Could not clean up deleted media after saving the trip draft.", error);
+      });
+    } else {
+      await cleanupDeletedMedia(removedMedia);
+      closeTripDialog({ force: true });
+    }
     renderAll();
+    refreshOpenTripSummary(trip.id);
   } catch (error) {
     console.error("Could not save trip.", error);
     setTripSaveLoading(false);
+    setTripSaveFailed(true);
     showTripFormMessage(error.message || "The trip could not be saved. Check that required fields are filled and try again.");
   }
 }

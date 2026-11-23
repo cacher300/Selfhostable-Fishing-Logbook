@@ -119,6 +119,14 @@ export function setup() {
       return normalizePayload(await get(url, signal));
     },
 
+    async radarForecast({ forecastHour = 0, signal } = {}) {
+      return get(withQuery("/radar/forecast", { forecastHour }), signal);
+    },
+
+    async satellite({ signal } = {}) {
+      return get("/satellite", signal);
+    },
+
     async temperatureValue(options = {}) {
       const reading = await pointReading(options);
       return reading.temperature || { available: false };
@@ -188,6 +196,11 @@ export function setup() {
       if (layer === "air-temperature") {
         const status = await get("/status", signal);
         return { airTemperatureVersion: status.airTemperatureVersion || "", airTemperature: status.airTemperature };
+      }
+      if (layer === "radar") {
+        const radar = await get(withQuery("/radar/forecast", { forecastHour: 0 }), signal);
+        const radarVersion = radar.version || [radar.run, radar.validTime, radar.maxForecastHour].filter(Boolean).join("|");
+        return { radar, radarVersion, version: radarVersion };
       }
       const manifest = await get("/manifest", signal);
       const waves = (manifest.layers || []).filter((layer) => layer.layer === "waves");

@@ -8,16 +8,16 @@ import { markTripWaterClarityManual, markTripWaterTemperatureManual, resyncTripW
 import { exportArchive, importArchive, scheduleSettingsAutosave, setSettingsSaveStatus, settingsUi } from "./settings-core.js";
 import { addTrollingSpread, addTrollingSpreadRowToCard, cancelTrollingSpreadDraft, deleteTrollingSpread, editTrollingSpread, finishTrollingSpreadEdit, refreshTrollingSpreadCardPreview, saveDefaultHomeLake, saveDefaultPeople, saveDefaultTrollingSpreadId, saveFishHawkPreference, saveSpeciesMapColors, saveThemePreference, saveTimeFormatPreference, saveUnitSettings, scheduleTrollingSpreadAutosave, setSettingsTab, setTrollingSpreadSettingsMessage, syncSpeciesMapColorPreview, syncTrollingSpreadRowFields } from "./settings.js";
 import { openSavedSetupPicker } from "./saved-setups.js";
-import { cancelChopRangeEditing, filterPredefinedFieldSettings, savePredefinedFieldSettings, syncPredefinedFieldSummary, toggleChopRangeEditing } from "./settings-fields.js";
-import { collectFishingSpotSettings, collectPrivatePhotoLocationSettings, fishingSpotDefaultCoordinates, fishingSpotRadiusMeters, fishingSpotRadiusText, nextFishingSpotName, privateLocationDefaultCoordinates, privateLocationRadiusMeters, privateLocationRadiusText, privatePhotoLocations, saveFishingSpots, savePrivatePhotoLocations, updateFishingSpotRadiusControl, updatePrivateLocationRadiusControl } from "./settings-locations.js";
-import { renderTrips, tripSortFromSelect } from "./dashboard.js";
+import { cancelChopRangeEditing, filterPredefinedFieldSettings, savePredefinedFieldSettings, syncPredefinedDeleteControls, syncPredefinedFieldSummary, toggleChopRangeEditing } from "./settings-fields.js";
+import { collectFishingSpotSettings, collectPrivatePhotoLocationSettings, fishingSpotDefaultCoordinates, fishingSpotRadiusMeters, fishingSpotRadiusText, nextFishingSpotName, privateLocationDefaultCoordinates, privateLocationRadiusMeters, privateLocationRadiusText, privatePhotoLocations, saveFishingSpots, savePrivatePhotoLocations, updateFishingSpotRadiusControl, updateFishingSpotSummary, updatePrivateLocationRadiusControl } from "./settings-locations.js";
+import { populateOptionSelect, renderTrips, tripSortFromSelect } from "./dashboard.js";
 import { addNotePhotos, addPhotosToQueue, openPhotoQueue, restoreDialogAfterPhotoQueue, uploadImageFile } from "./photos.js";
-import { addPersonRow, closeTripDialog, focusTripValidationField, getValue, isTripFormDirty, markTripFormChanged, openTripDialog, setPersonPhotoForRow, syncTripContinuationGate, updateTripRatingLabel } from "./trip-editor.js";
+import { addPersonRow, closeTripDialog, focusTripValidationField, getValue, isTripFormDirty, isTripSaveInProgress, markTripFormChanged, openTripDialog, setPersonPhotoForRow, syncTripContinuationGate, updateTripRatingLabel } from "./trip-editor.js";
 import { updateTripRow } from "./draft-binding.js";
-import { addCatchRow, addLostFishRow, addTripGearRow, expandAndRevealTripRow, importLastTrollingSpread } from "./trip-rows.js";
+import { addCatchRow, addLostFishRow, addTripGearRow, expandAndRevealTripRow, importLastTrollingSpread, importLastTripSetup, syncCatchRiggingFromSetupLine, updateRowSummary } from "./trip-rows.js";
 import { deleteActiveTrip, saveTrip, saveTripAsDraft } from "./trip-save.js";
 import { autofillCatchesFromPhotoQueue } from "./photo-queue-autofill.js";
-import { restoreTripDialogAfterInlineGear } from "./gear-pickers.js";
+import { renderLurePreview, restoreTripDialogAfterInlineGear } from "./gear-pickers.js";
 import { deleteCombo, deleteFlasher, deleteLure, deleteReel, deleteRod, openComboDialog, openFlasherDialog, openLureDialog, openReelDialog, openRodDialog, saveCombo, saveFlasher, saveLure, saveReel, saveRod, updateFlyGearVisibility, updateLureDivingDepthField, updateMonoBackingVisibility } from "./gear-dialogs.js";
 import { clearGearFilter, closeGearFilterSuggestions, openGearFilterSuggestions, updateGearFilter, updateGearLureTypeFilter, updateGearSoftPlasticStyleFilter } from "./gear-inventory.js";
 import { renderFishMap, renderTripSummaryMap, saveMapBathymetryPreference, syncMapPageBathymetryOverlay, syncMapPageChartOverlay } from "./maps.js";
@@ -29,10 +29,23 @@ import { populateStructureSelect } from "./form-utils.js";
 import { deleteGalleryItems, downloadGalleryItems, gallerySelectionMode, galleryUi, renderGallery, selectedGalleryPayload, setGalleryPage, setGallerySelectionMode, syncGallerySearchSort, toggleGalleryOrphanScan } from "./gallery.js";
 import { bindChecklistEvents } from "./checklists.js";
 import { openTrollingSpreadPicker } from "./trolling-spread-picker.js";
+import { openPersonPhotoPicker } from "./person-photo-picker.js";
 import { navigate } from "./router.js";
 import { handleGearDraftControlEvent, handleSettingsDraftControlEvent, handleTripDraftControlEvent } from "./draft-binding.js";
 
-export let activeStructureSelect = null;
+let activeListOption = null;
+
+function closeDialogOnBackdropClick(dialog) {
+  dialog.addEventListener("click", (event) => {
+    if (event.target !== dialog) return;
+    const bounds = dialog.getBoundingClientRect();
+    const clickedOutside = event.clientX < bounds.left
+      || event.clientX > bounds.right
+      || event.clientY < bounds.top
+      || event.clientY > bounds.bottom;
+    if (clickedOutside) dialog.close();
+  });
+}
 
 export function setStructureFormMessage(message = "") {
   if (!els.structureFormMessage) return;
@@ -40,42 +53,101 @@ export function setStructureFormMessage(message = "") {
   els.structureFormMessage.classList.toggle("hidden", !message);
 }
 
-export function openStructureDialog(select) {
-  activeStructureSelect = select;
+function setListOptionDialogCopy(key) {
+  const isRigging = key === "riggings";
+  els.structureDialog.querySelector(".dialog-header h2").textContent = isRigging ? "Add rigging" : "Add structure";
+  els.structureDialog.querySelector(".dialog-supporting-text").textContent = isRigging
+    ? "Create a reusable rigging option for catches and gear setups."
+    : "Create a reusable label for this catch.";
+  els.structureDialog.querySelector('label[for="structureName"]').textContent = isRigging ? "Rigging name" : "Structure name";
+  els.structureNameInput.placeholder = isRigging ? "e.g. Jika" : "e.g. Drop-off";
+  els.structureDialog.querySelector("#structureNameHint").textContent = isRigging
+    ? "This rigging will be available in future catch and gear setup forms."
+    : "This option will be available in future catch forms.";
+  els.structureDialog.querySelector('button[type="submit"]').textContent = isRigging ? "Add rigging" : "Add structure";
+}
+
+function openListOptionDialog(select, key) {
+  activeListOption = { select, key };
   els.structureNameInput.value = "";
   setStructureFormMessage();
+  setListOptionDialogCopy(key);
   els.structureDialog.showModal();
   requestAnimationFrame(() => els.structureNameInput.focus());
 }
 
-export function resetStructureDialog() {
-  if (activeStructureSelect?.value === "__new__") {
-    activeStructureSelect.value = "";
-    populateStructureSelect(activeStructureSelect, "");
-  }
-  activeStructureSelect = null;
-  els.structureForm.reset();
-  setStructureFormMessage();
+export function openStructureDialog(select) {
+  openListOptionDialog(select, "structureOptions");
 }
 
-export async function saveStructureOption(event) {
+export function openRiggingDialog(select) {
+  openListOptionDialog(select, "riggings");
+}
+
+export function resetListOptionDialog() {
+  if (activeListOption?.key === "structureOptions" && activeListOption.select?.value === "__new__") {
+    activeListOption.select.value = "";
+    populateStructureSelect(activeListOption.select, "");
+  }
+  activeListOption = null;
+  els.structureForm.reset();
+  setStructureFormMessage();
+  setListOptionDialogCopy("structureOptions");
+}
+
+export async function saveListOption(event) {
   event.preventDefault();
   const value = String(els.structureNameInput.value || "").trim();
   if (!value) {
-    setStructureFormMessage("Enter a structure name to continue.");
+    setStructureFormMessage(`Enter a ${activeListOption?.key === "riggings" ? "rigging" : "structure"} name to continue.`);
     els.structureNameInput.focus();
     return;
   }
 
-  const select = activeStructureSelect;
-  await addListValue("structureOptions", value).catch((error) => console.error("Could not save structure option.", error));
-  // The trip dialog can already contain multiple catch rows. Refresh every
-  // structure selector so the newly-added option is immediately available to
-  // the other catches in this trip as well, while keeping their selections.
-  document.querySelectorAll(".catch-structure").forEach((structureSelect) => {
-    populateStructureSelect(structureSelect, structureSelect === select ? value : structureSelect.value);
-  });
-  activeStructureSelect = null;
+  if (!activeListOption) return;
+  const { select, key } = activeListOption;
+  const existing = (Array.isArray(state[key]) ? state[key] : []).find((item) => String(item).trim().toLocaleLowerCase() === value.toLocaleLowerCase());
+  const savedValue = existing || value;
+  const label = key === "riggings" ? "rigging" : "structure";
+  try {
+    await addListValue(key, savedValue);
+  } catch (error) {
+    console.error(`Could not save ${label} option.`, error);
+    setStructureFormMessage(error.message || `Could not save this ${label} option.`);
+    return;
+  }
+
+  if (key === "structureOptions") {
+    // Refresh every structure selector while preserving selections in other rows.
+    document.querySelectorAll(".catch-structure").forEach((structureSelect) => {
+      populateStructureSelect(structureSelect, structureSelect === select ? savedValue : structureSelect.value);
+    });
+  } else if (key === "riggings") {
+    document.querySelectorAll(".catch-rigging, .trip-gear-rigging").forEach((riggingSelect) => {
+      const selectedValue = riggingSelect === select ? savedValue : riggingSelect.value;
+      populateOptionSelect(riggingSelect, state.riggings, "Select rigging");
+      riggingSelect.value = selectedValue;
+    });
+    const row = select?.closest(".catch-row, .gear-used-row");
+    if (row) {
+      const collection = row.getAttribute("data-draft-collection");
+      const rowId = row.getAttribute("data-catch-id") || row.getAttribute("data-gear-id") || row.getAttribute("data-row-id");
+      if (collection && rowId) updateTripRow(collection, rowId, { rigging: savedValue });
+      renderLurePreview(row);
+      updateRowSummary(row);
+      if (row.classList.contains("gear-used-row")) {
+        const gearId = row.getAttribute("data-gear-id") || rowId;
+        document.querySelectorAll(".catch-row").forEach((catchRow) => {
+          if (catchRow.querySelector(".catch-rod")?.value !== gearId) return;
+          syncCatchRiggingFromSetupLine(catchRow);
+          renderLurePreview(catchRow);
+          updateRowSummary(catchRow);
+        });
+      }
+      markTripFormChanged();
+    }
+  }
+  activeListOption = null;
   els.structureDialog.close();
 }
 
@@ -99,12 +171,15 @@ export function syncStatsUrl() {
 }
 
 export function setup() {
+  [els.lureInfoDialog, els.flasherInfoDialog, els.inventoryInfoDialog].forEach(closeDialogOnBackdropClick);
+
   els.newTripButton.addEventListener("click", () => openTripDialog());
 
   els.personRows.addEventListener("click", (event) => {
     const button = event.target.closest(".person-photo-button");
     if (!button) return;
-    button.closest(".person-row")?.querySelector(".person-photo-input")?.click();
+    const row = button.closest(".person-row");
+    if (row) void openPersonPhotoPicker(row);
   });
   els.personRows.addEventListener("change", async (event) => {
     const input = event.target.closest(".person-photo-input");
@@ -168,9 +243,9 @@ export function setup() {
     if (ui.activeLocationPickerMode !== "launch") ui.locationGreatLakesOverrideTouched = true;
   });
 
-  els.structureForm.addEventListener("submit", saveStructureOption);
+  els.structureForm.addEventListener("submit", saveListOption);
 
-  els.structureDialog.addEventListener("close", resetStructureDialog);
+  els.structureDialog.addEventListener("close", resetListOptionDialog);
 
   els.deleteLocationDialogButton?.addEventListener("click", () => {
     deleteActiveLocationFromDialog().catch((error) => alert(error.message || "The location could not be deleted."));
@@ -189,6 +264,8 @@ export function setup() {
   els.addTripGearButton.addEventListener("click", () => expandAndRevealTripRow(addTripGearRow()));
 
   els.importLastTrollingSpreadButton?.addEventListener("click", importLastTrollingSpread);
+
+  els.importLastTripSetupButton?.addEventListener("click", importLastTripSetup);
 
   els.addPersonButton.addEventListener("click", () => addPersonRow());
 
@@ -291,6 +368,10 @@ export function setup() {
   els.clearCatchLocationButton?.addEventListener("click", clearActiveCatchLocation);
 
   els.tripDialog.addEventListener("cancel", (event) => {
+    if (isTripSaveInProgress()) {
+      event.preventDefault();
+      return;
+    }
     if (!isTripFormDirty()) return;
     event.preventDefault();
     closeTripDialog();
@@ -497,6 +578,12 @@ export function setup() {
     }
   });
 
+  els.predefinedFieldSettings?.addEventListener("change", (event) => {
+    if (event.target.matches(".predefined-option-delete-select")) {
+      syncPredefinedDeleteControls(event.target.closest(".predefined-field-group"));
+    }
+  });
+
   els.chopRangeRows?.addEventListener("input", (event) => {
     if (event.target.matches(".chop-range-label, .chop-range-max")) {
       setSettingsSaveStatus("Editing chop ranges");
@@ -516,7 +603,7 @@ export function setup() {
   });
 
   els.fishingSpotList?.addEventListener("input", (event) => {
-    if (!event.target.matches(".fishing-spot-name, .fishing-spot-radius")) return;
+    if (!event.target.matches(".fishing-spot-name, .fishing-spot-lake, .fishing-spot-radius")) return;
     const card = event.target.closest("[data-fishing-spot-id]");
     if (card) ui.activeFishingSpotId = card.dataset.fishingSpotId;
     if (event.target.matches(".fishing-spot-radius")) {
@@ -524,6 +611,7 @@ export function setup() {
       const output = card?.querySelector(".fishing-spot-radius-value");
       if (output) output.textContent = fishingSpotRadiusText(fishingSpotRadiusMeters(event.target.value));
     }
+    updateFishingSpotSummary(card);
     scheduleSettingsAutosave((options) => saveFishingSpots(collectFishingSpotSettings(), { ...options, rerender: false }));
   });
 
@@ -547,6 +635,7 @@ export function setup() {
   els.addFishingSpotButton?.addEventListener("click", async () => {
     const id = createId();
     ui.activeFishingSpotId = id;
+    ui.expandedFishingSpotIds = [...new Set([...(ui.expandedFishingSpotIds || []), id])];
     await saveFishingSpots([
       ...collectFishingSpotSettings(),
       { id, name: nextFishingSpotName(), radiusMeters: 100, coordinates: fishingSpotDefaultCoordinates() }
@@ -698,6 +787,10 @@ export function setup() {
     ui.activeMapIncludeSpots = Boolean(els.mapSpotsToggle.checked);
     renderFishMap();
   });
+  els.mapDriftsToggle?.addEventListener("change", () => {
+    ui.activeMapIncludeDrifts = Boolean(els.mapDriftsToggle.checked);
+    renderFishMap();
+  });
 
   els.mapDirectionArrowsToggle?.addEventListener("change", () => {
     ui.activeMapShowDirectionArrows = Boolean(els.mapDirectionArrowsToggle.checked);
@@ -763,7 +856,7 @@ export function setup() {
     setGallerySelectionMode(false);
   });
 
-  [els.searchInput, els.targetFilter, els.methodFilter, els.yearFilter, els.monthFilter].filter(Boolean).forEach((control) => {
+  [els.searchInput, els.targetFilter, els.methodFilter, els.weatherFrontFilter, els.yearFilter, els.monthFilter].filter(Boolean).forEach((control) => {
     control.addEventListener("input", () => {
       renderTrips();
     });

@@ -36,9 +36,9 @@ The desktop SQLite file and the mobile native SQLite file are different implemen
 | Boundary | Contract |
 |---|---|
 | Full archive | Downloaded as `.logbook`; the file remains a ZIP containing `archiveVersion: 2`, `format: "fishing-logbook-archive"`, `schemaVersion: 2`, `manifest.json`, `logbook.json`, and `media/<category>/<filename>` entries. |
-| Full document | Every top-level collection in this document is required, including option lists, gear, people, locations, spots, expeditions, and trips. Unknown/additive properties must round-trip. |
+| Full document | Every top-level collection in this document is required, including option lists, gear, people, locations, spots, drifts, expeditions, and trips. Unknown/additive properties must round-trip. |
 | Mobile local storage | Native SQLite and web IndexedDB are projections of the canonical document; do not copy the desktop SQLite file or depend on mobile table names. |
-| Shared Trip | Downloaded as `.trip`; the file remains a ZIP with `format: "fishing-logbook-shared-trip"`, version 2, containing one trip and only the required people, location/launch, spots, gear, and media. It is not a backup or whole-logbook replacement. |
+| Shared Trip | Downloaded as `.trip`; the file remains a ZIP with `format: "fishing-logbook-shared-trip"`, version 2, containing one trip and only the required people, location/launch, spots, drifts, gear, and media. It is not a backup or whole-logbook replacement. |
 
 Mobile archive import currently validates the version and referenced media, then replaces local data only after an explicit user-confirmed operation. The clients do not have continuous synchronization. The desktop whole-document `PUT /api/logbook` is a compatibility/bootstrap path, not a safe offline multi-device sync protocol.
 
@@ -61,7 +61,7 @@ Compatibility-sensitive fields include `settings.defaultPeople`, `units`, `timeF
 | `setupLineSides` | `{value,label}[]` | Port/center/starboard choices. |
 | `lures`, `flashers`, `reels`, `rods`, `rodReelCombos` | arrays | Reusable gear libraries. |
 | `settings` | object | Time, unit, and chop preferences. |
-| `people`, `locations`, `spots`, `expeditions`, `trips` | arrays | Core records. |
+| `people`, `locations`, `spots`, `drifts`, `expeditions`, `trips` | arrays | Core records. |
 
 ## Settings
 
@@ -116,6 +116,12 @@ A spot is `{ id, name, lake?, coordinates, radiusMeters }`. The optional `lake` 
 
 Landed catches and lost fish use `spotId` plus `spotAssignmentMode` (`automatic` or `manual`). Automatic assignment uses manual catch coordinates before resolved/photo coordinates, matches the nearest spot whose radius contains the catch, and uses spot ID to break equal-distance ties. Manual assignment can select any existing spot regardless of distance or explicitly store no spot. Both record types can use the normal location picker, metadata locks, and media-derived coordinates.
 
+## Drift
+
+A drift is `{ id, name, waterbody?, polygon }`. `polygon` contains at least three latitude/longitude vertices and must enclose a nonzero, non-self-intersecting area. IDs and case-insensitive names are unique. The 14 starter areas are approximate interpretations of the [Lower Niagara drift maps](https://greatlakestrolling.com/blog/lower-niagara-river-drift-names), and can be edited or deleted. Red Can, Green Can, and Devil’s Hole are outside the mapped drift set.
+
+On Drifting trips, landed catches and lost fish use `driftId` and `driftAssignmentMode` (`automatic` or `manual`). Automatic assignment checks manual catch coordinates first, then recorded coordinates, and selects the smallest containing polygon; an ID tie-breaker makes overlaps deterministic. Manual assignment can select any existing drift or explicitly clear the assignment. These fields remain optional on records from other methods.
+
 ## Expedition
 
 An expedition represents one multi-day fishing vacation and contains `id`, required `name`, required ISO `startDate` and `endDate`, plus optional `destination` and `notes`. The end date must be on or after the start date. Trips join an expedition through optional `trip.expeditionId`. Deleting an expedition in the UI keeps its trips and clears their references.
@@ -150,7 +156,7 @@ Common fields include `id`, `personId`, `time`, `waterDepth`, `depthDown`, `pres
 
 Catch depth uses named fields. A generic `depth` field is not part of v2 because it cannot distinguish `waterDepth` from `depthDown`.
 
-Landed catches additionally use `species`, `released`, `length`, and `weight`; both landed catches and lost fish can use `manualCoordinates`, `coordinates`, `lockedLocationCoordinates`, `spotId`, `spotAssignmentMode`, `photoLocationId`, `heroPhotoId`, `photos[]`, and optional `weatherData`. Lost fish use `possibleSpecies` and force `released: false` while retaining the shared location and media fields.
+Landed catches additionally use `species`, `released`, `length`, and `weight`; both landed catches and lost fish can use `manualCoordinates`, `coordinates`, `lockedLocationCoordinates`, `spotId`, `spotAssignmentMode`, `driftId`, `driftAssignmentMode`, `photoLocationId`, `heroPhotoId`, `photos[]`, and optional `weatherData`. Lost fish use `possibleSpecies` and force `released: false` while retaining the shared location and media fields.
 
 An optional numeric `quantity` is honored by analytics. The desktop form has no quantity input, so it preserves an existing value when editing that fish; newly created UI records default to one fish.
 
@@ -203,3 +209,17 @@ Bead lures optionally store `beadMaterial` (such as Soft, Hard plastic, or Glass
 Setup rows, catches, and lost fish optionally store `beadCount` as an integer from 1 through 3. The existing `lureId` is bead 1; `secondBeadLureId` and `thirdBeadLureId` reference the other bead variants. Repeating the same lure ID is allowed. `beadAttachment`, `beadToHookDistance` (nearest bead to hook), `beadSpacing` (beads 1–2), and `thirdBeadSpacing` (beads 2–3) are strings. Distances are explicit text with units (e.g. `12 in`), remain unchanged by unit preference changes, and are not numeric depth values. Bead numbering follows the primary lure and subsequent selections, without imposing a direction along the leader.
 
 Selecting a setup copies its bead rig onto the fish as an editable snapshot. Opening or editing a setup does not replace existing catch snapshots. Reducing the bead count clears unused extra bead references and spacing. Shared Trip export includes all selected beads and their media; import remaps all three references, and gear deletion clears the extra references. Fish quantities and landed/lost separation are unchanged. Existing lure analytics attribute fish to the primary `lureId`; extra beads describe the rig and do not multiply catches or lure fishing time. The fields are optional for older v2 archives and supported by both clients.
+
+## Manual weather-front classification
+
+Trip `weatherFront` is `pre-front`, `during-front`, `post-front`, or `no-front`. Empty or absent means Unclassified, never No front. Both clients allow manual selection and clearing, preserve it through edits and full/shared-trip archives, and display it in trip details and share reports. It is independent of the older `weatherData.frontTag`. Optional `weatherFrontSource` is `automatic` or `manual`; a nonempty value without a source is treated as manual for compatibility. New trips default to Automatic (estimate); explicit Unclassified is a manual choice. Weather refresh may update automatic estimates but preserves manual values. No schema-version bump is required. The shared schema validates the enum in the backend and both clients; no additional semantic rule is needed.
+
+Desktop trip filters/search and the Weather Front stats table use this classification. Desktop stats count all scoped trips (including skunks), landed catch quantities, hours and catch rates, with Unclassified separate. Mobile Conditions stats include the same classification using their existing trip/fish breakdown. Map popups retain the source-trip action and show a saved classification when present.
+
+### Automatic weather-front estimates
+
+`schema/weather-front-rules.js` is the editable classifier shared through generated desktop/mobile copies. Clients fetch Open-Meteo hourly context for the day before through the day after fishing (including overnight end dates). Passage candidates require a 6-hour temperature change of at least 3 C, wind shift of at least 45 degrees with winds at least 5 km/h on both sides, and either a pressure trough (at least 1 hPa on each side) or a supporting 2 hPa pressure change. Neighboring candidates collapse to their strongest signal. During front covers the fishing window plus 2 hours of timing uncertainty; pre/post covers 24 hours on either side. No front means no detected pattern with at least 90% valid hourly coverage and both window edges present. Incomplete data remains unclassified. Thresholds are application heuristics, not provider-issued front analyses. Weak, stationary or occluded fronts may be missed, and local wind/temperature changes may resemble a passage.
+
+Sources: [Open-Meteo historical hourly API](https://open-meteo.com/en/docs/historical-weather-api), [NOAA surface fronts](https://www.noaa.gov/jetstream/wxmaps). Point weather is evidence for an estimate, not a verified synoptic front position. Requests can fail without blocking trip saves.
+
+The disposable one-time script `scripts/classify_old_trip_fronts.py` fetches historical context explicitly. Dry-run is default; `--apply` requires the local app to be stopped, backs up SQLite plus uploads together, preserves manual/already-classified trips, checks the database revision, validates, writes, and reads back the result. It is never invoked at startup. The script can be deleted after use; runtime automatic classification uses the shared rules.

@@ -221,8 +221,8 @@
 
 .inventory-thumb {
   display: block;
-  width: 64px;
-  height: 64px;
+  width: 104px;
+  height: 104px;
   border: 1px solid var(--line);
   border-radius: 6px;
   object-fit: cover;

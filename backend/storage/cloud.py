@@ -42,6 +42,13 @@ class CloudLogbookStore:
         return LogbookSnapshot(payload, revision)
 
     def write(self, document: dict, expected_revision: str | None) -> str:
+        is_valid, error = validate_logbook(document)
+        if not is_valid:
+            raise ValueError(error)
+        return self.write_validated(document, expected_revision)
+
+    def write_validated(self, document: dict, expected_revision: str | None) -> str:
+        """Persist a document validated by its caller."""
         return cloud_storage.put_logbook(document, expected_revision or "")
 
     def install(self, document: dict) -> str:

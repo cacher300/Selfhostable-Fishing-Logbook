@@ -130,15 +130,18 @@ def read_with_revision(database_file: Path, collection_keys: tuple[str, ...]) ->
                 loaded["schemaVersion"] = metadata.get("schemaVersion", 0)
                 loaded["settings"] = metadata.get("settings", {})
                 optional_present = set(metadata.get(_OPTIONAL_COLLECTIONS_PRESENT_KEY, []))
+                rows_by_collection = {name: [] for name in collection_keys}
+                if collection_keys:
+                    placeholders = ", ".join("?" for _ in collection_keys)
+                    rows_query = (
+                        "SELECT collection_name, payload_json FROM logbook_entries "
+                        f"WHERE collection_name IN ({placeholders}) "
+                        "ORDER BY collection_name, position"
+                    )
+                    for row in connection.execute(rows_query, collection_keys):
+                        rows_by_collection[row["collection_name"]].append(json.loads(row["payload_json"]))
                 for collection_name in collection_keys:
-                    rows = [
-                        json.loads(row["payload_json"])
-                        for row in connection.execute(
-                            "SELECT payload_json FROM logbook_entries "
-                            "WHERE collection_name = ? ORDER BY position",
-                            (collection_name,),
-                        )
-                    ]
+                    rows = rows_by_collection[collection_name]
                     # Collections promoted out of "extra" keep their stored
                     # value until the next write moves them into rows.
                     if collection_name in _OPTIONAL_COLLECTION_KEYS and not rows and collection_name not in loaded and collection_name not in optional_present:

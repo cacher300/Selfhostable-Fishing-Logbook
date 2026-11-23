@@ -1,5 +1,6 @@
 ﻿import { createId } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
+import { automaticWeatherFrontPatch, renderWeatherFrontChoice, resetAutomaticWeatherFront } from "./weather-front.js";
 import { settingsUi } from "./settings-core.js";
 
 const rootBindings = [
@@ -19,6 +20,7 @@ const rootBindings = [
   ["#flyHatch", "flyHatch"],
   ["#waterLevel", "waterLevel"],
   ["#weather", "weather"],
+  ["#weatherFront", "weatherFront"],
   ["#waveHeight", "waveHeight"],
   ["#structure", "structure"],
   ["#tripNotes", "notes"],
@@ -62,6 +64,7 @@ const fishBindings = [
   [".catch-length", "length"],
   [".catch-weight", "weight"],
   [".catch-spot", "spotSelection"],
+  [".catch-drift", "driftSelection"],
   [".catch-structure", "structureType"],
   [".catch-time", "time"],
   [".catch-time-unknown", "timeUnknown"],
@@ -198,8 +201,9 @@ export function replaceDraftRecord(collection, record) {
 export function updateTripField(field, value) {
   if (ui.tripDraftHydrating) return ui.tripDraft || null;
   if (!ui.tripDraft || !field) return null;
+  const previousValue = ui.tripDraft[field];
   setPath(ui.tripDraft, field, cloneDraftValue(value));
-  syncRootDerivedFields(field);
+  syncRootDerivedFields(field, previousValue !== value);
   return ui.tripDraft;
 }
 
@@ -271,6 +275,11 @@ function syncDerivedRecordFields(record, path, control) {
     record.spotAssignmentMode = value === "__automatic__" ? "automatic" : "manual";
     record.spotId = String(value).startsWith("__") ? "" : value;
   }
+  if (path === "driftSelection") {
+    const value = record.driftSelection || "__automatic__";
+    record.driftAssignmentMode = value === "__automatic__" ? "automatic" : "manual";
+    record.driftId = String(value).startsWith("__") ? "" : value;
+  }
   if (path === "rodSelect") {
     const option = selectedOption(control);
     record.setupLineId = record.rodSelect || "";
@@ -287,8 +296,20 @@ function syncDerivedRecordFields(record, path, control) {
   }
 }
 
-function syncRootDerivedFields(path) {
+function syncRootDerivedFields(path, changed = true) {
   if (!ui.tripDraft) return;
+  if (changed && ["date", "locationId", "launchId", "launchTime", "linesPulledTime"].includes(path) && ui.tripDraft.weatherFrontSource === "automatic") {
+    Object.assign(ui.tripDraft, resetAutomaticWeatherFront(ui.tripDraft));
+    if (ui.activeTripWeatherData) ui.activeTripWeatherData = { ...ui.activeTripWeatherData, frontAssessment: undefined };
+    renderWeatherFrontChoice(ui.tripDraft);
+  }
+  if (path === "locationId") {
+    ui.tripDraft.launchId = "";
+    ui.tripDraft.launch = "";
+  }
+  if (path === "launchId" && !String(ui.tripDraft.launchId || "").trim()) {
+    ui.tripDraft.launch = "";
+  }
   if (path === "method" && String(ui.tripDraft.method || "").trim().toLowerCase() !== "trolling") {
     draftCollection("gearUsed").forEach((line) => { line.side = ""; });
   }
@@ -339,8 +360,17 @@ function updateTripDraftFromControl(control) {
     syncDerivedRecordFields(record, path, control);
     return true;
   }
+  if (path === "weatherFront") {
+    ui.tripDraft.weatherFront = value === "automatic" ? "" : value;
+    ui.tripDraft.weatherFrontSource = value === "automatic" ? "automatic" : "manual";
+    const assessment = ui.activeTripWeatherData?.frontAssessment || ui.tripDraft.weatherData?.frontAssessment;
+    Object.assign(ui.tripDraft, automaticWeatherFrontPatch(ui.tripDraft, assessment));
+    renderWeatherFrontChoice(ui.tripDraft, assessment);
+    return true;
+  }
+  const previousValue = ui.tripDraft[path];
   setPath(ui.tripDraft, path, value);
-  syncRootDerivedFields(path);
+  syncRootDerivedFields(path, previousValue !== value);
   return true;
 }
 

@@ -1,5 +1,6 @@
 ﻿import { createId, defaultTimeValue } from "./app-defaults.js";
 import { state } from "./app-state.js";
+import { automaticDriftId } from "./drifts.js";
 import { findLaunchByIdOrName } from "./app-normalization.js";
 import { canonicalMediaRef, isUsableCoordinates } from "./app-media.js";
 import { chopLabelForWaveHeight } from "./settings-core.js";
@@ -24,6 +25,7 @@ const emptyDefaults = new Map([
   ["waveChop", ""],
   ["waveHeight", ""],
   ["weather", ""],
+  ["weatherFront", ""],
   ["weatherData", null],
   ["wind", ""],
   ["flyHatch", ""],
@@ -75,6 +77,8 @@ const emptyDefaults = new Map([
   ["rodId", ""],
   ["spotAssignmentMode", "automatic"],
   ["spotId", ""],
+  ["driftAssignmentMode", "automatic"],
+  ["driftId", ""],
   ["waterDepth", ""],
   ["weight", ""]
 ]);
@@ -88,7 +92,8 @@ function tripMethodFlags(method = "") {
   return {
     trolling: key === "trolling",
     casting: key === "casting",
-    flyFishing: key === "fly fishing"
+    flyFishing: key === "fly fishing",
+    drifting: key === "drifting"
   };
 }
 
@@ -172,6 +177,7 @@ export function createTripDraft(trip = null) {
     flyHatch: "",
     waterLevel: "",
     weather: "",
+    weatherFront: "",
     waveHeight: "",
     waveChop: "",
     wind: "",
@@ -276,6 +282,8 @@ function normalizeFish(fish = {}, context = {}) {
     weight: lost ? "" : trimText(fish.weight),
     spotAssignmentMode: hasOwn(fish, "spotAssignmentMode") ? (fish.spotAssignmentMode === "manual" ? "manual" : "automatic") : fish.spotAssignmentMode,
     spotId: hasOwn(fish, "spotAssignmentMode") ? (fish.spotAssignmentMode === "manual" ? trimText(fish.spotId) : "") : trimText(fish.spotId),
+    driftAssignmentMode: fish.driftAssignmentMode === "manual" ? "manual" : "automatic",
+    driftId: trimText(fish.driftId),
     structureType: detailsUnknown ? "" : trimText(fish.structureType),
     time: detailsUnknown ? "" : trimText(fish.time),
     timeUnknown: detailsUnknown ? false : Boolean(fish.timeUnknown),
@@ -315,6 +323,7 @@ function normalizeFish(fish = {}, context = {}) {
     photos: detailsUnknown ? [] : mediaRefs(fish.photos)
   };
   if (!detailsUnknown && fish.weatherData) base.weatherData = fish.weatherData;
+  if (flags.drifting && base.driftAssignmentMode !== "manual") base.driftId = automaticDriftId(base, context.state?.drifts || []);
   else if (detailsUnknown) delete base.weatherData;
   if (!detailsUnknown && fishHasDepthData(fish.depthData)) Object.assign(base, fish.depthData);
   delete base.depthData;
@@ -324,6 +333,7 @@ function normalizeFish(fish = {}, context = {}) {
   delete base.manualLongitude;
   delete base.rodSelect;
   delete base.spotSelection;
+  delete base.driftSelection;
   if (!detailsUnknown && flags.trolling) {
     return {
       ...base,
@@ -391,6 +401,7 @@ export function tripFromDraft(draft = {}, context = {}) {
     flyHatch: flags.flyFishing ? trimText(draft.flyHatch) : "",
     waterLevel: flags.flyFishing ? trimText(draft.waterLevel) : "",
     weather: trimText(draft.weather),
+    weatherFront: trimText(draft.weatherFront),
     waveHeight,
     waveChop: chopLabelForWaveHeight(waveHeight),
     wind: weatherWindText(weatherData),

@@ -19,6 +19,7 @@ import * as module14 from "./settings-locations.js";
 import * as module15 from "./dashboard.js";
 import * as module16 from "./expedition-analytics.js";
 import * as module17 from "./expeditions.js";
+import * as timePicker from "./time-picker.js";
 import * as module18 from "./photos.js";
 import * as module19 from "./trip-editor.js";
 import * as module20 from "./trip-rows.js";
@@ -32,6 +33,7 @@ import * as module27 from "./trolling-spread.js";
 import * as module28 from "./noaaCharts.js";
 import * as module29 from "./noaa-api.js";
 import * as module30 from "./great-lakes-conditions.js";
+import * as greatLakesMapLayers from "./great-lakes-map-layers.js";
 import * as greatLakesPoints from "./great-lakes-points.js";
 import * as module31 from "./maps.js";
 import * as module32 from "./trip-summary.js";
@@ -56,6 +58,6 @@ import * as module50 from "./app-control-events.js";
 import * as module51 from "./app-delegated-events.js";
 import * as module52 from "./app.js";
 
-for (const module of [module0, module1, module2, module3, module4, module5, module6, module7, module8, module9, module10, module11, module12, module13, module14, module15, module16, module17, module18, module19, module20, module21, module22, module23, module24, module25, module26, module27, module28, module29, module30, greatLakesPoints, module31, module32, module33, module34, module35, module36, module37, module38, module39, module40, module41, module42, module43, module44, module45, module46, module47, module48, module49, module50, module51, module52]) {
+for (const module of [module0, module1, module2, module3, module4, module5, module6, module7, module8, module9, module10, module11, module12, module13, module14, module15, module16, module17, timePicker, module18, module19, module20, module21, module22, module23, module24, module25, module26, module27, module28, module29, module30, greatLakesMapLayers, greatLakesPoints, module31, module32, module33, module34, module35, module36, module37, module38, module39, module40, module41, module42, module43, module44, module45, module46, module47, module48, module49, module50, module51, module52]) {
   if (typeof module.setup === "function") module.setup();
 }

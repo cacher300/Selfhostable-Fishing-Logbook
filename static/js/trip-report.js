@@ -3,6 +3,7 @@ import { html, insertHtml, joinHtml } from "./html.js";
 import { storageKey } from "./app-config.js";
 import { state, ui } from "./app-state.js";
 import { hasFishHawk, spotName } from "./app-normalization.js";
+import { assignedDriftId, driftName } from "./drifts.js";
 import { displayStoredMeasurement, formatUnitValue } from "./app-units.js";
 import { els } from "./app-elements.js";
 import { isVideoMedia, mediaMarkup, originalMediaUrl, previewImage } from "./app-media.js";
@@ -19,7 +20,7 @@ import { trimNumber } from "./form-utils.js";
 
 
 export const reportColumnDefinitions = [
-  ["number", "#"], ["type", "Record"], ["time", "Time"], ["angler", "Angler"], ["result", "Result"], ["species", "Species"], ["spot", "Spot"], ["structure", "Structure"], ["size", "Size"],
+  ["number", "#"], ["type", "Record"], ["time", "Time"], ["angler", "Angler"], ["result", "Result"], ["species", "Species"], ["spot", "Spot / Drift"], ["structure", "Structure"], ["size", "Size"],
   ["waterDepth", "Water depth"], ["depth", "Depth Down"], ["setup", "Line"], ["lure", "Lure"], ["flasher", "Flasher"], ["direction", "Direction"],
   ["gpsSpeed", "GPS Speed"], ["ballSpeed", "Ball Speed"], ["ballTemp", "Ball Temp"], ["flatlineWeight", "Flatline Weight"],
   ["lineBehindBoard", "Line Behind Board"], ["leadcoreColors", "Leadcore Colors"], ["dipseySetting", "Dipsey Setting"],
@@ -122,7 +123,7 @@ export function reportTimelineRecords(trip) {
     return {
       index, catchIndex: index, catchType: type, time: item.time || "", result: status,
       species: displayTitleText(item.species || item.possibleSpecies || "Unknown"),
-      spot: type === "catch" ? spotName(item.spotId) : "",
+      spot: String(trip.method || "").trim().toLowerCase() === "drifting" ? driftName(assignedDriftId(item)) : spotName(item.spotId),
       structure: displayTitleText(item.structureType || item.structure || ""),
       size: [displayStoredMeasurement(record.length, "fishLength"), displayStoredMeasurement(record.weight, "fishWeight")].filter(Boolean).join(" / "),
       method: displayTitleText(presentationLabel(record.presentation) || trip.method || ""),

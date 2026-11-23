@@ -126,6 +126,19 @@ function isoDate(value) {
   const time = Date.parse(value + "T00:00:00Z");
   return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
 }
+function validPolygon(points) {
+  const pairs = points.map(point => [point.longitude, point.latitude]);
+  if (new Set(pairs.map(point => point.join(","))).size !== pairs.length) return false;
+  const cross = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const area = pairs.reduce((total, point, index) => total + point[0] * pairs[(index + 1) % pairs.length][1] - pairs[(index + 1) % pairs.length][0] * point[1], 0);
+  if (Math.abs(area) < 1e-10) return false;
+  for (let first = 0; first < pairs.length; first += 1) for (let second = first + 2; second < pairs.length; second += 1) {
+    if (first === 0 && second === pairs.length - 1) continue;
+    const a = pairs[first], b = pairs[(first + 1) % pairs.length], c = pairs[second], d = pairs[(second + 1) % pairs.length];
+    if (cross(a, b, c) * cross(a, b, d) < 0 && cross(c, d, a) * cross(c, d, b) < 0) return false;
+  }
+  return true;
+}
 function semantic(document) {
   for (const key of OBJECT_COLLECTION_KEYS) {
     const seen = new Set();
@@ -188,6 +201,8 @@ function semantic(document) {
   if (settings.defaultSavedSetupIds !== undefined) for (const method of Object.keys(settings.defaultSavedSetupIds)) { const setupMethod = setupMethods.get(settings.defaultSavedSetupIds[method]); if (!setupMethod || setupMethod.toLowerCase() !== method.trim().toLowerCase()) return fail("settings.defaultSavedSetupIds." + method, "must reference a saved setup for that method"); }
   const spotNames = new Set();
   for (let index = 0; index < document.spots.length; index += 1) { const name = document.spots[index].name.trim().toLowerCase(); if (spotNames.has(name)) return fail("spots[" + index + "].name", "must be unique ignoring case"); spotNames.add(name); }
+  const driftNames = new Set();
+  for (let index = 0; index < document.drifts.length; index += 1) { const item = document.drifts[index]; const name = item.name.trim().toLowerCase(); if (driftNames.has(name)) return fail("drifts[" + index + "].name", "must be unique ignoring case"); driftNames.add(name); if (!validPolygon(item.polygon)) return fail("drifts[" + index + "].polygon", "must be a simple area with distinct vertices"); }
   for (let index = 0; index < document.expeditions.length; index += 1) { const item = document.expeditions[index]; const path = "expeditions[" + index + "]"; if (!isoDate(item.startDate)) return fail(path + ".startDate", "must be a valid ISO date"); if (!isoDate(item.endDate)) return fail(path + ".endDate", "must be a valid ISO date"); if (item.endDate < item.startDate) return fail(path + ".endDate", "must be on or after startDate"); }
   return ok();
 }
@@ -205,10 +220,14 @@ export function validateLogbook(document) {
 const desktopGenerated = path.join(root, "static", "js", "generated");
 const mobileGenerated = path.join(mobileRoot, "src", "domain", "generated");
 const validatorCode = standaloneValidatorCode();
+const frontRules = "/* Generated from schema/weather-front-rules.js. Do not edit by hand. */\n" + await fs.readFile(path.join(root, "schema", "weather-front-rules.js"), "utf8");
+emit(path.join(desktopGenerated, "weather-front-rules.js"), frontRules);
 emit(path.join(desktopGenerated, "logbook-validator.js"), validatorCode);
 emit(path.join(desktopGenerated, "logbook-schema-rules.js"), rulesCode());
 emit(path.join(desktopGenerated, "package.json"), "{\n  \"type\": \"module\"\n}\n");
 if (!desktopOnly) {
+  emit(path.join(mobileGenerated, "weather-front-rules.js"), frontRules);
+  emit(path.join(mobileGenerated, "weather-front-rules.d.ts"), 'export interface FrontAssessment { value: "" | "pre-front" | "during-front" | "post-front" | "no-front"; reason: string; method: string; frontTime?: string; [key: string]: unknown; }\nexport function weatherFrontDateRange(trip: unknown): { startDate: string; endDate: string } | null;\nexport function classifyWeatherFront(trip: unknown, bundle: unknown): FrontAssessment;\nexport function resetAutomaticWeatherFront<T>(trip: T): T;\nexport function automaticWeatherFrontPatch(trip: unknown, assessment?: FrontAssessment): { weatherFront?: FrontAssessment["value"]; weatherFrontSource?: "automatic" };\n');
   emit(path.join(mobileGenerated, "logbook-validator.js"), validatorCode);
   emit(path.join(mobileGenerated, "logbook-validator.d.ts"), "import type { Logbook } from \"./logbook-schema\";\nexport declare function validateSchema(value: unknown): value is Logbook;\ndeclare const validate: typeof validateSchema;\nexport default validate;\n");
   emit(path.join(mobileGenerated, "constants.json"), stable(constants));

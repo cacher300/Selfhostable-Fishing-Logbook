@@ -9,6 +9,7 @@ import { getValue, syncTripFormChrome } from "./trip-editor.js";
 import { addTripGearRow, populateCatchRodSelects, populateSetupLineSelects, updateAllRowSummaries } from "./trip-rows.js";
 import { handleSettingsDraftControlEvent, replaceTripRows } from "./draft-binding.js";
 import { comboName } from "./gear-core.js";
+import { gearSelectOptions, tripRodIsAvailable } from "./gear-pickers.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { isTrollingTrip } from "./form-utils.js";
 import { preferencesDraftFromSettings, savedSetupFromDraft } from "./settings-draft.js";
@@ -49,13 +50,12 @@ export function savedSetupDefaultId(method, defaults = state.settings?.defaultSa
   return String(entry?.[1] || "");
 }
 
-export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex = "", setupIndex = 0 } = {}) {
+export function savedSetupRowMarkup(item = {}, { disabled = false, sourceIndex = "", setupIndex = 0, method = "" } = {}) {
   const comboId = String(item.comboId || "");
   const rowPath = `rows.${sourceIndex === "" ? 0 : sourceIndex}.comboId`;
   const bindPath = setupIndex === null ? rowPath : `${setupIndex}.${rowPath}`;
-  const comboOptions = joinHtml(state.rodReelCombos.map((combo) => (
-    html`<option value="${combo.id}" ${combo.id === comboId ? "selected" : ""}>${comboName(combo.id) || "Rod / reel combo"}</option>`
-  )), "");
+  const comboOptions = gearSelectOptions(state.rodReelCombos, comboId, (combo) => comboName(combo.id) || "Rod / reel combo",
+    (combo) => tripRodIsAvailable(combo.rodId, method));
   return html`
     <div class="saved-setup-row"${sourceIndex === "" ? "" : html` data-source-index="${sourceIndex}"`}>
       <label>
@@ -461,18 +461,18 @@ function setupCreateSavedSetupDialog() {
 
   function renderRows() {
     setHtml(rows, joinHtml(settingsUi.newSavedSetupDraft.rows.map((row, index) => savedSetupRowMarkup(row, {
-      sourceIndex: index, setupIndex: null
+      sourceIndex: index, setupIndex: null, method: settingsUi.newSavedSetupDraft.method
     }))));
   }
 
   document.querySelector("#createSavedSetupButton")?.addEventListener("click", () => {
     const method = getValue("method");
     if (!method || isTrollingTrip()) return;
-    const hasCombos = state.rodReelCombos.length > 0;
+    const hasCombos = state.rodReelCombos.some((combo) => tripRodIsAvailable(combo.rodId, method));
     settingsUi.newSavedSetupDraft = { id: createId(), method, name: "", rows: hasCombos ? [{ comboId: "" }] : [] };
     form.reset();
     form.querySelector("#newSavedSetupMethod").textContent = method;
-    showMessage(hasCombos ? "" : "Create a rod / reel combo in Gear before saving a setup.");
+    showMessage(hasCombos ? "" : "Create a rod / reel combo for this method in Gear before saving a setup.");
     addRod.disabled = save.disabled = !hasCombos;
     renderRows();
     dialog.showModal();

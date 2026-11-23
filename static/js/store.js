@@ -17,7 +17,7 @@ class LogbookConflictError extends Error {
   }
 }
 
-let persisted = null;
+let persistedJson = null;
 let queue = Promise.resolve();
 
 // Validate and persist exactly what JSON transport carries (undefined
@@ -44,9 +44,9 @@ function installState(document) {
   return next;
 }
 
-function cacheLocally(document) {
+function cacheLocally(serializedDocument) {
   try {
-    localStorage.setItem(storageKey, JSON.stringify(document));
+    localStorage.setItem(storageKey, serializedDocument);
   } catch (error) {
     console.warn("Could not cache the saved logbook in browser storage.", error);
   }
@@ -55,10 +55,11 @@ function cacheLocally(document) {
 /** Install a document that is already persisted (startup, archive import, refresh). */
 export function replaceState(document, { revision } = {}) {
   const validated = validateState(document);
+  const serialized = JSON.stringify(validated);
   if (revision !== undefined) setLogbookRevision(revision);
   const installed = installState(validated);
-  persisted = structuredClone(validated);
-  cacheLocally(validated);
+  persistedJson = serialized;
+  cacheLocally(serialized);
   return installed;
 }
 
@@ -69,9 +70,9 @@ async function responseError(response, fallback) {
 }
 
 async function persist(document) {
-  if (location.protocol === "file:") return;
   const body = JSON.stringify(document);
-  if (persisted && body === JSON.stringify(persisted)) return;
+  if (location.protocol === "file:") return body;
+  if (persistedJson !== null && body === persistedJson) return body;
   if (!logbookRevision) {
     throw new Error("The server logbook could not be loaded. Reload the page before saving changes; the cached copy is available for viewing.");
   }
@@ -79,6 +80,7 @@ async function persist(document) {
   const response = await protectedFetch("/api/logbook", { method: "PUT", headers, body });
   if (!response.ok) throw await responseError(response, "Could not save logbook database");
   setLogbookRevision(response.headers.get("ETag") || logbookRevision);
+  return body;
 }
 
 /**
@@ -91,10 +93,10 @@ export function commit(mutate) {
     const draft = structuredClone(state);
     const replacement = await mutate(draft);
     const next = validateState(jsonDocument(replacement === undefined ? draft : replacement));
-    await persist(next);
+    const serialized = await persist(next);
     const installed = installState(next);
-    persisted = structuredClone(next);
-    cacheLocally(next);
+    persistedJson = serialized;
+    cacheLocally(serialized);
     return installed;
   };
   const result = queue.then(run, run);

@@ -35,6 +35,7 @@
     "people",
     "locations",
     "spots",
+    "drifts",
     "expeditions",
     "trips"
   ],
@@ -218,6 +219,12 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/spot"
+      }
+    },
+    "drifts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/drift"
       }
     },
     "expeditions": {
@@ -484,6 +491,21 @@
         "radiusMeters"
       ]
     },
+    "drift": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "waterbody": { "type": "string" },
+        "polygon": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/coordinates" }
+        }
+      },
+      "required": ["id", "name", "polygon"]
+    },
     "expedition": {
       "type": "object",
       "additionalProperties": true,
@@ -536,6 +558,8 @@
             "manual"
           ]
         },
+        "driftId": { "type": "string" },
+        "driftAssignmentMode": { "type": "string", "enum": ["automatic", "manual"] },
         "photos": {
           "type": "array",
           "items": {
@@ -571,6 +595,15 @@
       "type": "object",
       "additionalProperties": true,
       "properties": {
+        "weatherFront": {
+          "description": "Trip front classification, independent of legacy weatherData.frontTag. weatherFrontSource distinguishes automatic estimates from manual choices. Empty or absent means unclassified.",
+          "type": "string",
+          "enum": ["", "pre-front", "during-front", "post-front", "no-front"]
+        },
+        "weatherFrontSource": {
+          "type": "string",
+          "enum": ["automatic", "manual"]
+        },
         "id": {
           "type": "string"
         },

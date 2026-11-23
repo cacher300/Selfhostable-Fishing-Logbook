@@ -215,20 +215,36 @@
                 <div class="settings-section-header">
                   <div class="settings-section-copy">
                     <h4 id="fishingSpotSettingsHeading">Fishing Spots</h4>
-                    <p>Add fishing spots to see statistics directly related to each spot. Name the lake for each spot, then click its Edit pin button to move the marker on the map.</p>
+                    <p>Save named circles for catches and missed fish. Select one to edit its pin and radius together.</p>
                   </div>
-                  <button class="button primary settings-button-with-icon" id="addFishingSpotButton" type="button">
+                  <button class="button primary settings-button-with-icon" data-add-fishing-area="spot" type="button">
                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg>
                     Add Spot
                   </button>
                 </div>
-                <div class="private-location-layout">
-                  <div class="private-location-list" id="fishingSpotList"></div>
-                  <div class="private-location-map-panel">
-                    <div id="fishingSpotMap" class="fish-map location-picker-map private-location-map"></div>
-                  </div>
-                </div>
+                <label class="fishing-area-search-label"><span>Find a spot</span><input id="fishingSpotSearch" type="search" placeholder="Search spots or waterbodies" /></label>
+                <div class="fishing-area-list" id="areaSpotList"></div>
               </section>
+              <section class="settings-section" aria-labelledby="driftSettingsHeading">
+                <div class="settings-section-header">
+                  <div class="settings-section-copy">
+                    <h4 id="driftSettingsHeading">Drifts</h4>
+                    <p>Approximate starting areas from the Lower Niagara maps can be adjusted. Add your own drifts anywhere.</p>
+                  </div>
+                  <button class="button primary settings-button-with-icon" data-add-fishing-area="drift" type="button">Add Drift</button>
+                </div>
+                <label class="fishing-area-search-label"><span>Find a drift</span><input id="driftSearch" type="search" placeholder="Search drifts or waterbodies" /></label>
+                <div class="fishing-area-list" id="areaDriftList"></div>
+              </section>
+              <dialog id="fishingAreaDialog" class="fishing-area-dialog" aria-labelledby="fishingAreaDialogTitle">
+                <div class="fishing-area-dialog-head"><h3 id="fishingAreaDialogTitle">Edit fishing area</h3><button type="button" class="button secondary" data-close-fishing-area>Close</button></div>
+                <p id="fishingAreaMessage" role="status" aria-live="polite"></p>
+                <div class="fishing-area-dialog-layout">
+                  <div id="fishingAreaFields" class="fishing-area-fields"></div>
+                  <div class="fishing-area-map-wrap"><div id="fishingAreaMap" class="fish-map fishing-area-map"></div><p id="fishingAreaMapHint" class="fishing-area-hint"></p></div>
+                </div>
+                <div class="fishing-area-actions"><button type="button" class="button danger" data-delete-fishing-area>Delete</button><button type="button" class="button secondary" data-close-fishing-area>Cancel</button><button type="button" class="button primary" data-save-fishing-area>Save area</button></div>
+              </dialog>
               <section class="settings-section settings-section--home-location" aria-labelledby="homeLocationSettingsHeading">
                 <div class="settings-section-header">
                   <div class="settings-section-copy">

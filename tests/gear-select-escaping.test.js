@@ -4,7 +4,7 @@ import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
 installBrowserEnv();
 const appState = await import("../static/js/app-state.js");
-const { populateFlasherSelect, populateGearSelect, populateLureSelect, populateLuresForType } = await import("../static/js/gear-pickers.js");
+const { populateFlasherSelect, populateGearSelect, populateLureSelect } = await import("../static/js/gear-pickers.js");
 
 const hostileId = `x"><img src=x onerror="alert(1)">`;
 appState.setState({
@@ -27,7 +27,6 @@ const select = () => ({
 for (const [name, call] of [
   ["populateGearSelect", (target) => populateGearSelect(target, appState.state.rods, "", "No rod", (item) => item.name)],
   ["populateLureSelect", (target) => populateLureSelect(target)],
-  ["populateLuresForType", (target) => populateLuresForType(target, "Spoon")],
   ["populateFlasherSelect", (target) => populateFlasherSelect(target)],
 ]) {
   const target = select();

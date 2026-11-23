@@ -11,7 +11,7 @@ import { uploadImageFile } from "./photos.js";
 import { getValue, setValue } from "./trip-editor.js";
 import { updateRowSummary } from "./trip-rows.js";
 import { activeLineEntry, baitStats, comboName, duplicateMatchesSource, gearDisplayName, gearPhotos, increasedQuantity, nextReelCopyShortName, renderExistingGearPhotos, renderQueuedGearImage } from "./gear-core.js";
-import { populateFlasherSelect, populateLureSelect, populateLuresForType, populateReelSelect, populateRodSelect, prepareInlineGearDialog, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
+import { populateFlasherSelect, populateLureSelect, populateReelSelect, populateRodSelect, prepareInlineGearDialog, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
 import { comboFromDraft, flasherFromDraft, lureFromDraft, reelFromDraft, rodFromDraft } from "./gear-draft.js";
 import { applyGearDraftBindings, createGearDraft, setGearDraftContext, updateGearLineEntry } from "./draft-binding.js";
 
@@ -78,8 +78,7 @@ function refreshLureSelectors(lure, context = {}) {
     : ".catch-lure, .trip-gear-lure";
   const select = row.querySelector(targetSelector);
   if (select) {
-    populateLuresForType(select, lure.type, lure.id);
-    select.value = lure.id;
+    populateLureSelect(select, lure.id);
     select.dispatchEvent(new Event("change", { bubbles: true }));
   }
   renderLurePreview(row);
@@ -315,7 +314,7 @@ export function openLureDialog(lure = null, pendingRowId = "", pendingLureTarget
   populateOptionSelect(document.querySelector("#flyCategory"), optionLabels("flyCategories"), "Select category");
   const editing = Boolean(lure);
   createGearDraft(lure, {
-    id: lure?.id || "",
+    id: lure?.id || createId(),
     name: lure?.name || "",
     type: lure?.type || initialType,
     divingDepth: lure?.divingDepth || "",
@@ -612,6 +611,12 @@ export async function saveCombo(event) {
 
 export async function saveLure(event) {
   event.preventDefault();
+  const form = els.lureForm;
+  if (form.dataset.saving === "true") return;
+  form.dataset.saving = "true";
+  const submitButton = form.querySelector('[type="submit"]');
+  const submitButtonWasDisabled = submitButton?.disabled ?? false;
+  if (submitButton) submitButton.disabled = true;
   try {
     const context = gearDraftContext();
     const editingId = context.editingId || "";
@@ -640,6 +645,9 @@ export async function saveLure(event) {
   } catch (error) {
     console.error("Could not save lure.", error);
     alert(error.message || "The lure could not be saved.");
+  } finally {
+    delete form.dataset.saving;
+    if (submitButton) submitButton.disabled = submitButtonWasDisabled;
   }
 }
 

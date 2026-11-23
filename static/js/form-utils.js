@@ -1,7 +1,7 @@
 import { html, joinHtml, setHtml } from "./html.js";
 import { hasFishHawk, optionLabels } from "./app-normalization.js";
 import { convertUnitValue, unitPreference, unitSymbol } from "./app-units.js";
-import { sortTrollingSetupRows, syncLastTrollingSpreadImportButton, updateRowSummary } from "./trip-rows.js";
+import { sortTrollingSetupRows, syncLastTrollingSpreadImportButton, syncLastTripSetupImportButton, updateRowSummary } from "./trip-rows.js";
 import { updateRiggingVisibility } from "./gear-pickers.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { findDraftRecord, updateTripRow } from "./draft-binding.js";
@@ -43,6 +43,7 @@ export function populateStructureSelect(select, selectedValue = "") {
 
 export function updateTrollingVisibility() {
   const trolling = isTrollingTrip();
+  const drifting = String(ui.tripDraft?.method || "").trim().toLowerCase() === "drifting";
   const casting = isCastingTrip();
   const flyFishing = isFlyFishingTrip();
   const greatLakesFishing = isGreatLakesFishingTrip(ui.tripDraft, state.locations);
@@ -84,6 +85,8 @@ export function updateTrollingVisibility() {
     element.classList.toggle("hidden", trolling);
   });
   document.querySelectorAll("#tripDialog .catch-row").forEach((row) => {
+    row.querySelector(".catch-spot-field")?.classList.toggle("hidden", drifting);
+    row.querySelector(".catch-drift-field")?.classList.toggle("hidden", !drifting);
     const lostFish = row.classList.contains("lost-fish-row");
     const hideDuplicateDepth = trolling;
     row.querySelector(".catch-water-depth-field")?.classList.toggle("hidden", hideDuplicateDepth);
@@ -99,6 +102,7 @@ export function updateTrollingVisibility() {
   document.querySelectorAll(".catch-row, .gear-used-row").forEach(updateRiggingVisibility);
   renderLiveTrollingSpread();
   syncLastTrollingSpreadImportButton();
+  syncLastTripSetupImportButton();
   syncFishHawkVisibility();
 }
 

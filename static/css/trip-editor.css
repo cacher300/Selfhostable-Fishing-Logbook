@@ -755,6 +755,45 @@
   min-width: 0;
 }
 
+#tripDialog .catch-rigging-control,
+#tripDialog .gear-rigging-control {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+#tripDialog .catch-rigging-control > .catch-rigging-field,
+#tripDialog .gear-rigging-control > .gear-rigging-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#tripDialog .catch-rigging-control > .add-rigging-inline {
+  flex: 0 0 82px;
+  width: 82px;
+  min-width: 82px;
+  height: 42px;
+  min-height: 42px;
+  padding: 6px;
+  font-size: 12px;
+  line-height: 1.1;
+  white-space: normal;
+}
+
+#tripDialog .gear-rigging-control > .add-rigging-inline {
+  flex: 0 0 104px;
+  width: 104px;
+  min-width: 104px;
+  height: 42px;
+  min-height: 42px;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.1;
+  white-space: normal;
+}
+
 .catch-trolling-details-grid {
   display: grid;
   grid-column: 1 / -1;
@@ -868,7 +907,7 @@
   min-width: 132px;
 }
 
-#tripDialog .catch-row .catch-rigging-field {
+#tripDialog .catch-row .catch-rigging-control {
   grid-column: 4 / 5;
 }
 
@@ -1307,7 +1346,7 @@
 }
 
 .gear-picker-trigger-copy,
-.gear-picker-option > span:not(.gear-picker-check):not(.gear-picker-type-arrow) {
+.gear-picker-option > span:not(.gear-picker-check) {
   min-width: 0;
   padding: 0 10px;
 }
@@ -1404,10 +1443,6 @@
   grid-template-columns: minmax(0, 1fr) 20px;
 }
 
-#tripDialog .gear-picker-type-option {
-  grid-template-columns: minmax(0, 1fr) 20px;
-}
-
 #tripDialog .gear-picker-option-empty {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -1438,41 +1473,6 @@
 
 .gear-picker-option.is-selected .gear-picker-check {
   visibility: visible;
-}
-
-.gear-picker-type-arrow {
-  color: var(--muted);
-  font-size: 22px;
-  line-height: 1;
-}
-
-#tripDialog .gear-picker-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 32px;
-  padding: 4px 7px;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--green);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-#tripDialog .gear-picker-back:hover,
-#tripDialog .gear-picker-back:focus-visible {
-  background: var(--panel-soft);
-  outline: none;
-}
-
-.gear-picker-type-heading {
-  margin: 2px 7px 6px;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 850;
 }
 
 .gear-picker-empty {
@@ -1640,7 +1640,7 @@
   grid-row: 5;
 }
 
-#tripDialog:not(.is-trolling) .gear-used-row .gear-rigging-field {
+#tripDialog:not(.is-trolling) .gear-used-row .gear-rigging-control {
   grid-column: 1 / 3;
   grid-row: 6;
 }
@@ -2427,8 +2427,19 @@
     height: 58px;
   }
 
+  #tripDialog .catch-rigging-control > .add-rigging-inline {
+    height: 58px;
+    min-height: 58px;
+  }
+
   #tripDialog .catch-equipment-grid .catch-rigging {
     background-position: calc(100% - 18px) 25px, calc(100% - 12px) 25px;
+  }
+}
+
+@container catch-equipment (max-width: 649px) {
+  #tripDialog .catch-row .catch-equipment-grid .catch-rigging-control {
+    grid-column: 1 / -1;
   }
 }
 
@@ -2608,15 +2619,23 @@
   padding-inline: 10px;
 }
 
-#tripDialog .gear-inventory-grid .gear-rigging-field,
+#tripDialog .gear-inventory-grid .gear-rigging-control,
 #tripDialog .gear-inventory-grid .gear-rigging-details-field {
-  grid-column: auto;
+  grid-column: 1 / -1;
 }
 
 #tripDialog .gear-notes-panel .gear-change-field {
   grid-column: 1 / -1;
   grid-row: auto;
+  display: flex;
   width: 100%;
+  min-height: 88px;
+}
+
+#tripDialog .gear-notes-panel .trip-gear-change-note {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 88px;
 }
 
 @media (min-width: 761px) {
@@ -2633,12 +2652,19 @@
   #tripDialog:not(.is-trolling) .gear-used-row .gear-notes-panel {
     grid-column: 1 / 7;
     grid-row: 2;
+    grid-template-rows: auto minmax(88px, 1fr);
+    align-content: stretch;
   }
 }
 
 #tripDialog:not(.is-trolling) .gear-used-row .gear-inventory-grid > * {
   grid-column: auto;
   grid-row: auto;
+}
+
+#tripDialog:not(.is-trolling) .gear-used-row .gear-inventory-grid .gear-rigging-control,
+#tripDialog:not(.is-trolling) .gear-used-row .gear-inventory-grid .gear-rigging-details-field {
+  grid-column: 1 / -1;
 }
 
 #tripDialog:not(.is-trolling) .gear-used-row .gear-inventory-grid .gear-combo-field {

@@ -1,5 +1,11 @@
 {
   "schemaVersion": 2,
+  "weatherFronts": [
+    { "value": "pre-front", "label": "Pre-front" },
+    { "value": "during-front", "label": "During front" },
+    { "value": "post-front", "label": "Post-front" },
+    { "value": "no-front", "label": "No front" }
+  ],
   "uploadCategories": [
     "catch-photos",
     "flashers",
@@ -199,6 +205,7 @@
     "people",
     "locations",
     "spots",
+    "drifts",
     "expeditions",
     "trips"
   ],
@@ -211,6 +218,7 @@
     "people",
     "locations",
     "spots",
+    "drifts",
     "expeditions",
     "trips"
   ],

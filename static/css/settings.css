@@ -775,6 +775,7 @@
 
 .predefined-field-settings {
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 28px;
   margin-top: 0;
@@ -860,31 +861,72 @@
   background: transparent;
 }
 
-.predefined-field-header,
+.predefined-field-actions,
 .predefined-option-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
 
-.predefined-field-header h4 {
-  margin: 0;
-  font-size: 14px;
+.predefined-field-actions--top {
+  justify-content: flex-end;
 }
 
-.predefined-field-header {
+.predefined-field-actions--bottom {
+  justify-content: space-between;
+}
+
+.predefined-delete-actions {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.predefined-delete-hint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
+}
+
+.predefined-option-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.predefined-option-row .predefined-option-label {
+  width: 100%;
+  min-width: 0;
+}
+
+.predefined-option-delete-select {
+  display: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--danger);
+}
+
+.predefined-field-group.is-delete-mode .predefined-option-actions--top,
+.predefined-field-group.is-delete-mode .add-predefined-option {
+  display: none;
+}
+
+.predefined-field-group.is-delete-mode .predefined-option-row {
+  grid-template-columns: 20px minmax(0, 1fr);
+}
+
+.predefined-field-group.is-delete-mode .predefined-option-delete-select {
+  display: block;
 }
 
 .predefined-option-list {
   display: grid;
   gap: 8px;
-}
-
-.predefined-option-row input {
-  min-width: 0;
-  flex: 1;
 }
 
 .settings-table {
@@ -1189,6 +1231,16 @@
   .settings-section.settings-section--categories {
     gap: 18px;
     padding: 24px 16px;
+  }
+
+  .predefined-field-actions--bottom {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .predefined-delete-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .categories-header {

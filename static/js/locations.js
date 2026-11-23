@@ -16,6 +16,73 @@ import { checkGreatLakesHomePort, isPointInsideGreatLake } from "./great-lakes-b
 
 
 export const LOCATION_FOCUS_ZOOM = 15;
+let homePortSavePending = false;
+let locationManagerResizeObserver = null;
+let locationManagerLastWidth = -1;
+let locationManagerSpanFrame = 0;
+let locationManagerResizeListenerBound = false;
+
+function updateLocationManagerCardSpans() {
+  const list = els.locationManagerList;
+  if (!list) return;
+  const cards = [...list.querySelectorAll(".location-manager-card")];
+  list.classList.toggle("has-location-cards", cards.length > 0);
+
+  const styles = getComputedStyle(list);
+  const rowHeight = Number.parseFloat(styles.gridAutoRows);
+  const rowGap = Number.parseFloat(styles.rowGap) || 0;
+  if (!Number.isFinite(rowHeight) || rowHeight <= 0) {
+    cards.forEach((card) => card.style.removeProperty("grid-row-end"));
+    return;
+  }
+
+  const rowStride = rowHeight + rowGap;
+  cards.forEach((card) => {
+    const height = card.getBoundingClientRect().height;
+    const span = Math.max(1, Math.ceil((height + rowGap) / rowStride));
+    card.style.gridRowEnd = `span ${span}`;
+  });
+}
+
+function scheduleLocationManagerCardSpans() {
+  if (locationManagerSpanFrame) return;
+  locationManagerSpanFrame = requestAnimationFrame(() => {
+    locationManagerSpanFrame = 0;
+    updateLocationManagerCardSpans();
+  });
+}
+
+function observeLocationManagerCardSizes() {
+  const list = els.locationManagerList;
+  if (!list) return;
+
+  const cards = [...list.querySelectorAll(".location-manager-card")];
+  if (typeof ResizeObserver === "function") {
+    locationManagerResizeObserver ??= new ResizeObserver((entries) => {
+      let shouldMeasure = false;
+      entries.forEach((entry) => {
+        if (entry.target === list) {
+          const width = entry.contentRect.width;
+          if (Math.abs(width - locationManagerLastWidth) > 0.5) {
+            locationManagerLastWidth = width;
+            shouldMeasure = true;
+          }
+        } else {
+          shouldMeasure = true;
+        }
+      });
+      if (shouldMeasure) scheduleLocationManagerCardSpans();
+    });
+    locationManagerResizeObserver.disconnect();
+    locationManagerLastWidth = list.getBoundingClientRect().width;
+    locationManagerResizeObserver.observe(list);
+    cards.forEach((card) => locationManagerResizeObserver.observe(card));
+  } else if (!locationManagerResizeListenerBound) {
+    window.addEventListener("resize", scheduleLocationManagerCardSpans);
+    locationManagerResizeListenerBound = true;
+  }
+  updateLocationManagerCardSpans();
+}
 
 export function coordinateText(coordinates) {
   if (!isUsableCoordinates(coordinates)) return "";
@@ -100,7 +167,7 @@ export function handleLocationManagerDragEnd() {
   draggedLocationManagerId = "";
 }
 
-export function renderLocationManager() {
+export function renderLocationManager(homePort = state.settings?.homePort) {
   if (!els.locationManagerList) return;
   if (!state.locations.length) {
     setHtml(els.locationManagerList, html`
@@ -109,6 +176,7 @@ export function renderLocationManager() {
         <p>Add one to pick it quickly when recording a trip.</p>
       </div>
     `);
+    observeLocationManagerCardSizes();
     return;
   }
   const query = String(els.locationManagerSearch?.value || "").trim().toLowerCase();
@@ -120,6 +188,7 @@ export function renderLocationManager() {
     : state.locations;
   if (!locations.length) {
     setHtml(els.locationManagerList, html`<div class="empty-state compact-empty"><p>No waterbodies match that search.</p></div>`);
+    observeLocationManagerCardSizes();
     return;
   }
   setHtml(els.locationManagerList, joinHtml(locations.map((location) => {
@@ -140,15 +209,18 @@ export function renderLocationManager() {
       <div class="location-manager-content">
       ${launches.length ? html`
         <div class="location-manager-launches">
-          ${joinHtml(launches.map((launch) => html`
-            <div class="location-manager-launch-row">
-              <span>${launch.name}${state.settings?.homePort?.locationId === location.id && state.settings?.homePort?.launchId === launch.id ? " · Home Port" : ""}</span>
-              <div class="location-manager-row-actions">
-                <button class="location-manager-action" type="button" data-location-id="${location.id}" data-home-launch="${launch.id}">${state.settings?.homePort?.locationId === location.id && state.settings?.homePort?.launchId === launch.id ? "Clear Home Port" : "Set as Home Port"}</button>
-                <button class="location-manager-action" type="button" data-location-id="${location.id}" data-edit-managed-launch="${launch.id}">Edit</button>
+          ${joinHtml(launches.map((launch) => {
+            const isHomePort = homePort?.locationId === location.id && homePort?.launchId === launch.id;
+            return html`
+              <div class="location-manager-launch-row">
+                <span>${launch.name}</span>
+                <div class="location-manager-row-actions">
+                  <button class="location-manager-action" type="button" data-location-id="${location.id}" data-home-launch="${launch.id}" ${homePortSavePending ? "disabled" : ""}>${isHomePort ? "Clear Home Port" : "Set as Home Port"}</button>
+                  <button class="location-manager-action" type="button" data-location-id="${location.id}" data-edit-managed-launch="${launch.id}">Edit</button>
+                </div>
               </div>
-            </div>
-          `), "")}
+            `;
+          }), "")}
         </div>
       ` : html`<p class="location-manager-empty">No locations yet.</p>`}
         <button class="button secondary location-manager-add-launch" type="button" data-add-managed-launch="${location.id}">Add location</button>
@@ -156,9 +228,11 @@ export function renderLocationManager() {
     </article>
   `;
   }), ""));
+  observeLocationManagerCardSizes();
 }
 
 export async function toggleHomeLaunch(locationId, launchId) {
+  if (homePortSavePending) return;
   const location = state.locations.find(item => item.id === locationId);
   const launch = location?.launches?.find(item => item.id === launchId);
   if (!launch) return;
@@ -167,7 +241,20 @@ export async function toggleHomeLaunch(locationId, launchId) {
     alert("The Home Port must be on a Great Lake at least 1 km offshore.");
     return;
   }
-  await updateSettings(settings => { if (selected) delete settings.homePort; else settings.homePort = { locationId, launchId }; });
+  const nextHomePort = selected ? null : { locationId, launchId };
+  homePortSavePending = true;
+  renderLocationManager(nextHomePort);
+  try {
+    await updateSettings(settings => {
+      if (nextHomePort) settings.homePort = nextHomePort;
+      else delete settings.homePort;
+    });
+  } catch (error) {
+    homePortSavePending = false;
+    renderLocationManager();
+    throw error;
+  }
+  homePortSavePending = false;
   renderLocationManager();
 }
 

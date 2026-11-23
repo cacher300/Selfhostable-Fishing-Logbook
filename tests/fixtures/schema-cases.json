@@ -1,5 +1,10 @@
 {
   "cases": [
+    { "name": "weather front source enum", "valid": false, "path": "trips[0].weatherFrontSource", "set": { "trips": [{ "id": "a", "weatherFrontSource": "guess" }] } },
+    { "name": "all manual weather front choices", "valid": true, "set": { "trips": [{ "id": "a", "weatherFront": "pre-front" }, { "id": "b", "weatherFront": "during-front" }, { "id": "c", "weatherFront": "post-front" }, { "id": "d", "weatherFront": "no-front" }, { "id": "e", "weatherFront": "" }, { "id": "f" }] } },
+    { "name": "weather front rejects unsupported choice", "valid": false, "path": "trips[0].weatherFront", "set": { "trips": [{ "id": "a", "weatherFront": "cold" }] } },
+    { "name": "weather front rejects null", "valid": false, "path": "trips[0].weatherFront", "set": { "trips": [{ "id": "a", "weatherFront": null }] } },
+    { "name": "weather front rejects number", "valid": false, "path": "trips[0].weatherFront", "set": { "trips": [{ "id": "a", "weatherFront": 1 }] } },
     { "name": "canonical default", "valid": true },
     { "name": "old optional subtype lists omitted", "valid": true, "remove": ["lureBeadSizes", "meatRigTypes", "softPlasticTypes"] },
     { "name": "missing required collection", "valid": false, "path": "riggings", "remove": ["riggings"] },

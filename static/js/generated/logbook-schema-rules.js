@@ -4,6 +4,24 @@ import { checkGreatLakesHomePort } from "../great-lakes-boundaries.js";
 
 export const constants = {
   "schemaVersion": 2,
+  "weatherFronts": [
+    {
+      "value": "pre-front",
+      "label": "Pre-front"
+    },
+    {
+      "value": "during-front",
+      "label": "During front"
+    },
+    {
+      "value": "post-front",
+      "label": "Post-front"
+    },
+    {
+      "value": "no-front",
+      "label": "No front"
+    }
+  ],
   "uploadCategories": [
     "catch-photos",
     "flashers",
@@ -203,6 +221,7 @@ export const constants = {
     "people",
     "locations",
     "spots",
+    "drifts",
     "expeditions",
     "trips"
   ],
@@ -215,6 +234,7 @@ export const constants = {
     "people",
     "locations",
     "spots",
+    "drifts",
     "expeditions",
     "trips"
   ],
@@ -244,7 +264,9 @@ export const defaultLogbook = {
     "Rock Bass",
     "Smallmouth Bass",
     "Walleye",
+    "White Bass",
     "White Crappie",
+    "White Perch",
     "Yellow Bullhead",
     "Anything"
   ],
@@ -591,6 +613,330 @@ export const defaultLogbook = {
   "people": [],
   "locations": [],
   "spots": [],
+  "drifts": [
+    {
+      "id": "niagara-fort-george",
+      "name": "Fort George Drift",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.257,
+          "longitude": -79.0725
+        },
+        {
+          "latitude": 43.257,
+          "longitude": -79.0695
+        },
+        {
+          "latitude": 43.246,
+          "longitude": -79.0665
+        },
+        {
+          "latitude": 43.246,
+          "longitude": -79.0695
+        }
+      ]
+    },
+    {
+      "id": "niagara-jackson",
+      "name": "Jackson Drift",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.23,
+          "longitude": -79.0605
+        },
+        {
+          "latitude": 43.23,
+          "longitude": -79.0575
+        },
+        {
+          "latitude": 43.219,
+          "longitude": -79.0525
+        },
+        {
+          "latitude": 43.219,
+          "longitude": -79.0555
+        }
+      ]
+    },
+    {
+      "id": "niagara-pine",
+      "name": "Pine Drift",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.199,
+          "longitude": -79.0545
+        },
+        {
+          "latitude": 43.199,
+          "longitude": -79.0515
+        },
+        {
+          "latitude": 43.188,
+          "longitude": -79.0525
+        },
+        {
+          "latitude": 43.188,
+          "longitude": -79.0555
+        }
+      ]
+    },
+    {
+      "id": "niagara-bullhead-bay",
+      "name": "Bullhead Bay",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.187,
+          "longitude": -79.056
+        },
+        {
+          "latitude": 43.187,
+          "longitude": -79.053
+        },
+        {
+          "latitude": 43.181,
+          "longitude": -79.054
+        },
+        {
+          "latitude": 43.181,
+          "longitude": -79.057
+        }
+      ]
+    },
+    {
+      "id": "niagara-queenston-long",
+      "name": "Queenston Long Drift",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.18,
+          "longitude": -79.057
+        },
+        {
+          "latitude": 43.18,
+          "longitude": -79.054
+        },
+        {
+          "latitude": 43.171,
+          "longitude": -79.056
+        },
+        {
+          "latitude": 43.171,
+          "longitude": -79.059
+        }
+      ]
+    },
+    {
+      "id": "niagara-queenston",
+      "name": "Queenston Drift",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.1705,
+          "longitude": -79.059
+        },
+        {
+          "latitude": 43.1705,
+          "longitude": -79.056
+        },
+        {
+          "latitude": 43.1665,
+          "longitude": -79.058
+        },
+        {
+          "latitude": 43.1665,
+          "longitude": -79.061
+        }
+      ]
+    },
+    {
+      "id": "niagara-queenston-back",
+      "name": "Queenston Back Drift",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.166,
+          "longitude": -79.0605
+        },
+        {
+          "latitude": 43.166,
+          "longitude": -79.0575
+        },
+        {
+          "latitude": 43.161,
+          "longitude": -79.0605
+        },
+        {
+          "latitude": 43.161,
+          "longitude": -79.0635
+        }
+      ]
+    },
+    {
+      "id": "niagara-coast-guard",
+      "name": "Coast Guard Drift",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.263,
+          "longitude": -79.064
+        },
+        {
+          "latitude": 43.263,
+          "longitude": -79.061
+        },
+        {
+          "latitude": 43.255,
+          "longitude": -79.059
+        },
+        {
+          "latitude": 43.255,
+          "longitude": -79.062
+        }
+      ]
+    },
+    {
+      "id": "niagara-johnson",
+      "name": "Johnson Drift",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.231,
+          "longitude": -79.054
+        },
+        {
+          "latitude": 43.231,
+          "longitude": -79.051
+        },
+        {
+          "latitude": 43.221,
+          "longitude": -79.048
+        },
+        {
+          "latitude": 43.221,
+          "longitude": -79.051
+        }
+      ]
+    },
+    {
+      "id": "niagara-peggys-eddy",
+      "name": "Peggy’s Eddy",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.219,
+          "longitude": -79.049
+        },
+        {
+          "latitude": 43.219,
+          "longitude": -79.046
+        },
+        {
+          "latitude": 43.211,
+          "longitude": -79.045
+        },
+        {
+          "latitude": 43.211,
+          "longitude": -79.048
+        }
+      ]
+    },
+    {
+      "id": "niagara-lower-stella",
+      "name": "Lower Stella Drift",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.21,
+          "longitude": -79.0475
+        },
+        {
+          "latitude": 43.21,
+          "longitude": -79.0445
+        },
+        {
+          "latitude": 43.201,
+          "longitude": -79.0445
+        },
+        {
+          "latitude": 43.201,
+          "longitude": -79.0475
+        }
+      ]
+    },
+    {
+      "id": "niagara-upper-stella",
+      "name": "Upper Stella Drift",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.198,
+          "longitude": -79.0465
+        },
+        {
+          "latitude": 43.198,
+          "longitude": -79.0435
+        },
+        {
+          "latitude": 43.187,
+          "longitude": -79.0445
+        },
+        {
+          "latitude": 43.187,
+          "longitude": -79.0475
+        }
+      ]
+    },
+    {
+      "id": "niagara-perch-beds",
+      "name": "Perch Beds",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.181,
+          "longitude": -79.0475
+        },
+        {
+          "latitude": 43.181,
+          "longitude": -79.0445
+        },
+        {
+          "latitude": 43.174,
+          "longitude": -79.046
+        },
+        {
+          "latitude": 43.174,
+          "longitude": -79.049
+        }
+      ]
+    },
+    {
+      "id": "niagara-artpark",
+      "name": "Artpark Drift",
+      "waterbody": "Niagara River",
+      "polygon": [
+        {
+          "latitude": 43.17,
+          "longitude": -79.0485
+        },
+        {
+          "latitude": 43.17,
+          "longitude": -79.0455
+        },
+        {
+          "latitude": 43.163,
+          "longitude": -79.0485
+        },
+        {
+          "latitude": 43.163,
+          "longitude": -79.0515
+        }
+      ]
+    }
+  ],
   "expeditions": [],
   "trips": []
 };
@@ -683,6 +1029,19 @@ function isoDate(value) {
   const time = Date.parse(value + "T00:00:00Z");
   return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
 }
+function validPolygon(points) {
+  const pairs = points.map(point => [point.longitude, point.latitude]);
+  if (new Set(pairs.map(point => point.join(","))).size !== pairs.length) return false;
+  const cross = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const area = pairs.reduce((total, point, index) => total + point[0] * pairs[(index + 1) % pairs.length][1] - pairs[(index + 1) % pairs.length][0] * point[1], 0);
+  if (Math.abs(area) < 1e-10) return false;
+  for (let first = 0; first < pairs.length; first += 1) for (let second = first + 2; second < pairs.length; second += 1) {
+    if (first === 0 && second === pairs.length - 1) continue;
+    const a = pairs[first], b = pairs[(first + 1) % pairs.length], c = pairs[second], d = pairs[(second + 1) % pairs.length];
+    if (cross(a, b, c) * cross(a, b, d) < 0 && cross(c, d, a) * cross(c, d, b) < 0) return false;
+  }
+  return true;
+}
 function semantic(document) {
   for (const key of OBJECT_COLLECTION_KEYS) {
     const seen = new Set();
@@ -745,6 +1104,8 @@ function semantic(document) {
   if (settings.defaultSavedSetupIds !== undefined) for (const method of Object.keys(settings.defaultSavedSetupIds)) { const setupMethod = setupMethods.get(settings.defaultSavedSetupIds[method]); if (!setupMethod || setupMethod.toLowerCase() !== method.trim().toLowerCase()) return fail("settings.defaultSavedSetupIds." + method, "must reference a saved setup for that method"); }
   const spotNames = new Set();
   for (let index = 0; index < document.spots.length; index += 1) { const name = document.spots[index].name.trim().toLowerCase(); if (spotNames.has(name)) return fail("spots[" + index + "].name", "must be unique ignoring case"); spotNames.add(name); }
+  const driftNames = new Set();
+  for (let index = 0; index < document.drifts.length; index += 1) { const item = document.drifts[index]; const name = item.name.trim().toLowerCase(); if (driftNames.has(name)) return fail("drifts[" + index + "].name", "must be unique ignoring case"); driftNames.add(name); if (!validPolygon(item.polygon)) return fail("drifts[" + index + "].polygon", "must be a simple area with distinct vertices"); }
   for (let index = 0; index < document.expeditions.length; index += 1) { const item = document.expeditions[index]; const path = "expeditions[" + index + "]"; if (!isoDate(item.startDate)) return fail(path + ".startDate", "must be a valid ISO date"); if (!isoDate(item.endDate)) return fail(path + ".endDate", "must be a valid ISO date"); if (item.endDate < item.startDate) return fail(path + ".endDate", "must be on or after startDate"); }
   return ok();
 }

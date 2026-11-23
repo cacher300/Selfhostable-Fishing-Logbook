@@ -116,3 +116,18 @@ export function openTripSummary(trip) {
   els.tripSummaryDialog.showModal();
   if (catchMapRecordsForTrip(trip).length) renderTripSummaryMap(trip);
 }
+
+export function refreshOpenTripSummary(tripId) {
+  if (!els.tripSummaryDialog?.open || ui.activeSummaryTripId !== tripId) return false;
+  const trip = state.trips.find((item) => item.id === tripId);
+  if (!trip) return false;
+
+  closeSummaryCatchDetail();
+  ui.tripSummaryMap?.remove();
+  ui.tripSummaryMap = null;
+  ui.tripSummaryMapMarkers = null;
+  els.tripSummaryTitle.textContent = displayTitleText(trip.title || trip.location || "Trip Summary");
+  setHtml(els.tripSummaryBody, renderTripReport(trip));
+  if (catchMapRecordsForTrip(trip).length) renderTripSummaryMap(trip);
+  return true;
+}

@@ -109,4 +109,64 @@ test.describe("application smoke", () => {
     await expect(page.locator("#deleteTripButton")).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
+
+  test("keeps the trip editor open while Save Draft is in flight", async ({ page }) => {
+    let releaseSave;
+    let notifySaveStarted;
+    const saveGate = new Promise((resolve) => { releaseSave = resolve; });
+    const saveStarted = new Promise((resolve) => { notifySaveStarted = resolve; });
+    await page.route("**/api/logbook", async (route) => {
+      if (route.request().method() === "PUT") {
+        notifySaveStarted();
+        await saveGate;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/trips");
+    await page.getByRole("button", { name: "New Trip", exact: true }).click();
+    await page.locator("#tripTitle").fill("Pending draft");
+    await page.locator('#tripDialog [data-trip-draft-save]').first().click();
+    await saveStarted;
+
+    const closeButton = page.locator("#tripDialog [data-close-dialog]").first();
+    await expect(closeButton).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#tripDialog")).toBeVisible();
+
+    releaseSave();
+    await expect(page.locator("#tripDialog")).toBeHidden();
+    const saved = await (await page.request.get("/api/logbook")).json();
+    expect(saved.trips).toHaveLength(1);
+    expect(saved.trips[0]).toMatchObject({ title: "Pending draft", isDraft: true });
+  });
+
+  test("explains a rejected draft save before allowing the user to discard it", async ({ page }) => {
+    await page.route("**/api/logbook", async (route) => {
+      if (route.request().method() === "PUT") {
+        await route.fulfill({
+          status: 412,
+          contentType: "application/json",
+          headers: { ETag: '"1"' },
+          body: JSON.stringify({ error: "The logbook was changed in another tab." })
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/trips");
+    await page.getByRole("button", { name: "New Trip", exact: true }).click();
+    await page.locator("#tripTitle").fill("Unsaved after conflict");
+    await page.locator('#tripDialog [data-trip-draft-save]').first().click();
+    await expect(page.locator("#tripFormMessage")).toContainText("changed in another tab");
+
+    page.once("dialog", async (dialog) => {
+      expect(dialog.message()).toContain("last save failed");
+      await dialog.dismiss();
+    });
+    await page.locator("#tripDialog [data-close-dialog]").first().click();
+    await expect(page.locator("#tripDialog")).toBeVisible();
+    await expect(page.locator("#tripTitle")).toHaveValue("Unsaved after conflict");
+  });
 });

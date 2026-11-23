@@ -2,6 +2,7 @@ import { html, joinHtml, setHtml } from "./html.js";
 import { createId, defaultTimeValue } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { automaticSpotId, choiceLabel, optionChoices, optionLabels, spotName, trollingSpreadById } from "./app-normalization.js";
+import { automaticDriftId, driftName } from "./drifts.js";
 import { formatDisplayTime } from "./app-units.js";
 import { els } from "./app-elements.js";
 import { isUsableCoordinates } from "./app-media.js";
@@ -11,7 +12,7 @@ import { catchSpeciesOptions, formatDate, populateChoiceSelect, populateOptionSe
 import { fishCoordinatesFromRow, manualCoordinatesFromRow, renderCatchPhotos, updateMetadataLockButtons } from "./photos.js";
 import { getValue, syncFishPersonSelect, syncTripFormChrome } from "./trip-editor.js";
 import { comboName, lureName, rodName } from "./gear-core.js";
-import { populateComboSelect, populateFlasherSelect, populateLureSelect, renderFlasherPreview, renderLurePreview } from "./gear-pickers.js";
+import { populateComboSelect, populateFlasherSelect, populateLureSelect, renderFlasherPreview, renderLurePreview, tripRodIsAvailable } from "./gear-pickers.js";
 import { defaultSetupLineSide, renderLiveTrollingSpread, setupLineAutoLabel, setupLineSideLabel } from "./trolling-spread.js";
 import { isTrollingTrip, populateStructureSelect, updateCheaterDepth, updateLeadcoreEstimatedDepth, updatePresentationFields, updateTrollingVisibility } from "./form-utils.js";
 import { applyTripDraftBindings, findDraftRecord, insertTripRow, replaceDraftRecord, replaceTripRows, updateTripRow } from "./draft-binding.js";
@@ -135,6 +136,20 @@ export function refreshCatchSpotSelect(row) {
     spotAssignmentMode: value === "__automatic__" ? "automatic" : "manual",
     spotId: value.startsWith("__") ? "" : value
   });
+  populateCatchDriftSelect(row, record);
+}
+
+export function populateCatchDriftSelect(row, fish = {}) {
+  const select = row?.querySelector(".catch-drift");
+  if (!select) return;
+  const automaticId = automaticDriftId({ ...fish, manualCoordinates: manualCoordinatesFromRow(row), coordinates: fishCoordinatesFromRow(row) });
+  const mode = fish.driftAssignmentMode === "manual" ? "manual" : "automatic";
+  setHtml(select, joinHtml([
+    html`<option value="__automatic__">${driftName(automaticId) || "No drift match"}</option>`,
+    html`<option value="__none__">No drift</option>`,
+    ...state.drifts.map((drift) => html`<option value="${drift.id}">${drift.name}</option>`)
+  ]));
+  select.value = mode === "automatic" ? "__automatic__" : (state.drifts.some((drift) => drift.id === fish.driftId) ? fish.driftId : "__none__");
 }
 
 export function updateUnknownTimeField(row) {
@@ -323,6 +338,7 @@ function hydratedFishRecord(catchItem = {}, { id, lost } = {}) {
     manualLongitude: manualCoordinates?.longitude ?? "",
     manualCoordinates,
     spotSelection: catchItem.spotAssignmentMode === "manual" ? (catchItem.spotId || "__none__") : "__automatic__",
+    driftSelection: catchItem.driftAssignmentMode === "manual" ? (catchItem.driftId || "__none__") : "__automatic__",
     setupLineValue,
     setupLineId: setupLineValue.split("::")[0] || catchItem.setupLineId || catchItem.rodId || "",
     setupLineTarget: setupLineValue.endsWith("::cheater") ? "cheater" : (catchItem.setupLineTarget || ""),
@@ -438,6 +454,7 @@ export function addFishRow(catchItem = {}, { container, lost, defaultRod = false
   node.querySelector(".catch-latitude").value = draftRecord.manualLatitude ?? "";
   node.querySelector(".catch-longitude").value = draftRecord.manualLongitude ?? "";
   populateCatchSpotSelect(node, draftRecord);
+  populateCatchDriftSelect(node, draftRecord);
   updateCatchLocationSummary(node);
   node.querySelector(".catch-presentation").value = draftRecord.presentation || "";
   node.querySelector(".catch-direction").value = draftRecord.direction || "";
@@ -540,7 +557,7 @@ export function addTripGearRow(gearItem = {}) {
   populateChoiceSelect(node.querySelector(".catch-presentation"), optionChoices("trollingPresentations"), "Select method", draftRecord.presentation || "");
   node.querySelector(".trip-gear-side").value = side;
   node.querySelector(".trip-gear-line-label").value = draftRecord.lineLabel || "";
-  populateComboSelect(node.querySelector(".trip-gear-combo"), draftRecord.comboId || "");
+  populateComboSelect(node.querySelector(".trip-gear-combo"), draftRecord.comboId || "", ui.tripDraft?.method);
   node.querySelector(".catch-presentation").value = draftRecord.presentation || "";
   node.querySelector(".trip-gear-cheater").checked = Boolean(draftRecord.hasCheater);
   node.querySelector(".trip-gear-leadcore").checked = Boolean(draftRecord.hasLeadcore);
@@ -661,6 +678,134 @@ export function importLastTrollingSpread() {
   syncTripFormChrome();
 }
 
+function setupTargetSpeciesMatches(current, previous) {
+  const first = String(current || "").trim().toLocaleLowerCase();
+  const second = String(previous || "").trim().toLocaleLowerCase();
+  return Boolean(first && second && first === second);
+}
+
+function previousTripIsEarlier(previous, current) {
+  const previousDate = String(previous.date || "");
+  const currentDate = String(current.date || "");
+  if (!previousDate || !currentDate) return true;
+  if (previousDate !== currentDate) return previousDate < currentDate;
+  const previousStart = String(previous.launchTime || "");
+  const currentStart = String(current.launchTime || "");
+  return Boolean(previousStart && currentStart && previousStart < currentStart);
+}
+
+export function previousTripForRodSetup() {
+  const trip = ui.tripDraft || {};
+  const method = String(trip.method || "").trim().toLocaleLowerCase();
+  const targetSpecies = String(trip.targetSpecies || "").trim();
+  if (!method || method === "trolling" || !targetSpecies) return null;
+
+  return (Array.isArray(state.trips) ? state.trips : [])
+    .filter((previous) => {
+      const previousMethod = String(previous.method || "").trim().toLocaleLowerCase();
+      if ((ui.activeTripId && previous.id === ui.activeTripId) || previousMethod !== method || previousMethod === "trolling") return false;
+      if (!Array.isArray(previous.gearUsed) || !previous.gearUsed.length) return false;
+      if (!previousTripIsEarlier(previous, trip)) return false;
+      return setupTargetSpeciesMatches(targetSpecies, previous.targetSpecies);
+    })
+    .sort((first, second) => (
+      String(second.date || "").localeCompare(String(first.date || ""))
+      || String(second.launchTime || "").localeCompare(String(first.launchTime || ""))
+    ))[0] || null;
+}
+
+export function syncLastTripSetupImportButton() {
+  const button = els.importLastTripSetupButton;
+  if (!button) return;
+  const sourceTrip = previousTripForRodSetup();
+  button.disabled = false;
+  button.title = sourceTrip
+    ? `Import rods from the ${sourceTrip.method} trip for ${sourceTrip.targetSpecies} on ${formatDate(sourceTrip.date)}`
+    : "Import rods from the latest earlier trip with the same method and target species.";
+}
+
+function lastTripRodSetupItem(gearItem = {}) {
+  const imported = { ...gearItem };
+  ["id", "startTime", "endTime", "changeNote", "notes", "side", "lineLabel", "presentation", "hasCheater", "hasLeadcore", "distanceBehind", "dipseyDiverColor", "attachedWeightOz", "cheaterLureId", "flasherId"]
+    .forEach((key) => { delete imported[key]; });
+  return imported;
+}
+
+function setupRowRodId(gearItem = {}) {
+  const combo = state.rodReelCombos.find((item) => String(item.id) === String(gearItem.comboId || ""));
+  return String(combo?.rodId || gearItem.rodId || "");
+}
+
+function matchExistingSetupRow(gearItem, existingRows, usedIds) {
+  const rodId = setupRowRodId(gearItem);
+  const reelId = String(gearItem.reelId || state.rodReelCombos.find((item) => String(item.id) === String(gearItem.comboId || ""))?.reelId || "");
+  const isAvailable = (item) => item.id && !usedIds.has(String(item.id));
+  return existingRows.find((item) => isAvailable(item) && gearItem.comboId && String(item.comboId || "") === String(gearItem.comboId))
+    || existingRows.find((item) => isAvailable(item) && rodId && setupRowRodId(item) === rodId && reelId && String(item.reelId || "") === reelId)
+    || existingRows.find((item) => isAvailable(item) && rodId && setupRowRodId(item) === rodId)
+    || null;
+}
+
+function preserveOrClearSetupReferences(existingRows, importedRows) {
+  const importedIds = new Set(importedRows.map((item) => String(item.id || "")).filter(Boolean));
+  const removedIds = new Set(existingRows.map((item) => String(item.id || "")).filter((id) => id && !importedIds.has(id)));
+  if (!removedIds.size) return;
+
+  ["catches", "lostFish"].forEach((collection) => {
+    (ui.tripDraft?.[collection] || []).forEach((fish) => {
+      const setupId = String(fish.setupLineValue || fish.setupLineId || fish.rodSelect || "").split("::")[0];
+      if (!removedIds.has(setupId)) return;
+      const previousRow = existingRows.find((item) => String(item.id || "") === setupId);
+      const rodId = String(fish.rodId || setupRowRodId(previousRow) || "");
+      const matchingImport = importedRows.find((item) => rodId && setupRowRodId(item) === rodId);
+      updateTripRow(collection, fish.id, matchingImport
+        ? { setupLineId: matchingImport.id, setupLineValue: matchingImport.id, setupLineTarget: "", rodSelect: matchingImport.id }
+        : { setupLineId: "", setupLineValue: "", setupLineTarget: "", rodSelect: "" });
+    });
+  });
+}
+
+export function importLastTripSetup() {
+  const sourceTrip = previousTripForRodSetup();
+  if (!sourceTrip) {
+    const trip = ui.tripDraft || {};
+    const method = String(trip.method || "").trim();
+    const targetSpecies = String(trip.targetSpecies || "").trim();
+    if (!method || !targetSpecies) {
+      alert("Choose a method and target species before importing rods from a previous trip.");
+    } else {
+      alert(`No earlier ${method} trip for ${targetSpecies} has rods to import.`);
+    }
+    return;
+  }
+
+  const rows = [...els.tripGearRows.querySelectorAll(".gear-used-row")];
+  if (rows.length && !window.confirm(`Replace the current rod setup with the setup from ${formatDate(sourceTrip.date)}?`)) return;
+
+  const existingRows = structuredClone(ui.tripDraft?.gearUsed || []);
+  const usedIds = new Set();
+  const importedRows = sourceTrip.gearUsed.map((gearItem) => {
+    const imported = lastTripRodSetupItem(gearItem);
+    const matchingRow = matchExistingSetupRow(imported, existingRows, usedIds);
+    if (matchingRow?.id) {
+      imported.id = matchingRow.id;
+      usedIds.add(String(matchingRow.id));
+    }
+    return imported;
+  });
+
+  rows.forEach((row) => row.remove());
+  replaceTripRows("gearUsed", []);
+  importedRows.forEach((gearItem) => addTripGearRow(gearItem));
+  preserveOrClearSetupReferences(existingRows, importedRows);
+  populateSetupLineSelects();
+  populateCatchRodSelects();
+  updateAllRowSummaries();
+  renderLiveTrollingSpread();
+  ui.tripFormUserChanged = true;
+  syncTripFormChrome();
+}
+
 export function gearRecordForRow(row) {
   const id = row?.dataset?.gearId || "";
   return findDraftRecord("gearUsed", id) || {};
@@ -698,11 +843,13 @@ export function catchRodPickerLabel(record = {}, index = 0, { cheater = false } 
 
 export function setupLineOptions(draft = ui.tripDraft) {
   return (Array.isArray(draft?.gearUsed) ? draft.gearUsed : []).flatMap((record, index) => {
+    const available = tripRodIsAvailable(selectedComboForRecord(record)?.rodId || record.rodId, draft.method);
     const mainOption = {
       id: record.id || createId(),
       label: catchRodPickerLabel(record, index),
       startTime: record.startTime || "",
-      endTime: record.endTime || ""
+      endTime: record.endTime || "",
+      available
     };
     if (!record.hasCheater) return [mainOption];
     return [
@@ -711,7 +858,8 @@ export function setupLineOptions(draft = ui.tripDraft) {
         id: `${record.id}::cheater`,
         label: catchRodPickerLabel(record, index, { cheater: true }),
         startTime: record.startTime || "",
-        endTime: record.endTime || ""
+        endTime: record.endTime || "",
+        available
       }
     ];
   });
@@ -729,11 +877,11 @@ export function populateSetupLineSelect(select, selectedId = "") {
   const catchTime = catchRecord.timeUnknown
     ? ""
     : (catchRecord.time || "");
-  const options = setupLineOptions().filter((option) => setupLineIsActiveAtTime(option, catchTime));
   const selected = selectedId || catchRecord.setupLineValue || catchRecord.setupLineId || select.dataset.selectedSetupLine || "";
+  const options = setupLineOptions().filter((option) => (option.available || option.id === selected) && setupLineIsActiveAtTime(option, catchTime));
   select.dataset.selectedSetupLine = "";
   setHtml(select, html`<option value="">Select rod</option>${joinHtml(options.map((item) => (
-    html`<option value="${item.id}" ${item.id === selected ? "selected" : ""}>${item.label}</option>`
+    html`<option value="${item.id}" ${item.id === selected ? "selected" : ""} ${item.available ? "" : "disabled"}>${item.label}</option>`
   )), "")}`);
 }
 
@@ -808,9 +956,12 @@ export function populateCatchRodSelect(select, selectedRodId = "", selectedOptio
     || options.find((item) => item.rodId === selected)?.id
     || "";
   select.dataset.selectedRodId = "";
-  setHtml(select, html`<option value="">Select rod</option>${joinHtml(options.map((item) => (
-    html`<option value="${item.id}" data-rod-id="${item.rodId}" data-lure-id="${item.lureId}" ${item.id === selectedOption ? "selected" : ""}>${item.label}</option>`
-  )), "")}`);
+  setHtml(select, html`<option value="">Select rod</option>${joinHtml(options.flatMap((item) => {
+    const available = tripRodIsAvailable(item.rodId, ui.tripDraft?.method);
+    const selected = item.id === selectedOption;
+    if (!available && !selected) return [];
+    return [html`<option value="${item.id}" data-rod-id="${item.rodId}" data-lure-id="${item.lureId}" ${selected ? "selected" : ""} ${available ? "" : "disabled"}>${item.label}</option>`];
+  }), "")}`);
 }
 
 export function populateCatchRodSelects() {
@@ -820,10 +971,19 @@ export function populateCatchRodSelects() {
   });
 }
 
+export function refreshTripRodChoices() {
+  els.tripGearRows.querySelectorAll(".gear-used-row").forEach((row) => {
+    const record = findDraftRecord("gearUsed", row.dataset.gearId);
+    populateComboSelect(row.querySelector(".trip-gear-combo"), record?.comboId || "", ui.tripDraft?.method);
+  });
+  populateCatchRodSelects();
+  els.tripDialog.querySelectorAll(".catch-setup-line").forEach((select) => populateSetupLineSelect(select));
+}
+
 function selectOnlyCatchRod(row) {
   const record = fishRecordForRow(row);
   if (record.detailsUnknown || record.rodId || record.setupLineId || record.setupLineValue) return;
-  const rods = catchRodOptions();
+  const rods = catchRodOptions().filter((rod) => tripRodIsAvailable(rod.rodId, ui.tripDraft?.method));
   if (rods.length !== 1) return;
   const [rod] = rods;
   if (!isTrollingTrip()) {

@@ -1,4 +1,5 @@
 import { html, joinHtml, setHtml } from "./html.js";
+import { renderWeatherFrontChoice, weatherFrontOptions } from "./weather-front.js";
 import { L } from "./vendor.js";
 import { createId, defaultTimeValue } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
@@ -8,7 +9,7 @@ import { deleteTrip } from "./actions.js";
 import { els } from "./app-elements.js";
 import { beginMediaEditSession, cleanupDeletedMedia, isUsableCoordinates, mediaReferenceKeys, previewImage } from "./app-media.js";
 import { LOCATION_FOCUS_ZOOM, coordinateText, populateLaunchSelect, populateLocationSelect, selectedTripLocationCoordinates, tripLocationCoordinates } from "./locations.js";
-import { refreshTripWaterClarity, refreshTripWaterTemperature, renderWeatherSummary, resetTripWaterTemperatureAutofill, scheduleTripWeatherPreview, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel } from "./location-weather.js";
+import { refreshTripWaterConditions, renderWeatherSummary, resetTripWaterConditionsAutofill, scheduleTripWeatherPreview, setWeatherStatus, updateMarineWaveHeightPlaceholder, weatherCardConditionsLabel } from "./location-weather.js";
 import { syncUnitLabels } from "./settings.js";
 import { populateDatalist, populateOptionSelect, renderAll } from "./dashboard.js";
 import { ExpeditionAnalytics } from "./expedition-analytics.js";
@@ -26,6 +27,8 @@ import { applyTripDraftBindings, findDraftRecord, updateTripRow } from "./draft-
 import { isGreatLakesFishingTrip, loadSavedFishingConditions, thermoclineDisplayValue } from "./trip-fishing-conditions.js";
 
 const tripThermoclineRequestIds = new WeakMap();
+let tripSaveInProgress = false;
+let tripSaveFailed = false;
 
 export function clearTripFormMessage() {
   els.tripFormMessage.classList.add("hidden");
@@ -72,6 +75,8 @@ export function focusTripValidationField(fieldId) {
 }
 
 export function setTripSaveLoading(saving, action = "") {
+  tripSaveInProgress = Boolean(saving);
+  if (saving) tripSaveFailed = false;
   const loadingSelector = action === "draft"
     ? "[data-trip-draft-save]"
     : action === "save"
@@ -82,6 +87,17 @@ export function setTripSaveLoading(saving, action = "") {
     button.classList.toggle("is-loading", Boolean(saving && loadingSelector && button.matches(loadingSelector)));
     button.setAttribute("aria-busy", String(saving));
   });
+  document.querySelectorAll("#tripDialog [data-close-dialog], #deleteTripButton").forEach((button) => {
+    button.disabled = saving;
+  });
+}
+
+export function isTripSaveInProgress() {
+  return tripSaveInProgress;
+}
+
+export function setTripSaveFailed(failed) {
+  tripSaveFailed = Boolean(failed);
 }
 
 export function tripFormSnapshot() {
@@ -206,9 +222,15 @@ export function markTripFormChanged() {
 
 export function closeTripDialog({ force = false } = {}) {
   if (!els.tripDialog.open) return true;
-  if (!force && isTripFormDirty() && !confirm("Discard unsaved trip changes?")) return false;
+  if (!force && tripSaveInProgress) return false;
+  const closeMessage = tripSaveFailed
+    ? "The last save failed. Your changes are still unsaved. Discard them?"
+    : "Discard unsaved trip changes?";
+  if (!force && isTripFormDirty() && !confirm(closeMessage)) return false;
+  if (force && tripSaveInProgress) setTripSaveLoading(false);
   ui.tripFormInitialSnapshot = "";
   ui.tripFormUserChanged = false;
+  tripSaveFailed = false;
   ui.tripDraft = null;
   els.tripDialog.close();
   els.tripSaveBar?.classList.remove("is-dirty");
@@ -387,7 +409,7 @@ export function ensureProbeTemperatureProfileDisclosure() {
 }
 
 export function openTripDialog(trip = null) {
-  resetTripWaterTemperatureAutofill();
+  resetTripWaterConditionsAutofill();
   beginMediaEditSession("trip");
   ui.activeTripId = trip?.id || null;
   ui.tripDraft = createTripDraft(trip);
@@ -429,6 +451,8 @@ export function openTripDialog(trip = null) {
     claritySelect.add(new Option(tripDraft.waterClarity, tripDraft.waterClarity));
   }
   setValue("waterClarity", tripDraft.waterClarity || "");
+  setHtml(document.querySelector("#weatherFront"), html`<option value="automatic">Automatic (estimate)</option><option value="">Unclassified</option>${joinHtml(weatherFrontOptions.map((option) => html`<option value="${option.value}">${option.label}</option>`), "")}`);
+  renderWeatherFrontChoice(tripDraft);
   populateOptionSelect(document.querySelector("#waterLevel"), optionLabels("waterLevels"), "Select level");
   setValue("flyHatch", tripDraft.flyHatch || "");
   setValue("waterLevel", tripDraft.waterLevel || "");
@@ -466,7 +490,7 @@ export function openTripDialog(trip = null) {
     const defaultPeople = new Set(state.settings?.defaultPeople || []);
     const savedPeople = (state.people || []).filter((person) => person.name?.trim() && defaultPeople.has(person.id));
     if (savedPeople.length) savedPeople.forEach(addPersonRow);
-    else addPersonRow({}, { editNew: true });
+    else addPersonRow({}, { focusSelect: true });
   }
   (tripDraft.gearUsed || []).forEach(addTripGearRow);
   (tripDraft.catches || []).forEach(addCatchRow);
@@ -486,7 +510,7 @@ export function openTripDialog(trip = null) {
     const continuationReady = syncTripContinuationGate();
     els.tripForm.scrollTop = 0;
     const initialFocus = continuationReady
-      ? els.personRows.querySelector("[data-focus-person-name='true'] .person-name")
+      ? els.personRows.querySelector("[data-focus-person-select='true'] .person-select")
       : [
         { selector: "#tripDate", value: ui.tripDraft?.date },
         { selector: "#tripLocation", value: ui.tripDraft?.locationId },
@@ -494,8 +518,7 @@ export function openTripDialog(trip = null) {
       ].find(({ value }) => !String(value || "").trim())?.selector;
     (typeof initialFocus === "string" ? document.querySelector(initialFocus) : initialFocus)?.focus({ preventScroll: true });
     ui.tripDraftHydrating = false;
-    void refreshTripWaterTemperature();
-    void refreshTripWaterClarity();
+    refreshTripWaterConditions();
     resetTripFormSnapshot();
     updateTripDialogHeader();
   });
@@ -1135,7 +1158,7 @@ export function intentLabel(value) {
   return value === "experimental" ? "Experimental" : "Serious";
 }
 
-export function addPersonRow(person = {}, { editNew = false } = {}) {
+export function addPersonRow(person = {}, { focusSelect = false } = {}) {
   const template = document.querySelector("#personRowTemplate");
   const node = template.content.firstElementChild.cloneNode(true);
   node.dataset.personId = person.id || createId();
@@ -1149,13 +1172,7 @@ export function addPersonRow(person = {}, { editNew = false } = {}) {
   els.personRows.append(node);
   applyTripDraftBindings(node);
   populatePersonSelects();
-  if (editNew) {
-    const select = node.querySelector(".person-select");
-    const input = node.querySelector(".person-name");
-    select.value = "__new__";
-    input.classList.remove("hidden");
-    node.dataset.focusPersonName = "true";
-  }
+  if (focusSelect) node.dataset.focusPersonSelect = "true";
 }
 
 export function setPersonPhotoForRow(row, photo) {

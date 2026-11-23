@@ -207,6 +207,16 @@
 .map-bathymetry-status { display: block; min-height: 0; margin: -1px 0 4px 27px; color: var(--muted); font-size: 12px; line-height: 1.35; }
 .map-bathymetry-status:empty { display: none; }
 .map-bathymetry-status.is-error { color: var(--error); }
+.map-satellite-photo-options { display: grid; gap: 8px; margin: 2px 0 8px 27px; }
+.map-satellite-photo-options[hidden] { display: none; }
+.map-satellite-opacity { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.map-satellite-opacity span { display: flex; justify-content: space-between; gap: 8px; }
+.map-satellite-opacity input { width: 100%; margin: 0; accent-color: var(--green); }
+.great-lakes-webcam-icon { display: grid; place-items: center; width: 24px !important; height: 24px !important; margin: 0 !important; border: 2px solid white; border-radius: 50%; background: #1b5f94; box-shadow: 0 1px 5px #0009; }
+.great-lakes-webcam-icon::before { content: ""; display: block; width: 8px; height: 8px; border: 1px solid white; border-radius: 50%; background: #9bd5ff; }
+.great-lakes-webcam-popup { min-width: 190px; }
+.great-lakes-webcam-popup .leaflet-popup-content { display: grid; gap: 4px; margin: 10px 14px; font-size: 12px; }
+.great-lakes-webcam-popup a { color: #126bb0; font-weight: 800; }
 
 .map-depth-v2-legend {
   display: flex;
@@ -864,6 +874,10 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 .great-lakes-wind-legend { display: none; align-items: center; gap: 6px; margin: 6px 0 9px; font-size: 14px; font-weight: 500; }
 #greatLakesConditions.has-wind-layer .great-lakes-wind-legend { display: flex; }
 .great-lakes-wind-legend i { height: 9px; flex: 1; border-radius: 5px; background: linear-gradient(90deg, #1e4096, #1a78d2 10%, #14bed6 20%, #76de7a 44%, #fae03c 64%, #fa8a28 82.4%, #de285c); }
+.great-lakes-radar-legend { display: none; align-items: center; gap: 6px; margin: 6px 0 9px; font-size: 14px; font-weight: 500; }
+#greatLakesConditions.has-radar-layer .great-lakes-radar-legend { display: flex; }
+.great-lakes-radar-legend i { height: 9px; flex: 1; border-radius: 5px; background: linear-gradient(90deg, #183080, #2484e0 18%, #22be7c 36%, #eee234 54%, #f48420 70%, #e0302a 84%, #be30be); }
+#greatLakesConditions.has-radar-layer .great-lakes-timeline { display: flex; }
 /* Upwelling (blue) and downwelling (red): fixed colours, darker is stronger. */
 .great-lakes-upwelling-legend { display: none; align-items: center; gap: 5px; margin: 5px 0 4px; font-size: 11px; font-weight: 700; }
 #greatLakesConditions.has-upwelling-layer .great-lakes-upwelling-legend { display: flex; }
@@ -878,7 +892,7 @@ body:has(#tripSummaryDialog[open]) { overflow: hidden; }
 .great-lakes-current-arrow { background: transparent; }
 .great-lakes-current-arrow svg { display: block; overflow: visible; fill: var(--gl-flow-color, #fff); stroke: var(--gl-flow-halo, rgba(6, 16, 34, .72)); stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1px 1.5px rgba(6, 16, 34, .45)); }
 
-body.great-lakes-layer-none :is(.great-lakes-temperature-raster, .great-lakes-thermocline-raster, .great-lakes-upwelling-raster, .great-lakes-current-raster, .great-lakes-wave-raster, .great-lakes-wind-raster) { display: none !important; }
+body.great-lakes-layer-none :is(.great-lakes-temperature-raster, .great-lakes-thermocline-raster, .great-lakes-upwelling-raster, .great-lakes-current-raster, .great-lakes-wave-raster, .great-lakes-wind-raster, .great-lakes-radar-raster) { display: none !important; }
 .great-lakes-current-flow { position: absolute; inset: 0; pointer-events: none; z-index: 410; }
 .great-lakes-points-options { margin: 11px 0 0; padding: 9px 0 0; border: 0; border-top: 1px solid var(--line); }
 .great-lakes-points-options legend { padding: 0; font-size: 14px; font-weight: 800; color: var(--muted); }

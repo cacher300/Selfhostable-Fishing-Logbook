@@ -53,6 +53,7 @@ ui.activeMapYear = "All years";
 ui.activeMapYearFilteringHidden = true;
 ui.activeMapIncludeTripMedia = false;
 ui.activeMapIncludeSpots = true;
+ui.activeMapIncludeDrifts = false;
 ui.activeMapShowDirectionArrows = true;
 export let mapNoaaChartsPreferenceKey;
 
@@ -62,6 +63,7 @@ ui.brandSpotlightTimer = null;
 ui.fishMap = null;
 ui.fishMapMarkers = null;
 ui.fishMapSpotMarkers = null;
+ui.fishMapDriftAreas = null;
 ui.tripSummaryMap = null;
 ui.tripSummaryMapMarkers = null;
 ui.catchDetailMap = null;
@@ -80,6 +82,7 @@ ui.fishingSpotMap = null;
 ui.fishingSpotLayer = null;
 ui.activeFishingSpotId = "";
 ui.editingFishingSpotId = "";
+ui.expandedFishingSpotIds = [];
 ui.fishingSpotNameEditId = "";
 ui.catchLocationPickerMap = null;
 ui.catchLocationPickerMarker = null;
@@ -118,9 +121,9 @@ export const returnToTripDialog = {
 export function loadMapNoaaChartsPreference() {
   try {
     const saved = localStorage.getItem(mapNoaaChartsPreferenceKey);
-    return saved === null ? true : saved === "true";
+    return saved === null ? false : saved === "true";
   } catch {
-    return true;
+    return false;
   }
 }
 

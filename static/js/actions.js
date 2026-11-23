@@ -1,5 +1,6 @@
 import { commit } from "./store.js";
 import { ExpeditionAnalytics } from "./expedition-analytics.js";
+import { automaticDriftId } from "./drifts.js";
 
 function ensureArray(document, collection) {
   if (!Array.isArray(document[collection])) document[collection] = [];
@@ -112,6 +113,22 @@ export function deleteLocation(locationId) {
 export function replaceFishingSpots(spots) {
   return commit((draft) => {
     draft.spots = spots;
+  });
+}
+
+export function replaceDrifts(drifts) {
+  return commit((draft) => {
+    draft.drifts = drifts;
+    for (const trip of draft.trips || []) {
+      for (const fish of [...(trip.catches || []), ...(trip.lostFish || [])]) {
+        if (fish.driftAssignmentMode === "manual") {
+          if (!drifts.some((drift) => drift.id === fish.driftId)) fish.driftId = "";
+        } else if (String(trip.method || "").trim().toLowerCase() === "drifting") {
+          fish.driftId = automaticDriftId(fish, drifts);
+          fish.driftAssignmentMode = "automatic";
+        }
+      }
+    }
   });
 }
 

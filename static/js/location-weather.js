@@ -1,5 +1,6 @@
 import { state, ui } from "./app-state.js";
 import { findLaunchByIdOrName, tripWeatherCoordinates } from "./app-normalization.js";
+import { automaticWeatherFrontPatch, classifyWeatherFront, renderWeatherFrontChoice, weatherFrontDateRange } from "./weather-front.js";
 import { displayStoredMeasurement, formatDisplayTime, formatUnitValue, unitPreference } from "./app-units.js";
 import { els } from "./app-elements.js";
 import { isUsableCoordinates } from "./app-media.js";
@@ -7,7 +8,7 @@ import { chopLabelForWaveHeight } from "./settings-core.js";
 import { getValue, setValue } from "./trip-editor.js";
 import { updateTripField } from "./draft-binding.js";
 import { tripWaterTemperatureLocationAvailable, tripWaterTemperatureLookup, tripWaterTemperatureText } from "./trip-water-temperature.js";
-import { clarityLookupTime } from "./trip-water-clarity.js";
+import { clarityLookupTime, isNiagaraRiver } from "./trip-water-clarity.js";
 
 export const weatherRequestCache = new Map();
 export const marineRequestCache = new Map();
@@ -25,10 +26,17 @@ export function markTripWaterClarityManual() {
   clarityRequestId += 1;
 }
 
-export async function refreshTripWaterClarity() {
+export function refreshTripWaterConditions() {
   if (!els.tripDialog?.open) return;
   const trip = tripDraftForWeather();
   const time = clarityLookupTime(trip);
+  let request;
+  const niagaraReading = () => request ??= window.noaaGreatLakesApi?.clarity?.({ time });
+  void refreshTripWaterClarity(trip, time, niagaraReading);
+  void refreshTripWaterTemperature(trip, time, niagaraReading);
+}
+
+async function refreshTripWaterClarity(trip, time, niagaraReading) {
   const key = JSON.stringify([trip.locationId, trip.location, time]);
   if (key === clarityKey) return;
   clarityKey = key;
@@ -41,10 +49,10 @@ export async function refreshTripWaterClarity() {
     setValue("waterClarity", "");
     updateTripField("waterClarity", "");
   }
-  if (!time || !window.noaaGreatLakesApi?.clarity) return;
+  if (!time) return;
   try {
-    const data = await window.noaaGreatLakesApi.clarity({ time });
-    if (requestId !== clarityRequestId || !els.tripDialog?.open || !data.available || !data.reading?.category) return;
+    const data = await niagaraReading();
+    if (requestId !== clarityRequestId || !els.tripDialog?.open || clarityLookupTime(tripDraftForWeather()) !== time || !data?.available || !data.reading?.category) return;
     if (field.value && field.value !== previous) return;
     const value = data.reading.category;
     if (![...field.options].some(option => option.value === value)) field.add(new Option(value, value));
@@ -169,7 +177,7 @@ export async function fetchWeatherBundle(coordinates, startDate, endDate) {
   const key = weatherCacheKey(coordinates, startDate, endDate);
   if (weatherRequestCache.has(key)) return weatherRequestCache.get(key);
   const today = new Date().toISOString().slice(0, 10);
-  const endpoint = startDate >= today ? "/api/weather/forecast" : "/api/weather/archive";
+  const endpoint = endDate >= today ? "/api/weather/forecast" : "/api/weather/archive";
   const hourlyFields = [
     "temperature_2m",
     "apparent_temperature",
@@ -641,6 +649,15 @@ export async function buildWeatherDataForTrip(trip, source, includeCatches = tru
     sunMoon: astronomy
   };
   weatherData.frontTag = frontTagFromTrend(weatherData.trend);
+  const range = weatherFrontDateRange(trip);
+  if (range) {
+    try {
+      const context = await fetchWeatherBundle(source.coordinates, range.startDate, range.endDate);
+      weatherData.frontAssessment = { ...classifyWeatherFront(trip, context), fetchedAt: new Date().toISOString(), provider: "Open-Meteo", ...range };
+    } catch {
+      // An optional front lookup must never prevent saving valid weather/trip data.
+    }
+  }
   if (!includeCatches) return { tripWeather: weatherData, catches: trip.catches || [] };
 
   const catches = await Promise.all((trip.catches || []).map(async (catchItem) => {
@@ -680,7 +697,7 @@ export async function enrichTripWithWeather(trip) {
   }
   try {
     const result = await buildWeatherDataForTrip(trip, source, true);
-    return { ...trip, weatherData: result.tripWeather, catches: result.catches };
+    return { ...trip, weatherData: result.tripWeather, catches: result.catches, ...automaticWeatherFrontPatch(trip, result.tripWeather.frontAssessment) };
   } catch (error) {
     return {
       ...trip,
@@ -860,7 +877,12 @@ export async function refreshTripWeatherPreview(force = false) {
   renderWeatherSummary(null);
   try {
     const result = await buildWeatherDataForTrip(trip, source, false);
+    if (key !== ui.activeTripWeatherKey || !els.tripDialog?.open) return;
     ui.activeTripWeatherData = result.tripWeather;
+    if (ui.tripDraft) {
+      Object.entries(automaticWeatherFrontPatch(ui.tripDraft, result.tripWeather.frontAssessment)).forEach(([field, value]) => updateTripField(field, value));
+      renderWeatherFrontChoice(ui.tripDraft, result.tripWeather.frontAssessment);
+    }
     updateMarineWaveHeightPlaceholder(ui.activeTripWeatherData);
     renderWeatherSummary();
     setWeatherStatus(weatherCardConditionsLabel());
@@ -871,7 +893,7 @@ export async function refreshTripWeatherPreview(force = false) {
   }
 }
 
-export function resetTripWaterTemperatureAutofill() {
+export function resetTripWaterConditionsAutofill() {
   clarityAutoValue = "";
   clarityKey = "";
   clarityRequestId += 1;
@@ -885,14 +907,12 @@ export function markTripWaterTemperatureManual() {
   tripWaterTemperatureRequestId += 1;
 }
 
-export async function refreshTripWaterTemperature() {
-  if (!els.tripDialog?.open) return;
-  const trip = tripDraftForWeather();
-  const source = tripWeatherCoordinates(trip);
-  const coordinates = source?.coordinates;
+async function refreshTripWaterTemperature(trip, niagaraTime, niagaraReading) {
+  const niagara = isNiagaraRiver(trip.location);
+  const coordinates = niagara ? null : tripWeatherCoordinates(trip)?.coordinates;
   const unit = unitPreference("waterTemperature");
   const lookup = coordinates && tripWaterTemperatureLocationAvailable(trip, coordinates) ? tripWaterTemperatureLookup(trip) : null;
-  const key = JSON.stringify({
+  const key = JSON.stringify(niagara ? [trip.locationId, trip.location, niagaraTime, unit] : {
     date: trip.date,
     launchTime: trip.launchTime,
     locationId: trip.locationId,
@@ -915,15 +935,25 @@ export async function refreshTripWaterTemperature() {
     setValue("waterTemp", "");
     updateTripField("waterTemp", "");
   }
-  if (!mayReplace || !coordinates || !lookup || !window.noaaGreatLakesApi?.temperatureValue) return;
+  if (!mayReplace) return;
 
   try {
-    const options = lookup.time
-      ? { time: lookup.time, depth: 0, latitude: coordinates.latitude, longitude: coordinates.longitude }
-      : { forecastHour: lookup.forecastHour, depth: 0, resolution: 320, latitude: coordinates.latitude, longitude: coordinates.longitude };
-    const reading = await window.noaaGreatLakesApi.temperatureValue(options);
-    if (requestId !== tripWaterTemperatureRequestId || !reading?.available) return;
-    const value = tripWaterTemperatureText(reading.temperatureC, unit);
+    let temperatureC;
+    if (niagara) {
+      if (!niagaraTime) return;
+      const data = await niagaraReading();
+      if (!els.tripDialog?.open || clarityLookupTime(tripDraftForWeather()) !== niagaraTime) return;
+      temperatureC = data?.waterTemperatureReading?.temperatureC;
+    } else {
+      if (!lookup || !window.noaaGreatLakesApi?.temperatureValue) return;
+      const options = lookup.time
+        ? { time: lookup.time, depth: 0, latitude: coordinates.latitude, longitude: coordinates.longitude }
+        : { forecastHour: lookup.forecastHour, depth: 0, resolution: 320, latitude: coordinates.latitude, longitude: coordinates.longitude };
+      const reading = await window.noaaGreatLakesApi.temperatureValue(options);
+      if (reading?.available) temperatureC = reading.temperatureC;
+    }
+    if (requestId !== tripWaterTemperatureRequestId || !els.tripDialog?.open) return;
+    const value = tripWaterTemperatureText(temperatureC, unit);
     if (!value) return;
     const latestValue = String(document.querySelector("#waterTemp")?.value || "").trim();
     if (latestValue && latestValue !== previousAutoValue) return;
@@ -931,6 +961,7 @@ export async function refreshTripWaterTemperature() {
     setValue("waterTemp", value);
     updateTripField("waterTemp", value);
   } catch {
+    if (niagara && requestId === tripWaterTemperatureRequestId) tripWaterTemperatureKey = "";
     // Temperature data is optional; an unavailable lookup should not block saving.
   }
 }
@@ -959,8 +990,7 @@ export function scheduleTripWeatherPreview(force = false) {
   clearTimeout(ui.weatherPreviewTimer);
   ui.weatherPreviewTimer = setTimeout(() => {
     void refreshTripWeatherPreview(force);
-    void refreshTripWaterTemperature();
-    void refreshTripWaterClarity();
+    refreshTripWaterConditions();
   }, 350);
 }
 

@@ -7,7 +7,7 @@ import { applyStartupSavedSetup } from "./saved-setups.js";
 import { renderAll } from "./dashboard.js";
 import { renderExpeditions } from "./expeditions.js";
 import { populatePersonSelects, setPersonPhotoForRow } from "./trip-editor.js";
-import { applyStartupTrollingSpread, updateAllRowSummaries, updateCatchDetailsUnknown } from "./trip-rows.js";
+import { applyStartupTrollingSpread, refreshTripRodChoices, updateAllRowSummaries, updateCatchDetailsUnknown } from "./trip-rows.js";
 import { renderGearLibrary } from "./gear-inventory.js";
 import { renderFishMap } from "./maps.js";
 import { renderAdvancedStats } from "./stats.js";
@@ -24,6 +24,7 @@ export function updateMethodVisibility({ applyStartupSpread = false } = {}) {
     if (isTrollingTrip()) applyStartupTrollingSpread();
     else applyStartupSavedSetup();
   }
+  refreshTripRodChoices();
   document.querySelectorAll(".catch-row.details-unknown").forEach(updateCatchDetailsUnknown);
 }
 
@@ -64,6 +65,7 @@ export function setView(view) {
   };
   const activeNavigationView = showingWiki ? "settings" : view;
   document.body.dataset.activeView = view;
+  if (showingSettings) window.scrollTo(0, 0);
   const panelsToHide = showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingGallery || showingChecklists || showingWiki || showingSettings;
   els.tripControls?.classList.toggle("hidden", panelsToHide);
   els.tripListPanel?.classList.toggle("hidden", panelsToHide);

@@ -29,6 +29,10 @@
                     <input id="mapSpotsToggle" type="checkbox" checked />
                     <span>Show spots</span>
                   </label>
+                  <label class="inline-toggle">
+                    <input id="mapDriftsToggle" type="checkbox" />
+                    <span>Show drifts</span>
+                  </label>
                   <label class="inline-toggle map-direction-toggle">
                     <input id="mapDirectionArrowsToggle" type="checkbox" checked />
                     <span>Direction arrows</span>
@@ -88,6 +92,25 @@
                     <span data-depth-min></span><span class="map-depth-v2-gradient"></span><span data-depth-max></span>
                   </div>
                   <small id="mapBathymetryV2Status" class="map-bathymetry-status" role="status" aria-live="polite"></small>
+                  <label class="inline-toggle map-chart-toggle">
+                    <input id="mapSatellitePhotoToggle" type="checkbox" />
+                    <span>NOAA satellite photo</span>
+                  </label>
+                  <div id="mapSatellitePhotoOptions" class="map-satellite-photo-options" hidden>
+                    <label class="map-display-select">
+                      <span>Satellite pass</span>
+                      <select id="mapSatellitePhotoPass" aria-label="Satellite pass" disabled></select>
+                    </label>
+                    <label class="map-satellite-opacity">
+                      <span>Photo opacity <output id="mapSatellitePhotoOpacityLabel">70%</output></span>
+                      <input id="mapSatellitePhotoOpacity" type="range" min="20" max="100" step="5" value="70" aria-label="Satellite photo opacity" />
+                    </label>
+                    <small id="mapSatellitePhotoStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
+                  </div>
+                  <label class="inline-toggle map-chart-toggle">
+                    <input id="mapWebcamsToggle" type="checkbox" />
+                    <span>Webcams</span>
+                  </label>
                   <fieldset class="great-lakes-points-options">
                     <legend>Data points</legend>
                     <label><input type="checkbox" data-gl-stations /> <span>Buoys</span></label>
@@ -95,7 +118,7 @@
                     <p data-gl-points-status role="status" aria-live="polite"></p>
                   </fieldset>
                   <label class="inline-toggle map-chart-toggle">
-                    <input id="mapNoaaChartsToggle" type="checkbox" checked />
+                    <input id="mapNoaaChartsToggle" type="checkbox" />
                     <span>NOAA charts</span>
                   </label>
                 </div>

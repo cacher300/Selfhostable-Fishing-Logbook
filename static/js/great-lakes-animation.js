@@ -17,6 +17,7 @@ import {
   setGreatLakesStatus,
   setTemperatureLegendRange,
   setThermoclineLegendRange,
+  setRadarLegendRange,
   setWaveLegendRange,
   setWindLegendRange,
   showPaletteRange,
@@ -51,12 +52,14 @@ export const ANIMATION_POLL_MS = 1500;
 export const ANIMATION_FETCH_CONCURRENCY = 4;
 export const ANIMATION_IDLE_LABEL = "Play up to 5 days";
 export const WAVE_ANIMATION_IDLE_LABEL = "Play up to 48 hours";
+export const RADAR_ANIMATION_IDLE_LABEL = "Play available radar frames";
 // Frames sit in their own pane, just under the overlay pane so current
 // particles stay on top. The pane carries the layer's opacity, so each image
 // can be fully opaque and a frame fading in over another never lets the map
 // show through.
 const ANIMATION_PANE = "greatLakesAnimation";
 const RASTER_STYLES = {
+  radar: { className: "great-lakes-radar-raster", opacity: 0.84 },
   "air-temperature": { className: "great-lakes-temperature-raster", opacity: 0.9 },
   temperature: { className: "great-lakes-temperature-raster", opacity: 0.9 },
   thermocline: { className: "great-lakes-thermocline-raster", opacity: 0.88 },
@@ -268,7 +271,10 @@ export function syncTimelineControls() {
     slider.step = state.playing ? "any" : "1";
     slider.value = String(state.index);
   }
-  if (label && !state.active) label.textContent = ["waves", "air-temperature"].includes(document.querySelector("[data-gl-layer]")?.value) ? WAVE_ANIMATION_IDLE_LABEL : ANIMATION_IDLE_LABEL;
+  if (label && !state.active) {
+    const layer = document.querySelector("[data-gl-layer]")?.value;
+    label.textContent = layer === "radar" ? RADAR_ANIMATION_IDLE_LABEL : ["waves", "air-temperature"].includes(layer) ? WAVE_ANIMATION_IDLE_LABEL : ANIMATION_IDLE_LABEL;
+  }
 }
 
 export function stopGreatLakesAnimation() {
@@ -430,6 +436,7 @@ export async function loadGreatLakesAnimation(map, { layer, depth, signal, isCur
     else if (layer === "thermocline") setThermoclineLegendRange(first);
     else if (layer === "waves") setWaveLegendRange(first);
     else if (layer === "wind") setWindLegendRange(first);
+    else if (layer === "radar") setRadarLegendRange(first);
     else if (layer === "upwelling") { /* fixed legend */ }
     else {
       setCurrentLegendRange(first);
@@ -709,7 +716,7 @@ function showFrame(index, { fade = true, preserveWaveArrows = false, preserveCur
   const models = [...(metadata.models || []), ...(state.backgroundPayloads?.[state.index]?.metadata?.models || [])];
   const unavailable = metadata.available === false || models.some((model) => !model.available);
   const shownDepth = ["air-temperature", "bottom-temperature", "thermocline", "waves", "upwelling"].includes(state.layer) ? null : modelDepthShown(state.backgroundPayloads?.[state.index]?.metadata || metadata);
-  setGreatLakesStatus(`${state.layer === "air-temperature" ? "NOAA HRRR · 2 m air temperature. " : ""}${unavailable ? "Data is missing in this frame. " : ""}${modelDepthNote(state.depth, shownDepth)}${tooShallowNote(models)}`, unavailable);
+  setGreatLakesStatus(`${state.layer === "radar" ? "NOAA HRRR simulated radar reflectivity · dBZ. " : state.layer === "air-temperature" ? "NOAA HRRR · 2 m air temperature. " : ""}${unavailable ? "Data is missing in this frame. " : ""}${modelDepthNote(state.depth, shownDepth)}${tooShallowNote(models)}`, unavailable);
   const temperatureMetadata = state.backgroundPayloads?.[state.index]?.metadata || (state.layer === "temperature" ? metadata : null);
   document.dispatchEvent(new CustomEvent("great-lakes-frame-shown", { detail: { layer: state.layer, metadata: { ...metadata, validTime: frame.validTime }, temperatureMetadata, depth: state.depth } }));
 }

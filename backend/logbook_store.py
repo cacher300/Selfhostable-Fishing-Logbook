@@ -252,6 +252,34 @@ def _validate_spot_names(payload: dict) -> tuple[bool, str | None]:
     return True, None
 
 
+def _validate_drifts(payload: dict) -> tuple[bool, str | None]:
+    names: set[str] = set()
+    for index, drift in enumerate(payload.get("drifts", [])):
+        path = f"drifts[{index}]"
+        name_key = drift["name"].strip().casefold()
+        if name_key in names:
+            return _error(f"{path}.name", "must be unique ignoring case")
+        names.add(name_key)
+        vertices = drift["polygon"]
+        points = [(point["longitude"], point["latitude"]) for point in vertices]
+        if len(set(points)) != len(points):
+            return _error(f"{path}.polygon", "must have distinct vertices")
+        area = sum(points[i][0] * points[(i + 1) % len(points)][1] - points[(i + 1) % len(points)][0] * points[i][1] for i in range(len(points)))
+        if abs(area) < 1e-10:
+            return _error(f"{path}.polygon", "must have a nonzero area")
+        def crosses(a, b, c, d):
+            def side(p, q, r):
+                return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+            return side(a, b, c) * side(a, b, d) < 0 and side(c, d, a) * side(c, d, b) < 0
+        for first in range(len(points)):
+            for second in range(first + 2, len(points)):
+                if first == 0 and second == len(points) - 1:
+                    continue
+                if crosses(points[first], points[(first + 1) % len(points)], points[second], points[(second + 1) % len(points)]):
+                    return _error(f"{path}.polygon", "must not cross itself")
+    return True, None
+
+
 def _validate_expedition_dates(payload: dict) -> tuple[bool, str | None]:
     for index, expedition in enumerate(payload.get("expeditions", [])):
         path = f"expeditions[{index}]"
@@ -286,6 +314,7 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
         _validate_unique_ids,
         lambda data: _validate_settings_semantics(data["settings"]),
         _validate_spot_names,
+        _validate_drifts,
         _validate_expedition_dates,
     )
     for rule in semantic_rules:

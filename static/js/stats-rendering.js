@@ -269,6 +269,7 @@ export function statsChartConfig(id, headers) {
     methodStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     waterClarityStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     weatherStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
+    weatherFrontStatsTable: { type: "bar", valueIndex: rateIndex, limit: 5 },
     intentStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     ratingStatsTable: { type: "bar", valueIndex: rateIndex, limit: 8 },
     personStatsTable: { type: "bar", valueIndex: fishIndex, limit: 8 },

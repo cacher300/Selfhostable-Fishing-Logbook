@@ -1,17 +1,17 @@
 import { activeStatsChartMetric, activeStatsTableSort, state, ui } from "./app-state.js";
 import { els } from "./app-elements.js";
 import { deleteManagedLaunch, deleteManagedLocation, locationFormCoordinates, openCatchLocationDialog, openLocationDialog, populateLaunchSelect, setLocationFormCoordinates, toggleHomeLaunch, updateCatchFowFromLocation, updateCatchLocationSummary, updateLocationControls } from "./locations.js";
-import { scheduleTripWeatherPreview } from "./location-weather.js";
+import { refreshTripWaterConditions, scheduleTripWeatherPreview } from "./location-weather.js";
 import { scheduleSettingsAutosave, settingsUi } from "./settings-core.js";
-import { addPredefinedOption as addPredefinedOptionDraft, removePredefinedOption as removePredefinedOptionDraft, savePredefinedFieldSettings, updatePredefinedFieldCount } from "./settings-fields.js";
-import { collectFishingSpotSettings, collectPrivatePhotoLocationSettings, renderFishingSpotSettings, renderPrivatePhotoLocationSettings, saveFishingSpots, savePrivatePhotoLocations } from "./settings-locations.js";
+import { addPredefinedOption as addPredefinedOptionDraft, cancelPredefinedEntryDeletion, handlePredefinedEntryDeleteClick, savePredefinedFieldSettings } from "./settings-fields.js";
+import { collectFishingSpotSettings, collectPrivatePhotoLocationSettings, renderFishingSpotMap, renderFishingSpotSettings, renderPrivatePhotoLocationSettings, saveFishingSpots, savePrivatePhotoLocations } from "./settings-locations.js";
 import { renderTrips } from "./dashboard.js";
 import { addCatchPhotos, applyPhotoCaptureTimeToCatch, applyPhotoLocationToCatch, catchPhotoById, claimQueuedPhoto, deleteQueuedPhoto, isCatchMetadataLocked, openPhotoQueue, renderCatchPhotos, renderNotePhotos, setCatchMetadataLock } from "./photos.js";
 import { addProbeProfileDepth, clearProbeProfileLocation, clearTripFormMessage, closeTripDialog, collectProbeTemperatureProfile, importNoaaProbeTemperatureProfile, isTripFormDirty, markTripFormChanged, openProbeProfileLocationDialog, openTripDialog, populatePersonSelects, refreshTripEnvironmentalConditions, renderProbeTemperatureProfileChart, saveProbeProfileLocation, setProbeProfileImportStatus, setValue, syncTripFormChrome } from "./trip-editor.js";
 import { refreshBeadRigEditor } from "./bead-rig-editor.js";
-import { duplicateCatchRow, populateCatchRodSelects, populateSetupLineSelects, refreshCatchFishingConditions, sortTrollingSetupRows, syncCatchMethodToSetupLine, syncCatchRiggingFromSetupLine, syncDirectCatchRodToLure, syncTripTimesToBlankRows, updateAllRowSummaries, updateCatchDetailsUnknown, updateRowSummary, updateUnknownTimeField } from "./trip-rows.js";
+import { duplicateCatchRow, populateCatchRodSelects, populateSetupLineSelects, refreshCatchFishingConditions, sortTrollingSetupRows, syncCatchMethodToSetupLine, syncCatchRiggingFromSetupLine, syncDirectCatchRodToLure, syncLastTripSetupImportButton, syncTripTimesToBlankRows, updateAllRowSummaries, updateCatchDetailsUnknown, updateRowSummary, updateUnknownTimeField } from "./trip-rows.js";
 import { openQueuedGearImagePreview, previewSelectedGearUploads, removeExistingGearPhoto, renderQueuedGearImage } from "./gear-core.js";
-import { populateLuresForType, renderFlasherPreview, renderLurePreview, renderLureTypeOptions, reopenLurePicker, syncComboToRow } from "./gear-pickers.js";
+import { renderFlasherPreview, renderLurePreview, syncComboToRow, updateRiggingVisibility } from "./gear-pickers.js";
 import { deleteFlasher, deleteLure, openComboDialog, openFlasherDialog, openFlasherInfoDialog, openLureDialog, openLureInfoDialog, openReelDialog, openRodDialog } from "./gear-dialogs.js";
 import { openInventoryItemInfo, selectGearFilterSuggestion, setGearTab, sortInventoryTable } from "./gear-inventory.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
@@ -23,7 +23,17 @@ import { updateCheaterDepth, updateLeadcoreEstimatedDepth, updatePresentationFie
 import { draftRecordForRow, handleGearDraftControlEvent, handleTripDraftControlEvent, removeDraftRecord } from "./draft-binding.js";
 
 import { closeGalleryLightbox, deleteGalleryItems, findGalleryItem, galleryCategoryLabels, gallerySelectionMode, galleryUi, openGalleryLightbox, renderGallery, selectGalleryRange, stepGalleryLightbox, toggleGallerySelection } from "./gallery.js";
-import { openStructureDialog } from "./app-control-events.js";
+import { openRiggingDialog, openStructureDialog } from "./app-control-events.js";
+
+function selectFishingSpot(spotId) {
+  ui.activeFishingSpotId = spotId;
+  els.fishingSpotList?.querySelectorAll("[data-fishing-spot-id]").forEach((card) => {
+    const isActive = card.dataset.fishingSpotId === spotId;
+    card.classList.toggle("is-selected", isActive);
+    card.setAttribute("aria-current", String(isActive));
+  });
+  renderFishingSpotMap();
+}
 
 export function setup() {
   document.addEventListener("fishingconditionschange", (event) => {
@@ -288,19 +298,25 @@ export function setup() {
     const addPredefinedOption = event.target.closest(".add-predefined-option");
     if (addPredefinedOption) {
       const group = addPredefinedOption.closest(".predefined-field-group");
-      addPredefinedOptionDraft(group?.dataset.predefinedKey || "");
-      updatePredefinedFieldCount(group);
-      group?.querySelector(".predefined-option-row:last-child .predefined-option-label")?.focus();
+      const groupKey = group?.dataset.predefinedKey || "";
+      addPredefinedOptionDraft(groupKey);
+      [...(els.predefinedFieldSettings?.querySelectorAll(".predefined-field-group") || [])]
+        .find((item) => item.dataset.predefinedKey === groupKey)
+        ?.querySelector(".predefined-option-row:last-child .predefined-option-label")?.focus();
       scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }));
     }
   
-    const removePredefinedOption = event.target.closest(".remove-predefined-option");
-    if (removePredefinedOption) {
-      const group = removePredefinedOption.closest(".predefined-field-group");
-      const index = Number(removePredefinedOption.closest(".predefined-option-row")?.dataset.optionIndex);
-      removePredefinedOptionDraft(group?.dataset.predefinedKey || "", index);
-      updatePredefinedFieldCount(group);
-      scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }), 150);
+    const deletePredefinedEntries = event.target.closest(".predefined-delete-entries");
+    if (deletePredefinedEntries) {
+      const group = deletePredefinedEntries.closest(".predefined-field-group");
+      if (handlePredefinedEntryDeleteClick(group)) {
+        scheduleSettingsAutosave((options) => savePredefinedFieldSettings({ ...options, rerender: false }), 150);
+      }
+    }
+
+    const cancelPredefinedDeletion = event.target.closest(".predefined-delete-cancel");
+    if (cancelPredefinedDeletion) {
+      cancelPredefinedEntryDeletion(cancelPredefinedDeletion.closest(".predefined-field-group"));
     }
   
     const metadataLockButton = event.target.closest("[data-metadata-lock]");
@@ -473,13 +489,39 @@ export function setup() {
       renderPrivatePhotoLocationSettings();
     }
   
+    const toggleFishingSpot = event.target.closest("[data-toggle-fishing-spot]");
+    if (toggleFishingSpot) {
+      event.preventDefault();
+      const spotId = toggleFishingSpot.dataset.toggleFishingSpot;
+      const card = toggleFishingSpot.closest("[data-fishing-spot-id]");
+      const expanded = toggleFishingSpot.getAttribute("aria-expanded") === "true";
+      const shouldExpand = !expanded;
+      const expandedIds = Array.isArray(ui.expandedFishingSpotIds) ? ui.expandedFishingSpotIds : [];
+      ui.expandedFishingSpotIds = shouldExpand
+        ? [...new Set([...expandedIds, spotId])]
+        : expandedIds.filter((id) => id !== spotId);
+      card?.querySelector(".fishing-spot-editor")?.classList.toggle("hidden", !shouldExpand);
+      toggleFishingSpot.setAttribute("aria-expanded", String(shouldExpand));
+      selectFishingSpot(spotId);
+      if (ui.editingFishingSpotId && ui.editingFishingSpotId !== spotId) {
+        ui.editingFishingSpotId = "";
+        els.fishingSpotList?.querySelectorAll("[data-delete-fishing-spot]").forEach((button) => button.classList.add("hidden"));
+      }
+      return;
+    }
+
     const editFishingSpotPin = event.target.closest("[data-edit-fishing-spot-pin]");
     if (editFishingSpotPin) {
       event.preventDefault();
       event.stopPropagation();
-      ui.activeFishingSpotId = editFishingSpotPin.dataset.editFishingSpotPin;
+      const spotId = editFishingSpotPin.dataset.editFishingSpotPin;
+      selectFishingSpot(spotId);
       ui.editingFishingSpotId = ui.activeFishingSpotId;
-      renderFishingSpotSettings();
+      ui.expandedFishingSpotIds = [...new Set([...(ui.expandedFishingSpotIds || []), ui.activeFishingSpotId])];
+      const card = editFishingSpotPin.closest("[data-fishing-spot-id]");
+      card?.querySelector(".fishing-spot-editor")?.classList.remove("hidden");
+      card?.querySelector("[data-toggle-fishing-spot]")?.setAttribute("aria-expanded", "true");
+      card?.querySelector("[data-delete-fishing-spot]")?.classList.remove("hidden");
     }
   
     const deleteManagedLaunchButton = event.target.closest("[data-delete-managed-launch]");
@@ -510,6 +552,7 @@ export function setup() {
         const next = collectFishingSpotSettings().filter((item) => item.id !== spotId);
         ui.activeFishingSpotId = "";
         ui.editingFishingSpotId = "";
+        ui.expandedFishingSpotIds = (ui.expandedFishingSpotIds || []).filter((id) => id !== spotId);
         if (ui.fishingSpotNameEditId === spotId) ui.fishingSpotNameEditId = "";
         saveFishingSpots(next);
       }
@@ -527,10 +570,13 @@ export function setup() {
     }
   
     const fishingSpotCard = event.target.closest("[data-fishing-spot-id]");
-    if (fishingSpotCard && !event.target.closest("[data-edit-fishing-spot-name], button, input, select, textarea")) {
-      ui.activeFishingSpotId = fishingSpotCard.dataset.fishingSpotId;
-      if (ui.editingFishingSpotId !== ui.activeFishingSpotId) ui.editingFishingSpotId = "";
-      renderFishingSpotSettings();
+    if (fishingSpotCard && !event.target.closest("[data-edit-fishing-spot-name], .fishing-spot-editor, button, input, select, textarea")) {
+      const spotId = fishingSpotCard.dataset.fishingSpotId;
+      selectFishingSpot(spotId);
+      if (ui.editingFishingSpotId !== spotId) {
+        ui.editingFishingSpotId = "";
+        els.fishingSpotList?.querySelectorAll("[data-delete-fishing-spot]").forEach((button) => button.classList.add("hidden"));
+      }
     }
   
     const editPrivateLocationName = event.target.closest("[data-edit-private-location-name]");
@@ -551,6 +597,14 @@ export function setup() {
       renderPrivatePhotoLocationSettings();
     }
   
+    const addRiggingButton = event.target.closest(".add-rigging-inline");
+    if (addRiggingButton) {
+      const row = addRiggingButton.closest(".catch-row, .gear-used-row");
+      const select = row?.querySelector(".catch-rigging, .trip-gear-rigging");
+      if (select) openRiggingDialog(select);
+      return;
+    }
+
     const newLureButton = event.target.closest(".add-lure-inline");
     if (newLureButton) {
       const row = newLureButton.closest(".catch-row, .gear-used-row");
@@ -671,6 +725,9 @@ export function setup() {
   document.addEventListener("change", (event) => {
     handleTripDraftControlEvent(event);
     handleGearDraftControlEvent(event);
+    if (event.target.matches("#tripDate, #tripDateValue, #tripLocation, #tripLaunch, #targetSpecies, #method")) {
+      syncLastTripSetupImportButton();
+    }
     const columnToggle = event.target.closest?.("[data-report-column]");
     if (!columnToggle) return;
     const columns = reportColumns();
@@ -791,9 +848,11 @@ export function setup() {
       if (event.target.matches("#launchTime")) refreshTripEnvironmentalConditions();
     }
     if (event.target.matches("#tripDate, #tripDateValue, #tripLocation, #tripLaunch")) {
-      if (event.target.matches("#tripLocation")) populateLaunchSelect();
+      if (event.target.matches("#tripLocation")) populateLaunchSelect("");
       updateLocationControls();
       refreshTripEnvironmentalConditions();
+      refreshTripWaterConditions();
+      scheduleTripWeatherPreview(true);
     }
     if (event.target.matches("#method")) refreshTripEnvironmentalConditions();
     if (event.target.matches("#waveHeight")) {
@@ -804,14 +863,6 @@ export function setup() {
       markTripFormChanged();
     }
     if (event.target.matches(".catch-lure, .trip-gear-lure, .trip-gear-cheater-lure")) {
-      if (event.target.value.startsWith("__type__:")) {
-        populateLuresForType(event.target, event.target.value.replace("__type__:", ""));
-        reopenLurePicker(event.target);
-        return;
-      }
-      if (!event.target.value && event.target.dataset.lurePickerMode === "lures") {
-        renderLureTypeOptions(event.target);
-      }
       renderLurePreview(event.target.closest(".catch-row, .gear-used-row"));
     }
     if (event.target.matches(".catch-rod")) {
@@ -824,6 +875,9 @@ export function setup() {
       syncComboToRow(event.target.closest(".gear-used-row"));
       populateSetupLineSelects();
       populateCatchRodSelects();
+    }
+    if (event.target.matches(".catch-rigging, .trip-gear-rigging")) {
+      updateRiggingVisibility(event.target.closest(".catch-row, .gear-used-row"));
     }
     if (event.target.matches(".catch-setup-line")) {
       syncCatchMethodToSetupLine(event.target.closest(".catch-row"), true);
@@ -872,6 +926,9 @@ export function setup() {
   document.addEventListener("input", (event) => {
     handleTripDraftControlEvent(event);
     handleGearDraftControlEvent(event);
+    if (event.target.matches("#tripDate, #tripDateValue, #tripLocation, #tripLaunch, #targetSpecies, #method")) {
+      syncLastTripSetupImportButton();
+    }
     if (event.target.matches(".note-photo-caption")) {
       const card = event.target.closest("[data-note-photo]");
       const photo = ui.tripDraft?.notePhotos?.find((item) => item.id === card?.dataset.notePhoto);
@@ -886,6 +943,8 @@ export function setup() {
     }
     if (event.target.matches("#tripDate, #tripLocation, #tripLaunch")) {
       updateLocationControls();
+      refreshTripWaterConditions();
+      scheduleTripWeatherPreview(true);
     }
     if (event.target.matches("#locationLatitude, #locationLongitude")) {
       const coordinates = locationFormCoordinates();

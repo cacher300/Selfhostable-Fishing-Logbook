@@ -4,6 +4,10 @@ Base URL defaults to `http://127.0.0.1:8080`. Routes are grouped into Flask blue
 
 The desktop browser uses the same public `/api/v1` API as the mobile app, defaulting to `https://greatlakestrolling.com`. It requests forecast layers, points, stations, model points, animations, and history directly from that host. Set `GREAT_LAKES_API_URL` to use another compatible host. When the configured host differs from the desktop app origin, it must allow browser cross-origin requests. Flask does not proxy Great Lakes conditions or history.
 
+### Niagara River trip conditions (public Great Lakes API)
+
+`GET /api/v1/clarity/niagara?time=<ISO-8601 timestamp with offset>` supplies clarity in `reading` and water temperature in `waterTemperatureReading.temperatureC` for the trip's date and start hour. Either reading can be available independently. Both trip editors use these readings to fill empty fields, convert temperature to the logbook units, and preserve manual and saved entries. A Niagara River waterbody can use the lookup without a map pin.
+
 ### Bottom temperatures (public Great Lakes API)
 
 - `GET /api/v1/layers/bottom-temperature?forecastHour=6` returns temperature rasters for all five lakes, with `metadata.depthSelection: "bottom"` and `minC` / `maxC` on the fixed 0–30 C value range. Each wet cell uses its deepest valid model reading at or above the model lakebed; model metadata reports `bottomDepthSource: "bathymetry"` or `"deepest-valid-level"` when bathymetry is unavailable. The desktop uses its existing temperature palette and color preference.
@@ -19,6 +23,12 @@ The desktop browser uses the same public `/api/v1` API as the mobile app, defaul
 - The desktop fits its own palette from the selected coverage's value images, using the existing C/F preference and fixed/fitted color switch. The air fixed range is **−40 to 50 °C**, distinct from water's 0–30 °C. It does not call `/palette/air-temperature`; other clients using that endpoint must pass `temperatureMode=fixed|dynamic` and `coverage=region|lakes` (default region).
 - Air-temperature metadata and palette events are isolated from surface-buoy coloring and surface trip-temperature autofill. This client depends on compatible upstream endpoints, browser CORS, and readable value images; Flask does not provide an HRRR fallback.
 - HRRR freshness uses `/api/v1/status` and its independent `airTemperatureVersion` / `airTemperature` availability and remaining-horizon summary, rather than GLOFS or wave versions. `metadata.lakeCoverageAvailable: false` is an explicit error for Lakes only (including animation), with a prompt to choose Region; it is not shown as a successful empty map.
+
+### NOAA radar, satellite photos, and map overlays (public Great Lakes API)
+
+- `GET /api/v1/radar/forecast?forecastHour=n` reports NOAA HRRR simulated radar availability, run/valid time, and the available forecast horizon. `GET /api/v1/layers/radar?forecastHour=n` returns raster `valueUrl` images and their `valueRange`/bounds; it does not return a ready-colored radar image. Clients color the grayscale value pixels with the fixed 5–70 dBZ radar palette. `/api/v1/animation/radar` supplies the available hourly animation frames; the forecast control follows the endpoint's current maximum.
+- `GET /api/v1/satellite` lists recent NOAA VIIRS passes with bounds, timestamps, attribution, zoom limits, and tile URL templates. Pass tiles come from `/api/v1/satellite/tiles/1/{pass}/{z}/{x}/{y}.webp`; the desktop and mobile map allow pass selection and opacity adjustment.
+- `GET /api/v1/bathymetry/tiles/manifest` returns the bounds and tile template for updated depth shading; replace `{style}` with `v2` for the current Great Lakes v2 tiles. `GET /api/v1/bathymetry/{lake}-contours?detail=6|9|12|full` returns GeoJSON contours at the requested detail. Both apps load overlays from the configured public API host; they are not part of Flask's API or the local logbook archive.
 
 ## Logbook
 
@@ -42,9 +52,10 @@ Required top-level JSON types:
 
 - Body must be an object.
 - `schemaVersion` must be `2`.
-- Every v2 collection listed in `DATA_MODEL.md` must be present as an array, including option lists, gear libraries, people, locations, spots, expeditions, and trips.
+- Every v2 collection listed in `DATA_MODEL.md` must be present as an array, including option lists, gear libraries, people, locations, spots, drifts, expeditions, and trips.
 - `settings` must be an object.
 - `spots` must contain uniquely identified/named records with valid coordinates and a radius from 25 through 500 meters.
+- `drifts` must contain uniquely identified/named polygons with at least three vertices, nonzero area, and no self-intersections. A fish record's `driftId` references a saved drift; `driftAssignmentMode` is `automatic` or `manual`.
 - `expeditions` must contain uniquely identified records with a name and ordered ISO start/end dates.
 
 Success: `200 {"ok": true}` with the new `ETag`. Shape failure: `400 {"error": "..."}`. Validation uses the shared JSON Schema in `schema/logbook.schema.json` plus the semantic rules in `backend/logbook_store.py` (unique IDs and names, date order); error messages start with the failing path such as `settings.checklists[0].items[0].done`. See `DATA_MODEL.md`.
@@ -60,7 +71,7 @@ Imports a `.logbook` file containing an archiveVersion 2 ZIP and replaces the cu
 
 ### `GET /api/trips/<trip_id>/shared-archive`
 
-Downloads a `.trip` file containing a versioned `fishing-logbook-shared-trip` ZIP for one trip. It includes only that trip, its required people, locations, spots, used gear, and referenced media; unrelated history, preferences, and expeditions are excluded.
+Downloads a `.trip` file containing a versioned `fishing-logbook-shared-trip` ZIP for one trip. It includes only that trip, its required people, locations, spots, drifts, used gear, and referenced media; unrelated history, preferences, and expeditions are excluded.
 
 ### `POST /api/shared-trip-archive/preview`
 
@@ -178,3 +189,7 @@ endpoint must be deployed on that host before this works in released clients.
 ### Optional bead fields in v2 documents
 
 Lures accept optional string `beadMaterial` and `beadFinish`. Setup lines, catches, and lost fish accept optional integer `beadCount` (1–3), string `secondBeadLureId`, `thirdBeadLureId`, `beadAttachment`, `beadToHookDistance`, `beadSpacing`, and `thirdBeadSpacing`. The existing `lureId` is bead 1. Distances include their units as free-form text. These fields round-trip through whole-logbook and Shared Trip archives; the latter includes and remaps all referenced beads and media. No endpoint or archive-version change is required.
+
+### Trip weather-front field
+
+Trip `weatherFront` is an optional enum: `pre-front`, `during-front`, `post-front`, `no-front`, or an empty string for Unclassified. Omission is also Unclassified. The logbook and full/shared-trip archive endpoints validate it via the shared v2 schema and preserve it without backfilling older trips. Weather proxies supply the hourly series; clients derive estimates through shared rules. Optional `weatherFrontSource` is `automatic` or `manual`, and `weatherData.frontAssessment` stores the method, reason, source, timestamp and passage evidence. The older `weatherData.frontTag` is independent.

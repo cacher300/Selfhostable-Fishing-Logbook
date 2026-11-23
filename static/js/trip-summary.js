@@ -1,7 +1,9 @@
 import { beadRigDetails } from "./bead-rig.js";
+import { weatherFrontLabel } from "./weather-front.js";
 import { html, joinHtml } from "./html.js";
 import { state } from "./app-state.js";
 import { spotName } from "./app-normalization.js";
+import { assignedDriftId, driftName } from "./drifts.js";
 import { displayStoredMeasurement, formatDisplayTime, formatUnitValue } from "./app-units.js";
 import { isVideoMedia, mediaMarkup, originalMediaUrl, previewImage } from "./app-media.js";
 import { barometricTrendLabel, celsiusText, hourlyWindText, timeText, weatherValue, weatherValueWithTrend, weatherWindText } from "./location-weather.js";
@@ -248,7 +250,8 @@ export function catchDetailRows(trip, catchItem, catchIndex, catchType = "catch"
     { key: "angler", group: "overview", label: "Angler", value: reportPersonName(trip, catchItem.personId) },
     { key: "length", group: "overview", label: "Length", value: displayStoredMeasurement(record.length, "fishLength") },
     { key: "weight", group: "overview", label: "Weight", value: formatWeightDetail(record.weight) },
-    { key: "spot", group: "location", label: "Spot", value: spotName(catchItem.spotId) },
+    { key: "spot", group: "location", label: "Spot", value: String(trip.method || "").trim().toLowerCase() === "drifting" ? "" : spotName(catchItem.spotId) },
+    { key: "drift", group: "location", label: "Drift", value: String(trip.method || "").trim().toLowerCase() === "drifting" ? driftName(assignedDriftId(catchItem)) : "" },
     { key: "waterDepth", group: "location", label: "Water depth", value: reportDepthValue(record.fowCaught || record.waterDepth) },
     { key: "depthDown", group: "location", label: "Depth down", value: reportDepthDown(record, catchItem) },
     { key: "rod", group: "tackle", label: "Rod", value: displayTitleText(rodName(record.rodId)) },
@@ -311,8 +314,10 @@ export function reportAdditionalConditionRows(trip) {
     barometricTrend,
     moonText
   } = tripWeatherSummaryData(trip);
-  if (noApiWeather) return weatherData.message ? [["API weather", weatherData.message]] : [];
+  const manualRows = [["Weather front", weatherFrontLabel(trip.weatherFront)]];
+  if (noApiWeather) return [...manualRows, ...(weatherData.message ? [["API weather", weatherData.message]] : [])];
   return [
+    ...manualRows,
     ["Air temperature", formatUnitValue(window.temperatureC, "airTemperature", "C")],
     ["Pressure", weatherValueWithTrend(formatUnitValue(window.pressureHpa, "pressure", "hPa", { decimals: 1 }), trend.pressureTrend)],
     ["Barometric trend", barometricTrend],

@@ -67,7 +67,7 @@ def _records_by_ids(records: list[dict], ids: set[str]) -> list[dict]:
 
 
 def _referenced_trip_ids(trip: dict) -> dict[str, set[str]]:
-    referenced = {key: set() for key in (*_ID_COLLECTIONS, "people", "spots")}
+    referenced = {key: set() for key in (*_ID_COLLECTIONS, "people", "spots", "drifts")}
     for person in trip.get("people", []):
         if isinstance(person, dict) and person.get("id"):
             referenced["people"].add(str(person["id"]))
@@ -75,7 +75,7 @@ def _referenced_trip_ids(trip: dict) -> dict[str, set[str]]:
         for record in trip.get(record_group, []):
             if not isinstance(record, dict):
                 continue
-            for key, field in (("people", "personId"), ("spots", "spotId"), ("lures", "secondBeadLureId"), ("lures", "thirdBeadLureId"), ("lures", "lureId"), ("flashers", "flasherId"), ("rods", "rodId")):
+            for key, field in (("people", "personId"), ("spots", "spotId"), ("drifts", "driftId"), ("lures", "secondBeadLureId"), ("lures", "thirdBeadLureId"), ("lures", "lureId"), ("flashers", "flasherId"), ("rods", "rodId")):
                 if record.get(field):
                     referenced[key].add(str(record[field]))
     for setup in trip.get("gearUsed", []):
@@ -135,6 +135,7 @@ def build_shared_logbook(logbook: dict, trip_id: str) -> dict:
         "people": [people_by_id[person_id] for person_id in referenced["people"] if person_id in people_by_id],
         "locations": locations,
         "spots": _records_by_ids(normalized.get("spots", []), referenced["spots"]),
+        "drifts": _records_by_ids(normalized.get("drifts", []), referenced["drifts"]),
         "expeditions": [],
         "lures": _records_by_ids(normalized.get("lures", []), referenced["lures"]),
         "flashers": _records_by_ids(normalized.get("flashers", []), referenced["flashers"]),
@@ -557,6 +558,29 @@ def _merge_referenced_spots(local: dict, incoming: dict, trip: dict) -> dict[str
     return referenced
 
 
+def _merge_referenced_drifts(local: dict, incoming: dict, trip: dict, referenced: dict[str, set[str]]) -> None:
+    drift_map: dict[str, str] = {}
+    used_ids = {str(item.get("id") or "") for item in local["drifts"]}
+    used_names = {normalized_name(item.get("name")) for item in local["drifts"]}
+    for source in _records_by_ids(incoming.get("drifts", []), referenced["drifts"]):
+        source_id = str(source.get("id") or "")
+        existing = next((item for item in local["drifts"]
+                         if normalized_name(item.get("name")) == normalized_name(source.get("name"))
+                         and normalized_name(item.get("waterbody")) == normalized_name(source.get("waterbody"))
+                         and item.get("polygon") == source.get("polygon")), None)
+        if existing:
+            drift_map[source_id] = str(existing["id"])
+            continue
+        source["id"] = _unique_id(used_ids, source_id)
+        source["name"] = _unique_spot_name(str(source.get("name") or "Imported Drift"), used_names)
+        drift_map[source_id] = source["id"]
+        local["drifts"].append(source)
+    for group in ("catches", "lostFish"):
+        for fish in trip.get(group, []):
+            if fish.get("driftId") in drift_map:
+                fish["driftId"] = drift_map[fish["driftId"]]
+
+
 def _merge_referenced_gear(local: dict, incoming: dict, trip: dict, referenced: dict[str, set[str]]) -> dict[str, list[dict]]:
     """Copy only referenced gear, reusing exact matches and remapping collisions."""
     id_maps: dict[str, dict[str, str]] = {key: {} for key in _ID_COLLECTIONS}
@@ -684,6 +708,7 @@ def merge_shared_archive(
     _merge_people(local, incoming, trip, person_mappings)
     _merge_source_location(local, incoming, trip)
     referenced = _merge_referenced_spots(local, incoming, trip)
+    _merge_referenced_drifts(local, incoming, trip, referenced)
     imported_gear = _merge_referenced_gear(local, incoming, trip, referenced)
     trip, rewritten_media = _rewrite_imported_media(archive, local, trip, imported_gear)
 

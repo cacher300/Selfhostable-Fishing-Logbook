@@ -24,10 +24,12 @@ export function ensureActiveFishingSpot(spots = fishingSpots()) {
   if (!spots.length) {
     ui.activeFishingSpotId = "";
     ui.editingFishingSpotId = "";
+    ui.expandedFishingSpotIds = [];
     return "";
   }
   if (!spots.some((spot) => spot.id === ui.activeFishingSpotId)) ui.activeFishingSpotId = "";
   if (!spots.some((spot) => spot.id === ui.editingFishingSpotId)) ui.editingFishingSpotId = "";
+  ui.expandedFishingSpotIds = (ui.expandedFishingSpotIds || []).filter((id) => spots.some((spot) => spot.id === id));
   return ui.activeFishingSpotId;
 }
 
@@ -135,29 +137,55 @@ export function renderFishingSpotSettings() {
   setHtml(els.fishingSpotList, orderedSpots.length ? joinHtml(orderedSpots.map((spot) => {
     const count = fishingSpotCatchCount(spot.id);
     const isEditing = spot.id === ui.editingFishingSpotId;
+    const isExpanded = ui.expandedFishingSpotIds.includes(spot.id);
+    const draftIndex = settingsUi.fishingSpotsDraft.findIndex((item) => item.id === spot.id);
+    const editorId = `fishingSpotDetails-${spot.id}`;
     return html`
       <article class="private-location-card${spot.id === activeId ? " is-selected" : ""}" data-fishing-spot-id="${spot.id}" aria-current="${spot.id === activeId ? "true" : "false"}">
-        <div class="private-location-card-head">
-          <div class="private-location-name-row">
-            <input class="private-location-name fishing-spot-name" type="text" value="${spot.name}" data-settings-draft="fishingSpotsDraft" data-settings-bind="${settingsUi.fishingSpotsDraft.findIndex((item) => item.id === spot.id)}.name" aria-label="Fishing spot name" />
-          </div>
+        <div class="private-location-card-head fishing-spot-card-head">
+          <button class="fishing-spot-summary" type="button" data-toggle-fishing-spot="${spot.id}" aria-expanded="${isExpanded}" aria-controls="${editorId}">
+            <span class="fishing-spot-summary-copy">
+              <strong class="fishing-spot-summary-name">${spot.name}</strong>
+              <span class="fishing-spot-summary-meta">${spot.lake || "Lake not set"} · ${count} ${count === 1 ? "catch" : "catches"} · ${fishingSpotRadiusText(spot.radiusMeters)}</span>
+            </span>
+            <span class="fishing-spot-disclosure-icon" aria-hidden="true"></span>
+          </button>
           <button class="button secondary private-location-edit-pin" type="button" data-edit-fishing-spot-pin="${spot.id}" aria-label="Edit map pin for ${spot.name}">Edit pin</button>
           <button class="button danger${isEditing ? "" : " hidden"}" type="button" data-delete-fishing-spot="${spot.id}">Delete</button>
         </div>
-        <label class="settings-control fishing-spot-lake-control">
-          <span>Lake</span>
-          <input class="fishing-spot-lake" type="text" value="${spot.lake || ""}" data-settings-draft="fishingSpotsDraft" data-settings-bind="${settingsUi.fishingSpotsDraft.findIndex((item) => item.id === spot.id)}.lake" aria-label="Lake for ${spot.name}" placeholder="Lake Ontario" />
-        </label>
-        <p class="fishing-spot-assignment-count">${count} assigned ${count === 1 ? "catch" : "catches"}</p>
-        <label class="settings-control private-location-radius-control">
-        <span>Radius <output class="private-location-radius-value fishing-spot-radius-value">${fishingSpotRadiusText(spot.radiusMeters)}</output></span>
-          <input class="private-location-radius fishing-spot-radius" type="range" min="${radiusConfig.min}" max="${radiusConfig.max}" step="${radiusConfig.step}" value="${fishingSpotRadiusDisplayValue(spot.radiusMeters)}" data-settings-draft="fishingSpotsDraft" data-settings-bind="${settingsUi.fishingSpotsDraft.findIndex((item) => item.id === spot.id)}.radiusDisplay" aria-label="Fishing spot radius in ${radiusConfig.unit}" style="${fishingSpotRadiusStyle(spot.radiusMeters)}" />
-        </label>
+        <div class="fishing-spot-editor${isExpanded ? "" : " hidden"}" id="${editorId}">
+          <label class="settings-control">
+            <span>Spot name</span>
+            <input class="private-location-name fishing-spot-name" type="text" value="${spot.name}" data-settings-draft="fishingSpotsDraft" data-settings-bind="${draftIndex}.name" aria-label="Fishing spot name" />
+          </label>
+          <label class="settings-control fishing-spot-lake-control">
+            <span>Lake</span>
+            <input class="fishing-spot-lake" type="text" value="${spot.lake || ""}" data-settings-draft="fishingSpotsDraft" data-settings-bind="${draftIndex}.lake" aria-label="Lake for ${spot.name}" placeholder="Lake Ontario" />
+          </label>
+          <p class="fishing-spot-assignment-count">${count} assigned ${count === 1 ? "catch" : "catches"}</p>
+          <label class="settings-control private-location-radius-control">
+            <span>Radius <output class="private-location-radius-value fishing-spot-radius-value">${fishingSpotRadiusText(spot.radiusMeters)}</output></span>
+            <input class="private-location-radius fishing-spot-radius" type="range" min="${radiusConfig.min}" max="${radiusConfig.max}" step="${radiusConfig.step}" value="${fishingSpotRadiusDisplayValue(spot.radiusMeters)}" data-settings-draft="fishingSpotsDraft" data-settings-bind="${draftIndex}.radiusDisplay" aria-label="Fishing spot radius in ${radiusConfig.unit}" style="${fishingSpotRadiusStyle(spot.radiusMeters)}" />
+          </label>
+        </div>
       </article>
     `;
   }), "") : html`<div class="empty-state compact-empty"><p>No fishing spots saved.</p><p>Add one, then place and size its circle on the map.</p></div>`);
   ensureFishingSpotMap();
   renderFishingSpotMap();
+}
+
+export function updateFishingSpotSummary(card) {
+  if (!card) return;
+  const spotId = card.dataset.fishingSpotId;
+  const name = card.querySelector(".fishing-spot-name")?.value.trim() || "Spot";
+  const lake = card.querySelector(".fishing-spot-lake")?.value.trim() || "Lake not set";
+  const count = fishingSpotCatchCount(spotId);
+  const radius = card.querySelector(".fishing-spot-radius-value")?.textContent.trim() || "";
+  const nameSummary = card.querySelector(".fishing-spot-summary-name");
+  const metaSummary = card.querySelector(".fishing-spot-summary-meta");
+  if (nameSummary) nameSummary.textContent = name;
+  if (metaSummary) metaSummary.textContent = `${lake} · ${count} ${count === 1 ? "catch" : "catches"} · ${radius}`;
 }
 
 export function ensureFishingSpotMap() {

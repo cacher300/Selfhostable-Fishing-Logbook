@@ -32,7 +32,7 @@ def test_archive_contains_v2_logbook_and_media_and_import_restores_it() -> None:
         media = uploads / "trip-photos"
         media.mkdir(parents=True)
         (media / "photo.jpg").write_bytes(b"archive-media")
-        payload = v2({"trips": [{"id": "sqlite-trip", "title": "SQLite Trip", "catches": [], "lostFish": []}]})
+        payload = v2({"trips": [{"id": "sqlite-trip", "title": "SQLite Trip", "weatherFront": "no-front", "catches": [], "lostFish": []}]})
         fish = make_app(root, SECRET_KEY="database-test")
         fish.logbook.write(payload, None)
         exported = fish.client.get("/api/archive")

@@ -58,6 +58,9 @@ class LogbookStore(Protocol):
     def write(self, document: dict, expected_revision: str | None) -> str:
         """Replace the whole document; ``expected_revision`` guards concurrent edits."""
 
+    def write_validated(self, document: dict, expected_revision: str | None) -> str:
+        """Persist a document already validated at the request boundary."""
+
     def install(self, document: dict) -> str:
         """Install a validated document during explicit archive recovery."""
 

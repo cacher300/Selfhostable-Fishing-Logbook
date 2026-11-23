@@ -52,6 +52,7 @@ export const PALETTE_STOPS = Object.freeze({
   currents: [[0, [22, 58, 128]], [0.22, [40, 92, 178]], [0.45, [98, 70, 186]], [0.68, [172, 60, 170]], [0.86, [232, 86, 118]], [1, [252, 158, 72]]],
   waves: waveStops(),
   wind: windStops(),
+  radar: [[0, [24, 48, 128]], [0.18, [36, 132, 224]], [0.36, [34, 190, 124]], [0.54, [238, 226, 52]], [0.7, [244, 132, 32]], [0.84, [224, 48, 42]], [1, [190, 48, 190]]],
   upwelling: [[0, [20, 54, 160]], [0.22, [38, 112, 222]], [0.38, [126, 196, 250]], [0.5, [236, 240, 245]], [0.62, [252, 178, 122]], [0.78, [232, 92, 54]], [1, [168, 24, 36]]]
 });
 export const TEMPERATURE_COLOR_RANGE_C = Object.freeze([0, 30]);
@@ -71,6 +72,7 @@ export const PALETTE_FIT = Object.freeze({
   waves: { low: 0, high: 1, zeroBased: true, minimumMaximum: WAVE_DEFAULT_MAX_METERS },
   // Red at 25 kn, or at the strongest wind on screen when it is stronger.
   wind: { low: 0, high: 1, zeroBased: true, minimumMaximum: WIND_DEFAULT_MAX_METERS_PER_SECOND },
+  radar: { fixed: [5, 70] },
   // Upwelling strength (°F, negative upwelling) keeps one scale, so a colour always means the same strength.
   upwelling: { fixed: [-8, 8] }
 });
@@ -157,6 +159,9 @@ function mercatorY(latitude) {
 async function loadSample(raster) {
   const image = new Image();
   image.decoding = "async";
+  // These rasters come from the Great Lakes API, which may be on another origin.
+  // Request CORS access so canvas sampling can read the pixels instead of tainting the canvas.
+  image.crossOrigin = "anonymous";
   image.src = raster.valueUrl;
   await image.decode();
   const width = Math.min(SAMPLE_WIDTH, image.naturalWidth);

@@ -55,6 +55,10 @@
               <span>Spot</span>
               <select class="catch-spot"></select>
             </label>
+            <label class="catch-drift-field hidden">
+              <span>Drift</span>
+              <select class="catch-drift"></select>
+            </label>
             <label class="catch-structure-field catch-detail-optional">
               <span>Structure</span>
               <select class="catch-structure"></select>
@@ -135,10 +139,13 @@
               <select class="catch-lure"></select>
             </label>
             <button class="button secondary add-lure-inline direct-catch-gear catch-detail-optional" type="button">New Lure</button>
-            <label class="direct-catch-gear catch-rigging-field catch-detail-optional">
-              <span>Rigging</span>
-              <select class="catch-rigging"></select>
-            </label>
+            <div class="direct-catch-gear catch-rigging-control catch-detail-optional">
+              <label class="catch-rigging-field">
+                <span>Rigging</span>
+                <select class="catch-rigging"></select>
+              </label>
+              <button class="button secondary add-rigging-inline" type="button">Add rigging</button>
+            </div>
             <label class="direct-catch-gear catch-rigging-details-field catch-detail-optional">
               <span>Rig details</span>
               <input class="catch-rigging-details" type="text" placeholder="1/0 hook, 1/8 oz weight, weedless" />
@@ -354,10 +361,13 @@
           <select class="trip-gear-lure"></select>
           </label>
           <button class="button secondary add-lure-inline gear-inline-action gear-lure-action" type="button">New Lure</button>
-          <label class="non-trolling-field gear-rigging-field">
-            <span>Rigging</span>
-            <select class="trip-gear-rigging"></select>
-          </label>
+          <div class="non-trolling-field gear-rigging-control">
+            <label class="gear-rigging-field">
+              <span>Rigging</span>
+              <select class="trip-gear-rigging"></select>
+            </label>
+            <button class="button secondary gear-inline-action add-rigging-inline" type="button">Add rigging</button>
+          </div>
           <label class="non-trolling-field gear-rigging-details-field">
             <span>Rig details</span>
             <input class="trip-gear-rigging-details" type="text" placeholder="1/0 hook, 1/8 oz weight, weedless" />
@@ -374,7 +384,7 @@
           <section class="gear-editor-panel gear-notes-panel">
             <div class="gear-panel-heading"><h4>Notes</h4></div>
             <label class="gear-change-field" aria-label="Note">
-              <input class="trip-gear-change-note" type="text" placeholder="Started spoon/flasher, changed depth, switched lure" />
+              <textarea class="trip-gear-change-note" rows="2" placeholder="Started spoon/flasher, changed depth, switched lure"></textarea>
             </label>
           </section>
         </div>

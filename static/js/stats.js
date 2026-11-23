@@ -1,4 +1,5 @@
 import { html, joinHtml, setHtml } from "./html.js";
+import { weatherFrontLabel } from "./weather-front.js";
 import { activeStatsFilters, state, ui } from "./app-state.js";
 import { choiceLabel } from "./app-normalization.js";
 import { unitPreference, unitSymbol } from "./app-units.js";
@@ -227,6 +228,7 @@ export function renderAdvancedStats() {
   const methodItems = summarizeTripPerformance(locationRows, (trip) => trip.method, hours, fish);
   const clarityItems = summarizeTripPerformance(locationRows, (trip) => trip.waterClarity, hours, fish);
   const weatherItems = summarizeTripPerformance(locationRows, (trip) => trip.weather, hours, fish);
+  const weatherFrontItems = summarizeTripPerformance(locationRows, (trip) => weatherFrontLabel(trip.weatherFront), hours, fish);
   const intentItems = summarizeTripPerformance(locationRows, (trip) => intentLabel(tripIntent(trip)), hours, fish);
   const ratingItems = summarizeTripPerformance(locationRows, (trip) => tripRatingLabel(tripRatingValue(trip)), hours, fish);
   const monthItems = summarizeTripPerformance(locationRows, (trip) => trip.date ? tripMonthName(trip) : "", hours, fish);
@@ -234,6 +236,7 @@ export function renderAdvancedStats() {
   renderStatsTable(els.methodStatsTable, ["Method", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(methodItems));
   renderStatsTable(els.waterClarityStatsTable, ["Water Clarity", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(clarityItems));
   renderStatsTable(els.weatherStatsTable, ["Weather", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(weatherItems));
+  renderStatsTable(els.weatherFrontStatsTable, ["Weather Front", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(weatherFrontItems));
   renderStatsTable(els.intentStatsTable, ["Intent", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(intentItems));
   renderStatsTable(els.ratingStatsTable, ["Rating", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(ratingItems));
   renderStatsTable(els.monthStatsTable, ["Month", "Trips", "Hours", "Fish", "Fish / hr", "Fish / trip", "Skunk"], tripPerformanceRows(monthItems));

@@ -90,8 +90,9 @@ test("the selected lure thumbnail opens the lure card separately from the picker
   const field = row.locator(".catch-lure-field");
   const trigger = field.locator(".gear-picker-trigger");
   await trigger.click();
-  await field.getByRole("option", { name: /Soft Plastic/ }).click();
-  await field.getByRole("option", { name: /Paddletail/ }).click();
+  const picker = page.getByRole("dialog", { name: "Select lure" });
+  await picker.getByLabel("Lure type").selectOption("Soft Plastic");
+  await picker.getByRole("button", { name: /Paddletail/ }).click();
   const lureControls = row.locator(".catch-lure-field .gear-picker-trigger, .add-lure-inline, .catch-rigging, .catch-rigging-details");
   const controlBoxes = () => lureControls.evaluateAll((nodes) => nodes.map((node) => {
     const { left, right, top, height } = node.getBoundingClientRect();
@@ -126,7 +127,7 @@ test("the selected lure thumbnail opens the lure card separately from the picker
   await page.keyboard.press("Escape");
   await expect(card).toBeHidden();
   await expect(thumbnail).toBeFocused();
-  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(picker).toBeHidden();
 
   await thumbnail.press("Enter");
   await card.getByRole("button", { name: "Edit Lure", exact: true }).click();
@@ -135,6 +136,6 @@ test("the selected lure thumbnail opens the lure card separately from the picker
   await editor.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(thumbnail).toBeVisible();
   await trigger.click();
-  await field.getByRole("option", { name: "Clear selection" }).click();
+  await picker.getByRole("button", { name: "Clear selection" }).click();
   await expect(thumbnail).toBeHidden();
 });

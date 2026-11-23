@@ -1,4 +1,5 @@
 import { html, joinHtml, setHtml } from "./html.js";
+import { weatherFrontLabel } from "./weather-front.js";
 import { html2canvas } from "./vendor.js";
 import { state } from "./app-state.js";
 import { convertedMeasurementText, displayStoredMeasurement, timeFormatPreference, unitPreference } from "./app-units.js";
@@ -235,6 +236,7 @@ export function shareWeatherParts(trip) {
   const weather = trip.weatherData?.tripWindow || {};
   return [
     trip.weather,
+    trip.weatherFront ? weatherFrontLabel(trip.weatherFront) : "",
     weather.temperatureC != null ? `${Math.round(weather.temperatureC)}°C air` : "",
     trip.wind || (weather.windSpeedMph != null ? `${Math.round(weather.windSpeedMph)} mph wind` : ""),
     trip.waveHeight ? `Waves ${displayStoredMeasurement(trip.waveHeight, "waveHeight")}` : "",
@@ -321,6 +323,7 @@ export function shareConditionItems(trip) {
   const weather = trip.weatherData?.tripWindow || {};
   const items = [
     ["Weather", trip.weather],
+    ["Weather front", trip.weatherFront ? weatherFrontLabel(trip.weatherFront) : ""],
     ["Wind", trip.wind || (weather.windSpeedMph != null ? `${Math.round(weather.windSpeedMph)} mph` : "")],
     ["Water temp", trip.waterTemp ? displayStoredMeasurement(trip.waterTemp, "waterTemperature") : ""],
     ["Structure", trip.structureType],

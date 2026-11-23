@@ -1,0 +1,128 @@
+.person-photo-picker-dialog {
+  width: min(980px, calc(100vw - 32px));
+  height: min(780px, calc(100vh - 32px));
+}
+
+.person-photo-picker-dialog form {
+  display: grid;
+  height: 100%;
+  max-height: 100%;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  gap: 14px;
+  overflow: hidden;
+}
+
+.person-photo-picker-dialog .dialog-header {
+  align-items: flex-start;
+  margin-bottom: 0;
+}
+
+.person-photo-picker-dialog .dialog-header h2 {
+  margin: 0;
+}
+
+.person-photo-picker-search {
+  max-width: 560px;
+}
+
+.person-photo-picker-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.person-photo-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  align-content: start;
+  gap: 12px;
+  min-height: 150px;
+  overflow: auto;
+  padding: 2px 4px 8px 2px;
+}
+
+.person-photo-choice {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--text);
+  text-align: left;
+}
+
+.person-photo-choice:hover,
+.person-photo-choice:focus-visible {
+  border-color: var(--green);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+.person-photo-choice.is-current {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue) 20%, transparent);
+}
+
+.person-photo-choice img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: var(--panel-soft);
+}
+
+.person-photo-choice-name,
+.person-photo-choice-category {
+  overflow: hidden;
+  padding: 0 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-photo-choice-name {
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.person-photo-choice-category {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.person-photo-picker-dialog .dialog-actions {
+  justify-content: space-between;
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .person-photo-picker-dialog {
+    height: 100dvh;
+  }
+
+  .person-photo-picker-dialog form {
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .person-photo-picker-dialog .dialog-header {
+    margin: -16px -16px 0;
+    padding: 16px;
+  }
+
+  .person-photo-picker-grid {
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 8px;
+  }
+
+  .person-photo-picker-dialog .dialog-actions {
+    flex-wrap: wrap;
+  }
+}

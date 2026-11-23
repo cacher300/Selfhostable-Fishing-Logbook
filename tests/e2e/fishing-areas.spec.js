@@ -1,0 +1,52 @@
+const { expect, test } = require("@playwright/test");
+const { freshLogbook, readLogbook, resetLogbook, stubExternalApis } = require("./helpers");
+
+test("spots and drifts open a focused map editor and save once", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const seed = await freshLogbook(page, { spots: [], drifts: [] });
+  await resetLogbook(page, seed);
+  await stubExternalApis(page);
+  await page.goto("/settings", { waitUntil: "domcontentloaded" });
+  await page.locator('[data-settings-tab="waterbodies"]').click();
+
+  await page.locator('[data-add-fishing-area="spot"]').click();
+  await expect(page.locator("#fishingAreaDialog")).toBeVisible();
+  await page.locator("#fishingAreaName").fill("North seam");
+  await page.locator("#fishingAreaLatitude").fill("43.2");
+  await page.locator("#fishingAreaLongitude").fill("-79.05");
+  await page.locator("[data-save-fishing-area]").click();
+  await expect(page.locator("#fishingAreaDialog")).toBeHidden();
+  await expect(page.locator("#areaSpotList .fishing-area-row")).toHaveCount(1);
+  await page.locator("#areaSpotList .fishing-area-row").click();
+  await expect(page.locator("#fishingAreaName")).toHaveValue("North seam");
+  await page.locator("[data-close-fishing-area]").first().click();
+
+  await page.locator('[data-add-fishing-area="drift"]').click();
+  await page.locator("#fishingAreaName").fill("Test drift");
+  await page.locator("#fishingAreaWaterbody").fill("Niagara River");
+  await page.locator("[data-add-vertex]").click();
+  await page.locator("[data-add-vertex]").click();
+  await page.locator("[data-add-vertex]").click();
+  await page.locator('[data-vertex-lat="0"]').fill("43.20");
+  await page.locator('[data-vertex-lng="0"]').fill("-79.05");
+  await page.locator('[data-vertex-lat="1"]').fill("43.21");
+  await page.locator('[data-vertex-lng="1"]').fill("-79.05");
+  await page.locator('[data-vertex-lat="2"]').fill("43.21");
+  await page.locator('[data-vertex-lng="2"]').fill("-79.04");
+  await page.locator("[data-save-fishing-area]").click();
+  await expect(page.locator("#fishingAreaDialog")).toBeHidden();
+  await expect(page.locator("#areaDriftList .fishing-area-row")).toContainText("Test drift");
+  const saved = await readLogbook(page);
+  expect(saved.spots[0].name).toBe("North seam");
+  expect(saved.drifts[0].polygon).toHaveLength(3);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("#areaDriftList .fishing-area-row").click();
+  await expect(page.locator("#fishingAreaMap")).toBeVisible();
+  const dialogBounds = await page.locator("#fishingAreaDialog").boundingBox();
+  expect(dialogBounds.x).toBeGreaterThanOrEqual(0);
+  expect(dialogBounds.x + dialogBounds.width).toBeLessThanOrEqual(390);
+  await page.locator("[data-close-fishing-area]").first().click();
+  expect(errors).toEqual([]);
+  await resetLogbook(page, seed);
+});

@@ -10,7 +10,8 @@ import { marineRequestCache, setWeatherStatus, updateMarineWaveHeightPlaceholder
 import { runSettingsSave, scheduleSettingsAutosave, cancelSettingsAutosave, settingsUi } from "./settings-core.js";
 import { renderSavedSetupSettings } from "./saved-setups.js";
 import { renderChopRangeSettings, renderPredefinedFieldSettings } from "./settings-fields.js";
-import { renderFishingSpotSettings, renderPrivatePhotoLocationSettings } from "./settings-locations.js";
+import { renderPrivatePhotoLocationSettings } from "./settings-locations.js";
+import { renderFishingAreas } from "./fishing-areas.js";
 import { renderAll } from "./dashboard.js";
 import { mergePeople } from "./trip-editor.js";
 import { comboName } from "./gear-core.js";
@@ -40,7 +41,7 @@ export function renderSettings() {
   renderPredefinedFieldSettings();
   syncUnitLabels();
   renderChopRangeSettings();
-  renderFishingSpotSettings();
+  renderFishingAreas();
   renderPrivatePhotoLocationSettings();
   renderLocationManager();
 }

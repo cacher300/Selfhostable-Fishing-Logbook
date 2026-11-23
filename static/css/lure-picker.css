@@ -1,0 +1,179 @@
+.dialog.lure-picker-dialog {
+  width: min(1040px, calc(100vw - 32px));
+  height: min(760px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.lure-picker-shell {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.lure-picker-dialog .dialog-header {
+  position: static;
+  align-items: center;
+  margin: 0;
+  padding: 20px 24px 12px;
+  background: var(--panel);
+}
+
+.lure-picker-dialog .dialog-header h2 {
+  margin: 0;
+}
+
+.lure-picker-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(152px, 220px);
+  gap: 12px;
+  padding: 0 24px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lure-picker-controls input,
+.lure-picker-controls select {
+  min-width: 0;
+  width: 100%;
+}
+
+.lure-picker-results {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 24px 24px;
+}
+
+.lure-picker-common {
+  margin-bottom: 24px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--green) 6%, var(--panel-soft));
+}
+
+.lure-picker-dialog h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.lure-picker-library-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.lure-picker-library-heading [role="status"],
+.lure-picker-empty {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.lure-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
+  gap: 10px;
+}
+
+.lure-picker-common .lure-picker-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.lure-picker-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 72px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.lure-picker-card:hover,
+.lure-picker-card.is-selected {
+  border-color: var(--green);
+}
+
+.lure-picker-card:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+.lure-picker-card img {
+  width: 54px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  background: var(--panel-soft);
+  object-fit: contain;
+}
+
+.lure-picker-card-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lure-picker-card-copy strong {
+  font-size: 14px;
+}
+
+.lure-picker-card-copy small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.lure-picker-card-copy .lure-picker-selected {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.lure-picker-common .lure-picker-card img {
+  width: 36px;
+  height: 36px;
+}
+
+.lure-picker-dialog .lure-picker-actions {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding: 12px 24px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 800px) {
+  .lure-picker-common .lure-picker-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(146px, 100%), 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .dialog.lure-picker-dialog {
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  .lure-picker-dialog .dialog-header,
+  .lure-picker-controls,
+  .lure-picker-results,
+  .lure-picker-dialog .lure-picker-actions {
+    padding-inline: 16px;
+  }
+
+  .lure-picker-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .lure-picker-dialog .lure-picker-actions button {
+    width: auto;
+  }
+}

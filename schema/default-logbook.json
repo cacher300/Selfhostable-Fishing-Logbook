@@ -18,7 +18,9 @@
     "Rock Bass",
     "Smallmouth Bass",
     "Walleye",
+    "White Bass",
     "White Crappie",
+    "White Perch",
     "Yellow Bullhead",
     "Anything"
   ],
@@ -365,6 +367,22 @@
   "people": [],
   "locations": [],
   "spots": [],
+  "drifts": [
+    { "id": "niagara-fort-george", "name": "Fort George Drift", "waterbody": "Niagara River", "polygon": [{"latitude":43.257,"longitude":-79.0725},{"latitude":43.257,"longitude":-79.0695},{"latitude":43.246,"longitude":-79.0665},{"latitude":43.246,"longitude":-79.0695}] },
+    { "id": "niagara-jackson", "name": "Jackson Drift", "waterbody": "Niagara River", "polygon": [{"latitude":43.230,"longitude":-79.0605},{"latitude":43.230,"longitude":-79.0575},{"latitude":43.219,"longitude":-79.0525},{"latitude":43.219,"longitude":-79.0555}] },
+    { "id": "niagara-pine", "name": "Pine Drift", "waterbody": "Niagara River", "polygon": [{"latitude":43.199,"longitude":-79.0545},{"latitude":43.199,"longitude":-79.0515},{"latitude":43.188,"longitude":-79.0525},{"latitude":43.188,"longitude":-79.0555}] },
+    { "id": "niagara-bullhead-bay", "name": "Bullhead Bay", "waterbody": "Niagara River", "polygon": [{"latitude":43.187,"longitude":-79.056},{"latitude":43.187,"longitude":-79.053},{"latitude":43.181,"longitude":-79.054},{"latitude":43.181,"longitude":-79.057}] },
+    { "id": "niagara-queenston-long", "name": "Queenston Long Drift", "waterbody": "Niagara River", "polygon": [{"latitude":43.180,"longitude":-79.057},{"latitude":43.180,"longitude":-79.054},{"latitude":43.171,"longitude":-79.056},{"latitude":43.171,"longitude":-79.059}] },
+    { "id": "niagara-queenston", "name": "Queenston Drift", "waterbody": "Niagara River", "polygon": [{"latitude":43.1705,"longitude":-79.059},{"latitude":43.1705,"longitude":-79.056},{"latitude":43.1665,"longitude":-79.058},{"latitude":43.1665,"longitude":-79.061}] },
+    { "id": "niagara-queenston-back", "name": "Queenston Back Drift", "waterbody": "Niagara River", "polygon": [{"latitude":43.166,"longitude":-79.0605},{"latitude":43.166,"longitude":-79.0575},{"latitude":43.161,"longitude":-79.0605},{"latitude":43.161,"longitude":-79.0635}] },
+    { "id": "niagara-coast-guard", "name": "Coast Guard Drift", "waterbody": "Niagara River", "polygon": [{"latitude":43.263,"longitude":-79.064},{"latitude":43.263,"longitude":-79.061},{"latitude":43.255,"longitude":-79.059},{"latitude":43.255,"longitude":-79.062}] },
+    { "id": "niagara-johnson", "name": "Johnson Drift", "waterbody": "Niagara River", "polygon": [{"latitude":43.231,"longitude":-79.054},{"latitude":43.231,"longitude":-79.051},{"latitude":43.221,"longitude":-79.048},{"latitude":43.221,"longitude":-79.051}] },
+    { "id": "niagara-peggys-eddy", "name": "Peggy’s Eddy", "waterbody": "Niagara River", "polygon": [{"latitude":43.219,"longitude":-79.049},{"latitude":43.219,"longitude":-79.046},{"latitude":43.211,"longitude":-79.045},{"latitude":43.211,"longitude":-79.048}] },
+    { "id": "niagara-lower-stella", "name": "Lower Stella Drift", "waterbody": "Niagara River", "polygon": [{"latitude":43.210,"longitude":-79.0475},{"latitude":43.210,"longitude":-79.0445},{"latitude":43.201,"longitude":-79.0445},{"latitude":43.201,"longitude":-79.0475}] },
+    { "id": "niagara-upper-stella", "name": "Upper Stella Drift", "waterbody": "Niagara River", "polygon": [{"latitude":43.198,"longitude":-79.0465},{"latitude":43.198,"longitude":-79.0435},{"latitude":43.187,"longitude":-79.0445},{"latitude":43.187,"longitude":-79.0475}] },
+    { "id": "niagara-perch-beds", "name": "Perch Beds", "waterbody": "Niagara River", "polygon": [{"latitude":43.181,"longitude":-79.0475},{"latitude":43.181,"longitude":-79.0445},{"latitude":43.174,"longitude":-79.046},{"latitude":43.174,"longitude":-79.049}] },
+    { "id": "niagara-artpark", "name": "Artpark Drift", "waterbody": "Niagara River", "polygon": [{"latitude":43.170,"longitude":-79.0485},{"latitude":43.170,"longitude":-79.0455},{"latitude":43.163,"longitude":-79.0485},{"latitude":43.163,"longitude":-79.0515}] }
+  ],
   "expeditions": [],
   "trips": []
 }

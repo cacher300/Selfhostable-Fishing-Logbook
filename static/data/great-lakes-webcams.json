@@ -1,0 +1,3072 @@
+[
+  {
+    "id": "webster-forest-lawn",
+    "name": "Forest Lawn Beach",
+    "location": "Webster, New York · Lake Ontario",
+    "latitude": 43.2489014,
+    "longitude": -77.5038986,
+    "url": "https://www.weatherbug.com/weather-camera/carroll-ny-14770/WBSTR",
+    "provider": "WeatherBug",
+    "active": true
+  },
+  {
+    "id": "kingston-collins-bay-marina",
+    "name": "Collins Bay Marina",
+    "location": "Kingston, Ontario · Lake Ontario",
+    "latitude": 44.238,
+    "longitude": -76.606,
+    "url": "https://collinsbaymarina.com/live-web-cam/",
+    "provider": "Collins Bay Marina",
+    "active": true
+  },
+  {
+    "id": "toronto-old-toronto",
+    "name": "Old Toronto",
+    "location": "Toronto, Ontario · Lake Ontario",
+    "latitude": 43.63972,
+    "longitude": -79.33893,
+    "url": "https://webcams.windy.com/webcams/public/embed/player/1699158512/day",
+    "provider": "Windy.com",
+    "active": true
+  },
+  {
+    "id": "niagara-falls-hotels",
+    "name": "Horseshoe Falls",
+    "location": "Niagara Falls, Ontario · Niagara River",
+    "latitude": 43.0907,
+    "longitude": -79.0725,
+    "url": "https://cdn.niagarafallshotels.com/webcam-video/camera1_web/index.m3u8",
+    "provider": "Niagara Falls Hotels",
+    "active": true
+  },
+  {
+    "id": "niagara-falls-hotels-rainbow-bridge",
+    "name": "Rainbow Bridge",
+    "location": "Niagara Falls, Ontario · Niagara River",
+    "latitude": 43.0907,
+    "longitude": -79.0725,
+    "url": "https://cdn.niagarafallshotels.com/webcam-video/camera2_mobile/index.m3u8",
+    "provider": "Niagara Falls Hotels",
+    "active": true
+  },
+  {
+    "id": "earthcam-niagara-falls",
+    "name": "Niagara Falls",
+    "location": "Fallsview, Niagara Falls, Ontario · Niagara River",
+    "latitude": 43.0794,
+    "longitude": -79.0846,
+    "url": "https://www.earthcam.com/canada/niagarafalls/thefalls/?cam=niagarafalls2",
+    "provider": "EarthCam",
+    "active": true
+  },
+  {
+    "id": "nypa-lake-erie-ice-boom",
+    "name": "Lake Erie View",
+    "location": "Buffalo, New York · Lake Erie at the Niagara River ice boom",
+    "latitude": 42.886,
+    "longitude": -78.894,
+    "url": "https://deviceboom.azurewebsites.net/view",
+    "provider": "New York Power Authority",
+    "active": true
+  },
+  {
+    "id": "nypa-peace-bridge",
+    "name": "Peace Bridge View",
+    "location": "Buffalo, New York · Lake Erie at the Niagara River",
+    "latitude": 42.904,
+    "longitude": -78.91,
+    "url": "https://deviceboom.azurewebsites.net/view",
+    "provider": "New York Power Authority",
+    "active": true
+  },
+  {
+    "id": "earthcam-salmon-river",
+    "name": "Salmon River Cam",
+    "location": "Pulaski, New York · Salmon River (approximate area)",
+    "latitude": 43.5694,
+    "longitude": -76.1277,
+    "url": "https://www.earthcam.com/usa/newyork/pulaski/?cam=pulaski_salmon",
+    "provider": "EarthCam",
+    "active": true
+  },
+  {
+    "id": "earthcam-salmon-fishing",
+    "name": "Salmon Fishing Cam",
+    "location": "Pulaski, New York · Salmon River (approximate area)",
+    "latitude": 43.5637,
+    "longitude": -76.125,
+    "url": "https://www.earthcam.com/usa/newyork/pulaski/?cam=pulaski_salmon2",
+    "provider": "EarthCam",
+    "active": true
+  },
+  {
+    "id": "lake-metroparks-erie-bluffs",
+    "name": "Lake Metroparks Lake Erie Bluffs",
+    "location": "Lake Erie Bluffs, Ohio · Lake Erie",
+    "latitude": 41.78958401419397,
+    "longitude": -81.1752376332879,
+    "url": "https://lake-erie-bluffs-webcam-live.click2stream.com/",
+    "provider": "Lake Metroparks / Angelcam",
+    "active": true
+  },
+  {
+    "id": "port-rowan-bayview-harbour",
+    "name": "Bayview Harbour Marina",
+    "location": "Port Rowan, Ontario · Lake Erie",
+    "latitude": 42.63295,
+    "longitude": -80.44038,
+    "url": "https://www.bayviewharbour.com/marina-webcam/",
+    "provider": "Bayview Harbour Marina",
+    "active": true
+  },
+  {
+    "id": "marblehead-lighthouse-state-park",
+    "name": "Marblehead Lighthouse State Park",
+    "location": "Marblehead, Ohio · Lake Erie",
+    "latitude": 41.5364,
+    "longitude": -82.7118,
+    "url": "https://pixelcaster.com/live/lesi/cams/lighthouse.html",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "marblehead-lighthouse-state-park-marblehead-lighthouse-shores-islands",
+    "name": "Marblehead Lighthouse (Shores & Islands)",
+    "location": "Marblehead, Ohio · Lake Erie",
+    "latitude": 41.5364,
+    "longitude": -82.7118,
+    "url": "https://pixelcaster.com/live/lesi/cams/lighthouse.html",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "huron",
+    "name": "Huron Pier and River",
+    "location": "Huron, Ohio · Lake Erie (approximate area)",
+    "latitude": 41.40479,
+    "longitude": -82.54403,
+    "url": "https://pixelcaster.com/live/lesi/cams/fishhouse.html",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "huron-huron-pier-and-river-shores-islands",
+    "name": "Huron Pier and River (Shores & Islands)",
+    "location": "Huron Pier, Huron, Ohio · Lake Erie",
+    "latitude": 41.3945,
+    "longitude": -82.5498889,
+    "url": "https://pixelcaster.com/live/lesi/cams/fishhouse.html",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "mackinaw-city",
+    "name": "Mackinaw City",
+    "location": "Mackinaw City, Michigan · Straits of Mackinac",
+    "latitude": 45.7805,
+    "longitude": -84.72365,
+    "url": "https://www.wmta.org/live-west-michigan-camera-gallery/mackinac-bridge-mackinaw-city-west-michigan-live-camera/",
+    "provider": "9&10 News / West Michigan Tourist Association",
+    "active": true
+  },
+  {
+    "id": "mission-point-resort-cam",
+    "name": "Mission Point Resort Cam",
+    "location": "Mission Point Resort, Mackinac Island, Michigan · Lake Huron",
+    "latitude": 45.8514,
+    "longitude": -84.6051,
+    "url": "https://www.missionpoint.com/",
+    "provider": "Mission Point Resort / WetMet",
+    "active": true
+  },
+  {
+    "id": "bay-village-bay-boat-club",
+    "name": "Bay Boat Club",
+    "location": "Bay Village, Ohio · Lake Erie",
+    "latitude": 41.48978,
+    "longitude": -81.92458,
+    "url": "https://www.bayboatclub.org/",
+    "provider": "Bay Boat Club / Ivideon",
+    "active": true
+  },
+  {
+    "id": "sarnia",
+    "name": "Sarnia MCTS North",
+    "location": "Sarnia, Ontario · Lake Huron",
+    "latitude": 43.00386,
+    "longitude": -82.4133,
+    "url": "https://e-navigation.canada.ca/topics/cameras/camera-en?camfile=SarniaMCTSNorth",
+    "provider": "Canadian Coast Guard",
+    "active": true
+  },
+  {
+    "id": "canadian-coast-guard-sarnia-mcts-south",
+    "name": "Sarnia MCTS South",
+    "location": "Sarnia, Ontario · St. Clair River",
+    "latitude": 43.00386,
+    "longitude": -82.4133,
+    "url": "https://e-navigation.canada.ca/topics/cameras/camera-en?camfile=SarniaMCTSSouth",
+    "provider": "Canadian Coast Guard",
+    "active": true
+  },
+  {
+    "id": "southampton-range-light",
+    "name": "Southampton Harbour Camera 1",
+    "location": "Southampton, Ontario · Lake Huron",
+    "latitude": 44.50033,
+    "longitude": -81.37325,
+    "url": "https://rtsp.me/embed/FfF8arNh/",
+    "provider": "Marine Heritage Society / Bruce Telecom",
+    "active": true
+  },
+  {
+    "id": "southampton-range-light-southampton-harbour-camera-2",
+    "name": "Southampton Harbour Camera 2",
+    "location": "Southampton, Ontario · Lake Huron",
+    "latitude": 44.50033,
+    "longitude": -81.37325,
+    "url": "https://rtsp.me/embed/TZniZQzd/",
+    "provider": "Marine Heritage Society / Bruce Telecom",
+    "active": true
+  },
+  {
+    "id": "south-bruce-peninsula-north",
+    "name": "Caframo Webcam — Colpoy’s Bay",
+    "location": "Georgian Bluffs, Ontario · Colpoy’s Bay (Georgian Bay)",
+    "latitude": 44.75061,
+    "longitude": -81.11498,
+    "url": "https://www.caframo.com/webcam/",
+    "provider": "Caframo / Teleport",
+    "active": true
+  },
+  {
+    "id": "wasaga-beach-west",
+    "name": "Beach Area 2 Boardwalk Cam",
+    "location": "Beach Area 2, Wasaga Beach, Ontario · Georgian Bay",
+    "latitude": 44.518557,
+    "longitude": -80.023921,
+    "url": "https://www.wasagabeach.com/programs-services/beaches/",
+    "provider": "Town of Wasaga Beach / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "wasaga-beach-area-1-sunset-cam",
+    "name": "Beach Area 1 Sunset Cam",
+    "location": "Beach Area 1, Wasaga Beach, Ontario · Georgian Bay",
+    "latitude": 44.524533,
+    "longitude": -80.01715,
+    "url": "https://www.wasagabeach.com/programs-services/beaches/",
+    "provider": "Town of Wasaga Beach / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "blue-mountains-alpine-ski-club",
+    "name": "Alpine Ski Club",
+    "location": "The Blue Mountains, Ontario · Georgian Bay",
+    "latitude": 44.52433,
+    "longitude": -80.3587,
+    "url": "https://www.skaping.com/alpine-ski-club/mountain-top",
+    "provider": "Alpine Ski Club / Skaping",
+    "active": true
+  },
+  {
+    "id": "tiny",
+    "name": "Cedar Point Camera",
+    "location": "Cedar Point, Ontario · Georgian Bay",
+    "latitude": 44.810861,
+    "longitude": -80.118806,
+    "url": "https://chimnissing.ca/cpcam.html",
+    "provider": "Beausoleil First Nation / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "georgian-bay-township-port-severn-road",
+    "name": "Port Severn Road North — Looking South",
+    "location": "Georgian Bay Township, Ontario · Georgian Bay",
+    "latitude": 44.80237,
+    "longitude": -79.73158,
+    "url": "https://511on.ca/map/Cctv/2071",
+    "provider": "Ontario 511",
+    "active": true
+  },
+  {
+    "id": "georgian-bay-township-port-severn-road-looking-north",
+    "name": "Port Severn Road North — Looking North",
+    "location": "Georgian Bay Township, Ontario · Georgian Bay",
+    "latitude": 44.80237,
+    "longitude": -79.73158,
+    "url": "https://511on.ca/map/Cctv/2072",
+    "provider": "Ontario 511",
+    "active": true
+  },
+  {
+    "id": "gravenhurst-campbells-landing",
+    "name": "Campbell's Landing (Denison Island)",
+    "location": "Gravenhurst, Ontario · Muskoka",
+    "latitude": 44.9801,
+    "longitude": -79.4609,
+    "url": "https://www.campbellslanding.com/webcamlink",
+    "provider": "Campbell's Landing / RTSP.me",
+    "active": true
+  },
+  {
+    "id": "taboo-muskoka-waterfront-cam",
+    "name": "Taboo Muskoka Waterfront Cam",
+    "location": "Gravenhurst, Ontario · Lake Muskoka",
+    "latitude": 44.96408,
+    "longitude": -79.37301,
+    "url": "https://www.taboomuskoka.com/explore/webcams/",
+    "provider": "Taboo Muskoka Resort & Golf / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "taboo-muskoka-sunset-cam",
+    "name": "Taboo Muskoka Sunset Cam",
+    "location": "Gravenhurst, Ontario · Lake Muskoka",
+    "latitude": 44.96408,
+    "longitude": -79.37301,
+    "url": "https://www.taboomuskoka.com/explore/webcams/",
+    "provider": "Taboo Muskoka Resort & Golf / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "allport-bay-lake-muskoka",
+    "name": "Allport Bay Webcam",
+    "location": "Bracebridge, Ontario · Lake Muskoka",
+    "latitude": 45.0168165,
+    "longitude": -79.380753,
+    "url": "https://www.allportmarina.com/allportwebcam/",
+    "provider": "Allport Marina",
+    "active": true
+  },
+  {
+    "id": "the-archipelago-township-north",
+    "name": "The Archipelago Township North",
+    "location": "The Archipelago Township, Ontario · Georgian Bay",
+    "latitude": 45.5563,
+    "longitude": -80.47559,
+    "url": "https://pabweather.info/",
+    "provider": "Pointe au Baril Weather",
+    "active": true
+  },
+  {
+    "id": "mackinac-island-bridge-authority",
+    "name": "Mackinac Bridge Cam — Camera 3 (Bridge View Park)",
+    "location": "St. Ignace, Michigan · Straits of Mackinac",
+    "latitude": 45.868,
+    "longitude": -84.722,
+    "url": "https://www.mackinacbridge.org/fares-traffic/bridge-cam/",
+    "provider": "Mackinac Bridge Authority",
+    "active": true
+  },
+  {
+    "id": "alpena-dpi",
+    "name": "Alpena ReCON Cam 1",
+    "location": "Alpena, Michigan · Lake Huron",
+    "latitude": 45.059722,
+    "longitude": -83.423611,
+    "url": "https://www.glerl.noaa.gov/metdata/apn/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "essexville",
+    "name": "Essexville",
+    "location": "Essexville, Michigan · Saginaw Bay",
+    "latitude": 43.64308,
+    "longitude": -83.85113,
+    "url": "https://www.baycityyachtclub.com/page/WebCams",
+    "provider": "Bay City Yacht Club",
+    "active": true
+  },
+  {
+    "id": "algonac",
+    "name": "Algonac ShipCam",
+    "location": "Algonac, Michigan · St. Clair River",
+    "latitude": 42.6174438,
+    "longitude": -82.5313662,
+    "url": "https://www.youtube.com/watch?v=g4mpc2I5lhc",
+    "provider": "StreamTime LIVE / City of Algonac",
+    "active": true
+  },
+  {
+    "id": "petoskey-bayfront-breakwater",
+    "name": "Petoskey Bayfront Breakwater",
+    "location": "Petoskey, Michigan · Little Traverse Bay",
+    "latitude": 45.37547,
+    "longitude": -84.96048,
+    "url": "https://www.petoskey.us/webcam/city_hall_marina.php",
+    "provider": "City of Petoskey / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "leland-fishtown-cove-restaurant",
+    "name": "Leland Fishtown (The Cove Restaurant)",
+    "location": "Leland, Michigan · Lake Michigan",
+    "latitude": 45.0229,
+    "longitude": -85.76078,
+    "url": "https://www.youtube.com/watch?v=s7sY1waeOf4",
+    "provider": "The Cove Restaurant / YouTube",
+    "active": true
+  },
+  {
+    "id": "hamlin-township-big-sable-lighthouse",
+    "name": "Big Sable Point Lighthouse",
+    "location": "Big Sable Point Lighthouse, Ludington State Park, Michigan · Lake Michigan",
+    "latitude": 44.05772,
+    "longitude": -86.51448,
+    "url": "https://lakeshorekeepers.org/big-sable-point/",
+    "provider": "Lakeshore Keepers / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "little-sable-point-lighthouse",
+    "name": "Little Sable Point Lighthouse Webcam",
+    "location": "Silver Lake State Park, Mears, Michigan · Lake Michigan",
+    "latitude": 43.65156,
+    "longitude": -86.53934,
+    "url": "https://lakeshorekeepers.org/little-sable-point/",
+    "provider": "Lakeshore Keepers / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "white-river-light-station",
+    "name": "White River Light Station Webcam",
+    "location": "Whitehall, Michigan · Lake Michigan and White Lake channel",
+    "latitude": 43.37484,
+    "longitude": -86.42436,
+    "url": "https://lakeshorekeepers.org/white-river-light-station/",
+    "provider": "Lakeshore Keepers / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "frankfort-city-of-frankfort",
+    "name": "Frankfort",
+    "location": "Frankfort, Michigan · Lake Michigan",
+    "latitude": 44.63072,
+    "longitude": -86.25215,
+    "url": "https://pixelcaster.com/live/gotks/frankfort2/",
+    "provider": "City of Frankfort / Pixelcaster",
+    "active": true
+  },
+  {
+    "id": "ferrysburg-west",
+    "name": "Ferrysburg West",
+    "location": "Ferrysburg, Michigan · Lake Michigan",
+    "latitude": 43.0755,
+    "longitude": -86.21305,
+    "url": "https://webcams.windy.com/webcams/public/embed/player/1581608550/day",
+    "provider": "Windy.com",
+    "active": true
+  },
+  {
+    "id": "linden-hills-north",
+    "name": "South Haven ReCON Cam 1",
+    "location": "South Haven, Michigan · Lake Michigan",
+    "latitude": 42.401389,
+    "longitude": -86.288889,
+    "url": "https://www.glerl.noaa.gov/metdata/shv/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "gary-miller-beach",
+    "name": "Miller Beach, Gary",
+    "location": "Gary, Indiana · Lake Michigan",
+    "latitude": 41.6205,
+    "longitude": -87.26919,
+    "url": "https://webcams.windy.com/webcams/public/embed/player/1605793082/day",
+    "provider": "Windy.com",
+    "active": true
+  },
+  {
+    "id": "chicago-navy-pier",
+    "name": "Harrison-Dever Crib ReCON Cam 1",
+    "location": "Chicago, Illinois · Lake Michigan",
+    "latitude": 41.916,
+    "longitude": -87.572,
+    "url": "https://www.glerl.noaa.gov/metdata/chi/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "chicago-south-rose-garden",
+    "name": "Chicago South Rose Garden",
+    "location": "Chicago, Illinois · Lake Michigan",
+    "latitude": 41.86672,
+    "longitude": -87.61702,
+    "url": "https://webcams.windy.com/webcams/public/embed/player/1624255665/day",
+    "provider": "Windy.com",
+    "active": true
+  },
+  {
+    "id": "evanston",
+    "name": "Evanston Dempster Street Boat Launch Cam",
+    "location": "Dempster Street Beach Office, Evanston, Illinois · Lake Michigan",
+    "latitude": 42.0405161,
+    "longitude": -87.6703847,
+    "url": "https://www.cityofevanston.org/departments/prcs/lakefront_beaches/beach_status_closings.php",
+    "provider": "City of Evanston",
+    "active": true
+  },
+  {
+    "id": "kenosha-civil-war-museum",
+    "name": "Southport Marina",
+    "location": "Kenosha, Wisconsin · Lake Michigan",
+    "latitude": 42.5853333,
+    "longitude": -87.8097222,
+    "url": "https://www.spmarina.net/",
+    "provider": "Southport Marina / RTSP.me",
+    "active": true
+  },
+  {
+    "id": "milwaukee-south",
+    "name": "Milwaukee South",
+    "location": "Milwaukee, Wisconsin · Lake Michigan",
+    "latitude": 43.09579,
+    "longitude": -87.90714,
+    "url": "https://www.fox6now.com/live-cameras-estabrook",
+    "provider": "FOX6 Milwaukee",
+    "active": true
+  },
+  {
+    "id": "two-rivers",
+    "name": "Two Rivers",
+    "location": "Two Rivers, Wisconsin · Lake Michigan",
+    "latitude": 44.14427,
+    "longitude": -87.56352,
+    "url": "https://webcams.windy.com/webcams/public/embed/player/1405110382/day",
+    "provider": "Windy.com",
+    "active": true
+  },
+  {
+    "id": "menominee",
+    "name": "Menominee Marina",
+    "location": "Menominee, Michigan · Green Bay",
+    "latitude": 45.10711,
+    "longitude": -87.60308,
+    "url": "https://menomineemarina.com/web-cam/",
+    "provider": "Menominee Marina / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "saint-james-township-southeast",
+    "name": "Saint James Township Southeast",
+    "location": "Saint James Township, Michigan · Lake Michigan",
+    "latitude": 45.7472,
+    "longitude": -85.5196,
+    "url": "https://wvbi.biccenter.org/webcams",
+    "provider": "WVBI / Beaver Island Community Center",
+    "active": true
+  },
+  {
+    "id": "burt-township-east",
+    "name": "Grand Marais Harbor Cam (Michigan)",
+    "location": "Grand Marais, Michigan · Lake Superior",
+    "latitude": 46.67144,
+    "longitude": -85.98506,
+    "url": "https://video.nest.com/live/A2SY1WyGt4",
+    "provider": "Nest",
+    "active": true
+  },
+  {
+    "id": "allouez-township-portage-lift-bridge-2",
+    "name": "Portage Lift Bridge Cam",
+    "location": "Houghton–Hancock, Michigan · Portage Canal",
+    "latitude": 47.1238192,
+    "longitude": -88.5741491,
+    "url": "https://www.pasty.com/bridge/bridge_picture.asp",
+    "provider": "PastyNET",
+    "active": true
+  },
+  {
+    "id": "hancock-michigan-tech-gateway",
+    "name": "Michigan Tech View Cam (College Avenue)",
+    "location": "Houghton, Michigan · Portage Canal",
+    "latitude": 47.12003,
+    "longitude": -88.55085,
+    "url": "https://www.mtu.edu/webcams/view/",
+    "provider": "Michigan Technological University",
+    "active": true
+  },
+  {
+    "id": "bayfield-south",
+    "name": "Bayfield (southern area)",
+    "location": "Bayfield, Wisconsin · Lake Superior",
+    "latitude": 46.77913,
+    "longitude": -90.78806,
+    "url": "https://www.madelineisland.com/madeline-island-webcam/",
+    "provider": "Madeline Island Chamber of Commerce / Resort Cams",
+    "active": true
+  },
+  {
+    "id": "bayfield-north",
+    "name": "Bayfield (northern area)",
+    "location": "Bayfield, Wisconsin · Lake Superior",
+    "latitude": 46.84164,
+    "longitude": -90.78607,
+    "url": "https://royspoint.com/live-view/",
+    "provider": "Roy's Point Marina / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "pureair-marinacam",
+    "name": "Pureair MarinaCam",
+    "location": "Bayfield area, Wisconsin · Lake Superior",
+    "latitude": 46.78951,
+    "longitude": -90.85391,
+    "url": "https://webcams.windy.com/webcams/public/embed/player/1684252974/day",
+    "provider": "Windy.com",
+    "active": true
+  },
+  {
+    "id": "duluth-ppmi-mast",
+    "name": "Duluth PPMI Mast Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.77325,
+    "longitude": -92.09121,
+    "url": "https://ppmi-mast-cam.click2stream.com/",
+    "provider": "Park Point Marina Inn / Click2Stream / Angelcam",
+    "active": true
+  },
+  {
+    "id": "duluth-harbor-cam-lighthouse",
+    "name": "Duluth Harbor Cam Lighthouse Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.779847,
+    "longitude": -92.092464,
+    "url": "https://www.duluthharborcam.com/p/lighthouse-cam.html",
+    "provider": "Duluth Harbor Cam / YouTube",
+    "active": true
+  },
+  {
+    "id": "superior-bong-bridge",
+    "name": "Bong Bridge Westbound",
+    "location": "Superior, Wisconsin · Lake Superior",
+    "latitude": 46.73143,
+    "longitude": -92.14321,
+    "url": "https://511mn.org/camera/515606",
+    "provider": "Minnesota 511 / Windy.com",
+    "active": true
+  },
+  {
+    "id": "eagle-harbor-greenstone-ridge",
+    "name": "Greenstone Ridge Southwest",
+    "location": "Isle Royale, Michigan · Lake Superior",
+    "latitude": 48.10914,
+    "longitude": -88.60542,
+    "url": "https://www.nps.gov/isro/learn/photosmultimedia/webcams.htm",
+    "provider": "National Park Service / Isle Royale National Park",
+    "active": true
+  },
+  {
+    "id": "marathon-west",
+    "name": "Marathon West",
+    "location": "Marathon, Ontario · Lake Superior",
+    "latitude": 48.72122,
+    "longitude": -86.38227,
+    "url": "https://www.marathonmuseum.ca/",
+    "provider": "Marathon & District Historical Society / Windy.com",
+    "active": true
+  },
+  {
+    "id": "wawa-lake-superior-scenic-lookout",
+    "name": "Lake Superior Scenic Lookout",
+    "location": "Wawa, Ontario · Lake Superior",
+    "latitude": 47.93373,
+    "longitude": -84.85104,
+    "url": "https://g1.ipcamlive.com/player/snapshot.php?alias=nsarockisland",
+    "provider": "Rock Island / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "montreal-river-harbour-2",
+    "name": "Montreal River Harbour 2",
+    "location": "North Algoma, Ontario · Lake Superior",
+    "latitude": 47.23947,
+    "longitude": -84.64768,
+    "url": "https://webcams.windy.com/webcams/public/embed/player/1346449225/day",
+    "provider": "Windy.com",
+    "active": true
+  },
+  {
+    "id": "tomahawk-resort",
+    "name": "Tomahawk Resort",
+    "location": "Sioux Narrows-Nestor Falls, Ontario · Lake of the Woods",
+    "latitude": 49.40614,
+    "longitude": -94.07255,
+    "url": "https://www.tomahawkresort.ca/reginabaycamera.cfm",
+    "provider": "Tomahawk Resort",
+    "active": true
+  },
+  {
+    "id": "hamilton-township-north",
+    "name": "Hamilton Township North",
+    "location": "Hamilton Township, Ontario · Northumberland",
+    "latitude": 44.1225,
+    "longitude": -78.24145,
+    "url": "https://video.nest.com/live/Cfue6qPE5l",
+    "provider": "Nest",
+    "active": true
+  },
+  {
+    "id": "port-henry-southeast",
+    "name": "Port Henry Southeast",
+    "location": "Port Henry, New York · Lake Champlain",
+    "latitude": 44.04158,
+    "longitude": -73.45745,
+    "url": "https://www.bridgeviewharbour.com/pages/weather",
+    "provider": "Bridgeview Harbour Marina / YouTube",
+    "active": true
+  },
+  {
+    "id": "lake-ontario-lyndonville",
+    "name": "Lake Ontario Lyndonville",
+    "location": "Lyndonville area, New York · Lake Ontario (approximate area)",
+    "latitude": 43.37,
+    "longitude": -78.389,
+    "url": "https://www.youtube.com/@LakeOntarioLyndonvilleCam/live",
+    "provider": "YouTube",
+    "active": true
+  },
+  {
+    "id": "port-dover",
+    "name": "Port Dover Lighthouse",
+    "location": "Port Dover, Ontario · Lake Erie",
+    "latitude": 42.7810833,
+    "longitude": -80.2016667,
+    "url": "https://www.youtube.com/watch?v=ozE6mjjIP0U",
+    "provider": "Norfolk County",
+    "active": true
+  },
+  {
+    "id": "port-dover-canboat-port-dover-lake-view",
+    "name": "CanBoat / Port Dover Lake View",
+    "location": "Port Dover, Ontario · Lake Erie (approximate area)",
+    "latitude": 42.78113,
+    "longitude": -80.20165,
+    "url": "https://www.youtube.com/watch?v=oJMyiylW3jE",
+    "provider": "Norfolk County",
+    "active": true
+  },
+  {
+    "id": "port-dover-bridge-yachts-ltd-riverfront-park-live-stream",
+    "name": "Bridge Yachts Ltd - Riverfront Park Live Stream",
+    "location": "Port Dover, Ontario · Lake Erie (approximate area)",
+    "latitude": 42.78113,
+    "longitude": -80.20165,
+    "url": "https://www.youtube.com/watch?v=sFNjKF2sPHw",
+    "provider": "Norfolk County",
+    "active": true
+  },
+  {
+    "id": "corke-point-hastings-drive",
+    "name": "Hastings Drive Beach (Corke Point)",
+    "location": "Corke Point / Hastings Drive, Ontario · Lake Erie (approximate area)",
+    "latitude": 42.576,
+    "longitude": -80.455,
+    "url": "https://www.dropbox.com/scl/fi/kdvr3h34prvg8ucdwau24/CORKEPOINT_LIVE.mp4?rlkey=lgr7nioywno7s3j4ivgdlkoy9",
+    "provider": "Corke Point",
+    "active": true
+  },
+  {
+    "id": "corke-point-hastings-drive-big-creek",
+    "name": "Big Creek",
+    "location": "Corke Point / Hastings Drive, Ontario · Lake Erie (approximate area)",
+    "latitude": 42.576,
+    "longitude": -80.455,
+    "url": "https://www.dropbox.com/scl/fi/i6suq34kq5b86yj5tmb81/CORKEPOINT_BIG_CREEK_LIVE.mp4?rlkey=qjic8o1ruxgta8occc9gc22s5&st=13afs902&dl=0",
+    "provider": "Corke Point",
+    "active": true
+  },
+  {
+    "id": "corke-point-hastings-drive-sandbar",
+    "name": "Sandbar",
+    "location": "Corke Point / Hastings Drive, Ontario · Lake Erie (approximate area)",
+    "latitude": 42.576,
+    "longitude": -80.455,
+    "url": "https://www.dropbox.com/scl/fi/kytbdwqw1rksebs0bi3uo/CORKEPOINT_SANDBAR_LIVE.mp4?rlkey=fxyiqqjff18qkcn1kpydyh7fo&st=uycd53e2&dl=0",
+    "provider": "Corke Point",
+    "active": true
+  },
+  {
+    "id": "canadian-coast-guard-livingstone-channel",
+    "name": "Livingstone Channel",
+    "location": "Amherstburg, Ontario · Detroit River",
+    "latitude": 42.086444,
+    "longitude": -83.128028,
+    "url": "https://e-navigation.canada.ca/topics/cameras/camera-en?camfile=LivingstoneChannel",
+    "provider": "Canadian Coast Guard",
+    "active": true
+  },
+  {
+    "id": "canadian-coast-guard-sailors-encampment",
+    "name": "Sailor Encampment",
+    "location": "Sailors Encampment, Ontario · St. Marys River",
+    "latitude": 46.2646944,
+    "longitude": -84.1011389,
+    "url": "https://e-navigation.canada.ca/topics/cameras/camera-en?camfile=SailorsEncampment",
+    "provider": "Canadian Coast Guard",
+    "active": true
+  },
+  {
+    "id": "canadian-coast-guard-sault-ste-marie",
+    "name": "Sault Ste. Marie",
+    "location": "Sault Ste. Marie, Ontario · St. Marys River (city-level pin)",
+    "latitude": 46.558889,
+    "longitude": -84.346944,
+    "url": "https://e-navigation.canada.ca/topics/cameras/camera-en?camfile=SaultSteMarie",
+    "provider": "Canadian Coast Guard",
+    "active": true
+  },
+  {
+    "id": "canadian-coast-guard-stribling-point",
+    "name": "Stribling Point",
+    "location": "Stribling Point, St. Joseph Island, Ontario · St. Marys River",
+    "latitude": 46.3101944,
+    "longitude": -84.1075556,
+    "url": "https://e-navigation.canada.ca/topics/cameras/camera-en?camfile=StriblingPoint",
+    "provider": "Canadian Coast Guard",
+    "active": true
+  },
+  {
+    "id": "canadian-coast-guard-windsor",
+    "name": "Windsor",
+    "location": "Windsor, Ontario · Lake St. Clair",
+    "latitude": 42.342,
+    "longitude": -82.9351389,
+    "url": "https://e-navigation.canada.ca/topics/cameras/camera-en?camfile=Windsor",
+    "provider": "Canadian Coast Guard",
+    "active": true
+  },
+  {
+    "id": "port-huron-boatnerd-st-clair-river",
+    "name": "Port Huron St. Clair River Cam (BoatNerd)",
+    "location": "Port Huron, Michigan · St. Clair River",
+    "latitude": 42.97,
+    "longitude": -82.424,
+    "url": "https://www.youtube.com/watch?v=SrL74LPoXF8",
+    "provider": "BoatNerd",
+    "active": true
+  },
+  {
+    "id": "st-clair-voyageur-restaurant",
+    "name": "St. Clair River at The Voyageur",
+    "location": "St. Clair, Michigan · St. Clair River",
+    "latitude": 42.8234578,
+    "longitude": -82.4857648,
+    "url": "https://www.youtube.com/watch?v=yu0pKQSvYX8",
+    "provider": "BoatNerd / The Voyageur",
+    "active": true
+  },
+  {
+    "id": "marine-city-st-clair-river",
+    "name": "Marine City St. Clair River Cam",
+    "location": "Marine City, Michigan · St. Clair River",
+    "latitude": 42.715278,
+    "longitude": -82.493056,
+    "url": "https://www.youtube.com/watch?v=NqvRpsavyWg",
+    "provider": "StreamTime LIVE",
+    "active": true
+  },
+  {
+    "id": "marysville-junction-buoy-st-clair-river",
+    "name": "Marysville at Junction Buoy",
+    "location": "Marysville, Michigan · St. Clair River",
+    "latitude": 42.9097632,
+    "longitude": -82.4655532,
+    "url": "https://www.youtube.com/watch?v=utGfq6AkxiM",
+    "provider": "StreamTime LIVE / Junction Buoy",
+    "active": true
+  },
+  {
+    "id": "old-cut-marina",
+    "name": "Old Cut Marina",
+    "location": "Long Point, Ontario · Lake Erie",
+    "latitude": 42.58694,
+    "longitude": -80.39538,
+    "url": "https://www.oldcutmarina.ca/old-cut-web-cam.html",
+    "provider": "Old Cut Marina",
+    "active": true
+  },
+  {
+    "id": "macdonald-turkey-point-marina",
+    "name": "South East Webcam View",
+    "location": "Turkey Point, Ontario · Lake Erie",
+    "latitude": 42.6693611,
+    "longitude": -80.3387222,
+    "url": "https://www.macdonaldmarine.com/live-webcams/",
+    "provider": "MacDonald Turkey Point Marina",
+    "active": true
+  },
+  {
+    "id": "macdonald-turkey-point-marina-north-west-webcam-view",
+    "name": "North West Webcam View",
+    "location": "Turkey Point, Ontario · Lake Erie",
+    "latitude": 42.6693611,
+    "longitude": -80.3387222,
+    "url": "https://www.macdonaldmarine.com/live-webcams/",
+    "provider": "MacDonald Turkey Point Marina",
+    "active": true
+  },
+  {
+    "id": "pultneyville-yacht-club",
+    "name": "Pultneyville Yacht Club",
+    "location": "Pultneyville, New York · Lake Ontario (camera looks ENE out of the channel)",
+    "latitude": 43.2816413,
+    "longitude": -77.1863484,
+    "url": "https://www.pultneyvilleyachtclub.org/weather/",
+    "provider": "Pultneyville Yacht Club",
+    "active": true
+  },
+  {
+    "id": "sodus-bay-lighthouse-museum",
+    "name": "Sodus Point Lighthouse & Pier",
+    "location": "Sodus Point, New York · Lake Ontario",
+    "latitude": 43.2728004,
+    "longitude": -76.9860992,
+    "url": "https://www.youtube.com/watch?v=68XVh5TcgBk",
+    "provider": "News 8 WROC / YouTube",
+    "active": true
+  },
+  {
+    "id": "castalia-fish-camera",
+    "name": "Fish Camera",
+    "location": "Castalia, Ohio · Lake Erie",
+    "latitude": 41.4000523,
+    "longitude": -82.8085204,
+    "url": "https://www.shoresandislands.com/things-to-do/on-the-water/fishing/#webcam",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "sandusky-bay-schade-mylander-plaza",
+    "name": "Sandusky Bay and Schade-Mylander Plaza",
+    "location": "Sandusky, Ohio · Sandusky Bay",
+    "latitude": 41.4569092,
+    "longitude": -82.7126372,
+    "url": "https://www.shoresandislands.com/communities/central-shores/sandusky/#webcam",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "catawba-island-lake-erie",
+    "name": "Lake Erie, Catawba Island",
+    "location": "Catawba Island, Ohio · Lake Erie",
+    "latitude": 41.5706,
+    "longitude": -82.8526667,
+    "url": "https://www.shoresandislands.com/communities/north-shores/catawba/#webcam",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "port-clinton-shores-islands",
+    "name": "Port Clinton City Beach",
+    "location": "Port Clinton City Beach, Port Clinton, Ohio · Lake Erie",
+    "latitude": 41.5155,
+    "longitude": -82.9357,
+    "url": "https://pixelcaster.com/live/lesi/cams/port-clinton.html",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "port-clinton-shores-islands-port-clinton-lighthouse",
+    "name": "Port Clinton Lighthouse",
+    "location": "Port Clinton Lighthouse, Port Clinton, Ohio · Lake Erie",
+    "latitude": 41.5151,
+    "longitude": -82.93439,
+    "url": "https://pixelcaster.com/live/lesi/cams/port-clinton-lighthouse.html",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "put-in-bay-harbor",
+    "name": "Put-in-Bay Harbor",
+    "location": "Put-in-Bay, Ohio · Lake Erie (approximate area)",
+    "latitude": 41.6518884,
+    "longitude": -82.8186814,
+    "url": "https://www.shoresandislands.com/communities/islands/put-in-bay/#webcam",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "vermilion-main-street-beach",
+    "name": "Vermilion Main Street Beach",
+    "location": "Vermilion, Ohio · Lake Erie",
+    "latitude": 41.425062,
+    "longitude": -82.365914,
+    "url": "https://www.shoresandislands.com/communities/east-shores/vermilion/#webcam",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "crane-creek",
+    "name": "Crane Creek",
+    "location": "Ottawa National Wildlife Refuge, Ohio · Lake Erie (approximate area)",
+    "latitude": 41.6155905,
+    "longitude": -83.2157973,
+    "url": "https://www.shoresandislands.com/things-to-do/outdoor-recreation/#webcam",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "lakeside-dock",
+    "name": "Lakeside Dock",
+    "location": "Lakeside, Ohio · Lake Erie",
+    "latitude": 41.5453042,
+    "longitude": -82.751375,
+    "url": "https://www.shoresandislands.com/communities/north-shores/lakeside/#webcam",
+    "provider": "Shores & Islands Ohio",
+    "active": true
+  },
+  {
+    "id": "lake-erie-sunset-bay-ny",
+    "name": "Sunset Bay, New York",
+    "location": "Sunset Bay, Irving, New York · Lake Erie",
+    "latitude": 42.561444,
+    "longitude": -79.140646,
+    "url": "https://lakeerienycams.com/",
+    "provider": "Lake Erie Sunset Bay Live Cams / HDOnTap",
+    "active": true
+  },
+  {
+    "id": "walnut-creek-access-area",
+    "name": "Walnut Creek Access Area",
+    "location": "Fairview, Pennsylvania · Lake Erie",
+    "latitude": 42.0765498,
+    "longitude": -80.2377089,
+    "url": "https://www.fishusa.com/walnut-webcam/",
+    "provider": "FishUSA / Brownrice Internet",
+    "active": true
+  },
+  {
+    "id": "lampe-marina",
+    "name": "Lampe Marina",
+    "location": "Erie, Pennsylvania · Lake Erie",
+    "latitude": 42.148311,
+    "longitude": -80.075931,
+    "url": "https://www.fishusa.com/lampe-webcam/",
+    "provider": "FishUSA / Brownrice Internet",
+    "active": true
+  },
+  {
+    "id": "erie-yacht-club-north-basin",
+    "name": "Erie Yacht Club North Basin",
+    "location": "Erie Yacht Club, Erie, Pennsylvania · Presque Isle Bay, Lake Erie",
+    "latitude": 42.1211,
+    "longitude": -80.1299,
+    "url": "https://erieyachtclub.org/basin-web-cams",
+    "provider": "Erie Yacht Club / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "erie-yacht-club-west-basin",
+    "name": "Erie Yacht Club West Basin",
+    "location": "Erie Yacht Club, Erie, Pennsylvania · Presque Isle Bay, Lake Erie",
+    "latitude": 42.1211,
+    "longitude": -80.1299,
+    "url": "https://erieyachtclub.org/basin-web-cams",
+    "provider": "Erie Yacht Club / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "port-lorain",
+    "name": "Port Lorain Lake Erie Live Cam",
+    "location": "Oasis Marinas at Port Lorain, Lorain, Ohio · Lake Erie (approximate area)",
+    "latitude": 41.47372,
+    "longitude": -82.17794,
+    "url": "https://www.youtube.com/watch?v=1MVB3fgg7kg",
+    "provider": "Lorain Port and Finance Authority / YouTube",
+    "active": true
+  },
+  {
+    "id": "port-lorain-24-7-lorain-lighthouse-cam-with-audio",
+    "name": "24/7 Lorain Lighthouse Cam with Audio",
+    "location": "Lorain Lighthouse, Lorain, Ohio · Lake Erie",
+    "latitude": 41.475777,
+    "longitude": -82.1905277,
+    "url": "https://www.youtube.com/watch?v=AinDIqEXEu4",
+    "provider": "Lorain Port and Finance Authority / YouTube",
+    "active": true
+  },
+  {
+    "id": "avonia-beach",
+    "name": "Avonia Beach",
+    "location": "Fairview, Pennsylvania · Lake Erie",
+    "latitude": 42.0586111,
+    "longitude": -80.2723333,
+    "url": "https://www.fishusa.com/avonia-webcam/",
+    "provider": "FishUSA / Brownrice Internet",
+    "active": true
+  },
+  {
+    "id": "kingston-springer-market-square",
+    "name": "Springer Market Square",
+    "location": "Kingston, Ontario · Downtown",
+    "latitude": 44.2301,
+    "longitude": -76.4784,
+    "url": "https://www.cityofkingston.ca/news-and-notices/webcams/",
+    "provider": "City of Kingston / Ozolio",
+    "active": true
+  },
+  {
+    "id": "kingston-confederation-basin",
+    "name": "Confederation Basin",
+    "location": "Kingston, Ontario · Lake Ontario",
+    "latitude": 44.2298831,
+    "longitude": -76.4804171,
+    "url": "https://www.cityofkingston.ca/news-and-notices/webcams/",
+    "provider": "City of Kingston / Ozolio",
+    "active": true
+  },
+  {
+    "id": "kingston-breakwater-park",
+    "name": "Breakwater Park",
+    "location": "Kingston, Ontario · Lake Ontario",
+    "latitude": 44.2205374,
+    "longitude": -76.502487,
+    "url": "https://www.cityofkingston.ca/news-and-notices/webcams/",
+    "provider": "City of Kingston / Ozolio",
+    "active": true
+  },
+  {
+    "id": "kingston-portsmouth-olympic-harbour",
+    "name": "Portsmouth Olympic Harbour",
+    "location": "Kingston, Ontario · Lake Ontario",
+    "latitude": 44.2187636,
+    "longitude": -76.5172294,
+    "url": "https://www.cityofkingston.ca/news-and-notices/webcams/",
+    "provider": "City of Kingston / Ozolio",
+    "active": true
+  },
+  {
+    "id": "kingston-richardson-beach",
+    "name": "Richardson Beach",
+    "location": "Kingston, Ontario · Lake Ontario",
+    "latitude": 44.2222222,
+    "longitude": -76.4885,
+    "url": "https://www.cityofkingston.ca/news-and-notices/webcams/",
+    "provider": "City of Kingston / Ozolio",
+    "active": true
+  },
+  {
+    "id": "kingston-waaban-crossing",
+    "name": "Waaban Crossing",
+    "location": "Kingston, Ontario · Cataraqui River (approximate area)",
+    "latitude": 44.258959,
+    "longitude": -76.471148,
+    "url": "https://www.cityofkingston.ca/news-and-notices/webcams/",
+    "provider": "City of Kingston / Ozolio",
+    "active": true
+  },
+  {
+    "id": "kingston-chown-hanson-parking-garages",
+    "name": "Chown and Hanson Parking Garages",
+    "location": "Kingston, Ontario · Downtown",
+    "latitude": 44.23105,
+    "longitude": -76.48326,
+    "url": "https://www.cityofkingston.ca/news-and-notices/webcams/",
+    "provider": "City of Kingston / Ozolio",
+    "active": true
+  },
+  {
+    "id": "port-colborne-welland-canal",
+    "name": "Port Colborne Welland Canal",
+    "location": "Port Colborne, Ontario · Welland Canal",
+    "latitude": 42.885886,
+    "longitude": -79.250217,
+    "url": "https://www.youtube.com/watch?v=yF7XdpkL34w",
+    "provider": "StreamTime Live / Canalside Restaurant & Inn / YouTube",
+    "active": true
+  },
+  {
+    "id": "duluth-harbor-cam-bridge",
+    "name": "Duluth Harbor Cam — Bridge View",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.77876,
+    "longitude": -92.10074,
+    "url": "https://www.duluthharborcam.com/p/bridge-cam.html",
+    "provider": "Duluth Harbor Cam / YouTube",
+    "active": true
+  },
+  {
+    "id": "duluth-harbor-cam-harbor",
+    "name": "Duluth Harbor Cam — Harbor View",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.7766,
+    "longitude": -92.1,
+    "url": "https://lsmma.com/content.aspx?club_id=605134&module_id=524613&page_id=22",
+    "provider": "Duluth Harbor Cam / YouTube",
+    "active": true
+  },
+  {
+    "id": "south-pier-inn-canal-cam",
+    "name": "South Pier Inn Canal Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.7778594,
+    "longitude": -92.0930012,
+    "url": "https://southpierinn.com/webcam/",
+    "provider": "South Pier Inn / Nest",
+    "active": true
+  },
+  {
+    "id": "south-pier-inn-harbor-cam",
+    "name": "South Pier Inn Harbor Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.7778594,
+    "longitude": -92.0930012,
+    "url": "https://southpierinn.com/webcam/",
+    "provider": "South Pier Inn / Nest",
+    "active": true
+  },
+  {
+    "id": "solglimt-bb-cam",
+    "name": "Solglimt B&B Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.782,
+    "longitude": -92.095,
+    "url": "https://www.youtube.com/watch?v=m2wWzo9GmwY",
+    "provider": "Solglimt B&B / YouTube",
+    "active": true
+  },
+  {
+    "id": "great-lakes-aquarium-harbor-cam",
+    "name": "Great Lakes Aquarium Harbor Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.7789702,
+    "longitude": -92.1001071,
+    "url": "https://www.duluthharborcam.com/p/great-lakes-aquarium.html",
+    "provider": "Duluth Harbor Cam / Great Lakes Aquarium",
+    "active": true
+  },
+  {
+    "id": "inn-on-lake-superior-cam",
+    "name": "Inn on Lake Superior Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.7832144,
+    "longitude": -92.0933339,
+    "url": "https://innonlakesuperior.com/lake-cam/",
+    "provider": "The Inn on Lake Superior / YouTube",
+    "active": true
+  },
+  {
+    "id": "duluth-bayfront-cam",
+    "name": "Duluth Bayfront Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.774,
+    "longitude": -92.102,
+    "url": "https://visitduluth.com/lake-superior/live-webcams/",
+    "provider": "Visit Duluth / YouTube",
+    "active": true
+  },
+  {
+    "id": "duluth-canal-cam",
+    "name": "Duluth Canal Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.77876,
+    "longitude": -92.10074,
+    "url": "https://lsmma.com/content.aspx?club_id=605134&module_id=524613&page_id=22",
+    "provider": "Lake Superior Marine Museum Association / YouTube",
+    "active": true
+  },
+  {
+    "id": "wdio-duluth-harbor-cam",
+    "name": "WDIO Harbor Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.7868,
+    "longitude": -92.103,
+    "url": "https://www.wdio.com/live-cams/harbor-cam/",
+    "provider": "WDIO",
+    "active": true
+  },
+  {
+    "id": "minnesota-power-lake-cam",
+    "name": "Minnesota Power Lake Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.7868,
+    "longitude": -92.103,
+    "url": "https://www.allete.com/lakecam/",
+    "provider": "Minnesota Power / YouTube",
+    "active": true
+  },
+  {
+    "id": "glensheen-lake-cam",
+    "name": "Glensheen Lake Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.8151593,
+    "longitude": -92.0517438,
+    "url": "https://glensheen.org/visit/estate/pier",
+    "provider": "Glensheen / YouTube",
+    "active": true
+  },
+  {
+    "id": "two-harbors-boat-launch-cam",
+    "name": "Two Harbors Boat Launch Cam",
+    "location": "Two Harbors, Minnesota · Lake Superior",
+    "latitude": 47.0242,
+    "longitude": -91.67,
+    "url": "https://lsmma.com/content.aspx?club_id=605134&module_id=524613&page_id=22",
+    "provider": "Lake Superior Marine Museum Association / YouTube",
+    "active": true
+  },
+  {
+    "id": "two-harbors-depot-cam",
+    "name": "Two Harbors Depot Cam",
+    "location": "Two Harbors, Minnesota · Lake Superior",
+    "latitude": 47.0222,
+    "longitude": -91.6735,
+    "url": "https://lsmma.com/content.aspx?club_id=605134&module_id=524613&page_id=22",
+    "provider": "Lake Superior Marine Museum Association / YouTube",
+    "active": true
+  },
+  {
+    "id": "split-rock-lighthouse-cam",
+    "name": "Split Rock Lighthouse Cam",
+    "location": "Beaver Bay Township, Minnesota · Lake Superior",
+    "latitude": 47.2000961,
+    "longitude": -91.3670173,
+    "url": "https://www.mnhs.org/splitrock/learn/camera",
+    "provider": "Minnesota Historical Society / Duluth Harbor Cam / YouTube",
+    "active": true
+  },
+  {
+    "id": "silver-bay-marina-cam",
+    "name": "Silver Bay Marina Cam",
+    "location": "Silver Bay, Minnesota · Lake Superior",
+    "latitude": 47.2709996,
+    "longitude": -91.2747246,
+    "url": "https://lsmma.com/content.aspx?club_id=605134&module_id=524613&page_id=22",
+    "provider": "Lake Superior Marine Museum Association / YouTube",
+    "active": true
+  },
+  {
+    "id": "lutsen-mountains-cam",
+    "name": "Lutsen Mountains Cam",
+    "location": "Lutsen, Minnesota · Lake Superior",
+    "latitude": 47.6559901,
+    "longitude": -90.7250636,
+    "url": "https://lutsen.roundshot.com/",
+    "provider": "Lutsen Mountains / Roundshot",
+    "active": true
+  },
+  {
+    "id": "grand-marais-mn-harbor-cam",
+    "name": "Grand Marais Harbor Cam (Minnesota)",
+    "location": "Grand Marais, Minnesota · Lake Superior",
+    "latitude": 47.7502,
+    "longitude": -90.3344,
+    "url": "https://www.visitcookcounty.com/webcams/",
+    "provider": "Visit Cook County / Sundew Tech",
+    "active": true
+  },
+  {
+    "id": "thunder-bay-marina-park-cam",
+    "name": "Thunder Bay Marina Park Cam",
+    "location": "Thunder Bay, Ontario · Lake Superior",
+    "latitude": 48.4343,
+    "longitude": -89.2198,
+    "url": "https://my.tbaytel.net/jvisser/webcam.html",
+    "provider": "Tbaytel",
+    "active": false
+  },
+  {
+    "id": "thunder-bay-may-victoria-cam",
+    "name": "May and Victoria Street Cam",
+    "location": "Thunder Bay, Ontario · Lake Superior",
+    "latitude": 48.4113,
+    "longitude": -89.2449,
+    "url": "https://www.webcamtaxi.com/en/canada/ontario/thunderbay-may-victoria-cam.html",
+    "provider": "Webcamtaxi",
+    "active": false
+  },
+  {
+    "id": "nipigon-bridge-highway-cam",
+    "name": "Nipigon Bridge Highway Cam",
+    "location": "Nipigon, Ontario · Nipigon River",
+    "latitude": 49.0196181,
+    "longitude": -88.251297,
+    "url": "https://511on.ca/map/Cctv/2123",
+    "provider": "Ontario 511",
+    "active": true
+  },
+  {
+    "id": "montreal-river-harbour",
+    "name": "Montreal River Harbour Cam",
+    "location": "Montreal River Harbour, Ontario · Lake Superior",
+    "latitude": 47.2381728,
+    "longitude": -84.6453152,
+    "url": "https://johndee.com/ncn/montrealriverharbour_ncn.htm",
+    "provider": "John Dee's Northwoods Cam Network",
+    "active": false
+  },
+  {
+    "id": "batchawana-bay-cam",
+    "name": "Batchawana Bay Cam",
+    "location": "Batchawana Bay, Ontario · Lake Superior",
+    "latitude": 46.8818703,
+    "longitude": -84.4831314,
+    "url": "https://www.youtube.com/watch?v=fIzFILDm3PA",
+    "provider": "YouTube",
+    "active": true
+  },
+  {
+    "id": "sault-ste-marie-international-bridge-cam",
+    "name": "International Bridge Cam",
+    "location": "Sault Ste. Marie, Ontario · St. Marys River",
+    "latitude": 46.5147504,
+    "longitude": -84.3580155,
+    "url": "https://www.saultbridge.com/bridge-traffic-camera-north/",
+    "provider": "Sault Ste. Marie International Bridge / Angelcam",
+    "active": true
+  },
+  {
+    "id": "sault-ste-marie-michigan-falcam",
+    "name": "Sault Ste. Marie Bridge FalCam",
+    "location": "Sault Ste. Marie, Michigan · St. Marys River",
+    "latitude": 46.514,
+    "longitude": -84.358,
+    "url": "https://www.saultbridge.com/falcam/",
+    "provider": "Sault Ste. Marie International Bridge",
+    "active": false
+  },
+  {
+    "id": "soo-locks-army-corps-cam",
+    "name": "Soo Locks Cam",
+    "location": "Sault Ste. Marie, Michigan · St. Marys River",
+    "latitude": 46.5003,
+    "longitude": -84.3483,
+    "url": "https://webcam.erdc.dren.mil/soo/",
+    "provider": "U.S. Army Corps of Engineers",
+    "active": false
+  },
+  {
+    "id": "soo-locks-karl-cuisine-cam",
+    "name": "Soo Locks from Karl's Cuisine",
+    "location": "Sault Ste. Marie, Michigan · St. Marys River",
+    "latitude": 46.4981928,
+    "longitude": -84.3405472,
+    "url": "https://www.9and10news.com/weather/cams/sault-ste-marie/",
+    "provider": "9&10 News",
+    "active": true
+  },
+  {
+    "id": "soo-locks-live-stream",
+    "name": "Soo Locks Live Stream",
+    "location": "Sault Ste. Marie, Michigan · St. Marys River",
+    "latitude": 46.4981928,
+    "longitude": -84.3405472,
+    "url": "https://www.youtube.com/watch?v=2djzpbW_E1Q",
+    "provider": "StreamTime Live / YouTube",
+    "active": true
+  },
+  {
+    "id": "lssu-fish-cam",
+    "name": "LSSU Fish Cam",
+    "location": "Sault Ste. Marie, Michigan · St. Marys River",
+    "latitude": 46.490311,
+    "longitude": -84.3660154,
+    "url": "https://www.lssu.edu/centers/cfre/students/hatchery/cfre-fishcam/",
+    "provider": "Lake Superior State University / YouTube",
+    "active": true
+  },
+  {
+    "id": "mackinac-bridge-camera-1",
+    "name": "Mackinac Bridge Cam — Camera 1 (Administration Building)",
+    "location": "St. Ignace, Michigan · Straits of Mackinac",
+    "latitude": 45.8666,
+    "longitude": -84.7262,
+    "url": "https://www.mackinacbridge.org/fares-traffic/bridge-cam/",
+    "provider": "Mackinac Bridge Authority",
+    "active": true
+  },
+  {
+    "id": "mackinac-bridge-camera-2",
+    "name": "Mackinac Bridge Cam — Camera 2 (St. Ignace Dock)",
+    "location": "St. Ignace, Michigan · Straits of Mackinac",
+    "latitude": 45.8673,
+    "longitude": -84.7258,
+    "url": "https://www.mackinacbridge.org/fares-traffic/bridge-cam/",
+    "provider": "Mackinac Bridge Authority",
+    "active": true
+  },
+  {
+    "id": "mackinac-bridge-camera-4",
+    "name": "Mackinac Bridge Cam — Camera 4 (Mackinaw City)",
+    "location": "Mackinaw City, Michigan · Straits of Mackinac",
+    "latitude": 45.7729963,
+    "longitude": -84.7260442,
+    "url": "https://www.mackinacbridge.org/fares-traffic/bridge-cam/",
+    "provider": "Mackinac Bridge Authority",
+    "active": true
+  },
+  {
+    "id": "mackinac-bridge-camera-5",
+    "name": "Mackinac Bridge Cam — Camera 5 (I-75 and US-2)",
+    "location": "St. Ignace, Michigan · Straits of Mackinac",
+    "latitude": 45.854,
+    "longitude": -84.724,
+    "url": "https://www.mackinacbridge.org/fares-traffic/bridge-cam/",
+    "provider": "Mackinac Bridge Authority",
+    "active": true
+  },
+  {
+    "id": "munising-bay-cam",
+    "name": "Munising Bay Cam",
+    "location": "Munising, Michigan · Lake Superior",
+    "latitude": 46.409,
+    "longitude": -86.653,
+    "url": "https://www.exploremunising.com/web-cams/",
+    "provider": "Explore Munising / Nest",
+    "active": true
+  },
+  {
+    "id": "munising-m28-cam",
+    "name": "City of Munising M-28 Cam",
+    "location": "Munising, Michigan · Lake Superior",
+    "latitude": 46.4058958,
+    "longitude": -86.6496697,
+    "url": "https://www.exploremunising.com/web-cams/",
+    "provider": "Explore Munising / Nest",
+    "active": true
+  },
+  {
+    "id": "wetmore-m28-east-cam",
+    "name": "Wetmore M-28 East Cam",
+    "location": "Wetmore, Michigan · Lake Superior",
+    "latitude": 46.3796711,
+    "longitude": -86.6204356,
+    "url": "https://www.exploremunising.com/web-cams/",
+    "provider": "Explore Munising / Nest",
+    "active": true
+  },
+  {
+    "id": "grand-marais-michigan-downtown-cam",
+    "name": "Downtown Grand Marais Cam (Michigan)",
+    "location": "Grand Marais, Michigan · Lake Superior",
+    "latitude": 46.673,
+    "longitude": -85.984,
+    "url": "https://www.exploremunising.com/web-cams/",
+    "provider": "Explore Munising / Nest",
+    "active": true
+  },
+  {
+    "id": "granite-island-cam-1",
+    "name": "Granite Island Snapshot 1",
+    "location": "Granite Island Light Station, Michigan · Lake Superior",
+    "latitude": 46.7208,
+    "longitude": -87.4114,
+    "url": "https://www.graniteisland.com/cam1.shtml",
+    "provider": "Granite Island Light Station",
+    "active": true
+  },
+  {
+    "id": "granite-island-cam-3",
+    "name": "Granite Island Snapshot 3",
+    "location": "Granite Island Light Station, Michigan · Lake Superior",
+    "latitude": 46.7208,
+    "longitude": -87.4114,
+    "url": "https://www.graniteisland.com/cam3.shtml",
+    "provider": "Granite Island Light Station",
+    "active": true
+  },
+  {
+    "id": "granite-island-cam-4",
+    "name": "Granite Island Snapshot 4",
+    "location": "Granite Island Light Station, Michigan · Lake Superior",
+    "latitude": 46.7208,
+    "longitude": -87.4114,
+    "url": "https://www.graniteisland.com/cam4.shtml",
+    "provider": "Granite Island Light Station",
+    "active": true
+  },
+  {
+    "id": "michigan-tech-mid-campus-cam",
+    "name": "Michigan Tech Cam (Mid-Campus)",
+    "location": "Houghton, Michigan · Portage Canal",
+    "latitude": 47.1097231,
+    "longitude": -88.5494107,
+    "url": "https://www.mtu.edu/webcams/mid-campus/",
+    "provider": "Michigan Technological University",
+    "active": true
+  },
+  {
+    "id": "houghton-bridge-cam",
+    "name": "Houghton Bridge Cam",
+    "location": "Houghton, Michigan · Portage Canal",
+    "latitude": 47.12,
+    "longitude": -88.56,
+    "url": "https://www.mtu.edu/webcams/bridge/",
+    "provider": "Michigan Technological University",
+    "active": true
+  },
+  {
+    "id": "copper-harbor-kab-cam",
+    "name": "Copper Harbor Cam (Pasty Central)",
+    "location": "Copper Harbor, Michigan · Lake Superior",
+    "latitude": 47.4680744,
+    "longitude": -87.8888043,
+    "url": "https://copperharbor.org/web-cams/",
+    "provider": "Copper Harbor Improvement Association / Pasty.NET",
+    "active": true
+  },
+  {
+    "id": "copper-harbor-lodge-cam",
+    "name": "Keweenaw Mountain Lodge Cam",
+    "location": "Copper Harbor, Michigan · Lake Superior",
+    "latitude": 47.4617295,
+    "longitude": -87.9152558,
+    "url": "https://copperharbor.org/web-cams/",
+    "provider": "Keweenaw Mountain Lodge / Nest",
+    "active": true
+  },
+  {
+    "id": "keweenaw-mountain-lodge-all-sky-cam",
+    "name": "Keweenaw Mountain Lodge All-Sky Cam",
+    "location": "Copper Harbor, Michigan · Lake Superior",
+    "latitude": 47.458,
+    "longitude": -87.913,
+    "url": "https://keweenawmountainlodge.com/activities/stargazing/all-sky-web-camera/",
+    "provider": "Keweenaw Mountain Lodge",
+    "active": true
+  },
+  {
+    "id": "eagle-harbor-cam",
+    "name": "Eagle Harbor Cam",
+    "location": "Eagle Harbor, Michigan · Lake Superior",
+    "latitude": 47.458245,
+    "longitude": -88.162326,
+    "url": "https://www.cableamerica.com/Michigan/Lake.shtml",
+    "provider": "CableAmerica",
+    "active": false
+  },
+  {
+    "id": "tobin-harbor-cam",
+    "name": "Tobin Harbor Cam",
+    "location": "Isle Royale, Michigan · Lake Superior",
+    "latitude": 48.116,
+    "longitude": -88.501,
+    "url": "https://www.nps.gov/isro/learn/photosmultimedia/webcams.htm",
+    "provider": "National Park Service / Isle Royale National Park",
+    "active": false
+  },
+  {
+    "id": "mott-island-dock-cam",
+    "name": "Mott Island Dock Cam",
+    "location": "Isle Royale, Michigan · Lake Superior",
+    "latitude": 48.106,
+    "longitude": -88.56,
+    "url": "https://www.nps.gov/isro/learn/photosmultimedia/webcams.htm",
+    "provider": "National Park Service / Isle Royale National Park",
+    "active": true
+  },
+  {
+    "id": "ashland-bay-cam",
+    "name": "Ashland Bay Cam",
+    "location": "Ashland, Wisconsin · Lake Superior",
+    "latitude": 46.5924,
+    "longitude": -90.8838,
+    "url": "http://baycam.nsbashland.com/view/view.shtml?id=22644&imagepath=%2Fmjpg%2Fvideo.mjpg%3Fcamera%3D1&size=1",
+    "provider": "Baycam / North Shore Bank of Ashland",
+    "active": false
+  },
+  {
+    "id": "washburn-marina-cam",
+    "name": "Washburn Marina Cam",
+    "location": "Washburn, Wisconsin · Lake Superior",
+    "latitude": 46.6675819,
+    "longitude": -90.8876172,
+    "url": "https://www.youtube.com/watch?v=lgwqBuhMhZY",
+    "provider": "Washburn Marina / YouTube",
+    "active": true
+  },
+  {
+    "id": "port-superior-marina-cam",
+    "name": "Port Superior Marina Cam",
+    "location": "Bayfield, Wisconsin · Lake Superior",
+    "latitude": 46.78872,
+    "longitude": -90.8532673,
+    "url": "https://portsuperior.com/port-superior-live-feed/",
+    "provider": "Port Superior / Angelcam",
+    "active": true
+  },
+  {
+    "id": "bayfield-inn-cam",
+    "name": "Bayfield Inn Cam",
+    "location": "Bayfield, Wisconsin · Lake Superior",
+    "latitude": 46.8105863,
+    "longitude": -90.8141842,
+    "url": "https://bayfieldinn.com/webcam/",
+    "provider": "Bayfield Inn / Angelcam",
+    "active": true
+  },
+  {
+    "id": "wisconsin-point-cam",
+    "name": "Wisconsin Point Cam",
+    "location": "Superior, Wisconsin · Lake Superior",
+    "latitude": 46.703342,
+    "longitude": -92.0088005,
+    "url": "https://lsmma.com/content.aspx?club_id=605134&module_id=524613&page_id=22",
+    "provider": "Lake Superior Marine Museum Association / YouTube",
+    "active": true
+  },
+  {
+    "id": "fairlawn-cam",
+    "name": "Fairlawn Cam",
+    "location": "Superior, Wisconsin · Lake Superior",
+    "latitude": 46.716,
+    "longitude": -92.087,
+    "url": "https://lsmma.com/content.aspx?club_id=605134&module_id=524613&page_id=22",
+    "provider": "Lake Superior Marine Museum Association / YouTube",
+    "active": true
+  },
+  {
+    "id": "glerl-apn-cam-2",
+    "name": "Alpena ReCON Cam 2",
+    "location": "Alpena, Michigan · Lake Huron",
+    "latitude": 45.059722,
+    "longitude": -83.423611,
+    "url": "https://www.glerl.noaa.gov/metdata/apn/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-apn-cam-3",
+    "name": "Alpena ReCON Cam 3",
+    "location": "Alpena, Michigan · Lake Huron",
+    "latitude": 45.059722,
+    "longitude": -83.423611,
+    "url": "https://www.glerl.noaa.gov/metdata/apn/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-apn-cam-4",
+    "name": "Alpena ReCON Cam 4",
+    "location": "Alpena, Michigan · Lake Huron",
+    "latitude": 45.059722,
+    "longitude": -83.423611,
+    "url": "https://www.glerl.noaa.gov/metdata/apn/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-apn-cam-5",
+    "name": "Alpena ReCON Cam 5",
+    "location": "Alpena, Michigan · Lake Huron",
+    "latitude": 45.059722,
+    "longitude": -83.423611,
+    "url": "https://www.glerl.noaa.gov/metdata/apn/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-chi-cam-2",
+    "name": "Harrison-Dever Crib ReCON Cam 2",
+    "location": "Chicago, Illinois · Lake Michigan",
+    "latitude": 41.916,
+    "longitude": -87.572,
+    "url": "https://www.glerl.noaa.gov/metdata/chi/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-chi-cam-3",
+    "name": "Harrison-Dever Crib ReCON Cam 3",
+    "location": "Chicago, Illinois · Lake Michigan",
+    "latitude": 41.916,
+    "longitude": -87.572,
+    "url": "https://www.glerl.noaa.gov/metdata/chi/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-mcy-cam-1",
+    "name": "Michigan City ReCON Cam 1",
+    "location": "Michigan City, Indiana · Lake Michigan",
+    "latitude": 41.728611,
+    "longitude": -86.9125,
+    "url": "https://www.glerl.noaa.gov/metdata/mcy/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-mcy-cam-2",
+    "name": "Michigan City ReCON Cam 2",
+    "location": "Michigan City, Indiana · Lake Michigan",
+    "latitude": 41.728611,
+    "longitude": -86.9125,
+    "url": "https://www.glerl.noaa.gov/metdata/mcy/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-mcy-cam-3",
+    "name": "Michigan City ReCON Cam 3",
+    "location": "Michigan City, Indiana · Lake Michigan",
+    "latitude": 41.728611,
+    "longitude": -86.9125,
+    "url": "https://www.glerl.noaa.gov/metdata/mcy/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-mkg-cam-1",
+    "name": "Muskegon ReCON Cam 1",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.227778,
+    "longitude": -86.338889,
+    "url": "https://www.glerl.noaa.gov/metdata/mkg/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-mkg-cam-2",
+    "name": "Muskegon ReCON Cam 2",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.227778,
+    "longitude": -86.338889,
+    "url": "https://www.glerl.noaa.gov/metdata/mkg/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-mkg-cam-3",
+    "name": "Muskegon ReCON Cam 3",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.227778,
+    "longitude": -86.338889,
+    "url": "https://www.glerl.noaa.gov/metdata/mkg/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-mkg-cam-4",
+    "name": "Muskegon ReCON Cam 4",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.227778,
+    "longitude": -86.338889,
+    "url": "https://www.glerl.noaa.gov/metdata/mkg/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-mkg-cam-5",
+    "name": "Muskegon ReCON Cam 5",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.227778,
+    "longitude": -86.338889,
+    "url": "https://www.glerl.noaa.gov/metdata/mkg/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-mkg-cam-7",
+    "name": "Muskegon ReCON Cam 7",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.227778,
+    "longitude": -86.338889,
+    "url": "https://www.glerl.noaa.gov/metdata/mkg/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-mkg-cam-8",
+    "name": "Muskegon ReCON Cam 8",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.227778,
+    "longitude": -86.338889,
+    "url": "https://www.glerl.noaa.gov/metdata/mkg/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-mkglight-cam-1",
+    "name": "Muskegon Pier Light ReCON Cam 1",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.226667,
+    "longitude": -86.341389,
+    "url": "https://www.glerl.noaa.gov/metdata/mkglight/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-mkglight-cam-2",
+    "name": "Muskegon Pier Light ReCON Cam 2",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.226667,
+    "longitude": -86.341389,
+    "url": "https://www.glerl.noaa.gov/metdata/mkglight/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-mkglight-cam-3",
+    "name": "Muskegon Pier Light ReCON Cam 3",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.226667,
+    "longitude": -86.341389,
+    "url": "https://www.glerl.noaa.gov/metdata/mkglight/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-mkglight-cam-4",
+    "name": "Muskegon Pier Light ReCON Cam 4",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.226667,
+    "longitude": -86.341389,
+    "url": "https://www.glerl.noaa.gov/metdata/mkglight/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-mkglight-cam-5",
+    "name": "Muskegon Pier Light ReCON Cam 5",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.226667,
+    "longitude": -86.341389,
+    "url": "https://www.glerl.noaa.gov/metdata/mkglight/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-mkglight-cam-6",
+    "name": "Muskegon Pier Light ReCON Cam 6",
+    "location": "Muskegon, Michigan · Lake Michigan",
+    "latitude": 43.226667,
+    "longitude": -86.341389,
+    "url": "https://www.glerl.noaa.gov/metdata/mkglight/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": false
+  },
+  {
+    "id": "glerl-shv-cam-2",
+    "name": "South Haven ReCON Cam 2",
+    "location": "South Haven, Michigan · Lake Michigan",
+    "latitude": 42.401389,
+    "longitude": -86.288889,
+    "url": "https://www.glerl.noaa.gov/metdata/shv/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-shv-cam-3",
+    "name": "South Haven ReCON Cam 3",
+    "location": "South Haven, Michigan · Lake Michigan",
+    "latitude": 42.401389,
+    "longitude": -86.288889,
+    "url": "https://www.glerl.noaa.gov/metdata/shv/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-shv-cam-4",
+    "name": "South Haven ReCON Cam 4",
+    "location": "South Haven, Michigan · Lake Michigan",
+    "latitude": 42.401389,
+    "longitude": -86.288889,
+    "url": "https://www.glerl.noaa.gov/metdata/shv/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-srl-cam-1",
+    "name": "Spectacle Reef Light ReCON Cam 1",
+    "location": "Spectacle Reef Light, Michigan · Lake Huron",
+    "latitude": 45.7732,
+    "longitude": -84.1367,
+    "url": "https://www.glerl.noaa.gov/metdata/srl/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-srl-cam-2",
+    "name": "Spectacle Reef Light ReCON Cam 2",
+    "location": "Spectacle Reef Light, Michigan · Lake Huron",
+    "latitude": 45.7732,
+    "longitude": -84.1367,
+    "url": "https://www.glerl.noaa.gov/metdata/srl/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-srl-cam-3",
+    "name": "Spectacle Reef Light ReCON Cam 3",
+    "location": "Spectacle Reef Light, Michigan · Lake Huron",
+    "latitude": 45.7732,
+    "longitude": -84.1367,
+    "url": "https://www.glerl.noaa.gov/metdata/srl/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-srl-cam-4",
+    "name": "Spectacle Reef Light ReCON Cam 4",
+    "location": "Spectacle Reef Light, Michigan · Lake Huron",
+    "latitude": 45.7732,
+    "longitude": -84.1367,
+    "url": "https://www.glerl.noaa.gov/metdata/srl/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-srl-cam-5",
+    "name": "Spectacle Reef Light ReCON Cam 5",
+    "location": "Spectacle Reef Light, Michigan · Lake Huron",
+    "latitude": 45.7732,
+    "longitude": -84.1367,
+    "url": "https://www.glerl.noaa.gov/metdata/srl/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-1",
+    "name": "Stannard Rock Light Cam 1",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-2",
+    "name": "Stannard Rock Light Cam 2",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-3",
+    "name": "Stannard Rock Light Cam 3",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-4",
+    "name": "Stannard Rock Light Cam 4",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-5",
+    "name": "Stannard Rock Light Cam 5",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-6",
+    "name": "Stannard Rock Light Cam 6",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-7",
+    "name": "Stannard Rock Light Cam 7",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-8",
+    "name": "Stannard Rock Light Cam 8",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-9",
+    "name": "Stannard Rock Light Cam 9",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-10",
+    "name": "Stannard Rock Light Cam 10",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-11",
+    "name": "Stannard Rock Light Cam 11",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-stannard-rock-view-12",
+    "name": "Stannard Rock Light Cam 12",
+    "location": "Stannard Rock Light, Michigan · Lake Superior",
+    "latitude": 47.1835,
+    "longitude": -87.225117,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-std.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-tbi-cam-1",
+    "name": "Thunder Bay Island ReCON Cam 1",
+    "location": "Thunder Bay Island, Michigan · Lake Huron",
+    "latitude": 45.034717,
+    "longitude": -83.194167,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-tbi.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-tbi-cam-2",
+    "name": "Thunder Bay Island ReCON Cam 2",
+    "location": "Thunder Bay Island, Michigan · Lake Huron",
+    "latitude": 45.034717,
+    "longitude": -83.194167,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-tbi.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-tbi-cam-3",
+    "name": "Thunder Bay Island ReCON Cam 3",
+    "location": "Thunder Bay Island, Michigan · Lake Huron",
+    "latitude": 45.034717,
+    "longitude": -83.194167,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-tbi.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-tbi-cam-4",
+    "name": "Thunder Bay Island ReCON Cam 4",
+    "location": "Thunder Bay Island, Michigan · Lake Huron",
+    "latitude": 45.034717,
+    "longitude": -83.194167,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-tbi.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-tbi-cam-5",
+    "name": "Thunder Bay Island ReCON Cam 5",
+    "location": "Thunder Bay Island, Michigan · Lake Huron",
+    "latitude": 45.034717,
+    "longitude": -83.194167,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-tbi.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-tbi-cam-6",
+    "name": "Thunder Bay Island ReCON Cam 6",
+    "location": "Thunder Bay Island, Michigan · Lake Huron",
+    "latitude": 45.034717,
+    "longitude": -83.194167,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-tbi.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-tol2-cam-1",
+    "name": "Toledo Light No. 2 ReCON Cam 1",
+    "location": "Toledo, Ohio · Lake Erie",
+    "latitude": 41.825556,
+    "longitude": -83.193611,
+    "url": "https://www.glerl.noaa.gov/metdata/tol2/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-tol2-cam-2",
+    "name": "Toledo Light No. 2 ReCON Cam 2",
+    "location": "Toledo, Ohio · Lake Erie",
+    "latitude": 41.825556,
+    "longitude": -83.193611,
+    "url": "https://www.glerl.noaa.gov/metdata/tol2/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-tol2-cam-3",
+    "name": "Toledo Light No. 2 ReCON Cam 3",
+    "location": "Toledo, Ohio · Lake Erie",
+    "latitude": 41.825556,
+    "longitude": -83.193611,
+    "url": "https://www.glerl.noaa.gov/metdata/tol2/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-tol2-cam-4",
+    "name": "Toledo Light No. 2 ReCON Cam 4",
+    "location": "Toledo, Ohio · Lake Erie",
+    "latitude": 41.825556,
+    "longitude": -83.193611,
+    "url": "https://www.glerl.noaa.gov/metdata/tol2/",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-wsl-cam-1",
+    "name": "White Shoal Light ReCON Cam 1",
+    "location": "White Shoal Light, Michigan · Lake Michigan",
+    "latitude": 45.842217,
+    "longitude": -85.135283,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-wsl.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-wsl-cam-2",
+    "name": "White Shoal Light ReCON Cam 2",
+    "location": "White Shoal Light, Michigan · Lake Michigan",
+    "latitude": 45.842217,
+    "longitude": -85.135283,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-wsl.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "glerl-wsl-cam-3",
+    "name": "White Shoal Light ReCON Cam 3",
+    "location": "White Shoal Light, Michigan · Lake Michigan",
+    "latitude": 45.842217,
+    "longitude": -85.135283,
+    "url": "https://www.glerl.noaa.gov/res/recon/browsewebcam-wsl.php",
+    "provider": "NOAA Great Lakes Environmental Research Laboratory",
+    "active": true
+  },
+  {
+    "id": "avon-lake-miller-road-park",
+    "name": "Avon Lake",
+    "location": "Miller Road Park, Avon Lake, Ohio · Lake Erie",
+    "latitude": 41.50277,
+    "longitude": -82.06072,
+    "url": "https://www.avonlake.org/our-community/lake-erie",
+    "provider": "City of Avon Lake / Dynamic-M",
+    "active": true
+  },
+  {
+    "id": "cleveland-water-crib",
+    "name": "Cleveland Water Crib",
+    "location": "Cleveland, Ohio · Lake Erie",
+    "latitude": 41.54827,
+    "longitude": -81.75027,
+    "url": "https://www.youtube.com/watch?v=pTCHt8PrImY",
+    "provider": "Cleveland Water / YouTube",
+    "active": true
+  },
+  {
+    "id": "fairport-harbor-lakefront-park",
+    "name": "Fairport Harbor Lakefront Park",
+    "location": "Fairport Harbor, Ohio · Lake Erie",
+    "latitude": 41.7587,
+    "longitude": -81.2742,
+    "url": "https://lakemetroparks.com/webcams/",
+    "provider": "Lake Metroparks / Angelcam",
+    "active": true
+  },
+  {
+    "id": "chagrin-lagoons-yacht-club",
+    "name": "Chagrin Lagoons Yacht Club",
+    "location": "Eastlake, Ohio · Lake Erie",
+    "latitude": 41.675,
+    "longitude": -81.438333,
+    "url": "https://www.clycohio.com/LakeCam",
+    "provider": "Chagrin Lagoons Yacht Club",
+    "active": true
+  },
+  {
+    "id": "cleveland-pier-w-earthcam",
+    "name": "Cleveland from Pier W",
+    "location": "Pier W, Lakewood, Ohio · Lake Erie",
+    "latitude": 41.4935571,
+    "longitude": -81.7780881,
+    "url": "https://www.earthcam.com/usa/ohio/cleveland/?cam=pierw",
+    "provider": "Pier W / EarthCam",
+    "active": true
+  },
+  {
+    "id": "grand-bend-yacht-club-harbour-cam",
+    "name": "Grand Bend Yacht Club — Harbour Cam",
+    "location": "Grand Bend Yacht Club Clubhouse, Grand Bend, Ontario · Lake Huron",
+    "latitude": 43.312677,
+    "longitude": -81.762971,
+    "url": "https://www.gbyc.ca/webcams#harbourCamContainer",
+    "provider": "Grand Bend Yacht Club",
+    "active": true
+  },
+  {
+    "id": "grand-bend-yacht-club-lake-cam",
+    "name": "Grand Bend Yacht Club — Lake Cam",
+    "location": "Grand Bend Yacht Club Clubhouse, Grand Bend, Ontario · Lake Huron",
+    "latitude": 43.312677,
+    "longitude": -81.762971,
+    "url": "https://www.gbyc.ca/webcams#lakeCamContainer",
+    "provider": "Grand Bend Yacht Club",
+    "active": true
+  },
+  {
+    "id": "grand-bend-yacht-club-ramp-cam",
+    "name": "Grand Bend Yacht Club — Ramp Cam",
+    "location": "Grand Bend Yacht Club Clubhouse, Grand Bend, Ontario · Lake Huron",
+    "latitude": 43.312677,
+    "longitude": -81.762971,
+    "url": "https://www.gbyc.ca/webcams#rampCamContainer",
+    "provider": "Grand Bend Yacht Club",
+    "active": true
+  },
+  {
+    "id": "grand-bend-blue-flag-beach-cam",
+    "name": "Grand Bend Blue Flag Beach Cam",
+    "location": "Grand Bend Main Beach, Ontario · Lake Huron",
+    "latitude": 43.314989,
+    "longitude": -81.764622,
+    "url": "https://www.lambtonshores.ca/explore-and-play/beaches/grand-bend-beach/grand-bend-beach-cams/",
+    "provider": "Municipality of Lambton Shores",
+    "active": true
+  },
+  {
+    "id": "grand-bend-beach-and-pier-cam",
+    "name": "Grand Bend Beach and Pier Cam",
+    "location": "Grand Bend Main Beach, Ontario · Lake Huron",
+    "latitude": 43.314989,
+    "longitude": -81.764622,
+    "url": "https://www.lambtonshores.ca/explore-and-play/beaches/grand-bend-beach/grand-bend-beach-cams/",
+    "provider": "Municipality of Lambton Shores",
+    "active": true
+  },
+  {
+    "id": "harrisville-harbor-camera-1",
+    "name": "Harrisville Harbor — Camera 1",
+    "location": "Harrisville Harbor, Michigan · Lake Huron",
+    "latitude": 44.659444,
+    "longitude": -83.284444,
+    "url": "https://harrisvilleharborofrefuge.com/camera-live-views/",
+    "provider": "Harrisville Harbor of Refuge",
+    "active": false
+  },
+  {
+    "id": "harrisville-harbor-camera-2",
+    "name": "Harrisville Harbor — Camera 2",
+    "location": "Harrisville Harbor, Michigan · Lake Huron",
+    "latitude": 44.659444,
+    "longitude": -83.284444,
+    "url": "https://harrisvilleharborofrefuge.com/camera-live-views/",
+    "provider": "Harrisville Harbor of Refuge",
+    "active": false
+  },
+  {
+    "id": "cobble-beach-wedding-green",
+    "name": "Cobble Beach — Wedding Green",
+    "location": "Cobble Beach, Kemble, Ontario · Georgian Bay",
+    "latitude": 44.6722023,
+    "longitude": -80.9253776,
+    "url": "https://g1.ipcamlive.com/player/player.php?alias=606cbebfc5ae4&skin=white&disablereportbutton=true",
+    "provider": "Cobble Beach / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "cobble-beach-lighthouse-dock",
+    "name": "Cobble Beach — Georgian Bay Day Dock",
+    "location": "Cobble Beach, Kemble, Ontario · Georgian Bay",
+    "latitude": 44.6722023,
+    "longitude": -80.9253776,
+    "url": "https://g1.ipcamlive.com/player/player.php?alias=613f8529a02f0&skin=white&disablereportbutton=true",
+    "provider": "Cobble Beach / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "frankfort-harbor-lights-resort-cam",
+    "name": "Harbor Lights Resort Cam",
+    "location": "Harbor Lights Resort, Frankfort, Michigan · Lake Michigan",
+    "latitude": 44.6315537,
+    "longitude": -86.2448578,
+    "url": "https://harborlightsresort.net/webcams/",
+    "provider": "Harbor Lights Resort / Pixelcaster",
+    "active": true
+  },
+  {
+    "id": "frankfort-harbor-lights-marina-cam",
+    "name": "Harbor Lights Marina Cam",
+    "location": "Harbor Lights Resort, Frankfort, Michigan · Lake Michigan",
+    "latitude": 44.6315537,
+    "longitude": -86.2448578,
+    "url": "https://harborlightsresort.net/webcams/",
+    "provider": "Harbor Lights Resort / Pixelcaster",
+    "active": true
+  },
+  {
+    "id": "manistee-first-street-beach",
+    "name": "First Street Beach Cam",
+    "location": "First Street Beach, Manistee, Michigan · Lake Michigan",
+    "latitude": 44.246457,
+    "longitude": -86.34357,
+    "url": "https://www.manisteemi.gov/472/Web-Cams",
+    "provider": "City of Manistee / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "manistee-fifth-avenue-beach",
+    "name": "Fifth Avenue Beach Cam",
+    "location": "Fifth Avenue Beach, Manistee, Michigan · Lake Michigan",
+    "latitude": 44.251713,
+    "longitude": -86.339879,
+    "url": "https://www.manisteemi.gov/472/Web-Cams",
+    "provider": "City of Manistee / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "manitowoc-marina-harbor-cam",
+    "name": "Manitowoc Marina Harbor Cam",
+    "location": "Manitowoc, Wisconsin · Lake Michigan",
+    "latitude": 44.09751,
+    "longitude": -87.650492,
+    "url": "https://www.manitowoc-marina.com/harbor-cam/",
+    "provider": "Manitowoc Marina / CamStreamer",
+    "active": true
+  },
+  {
+    "id": "sheboygan-north-beach-cam",
+    "name": "Sheboygan North Beach Cam",
+    "location": "North Beach, Sheboygan, Wisconsin · Lake Michigan",
+    "latitude": 43.75851,
+    "longitude": -87.7032341,
+    "url": "https://visitsheboygan.com/web-cam/beach-webcam/",
+    "provider": "Visit Sheboygan / YouTube",
+    "active": true
+  },
+  {
+    "id": "sheboygan-harbor-centre-marina-cam",
+    "name": "Sheboygan Harbor Centre Marina Cam",
+    "location": "Harbor Centre Marina, Sheboygan, Wisconsin · Lake Michigan",
+    "latitude": 43.7526217,
+    "longitude": -87.700384,
+    "url": "https://visitsheboygan.com/web-cam/marina-webcam/",
+    "provider": "Visit Sheboygan / YouTube",
+    "active": true
+  },
+  {
+    "id": "sheboygan-blue-harbor-resort-cam",
+    "name": "Blue Harbor Resort Cam",
+    "location": "Blue Harbor Resort, Sheboygan, Wisconsin · Lake Michigan",
+    "latitude": 43.7467421,
+    "longitude": -87.7053934,
+    "url": "https://visitsheboygan.com/web-cam/blue-harbor-resort-webcam/",
+    "provider": "Visit Sheboygan / YouTube",
+    "active": true
+  },
+  {
+    "id": "suny-oswego-hart-hall-cam",
+    "name": "SUNY Oswego — Hart Hall Cam",
+    "location": "Hart Hall, Oswego, New York · Lake Ontario",
+    "latitude": 43.452432,
+    "longitude": -76.54279,
+    "url": "https://www.youtube.com/watch?v=wfhQTU0HrpY",
+    "provider": "SUNY Oswego / YouTube",
+    "active": true
+  },
+  {
+    "id": "suny-oswego-shineman-center-cam",
+    "name": "SUNY Oswego — Shineman Center Cam",
+    "location": "Shineman Center, Oswego, New York · Lake Ontario",
+    "latitude": 43.45498,
+    "longitude": -76.53858,
+    "url": "https://www.youtube.com/watch?v=yVnVm0aiIm4",
+    "provider": "SUNY Oswego / YouTube",
+    "active": true
+  },
+  {
+    "id": "washington-island-ferry-northport-cam-1",
+    "name": "Northport Ferry Dock Cam 1",
+    "location": "Northport Pier, Ellison Bay, Wisconsin · Lake Michigan",
+    "latitude": 45.2904499,
+    "longitude": -86.9776702,
+    "url": "https://www.youtube.com/watch?v=Zot8ShPuuKg",
+    "provider": "Washington Island Ferry Line / YouTube",
+    "active": true
+  },
+  {
+    "id": "washington-island-ferry-northport-cam-2",
+    "name": "Northport Ferry Dock Cam 2",
+    "location": "Northport Pier, Ellison Bay, Wisconsin · Lake Michigan",
+    "latitude": 45.2904499,
+    "longitude": -86.9776702,
+    "url": "https://www.youtube.com/watch?v=TXQcLxneF5A",
+    "provider": "Washington Island Ferry Line / YouTube",
+    "active": true
+  },
+  {
+    "id": "washington-island-ferry-dock-cam-3",
+    "name": "Washington Island Ferry Dock Cam 3",
+    "location": "Detroit Harbor, Washington Island, Wisconsin · Lake Michigan",
+    "latitude": 45.3387038,
+    "longitude": -86.9383583,
+    "url": "https://www.youtube.com/watch?v=UmiLYeh8-r8",
+    "provider": "Washington Island Ferry Line / YouTube",
+    "active": true
+  },
+  {
+    "id": "pikes-bay-marina-cam",
+    "name": "Pikes Bay Marina Cam",
+    "location": "Pikes Bay Marina, Bayfield, Wisconsin · Lake Superior",
+    "latitude": 46.7914972,
+    "longitude": -90.8529653,
+    "url": "https://www.pikesbaymarina.com/pikes-bay-marina-live-cam/",
+    "provider": "Pikes Bay Marina / YouTube",
+    "active": true
+  },
+  {
+    "id": "superior-watershed-presque-isle-cam",
+    "name": "SWP Office Live Cam: Presque Isle Middle Bay",
+    "location": "Presque Isle Park, Marquette, Michigan · Lake Superior",
+    "latitude": 46.5812482,
+    "longitude": -87.3836356,
+    "url": "https://www.youtube.com/watch?v=xjLQ654WwO8",
+    "provider": "Superior Watershed Partnership / YouTube",
+    "active": true
+  },
+  {
+    "id": "empire-sleeping-bear-surf-wave-cam",
+    "name": "Empire Wave Cam",
+    "location": "Empire, Michigan · Lake Michigan",
+    "latitude": 44.8112378,
+    "longitude": -86.0602277,
+    "url": "https://sleepingbearsurf.com/wave-camera/",
+    "provider": "Sleeping Bear Surf / Angelcam",
+    "active": true
+  },
+  {
+    "id": "westwood-shores-sunset-cam",
+    "name": "Westwood Shores Sunset Cam",
+    "location": "Westwood Shores, Sturgeon Bay, Wisconsin · Green Bay",
+    "latitude": 44.8785839,
+    "longitude": -87.3835727,
+    "url": "https://www.westwoodshores.net/sunset-webcam",
+    "provider": "Westwood Shores / Angelcam",
+    "active": true
+  },
+  {
+    "id": "wilson-harbor-marina-cam",
+    "name": "Wilson Harbor Marina Cam",
+    "location": "Wilson, New York · Lake Ontario",
+    "latitude": 43.315463,
+    "longitude": -78.8380955,
+    "url": "https://www.eb4uofwny.com/camera1/image00001.jpg",
+    "provider": "Wilson Harbor / EB4U of WNY",
+    "active": true
+  },
+  {
+    "id": "grand-haven-lake-michigan-earthcam",
+    "name": "Grand Haven Lake Michigan Cam",
+    "location": "Grand Haven Pier, Michigan · Lake Michigan",
+    "latitude": 43.061,
+    "longitude": -86.2152,
+    "url": "https://www.earthcam.com/usa/michigan/grandhaven/lakemichigan/?cam=lakemichigan",
+    "provider": "EarthCam / Surf Grand Haven",
+    "active": true
+  },
+  {
+    "id": "spring-lake-township-eagle-cam",
+    "name": "Spring Lake Township Eagle Cam",
+    "location": "Spring Lake, Michigan · Other",
+    "latitude": 43.0767,
+    "longitude": -86.197,
+    "url": "https://www.youtube.com/@SLTPEagleCam/live",
+    "provider": "Spring Lake Township / YouTube",
+    "active": true
+  },
+  {
+    "id": "grand-haven-state-park-beach-cam",
+    "name": "Grand Haven State Park Beach Cam",
+    "location": "Grand Haven State Park, Michigan · Lake Michigan",
+    "latitude": 43.05361,
+    "longitude": -86.24639,
+    "url": "https://bteradio.com/wawl15.html",
+    "provider": "BTE Radio / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "grand-river-channel-beach-cam",
+    "name": "Grand River Channel and Beach Cam",
+    "location": "Grand Haven, Michigan · Grand River",
+    "latitude": 43.06289,
+    "longitude": -86.23272,
+    "url": "https://wghn.com/beachcam/",
+    "provider": "WGHN / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "grand-river-channel-cam",
+    "name": "Grand River Channel Cam",
+    "location": "Grand Haven, Michigan · Grand River",
+    "latitude": 43.06289,
+    "longitude": -86.23272,
+    "url": "https://wghn.com/channel-cam/",
+    "provider": "WGHN / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "grand-haven-drawbridge-cam",
+    "name": "Grand Haven Drawbridge Cam",
+    "location": "Grand Haven, Michigan · Grand River",
+    "latitude": 43.075,
+    "longitude": -86.218,
+    "url": "https://bteradio.com/wawl12.html",
+    "provider": "BTE Radio / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "pigeon-creek-sledding-hill-cam",
+    "name": "Pigeon Creek Sledding Hill Live Cam",
+    "location": "Pigeon Creek Park, West Olive, Michigan · Other",
+    "latitude": 42.93252,
+    "longitude": -86.094801,
+    "url": "https://www.youtube.com/watch?v=LOscRsPICMo",
+    "provider": "Pigeon Creek Park / YouTube",
+    "active": true
+  },
+  {
+    "id": "st-joseph-silver-beach-earthcam",
+    "name": "St. Joseph Silver Beach Cam",
+    "location": "Silver Beach, St. Joseph, Michigan · Lake Michigan",
+    "latitude": 42.1105728,
+    "longitude": -86.4871815,
+    "url": "https://www.earthcam.com/usa/michigan/stjoseph/lakemichigan/?cam=lakemichiganbeach",
+    "provider": "EarthCam",
+    "active": true
+  },
+  {
+    "id": "isle-royale-rock-harbor-cam",
+    "name": "Isle Royale — Rock Harbor Webcam",
+    "location": "Snug Harbor, Isle Royale, Michigan · Lake Superior",
+    "latitude": 48.08917,
+    "longitude": -88.57917,
+    "url": "https://www.nps.gov/media/webcam/view.htm?id=81B46B18-1DD8-B71B-0B6741D09D58BA2A",
+    "provider": "National Park Service",
+    "active": true
+  },
+  {
+    "id": "traverse-city-looking-north",
+    "name": "Traverse City — Looking North",
+    "location": "Traverse City, Michigan · Lake Michigan (West Grand Traverse Bay)",
+    "latitude": 44.7650048,
+    "longitude": -85.6206531,
+    "url": "https://traverseconnect.com/career-with-a-view/",
+    "provider": "Traverse Connect / Axis",
+    "active": true
+  },
+  {
+    "id": "nmc-west-grand-traverse-bay-cam",
+    "name": "NMC Great Lakes Campus Cam",
+    "location": "Traverse City, Michigan · Lake Michigan (West Grand Traverse Bay)",
+    "latitude": 44.7650909,
+    "longitude": -85.6065834,
+    "url": "https://www.nmc.edu/about/maps/webcams.html",
+    "provider": "Northwestern Michigan College / Great Lakes Maritime Academy",
+    "active": true
+  },
+  {
+    "id": "madeline-island-beach-club-cam",
+    "name": "Madeline Island Beach Club Cam",
+    "location": "La Pointe, Wisconsin · Lake Superior",
+    "latitude": 46.7791488,
+    "longitude": -90.7880372,
+    "url": "https://www.madelineisland.com/madeline-island-webcam/",
+    "provider": "Madeline Island Chamber of Commerce / ResortCams",
+    "active": true
+  },
+  {
+    "id": "drummond-island-ferry-dock-cam",
+    "name": "Drummond Island Ferry Dock Cam",
+    "location": "Drummond Island, Michigan · St. Marys River",
+    "latitude": 45.98875137126214,
+    "longitude": -83.87826742993049,
+    "url": "https://www.wmta.org/live-west-michigan-camera-gallery/drummond-island-ferry-dock-west-michigan-live-camera/",
+    "provider": "Drummond Island Tourism Association / WMTA",
+    "active": true
+  },
+  {
+    "id": "drummond-island-yacht-haven-cam",
+    "name": "Drummond Island Yacht Haven Cam",
+    "location": "Drummond Island, Michigan · Lake Huron",
+    "latitude": 46.0243233,
+    "longitude": -83.7495464,
+    "url": "https://www.wmta.org/live-west-michigan-camera-gallery/drummond-island-west-michigan-live-camera/",
+    "provider": "Drummond Island Tourism Association / WMTA",
+    "active": true
+  },
+  {
+    "id": "cheboygan-harbor-entrance-cam",
+    "name": "Cheboygan Harbor Entrance Cam",
+    "location": "Cheboygan, Michigan · Lake Huron",
+    "latitude": 45.6473352,
+    "longitude": -84.4727458,
+    "url": "https://www.gllka.org/cheboygan-web-cameras",
+    "provider": "Great Lakes Lighthouse Keepers Association / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "cheboygan-river-cam",
+    "name": "Cheboygan River Cam",
+    "location": "Cheboygan, Michigan · Cheboygan River",
+    "latitude": 45.6473352,
+    "longitude": -84.4727458,
+    "url": "https://www.gllka.org/cheboygan-web-cameras",
+    "provider": "Great Lakes Lighthouse Keepers Association / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "whitefish-point-shipwreck-museum-cam",
+    "name": "Whitefish Point Live Weather Cam",
+    "location": "Whitefish Point, Michigan · Lake Superior",
+    "latitude": 46.7710189,
+    "longitude": -84.9583876,
+    "url": "https://shipwreckmuseum.com/about/live-weather-cam/",
+    "provider": "Great Lakes Shipwreck Historical Society / WMVision",
+    "active": true
+  },
+  {
+    "id": "inn-at-bay-harbor-lake-michigan",
+    "name": "Inn at Bay Harbor Cam",
+    "location": "Bay Harbor, Michigan · Little Traverse Bay",
+    "latitude": 45.3690556,
+    "longitude": -85.0156111,
+    "url": "https://www.innatbayharbor.com/about-us/live-webcam",
+    "provider": "Inn at Bay Harbor / YouTube",
+    "active": true
+  },
+  {
+    "id": "south-haven-south-beach-cam",
+    "name": "South Beach Live Camera",
+    "location": "South Haven, Michigan · Lake Michigan",
+    "latitude": 42.403,
+    "longitude": -86.274,
+    "url": "https://www.youtube.com/watch?v=G-tlKF32_p4",
+    "provider": "City of South Haven / YouTube",
+    "active": true
+  },
+  {
+    "id": "charlevoix-bridge-cam",
+    "name": "Charlevoix Bridge Cam",
+    "location": "Charlevoix, Michigan · Lake Michigan (Pine River Channel)",
+    "latitude": 45.3180639,
+    "longitude": -85.2584,
+    "url": "https://www.youtube.com/watch?v=yWIHgMW2yVQ",
+    "provider": "CharlevoixCam / YouTube",
+    "active": true
+  },
+  {
+    "id": "field-museum-chicago-earthcam",
+    "name": "Field Museum Chicago Cam",
+    "location": "Chicago, Illinois · Lake Michigan",
+    "latitude": 41.86625,
+    "longitude": -87.61707,
+    "url": "https://www.earthcam.com/usa/illinois/chicago/field/?cam=fieldmuseum",
+    "provider": "EarthCam",
+    "active": true
+  },
+  {
+    "id": "holland-state-park-cam",
+    "name": "Holland State Park Cam",
+    "location": "Holland, Michigan · Lake Michigan",
+    "latitude": 42.7796806,
+    "longitude": -86.2015017,
+    "url": "https://www.cityofholland.com/645/MIHollandCAM",
+    "provider": "City of Holland / BrownRice",
+    "active": true
+  },
+  {
+    "id": "leamington-municipal-marina-cam",
+    "name": "Leamington Municipal Marina Cam",
+    "location": "Leamington, Ontario · Lake Erie",
+    "latitude": 42.016667,
+    "longitude": -82.6,
+    "url": "https://www.leamington.ca/discover/leamington-marina/marina-webcam/",
+    "provider": "Municipality of Leamington / Verkada",
+    "active": true
+  },
+  {
+    "id": "bay-shore-park-boat-launch-cam",
+    "name": "Bay Shore Park Boat Launch Cam",
+    "location": "New Franken, Wisconsin · Green Bay",
+    "latitude": 44.636,
+    "longitude": -87.7972,
+    "url": "https://www.youtube.com/watch?v=wfGEsNQYAeE",
+    "provider": "Brown County Parks / YouTube",
+    "active": true
+  },
+  {
+    "id": "cove-point-lodge-cam",
+    "name": "Cove Point Lodge Cam",
+    "location": "Beaver Bay, Minnesota · Lake Superior",
+    "latitude": 47.249174,
+    "longitude": -91.313038,
+    "url": "https://www.covepointlodge.com/covecam/",
+    "provider": "Cove Point Lodge / WetMet",
+    "active": true
+  },
+  {
+    "id": "duluth-pier-b-resort-cam",
+    "name": "Duluth Pier B Resort Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.7765398,
+    "longitude": -92.1032448,
+    "url": "https://www.duluthharborcam.com/p/pier-b-cam.html",
+    "provider": "Duluth Harbor Cam / CamStreamer",
+    "active": true
+  },
+  {
+    "id": "duluth-south-pier-lighthouse-cam",
+    "name": "Duluth South Pier Lighthouse Cam",
+    "location": "Duluth, Minnesota · Lake Superior",
+    "latitude": 46.780912,
+    "longitude": -92.088272,
+    "url": "https://www.duluthharborcam.com/p/south-pier-lighthouse-cam.html",
+    "provider": "Duluth Harbor Cam / CamStreamer",
+    "active": true
+  },
+  {
+    "id": "charlevoix-pine-river-channel-cam",
+    "name": "Pine River Channel Cam",
+    "location": "Charlevoix, Michigan · Lake Michigan (Pine River Channel)",
+    "latitude": 45.318,
+    "longitude": -85.258,
+    "url": "https://www.youtube.com/watch?v=HeZbPbqO-6M",
+    "provider": "CharlevoixCam / YouTube",
+    "active": true
+  },
+  {
+    "id": "docks-beach-house-lake-erie-cam",
+    "name": "Dock's Beach House Cam",
+    "location": "Port Clinton, Ohio · Lake Erie",
+    "latitude": 41.517768,
+    "longitude": -82.9448336,
+    "url": "https://www.docksbeachhouse.com/webcam",
+    "provider": "Dock's Beach House / Ozolio",
+    "active": true
+  },
+  {
+    "id": "cedar-point-power-tower-east-cam",
+    "name": "Cedar Point Power Tower East Cam",
+    "location": "Sandusky, Ohio · Lake Erie",
+    "latitude": 41.4828,
+    "longitude": -82.6846,
+    "url": "https://www.sixflags.com/cedarpoint/live-video",
+    "provider": "Cedar Point / Pixelcaster",
+    "active": true
+  },
+  {
+    "id": "cedar-point-power-tower-west-cam",
+    "name": "Cedar Point Power Tower West Cam",
+    "location": "Sandusky, Ohio · Lake Erie",
+    "latitude": 41.4828,
+    "longitude": -82.6846,
+    "url": "https://www.sixflags.com/cedarpoint/live-video",
+    "provider": "Cedar Point / Pixelcaster",
+    "active": true
+  },
+  {
+    "id": "cedar-point-frontier-town-cam",
+    "name": "Cedar Point Frontier Town Cam",
+    "location": "Sandusky, Ohio · Lake Erie",
+    "latitude": 41.4845,
+    "longitude": -82.6925,
+    "url": "https://www.sixflags.com/cedarpoint/live-video",
+    "provider": "Cedar Point / Pixelcaster",
+    "active": true
+  },
+  {
+    "id": "lorain-black-river-landing-cam",
+    "name": "Black River Landing Cam",
+    "location": "Lorain, Ohio · Black River",
+    "latitude": 41.4693,
+    "longitude": -82.1749,
+    "url": "https://www.youtube.com/watch?v=ZZevIUr2cTk",
+    "provider": "Lorain Port & Finance Authority / YouTube",
+    "active": true
+  },
+  {
+    "id": "riviera-motel-mackinac-bridge-cam",
+    "name": "Mackinac Bridge Cam from Riviera Motel",
+    "location": "Mackinaw City, Michigan · Lake Michigan (Straits of Mackinac)",
+    "latitude": 45.7869659,
+    "longitude": -84.728222,
+    "url": "https://www.youtube.com/watch?v=Mf_qId_7mlM",
+    "provider": "Riviera Motel / YouTube",
+    "active": true
+  },
+  {
+    "id": "ironton-ferry-cam",
+    "name": "Ironton Ferry Cam",
+    "location": "Ironton, Michigan · Lake Charlevoix",
+    "latitude": 45.2561,
+    "longitude": -85.1852,
+    "url": "https://www.youtube.com/watch?v=D90I8AeLyp4",
+    "provider": "CharlevoixCam / YouTube",
+    "active": true
+  },
+  {
+    "id": "north-beach-park-sunset-cam",
+    "name": "North Beach Park Sunset Cam",
+    "location": "Ferrysburg, Michigan · Lake Michigan",
+    "latitude": 43.082082,
+    "longitude": -86.253286,
+    "url": "https://www.youtube.com/watch?v=9DKPJMm3ug4",
+    "provider": "Ottawa County Parks and Recreation / YouTube",
+    "active": true
+  },
+  {
+    "id": "brantford-grand-river-cam",
+    "name": "Brantford River Cam",
+    "location": "Brantford, Ontario · Grand River",
+    "latitude": 43.13146,
+    "longitude": -80.26459,
+    "url": "https://www.grandriver.ca/our-watershed/river-data/river-and-stream-flows/river-cameras/",
+    "provider": "Grand River Conservation Authority",
+    "active": true
+  },
+  {
+    "id": "west-montrose-grand-river-cam",
+    "name": "West Montrose River Cam",
+    "location": "West Montrose, Ontario · Grand River",
+    "latitude": 43.58578,
+    "longitude": -80.48154,
+    "url": "https://www.grandriver.ca/our-watershed/river-data/river-and-stream-flows/river-cameras/",
+    "provider": "Grand River Conservation Authority",
+    "active": true
+  },
+  {
+    "id": "brockville-river-cam-west",
+    "name": "Brockville River Cam West",
+    "location": "Brockville, Ontario · St. Lawrence River",
+    "latitude": 44.5859,
+    "longitude": -75.6831,
+    "url": "https://www.youtube.com/watch?v=wJTwuekiCr0",
+    "provider": "City of Brockville / YouTube",
+    "active": true
+  },
+  {
+    "id": "brockville-river-cam-south",
+    "name": "Brockville River Cam South",
+    "location": "Brockville, Ontario · St. Lawrence River",
+    "latitude": 44.59004,
+    "longitude": -75.68234,
+    "url": "https://www.youtube.com/watch?v=k36fwVlkzBM",
+    "provider": "City of Brockville / YouTube",
+    "active": true
+  },
+  {
+    "id": "big-bay-point-lake-simcoe-cam",
+    "name": "Big Bay Point Lake Simcoe Cam",
+    "location": "Big Bay Point, Innisfil, Ontario · Lake Simcoe",
+    "latitude": 44.4044,
+    "longitude": -79.51147,
+    "url": "https://bigbaypointcam.com/",
+    "provider": "Big Bay Point Cam / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "cooks-bay-churchill-live-cam",
+    "name": "Cook’s Bay Live Cam — Churchill",
+    "location": "Churchill, Innisfil, Ontario · Cook’s Bay, Lake Simcoe",
+    "latitude": 44.23581,
+    "longitude": -79.55696,
+    "url": "https://www.youtube.com/watch?v=wpZBniLzEpc",
+    "provider": "SnapsByBobby / YouTube",
+    "active": true
+  },
+  {
+    "id": "wye-heritage-marina",
+    "name": "Wye Heritage Marina Cam",
+    "location": "Tiffin, Ontario · Georgian Bay",
+    "latitude": 44.747972,
+    "longitude": -79.849833,
+    "url": "https://wyeheritage.ca/",
+    "provider": "Wye Heritage Marina",
+    "active": true
+  },
+  {
+    "id": "honey-harbour-boat-club",
+    "name": "Honey Harbour Boat Club",
+    "location": "Honey Harbour, Ontario · Georgian Bay",
+    "latitude": 44.872778,
+    "longitude": -79.820278,
+    "url": "https://hhbc.ca/livecam/",
+    "provider": "Honey Harbour Boat Club",
+    "active": true
+  },
+  {
+    "id": "christian-island-camera",
+    "name": "Christian Island Camera",
+    "location": "Christian Island, Ontario · Georgian Bay",
+    "latitude": 44.820833,
+    "longitude": -80.173889,
+    "url": "https://chimnissing.ca/cicam.html",
+    "provider": "Beausoleil First Nation / IPCamLive",
+    "active": true
+  },
+  {
+    "id": "parry-sound-downtown",
+    "name": "Downtown Parry Sound Cam",
+    "location": "Parry Sound, Ontario · Georgian Bay",
+    "latitude": 45.34352,
+    "longitude": -80.034983,
+    "url": "https://downtownparrysound.ca/live-view/",
+    "provider": "Downtown Parry Sound Business Association",
+    "active": true
+  },
+  {
+    "id": "owen-sound-waterfront-camera",
+    "name": "Owen Sound Waterfront Cam",
+    "location": "Owen Sound, Ontario · Georgian Bay",
+    "latitude": 44.584444,
+    "longitude": -80.932222,
+    "url": "https://www.owensound.ca/recreation-culture/waterfront-camera-view/",
+    "provider": "City of Owen Sound / CamStreamer",
+    "active": true
+  },
+  {
+    "id": "port-little-current-swing-bridge-cam",
+    "name": "Port of Little Current — Swing Bridge View",
+    "location": "Little Current, Ontario · North Channel (Lake Huron)",
+    "latitude": 45.982157,
+    "longitude": -81.925589,
+    "url": "https://www.townofnemi.on.ca/p/video-liveview",
+    "provider": "Town of NEMI / YouTube",
+    "active": true
+  }
+]

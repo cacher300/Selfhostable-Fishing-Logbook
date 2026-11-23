@@ -1,8 +1,10 @@
 import { html, joinHtml, setHtml } from "./html.js";
+import { weatherFrontLabel } from "./weather-front.js";
 import { L } from "./vendor.js";
 import { fallbackSpeciesColor, speciesColor } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { spotName, tripWeatherCoordinates } from "./app-normalization.js";
+import { assignedDriftId, driftName } from "./drifts.js";
 import { displayStoredMeasurement, formatMapUnitValue, savedMapUnitSystem, setMapUnitSystem } from "./app-units.js";
 import { els } from "./app-elements.js";
 import { isUsableCoordinates, isVideoMedia, mediaMarkup, previewImage } from "./app-media.js";
@@ -15,6 +17,7 @@ import { addMeasureControl, isMeasuring } from "./measure.js";
 import { formatDate } from "./dashboard.js";
 import { displayFowValue } from "./trip-summary.js";
 import { getBathymetryV2Tiles } from "./noaa-api.js";
+import { attachGreatLakesMapLayers } from "./great-lakes-map-layers.js";
 
 
 export function catchMapRecordForTrip(trip, catchItem, catchIndex) {
@@ -747,17 +750,21 @@ export function mapPopupHtml(record, options = {}) {
   const title = [mapRecordTitle(record), trip.location].filter(Boolean).join(" at ");
   const fowValue = record.type === "catch" ? catchFowPopupValue(record.catchItem) : "";
   const sizeValue = record.type === "catch" ? catchSizePopupValue(record.catchItem) : "";
-  const assignedSpot = record.type === "catch" ? spotName(record.catchItem?.spotId) : "";
+  const drifting = String(trip.method || "").trim().toLowerCase() === "drifting";
+  const assignedSpot = record.type === "catch" && !drifting ? spotName(record.catchItem?.spotId) : "";
+  const assignedDrift = record.type === "catch" && drifting ? driftName(assignedDriftId(record.catchItem)) : "";
   const direction = mapRecordTrollingDirection(record)?.label || "";
   const method = record.type === "catch" ? mapRecordMethod(record) : "";
   const layer = record.type === "catch" && options.showLayer ? greatLakesLayerLabel() : "";
   const detailRows = [
+    trip.weatherFront ? html`<div class="map-popup-detail"><span class="map-popup-label">Weather front</span><span class="map-popup-value">${weatherFrontLabel(trip.weatherFront)}</span></div>` : "",
     sizeValue ? html`<div class="map-popup-detail"><span class="map-popup-label">Size</span><span class="map-popup-value">${sizeValue}</span></div>` : "",
     fowValue ? html`<div class="map-popup-detail"><span class="map-popup-label">FOW</span><span class="map-popup-value">${fowValue}</span></div>` : "",
     method ? html`<div class="map-popup-detail"><span class="map-popup-label">Method</span><span class="map-popup-value">${method}</span></div>` : "",
     direction ? html`<div class="map-popup-detail"><span class="map-popup-label">Direction</span><span class="map-popup-value">${direction}</span></div>` : "",
     layer ? html`<div class="map-popup-detail"><span class="map-popup-label">Layer</span><span class="map-popup-value">${layer}</span></div>` : "",
-    assignedSpot ? html`<div class="map-popup-detail"><span class="map-popup-label">Spot</span><span class="map-popup-value">${assignedSpot}</span></div>` : ""
+    assignedSpot ? html`<div class="map-popup-detail"><span class="map-popup-label">Spot</span><span class="map-popup-value">${assignedSpot}</span></div>` : "",
+    assignedDrift ? html`<div class="map-popup-detail"><span class="map-popup-label">Drift</span><span class="map-popup-value">${assignedDrift}</span></div>` : ""
   ].filter(Boolean);
   return html`
     <div class="map-popup map-record-popup" data-map-view-trip="${trip.id}" role="button" tabindex="0">
@@ -780,6 +787,7 @@ export function renderMapYearLegend(records, options = {}) {
     <div class="map-legend map-dual-legend">
       ${legendItems.length ? html`<strong>Species</strong>${joinHtml(legendItems.map((name) => html`<span><i style="--pin-color:${name === "Trip Photos" ? "#2763a7" : name === "Trip Videos" ? "#9a5b00" : speciesColor(name)}"></i>${name}</span>`), "")}` : ""}
       ${options.spotCount ? html`<strong>Layers</strong><span><i class="map-spot-key"></i>${`${options.spotCount} saved ${options.spotCount === 1 ? "spot" : "spots"}`}</span>` : ""}
+      ${options.driftCount ? html`<strong>Drifts</strong><span>${`${options.driftCount} visible ${options.driftCount === 1 ? "area" : "areas"}`}</span>` : ""}
       ${years.length ? html`<strong>Year outline</strong>${joinHtml(years.map((year) => html`<span><i class="map-year-key" style="--pin-color:${mapYearColor(year)}"></i>${year}</span>`), "")}` : ""}
       ${records.some(mapRecordTrollingDirection) ? html`<span class="map-direction-key"><i>↑</i>Trolling direction</span>` : ""}
     </div>
@@ -792,7 +800,8 @@ export function renderFishMapLegend(records, spots) {
   setHtml(els.mapLegend, renderMapYearLegend(visibleRecords, {
     includeTripMedia: ui.activeMapIncludeTripMedia,
     showYearOutlines: !ui.activeMapYearFilteringHidden,
-    spotCount: visibleSpots.length
+    spotCount: visibleSpots.length,
+    driftCount: ui.activeMapIncludeDrifts && ui.fishMap?._loaded ? (state.drifts || []).filter((drift) => drift.polygon.some((point) => ui.fishMap.getBounds().contains([point.latitude, point.longitude]))).length : 0
   }));
 }
 
@@ -946,6 +955,7 @@ function setupMapPageDepthContours(map) {
 export function renderFishMap() {
   const allRecords = catchMapRecords();
   const spots = ui.activeMapIncludeSpots ? visibleMapSpots() : [];
+  const drifts = ui.activeMapIncludeDrifts ? state.drifts || [] : [];
   renderMapSpeciesFilter(allRecords);
   renderAdditionalMapFilters(allRecords);
   renderMapYearFilter(allRecords);
@@ -965,15 +975,18 @@ export function renderFishMap() {
     bindDepthLookupPopup(ui.fishMap);
     addMeasureControl(ui.fishMap, { position: "topleft" });
     ensureGreatLakesConditions(ui.fishMap);
+    attachGreatLakesMapLayers(ui.fishMap);
     setupMapPageDepthContours(ui.fishMap);
     syncMapPageChartOverlay(ui.fishMap);
     syncMapPageBathymetryOverlay(ui.fishMap);
     ensureMapMarkerPanes(ui.fishMap);
     ui.fishMapMarkers = L.layerGroup().addTo(ui.fishMap);
     ui.fishMapSpotMarkers = L.layerGroup().addTo(ui.fishMap);
+    ui.fishMapDriftAreas = L.layerGroup().addTo(ui.fishMap);
     ui.fishMap.on("moveend resize", refreshFishMapLegend);
   }
   ensureGreatLakesConditions(ui.fishMap);
+  attachGreatLakesMapLayers(ui.fishMap);
   setupMapPageDepthContours(ui.fishMap);
   syncMapPageChartOverlay(ui.fishMap);
   syncMapPageBathymetryOverlay(ui.fishMap);
@@ -981,7 +994,8 @@ export function renderFishMap() {
 
   ui.fishMapMarkers.clearLayers();
   ui.fishMapSpotMarkers.clearLayers();
-  if (!records.length && !spots.length) {
+  ui.fishMapDriftAreas.clearLayers();
+  if (!records.length && !spots.length && !drifts.length) {
     const homeLake = window.getGreatLakesHomeView?.();
     ui.fishMap.setView(homeLake?.center || [43.8, -79.5], homeLake?.zoom || 6);
     settleMapLayout(ui.fishMap);
@@ -1002,6 +1016,13 @@ export function renderFishMap() {
   spots.forEach((spot) => {
     bounds.push([spot.coordinates.latitude, spot.coordinates.longitude]);
     addMapSpotMarker(ui.fishMapSpotMarkers, spot);
+  });
+  drifts.forEach((drift) => {
+    const points = drift.polygon.map((point) => [point.latitude, point.longitude]);
+    points.forEach((point) => bounds.push(point));
+    L.polygon(points, { color: "#2389b8", weight: 2, fillColor: "#2389b8", fillOpacity: 0.16 })
+      .bindPopup(String(html`<strong>${drift.name}</strong><br>${drift.waterbody || ""}<br>Approximate area; edit in Settings`))
+      .addTo(ui.fishMapDriftAreas);
   });
 
   if (bounds.length === 1) ui.fishMap.setView(bounds[0], 13);

@@ -17,6 +17,8 @@ def shared_source() -> dict:
             {
                 "id": "shared-source",
                 "title": "Saturday Salmon",
+                "method": "Drifting",
+                "weatherFront": "post-front",
                 "date": "2026-09-20",
                 "location": "Lake Ontario",
                 "locationId": "loc-source",
@@ -31,6 +33,8 @@ def shared_source() -> dict:
                     "personId": "source-jose",
                     "lureId": "lure-source",
                     "spotId": "spot-source",
+                    "driftId": "drift-source",
+                    "driftAssignmentMode": "manual",
                     "photos": [{"id": "source-fish-photo", "category": "catch-photos", "filename": "source-fish.jpg"}],
                 }],
                 "lostFish": [],
@@ -46,6 +50,9 @@ def shared_source() -> dict:
             "launches": [{"id": "launch-source", "name": "Port Credit", "coordinates": None}],
         }],
         "spots": [{"id": "spot-source", "name": "The Hole", "coordinates": {"latitude": 43.5, "longitude": -79.6}, "radiusMeters": 100}],
+        "drifts": [{"id": "drift-source", "name": "Custom Drift", "waterbody": "Niagara River", "polygon": [
+            {"latitude": 43.20, "longitude": -79.05}, {"latitude": 43.21, "longitude": -79.05}, {"latitude": 43.21, "longitude": -79.04},
+        ]}],
         "lures": [{"id": "lure-source", "name": "Blue Spoon"}, {"id": "unused-lure", "name": "Do not share"}],
         "flashers": [],
         "rods": [{"id": "rod-source", "name": "Downrigger Rod"}],
@@ -121,7 +128,9 @@ def test_shared_trip_export_and_import_preserve_only_required_records() -> None:
             assert len(shared["trips"]) == 1
             assert shared["trips"][0]["id"] == "shared-source"
             assert shared["trips"][0]["launchTime"] == "08:00"
+            assert shared["trips"][0]["weatherFront"] == "post-front"
             assert [item["id"] for item in shared["lures"]] == ["lure-source"]
+            assert [item["id"] for item in shared["drifts"]] == ["drift-source"]
             assert bundle.read("media/catch-photos/source-fish.jpg") == b"fish"
 
         fish.logbook.write(target_logbook(), None)
@@ -149,8 +158,10 @@ def test_shared_trip_export_and_import_preserve_only_required_records() -> None:
         stored = fish.logbook.read().document
         assert {trip["id"] for trip in stored["trips"]} == {"local-history", imported_trip_id}
         imported_trip = next(trip for trip in stored["trips"] if trip["id"] == imported_trip_id)
+        assert imported_trip["weatherFront"] == "post-front"
         assert imported_trip["people"][0]["id"] == "local-jose"
         assert imported_trip["catches"][0]["personId"] == "local-jose"
+        assert next(item for item in stored["drifts"] if item["name"] == "Custom Drift")["id"] == imported_trip["catches"][0]["driftId"]
         imported_filename = imported_trip["catches"][0]["photos"][0]["filename"]
         assert imported_filename != "source-fish.jpg"
         assert (uploads / "catch-photos" / imported_filename).read_bytes() == b"fish"

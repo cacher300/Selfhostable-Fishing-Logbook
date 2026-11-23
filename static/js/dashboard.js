@@ -1,4 +1,5 @@
 import { html, joinHtml, setHtml } from "./html.js";
+import { weatherFrontLabel, weatherFrontOptions } from "./weather-front.js";
 import { activeStatsFilters, state, ui } from "./app-state.js";
 import { locationNames, optionChoices, optionLabels } from "./app-normalization.js";
 import { unitSymbol } from "./app-units.js";
@@ -23,13 +24,17 @@ function isAnythingTargetSpecies(value) {
   return String(value || "").trim().toLocaleLowerCase() === ANYTHING_TARGET_SPECIES.toLocaleLowerCase();
 }
 
+function sortSpeciesNames(species) {
+  return [...species].sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: "base" }));
+}
+
 export function targetSpeciesOptions(options = state.species) {
-  const species = Array.isArray(options) ? options.filter((item) => !isAnythingTargetSpecies(item)) : [];
-  return [ANYTHING_TARGET_SPECIES, ...species];
+  return [ANYTHING_TARGET_SPECIES, ...catchSpeciesOptions(options)];
 }
 
 export function catchSpeciesOptions(options = state.species) {
-  return (Array.isArray(options) ? options : []).filter((item) => !isAnythingTargetSpecies(item));
+  const species = (Array.isArray(options) ? options : []).filter((item) => !isAnythingTargetSpecies(item));
+  return sortSpeciesNames(species);
 }
 
 
@@ -273,6 +278,11 @@ export function renderBrandSpotlight() {
 }
 
 export function renderFilters() {
+  if (els.weatherFrontFilter) {
+    const selected = els.weatherFrontFilter.value || "all";
+    const options = [{ value: "all", label: "All fronts" }, { value: "unclassified", label: "Unclassified" }, ...weatherFrontOptions];
+    setHtml(els.weatherFrontFilter, joinHtml(options.map((option) => html`<option value="${option.value}" ${option.value === selected ? "selected" : ""}>${option.label}</option>`), ""));
+  }
   const targets = ["All targets", ...new Set(state.trips.map((trip) => trip.targetSpecies).filter(Boolean))];
   const selectedTarget = els.targetFilter.value || "All targets";
   setHtml(els.targetFilter, joinHtml(targets.map((target) => html`<option ${target === selectedTarget ? "selected" : ""}>${target}</option>`), ""));
@@ -328,10 +338,11 @@ export function renderStatsMethodFilter() {
     html`<option value="${method}" ${method === ui.activeStatsMethod ? "selected" : ""}>${method}</option>`
   )), ""));
 
-  const species = ["All species", ...new Set([...catchSpeciesOptions(), ...state.trips.flatMap((trip) => [
+  const speciesNames = new Set([...catchSpeciesOptions(), ...state.trips.flatMap((trip) => [
     ...(trip.catches || []).map((catchItem) => catchItem.species),
     ...(trip.lostFish || []).map((fish) => fish.possibleSpecies || fish.species)
-  ])].filter(Boolean))];
+  ])]);
+  const species = ["All species", ...sortSpeciesNames([...speciesNames].filter(Boolean))];
   if (!species.includes(activeStatsFilters.species)) activeStatsFilters.species = "All species";
   setHtml(els.statsSpeciesFilter, joinHtml(species.map((item) => (
     html`<option value="${item}" ${item === activeStatsFilters.species ? "selected" : ""}>${item}</option>`
@@ -403,6 +414,7 @@ export function filteredTrips() {
   const method = els.methodFilter.value;
   const year = els.yearFilter.value;
   const month = els.monthFilter?.value || "All months";
+  const front = els.weatherFrontFilter?.value || "all";
 
   const trips = state.trips.filter((trip) => {
     const haystack = [
@@ -417,6 +429,7 @@ export function filteredTrips() {
       ...(trip.people || []).map((person) => person.name),
       trip.notes,
       trip.weather,
+      weatherFrontLabel(trip.weatherFront),
       trip.structure,
       trip.structureType,
       ...(trip.catches || []).flatMap((catchItem) => {
@@ -435,7 +448,8 @@ export function filteredTrips() {
     const tripDate = new Date(`${trip.date}T12:00:00`);
     const matchesYear = year === "All years" || String(tripDate.getFullYear()) === year;
     const matchesMonth = month === "All months" || String(tripDate.getMonth() + 1) === month;
-    return matchesQuery && matchesTarget && matchesMethod && matchesYear && matchesMonth;
+    const matchesFront = front === "all" || (front === "unclassified" ? !trip.weatherFront : trip.weatherFront === front);
+    return matchesQuery && matchesTarget && matchesMethod && matchesYear && matchesMonth && matchesFront;
   });
 
   return trips.sort(compareTripsByActiveSort);
