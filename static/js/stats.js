@@ -1,5 +1,5 @@
 import { html, joinHtml, setHtml } from "./html.js";
-import { weatherFrontLabel } from "./weather-front.js";
+import { weatherFrontLabel, weatherFrontValue } from "./weather-front.js";
 import { activeStatsFilters, state, ui } from "./app-state.js";
 import { choiceLabel } from "./app-normalization.js";
 import { unitPreference, unitSymbol } from "./app-units.js";
@@ -228,7 +228,7 @@ export function renderAdvancedStats() {
   const methodItems = summarizeTripPerformance(locationRows, (trip) => trip.method, hours, fish);
   const clarityItems = summarizeTripPerformance(locationRows, (trip) => trip.waterClarity, hours, fish);
   const weatherItems = summarizeTripPerformance(locationRows, (trip) => trip.weather, hours, fish);
-  const weatherFrontItems = summarizeTripPerformance(locationRows, (trip) => weatherFrontLabel(trip.weatherFront), hours, fish);
+  const weatherFrontItems = summarizeTripPerformance(locationRows, (trip) => weatherFrontLabel(weatherFrontValue(trip)), hours, fish);
   const intentItems = summarizeTripPerformance(locationRows, (trip) => intentLabel(tripIntent(trip)), hours, fish);
   const ratingItems = summarizeTripPerformance(locationRows, (trip) => tripRatingLabel(tripRatingValue(trip)), hours, fish);
   const monthItems = summarizeTripPerformance(locationRows, (trip) => trip.date ? tripMonthName(trip) : "", hours, fish);

@@ -1,5 +1,5 @@
 import { beadRigDetails } from "./bead-rig.js";
-import { weatherFrontLabel } from "./weather-front.js";
+import { weatherFrontLabel, weatherFrontValue } from "./weather-front.js";
 import { html, joinHtml } from "./html.js";
 import { state } from "./app-state.js";
 import { spotName } from "./app-normalization.js";
@@ -314,7 +314,7 @@ export function reportAdditionalConditionRows(trip) {
     barometricTrend,
     moonText
   } = tripWeatherSummaryData(trip);
-  const manualRows = [["Weather front", weatherFrontLabel(trip.weatherFront)]];
+  const manualRows = [["Weather front", weatherFrontLabel(weatherFrontValue(trip))]];
   if (noApiWeather) return [...manualRows, ...(weatherData.message ? [["API weather", weatherData.message]] : [])];
   return [
     ...manualRows,

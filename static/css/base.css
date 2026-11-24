@@ -133,6 +133,10 @@ button {
   padding: 20px 16px;
 }
 
+.brand-block.is-empty {
+  display: none;
+}
+
 .brand-block h1,
 .topbar h2,
 .dialog h2,
@@ -158,24 +162,6 @@ button {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel-soft);
-}
-
-.brand-spotlight-empty {
-  display: grid;
-  min-height: 154px;
-  place-items: end start;
-  padding: 14px;
-  background:
-    linear-gradient(135deg, rgba(20, 132, 83, 0.16), rgba(7, 38, 66, 0.05)),
-    linear-gradient(180deg, #ffffff, #eef4f8);
-}
-
-.brand-spotlight-empty span {
-  max-width: 190px;
-  color: var(--text);
-  font-size: 18px;
-  font-weight: 900;
-  line-height: 1.2;
 }
 
 .spotlight-slides {

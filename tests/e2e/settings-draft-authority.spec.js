@@ -87,6 +87,7 @@ test.describe("settings drafts are save authority", () => {
 
     await resetWith(page);
     await page.goto("/checklists", { waitUntil: "domcontentloaded" });
+    await page.locator(".checklist-card [data-toggle-checklist-edit]").first().click();
     await page.locator(".checklist-item-label").first().evaluate((element) => { element.value = "Silent checklist"; });
     await page.locator("[data-duplicate-checklist]").click();
     await waitForSave();

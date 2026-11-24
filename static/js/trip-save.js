@@ -16,7 +16,7 @@ function weatherRefreshInputsChanged(source, trip) {
 }
 
 async function maybeRefreshTripWeather(trip, source) {
-  if (source && !weatherRefreshInputsChanged(source, trip)) return trip;
+  if (source && !weatherRefreshInputsChanged(source, trip) && trip.weatherData?.frontAssessment) return trip;
   const contextChanged = source && ["date", "locationId", "launchId", "launchTime", "linesPulledTime"].some(field => String(source[field] ?? "") !== String(trip[field] ?? ""));
   if (contextChanged) trip = resetAutomaticWeatherFront(trip);
   const refreshed = await enrichTripWithWeather(trip);
@@ -65,7 +65,7 @@ export async function persistTrip(event, { draft = false } = {}) {
     // Drafts must persist independently of weather providers. A draft may be
     // incomplete, and waiting on enrichment here can leave the user's work
     // unsaved if the external request is slow or unavailable.
-    if (!draft && !pristineDraft && !unchangedEditor) trip = await maybeRefreshTripWeather(trip, sourceTrip);
+    if (!draft && !pristineDraft && (!unchangedEditor || !sourceTrip?.weatherData?.frontAssessment)) trip = await maybeRefreshTripWeather(trip, sourceTrip);
     trip = { ...trip, ...automaticWeatherFrontPatch(trip) };
     ui.activeTripWeatherData = trip.weatherData || null;
     if (ui.tripDraft) ui.tripDraft.weatherData = trip.weatherData || null;

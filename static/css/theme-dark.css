@@ -1,9 +1,3 @@
-:root[data-theme="dark"] .brand-spotlight-empty {
-  background:
-    linear-gradient(135deg, rgba(56, 184, 120, 0.16), rgba(114, 167, 232, 0.08)),
-    linear-gradient(180deg, #172231, #101821);
-}
-
 :root[data-theme="dark"] .dialog,
 :root[data-theme="dark"] .dialog form,
 :root[data-theme="dark"] .dialog-content,

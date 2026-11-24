@@ -4,8 +4,8 @@ import { html, joinHtml, setHtml } from "./html.js";
 import { createId } from "./app-defaults.js";
 import { replaceDrifts, replaceFishingSpots } from "./actions.js";
 import { isUsableCoordinates } from "./app-media.js";
-import { locationNames } from "./app-normalization.js";
-import { polygonArea } from "./drifts.js";
+import { coordinateDistanceMeters, locationNames } from "./app-normalization.js";
+import { polygonArea, polygonSelfIntersects, polygonsOverlap } from "./drifts.js";
 import { detectWaterbody } from "./waterbody-detection.js";
 import { addSeamlessTileLayer, renderFishMap, seamlessMapOptions } from "./maps.js";
 import {
@@ -20,6 +20,8 @@ let kind = "spot";
 let waterbodyEdited = false;
 let map = null;
 let layer = null;
+let contextLayer = null;
+let tripPointLayer = null;
 const overviewMaps = {
   spot: { host: "#fishingSpotOverviewMap", empty: "#fishingSpotOverviewEmpty", map: null, layer: null, hasFit: false },
   drift: { host: "#driftOverviewMap", empty: "#driftOverviewEmpty", map: null, layer: null, hasFit: false },
@@ -45,6 +47,41 @@ const waterbodyField = () => kind === "spot" ? "lake" : "waterbody";
 function assignmentCount(type, id) {
   return state.trips.reduce((count, trip) => count + [...(trip.catches || []), ...(trip.lostFish || [])]
     .filter((fish) => (type === "spot" ? fish.spotId : fish.driftId) === id).length, 0);
+}
+
+function savedTripPoints() {
+  return (state.trips || []).flatMap((trip) => {
+    const points = [];
+    if (isUsableCoordinates(trip.coordinates)) {
+      points.push({
+        coordinates: trip.coordinates,
+        label: `${trip.date || "Trip"} · ${trip.title || trip.location || "Trip location"}`,
+        kind: "trip"
+      });
+    }
+    (trip.notePhotos || []).forEach((photo) => {
+      if (!isUsableCoordinates(photo.coordinates)) return;
+      points.push({ coordinates: photo.coordinates, label: `${trip.date || "Trip"} · ${photo.caption || photo.filename || "Trip photo"}`, kind: "trip" });
+    });
+    (trip.liveEvents || []).forEach((event) => {
+      if (!isUsableCoordinates(event.coordinates)) return;
+      points.push({ coordinates: event.coordinates, label: `${trip.date || "Trip"} · ${event.title || "Trip event"}`, kind: "trip" });
+    });
+    [
+      ...(trip.catches || []).map((fish) => ({ fish, kind: "catch" })),
+      ...(trip.lostFish || []).map((fish) => ({ fish, kind: "lost" }))
+    ].forEach(({ fish, kind: fishKind }) => {
+      const selectedPhoto = fish.photoLocationId
+        ? (fish.photos || []).find((photo) => photo.id === fish.photoLocationId && isUsableCoordinates(photo.coordinates))
+        : null;
+      const photo = selectedPhoto || (fish.photos || []).find((item) => isUsableCoordinates(item.coordinates));
+      const coordinates = [fish.manualCoordinates, fish.coordinates, photo?.coordinates].find(isUsableCoordinates);
+      if (!coordinates) return;
+      const name = fish.species || fish.possibleSpecies || (fishKind === "lost" ? "Missed fish" : "Catch");
+      points.push({ coordinates, label: `${trip.date || "Trip"} · ${name}`, kind: fishKind });
+    });
+    return points;
+  });
 }
 
 function renderList(type) {
@@ -230,6 +267,32 @@ function placePin(latlng) {
   draw();
 }
 
+function renderMapContext() {
+  if (!contextLayer || !tripPointLayer || !draft) return;
+  contextLayer.clearLayers();
+  tripPointLayer.clearLayers();
+  if (kind === "spot") {
+    (state.spots || []).filter((spot) => spot.id !== draft.id).forEach((spot) => {
+      if (!isUsableCoordinates(spot.coordinates)) return;
+      L.circle([spot.coordinates.latitude, spot.coordinates.longitude], {
+        radius: Number(spot.radiusMeters) || 0, color: "#96a6af", weight: 2, fillColor: "#96a6af", fillOpacity: 0.04, interactive: false
+      }).addTo(contextLayer);
+    });
+  } else if (kind === "drift") {
+    (state.drifts || []).filter((drift) => drift.id !== draft.id).forEach((drift) => {
+      const vertices = (drift.polygon || []).filter(isUsableCoordinates).map((vertex) => [vertex.latitude, vertex.longitude]);
+      if (vertices.length >= 3) L.polygon(vertices, { color: "#96a6af", weight: 2, dashArray: "5 4", fillColor: "#96a6af", fillOpacity: 0.04, interactive: false }).addTo(contextLayer);
+    });
+  }
+  if (kind !== "home") savedTripPoints().forEach(({ coordinates, label, kind: fishKind }) => {
+    L.circleMarker([coordinates.latitude, coordinates.longitude], {
+      radius: 6, color: "#ffffff", weight: 2,
+      fillColor: fishKind === "lost" ? "#ee9b43" : fishKind === "trip" ? "#438fdb" : "#f3d35e",
+      fillOpacity: 1, bubblingMouseEvents: false
+    }).bindTooltip(String(html`${label}`), { sticky: true }).addTo(tripPointLayer);
+  });
+}
+
 function draw() {
   if (!map || !layer || !draft) return;
   updateWaterbody();
@@ -261,7 +324,9 @@ function ensureMap() {
   if (!map) {
     map = L.map("fishingAreaMap", seamlessMapOptions());
     addSeamlessTileLayer(map);
+    contextLayer = L.layerGroup().addTo(map);
     layer = L.featureGroup().addTo(map);
+    tripPointLayer = L.layerGroup().addTo(map);
     map.on("click", (event) => {
       if (!draft) return;
       if (kind !== "drift") {
@@ -282,7 +347,11 @@ function ensureMap() {
     map.invalidateSize();
     if (kind === "drift" && draft.polygon.length) map.fitBounds(draft.polygon.map((vertex) => [vertex.latitude, vertex.longitude]), { padding: [28, 28], maxZoom: 15 });
     else if (kind !== "drift") map.setView([draft.coordinates.latitude, draft.coordinates.longitude], 14);
-    else map.setView([43.21, -79.05], 12);
+    else {
+      const firstTripPoint = savedTripPoints()[0]?.coordinates;
+      map.setView(firstTripPoint ? [firstTripPoint.latitude, firstTripPoint.longitude] : [43.21, -79.05], 12);
+    }
+    renderMapContext();
     draw();
   });
 }
@@ -293,7 +362,7 @@ function newArea(type) {
     return { id, name: `Home ${list("home").length + 1}`, coordinates: { ...privateLocationDefaultCoordinates() }, radiusMeters: 400 };
   }
   if (type === "drift") return { id, name: "", waterbody: "", polygon: [] };
-  const center = state.spots[0]?.coordinates || state.locations.find((item) => isUsableCoordinates(item.coordinates))?.coordinates || { latitude: 43.21, longitude: -79.05 };
+  const center = state.spots[0]?.coordinates || savedTripPoints()[0]?.coordinates || state.locations.find((item) => isUsableCoordinates(item.coordinates))?.coordinates || { latitude: 43.21, longitude: -79.05 };
   return { id, name: "", lake: "", coordinates: { ...center }, radiusMeters: 100 };
 }
 
@@ -306,7 +375,11 @@ function openEditor(type, id = "") {
   document.querySelector("#fishingAreaMessage").textContent = "";
   document.querySelector("[data-delete-fishing-area]").classList.toggle("hidden", !existing);
   const mapHint = document.querySelector("#fishingAreaMapHint");
-  mapHint.textContent = type === "drift" ? "" : "Tap the map or drag the pin. With the map focused, pan with the arrow keys and press Enter to place the pin.";
+  mapHint.textContent = type === "drift"
+    ? "Tap the map to add points. Other drifts appear in gray; trip points are blue, catches are yellow, and missed fish are orange."
+    : type === "spot"
+      ? "Tap the map or drag the pin. Other spot radii appear in gray; trip points are blue, catches are yellow, and missed fish are orange."
+      : "Tap the map or drag the pin. With the map focused, pan with the arrow keys and press Enter to place the pin.";
   mapHint.hidden = !mapHint.textContent;
   renderFields();
   updateWaterbody();
@@ -332,6 +405,16 @@ async function saveEditor() {
     return;
   }
   if (kind === "drift" && (draft.polygon.length < 3 || polygonArea(draft.polygon) < 1e-10)) { message.textContent = "Draw at least three distinct points around an area."; return; }
+  if (kind === "drift" && polygonSelfIntersects(draft.polygon)) { message.textContent = "Drift corners cross each other. Adjust the corners so the area does not cross itself."; return; }
+  if (kind === "drift") {
+    const conflict = (state.drifts || []).find((drift) => drift.id !== draft.id && polygonsOverlap(draft.polygon, drift.polygon || []));
+    if (conflict) { message.textContent = `This drift overlaps or touches “${conflict.name}”. Adjust its corners so drift areas do not overlap.`; return; }
+  }
+  if (kind === "spot") {
+    const conflict = (state.spots || []).find((spot) => spot.id !== draft.id
+      && coordinateDistanceMeters(draft.coordinates, spot.coordinates) <= Number(draft.radiusMeters) + Number(spot.radiusMeters));
+    if (conflict) { message.textContent = `This radius overlaps or touches “${conflict.name}”. Move the pin or reduce the radius so spots do not overlap.`; return; }
+  }
   const type = kind;
   const current = draft;
   const saved = { ...structuredClone(draft), name };
@@ -356,8 +439,8 @@ async function deleteEditor() {
   const current = draft;
   const count = type === "home" ? 0 : assignmentCount(type, draft.id);
   const impact = type === "home" ? "" : type === "spot"
-    ? `${count ? ` ${count} assigned fish record${count === 1 ? "" : "s"} will be updated.` : ""} Catch and lost-fish records will be kept; automatic spot assignments will be recalculated and manual assignments to this spot will be cleared.`
-    : `${count ? ` ${count} assigned fish record${count === 1 ? "" : "s"} will be updated.` : ""} Catch and lost-fish records will be kept; automatic drift assignments on drifting trips will be recalculated and links to this drift will be cleared.`;
+    ? `${count ? ` ${count} assigned fish record${count === 1 ? "" : "s"} will be updated.` : ""} Catch and lost-fish records will be kept; automatic matches will be recalculated, and assignments to this deleted spot will return to automatic matching.`
+    : `${count ? ` ${count} assigned fish record${count === 1 ? "" : "s"} will be updated.` : ""} Catch and lost-fish records will be kept; automatic drift matches on drifting trips will be recalculated, and assignments to this deleted drift will return to automatic matching.`;
   if (!confirm(`Delete “${draft.name}”?${impact}`)) return;
   try {
     await areaLists[type].save(list(type).filter(item => item.id !== current.id));

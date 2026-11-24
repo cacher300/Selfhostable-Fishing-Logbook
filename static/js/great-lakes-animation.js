@@ -25,7 +25,7 @@ import {
   tooShallowNote,
   waveParticleFields, savedWindParticleColor, windParticleColorParts
 } from "./great-lakes-conditions.js";
-import { createPaletteFilter, fitPaletteToView, paletteOverlays } from "./great-lakes-palette.js";
+import { SMOOTH_PALETTE_LAYERS, createPaletteFilter, fitPaletteToView, paletteOverlays } from "./great-lakes-palette.js";
 import { createScalarRasterTransition } from "./thermocline-flow.js";
 
 // Forecast animation: the chosen layer stepped through the next five days
@@ -485,7 +485,7 @@ function buildFrames(map, background) {
   pane.style.opacity = String(style.opacity);
   applyFadeDuration();
   state.stack = 0;
-  const filter = createPaletteFilter();
+  const filter = createPaletteFilter({ smooth: SMOOTH_PALETTE_LAYERS.includes(kind) });
   state.rasterPayloads = rasterPayloads || [];
   state.paletteFilter = filter;
   state.rasterStyle = style;

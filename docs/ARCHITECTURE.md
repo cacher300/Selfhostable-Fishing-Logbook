@@ -14,7 +14,7 @@ flowchart LR
   Flask --> Media["data/uploads/*"]
   Flask --> OM["Open-Meteo APIs"]
   Flask --> SS["SunriseSunset.io"]
-  Browser --> Tiles["Leaflet/OpenStreetMap tiles"]
+  Browser --> Tiles["Leaflet basemap tiles: OpenStreetMap, CARTO, Esri World Imagery"]
   Backup["Host cron backup"] --> SQLite
   Backup --> Media
   Backup --> NAS["Optional NAS target"]
@@ -45,7 +45,7 @@ HTML IDs/classes and `data-*` attributes remain internal APIs shared by template
 
 #### Global Map layers
 
-`maps.js` draws the original NOAA NCEI Great Lakes shading from the bundled rasters described by `static/data/bathymetry/manifest.json`. The public manifest is explicitly allowlisted by `pages.static_files`. **Depth shading version 2** uses viewport tiles from the configured Great Lakes Trolling API. It loads their versioned URL from `/api/v1/bathymetry/tiles/manifest` and shows a depth scale in the selected map units. The API receives the visible tile coordinates while v2 is enabled. Only one shading style is displayed at a time, and the browser remembers the selected style. **Depth contours** separately loads view-relevant GeoJSON through `/api/bathymetry/contours/{lake}`. The depth-shading pane sits above NOAA charts and Great Lakes model overlays, with contour lines above the shading. Both shading styles depict static bottom depth.
+`maps.js` offers Standard (OpenStreetMap), Dark and Minimal (CARTO), and Satellite (Esri World Imagery) basemaps. Satellite tiles show Esri and data-provider credits in the Leaflet attribution control. The browser remembers the chosen style. The map also draws original NOAA NCEI Great Lakes shading from the bundled rasters described by `static/data/bathymetry/manifest.json`. The public manifest is explicitly allowlisted by `pages.static_files`. **Depth shading version 2** uses viewport tiles from the configured Great Lakes Trolling API. It loads their versioned URL from `/api/v1/bathymetry/tiles/manifest` and shows a depth scale in the selected map units. The API receives the visible tile coordinates while v2 is enabled. Only one shading style is displayed at a time. **Depth contours** separately loads view-relevant GeoJSON through `/api/bathymetry/contours/{lake}`. The depth-shading pane sits above NOAA charts and Great Lakes model overlays, with contour lines above the shading. Both shading styles depict static bottom depth.
 
 ### Backend
 
@@ -115,6 +115,10 @@ The trip editor also fills an empty water-temperature field from a Great Lakes s
 ### Great Lakes conditions API
 
 The desktop and mobile apps use the same public Great Lakes Trolling `/api/v1` service. `static/js/noaa-api.js` maps the desktop UI's layer, point, station, animation, model-point, and history requests to that API. The manifest supplies update versions; image and frame URLs from responses are resolved against `GREAT_LAKES_API_URL`, which defaults to `https://greatlakestrolling.com`.
+
+Map temperature inspections, including currents with water temperature as the background, use the direct point value when available. At a shoreline point where that value is missing, a valid water-column profile can supply its closest depth; the popup identifies the model point coordinates so the nearby estimate is clear. This fallback stays off during saved-frame animation because the profile endpoint is not pinned to that frame, and missing data is shown explicitly.
+
+For a cleaner raster display, `great-lakes-palette.js` uses the service's grayscale value images and fitted palette. Temperature, air-temperature, wave, wind, and radar maps get a light palette-space blur that restores the original shoreline alpha. Static value rasters for temperature, air temperature, waves, and wind also use alpha-weighted, front-preserving multiscale debanding at half resolution; animations use the palette-space blur without the extra debanding pass. If value-image decoding fails, the original service image remains visible. This is display-only and does not change model readings or trip data.
 
 The Flask app no longer exposes its own Great Lakes forecast/history routes or starts a NOAA refresh worker. Its bathymetry endpoints remain for local contour lookups and per-lake depth calibration. Flow clipping uses the bundled NOAA water masks in `static/data/bathymetry/wave-mask/`.
 

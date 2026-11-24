@@ -1,5 +1,5 @@
 import { html, joinHtml, setHtml } from "./html.js";
-import { weatherFrontLabel, weatherFrontOptions } from "./weather-front.js";
+import { weatherFrontLabel, weatherFrontOptions, weatherFrontValue } from "./weather-front.js";
 import { activeStatsFilters, state, ui } from "./app-state.js";
 import { locationNames, optionChoices, optionLabels } from "./app-normalization.js";
 import { unitSymbol } from "./app-units.js";
@@ -243,14 +243,12 @@ export function renderBrandSpotlight() {
     .filter((photo) => previewImage(photo) && !isVideoMedia(photo)));
 
   if (!photos.length) {
-    setHtml(els.brandSpotlight, html`
-      <div class="brand-spotlight-empty">
-        <span>Trip, gear, catch, and pattern tracker</span>
-      </div>
-    `);
+    els.brandSpotlight.parentElement?.classList.add("is-empty");
+    setHtml(els.brandSpotlight, "");
     return;
   }
 
+  els.brandSpotlight.parentElement?.classList.remove("is-empty");
   setHtml(els.brandSpotlight, html`
     <div class="spotlight-slides">
       ${joinHtml(photos.map((photo, index) => html`
@@ -455,7 +453,7 @@ export function filteredTrips() {
       ...(trip.people || []).map((person) => person.name),
       trip.notes,
       trip.weather,
-      weatherFrontLabel(trip.weatherFront),
+      weatherFrontLabel(weatherFrontValue(trip)),
       trip.structure,
       trip.structureType,
       ...(trip.catches || []).flatMap((catchItem) => {
@@ -482,7 +480,8 @@ export function filteredTrips() {
     const tripDate = new Date(`${trip.date}T12:00:00`);
     const matchesYear = year === "All years" || String(tripDate.getFullYear()) === year;
     const matchesMonth = month === "All months" || String(tripDate.getMonth() + 1) === month;
-    const matchesFront = front === "all" || (front === "unclassified" ? !trip.weatherFront : trip.weatherFront === front);
+    const tripFront = weatherFrontValue(trip);
+    const matchesFront = front === "all" || (front === "unclassified" ? !tripFront : tripFront === front);
     return matchesQuery && matchesLocation && matchesLaunch && matchesTarget && matchesMethod && matchesYear && matchesMonth && matchesFront;
   });
 

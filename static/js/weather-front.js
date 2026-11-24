@@ -7,15 +7,14 @@ export function weatherFrontLabel(value) {
   return weatherFrontOptions.find((option) => option.value === value)?.label || "Unclassified";
 }
 
-export function weatherFrontSelection(trip) {
-  return trip.weatherFrontSource === "manual" || (trip.weatherFront && trip.weatherFrontSource !== "automatic") ? trip.weatherFront || "" : "automatic";
+export function weatherFrontValue(trip, assessment = trip?.weatherData?.frontAssessment) {
+  const value = assessment && Object.hasOwn(assessment, "value")
+    ? assessment.value
+    : trip?.weatherFrontSource === "automatic" ? trip.weatherFront : "";
+  return weatherFrontOptions.some((option) => option.value === value) ? value : "";
 }
 
 export function renderWeatherFrontChoice(trip, assessment = trip.weatherData?.frontAssessment) {
-  const select = document.querySelector("#weatherFront");
-  if (select) select.value = weatherFrontSelection(trip);
-  const hint = document.querySelector("#weatherFrontHint");
-  if (hint) hint.textContent = weatherFrontSelection(trip) === "automatic"
-    ? (trip.weatherFront ? `Estimated: ${weatherFrontLabel(trip.weatherFront)}. You can choose a manual classification.` : assessment?.reason || "Automatic estimate when surrounding weather is available.")
-    : "Manual classification. Weather refresh will keep your choice.";
+  const output = document.querySelector("#weatherFront");
+  if (output) output.textContent = weatherFrontLabel(weatherFrontValue(trip, assessment));
 }

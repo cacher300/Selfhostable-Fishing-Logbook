@@ -117,11 +117,11 @@ export function replaceFishingSpots(spots) {
     for (const trip of draft.trips || []) {
       for (const fish of [...(trip.catches || []), ...(trip.lostFish || [])]) {
         if (fish.spotAssignmentMode === "manual") {
-          if (!spots.some((spot) => spot.id === fish.spotId)) fish.spotId = "";
-        } else {
-          fish.spotId = automaticSpotId(fish, spots);
+          if (!fish.spotId || spots.some((spot) => spot.id === fish.spotId)) continue;
           fish.spotAssignmentMode = "automatic";
         }
+        fish.spotId = automaticSpotId(fish, spots);
+        fish.spotAssignmentMode = "automatic";
       }
     }
   });
@@ -131,10 +131,13 @@ export function replaceDrifts(drifts) {
   return commit((draft) => {
     draft.drifts = drifts;
     for (const trip of draft.trips || []) {
+      const isDriftingTrip = String(trip.method || "").trim().toLowerCase() === "drifting";
       for (const fish of [...(trip.catches || []), ...(trip.lostFish || [])]) {
         if (fish.driftAssignmentMode === "manual") {
-          if (!drifts.some((drift) => drift.id === fish.driftId)) fish.driftId = "";
-        } else if (String(trip.method || "").trim().toLowerCase() === "drifting") {
+          if (!fish.driftId || drifts.some((drift) => drift.id === fish.driftId)) continue;
+          fish.driftAssignmentMode = "automatic";
+        }
+        if (isDriftingTrip) {
           fish.driftId = automaticDriftId(fish, drifts);
           fish.driftAssignmentMode = "automatic";
         } else if (fish.driftId && !drifts.some((drift) => drift.id === fish.driftId)) {

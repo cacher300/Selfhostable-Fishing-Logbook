@@ -1,6 +1,6 @@
 ﻿import { createId } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
-import { automaticWeatherFrontPatch, renderWeatherFrontChoice, resetAutomaticWeatherFront } from "./weather-front.js";
+import { renderWeatherFrontChoice, resetAutomaticWeatherFront } from "./weather-front.js";
 import { settingsUi } from "./settings-core.js";
 
 const rootBindings = [
@@ -20,7 +20,6 @@ const rootBindings = [
   ["#flyHatch", "flyHatch"],
   ["#waterLevel", "waterLevel"],
   ["#weather", "weather"],
-  ["#weatherFront", "weatherFront"],
   ["#waveHeight", "waveHeight"],
   ["#structure", "structure"],
   ["#tripNotes", "notes"],
@@ -298,7 +297,7 @@ function syncDerivedRecordFields(record, path, control) {
 
 function syncRootDerivedFields(path, changed = true) {
   if (!ui.tripDraft) return;
-  if (changed && ["date", "locationId", "launchId", "launchTime", "linesPulledTime"].includes(path) && ui.tripDraft.weatherFrontSource === "automatic") {
+  if (changed && ["date", "locationId", "launchId", "launchTime", "linesPulledTime"].includes(path)) {
     Object.assign(ui.tripDraft, resetAutomaticWeatherFront(ui.tripDraft));
     if (ui.activeTripWeatherData) ui.activeTripWeatherData = { ...ui.activeTripWeatherData, frontAssessment: undefined };
     renderWeatherFrontChoice(ui.tripDraft);
@@ -358,14 +357,6 @@ function updateTripDraftFromControl(control) {
     }
     setPath(record, path, value);
     syncDerivedRecordFields(record, path, control);
-    return true;
-  }
-  if (path === "weatherFront") {
-    ui.tripDraft.weatherFront = value === "automatic" ? "" : value;
-    ui.tripDraft.weatherFrontSource = value === "automatic" ? "automatic" : "manual";
-    const assessment = ui.activeTripWeatherData?.frontAssessment || ui.tripDraft.weatherData?.frontAssessment;
-    Object.assign(ui.tripDraft, automaticWeatherFrontPatch(ui.tripDraft, assessment));
-    renderWeatherFrontChoice(ui.tripDraft, assessment);
     return true;
   }
   const previousValue = ui.tripDraft[path];

@@ -436,6 +436,12 @@
   font-size: 12px;
 }
 
+#tripDialog .weather-control-row select {
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+}
+
 #tripDialog .weather-summary-updated {
   display: block;
   margin-top: 8px;

@@ -29,7 +29,7 @@
                     <input id="mapSpotsToggle" type="checkbox" checked />
                     <span>Show spots</span>
                   </label>
-                  <label class="inline-toggle">
+                  <label class="inline-toggle map-drifts-toggle">
                     <input id="mapDriftsToggle" type="checkbox" />
                     <span>Show drifts</span>
                   </label>
@@ -63,6 +63,7 @@
                         <option value="standard">Standard</option>
                         <option value="dark">Dark</option>
                         <option value="minimal">Minimal</option>
+                        <option value="satellite">Satellite</option>
                       </select>
                     </label>
                     <label class="map-display-select">
@@ -74,53 +75,67 @@
                       </select>
                     </label>
                   </div>
-                  <label class="inline-toggle map-chart-toggle">
-                    <input id="mapDepthContoursToggle" type="checkbox" />
-                    <span>Show depth contours</span>
-                  </label>
-                  <small id="mapDepthContoursStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
-                  <label class="inline-toggle map-chart-toggle">
-                    <input id="mapBathymetryToggle" type="checkbox" />
-                    <span>Show depth shading</span>
-                  </label>
-                  <small id="mapBathymetryStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
-                  <label class="inline-toggle map-chart-toggle">
-                    <input id="mapBathymetryV2Toggle" type="checkbox" />
-                    <span>Depth shading version 2</span>
-                  </label>
-                  <div id="mapBathymetryV2Legend" class="map-depth-v2-legend hidden" role="img" aria-label="Depth scale">
-                    <span data-depth-min></span><span class="map-depth-v2-gradient"></span><span data-depth-max></span>
+                  <div class="map-layer-options-grid">
+                    <div class="map-layer-option">
+                      <label class="inline-toggle map-chart-toggle">
+                        <input id="mapDepthContoursToggle" type="checkbox" />
+                        <span>Show depth contours</span>
+                      </label>
+                      <small id="mapDepthContoursStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
+                    </div>
+                    <div class="map-layer-option">
+                      <label class="inline-toggle map-chart-toggle">
+                        <input id="mapBathymetryToggle" type="checkbox" />
+                        <span>Show depth shading</span>
+                      </label>
+                      <small id="mapBathymetryStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
+                    </div>
+                    <div class="map-layer-option">
+                      <label class="inline-toggle map-chart-toggle">
+                        <input id="mapBathymetryV2Toggle" type="checkbox" />
+                        <span>Depth shading version 2</span>
+                      </label>
+                      <div id="mapBathymetryV2Legend" class="map-depth-v2-legend hidden" role="img" aria-label="Depth scale">
+                        <span data-depth-min></span><span class="map-depth-v2-gradient"></span><span data-depth-max></span>
+                      </div>
+                      <small id="mapBathymetryV2Status" class="map-bathymetry-status" role="status" aria-live="polite"></small>
+                    </div>
+                    <div class="map-layer-option map-layer-option-satellite">
+                      <label class="inline-toggle map-chart-toggle">
+                        <input id="mapSatellitePhotoToggle" type="checkbox" />
+                        <span>NOAA satellite photo</span>
+                      </label>
+                      <div id="mapSatellitePhotoOptions" class="map-satellite-photo-options" hidden>
+                        <label class="map-display-select">
+                          <span>Satellite pass</span>
+                          <select id="mapSatellitePhotoPass" aria-label="Satellite pass" disabled></select>
+                        </label>
+                        <label class="map-satellite-opacity">
+                          <span>Photo opacity <output id="mapSatellitePhotoOpacityLabel">70%</output></span>
+                          <input id="mapSatellitePhotoOpacity" type="range" min="20" max="100" step="5" value="70" aria-label="Photo opacity" />
+                        </label>
+                        <small id="mapSatellitePhotoStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
+                      </div>
+                    </div>
+                    <div class="map-layer-option">
+                      <label class="inline-toggle map-chart-toggle">
+                        <input id="mapWebcamsToggle" type="checkbox" />
+                        <span>Webcams</span>
+                      </label>
+                    </div>
+                    <div class="map-layer-option">
+                      <label class="inline-toggle map-chart-toggle">
+                        <input id="mapNoaaChartsToggle" type="checkbox" />
+                        <span>NOAA charts</span>
+                      </label>
+                    </div>
                   </div>
-                  <small id="mapBathymetryV2Status" class="map-bathymetry-status" role="status" aria-live="polite"></small>
-                  <label class="inline-toggle map-chart-toggle">
-                    <input id="mapSatellitePhotoToggle" type="checkbox" />
-                    <span>NOAA satellite photo</span>
-                  </label>
-                  <div id="mapSatellitePhotoOptions" class="map-satellite-photo-options" hidden>
-                    <label class="map-display-select">
-                      <span>Satellite pass</span>
-                      <select id="mapSatellitePhotoPass" aria-label="Satellite pass" disabled></select>
-                    </label>
-                    <label class="map-satellite-opacity">
-                      <span>Photo opacity <output id="mapSatellitePhotoOpacityLabel">70%</output></span>
-                      <input id="mapSatellitePhotoOpacity" type="range" min="20" max="100" step="5" value="70" aria-label="Satellite photo opacity" />
-                    </label>
-                    <small id="mapSatellitePhotoStatus" class="map-bathymetry-status" role="status" aria-live="polite"></small>
-                  </div>
-                  <label class="inline-toggle map-chart-toggle">
-                    <input id="mapWebcamsToggle" type="checkbox" />
-                    <span>Webcams</span>
-                  </label>
                   <fieldset class="great-lakes-points-options">
                     <legend>Data points</legend>
                     <label><input type="checkbox" data-gl-stations /> <span>Buoys</span></label>
                     <label><input type="checkbox" data-gl-model-points /> <span>NOAA Model calculation points</span></label>
                     <p data-gl-points-status role="status" aria-live="polite"></p>
                   </fieldset>
-                  <label class="inline-toggle map-chart-toggle">
-                    <input id="mapNoaaChartsToggle" type="checkbox" />
-                    <span>NOAA charts</span>
-                  </label>
                 </div>
               </details>
             </div>

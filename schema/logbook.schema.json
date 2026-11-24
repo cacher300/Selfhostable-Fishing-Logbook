@@ -596,7 +596,7 @@
       "additionalProperties": true,
       "properties": {
         "weatherFront": {
-          "description": "Trip front classification, independent of legacy weatherData.frontTag. weatherFrontSource distinguishes automatic estimates from manual choices. Empty or absent means unclassified.",
+          "description": "Automatically estimated trip front classification, independent of legacy weatherData.frontTag. Historical manual values remain valid for compatibility. Empty or absent means unclassified.",
           "type": "string",
           "enum": ["", "pre-front", "during-front", "post-front", "no-front"]
         },

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { installBrowserEnv } from "./helpers/browser-env.mjs";
 
 installBrowserEnv();
-const { PALETTE_STOPS, WAVE_CALM_MAX_METERS, WAVE_DEFAULT_MAX_METERS, WIND_DEFAULT_MAX_METERS_PER_SECOND, fitRange, paletteRgb, paletteTables, visibleHistogram, waveStops, windStops } = await import("../static/js/great-lakes-palette.js");
+const { PALETTE_STOPS, SMOOTH_PALETTE_LAYERS, WAVE_CALM_MAX_METERS, WAVE_DEFAULT_MAX_METERS, WIND_DEFAULT_MAX_METERS_PER_SECOND, debandLevels, encodeDebanded, fitRange, paletteRgb, paletteTables, visibleHistogram, waveStops, windStops } = await import("../static/js/great-lakes-palette.js");
 
 // The browser repaints with the server's palette: the ends and a middle stop are exact.
 const stops = PALETTE_STOPS.temperature;
@@ -75,3 +75,47 @@ for (const top of [WIND_DEFAULT_MAX_METERS_PER_SECOND, 20]) {
   assert.ok(Math.abs(windColors[2][0] * top - 5 * 0.514444) < 1e-9);
   assert.deepEqual(paletteRgb(1, windColors), [222, 40, 92]);
 }
+
+// Smooth value-raster rendering is shared by temperature, air, waves, wind, and radar.
+assert.deepEqual(SMOOTH_PALETTE_LAYERS, ["temperature", "air-temperature", "waves", "wind", "radar"]);
+
+// Debanding restores a gentle ramp while keeping real fronts sharp and land transparent.
+function valueImage(width, height, valueAt, waterAt = () => true) {
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      data[offset] = data[offset + 1] = data[offset + 2] = Math.round(valueAt(x, y));
+      data[offset + 3] = waterAt(x, y) ? 255 : 0;
+    }
+  }
+  return data;
+}
+const rampWidth = 240, rampHeight = 24;
+const ramp = (x) => 100 + x / 40;
+const debandedRamp = debandLevels(valueImage(rampWidth, rampHeight, ramp), rampWidth, rampHeight);
+let rampError = 0, rampSteps = 0;
+assert.deepEqual([debandedRamp.width, debandedRamp.height], [rampWidth / 2, rampHeight / 2]);
+for (let x = 20; x < debandedRamp.width - 20; x += 1) {
+  const here = debandedRamp.levels[6 * debandedRamp.width + x] / 256;
+  const expected = ramp(x * 2 + 0.5);
+  rampError = Math.max(rampError, Math.abs(here - expected));
+  rampSteps = Math.max(rampSteps, Math.abs(here - debandedRamp.levels[6 * debandedRamp.width + x - 1] / 256));
+}
+assert.ok(rampError < 0.3, `debanded ramp should follow the true values, off by ${rampError}`);
+assert.ok(rampSteps < 0.1, `debanded ramp should have no steps, largest ${rampSteps}`);
+
+const front = debandLevels(valueImage(120, 24, (x) => (x < 60 ? 80 : 140)), 120, 24);
+assert.ok(Math.abs(front.levels[6 * front.width + 25] / 256 - 80) < 1);
+assert.ok(Math.abs(front.levels[6 * front.width + 35] / 256 - 140) < 1);
+
+const shore = debandLevels(valueImage(60, 24, () => 150, (x) => x < 31), 60, 24);
+assert.ok(Math.abs(shore.levels[6 * shore.width + 14] / 256 - 150) < 0.5);
+assert.deepEqual([shore.alpha[6 * shore.width + 14], shore.alpha[6 * shore.width + 15], shore.alpha[6 * shore.width + 16]], [255, 128, 0]);
+const oddDimensions = debandLevels(valueImage(3, 3, () => 100, (x, y) => x === 2 && y === 2), 3, 3);
+assert.deepEqual([oddDimensions.width, oddDimensions.height], [2, 2]);
+assert.deepEqual([...oddDimensions.alpha], [0, 0, 0, 255]);
+
+const fine = new Uint16Array([0, 128 * 256, 255 * 256]);
+const encoded = encodeDebanded(fine, { data: new Uint8ClampedArray(12) }, [0, 30], 0, 30).data;
+assert.deepEqual([encoded[0], encoded[4], encoded[8]], [0, 128, 255]);

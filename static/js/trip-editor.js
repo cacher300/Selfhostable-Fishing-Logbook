@@ -1,5 +1,5 @@
 import { html, joinHtml, setHtml } from "./html.js";
-import { renderWeatherFrontChoice, weatherFrontOptions } from "./weather-front.js";
+import { renderWeatherFrontChoice } from "./weather-front.js";
 import { L } from "./vendor.js";
 import { createId, defaultTimeValue } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
@@ -451,7 +451,6 @@ export function openTripDialog(trip = null) {
     claritySelect.add(new Option(tripDraft.waterClarity, tripDraft.waterClarity));
   }
   setValue("waterClarity", tripDraft.waterClarity || "");
-  setHtml(document.querySelector("#weatherFront"), html`<option value="automatic">Automatic (estimate)</option><option value="">Unclassified</option>${joinHtml(weatherFrontOptions.map((option) => html`<option value="${option.value}">${option.label}</option>`), "")}`);
   renderWeatherFrontChoice(tripDraft);
   populateOptionSelect(document.querySelector("#waterLevel"), optionLabels("waterLevels"), "Select level");
   setValue("flyHatch", tripDraft.flyHatch || "");

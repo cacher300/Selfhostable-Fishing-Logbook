@@ -4,7 +4,7 @@ import { L } from "./vendor.js";
 import { state, ui } from "./app-state.js";
 import { convertUnitValue, currentChopRanges, formatMapUnitValue as formatUnitValue, mapUnitPreference as unitPreference } from "./app-units.js";
 import { depthRangeLabel, showWaterColumnDialog, thermoclineBand, thicknessLabel } from "./water-column.js";
-import { WAVE_DEFAULT_MAX_METERS, WIND_DEFAULT_MAX_METERS_PER_SECOND, createPaletteFilter, fitPaletteToView, paletteGradient, paletteOverlays, savedTemperatureColorMode, setTemperatureColorMode, waveStops, windStops } from "./great-lakes-palette.js";
+import { WAVE_DEFAULT_MAX_METERS, WIND_DEFAULT_MAX_METERS_PER_SECOND, SMOOTH_PALETTE_LAYERS, createPaletteFilter, fitPaletteToView, paletteGradient, paletteOverlays, savedTemperatureColorMode, setTemperatureColorMode, waveStops, windStops } from "./great-lakes-palette.js";
 import { currentPixelsPerFrame, dramaticParticleSpeed } from "./particle-speed.js";
 import { currentProfileActionHtml, directionIconHtml, profileActionHtml, readingHtml } from "./cards.js";
 import {
@@ -1106,7 +1106,8 @@ export function stopPaletteFit() {
 // A layer's lake images, coloured to fit what is on screen.
 function drawPaletteRasters(rasters, kind, options) {
   stopPaletteFit();
-  const filter = createPaletteFilter();
+  const smooth = SMOOTH_PALETTE_LAYERS.includes(kind);
+  const filter = createPaletteFilter({ smooth, deband: smooth });
   paletteOverlays(rasters, filter, { ...options, interactive: false }).forEach((overlay) => overlay.addTo(greatLakesConditionsLayer));
   greatLakesPaletteFit = fitPaletteToView(greatLakesConditionsLayer._map, [rasters], kind, filter, (low, high) => showPaletteRange(kind, low, high));
 }
@@ -1358,7 +1359,47 @@ export async function greatLakesMapInspection({ latitude, longitude }) {
   if (!greatLakesActiveLayer) return "";
   const depth = greatLakesShownDepth(), forecastHour = greatLakesForecastHour();
   const models = greatLakesLoadedModelsKey, timeParams = greatLakesTimeParams();
-  const temperatureLabel = (value) => Number(value.depthMeters) > 0.25 ? `Temperature at ${greatLakesDepthLabel(Number(value.depthMeters))}` : "Surface temperature";
+  const temperatureLabel = (value) => {
+    const depthMeters = Number(value?.depthMeters ?? depth);
+    return depthMeters > 0.25 ? `Temperature at ${greatLakesDepthLabel(depthMeters)}` : "Surface temperature";
+  };
+  const hasWaterTemperature = (value) => Boolean(
+    value?.available && value.temperatureC !== null && value.temperatureC !== undefined && Number.isFinite(Number(value.temperatureC))
+  );
+  const profileTemperature = (profile) => {
+    const values = (profile?.values || []).filter((value) => value
+      && value.depthMeters !== null && value.depthMeters !== undefined
+      && value.temperatureC !== null && value.temperatureC !== undefined
+      && Number.isFinite(Number(value.depthMeters)) && Number.isFinite(Number(value.temperatureC)));
+    return values.length
+      ? values.reduce((best, value) => Math.abs(Number(value.depthMeters) - Number(depth)) < Math.abs(Number(best.depthMeters) - Number(depth)) ? value : best, values[0])
+      : null;
+  };
+  const temperatureUnavailableNote = "No model water-temperature reading is available at this point. Try a point farther out over the lake.";
+  const unavailableTemperatureReading = (value) => readingHtml({
+    label: temperatureLabel(value || { depthMeters: depth }),
+    value: "Unavailable",
+    note: value?.errors?.[0] || (value ? temperatureUnavailableNote : "NOAA water-temperature data is temporarily unavailable. Try again shortly.")
+  });
+  const profileModelPointLabel = (profile) => {
+    const modelPoint = profile?.modelLocation;
+    return Number.isFinite(Number(modelPoint?.latitude)) && Number.isFinite(Number(modelPoint?.longitude))
+      ? `${Number(modelPoint.latitude).toFixed(3)}, ${Number(modelPoint.longitude).toFixed(3)}`
+      : "nearby wet model cell";
+  };
+  const nearbyProfileTemperatureReading = (profile, value) => {
+    const pointLabel = profileModelPointLabel(profile);
+    const time = profile?.stale ? friendlyTime(profile.lastAvailableAt || profile.validTime) : "";
+    const note = profile?.stale
+      ? `Saved NOAA profile${time ? ` · last available ${time}` : ""}. Model point ${pointLabel}.`
+      : `Nearest wet ${profile?.model || "NOAA"} model point · ${pointLabel}.`;
+    return readingHtml({
+      label: temperatureLabel(value),
+      value: waterTemperatureLabel(Number(value.temperatureC)),
+      note,
+      action: profileActionHtml(latitude, longitude)
+    });
+  };
   if (greatLakesActiveLayer === "air-temperature") {
     try {
       const pinned = greatLakesAnimationPointParams();
@@ -1420,12 +1461,21 @@ export async function greatLakesMapInspection({ latitude, longitude }) {
   }
   if (greatLakesActiveLayer === "currents") {
     const wantsTemperature = greatLakesControlValue("current-background") === "temperature";
-    const [current, temperatureValue] = await Promise.all([
+    const [current, temperatureValue, temperatureProfile] = await Promise.all([
       window.noaaGreatLakesApi.currentProfile({ forecastHour, latitude, longitude, models, ...timeParams }).catch(() => null),
-      wantsTemperature ? window.noaaGreatLakesApi.temperatureValue({ forecastHour, depth, resolution: CURRENT_BACKGROUND_RESOLUTION, latitude, longitude, models, ...timeParams }).catch(() => null) : null
+      wantsTemperature ? window.noaaGreatLakesApi.temperatureValue({ forecastHour, depth, resolution: CURRENT_BACKGROUND_RESOLUTION, latitude, longitude, models, ...timeParams }).catch(() => null) : null,
+      wantsTemperature ? window.noaaGreatLakesApi.profile({ forecastHour, latitude, longitude, models, ...timeParams }).catch(() => null) : null
     ]);
     const values = current?.available ? (current.values || []).filter((value) => Number.isFinite(value.speedMetersPerSecond)) : [];
-    if (!values.length) return "";
+    const nearbyTemperature = wantsTemperature && !hasWaterTemperature(temperatureValue) && !greatLakesAnimationActive() && temperatureProfile?.available
+      ? profileTemperature(temperatureProfile)
+      : null;
+    if (!values.length) {
+      if (!wantsTemperature) return "";
+      if (hasWaterTemperature(temperatureValue)) return readingHtml({ label: temperatureLabel(temperatureValue), value: waterTemperatureLabel(Number(temperatureValue.temperatureC)) });
+      if (nearbyTemperature) return nearbyProfileTemperatureReading(temperatureProfile, nearbyTemperature);
+      return unavailableTemperatureReading(temperatureValue);
+    }
     const selected = values.reduce((best, value) => Math.abs(value.depthMeters - Number(depth)) < Math.abs(best.depthMeters - Number(depth)) ? value : best, values[0]);
     const speed = selected.speedMetersPerSecond;
     const still = speed < 0.001;
@@ -1434,7 +1484,13 @@ export async function greatLakesMapInspection({ latitude, longitude }) {
       value: currentSpeedLabel(speed),
       icon: still ? "" : directionIconHtml(selected.directionDegrees),
       note: still ? "Still" : `Toward ${currentDirectionLabel(selected.directionDegrees)} · ${Math.round(selected.directionDegrees) % 360}°`,
-      rows: [temperatureValue?.available ? [temperatureLabel(temperatureValue), waterTemperatureLabel(temperatureValue.temperatureC)] : null],
+      rows: wantsTemperature ? [
+        [
+          hasWaterTemperature(temperatureValue) ? temperatureLabel(temperatureValue) : nearbyTemperature ? temperatureLabel(nearbyTemperature) : temperatureLabel({ depthMeters: depth }),
+          hasWaterTemperature(temperatureValue) ? waterTemperatureLabel(Number(temperatureValue.temperatureC)) : nearbyTemperature ? waterTemperatureLabel(Number(nearbyTemperature.temperatureC)) : "Unavailable"
+        ],
+        nearbyTemperature ? [temperatureProfile?.stale ? "Saved model point" : "Model point", profileModelPointLabel(temperatureProfile)] : null
+      ] : [],
       action: currentProfileActionHtml(latitude, longitude)
     });
   }
@@ -1454,10 +1510,14 @@ export async function greatLakesMapInspection({ latitude, longitude }) {
       });
     }
     const [value, profile] = await Promise.all([
-      window.noaaGreatLakesApi.temperatureValue({ forecastHour, depth, resolution, latitude, longitude, models, ...timeParams }),
+      window.noaaGreatLakesApi.temperatureValue({ forecastHour, depth, resolution, latitude, longitude, models, ...timeParams }).catch(() => null),
       window.noaaGreatLakesApi.profile({ forecastHour, latitude, longitude, models, ...timeParams }).catch(() => null)
     ]);
-    if (!value.available) return "";
+    if (!hasWaterTemperature(value)) {
+      const nearbyValue = !greatLakesAnimationActive() ? profileTemperature(profile) : null;
+      if (profile?.available && nearbyValue) return nearbyProfileTemperatureReading(profile, nearbyValue);
+      return unavailableTemperatureReading(value);
+    }
     return readingHtml({
       label: temperatureLabel(value),
       value: waterTemperatureLabel(value.temperatureC),

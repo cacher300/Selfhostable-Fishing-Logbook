@@ -1,7 +1,8 @@
-"""Explicit, one-time Open-Meteo backfill. Never run during app startup.
+"""Explicit, one-time reclassification of every trip using Open-Meteo.
 
 Dry run by default. --apply creates a matching SQLite/uploads backup before a
-revision-checked write. Existing manual classifications are always preserved.
+revision-checked write. Every saved front value is replaced with the automatic
+classification, or Unclassified when the trip cannot be assessed.
 """
 from __future__ import annotations
 
@@ -74,12 +75,26 @@ def backfill(document: dict, fetch=fetch_context, progress=None) -> tuple[dict, 
     inputs, indexes = [], []
     counts = Counter()
     for index, trip in enumerate(updated.get("trips", [])):
-        if trip.get("weatherFrontSource") == "manual" or trip.get("weatherFront"):
-            counts["preserved"] += 1
-            continue
+        trip["weatherFront"] = ""
+        trip["weatherFrontSource"] = "automatic"
         point = coordinates_for(document, trip)
-        if not point or not trip.get("date"):
+        try:
+            if not trip.get("date"):
+                raise ValueError("missing date")
+            date.fromisoformat(trip["date"])
+        except (TypeError, ValueError):
+            reason = "A valid trip date is required to estimate a weather front."
+            counts["missing_or_invalid_date"] += 1
+            trip["weatherData"] = {**(trip.get("weatherData") or {}), "frontAssessment": {"value": "", "reason": reason, "method": "open-meteo-pattern-v1", "provider": "Open-Meteo", "fetchedAt": datetime.now(timezone.utc).isoformat()}}
+            if progress:
+                progress(index + 1, len(updated["trips"]))
+            continue
+        if not point:
             counts["missing_date_or_coordinates"] += 1
+            reason = "Mapped trip coordinates are required to estimate a weather front."
+            trip["weatherData"] = {**(trip.get("weatherData") or {}), "frontAssessment": {"value": "", "reason": reason, "method": "open-meteo-pattern-v1", "provider": "Open-Meteo", "fetchedAt": datetime.now(timezone.utc).isoformat()}}
+            if progress:
+                progress(index + 1, len(updated["trips"]))
             continue
         try:
             bundle = fetch(trip, point)
@@ -88,17 +103,15 @@ def backfill(document: dict, fetch=fetch_context, progress=None) -> tuple[dict, 
         except Exception:
             # Do not print provider URLs: they include private coordinates.
             counts["lookup_failed"] += 1
+            reason = "Surrounding weather could not be retrieved; this trip is Unclassified."
+            trip["weatherData"] = {**(trip.get("weatherData") or {}), "frontAssessment": {"value": "", "reason": reason, "method": "open-meteo-pattern-v1", "provider": "Open-Meteo", "fetchedAt": datetime.now(timezone.utc).isoformat()}}
         if progress:
             progress(index + 1, len(updated["trips"]))
     for index, assessment in zip(indexes, assessments(inputs), strict=True):
-        if not assessment["value"]:
-            counts["insufficient_weather"] += 1
-            continue
         trip = updated["trips"][index]
         trip["weatherFront"] = assessment["value"]
-        trip["weatherFrontSource"] = "automatic"
         trip["weatherData"] = {**(trip.get("weatherData") or {}), "frontAssessment": {**assessment, "provider": "Open-Meteo", "fetchedAt": datetime.now(timezone.utc).isoformat()}}
-        counts[assessment["value"]] += 1
+        counts[assessment["value"] or "insufficient_weather"] += 1
     valid, error = validate_logbook(updated)
     if not valid:
         raise ValueError(error)

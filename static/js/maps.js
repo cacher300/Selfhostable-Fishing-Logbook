@@ -1,5 +1,5 @@
 import { html, joinHtml, setHtml } from "./html.js";
-import { weatherFrontLabel } from "./weather-front.js";
+import { weatherFrontLabel, weatherFrontValue } from "./weather-front.js";
 import { L } from "./vendor.js";
 import { fallbackSpeciesColor, speciesColor } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
@@ -757,7 +757,7 @@ export function mapPopupHtml(record, options = {}) {
   const method = record.type === "catch" ? mapRecordMethod(record) : "";
   const layer = record.type === "catch" && options.showLayer ? greatLakesLayerLabel() : "";
   const detailRows = [
-    trip.weatherFront ? html`<div class="map-popup-detail"><span class="map-popup-label">Weather front</span><span class="map-popup-value">${weatherFrontLabel(trip.weatherFront)}</span></div>` : "",
+    weatherFrontValue(trip) ? html`<div class="map-popup-detail"><span class="map-popup-label">Weather front</span><span class="map-popup-value">${weatherFrontLabel(weatherFrontValue(trip))}</span></div>` : "",
     sizeValue ? html`<div class="map-popup-detail"><span class="map-popup-label">Size</span><span class="map-popup-value">${sizeValue}</span></div>` : "",
     fowValue ? html`<div class="map-popup-detail"><span class="map-popup-label">FOW</span><span class="map-popup-value">${fowValue}</span></div>` : "",
     method ? html`<div class="map-popup-detail"><span class="map-popup-label">Method</span><span class="map-popup-value">${method}</span></div>` : "",
@@ -1020,8 +1020,10 @@ export function renderFishMap() {
   drifts.forEach((drift) => {
     const points = drift.polygon.map((point) => [point.latitude, point.longitude]);
     points.forEach((point) => bounds.push(point));
+    const name = String(drift.name || "Drift").trim();
+    const title = /\bdrift\b/i.test(name) ? name : `${name} Drift`;
     L.polygon(points, { color: "#2389b8", weight: 2, fillColor: "#2389b8", fillOpacity: 0.16 })
-      .bindPopup(String(html`<strong>${drift.name}</strong><br>${drift.waterbody || ""}<br>Approximate area; edit in Settings`))
+      .bindPopup(String(html`<strong>${title}</strong>`))
       .addTo(ui.fishMapDriftAreas);
   });
 
@@ -1149,6 +1151,10 @@ export function setup() {
     minimal: {
       url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${CARTO_BASEMAP_KEY}`,
       options: { attribution: "&copy; OpenStreetMap contributors &copy; CARTO", subdomains: "abcd", maxZoom: 20 }
+    },
+    satellite: {
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      options: { attribution: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community", maxZoom: 23 }
     }
   };
 

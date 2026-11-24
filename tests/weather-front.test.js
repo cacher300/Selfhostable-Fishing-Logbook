@@ -14,7 +14,7 @@ const { reportAdditionalConditionRows } = await import("../static/js/trip-summar
 const { summarizeTripPerformance } = await import("../static/js/stats-performance.js");
 const { shareWeatherParts } = await import("../static/js/trip-sharing.js");
 
-test("front choices survive trip edits and stay separate from automatic weather", () => {
+test("historical front values survive trip edits but are not displayed as automatic classifications", () => {
   for (const method of ["Casting", "Trolling"]) {
     for (const { value, label } of weatherFrontOptions) {
       const source = { id: "trip", method, weatherFront: value, weatherData: { frontTag: "Stable", custom: true }, people: [], catches: [], lostFish: [], gearUsed: [], custom: { keep: true } };
@@ -25,8 +25,8 @@ test("front choices survive trip edits and stay separate from automatic weather"
       assert.equal(saved.weatherFront, value);
       assert.deepEqual(saved.weatherData, source.weatherData);
       assert.deepEqual(saved.custom, source.custom);
-      assert.deepEqual(reportAdditionalConditionRows({ weatherFront: value })[0], ["Weather front", label]);
-      assert.ok(shareWeatherParts(saved).includes(label));
+      assert.deepEqual(reportAdditionalConditionRows({ weatherFront: value })[0], ["Weather front", "Unclassified"]);
+      assert.ok(!shareWeatherParts(saved).includes(label));
       draft.weatherFront = "";
       assert.equal(tripFromDraft(draft).weatherFront, "");
     }

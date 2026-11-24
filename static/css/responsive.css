@@ -262,8 +262,7 @@
     font-size: 20px;
   }
 
-  .brand-spotlight,
-  .brand-spotlight-empty {
+  .brand-spotlight {
     min-height: 118px;
   }
 
@@ -731,7 +730,10 @@
     left: 12px;
     width: min(376px, calc(100vw - 19px));
     max-width: none;
-    max-height: none;
+    max-height: calc(100vh - 34px);
+    max-height: calc(100dvh - 34px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     border-top-right-radius: 0;
     border-top-left-radius: 0;
   }

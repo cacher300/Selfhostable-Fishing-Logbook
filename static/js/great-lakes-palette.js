@@ -55,6 +55,7 @@ export const PALETTE_STOPS = Object.freeze({
   radar: [[0, [24, 48, 128]], [0.18, [36, 132, 224]], [0.36, [34, 190, 124]], [0.54, [238, 226, 52]], [0.7, [244, 132, 32]], [0.84, [224, 48, 42]], [1, [190, 48, 190]]],
   upwelling: [[0, [20, 54, 160]], [0.22, [38, 112, 222]], [0.38, [126, 196, 250]], [0.5, [236, 240, 245]], [0.62, [252, 178, 122]], [0.78, [232, 92, 54]], [1, [168, 24, 36]]]
 });
+export const SMOOTH_PALETTE_LAYERS = Object.freeze(["temperature", "air-temperature", "waves", "wind", "radar"]);
 export const TEMPERATURE_COLOR_RANGE_C = Object.freeze([0, 30]);
 export const AIR_TEMPERATURE_COLOR_RANGE_C = Object.freeze([-40, 50]);
 export const TEMPERATURE_COLOR_MODE_STORAGE_KEY = "glc.TemperatureColorMode";
@@ -82,6 +83,13 @@ const SAMPLE_WIDTH = 320;
 const SAMPLE_MIN_ALPHA = 200;
 const HISTOGRAM_BINS = 512;
 const REFIT_DELAY_MS = 120;
+// Smooth display rasters without washing out actual model fronts. The values
+// are rebuilt at half resolution and then enlarged by Leaflet in the browser.
+const DEBAND_RADII = [2, 4, 8, 16];
+const DEBAND_KEEP_LEVELS = 0.5;
+const DEBAND_LIMIT_LEVELS = 1.25;
+const DEBAND_CACHE_ENTRIES = 6;
+const debandCache = new Map();
 let filterCount = 0;
 
 export function savedTemperatureColorMode() {
@@ -206,18 +214,161 @@ export function visibleHistogram(samples, view, origin, binWidth) {
   return histogram;
 }
 
-// One filter (a palette over a range) shared by every image of a layer, including animation frames.
-export function createPaletteFilter() {
-  filterCount += 1;
-  const id = `gl-palette-${filterCount}`;
-  const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("width", "0");
-  svg.setAttribute("height", "0");
-  svg.style.position = "absolute";
+// Three zero-padded box passes along each axis approximate a Gaussian blur.
+function* boxBlur(source, width, height, radius) {
+  const scale = 1 / (2 * radius + 1);
+  const rows = new Float32Array(source.length), result = new Float32Array(source.length);
+  const sums = new Float64Array(width);
+  let input = source;
+  for (let pass = 0; pass < 3; pass += 1) {
+    for (let y = 0; y < height; y += 1) {
+      const row = y * width;
+      let sum = 0;
+      for (let x = 0; x < Math.min(radius, width); x += 1) sum += input[row + x];
+      for (let x = 0; x < width; x += 1) {
+        if (x + radius < width) sum += input[row + x + radius];
+        rows[row + x] = sum * scale;
+        if (x - radius >= 0) sum -= input[row + x - radius];
+      }
+    }
+    sums.fill(0);
+    for (let y = 0; y < Math.min(radius, height); y += 1) {
+      for (let x = 0, row = y * width; x < width; x += 1) sums[x] += rows[row + x];
+    }
+    for (let y = 0; y < height; y += 1) {
+      const added = y + radius < height ? (y + radius) * width : -1;
+      const removed = y - radius >= 0 ? (y - radius) * width : -1;
+      const row = y * width;
+      for (let x = 0; x < width; x += 1) {
+        if (added >= 0) sums[x] += rows[added + x];
+        result[row + x] = sums[x] * scale;
+        if (removed >= 0) sums[x] -= rows[removed + x];
+      }
+    }
+    input = result;
+    yield;
+  }
+  return result;
+}
+
+// Rebuild the smooth scalar field represented by the 8-bit value image. Broad
+// bands get a gentle ramp, while large temperature fronts keep their shape.
+export function debandLevels(data, width, height) {
+  const steps = debandSteps(data, width, height);
+  let step = steps.next();
+  while (!step.done) step = steps.next();
+  return step.value;
+}
+
+// Do the same image work in short slices so a large lake does not freeze the map.
+async function debandLevelsGradually(data, width, height) {
+  const steps = debandSteps(data, width, height);
+  let step = steps.next();
+  while (!step.done) {
+    await new Promise((resolve) => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = () => { channel.port1.close(); resolve(); };
+      channel.port2.postMessage(null);
+    });
+    step = steps.next();
+  }
+  return step.value;
+}
+
+function* debandSteps(data, width, height) {
+  const halfWidth = Math.ceil(width / 2), halfHeight = Math.ceil(height / 2);
+  const weightedValues = new Float32Array(halfWidth * halfHeight);
+  const weights = new Float32Array(halfWidth * halfHeight);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4, cell = (y >> 1) * halfWidth + (x >> 1);
+      const alpha = data[offset + 3] / 255;
+      weightedValues[cell] += data[offset] * alpha;
+      weights[cell] += alpha;
+    }
+  }
+  yield;
+  const blurred = function* (radius) {
+    const values = yield* boxBlur(weightedValues, halfWidth, halfHeight, radius);
+    const total = yield* boxBlur(weights, halfWidth, halfHeight, radius);
+    for (let index = 0; index < values.length; index += 1) values[index] = total[index] > 1e-6 ? values[index] / total[index] : NaN;
+    return values;
+  };
+  const reference = yield* blurred(1);
+  const field = Float32Array.from(reference);
+  const keep = new Float32Array(field.length).fill(1);
+  yield;
+  for (const radius of DEBAND_RADII) {
+    const wider = yield* blurred(radius);
+    for (let index = 0; index < field.length; index += 1) {
+      if (Number.isNaN(wider[index])) continue;
+      if (Number.isNaN(field[index])) { field[index] = wider[index]; continue; }
+      const t = Math.max(0, Math.min(1, (Math.abs(wider[index] - reference[index]) - DEBAND_KEEP_LEVELS) / (DEBAND_LIMIT_LEVELS - DEBAND_KEEP_LEVELS)));
+      keep[index] *= 1 - t * t * (3 - 2 * t);
+      field[index] += (wider[index] - field[index]) * keep[index];
+    }
+    yield;
+  }
+  const levels = new Uint16Array(field.length), alpha = new Uint8ClampedArray(field.length);
+  for (let y = 0; y < halfHeight; y += 1) {
+    if (y && y % 256 === 0) yield;
+    for (let x = 0; x < halfWidth; x += 1) {
+      const index = y * halfWidth + x;
+      const sourcePixels = Math.min(2, width - x * 2) * Math.min(2, height - y * 2);
+      levels[index] = Number.isNaN(field[index]) ? 0 : Math.max(0, Math.min(65535, Math.round(field[index] * 256)));
+      alpha[index] = Math.round(weights[index] / sourcePixels * 255);
+    }
+  }
+  return { width: halfWidth, height: halfHeight, levels, alpha };
+}
+
+async function debandRaster(raster) {
+  const cached = debandCache.get(raster.valueUrl);
+  if (cached) {
+    debandCache.delete(raster.valueUrl);
+    debandCache.set(raster.valueUrl, cached);
+    return cached;
+  }
+  const loading = (async () => {
+    const response = await fetch(raster.valueUrl);
+    if (!response.ok) throw new Error(`value image ${response.status}`);
+    const image = await createImageBitmap(await response.blob(), { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+    const { width, height } = image;
+    const source = document.createElement("canvas");
+    source.width = width;
+    source.height = height;
+    const context = source.getContext("2d", { willReadFrequently: true });
+    context.drawImage(image, 0, 0);
+    image.close();
+    const pixels = context.getImageData(0, 0, width, height);
+    source.width = 0;
+    source.height = 0;
+    return { ...await debandLevelsGradually(pixels.data, width, height), valueRange: raster.valueRange };
+  })();
+  debandCache.set(raster.valueUrl, loading);
+  if (debandCache.size > DEBAND_CACHE_ENTRIES) debandCache.delete(debandCache.keys().next().value);
+  loading.catch(() => { if (debandCache.get(raster.valueUrl) === loading) debandCache.delete(raster.valueUrl); });
+  return loading;
+}
+
+// Re-encode fractional scalar values across the current palette range.
+export function encodeDebanded(levels, pixels, valueRange, low, high) {
+  const [valueMin, valueMax] = valueRange;
+  const span = Math.max(high - low, 1e-9);
+  const scale = (valueMax - valueMin) / (255 * 256) / span * 255;
+  const offset = (valueMin - low) / span * 255;
+  const table = new Uint8ClampedArray(65536);
+  for (let level = 0; level < 65536; level += 1) table[level] = Math.round(level * scale + offset);
+  const { data } = pixels;
+  for (let index = 0, at = 0; index < levels.length; index += 1, at += 4) {
+    data[at] = data[at + 1] = data[at + 2] = table[levels[index]];
+  }
+  return pixels;
+}
+
+function paletteFilterElement(id, smooth) {
   const filter = document.createElementNS(SVG_NS, "filter");
   filter.id = id;
-  // sRGB: the grey levels are palette positions, not light intensities to linearize.
   filter.setAttribute("color-interpolation-filters", "sRGB");
   const transfer = document.createElementNS(SVG_NS, "feComponentTransfer");
   const functions = ["R", "G", "B"].map((channel) => {
@@ -227,16 +378,97 @@ export function createPaletteFilter() {
     return node;
   });
   filter.append(transfer);
+  if (smooth) {
+    filter.setAttribute("primitiveUnits", "objectBoundingBox");
+    const blur = document.createElementNS(SVG_NS, "feGaussianBlur");
+    blur.setAttribute("stdDeviation", "0.00075");
+    filter.append(blur);
+    const opaque = document.createElementNS(SVG_NS, "feColorMatrix");
+    opaque.setAttribute("type", "matrix");
+    opaque.setAttribute("values", "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0 1");
+    filter.append(opaque);
+    const clip = document.createElementNS(SVG_NS, "feComposite");
+    clip.setAttribute("operator", "in");
+    clip.setAttribute("in2", "SourceAlpha");
+    filter.append(clip);
+  }
+  return { filter, functions };
+}
+
+export function createPaletteFilter({ smooth = false, deband = false } = {}) {
+  filterCount += 1;
+  const id = `gl-palette-${filterCount}`;
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("width", "0");
+  svg.setAttribute("height", "0");
+  svg.style.position = "absolute";
+  const { filter, functions } = paletteFilterElement(id, smooth);
   svg.append(filter);
+  const fine = deband ? paletteFilterElement(`${id}-fine`, smooth) : null;
+  if (fine) svg.append(fine.filter);
   document.body.append(svg);
+  let colorRange = [0, 1];
+  const surfaces = new Set();
+  const draw = (surface) => {
+    const pixels = surface.context.createImageData(surface.width, surface.height);
+    for (let index = 0, at = 3; index < surface.alpha.length; index += 1, at += 4) pixels.data[at] = surface.alpha[index];
+    surface.context.putImageData(encodeDebanded(surface.levels, pixels, surface.valueRange, ...colorRange), 0, 0);
+  };
   return {
     css: `url(#${id})`,
+    fineCss: fine ? `url(#${id}-fine)` : null,
+    deband,
     set(valueRange, low, high, stops) {
+      colorRange = [low, high];
       paletteTables(valueRange, low, high, stops).forEach((table, index) => functions[index].setAttribute("tableValues", table));
+      if (fine) {
+        paletteTables([low, high], low, high, stops).forEach((table, index) => fine.functions[index].setAttribute("tableValues", table));
+        surfaces.forEach(draw);
+      }
     },
-    remove() { svg.remove(); }
+    track(surface) { surfaces.add(surface); draw(surface); },
+    untrack(surface) { surfaces.delete(surface); },
+    remove() { surfaces.clear(); svg.remove(); }
   };
 }
+
+const DebandedOverlay = L.ImageOverlay.extend({
+  initialize(url, bounds, options, filter, raster) {
+    L.ImageOverlay.prototype.initialize.call(this, url, bounds, options);
+    this._paletteFilter = filter;
+    this._raster = raster;
+  },
+  onAdd(map) {
+    L.ImageOverlay.prototype.onAdd.call(this, map);
+    if (this._surface) {
+      this._image.style.filter = this._paletteFilter.fineCss;
+      this._paletteFilter.track(this._surface);
+      return;
+    }
+    this._image.style.filter = this._paletteFilter.css;
+    this._debanding ||= debandRaster(this._raster).then((surface) => this._swapIn(surface)).catch(() => {});
+  },
+  onRemove(map) {
+    if (this._surface) this._paletteFilter.untrack(this._surface);
+    L.ImageOverlay.prototype.onRemove.call(this, map);
+  },
+  _swapIn({ width, height, levels, alpha, valueRange }) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    this._surface = { context: canvas.getContext("2d"), width, height, levels, alpha, valueRange };
+    const previous = this._image;
+    canvas.className = previous.className;
+    canvas.style.cssText = previous.style.cssText;
+    canvas.style.filter = this._paletteFilter.fineCss;
+    this._image = canvas;
+    if (!this._map) return;
+    this._paletteFilter.track(this._surface);
+    previous.replaceWith(canvas);
+    this._reset();
+  }
+});
 
 // Overlays for a layer's lake images: value images through the palette filter, with the
 // thermocline's mixed water as its own image underneath when a server sends one. Older payloads without
@@ -246,6 +478,10 @@ export function paletteOverlays(rasters, filter, options) {
     const overlays = [];
     if (raster.mixedUrl) overlays.push(L.imageOverlay(raster.mixedUrl, raster.bounds, { ...options, className: `${options.className || ""} great-lakes-mixed-raster` }));
     const usesValues = Boolean(raster.valueUrl && raster.valueRange && filter);
+    if (usesValues && filter.deband) {
+      overlays.push(new DebandedOverlay(raster.valueUrl, raster.bounds, options, filter, raster));
+      return overlays;
+    }
     const overlay = L.imageOverlay(usesValues ? raster.valueUrl : raster.imageUrl, raster.bounds, options);
     if (usesValues) overlay.on("add", () => { overlay.getElement().style.filter = filter.css; });
     overlays.push(overlay);

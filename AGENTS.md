@@ -221,6 +221,23 @@ override. Treat network/provider failures as unavailable enrichment, never as a
 reason a valid trip cannot be saved. A self-hosted API on another origin must
 allow browser CORS.
 
+On a map temperature inspection, prefer the direct point reading. If it is
+unavailable but the point profile has valid values, the popup may use the
+nearest profile depth and must identify the returned model point coordinates;
+do not present that nearby-cell value as an exact reading at the clicked
+coordinate. Do not use an unpinned profile fallback while a saved animation
+frame is active. If neither source has a value, keep an explicit unavailable
+state instead of an empty popup section.
+
+For map rendering, the website smooths temperature, air-temperature, waves,
+wind, and radar palette colors. Its static temperature, air, wave, and wind
+value rasters also use alpha-aware, front-preserving debanding; animations use
+the lighter palette blur. Mobile native overlays request fitted images from
+`/api/v1/palette/<layer>` with `deband=1` for static temperature/air/wave/wind
+and `smooth=1` for their animation frames. These options affect rendered
+images only, never source readings or logbook data. Keep the API contract in
+`C:\trol\greatlakestrolling\docs\API.md` aligned with both clients.
+
 Use `docs/API.md`, `docs/ARCHITECTURE.md`, and `docs/DEPLOYMENT.md` for the
 desktop boundary. For API or behavior changes, check the mobile integration and
 the service contract in `C:\trol\greatlakestrolling\docs\API.md` as well.

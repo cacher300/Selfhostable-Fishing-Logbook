@@ -78,16 +78,13 @@ export function classifyWeatherFront(trip, bundle) {
 }
 
 export function automaticWeatherFrontPatch(trip, assessment = trip?.weatherData?.frontAssessment) {
-  const manual = trip?.weatherFrontSource === "manual" || (trip?.weatherFront && trip.weatherFrontSource !== "automatic");
-  if (manual) return {};
-  if (assessment?.value === "" && trip?.weatherFrontSource === "automatic") return { weatherFront: "", weatherFrontSource: "automatic" };
-  if (!["pre-front", "during-front", "post-front", "no-front"].includes(assessment?.value)) return {};
-  return { weatherFront: assessment.value, weatherFrontSource: "automatic" };
+  const value = ["pre-front", "during-front", "post-front", "no-front"].includes(assessment?.value) ? assessment.value : "";
+  return { weatherFront: value, weatherFrontSource: "automatic" };
 }
 
 export function resetAutomaticWeatherFront(trip) {
-  if (trip?.weatherFrontSource !== "automatic") return trip;
-  const next = { ...trip, weatherFront: "" };
+  if (!trip) return trip;
+  const next = { ...trip, weatherFront: "", weatherFrontSource: "automatic" };
   if (trip.weatherData) {
     next.weatherData = { ...trip.weatherData };
     delete next.weatherData.frontAssessment;

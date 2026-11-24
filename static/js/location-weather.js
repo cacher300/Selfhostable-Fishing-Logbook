@@ -697,7 +697,7 @@ export async function enrichTripWithWeather(trip) {
   }
   try {
     const result = await buildWeatherDataForTrip(trip, source, true);
-    return { ...trip, weatherData: result.tripWeather, catches: result.catches, ...automaticWeatherFrontPatch(trip, result.tripWeather.frontAssessment) };
+    return { ...trip, weatherData: result.tripWeather, catches: result.catches, ...automaticWeatherFrontPatch(trip, result.tripWeather.frontAssessment ?? null) };
   } catch (error) {
     return {
       ...trip,
@@ -880,7 +880,7 @@ export async function refreshTripWeatherPreview(force = false) {
     if (key !== ui.activeTripWeatherKey || !els.tripDialog?.open) return;
     ui.activeTripWeatherData = result.tripWeather;
     if (ui.tripDraft) {
-      Object.entries(automaticWeatherFrontPatch(ui.tripDraft, result.tripWeather.frontAssessment)).forEach(([field, value]) => updateTripField(field, value));
+      Object.entries(automaticWeatherFrontPatch(ui.tripDraft, result.tripWeather.frontAssessment ?? null)).forEach(([field, value]) => updateTripField(field, value));
       renderWeatherFrontChoice(ui.tripDraft, result.tripWeather.frontAssessment);
     }
     updateMarineWaveHeightPlaceholder(ui.activeTripWeatherData);

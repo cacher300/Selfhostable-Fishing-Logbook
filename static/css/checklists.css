@@ -69,7 +69,10 @@
   border-radius: 8px;
   background: var(--panel);
   box-shadow: var(--shadow);
-  cursor: grab;
+}
+
+.checklist-card.is-editing {
+  border-color: var(--blue);
 }
 
 .checklist-card.is-dragging,
@@ -93,14 +96,28 @@
   user-select: none;
 }
 
+.checklist-card-drag-handle {
+  margin-top: 4px;
+}
+
 .checklist-drag-handle:hover {
   color: var(--text);
 }
 
 .checklist-title-block {
   display: grid;
-  flex: 1 1 260px;
+  flex: 1 1 auto;
+  min-width: 0;
   gap: 5px;
+}
+
+.checklist-name-display {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1.3;
 }
 
 .checklist-name {
@@ -128,14 +145,17 @@
 }
 
 .checklist-save-status {
+  display: none;
   margin-left: auto;
 }
 
 .checklist-save-status.is-saving {
+  display: block;
   color: var(--blue);
 }
 
 .checklist-save-status.is-error {
+  display: block;
   color: var(--red);
 }
 
@@ -164,7 +184,7 @@
 
 .checklist-item {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   min-height: 46px;
@@ -172,11 +192,13 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel-soft);
-  cursor: grab;
 }
 
-.checklist-card:active,
-.checklist-item:active {
+.checklist-card.is-editing .checklist-item {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+
+.checklist-drag-handle:active {
   cursor: grabbing;
 }
 
@@ -193,33 +215,39 @@
   background: transparent;
 }
 
-.checklist-item:has(.checklist-item-done:checked) .checklist-item-label {
+.checklist-item-text {
+  min-width: 0;
+  padding: 8px;
+  overflow-wrap: anywhere;
+}
+
+.checklist-item:has(.checklist-item-done:checked) .checklist-item-label,
+.checklist-item:has(.checklist-item-done:checked) .checklist-item-text {
   color: var(--muted);
   text-decoration: line-through;
 }
 
 @media (max-width: 760px) {
-  .checklists-header,
-  .checklist-card-header {
+  .checklists-header {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .checklist-card-actions .button,
   .checklists-header > .button {
     flex: 1 1 auto;
   }
 
-  .checklist-title-block {
-    flex: none;
+  .checklist-card-header {
+    align-items: flex-start;
+    flex-direction: row;
   }
 
-  .checklist-item {
-    grid-template-columns: auto auto minmax(0, 1fr) auto;
+  .checklist-card-actions {
+    flex: 0 0 auto;
   }
 
-  .checklist-item [data-delete-checklist-item] {
-    grid-column: 4;
+  .checklist-card-footer .button {
+    flex: 1 1 auto;
   }
 
   .checklist-save-status {
