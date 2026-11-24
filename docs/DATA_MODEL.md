@@ -116,11 +116,15 @@ A spot is `{ id, name, lake?, coordinates, radiusMeters }`. The optional `lake` 
 
 Landed catches and lost fish use `spotId` plus `spotAssignmentMode` (`automatic` or `manual`). Automatic assignment uses manual catch coordinates before resolved/photo coordinates, matches the nearest spot whose radius contains the catch, and uses spot ID to break equal-distance ties. Manual assignment can select any existing spot regardless of distance or explicitly store no spot. Both record types can use the normal location picker, metadata locks, and media-derived coordinates.
 
+Deleting a spot keeps all trips, catches, and lost fish. Automatic spot assignments are recalculated against the remaining spots; manual assignments to the deleted spot are cleared.
+
 ## Drift
 
 A drift is `{ id, name, waterbody?, polygon }`. `polygon` contains at least three latitude/longitude vertices and must enclose a nonzero, non-self-intersecting area. IDs and case-insensitive names are unique. The 14 starter areas are approximate interpretations of the [Lower Niagara drift maps](https://greatlakestrolling.com/blog/lower-niagara-river-drift-names), and can be edited or deleted. Red Can, Green Can, and Devil’s Hole are outside the mapped drift set.
 
 On Drifting trips, landed catches and lost fish use `driftId` and `driftAssignmentMode` (`automatic` or `manual`). Automatic assignment checks manual catch coordinates first, then recorded coordinates, and selects the smallest containing polygon; an ID tie-breaker makes overlaps deterministic. Manual assignment can select any existing drift or explicitly clear the assignment. These fields remain optional on records from other methods.
+
+Drifts are saved in the top-level logbook `drifts` collection; trips and fish entries store only their drift references. Deleting a drift never deletes a trip, catch, or lost-fish entry. Automatic drift assignments on drifting trips are recalculated, and references to a deleted drift are cleared.
 
 ## Expedition
 

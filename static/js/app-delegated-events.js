@@ -527,10 +527,16 @@ export function setup() {
     if (deleteFishingSpotButton) {
       const spotId = deleteFishingSpotButton.dataset.deleteFishingSpot;
       const spot = state.spots.find((item) => item.id === spotId);
-      const automaticCount = state.trips.reduce((total, trip) => total + (trip.catches || []).filter((item) => item.spotId === spotId && item.spotAssignmentMode !== "manual").length, 0);
-      const manualCount = state.trips.reduce((total, trip) => total + (trip.catches || []).filter((item) => item.spotId === spotId && item.spotAssignmentMode === "manual").length, 0);
-      const impact = [automaticCount ? `${automaticCount} automatic ${automaticCount === 1 ? "catch will be re-matched" : "catches will be re-matched"}` : "", manualCount ? `${manualCount} manual ${manualCount === 1 ? "catch will become unassigned" : "catches will become unassigned"}` : ""].filter(Boolean).join(". ");
-      if (confirm(`Delete “${spot?.name || "this spot"}”?${impact ? ` ${impact}.` : ""}`)) {
+      const assignedFish = state.trips.flatMap((trip) => [...(trip.catches || []), ...(trip.lostFish || [])])
+        .filter((fish) => fish.spotId === spotId);
+      const automaticCount = assignedFish.filter((fish) => fish.spotAssignmentMode !== "manual").length;
+      const manualCount = assignedFish.filter((fish) => fish.spotAssignmentMode === "manual").length;
+      const impact = [
+        "Catch and lost-fish records will be kept",
+        automaticCount ? `${automaticCount} automatic ${automaticCount === 1 ? "assignment will be recalculated" : "assignments will be recalculated"}` : "",
+        manualCount ? `${manualCount} manual ${manualCount === 1 ? "assignment will be cleared" : "assignments will be cleared"}` : ""
+      ].filter(Boolean).join(". ");
+      if (confirm(`Delete “${spot?.name || "this spot"}”? ${impact}.`)) {
         const next = collectFishingSpotSettings().filter((item) => item.id !== spotId);
         ui.activeFishingSpotId = "";
         ui.editingFishingSpotId = "";

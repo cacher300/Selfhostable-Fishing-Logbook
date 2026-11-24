@@ -241,12 +241,16 @@ label > small,
 .fishing-area-search-label { display: grid; gap: 5px; max-width: 360px; margin: 12px 0; color: var(--muted); font-size: 13px; font-weight: 700; }
 .fishing-area-overview-section { row-gap: 12px; }
 .fishing-area-overview-controls { display: flex; align-items: end; justify-content: flex-end; flex-wrap: wrap; gap: 8px 12px; }
-.fishing-area-overview-map { height: min(58vh, 560px); min-height: 320px; border: 1px solid var(--line); border-radius: 10px; }
+.fishing-area-settings-content { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.75fr); align-items: start; gap: 20px; min-width: 0; }
+.fishing-area-settings-map-column, .fishing-area-settings-list-column { display: grid; align-content: start; gap: 10px; min-width: 0; }
+.fishing-area-settings-list-column .fishing-area-search-label { max-width: none; margin: 0; }
+.fishing-area-overview-map { height: min(60vh, 560px); min-height: 360px; border: 1px solid var(--line); border-radius: 10px; }
 .fishing-area-map-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0; padding: 0; color: var(--muted); list-style: none; font-size: 13px; }
 .fishing-area-map-legend li { display: inline-flex; align-items: center; gap: 7px; }
 .fishing-area-map-swatch { width: 14px; height: 14px; box-sizing: border-box; flex: 0 0 14px; }
 .fishing-area-map-swatch--spot { border: 2px solid #188457; border-radius: 50%; background: rgb(47 184 117 / 24%); }
 .fishing-area-map-swatch--drift { border: 2px solid #287fa2; border-radius: 3px; background: rgb(68 169 211 / 32%); }
+.fishing-area-map-swatch--home { border: 2px solid #5879b4; border-radius: 50%; background: rgb(125 159 223 / 28%); }
 .fishing-area-overview-empty { margin: 0; color: var(--muted); font-size: 13px; }
 .fishing-area-list { display: grid; gap: 5px; max-height: 360px; overflow: auto; align-content: start; }
 .fishing-area-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--text); text-align: left; cursor: pointer; }
@@ -278,6 +282,7 @@ label > small,
 #fishingAreaMessage:not(:empty) { color: var(--danger); }
 @media (max-width: 700px) {
   .fishing-area-overview-controls { justify-content: flex-start; }
+  .fishing-area-settings-content { grid-template-columns: minmax(0, 1fr); }
   .fishing-area-overview-map { height: 360px; min-height: 280px; }
   .fishing-area-dialog-layout { grid-template-columns: 1fr; }
   .fishing-area-map { height: 310px; min-height: 260px; }

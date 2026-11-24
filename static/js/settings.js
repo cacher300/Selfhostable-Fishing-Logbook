@@ -521,8 +521,7 @@ export async function saveDefaultHomeLake(options = {}) {
 export function setSettingsTab(tab = "general") {
   settingsUi.activeSettingsTab = tab;
   syncSettingsTabs();
-  if (tab === "waterbodies") {
-    setTimeout(() => ui.fishingSpotMap?.invalidateSize(), 80);
+  if (["fishing-spots", "drifts", "home-location"].includes(tab)) {
     setTimeout(() => renderFishingAreas({ fitMap: true }), 80);
   }
 }

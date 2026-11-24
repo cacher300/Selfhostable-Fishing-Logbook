@@ -9,6 +9,9 @@
             <button class="settings-tab" type="button" data-settings-tab="fow-calibration" aria-selected="false">FOW Calibration</button>
             <button class="settings-tab" type="button" data-settings-tab="lists" aria-selected="false">Categories</button>
             <button class="settings-tab" type="button" data-settings-tab="waterbodies" aria-selected="false">Waterbodies</button>
+            <button class="settings-tab" type="button" data-settings-tab="fishing-spots" aria-selected="false">Fishing Spots</button>
+            <button class="settings-tab" type="button" data-settings-tab="drifts" aria-selected="false">Drifts</button>
+            <button class="settings-tab" type="button" data-settings-tab="home-location" aria-selected="false">Home Location</button>
           </nav>
           <div class="settings-grid">
             <div class="settings-tab-panel is-active" data-settings-panel="general">
@@ -193,30 +196,6 @@
               </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="waterbodies" hidden>
-              <section class="settings-section fishing-area-overview-section" aria-labelledby="fishingAreaOverviewHeading">
-                <div class="settings-section-header">
-                  <div class="settings-section-copy">
-                    <h4 id="fishingAreaOverviewHeading">Spots and drifts map</h4>
-                  </div>
-                  <div class="fishing-area-overview-controls">
-                    <label class="settings-control">
-                      <span>Show on map</span>
-                      <select id="fishingAreaOverviewFilter" aria-controls="fishingAreaOverviewMap">
-                        <option value="all">Spots and drifts</option>
-                        <option value="spot">Fishing spots</option>
-                        <option value="drift">Drifts</option>
-                      </select>
-                    </label>
-                    <button class="button secondary" type="button" data-fit-fishing-area-overview>Fit map</button>
-                  </div>
-                </div>
-                <div id="fishingAreaOverviewMap" class="fish-map fishing-area-overview-map" role="application" aria-label="Map of saved fishing spots and drift areas"></div>
-                <ul class="fishing-area-map-legend" aria-label="Map legend">
-                  <li><span class="fishing-area-map-swatch fishing-area-map-swatch--spot" aria-hidden="true"></span>Fishing spots</li>
-                  <li><span class="fishing-area-map-swatch fishing-area-map-swatch--drift" aria-hidden="true"></span>Drifts</li>
-                </ul>
-                <p class="fishing-area-overview-empty" id="fishingAreaOverviewEmpty" role="status" hidden>No spots or drifts saved yet.</p>
-              </section>
               <section class="settings-section settings-section--waterbodies" aria-labelledby="waterbodySettingsHeading">
                 <div class="settings-section-header">
                   <div class="settings-section-copy">
@@ -235,7 +214,9 @@
                 </div>
                 <div class="location-manager-list" id="locationManagerList"></div>
               </section>
-              <section class="settings-section" aria-labelledby="fishingSpotSettingsHeading">
+            </div>
+            <div class="settings-tab-panel" data-settings-panel="fishing-spots" hidden>
+              <section class="settings-section fishing-area-overview-section fishing-area-settings-section" aria-labelledby="fishingSpotSettingsHeading">
                 <div class="settings-section-header">
                   <div class="settings-section-copy">
                     <h4 id="fishingSpotSettingsHeading">Fishing Spots</h4>
@@ -246,10 +227,22 @@
                     Add Spot
                   </button>
                 </div>
-                <label class="fishing-area-search-label"><span>Find a spot</span><input id="fishingSpotSearch" type="search" placeholder="Search spots or waterbodies" /></label>
-                <div class="fishing-area-list" id="areaSpotList"></div>
+                <div class="fishing-area-settings-content">
+                  <div class="fishing-area-settings-map-column">
+                    <div id="fishingSpotOverviewMap" class="fish-map fishing-area-overview-map" role="application" aria-label="Map of saved fishing spots"></div>
+                    <div class="fishing-area-overview-controls"><button class="button secondary" type="button" data-fit-fishing-area-overview="spot">Fit map</button></div>
+                    <ul class="fishing-area-map-legend" aria-label="Map legend"><li><span class="fishing-area-map-swatch fishing-area-map-swatch--spot" aria-hidden="true"></span>Fishing spots</li></ul>
+                    <p class="fishing-area-overview-empty" id="fishingSpotOverviewEmpty" role="status" hidden>No fishing spots saved.</p>
+                  </div>
+                  <div class="fishing-area-settings-list-column">
+                    <label class="fishing-area-search-label"><span>Find a spot</span><input id="fishingSpotSearch" type="search" placeholder="Search spots or waterbodies" /></label>
+                    <div class="fishing-area-list" id="areaSpotList"></div>
+                  </div>
+                </div>
               </section>
-              <section class="settings-section" aria-labelledby="driftSettingsHeading">
+            </div>
+            <div class="settings-tab-panel" data-settings-panel="drifts" hidden>
+              <section class="settings-section fishing-area-overview-section fishing-area-settings-section" aria-labelledby="driftSettingsHeading">
                 <div class="settings-section-header">
                   <div class="settings-section-copy">
                     <h4 id="driftSettingsHeading">Drifts</h4>
@@ -257,19 +250,22 @@
                   </div>
                   <button class="button primary settings-button-with-icon" data-add-fishing-area="drift" type="button">Add Drift</button>
                 </div>
-                <label class="fishing-area-search-label"><span>Find a drift</span><input id="driftSearch" type="search" placeholder="Search drifts or waterbodies" /></label>
-                <div class="fishing-area-list" id="areaDriftList"></div>
-              </section>
-              <dialog id="fishingAreaDialog" class="fishing-area-dialog" aria-labelledby="fishingAreaDialogTitle">
-                <div class="fishing-area-dialog-head"><h3 id="fishingAreaDialogTitle">Edit fishing area</h3><button type="button" class="button secondary" data-close-fishing-area>Close</button></div>
-                <p id="fishingAreaMessage" role="status" aria-live="polite"></p>
-                <div class="fishing-area-dialog-layout">
-                  <div id="fishingAreaFields" class="fishing-area-fields"></div>
-                  <div class="fishing-area-map-wrap"><div id="fishingAreaMap" class="fish-map fishing-area-map" role="region" aria-label="Area editor map" aria-describedby="fishingAreaMapHint"></div><p id="fishingAreaMapHint" class="fishing-area-hint"></p></div>
+                <div class="fishing-area-settings-content">
+                  <div class="fishing-area-settings-map-column">
+                    <div id="driftOverviewMap" class="fish-map fishing-area-overview-map" role="application" aria-label="Map of saved drifts"></div>
+                    <div class="fishing-area-overview-controls"><button class="button secondary" type="button" data-fit-fishing-area-overview="drift">Fit map</button></div>
+                    <ul class="fishing-area-map-legend" aria-label="Map legend"><li><span class="fishing-area-map-swatch fishing-area-map-swatch--drift" aria-hidden="true"></span>Drifts</li></ul>
+                    <p class="fishing-area-overview-empty" id="driftOverviewEmpty" role="status" hidden>No drifts saved.</p>
+                  </div>
+                  <div class="fishing-area-settings-list-column">
+                    <label class="fishing-area-search-label"><span>Find a drift</span><input id="driftSearch" type="search" placeholder="Search drifts or waterbodies" /></label>
+                    <div class="fishing-area-list" id="areaDriftList"></div>
+                  </div>
                 </div>
-                <div class="fishing-area-actions"><button type="button" class="button danger" data-delete-fishing-area>Delete</button><button type="button" class="button secondary" data-close-fishing-area>Cancel</button><button type="button" class="button primary" data-save-fishing-area>Save area</button></div>
-              </dialog>
-              <section class="settings-section" aria-labelledby="homeLocationSettingsHeading">
+              </section>
+            </div>
+            <div class="settings-tab-panel" data-settings-panel="home-location" hidden>
+              <section class="settings-section fishing-area-overview-section fishing-area-settings-section" aria-labelledby="homeLocationSettingsHeading">
                 <div class="settings-section-header">
                   <div class="settings-section-copy">
                     <h4 id="homeLocationSettingsHeading">Home Location</h4>
@@ -280,10 +276,29 @@
                     Add Home Location
                   </button>
                 </div>
-                <label class="fishing-area-search-label"><span>Find a home location</span><input id="homeLocationSearch" type="search" placeholder="Search home locations" /></label>
-                <div class="fishing-area-list" id="privatePhotoLocationList"></div>
+                <div class="fishing-area-settings-content">
+                  <div class="fishing-area-settings-map-column">
+                    <div id="homeLocationOverviewMap" class="fish-map fishing-area-overview-map" role="application" aria-label="Map of saved home locations and privacy radii"></div>
+                    <div class="fishing-area-overview-controls"><button class="button secondary" type="button" data-fit-fishing-area-overview="home">Fit map</button></div>
+                    <ul class="fishing-area-map-legend" aria-label="Map legend"><li><span class="fishing-area-map-swatch fishing-area-map-swatch--home" aria-hidden="true"></span>Home locations and privacy radii</li></ul>
+                    <p class="fishing-area-overview-empty" id="homeLocationOverviewEmpty" role="status" hidden>No home locations saved.</p>
+                  </div>
+                  <div class="fishing-area-settings-list-column">
+                    <label class="fishing-area-search-label"><span>Find a home location</span><input id="homeLocationSearch" type="search" placeholder="Search home locations" /></label>
+                    <div class="fishing-area-list" id="privatePhotoLocationList"></div>
+                  </div>
+                </div>
               </section>
             </div>
+            <dialog id="fishingAreaDialog" class="fishing-area-dialog" aria-labelledby="fishingAreaDialogTitle">
+              <div class="fishing-area-dialog-head"><h3 id="fishingAreaDialogTitle">Edit fishing area</h3><button type="button" class="button secondary" data-close-fishing-area>Close</button></div>
+              <p id="fishingAreaMessage" role="status" aria-live="polite"></p>
+              <div class="fishing-area-dialog-layout">
+                <div id="fishingAreaFields" class="fishing-area-fields"></div>
+                <div class="fishing-area-map-wrap"><div id="fishingAreaMap" class="fish-map fishing-area-map" role="region" aria-label="Area editor map" aria-describedby="fishingAreaMapHint"></div><p id="fishingAreaMapHint" class="fishing-area-hint"></p></div>
+              </div>
+              <div class="fishing-area-actions"><button type="button" class="button danger" data-delete-fishing-area>Delete</button><button type="button" class="button secondary" data-close-fishing-area>Cancel</button><button type="button" class="button primary" data-save-fishing-area>Save area</button></div>
+            </dialog>
             <span class="visually-hidden" id="settingsSaveStatus" aria-live="polite">Autosave on</span>
           </div>
         </section>

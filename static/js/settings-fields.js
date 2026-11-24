@@ -31,7 +31,7 @@ export const predefinedFieldGroups = [
   { key: "lureBeadSizes", label: "Lure bead sizes" },
   { key: "meatRigTypes", label: "Meat rig types" },
   { key: "softPlasticTypes", label: "Soft plastic styles" },
-  { key: "trollingPresentations", label: "Trolling methods", choice: true },
+  { key: "trollingPresentations", label: "Trolling locations", choice: true },
   { key: "trollingDirections", label: "Trolling directions" },
   { key: "setupLineSides", label: "Setup line sides", choice: true }
 ];

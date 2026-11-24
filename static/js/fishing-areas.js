@@ -20,9 +20,11 @@ let kind = "spot";
 let waterbodyEdited = false;
 let map = null;
 let layer = null;
-let overviewMap = null;
-let overviewLayer = null;
-let overviewHasFit = false;
+const overviewMaps = {
+  spot: { host: "#fishingSpotOverviewMap", empty: "#fishingSpotOverviewEmpty", map: null, layer: null, hasFit: false },
+  drift: { host: "#driftOverviewMap", empty: "#driftOverviewEmpty", map: null, layer: null, hasFit: false },
+  home: { host: "#homeLocationOverviewMap", empty: "#homeLocationOverviewEmpty", map: null, layer: null, hasFit: false }
+};
 const selected = { spot: "", drift: "", home: "" };
 
 const areaLists = {
@@ -57,7 +59,7 @@ function renderList(type) {
     if (type === "spot") details.push(fishingSpotRadiusText(item.radiusMeters));
     if (type !== "home") {
       const count = assignmentCount(type, item.id);
-      details.push(`${count} ${count === 1 ? "catch" : "catches"}`);
+      details.push(`${count} fish record${count === 1 ? "" : "s"}`);
     }
     return html`
       <button type="button" class="fishing-area-row${item.id === selected[type] ? " is-selected" : ""}" data-open-fishing-area="${type}" data-area-id="${item.id}">
@@ -74,101 +76,104 @@ export function renderFishingAreas({ fitMap = false } = {}) {
   renderList("spot");
   renderList("drift");
   renderList("home");
-  renderOverviewMap({ fit: fitMap });
+  Object.keys(overviewMaps).forEach((type) => renderOverviewMap(type, { fit: fitMap }));
 }
 
-function ensureOverviewMap() {
-  const host = document.querySelector("#fishingAreaOverviewMap");
+function ensureOverviewMap(type) {
+  const overview = overviewMaps[type];
+  const host = document.querySelector(overview?.host);
   if (!L || !host) return false;
-  if (!overviewMap) {
-    const rect = host.getBoundingClientRect();
-    if (rect.width < 20 || rect.height < 20) return false;
-    overviewMap = L.map(host, seamlessMapOptions());
-    addSeamlessTileLayer(overviewMap);
-    overviewLayer = L.featureGroup().addTo(overviewMap);
-    overviewMap.setView([43.21, -79.05], 8);
+  const rect = host.getBoundingClientRect();
+  if (rect.width < 20 || rect.height < 20) return false;
+  if (!overview.map) {
+    overview.map = L.map(host, seamlessMapOptions());
+    addSeamlessTileLayer(overview.map);
+    overview.layer = L.featureGroup().addTo(overview.map);
+    overview.map.setView([43.21, -79.05], 8);
   }
   return true;
 }
 
-function overviewBounds() {
-  if (!overviewLayer) return null;
-  const bounds = overviewLayer.getBounds();
+function overviewBounds(type) {
+  const layer = overviewMaps[type]?.layer;
+  if (!layer) return null;
+  const bounds = layer.getBounds();
   return bounds.isValid() ? bounds : null;
 }
 
-function fitOverviewMap() {
-  if (!ensureOverviewMap()) return;
-  const bounds = overviewBounds();
+function fitOverviewMap(type) {
+  const overview = overviewMaps[type];
+  if (!ensureOverviewMap(type)) return;
+  const bounds = overviewBounds(type);
   if (!bounds) return;
-  overviewMap.invalidateSize();
-  overviewMap.fitBounds(bounds, { padding: [28, 28], maxZoom: 13 });
-  overviewHasFit = true;
+  overview.map.invalidateSize();
+  overview.map.fitBounds(bounds, { padding: [28, 28], maxZoom: 13 });
+  overview.hasFit = true;
 }
 
-function renderOverviewMap({ fit = false } = {}) {
-  if (!ensureOverviewMap()) return;
-  overviewLayer.clearLayers();
-  const show = document.querySelector("#fishingAreaOverviewFilter")?.value;
-  const spots = show !== "drift" && Array.isArray(state.spots) ? state.spots : [];
-  const drifts = show !== "spot" && Array.isArray(state.drifts) ? state.drifts : [];
+function renderOverviewMap(type, { fit = false } = {}) {
+  const overview = overviewMaps[type];
+  if (!ensureOverviewMap(type)) return;
+  overview.layer.clearLayers();
 
-  spots.forEach((spot) => {
-    if (!isUsableCoordinates(spot.coordinates)) return;
-    const point = [spot.coordinates.latitude, spot.coordinates.longitude];
-    const active = selected.spot === spot.id;
-    L.circle(point, {
-      radius: Number(spot.radiusMeters) || 100,
-      color: active ? "#118753" : "#188457",
-      weight: active ? 3 : 2,
-      fillColor: "#2fb875",
-      fillOpacity: 0.12,
-      interactive: false
-    }).addTo(overviewLayer);
-    L.circleMarker(point, {
-      radius: 6,
-      color: "#0c5037",
-      weight: 2,
-      fillColor: "#39bd82",
-      fillOpacity: 1,
-      title: spot.name
-    })
-      .bindTooltip(String(html`${spot.name}`), { direction: "top", sticky: true })
-      .on("click", () => openEditor("spot", spot.id))
-      .addTo(overviewLayer);
-  });
-
-  drifts.forEach((drift) => {
-    const points = (Array.isArray(drift.polygon) ? drift.polygon : [])
-      .filter(isUsableCoordinates)
-      .map((vertex) => [vertex.latitude, vertex.longitude]);
-    if (points.length < 3) return;
-    const active = selected.drift === drift.id;
-    L.polygon(points, {
-      color: active ? "#145d7a" : "#287fa2",
-      weight: active ? 3 : 2,
-      fillColor: "#44a9d3",
-      fillOpacity: 0.2
-    })
-      .bindTooltip(String(html`${drift.name}`), { sticky: true })
-      .on("click", () => openEditor("drift", drift.id))
-      .addTo(overviewLayer);
-  });
-
-  const bounds = overviewBounds();
-  const fitButton = document.querySelector("[data-fit-fishing-area-overview]");
-  if (fitButton) fitButton.disabled = !bounds;
-  const empty = document.querySelector("#fishingAreaOverviewEmpty");
-  if (empty) {
-    empty.textContent = areaLists[show]?.empty || "No spots or drifts saved yet.";
-    empty.hidden = Boolean(bounds);
+  if (type === "spot" || type === "home") {
+    const areas = type === "spot" ? (Array.isArray(state.spots) ? state.spots : []) : privatePhotoLocations();
+    areas.forEach((area) => {
+      if (!isUsableCoordinates(area.coordinates)) return;
+      const point = [area.coordinates.latitude, area.coordinates.longitude];
+      const active = selected[type] === area.id;
+      const home = type === "home";
+      const color = home ? (active ? "#3f65a9" : "#5879b4") : (active ? "#118753" : "#188457");
+      L.circle(point, {
+        radius: Number(area.radiusMeters) || (home ? 250 : 100),
+        color,
+        weight: active ? 3 : 2,
+        fillColor: home ? "#7d9fdf" : "#2fb875",
+        fillOpacity: home ? 0.16 : 0.12,
+        interactive: false
+      }).addTo(overview.layer);
+      L.circleMarker(point, {
+        radius: 6,
+        color: home ? "#344f83" : "#0c5037",
+        weight: 2,
+        fillColor: home ? "#8eace8" : "#39bd82",
+        fillOpacity: 1,
+        title: area.name
+      })
+        .bindTooltip(String(html`${area.name}`), { direction: "top", sticky: true })
+        .on("click", () => openEditor(type, area.id))
+        .addTo(overview.layer);
+    });
+  } else {
+    (Array.isArray(state.drifts) ? state.drifts : []).forEach((drift) => {
+      const points = (Array.isArray(drift.polygon) ? drift.polygon : [])
+        .filter(isUsableCoordinates)
+        .map((vertex) => [vertex.latitude, vertex.longitude]);
+      if (points.length < 3) return;
+      const active = selected.drift === drift.id;
+      L.polygon(points, {
+        color: active ? "#145d7a" : "#287fa2",
+        weight: active ? 3 : 2,
+        fillColor: "#44a9d3",
+        fillOpacity: 0.2
+      })
+        .bindTooltip(String(html`${drift.name}`), { sticky: true })
+        .on("click", () => openEditor("drift", drift.id))
+        .addTo(overview.layer);
+    });
   }
+
+  const bounds = overviewBounds(type);
+  const fitButton = document.querySelector(`[data-fit-fishing-area-overview="${type}"]`);
+  if (fitButton) fitButton.disabled = !bounds;
+  const empty = document.querySelector(overview.empty);
+  if (empty) empty.hidden = Boolean(bounds);
   requestAnimationFrame(() => {
-    if (!overviewMap) return;
-    overviewMap.invalidateSize();
-    if (bounds && (fit || !overviewHasFit)) {
-      overviewMap.fitBounds(bounds, { padding: [28, 28], maxZoom: 13 });
-      overviewHasFit = true;
+    if (!overview.map) return;
+    overview.map.invalidateSize();
+    if (bounds && (fit || !overview.hasFit)) {
+      overview.map.fitBounds(bounds, { padding: [28, 28], maxZoom: 13 });
+      overview.hasFit = true;
     }
   });
 }
@@ -350,7 +355,10 @@ async function deleteEditor() {
   const type = kind;
   const current = draft;
   const count = type === "home" ? 0 : assignmentCount(type, draft.id);
-  if (!confirm(`Delete “${draft.name}”?${count ? ` ${count} assigned fish will be updated.` : ""}`)) return;
+  const impact = type === "home" ? "" : type === "spot"
+    ? `${count ? ` ${count} assigned fish record${count === 1 ? "" : "s"} will be updated.` : ""} Catch and lost-fish records will be kept; automatic spot assignments will be recalculated and manual assignments to this spot will be cleared.`
+    : `${count ? ` ${count} assigned fish record${count === 1 ? "" : "s"} will be updated.` : ""} Catch and lost-fish records will be kept; automatic drift assignments on drifting trips will be recalculated and links to this drift will be cleared.`;
+  if (!confirm(`Delete “${draft.name}”?${impact}`)) return;
   try {
     await areaLists[type].save(list(type).filter(item => item.id !== current.id));
     selected[type] = "";
@@ -365,10 +373,10 @@ async function deleteEditor() {
 function bind() {
   if (bound || !activeDialog()) return;
   bound = true;
-  document.querySelector("#fishingAreaOverviewFilter")?.addEventListener("change", () => renderOverviewMap({ fit: true }));
   document.addEventListener("click", (event) => {
-    if (event.target.closest("[data-fit-fishing-area-overview]")) {
-      fitOverviewMap();
+    const fitButton = event.target.closest("[data-fit-fishing-area-overview]");
+    if (fitButton) {
+      fitOverviewMap(fitButton.dataset.fitFishingAreaOverview);
       return;
     }
     const add = event.target.closest("[data-add-fishing-area]");

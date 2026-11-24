@@ -1123,6 +1123,14 @@
   min-width: 0;
 }
 
+#tripDialog .catch-location-section .time-picker-field {
+  min-width: 136px;
+}
+
+#tripDialog .catch-location-section .time-picker-native {
+  padding-right: 40px;
+}
+
 .metadata-lock-button {
   position: relative;
   display: inline-flex;
@@ -2635,33 +2643,56 @@
   grid-row: auto;
   display: flex;
   width: 100%;
-  min-height: 88px;
+  min-height: 40px;
 }
 
 #tripDialog .gear-notes-panel .trip-gear-change-note {
   flex: 1 1 auto;
   width: 100%;
-  min-height: 88px;
+  min-height: 40px;
+}
+
+.gear-timing-notes-column {
+  display: contents;
 }
 
 @media (min-width: 761px) {
-  #tripDialog:not(.is-trolling) .gear-used-row .gear-timing-panel {
+  #tripDialog:not(.is-trolling) .gear-used-row .gear-timing-notes-column {
+    display: grid;
     grid-column: 1 / 7;
     grid-row: 1;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: stretch;
+    gap: 16px;
+    min-width: 0;
   }
 
   #tripDialog:not(.is-trolling) .gear-used-row .gear-inventory-panel {
     grid-column: 7 / -1;
-    grid-row: 1 / 3;
+    grid-row: 1;
+  }
+
+  #tripDialog:not(.is-trolling) .gear-used-row .gear-timing-panel,
+  #tripDialog:not(.is-trolling) .gear-used-row .gear-notes-panel {
+    grid-column: 1 / -1;
+  }
+
+  #tripDialog:not(.is-trolling) .gear-used-row .gear-timing-panel {
+    grid-row: 1;
   }
 
   #tripDialog:not(.is-trolling) .gear-used-row .gear-notes-panel {
-    grid-column: 1 / 7;
     grid-row: 2;
-    grid-template-rows: auto minmax(88px, 1fr);
+    grid-template-rows: auto minmax(40px, 1fr);
     align-content: stretch;
+    min-height: 0;
   }
 }
+
+#tripDialog.is-trolling .gear-used-row .gear-timing-panel { order: 1; }
+#tripDialog.is-trolling .gear-used-row .gear-method-panel { order: 2; }
+#tripDialog.is-trolling .gear-used-row .gear-inventory-panel { order: 3; }
+#tripDialog.is-trolling .gear-used-row .gear-notes-panel { order: 4; }
 
 #tripDialog:not(.is-trolling) .gear-used-row .gear-inventory-grid > * {
   grid-column: auto;

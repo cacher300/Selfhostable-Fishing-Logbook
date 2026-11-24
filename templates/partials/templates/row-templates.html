@@ -60,7 +60,7 @@
               <select class="catch-drift"></select>
             </label>
             <label class="catch-structure-field catch-detail-optional">
-              <span>Structure</span>
+              <span>Structure (optional)</span>
               <select class="catch-structure"></select>
             </label>
           </div>
@@ -284,6 +284,7 @@
           <button class="icon-button remove-trip-gear" type="button" aria-label="Remove gear"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
         <div class="collapsible-row-body">
+          <div class="gear-timing-notes-column">
           <section class="gear-editor-panel gear-timing-panel">
             <div class="gear-panel-heading"><h4>Basics</h4></div>
             <div class="gear-timing-grid">
@@ -309,6 +310,13 @@
           </label>
             </div>
           </section>
+          <section class="gear-editor-panel gear-notes-panel">
+            <div class="gear-panel-heading"><h4>Notes</h4></div>
+            <label class="gear-change-field" aria-label="Note">
+              <textarea class="trip-gear-change-note" rows="1" placeholder="Started spoon/flasher, changed depth, switched lure"></textarea>
+            </label>
+          </section>
+          </div>
           <section class="gear-editor-panel gear-method-panel trolling-field">
             <div class="gear-panel-heading"><h4>Method</h4></div>
             <div class="gear-method-grid">
@@ -380,12 +388,6 @@
           </label>
           <button class="button secondary add-flasher-inline gear-inline-action trolling-field gear-flasher-action" type="button">New Flasher</button>
             </div>
-          </section>
-          <section class="gear-editor-panel gear-notes-panel">
-            <div class="gear-panel-heading"><h4>Notes</h4></div>
-            <label class="gear-change-field" aria-label="Note">
-              <textarea class="trip-gear-change-note" rows="2" placeholder="Started spoon/flasher, changed depth, switched lure"></textarea>
-            </label>
           </section>
         </div>
       </article>

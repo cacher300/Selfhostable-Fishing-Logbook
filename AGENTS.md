@@ -202,6 +202,29 @@ need a development-build or physical-device check; a web export is not enough.
 - Do not assume authentication, rate limiting, upload-size limits, or malware
   scanning exists; these are documented gaps.
 
+### Great Lakes Trolling conditions
+
+Great Lakes Trolling is the separate service in `C:\trol\greatlakestrolling`.
+It publishes the shared, public, read-only `/api/v1` conditions API used by the
+desktop and mobile clients: NOAA model layers and forecasts, point and buoy
+readings, animations, saved history, radar/satellite overlays, bathymetry, and
+Niagara clarity. The desktop browser calls it through `static/js/noaa-api.js`
+using `GREAT_LAKES_API_URL` (default `https://greatlakestrolling.com`). Flask
+does not proxy its forecasts or run their refresh worker. Keep the desktop's
+local contour/depth-calibration endpoints distinct from this remote service.
+
+In trip workflows, remote readings can fill an empty surface water-temperature
+field while preserving manual values. Historical thermocline and catch-depth
+current readouts are derived, display-only context for eligible trolling/jigging
+trips; eligibility follows the saved waterbody pin or its manual Great Lakes
+override. Treat network/provider failures as unavailable enrichment, never as a
+reason a valid trip cannot be saved. A self-hosted API on another origin must
+allow browser CORS.
+
+Use `docs/API.md`, `docs/ARCHITECTURE.md`, and `docs/DEPLOYMENT.md` for the
+desktop boundary. For API or behavior changes, check the mobile integration and
+the service contract in `C:\trol\greatlakestrolling\docs\API.md` as well.
+
 ## Frontend changes and verification
 
 Preserve the product principles from `PRODUCT.md`: keep the logbook private and

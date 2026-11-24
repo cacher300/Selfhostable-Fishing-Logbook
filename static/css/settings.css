@@ -179,6 +179,7 @@
 }
 
 .settings-section.fishing-area-overview-section > :is(.fishing-area-overview-map, .fishing-area-map-legend, .fishing-area-overview-empty),
+.settings-section.fishing-area-settings-section > .fishing-area-settings-content,
 .settings-section.trolling-spread-settings-section > .trolling-spread-settings-controls,
 .settings-section.trolling-spread-settings-section > .form-message,
 .settings-section.trolling-spread-settings-section > .trolling-spread-settings-list {

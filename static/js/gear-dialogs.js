@@ -686,7 +686,7 @@ export async function saveFlasher(event) {
 export async function deleteReel() {
   const reelId = getValue("editingReelId");
   const reel = state.reels.find((item) => item.id === reelId);
-  if (!reel || !confirm(`Delete ${gearDisplayName(reel, "this reel")}? This clears it from combos and trips.`)) return;
+  if (!reel || !confirm(`Delete ${gearDisplayName(reel, "this reel")}? This clears it from combos and trip gear. Trip and fish records will be kept.`)) return;
   const modelGroupId = reel.modelGroupId || "";
   const nextGroupQuantity = Math.max(0, (Number(reel.quantityAvailable) || 1) - 1);
   await deleteReelRecord(reelId, modelGroupId, nextGroupQuantity);
@@ -698,7 +698,7 @@ export async function deleteReel() {
 export async function deleteRod() {
   const rodId = getValue("editingRodId");
   const rod = state.rods.find((item) => item.id === rodId);
-  if (!rod || !confirm(`Delete ${gearDisplayName(rod, "this rod")}? This clears it from combos and trips.`)) return;
+  if (!rod || !confirm(`Delete ${gearDisplayName(rod, "this rod")}? This clears it from combos, trip gear, and fish records. Trips, catches, and lost fish will be kept.`)) return;
   await deleteRodRecord(rodId);
   await cleanupReplacedMedia(rod, null);
   els.rodDialog.close();
@@ -708,7 +708,7 @@ export async function deleteRod() {
 export async function deleteCombo() {
   const comboId = getValue("editingComboId");
   const combo = state.rodReelCombos.find((item) => item.id === comboId);
-  if (!combo || !confirm(`Delete ${comboName(comboId) || "this combo"}? Trips keep their selected rod and reel.`)) return;
+  if (!combo || !confirm(`Delete ${comboName(comboId) || "this combo"}? Trip gear rows will be kept with their selected rod and reel.`)) return;
   await deleteComboRecord(comboId);
   els.comboDialog.close();
   renderAll();
@@ -717,7 +717,7 @@ export async function deleteCombo() {
 export async function deleteLure() {
   const lureId = getValue("editingLureId");
   const lure = state.lures.find((item) => item.id === lureId);
-  if (!lure || !confirm(`Delete ${lure.name}? This removes it from saved lures and clears it from catches.`)) return;
+  if (!lure || !confirm(`Delete ${lure.name}? This clears it from trip gear, catches, and lost fish. The trip and fish records will be kept.`)) return;
   await deleteLureRecord(lureId);
   await cleanupReplacedMedia(lure, null);
   els.lureDialog.close();
@@ -727,7 +727,7 @@ export async function deleteLure() {
 export async function deleteFlasher() {
   const flasherId = getValue("editingFlasherId");
   const flasher = state.flashers.find((item) => item.id === flasherId);
-  if (!flasher || !confirm(`Delete ${flasher.name}? This removes it from saved flashers and clears it from catches.`)) return;
+  if (!flasher || !confirm(`Delete ${flasher.name}? This clears it from trip gear, catches, and lost fish. The trip and fish records will be kept.`)) return;
   await deleteFlasherRecord(flasherId);
   await cleanupReplacedMedia(flasher, null);
   els.flasherDialog.close();

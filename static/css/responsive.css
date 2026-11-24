@@ -1106,6 +1106,14 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  #tripDialog .gear-timing-notes-column {
+    display: contents;
+  }
+
+  #tripDialog:not(.is-trolling) .gear-used-row .gear-timing-panel { order: 1; }
+  #tripDialog:not(.is-trolling) .gear-used-row .gear-inventory-panel { order: 2; }
+  #tripDialog:not(.is-trolling) .gear-used-row .gear-notes-panel { order: 3; }
+
   #tripDialog .gear-editor-panel {
     grid-column: 1 / -1;
     padding: 0;

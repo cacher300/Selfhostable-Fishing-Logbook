@@ -1,5 +1,6 @@
 import { commit } from "./store.js";
 import { ExpeditionAnalytics } from "./expedition-analytics.js";
+import { automaticSpotId } from "./app-normalization.js";
 import { automaticDriftId } from "./drifts.js";
 
 function ensureArray(document, collection) {
@@ -113,6 +114,16 @@ export function deleteLocation(locationId) {
 export function replaceFishingSpots(spots) {
   return commit((draft) => {
     draft.spots = spots;
+    for (const trip of draft.trips || []) {
+      for (const fish of [...(trip.catches || []), ...(trip.lostFish || [])]) {
+        if (fish.spotAssignmentMode === "manual") {
+          if (!spots.some((spot) => spot.id === fish.spotId)) fish.spotId = "";
+        } else {
+          fish.spotId = automaticSpotId(fish, spots);
+          fish.spotAssignmentMode = "automatic";
+        }
+      }
+    }
   });
 }
 
@@ -126,6 +137,8 @@ export function replaceDrifts(drifts) {
         } else if (String(trip.method || "").trim().toLowerCase() === "drifting") {
           fish.driftId = automaticDriftId(fish, drifts);
           fish.driftAssignmentMode = "automatic";
+        } else if (fish.driftId && !drifts.some((drift) => drift.id === fish.driftId)) {
+          fish.driftId = "";
         }
       }
     }
@@ -184,6 +197,10 @@ export function deleteRod(id) {
     ensureArray(draft, "trips").forEach((trip) => (trip.gearUsed || []).forEach((gearItem) => {
       if (gearItem.rodId === id) gearItem.rodId = "";
     }));
+    ensureArray(draft, "trips").forEach((trip) => {
+      (trip.catches || []).forEach((catchItem) => { if (catchItem.rodId === id) catchItem.rodId = ""; });
+      (trip.lostFish || []).forEach((fish) => { if (fish.rodId === id) fish.rodId = ""; });
+    });
   });
 }
 

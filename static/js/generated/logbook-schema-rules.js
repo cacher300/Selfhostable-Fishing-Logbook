@@ -420,6 +420,7 @@ export const defaultLogbook = {
     "Magnum"
   ],
   "lureBeadSizes": [
+    "4mm",
     "6mm",
     "8mm",
     "10mm",
