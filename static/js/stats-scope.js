@@ -5,9 +5,12 @@ import { flasherName, lureName } from "./gear-core.js";
 import { resolveTripLineRecord } from "./trolling-spread.js";
 import { personName } from "./stats.js";
 
+const MONTH_NAME_FORMATTER = new Intl.DateTimeFormat(undefined, { month: "long" });
+
 export function tripMonthName(trip) {
   if (!trip.date) return "";
-  return new Date(`${trip.date}T12:00:00`).toLocaleDateString(undefined, { month: "long" });
+  const date = new Date(`${trip.date}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? "Invalid Date" : MONTH_NAME_FORMATTER.format(date);
 }
 
 export function tripHasSpecies(trip, species) {

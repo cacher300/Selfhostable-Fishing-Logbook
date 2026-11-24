@@ -31,6 +31,9 @@ def _connect(database_file: Path) -> sqlite3.Connection:
 
 def _initialize_schema(connection: sqlite3.Connection) -> None:
     connection.execute("PRAGMA journal_mode = WAL")
+    # In WAL mode NORMAL cannot corrupt the database; it only skips an fsync per
+    # commit, which is a good trade for a single-user local app.
+    connection.execute("PRAGMA synchronous = NORMAL")
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS logbook_metadata (

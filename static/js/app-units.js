@@ -22,7 +22,11 @@ export function normalizeUnits(units = {}) {
 }
 
 export function unitPreference(key) {
-  return normalizeUnits(state.settings?.units)[key] || defaultUnits[key] || "";
+  if (!Object.hasOwn(defaultUnits, key)) return "";
+  const units = state.settings?.units;
+  const value = units && typeof units === "object" ? units[key] : "";
+  const allowed = unitOptions[key]?.some((item) => item.value === value);
+  return (allowed ? value : defaultUnits[key]) || "";
 }
 
 export const MAP_UNIT_SYSTEM_STORAGE_KEY = "logbook.mapUnits";

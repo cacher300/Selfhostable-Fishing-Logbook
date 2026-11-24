@@ -38,9 +38,12 @@ export function catchSpeciesOptions(options = state.species) {
 }
 
 
+const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
+
 export function formatDate(value) {
   if (!value) return "";
-  return new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? "Invalid Date" : SHORT_DATE_FORMATTER.format(date);
 }
 
 export function number(value) {

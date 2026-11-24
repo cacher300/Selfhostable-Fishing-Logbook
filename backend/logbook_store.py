@@ -35,6 +35,38 @@ def _schema_validator() -> Draft202012Validator:
         return Draft202012Validator(json.load(handle))
 
 
+def _is_plain_json(value: object, depth: int = 0) -> bool:
+    """Fast pass/fail twin of ``_validate_json_value``.
+
+    It only answers "is this plainly valid?". Anything it rejects, including
+    exotic but acceptable subclasses, is re-checked by the detailed walk, which
+    also builds the error path.
+    """
+    kind = type(value)
+    if kind is list or kind is dict:
+        if value and depth >= 30:
+            return False
+        if kind is dict:
+            for key in value:
+                if type(key) is not str:
+                    return False
+            value = value.values()
+        for item in value:
+            item_kind = type(item)
+            if item_kind is str or item_kind is int or item_kind is bool or item is None:
+                continue
+            if item_kind is float:
+                if not math.isfinite(item):
+                    return False
+                continue
+            if not _is_plain_json(item, depth + 1):
+                return False
+        return True
+    if kind is float:
+        return math.isfinite(value)
+    return kind is str or kind is int or kind is bool or value is None
+
+
 def _validate_json_value(value: object, path: str = "$", depth: int = 0) -> tuple[bool, str | None]:
     if depth > 30:
         return _error(path, "nesting is too deep")
@@ -298,9 +330,10 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
     if not isinstance(payload, dict):
         return _error("$", "logbook must be a JSON object")
 
-    valid, error = _validate_json_value(payload)
-    if not valid:
-        return valid, error
+    if not _is_plain_json(payload):
+        valid, error = _validate_json_value(payload)
+        if not valid:
+            return valid, error
     version = payload.get("schemaVersion", 0)
     if not isinstance(version, int) or isinstance(version, bool):
         return _error("schemaVersion", "must be an integer")

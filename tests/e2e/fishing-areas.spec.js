@@ -1,5 +1,26 @@
 const { expect, test } = require("@playwright/test");
 const { freshLogbook, readLogbook, resetLogbook, stubExternalApis } = require("./helpers");
+const { drifts: starterDrifts } = require("../../schema/default-logbook.json");
+
+test("a saved Niagara drift adopts the new outline only after an explicit save", async ({ page }) => {
+  const starter = starterDrifts.find(area => area.id === "niagara-jackson");
+  const original = { ...starter, name: "My Jackson", polygon: starter.polygon.slice(0, 3) };
+  await resetLogbook(page, await freshLogbook(page, { drifts: [original] }));
+  await stubExternalApis(page);
+  await page.goto("/settings", { waitUntil: "domcontentloaded" });
+  await page.locator('[data-settings-tab="waterbodies"]').click();
+  const row = page.getByRole("button", { name: /My Jackson/ });
+  await row.click();
+  await page.getByRole("button", { name: "Preview updated Niagara outline" }).click();
+  await expect(page.locator("[data-vertex-index]")).toHaveCount(starter.polygon.length);
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect((await readLogbook(page)).drifts).toEqual([original]);
+  await row.click();
+  await page.getByRole("button", { name: "Preview updated Niagara outline" }).click();
+  await page.getByRole("button", { name: "Save area" }).click();
+  await expect(page.locator("#fishingAreaDialog")).toBeHidden();
+  expect((await readLogbook(page)).drifts).toEqual([{ ...original, polygon: starter.polygon }]);
+});
 
 test("spots and drifts open a focused map editor and save once", async ({ page }) => {
   const errors = [];

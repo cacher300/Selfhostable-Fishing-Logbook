@@ -54,6 +54,19 @@ class LogbookStoreTests(unittest.TestCase):
         current["lures"][0]["softPlasticType"] = 4
         self.assertIn("lures[0].softPlasticType", logbook_store.validate_logbook(current)[1])
 
+    def test_non_json_values_are_still_rejected_with_a_path(self):
+        nested = document(extra={"values": [1, float("nan")]})
+        self.assertEqual("$.extra.values[1]: number must be finite", logbook_store.validate_logbook(nested)[1])
+        self.assertIn("must be finite", logbook_store.validate_logbook(document(extra=float("inf")))[1])
+        self.assertIn("keys must be strings", logbook_store.validate_logbook(document(extra={1: "a"}))[1])
+
+        deep: object = "leaf"
+        for _ in range(40):
+            deep = [deep]
+        self.assertIn("too deep", logbook_store.validate_logbook(document(extra=deep))[1])
+
+        self.assertTrue(logbook_store.validate_logbook(document(extra={"ok": [1, 2.5, True, None, "x", {}]}))[0])
+
     def test_empty_document_is_canonical_v2(self):
         payload = document()
         self.assertEqual(2, payload["schemaVersion"])

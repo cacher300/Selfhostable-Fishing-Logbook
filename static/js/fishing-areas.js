@@ -1,7 +1,7 @@
 import { L } from "./vendor.js";
 import { state, ui } from "./app-state.js";
 import { html, joinHtml, setHtml } from "./html.js";
-import { createId } from "./app-defaults.js";
+import { createId, defaults } from "./app-defaults.js";
 import { replaceDrifts, replaceFishingSpots } from "./actions.js";
 import { isUsableCoordinates } from "./app-media.js";
 import { coordinateDistanceMeters, locationNames } from "./app-normalization.js";
@@ -247,6 +247,7 @@ function renderFields() {
       <label for="fishingAreaRadius"><span>${kind === "home" ? "Privacy radius" : "Radius"} <output id="fishingAreaRadiusValue">${radiusControl.text(draft.radiusMeters)}</output></span><input id="fishingAreaRadius" type="range" min="${radius.min}" max="${radius.max}" step="${radius.step}" value="${radiusControl.display(draft.radiusMeters)}" /></label>
     ` : html`
       <p class="fishing-area-hint">Tap the map to add points. Drag a pin to move it. At least three points are required.</p>
+      ${defaults.drifts.some(drift => drift.id === draft.id) ? html`<button type="button" class="button secondary" data-use-starter-boundary>Preview updated Niagara outline</button>` : ""}
       <div id="fishingAreaVertices" class="fishing-area-vertices"></div>
       <div class="fishing-area-vertex-actions"><button type="button" class="button secondary" data-undo-vertex>Undo last point</button></div>
     `}
@@ -469,6 +470,13 @@ function bind() {
     if (event.target.closest("[data-close-fishing-area]")) closeEditor();
     if (event.target.closest("[data-save-fishing-area]")) void saveEditor();
     if (event.target.closest("[data-delete-fishing-area]")) void deleteEditor();
+    if (event.target.closest("[data-use-starter-boundary]") && kind === "drift" && draft) {
+      const starter = defaults.drifts.find(drift => drift.id === draft.id);
+      draft.polygon = structuredClone(starter.polygon);
+      renderVertices();
+      ensureMap();
+      document.querySelector("#fishingAreaMessage").textContent = "Previewing the starter outline. Save area to keep it, or cancel to keep your saved boundary.";
+    }
     if (event.target.closest("[data-undo-vertex]") && draft?.polygon?.length) { draft.polygon.pop(); renderVertices(); draw(); }
     const remove = event.target.closest("[data-remove-vertex]");
     if (remove && draft?.polygon) { draft.polygon.splice(Number(remove.dataset.removeVertex), 1); renderVertices(); draw(); }

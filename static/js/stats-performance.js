@@ -29,26 +29,60 @@ export function weatherBucket(value, buckets) {
   return bucket?.label || buckets.at(-1)?.label || "";
 }
 
-export function windSpeedBucket(value) {
+// Bucket labels only change with the unit preference, so build them once per unit instead of per record.
+function unitBuckets(preferenceKey, build) {
+  let cachedUnit = null;
+  let cached = null;
+  return () => {
+    const unit = unitPreference(preferenceKey);
+    if (cached === null || unit !== cachedUnit) {
+      cached = build();
+      cachedUnit = unit;
+    }
+    return cached;
+  };
+}
+
+const windSpeedBuckets = unitBuckets("windSpeed", () => {
   const unit = unitSymbol("windSpeed");
   const labelValue = (mph) => trimNumber(Math.round(convertUnitValue(mph, "mph", unitPreference("windSpeed")) * 10) / 10);
-  return weatherBucket(value, [
+  return [
     { max: 5, label: `Calm <${labelValue(5)} ${unit}` },
     { max: 10, label: `Light ${labelValue(5)}-${labelValue(10)} ${unit}` },
     { max: 15, label: `Moderate ${labelValue(10)}-${labelValue(15)} ${unit}` },
     { max: 25, label: `Windy ${labelValue(15)}-${labelValue(25)} ${unit}` },
     { max: Infinity, label: `Heavy ${labelValue(25)}+ ${unit}` }
-  ]);
-}
-export function pressureBucket(value) {
+  ];
+});
+
+const pressureBuckets = unitBuckets("pressure", () => {
   const unit = unitSymbol("pressure");
   const labelValue = (hpa) => trimNumber(Math.round(convertUnitValue(hpa, "hPa", unitPreference("pressure")) * 10) / 10);
-  return weatherBucket(value, [
+  return [
     { max: 1000, label: `Low <${labelValue(1000)} ${unit}` },
     { max: 1015, label: `Stable ${labelValue(1000)}-${labelValue(1015)} ${unit}` },
     { max: 1025, label: `High ${labelValue(1015)}-${labelValue(1025)} ${unit}` },
     { max: Infinity, label: `Very High ${labelValue(1025)}+ ${unit}` }
-  ]);
+  ];
+});
+
+const airTempBuckets = unitBuckets("airTemperature", () => {
+  const unit = unitSymbol("airTemperature");
+  const labelValue = (c) => trimNumber(Math.round(convertUnitValue(c, "C", unitPreference("airTemperature"))));
+  return [
+    { max: 5, label: `Cold <${labelValue(5)} ${unit}` },
+    { max: 13, label: `Cool ${labelValue(5)}-${labelValue(13)} ${unit}` },
+    { max: 21, label: `Mild ${labelValue(13)}-${labelValue(21)} ${unit}` },
+    { max: 29, label: `Warm ${labelValue(21)}-${labelValue(29)} ${unit}` },
+    { max: Infinity, label: `Hot ${labelValue(29)}+ ${unit}` }
+  ];
+});
+
+export function windSpeedBucket(value) {
+  return weatherBucket(value, windSpeedBuckets());
+}
+export function pressureBucket(value) {
+  return weatherBucket(value, pressureBuckets());
 }
 
 export function cloudCoverBucket(value) {
@@ -61,15 +95,7 @@ export function cloudCoverBucket(value) {
 }
 
 export function airTempBucket(value) {
-  const unit = unitSymbol("airTemperature");
-  const labelValue = (c) => trimNumber(Math.round(convertUnitValue(c, "C", unitPreference("airTemperature"))));
-  return weatherBucket(value, [
-    { max: 5, label: `Cold <${labelValue(5)} ${unit}` },
-    { max: 13, label: `Cool ${labelValue(5)}-${labelValue(13)} ${unit}` },
-    { max: 21, label: `Mild ${labelValue(13)}-${labelValue(21)} ${unit}` },
-    { max: 29, label: `Warm ${labelValue(21)}-${labelValue(29)} ${unit}` },
-    { max: Infinity, label: `Hot ${labelValue(29)}+ ${unit}` }
-  ]);
+  return weatherBucket(value, airTempBuckets());
 }
 
 export function sunshineBucket(value) {

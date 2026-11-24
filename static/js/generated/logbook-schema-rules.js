@@ -621,20 +621,152 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.257,
-          "longitude": -79.0725
+          "latitude": 43.25208,
+          "longitude": -79.057695
         },
         {
-          "latitude": 43.257,
-          "longitude": -79.0695
+          "latitude": 43.251773,
+          "longitude": -79.057698
         },
         {
-          "latitude": 43.246,
-          "longitude": -79.0665
+          "latitude": 43.251465,
+          "longitude": -79.057606
         },
         {
-          "latitude": 43.246,
-          "longitude": -79.0695
+          "latitude": 43.251157,
+          "longitude": -79.057544
+        },
+        {
+          "latitude": 43.25085,
+          "longitude": -79.057589
+        },
+        {
+          "latitude": 43.24962,
+          "longitude": -79.057336
+        },
+        {
+          "latitude": 43.249005,
+          "longitude": -79.057334
+        },
+        {
+          "latitude": 43.248697,
+          "longitude": -79.057314
+        },
+        {
+          "latitude": 43.24839,
+          "longitude": -79.057273
+        },
+        {
+          "latitude": 43.248083,
+          "longitude": -79.057327
+        },
+        {
+          "latitude": 43.247775,
+          "longitude": -79.05733
+        },
+        {
+          "latitude": 43.247467,
+          "longitude": -79.057549
+        },
+        {
+          "latitude": 43.24716,
+          "longitude": -79.057644
+        },
+        {
+          "latitude": 43.246545,
+          "longitude": -79.057754
+        },
+        {
+          "latitude": 43.246237,
+          "longitude": -79.057853
+        },
+        {
+          "latitude": 43.24593,
+          "longitude": -79.057915
+        },
+        {
+          "latitude": 43.245623,
+          "longitude": -79.057812
+        },
+        {
+          "latitude": 43.245315,
+          "longitude": -79.057799
+        },
+        {
+          "latitude": 43.245007,
+          "longitude": -79.057848
+        },
+        {
+          "latitude": 43.2447,
+          "longitude": -79.057846
+        },
+        {
+          "latitude": 43.245007,
+          "longitude": -79.05765
+        },
+        {
+          "latitude": 43.245315,
+          "longitude": -79.057404
+        },
+        {
+          "latitude": 43.245623,
+          "longitude": -79.057221
+        },
+        {
+          "latitude": 43.246237,
+          "longitude": -79.057031
+        },
+        {
+          "latitude": 43.246545,
+          "longitude": -79.056897
+        },
+        {
+          "latitude": 43.24716,
+          "longitude": -79.056719
+        },
+        {
+          "latitude": 43.247467,
+          "longitude": -79.056609
+        },
+        {
+          "latitude": 43.247775,
+          "longitude": -79.056375
+        },
+        {
+          "latitude": 43.248083,
+          "longitude": -79.056357
+        },
+        {
+          "latitude": 43.24839,
+          "longitude": -79.056287
+        },
+        {
+          "latitude": 43.248697,
+          "longitude": -79.056344
+        },
+        {
+          "latitude": 43.249005,
+          "longitude": -79.056379
+        },
+        {
+          "latitude": 43.24962,
+          "longitude": -79.056412
+        },
+        {
+          "latitude": 43.25085,
+          "longitude": -79.056788
+        },
+        {
+          "latitude": 43.251157,
+          "longitude": -79.056944
+        },
+        {
+          "latitude": 43.251465,
+          "longitude": -79.057205
+        },
+        {
+          "latitude": 43.251773,
+          "longitude": -79.057497
         }
       ]
     },
@@ -644,20 +776,212 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.23,
-          "longitude": -79.0605
+          "latitude": 43.23295,
+          "longitude": -79.058902
         },
         {
-          "latitude": 43.23,
-          "longitude": -79.0575
+          "latitude": 43.232647,
+          "longitude": -79.058932
         },
         {
-          "latitude": 43.219,
-          "longitude": -79.0525
+          "latitude": 43.232345,
+          "longitude": -79.058899
         },
         {
-          "latitude": 43.219,
-          "longitude": -79.0555
+          "latitude": 43.232042,
+          "longitude": -79.058884
+        },
+        {
+          "latitude": 43.231437,
+          "longitude": -79.058908
+        },
+        {
+          "latitude": 43.230226,
+          "longitude": -79.05857
+        },
+        {
+          "latitude": 43.229924,
+          "longitude": -79.058454
+        },
+        {
+          "latitude": 43.229621,
+          "longitude": -79.058403
+        },
+        {
+          "latitude": 43.229318,
+          "longitude": -79.05825
+        },
+        {
+          "latitude": 43.228108,
+          "longitude": -79.057748
+        },
+        {
+          "latitude": 43.227503,
+          "longitude": -79.057473
+        },
+        {
+          "latitude": 43.226897,
+          "longitude": -79.057235
+        },
+        {
+          "latitude": 43.226595,
+          "longitude": -79.057147
+        },
+        {
+          "latitude": 43.226292,
+          "longitude": -79.056988
+        },
+        {
+          "latitude": 43.225687,
+          "longitude": -79.056711
+        },
+        {
+          "latitude": 43.225082,
+          "longitude": -79.056479
+        },
+        {
+          "latitude": 43.224779,
+          "longitude": -79.056391
+        },
+        {
+          "latitude": 43.224476,
+          "longitude": -79.05634
+        },
+        {
+          "latitude": 43.224174,
+          "longitude": -79.056338
+        },
+        {
+          "latitude": 43.223871,
+          "longitude": -79.056382
+        },
+        {
+          "latitude": 43.223266,
+          "longitude": -79.056512
+        },
+        {
+          "latitude": 43.222963,
+          "longitude": -79.056564
+        },
+        {
+          "latitude": 43.222358,
+          "longitude": -79.05663
+        },
+        {
+          "latitude": 43.222055,
+          "longitude": -79.056606
+        },
+        {
+          "latitude": 43.221753,
+          "longitude": -79.056658
+        },
+        {
+          "latitude": 43.22145,
+          "longitude": -79.056808
+        },
+        {
+          "latitude": 43.221753,
+          "longitude": -79.056535
+        },
+        {
+          "latitude": 43.222055,
+          "longitude": -79.056361
+        },
+        {
+          "latitude": 43.222358,
+          "longitude": -79.056262
+        },
+        {
+          "latitude": 43.222963,
+          "longitude": -79.055951
+        },
+        {
+          "latitude": 43.223266,
+          "longitude": -79.05584
+        },
+        {
+          "latitude": 43.223871,
+          "longitude": -79.055687
+        },
+        {
+          "latitude": 43.224174,
+          "longitude": -79.055632
+        },
+        {
+          "latitude": 43.224476,
+          "longitude": -79.055623
+        },
+        {
+          "latitude": 43.224779,
+          "longitude": -79.055661
+        },
+        {
+          "latitude": 43.225082,
+          "longitude": -79.055734
+        },
+        {
+          "latitude": 43.225384,
+          "longitude": -79.055829
+        },
+        {
+          "latitude": 43.225989,
+          "longitude": -79.056052
+        },
+        {
+          "latitude": 43.226292,
+          "longitude": -79.056179
+        },
+        {
+          "latitude": 43.226595,
+          "longitude": -79.056335
+        },
+        {
+          "latitude": 43.226897,
+          "longitude": -79.056426
+        },
+        {
+          "latitude": 43.227503,
+          "longitude": -79.056668
+        },
+        {
+          "latitude": 43.228108,
+          "longitude": -79.056946
+        },
+        {
+          "latitude": 43.229318,
+          "longitude": -79.057449
+        },
+        {
+          "latitude": 43.229621,
+          "longitude": -79.057602
+        },
+        {
+          "latitude": 43.229924,
+          "longitude": -79.057657
+        },
+        {
+          "latitude": 43.230226,
+          "longitude": -79.057777
+        },
+        {
+          "latitude": 43.231134,
+          "longitude": -79.058038
+        },
+        {
+          "latitude": 43.231437,
+          "longitude": -79.058193
+        },
+        {
+          "latitude": 43.232042,
+          "longitude": -79.058455
+        },
+        {
+          "latitude": 43.232345,
+          "longitude": -79.058613
+        },
+        {
+          "latitude": 43.232647,
+          "longitude": -79.058789
         }
       ]
     },
@@ -667,20 +991,168 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.199,
-          "longitude": -79.0545
+          "latitude": 43.20097,
+          "longitude": -79.051901
         },
         {
-          "latitude": 43.199,
-          "longitude": -79.0515
+          "latitude": 43.200363,
+          "longitude": -79.051795
         },
         {
-          "latitude": 43.188,
-          "longitude": -79.0525
+          "latitude": 43.20006,
+          "longitude": -79.051769
         },
         {
-          "latitude": 43.188,
-          "longitude": -79.0555
+          "latitude": 43.199757,
+          "longitude": -79.051773
+        },
+        {
+          "latitude": 43.199453,
+          "longitude": -79.051832
+        },
+        {
+          "latitude": 43.19915,
+          "longitude": -79.05183
+        },
+        {
+          "latitude": 43.198847,
+          "longitude": -79.051763
+        },
+        {
+          "latitude": 43.19824,
+          "longitude": -79.051828
+        },
+        {
+          "latitude": 43.197937,
+          "longitude": -79.051847
+        },
+        {
+          "latitude": 43.19733,
+          "longitude": -79.051861
+        },
+        {
+          "latitude": 43.196723,
+          "longitude": -79.05206
+        },
+        {
+          "latitude": 43.19642,
+          "longitude": -79.052193
+        },
+        {
+          "latitude": 43.196117,
+          "longitude": -79.052278
+        },
+        {
+          "latitude": 43.195813,
+          "longitude": -79.052386
+        },
+        {
+          "latitude": 43.195207,
+          "longitude": -79.052627
+        },
+        {
+          "latitude": 43.1946,
+          "longitude": -79.052818
+        },
+        {
+          "latitude": 43.194297,
+          "longitude": -79.05296
+        },
+        {
+          "latitude": 43.193993,
+          "longitude": -79.053068
+        },
+        {
+          "latitude": 43.19369,
+          "longitude": -79.053074
+        },
+        {
+          "latitude": 43.193387,
+          "longitude": -79.053119
+        },
+        {
+          "latitude": 43.193083,
+          "longitude": -79.053268
+        },
+        {
+          "latitude": 43.19278,
+          "longitude": -79.053354
+        },
+        {
+          "latitude": 43.193083,
+          "longitude": -79.05312
+        },
+        {
+          "latitude": 43.193387,
+          "longitude": -79.052823
+        },
+        {
+          "latitude": 43.19369,
+          "longitude": -79.05263
+        },
+        {
+          "latitude": 43.193993,
+          "longitude": -79.052476
+        },
+        {
+          "latitude": 43.194297,
+          "longitude": -79.052289
+        },
+        {
+          "latitude": 43.1946,
+          "longitude": -79.052136
+        },
+        {
+          "latitude": 43.195207,
+          "longitude": -79.051923
+        },
+        {
+          "latitude": 43.195813,
+          "longitude": -79.051663
+        },
+        {
+          "latitude": 43.196117,
+          "longitude": -79.051547
+        },
+        {
+          "latitude": 43.19642,
+          "longitude": -79.051453
+        },
+        {
+          "latitude": 43.196723,
+          "longitude": -79.051313
+        },
+        {
+          "latitude": 43.19733,
+          "longitude": -79.051101
+        },
+        {
+          "latitude": 43.197937,
+          "longitude": -79.051076
+        },
+        {
+          "latitude": 43.19824,
+          "longitude": -79.051052
+        },
+        {
+          "latitude": 43.198847,
+          "longitude": -79.051052
+        },
+        {
+          "latitude": 43.19915,
+          "longitude": -79.051152
+        },
+        {
+          "latitude": 43.199757,
+          "longitude": -79.051215
+        },
+        {
+          "latitude": 43.20006,
+          "longitude": -79.05135
+        },
+        {
+          "latitude": 43.200363,
+          "longitude": -79.051515
         }
       ]
     },
@@ -690,20 +1162,132 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.187,
-          "longitude": -79.056
+          "latitude": 43.18751,
+          "longitude": -79.056208
         },
         {
-          "latitude": 43.187,
-          "longitude": -79.053
+          "latitude": 43.186906,
+          "longitude": -79.056682
         },
         {
-          "latitude": 43.181,
-          "longitude": -79.054
+          "latitude": 43.186604,
+          "longitude": -79.056998
         },
         {
-          "latitude": 43.181,
-          "longitude": -79.057
+          "latitude": 43.186302,
+          "longitude": -79.057136
+        },
+        {
+          "latitude": 43.185999,
+          "longitude": -79.057202
+        },
+        {
+          "latitude": 43.185697,
+          "longitude": -79.057318
+        },
+        {
+          "latitude": 43.185395,
+          "longitude": -79.057456
+        },
+        {
+          "latitude": 43.185093,
+          "longitude": -79.057474
+        },
+        {
+          "latitude": 43.184489,
+          "longitude": -79.057638
+        },
+        {
+          "latitude": 43.184187,
+          "longitude": -79.057656
+        },
+        {
+          "latitude": 43.183885,
+          "longitude": -79.057638
+        },
+        {
+          "latitude": 43.183281,
+          "longitude": -79.05753
+        },
+        {
+          "latitude": 43.182978,
+          "longitude": -79.057389
+        },
+        {
+          "latitude": 43.182676,
+          "longitude": -79.057373
+        },
+        {
+          "latitude": 43.182374,
+          "longitude": -79.057171
+        },
+        {
+          "latitude": 43.182072,
+          "longitude": -79.057001
+        },
+        {
+          "latitude": 43.18177,
+          "longitude": -79.056736
+        },
+        {
+          "latitude": 43.182072,
+          "longitude": -79.056738
+        },
+        {
+          "latitude": 43.182374,
+          "longitude": -79.056644
+        },
+        {
+          "latitude": 43.182676,
+          "longitude": -79.056591
+        },
+        {
+          "latitude": 43.182978,
+          "longitude": -79.056371
+        },
+        {
+          "latitude": 43.183281,
+          "longitude": -79.056275
+        },
+        {
+          "latitude": 43.183885,
+          "longitude": -79.055904
+        },
+        {
+          "latitude": 43.184187,
+          "longitude": -79.055682
+        },
+        {
+          "latitude": 43.184489,
+          "longitude": -79.055621
+        },
+        {
+          "latitude": 43.185093,
+          "longitude": -79.05546
+        },
+        {
+          "latitude": 43.185395,
+          "longitude": -79.055578
+        },
+        {
+          "latitude": 43.185697,
+          "longitude": -79.055576
+        },
+        {
+          "latitude": 43.185999,
+          "longitude": -79.055646
+        },
+        {
+          "latitude": 43.186302,
+          "longitude": -79.055829
+        },
+        {
+          "latitude": 43.186604,
+          "longitude": -79.055941
+        },
+        {
+          "latitude": 43.186906,
+          "longitude": -79.055955
         }
       ]
     },
@@ -713,20 +1297,136 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.18,
-          "longitude": -79.057
+          "latitude": 43.18107,
+          "longitude": -79.056204
         },
         {
-          "latitude": 43.18,
-          "longitude": -79.054
+          "latitude": 43.180768,
+          "longitude": -79.055967
         },
         {
-          "latitude": 43.171,
-          "longitude": -79.056
+          "latitude": 43.180166,
+          "longitude": -79.055883
         },
         {
-          "latitude": 43.171,
-          "longitude": -79.059
+          "latitude": 43.179864,
+          "longitude": -79.055747
+        },
+        {
+          "latitude": 43.179563,
+          "longitude": -79.055592
+        },
+        {
+          "latitude": 43.179261,
+          "longitude": -79.055533
+        },
+        {
+          "latitude": 43.178959,
+          "longitude": -79.055499
+        },
+        {
+          "latitude": 43.178658,
+          "longitude": -79.055484
+        },
+        {
+          "latitude": 43.178356,
+          "longitude": -79.055453
+        },
+        {
+          "latitude": 43.178055,
+          "longitude": -79.055468
+        },
+        {
+          "latitude": 43.177754,
+          "longitude": -79.055551
+        },
+        {
+          "latitude": 43.177452,
+          "longitude": -79.055692
+        },
+        {
+          "latitude": 43.177151,
+          "longitude": -79.055811
+        },
+        {
+          "latitude": 43.176849,
+          "longitude": -79.055877
+        },
+        {
+          "latitude": 43.176246,
+          "longitude": -79.056277
+        },
+        {
+          "latitude": 43.175944,
+          "longitude": -79.056526
+        },
+        {
+          "latitude": 43.175342,
+          "longitude": -79.056511
+        },
+        {
+          "latitude": 43.17504,
+          "longitude": -79.056607
+        },
+        {
+          "latitude": 43.175342,
+          "longitude": -79.056222
+        },
+        {
+          "latitude": 43.175944,
+          "longitude": -79.05566
+        },
+        {
+          "latitude": 43.176246,
+          "longitude": -79.055311
+        },
+        {
+          "latitude": 43.176849,
+          "longitude": -79.054896
+        },
+        {
+          "latitude": 43.177151,
+          "longitude": -79.054817
+        },
+        {
+          "latitude": 43.177452,
+          "longitude": -79.054676
+        },
+        {
+          "latitude": 43.177754,
+          "longitude": -79.054513
+        },
+        {
+          "latitude": 43.178055,
+          "longitude": -79.054408
+        },
+        {
+          "latitude": 43.178356,
+          "longitude": -79.054401
+        },
+        {
+          "latitude": 43.178658,
+          "longitude": -79.054439
+        },
+        {
+          "latitude": 43.178959,
+          "longitude": -79.054461
+        },
+        {
+          "latitude": 43.179261,
+          "longitude": -79.054552
+        },
+        {
+          "latitude": 43.179563,
+          "longitude": -79.054692
+        },
+        {
+          "latitude": 43.179864,
+          "longitude": -79.054928
+        },
+        {
+          "latitude": 43.180768,
+          "longitude": -79.055737
         }
       ]
     },
@@ -736,20 +1436,116 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.1705,
-          "longitude": -79.059
+          "latitude": 43.17446,
+          "longitude": -79.056522
         },
         {
-          "latitude": 43.1705,
-          "longitude": -79.056
+          "latitude": 43.174149,
+          "longitude": -79.056675
         },
         {
-          "latitude": 43.1665,
-          "longitude": -79.058
+          "latitude": 43.173838,
+          "longitude": -79.056758
         },
         {
-          "latitude": 43.1665,
-          "longitude": -79.061
+          "latitude": 43.173526,
+          "longitude": -79.056803
+        },
+        {
+          "latitude": 43.173215,
+          "longitude": -79.056808
+        },
+        {
+          "latitude": 43.172904,
+          "longitude": -79.056794
+        },
+        {
+          "latitude": 43.172593,
+          "longitude": -79.056746
+        },
+        {
+          "latitude": 43.172281,
+          "longitude": -79.056662
+        },
+        {
+          "latitude": 43.171348,
+          "longitude": -79.056199
+        },
+        {
+          "latitude": 43.171036,
+          "longitude": -79.056119
+        },
+        {
+          "latitude": 43.170725,
+          "longitude": -79.055899
+        },
+        {
+          "latitude": 43.170414,
+          "longitude": -79.055634
+        },
+        {
+          "latitude": 43.170102,
+          "longitude": -79.055388
+        },
+        {
+          "latitude": 43.169791,
+          "longitude": -79.055072
+        },
+        {
+          "latitude": 43.16948,
+          "longitude": -79.054601
+        },
+        {
+          "latitude": 43.169791,
+          "longitude": -79.054697
+        },
+        {
+          "latitude": 43.170102,
+          "longitude": -79.054639
+        },
+        {
+          "latitude": 43.170414,
+          "longitude": -79.054615
+        },
+        {
+          "latitude": 43.170725,
+          "longitude": -79.054821
+        },
+        {
+          "latitude": 43.171036,
+          "longitude": -79.054981
+        },
+        {
+          "latitude": 43.171348,
+          "longitude": -79.055089
+        },
+        {
+          "latitude": 43.17197,
+          "longitude": -79.055549
+        },
+        {
+          "latitude": 43.172281,
+          "longitude": -79.055747
+        },
+        {
+          "latitude": 43.172593,
+          "longitude": -79.055877
+        },
+        {
+          "latitude": 43.172904,
+          "longitude": -79.055985
+        },
+        {
+          "latitude": 43.173215,
+          "longitude": -79.056087
+        },
+        {
+          "latitude": 43.173526,
+          "longitude": -79.05617
+        },
+        {
+          "latitude": 43.174149,
+          "longitude": -79.056449
         }
       ]
     },
@@ -759,20 +1555,88 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.166,
-          "longitude": -79.0605
+          "latitude": 43.16729,
+          "longitude": -79.05258
         },
         {
-          "latitude": 43.166,
-          "longitude": -79.0575
+          "latitude": 43.167034,
+          "longitude": -79.052639
         },
         {
-          "latitude": 43.161,
-          "longitude": -79.0605
+          "latitude": 43.166906,
+          "longitude": -79.052625
         },
         {
-          "latitude": 43.161,
-          "longitude": -79.0635
+          "latitude": 43.166778,
+          "longitude": -79.052634
+        },
+        {
+          "latitude": 43.166521,
+          "longitude": -79.052465
+        },
+        {
+          "latitude": 43.166265,
+          "longitude": -79.052263
+        },
+        {
+          "latitude": 43.166009,
+          "longitude": -79.05203
+        },
+        {
+          "latitude": 43.165752,
+          "longitude": -79.051907
+        },
+        {
+          "latitude": 43.165624,
+          "longitude": -79.051583
+        },
+        {
+          "latitude": 43.16524,
+          "longitude": -79.050904
+        },
+        {
+          "latitude": 43.165496,
+          "longitude": -79.05056
+        },
+        {
+          "latitude": 43.165624,
+          "longitude": -79.050481
+        },
+        {
+          "latitude": 43.165752,
+          "longitude": -79.05068
+        },
+        {
+          "latitude": 43.165881,
+          "longitude": -79.050614
+        },
+        {
+          "latitude": 43.166009,
+          "longitude": -79.050634
+        },
+        {
+          "latitude": 43.166265,
+          "longitude": -79.050858
+        },
+        {
+          "latitude": 43.166393,
+          "longitude": -79.050998
+        },
+        {
+          "latitude": 43.166521,
+          "longitude": -79.051143
+        },
+        {
+          "latitude": 43.166649,
+          "longitude": -79.051313
+        },
+        {
+          "latitude": 43.166778,
+          "longitude": -79.05155
+        },
+        {
+          "latitude": 43.166906,
+          "longitude": -79.051697
         }
       ]
     },
@@ -782,20 +1646,104 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.263,
-          "longitude": -79.064
+          "latitude": 43.268217,
+          "longitude": -79.070488
         },
         {
-          "latitude": 43.263,
-          "longitude": -79.061
+          "latitude": 43.267807,
+          "longitude": -79.069884
         },
         {
-          "latitude": 43.255,
-          "longitude": -79.059
+          "latitude": 43.267122,
+          "longitude": -79.069159
         },
         {
-          "latitude": 43.255,
-          "longitude": -79.062
+          "latitude": 43.266418,
+          "longitude": -79.068463
+        },
+        {
+          "latitude": 43.262011,
+          "longitude": -79.064897
+        },
+        {
+          "latitude": 43.261351,
+          "longitude": -79.064121
+        },
+        {
+          "latitude": 43.261224,
+          "longitude": -79.063876
+        },
+        {
+          "latitude": 43.260836,
+          "longitude": -79.062808
+        },
+        {
+          "latitude": 43.260654,
+          "longitude": -79.062452
+        },
+        {
+          "latitude": 43.260303,
+          "longitude": -79.061821
+        },
+        {
+          "latitude": 43.260075,
+          "longitude": -79.061551
+        },
+        {
+          "latitude": 43.259509,
+          "longitude": -79.06114
+        },
+        {
+          "latitude": 43.25963,
+          "longitude": -79.062003
+        },
+        {
+          "latitude": 43.259742,
+          "longitude": -79.062374
+        },
+        {
+          "latitude": 43.260214,
+          "longitude": -79.063325
+        },
+        {
+          "latitude": 43.260724,
+          "longitude": -79.064292
+        },
+        {
+          "latitude": 43.260942,
+          "longitude": -79.064678
+        },
+        {
+          "latitude": 43.261503,
+          "longitude": -79.065589
+        },
+        {
+          "latitude": 43.262232,
+          "longitude": -79.06639
+        },
+        {
+          "latitude": 43.262491,
+          "longitude": -79.06666
+        },
+        {
+          "latitude": 43.263751,
+          "longitude": -79.067629
+        },
+        {
+          "latitude": 43.265057,
+          "longitude": -79.068499
+        },
+        {
+          "latitude": 43.266062,
+          "longitude": -79.069232
+        },
+        {
+          "latitude": 43.266821,
+          "longitude": -79.06981
+        },
+        {
+          "latitude": 43.267622,
+          "longitude": -79.070309
         }
       ]
     },
@@ -805,20 +1753,132 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.231,
-          "longitude": -79.054
+          "latitude": 43.23617,
+          "longitude": -79.052893
         },
         {
-          "latitude": 43.231,
-          "longitude": -79.051
+          "latitude": 43.235872,
+          "longitude": -79.052861
         },
         {
-          "latitude": 43.221,
-          "longitude": -79.048
+          "latitude": 43.235574,
+          "longitude": -79.052787
         },
         {
-          "latitude": 43.221,
-          "longitude": -79.051
+          "latitude": 43.235276,
+          "longitude": -79.052687
+        },
+        {
+          "latitude": 43.234977,
+          "longitude": -79.052543
+        },
+        {
+          "latitude": 43.234679,
+          "longitude": -79.052454
+        },
+        {
+          "latitude": 43.234083,
+          "longitude": -79.05233
+        },
+        {
+          "latitude": 43.233487,
+          "longitude": -79.052144
+        },
+        {
+          "latitude": 43.23289,
+          "longitude": -79.051992
+        },
+        {
+          "latitude": 43.231996,
+          "longitude": -79.051725
+        },
+        {
+          "latitude": 43.231101,
+          "longitude": -79.051518
+        },
+        {
+          "latitude": 43.230207,
+          "longitude": -79.051205
+        },
+        {
+          "latitude": 43.229313,
+          "longitude": -79.050939
+        },
+        {
+          "latitude": 43.229014,
+          "longitude": -79.050862
+        },
+        {
+          "latitude": 43.22812,
+          "longitude": -79.050736
+        },
+        {
+          "latitude": 43.229014,
+          "longitude": -79.051437
+        },
+        {
+          "latitude": 43.229313,
+          "longitude": -79.051706
+        },
+        {
+          "latitude": 43.229611,
+          "longitude": -79.051892
+        },
+        {
+          "latitude": 43.230207,
+          "longitude": -79.052095
+        },
+        {
+          "latitude": 43.230803,
+          "longitude": -79.052331
+        },
+        {
+          "latitude": 43.231101,
+          "longitude": -79.052392
+        },
+        {
+          "latitude": 43.231996,
+          "longitude": -79.052484
+        },
+        {
+          "latitude": 43.232294,
+          "longitude": -79.052574
+        },
+        {
+          "latitude": 43.23289,
+          "longitude": -79.052828
+        },
+        {
+          "latitude": 43.233487,
+          "longitude": -79.053056
+        },
+        {
+          "latitude": 43.234083,
+          "longitude": -79.053187
+        },
+        {
+          "latitude": 43.234381,
+          "longitude": -79.053227
+        },
+        {
+          "latitude": 43.234679,
+          "longitude": -79.053256
+        },
+        {
+          "latitude": 43.234977,
+          "longitude": -79.053244
+        },
+        {
+          "latitude": 43.235276,
+          "longitude": -79.053213
+        },
+        {
+          "latitude": 43.235574,
+          "longitude": -79.053138
+        },
+        {
+          "latitude": 43.235872,
+          "longitude": -79.053036
         }
       ]
     },
@@ -828,20 +1888,116 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.219,
-          "longitude": -79.049
+          "latitude": 43.22038,
+          "longitude": -79.049918
         },
         {
-          "latitude": 43.219,
-          "longitude": -79.046
+          "latitude": 43.220077,
+          "longitude": -79.049842
         },
         {
-          "latitude": 43.211,
-          "longitude": -79.045
+          "latitude": 43.219774,
+          "longitude": -79.049658
         },
         {
-          "latitude": 43.211,
-          "longitude": -79.048
+          "latitude": 43.219472,
+          "longitude": -79.049583
+        },
+        {
+          "latitude": 43.218866,
+          "longitude": -79.049727
+        },
+        {
+          "latitude": 43.218563,
+          "longitude": -79.049855
+        },
+        {
+          "latitude": 43.217958,
+          "longitude": -79.050222
+        },
+        {
+          "latitude": 43.217655,
+          "longitude": -79.050456
+        },
+        {
+          "latitude": 43.217352,
+          "longitude": -79.050608
+        },
+        {
+          "latitude": 43.217049,
+          "longitude": -79.050814
+        },
+        {
+          "latitude": 43.216747,
+          "longitude": -79.050921
+        },
+        {
+          "latitude": 43.216444,
+          "longitude": -79.050997
+        },
+        {
+          "latitude": 43.216141,
+          "longitude": -79.051104
+        },
+        {
+          "latitude": 43.215838,
+          "longitude": -79.051242
+        },
+        {
+          "latitude": 43.21493,
+          "longitude": -79.052302
+        },
+        {
+          "latitude": 43.215838,
+          "longitude": -79.052253
+        },
+        {
+          "latitude": 43.216141,
+          "longitude": -79.052185
+        },
+        {
+          "latitude": 43.216444,
+          "longitude": -79.052147
+        },
+        {
+          "latitude": 43.216747,
+          "longitude": -79.052142
+        },
+        {
+          "latitude": 43.217049,
+          "longitude": -79.052047
+        },
+        {
+          "latitude": 43.217352,
+          "longitude": -79.051853
+        },
+        {
+          "latitude": 43.217655,
+          "longitude": -79.051713
+        },
+        {
+          "latitude": 43.217958,
+          "longitude": -79.051512
+        },
+        {
+          "latitude": 43.218563,
+          "longitude": -79.051211
+        },
+        {
+          "latitude": 43.218866,
+          "longitude": -79.05103
+        },
+        {
+          "latitude": 43.219472,
+          "longitude": -79.050779
+        },
+        {
+          "latitude": 43.219774,
+          "longitude": -79.050455
+        },
+        {
+          "latitude": 43.220077,
+          "longitude": -79.050241
         }
       ]
     },
@@ -851,20 +2007,112 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.21,
-          "longitude": -79.0475
+          "latitude": 43.21232,
+          "longitude": -79.053194
         },
         {
-          "latitude": 43.21,
-          "longitude": -79.0445
+          "latitude": 43.212023,
+          "longitude": -79.053188
         },
         {
-          "latitude": 43.201,
-          "longitude": -79.0445
+          "latitude": 43.211725,
+          "longitude": -79.053156
         },
         {
-          "latitude": 43.201,
-          "longitude": -79.0475
+          "latitude": 43.211428,
+          "longitude": -79.053061
+        },
+        {
+          "latitude": 43.211131,
+          "longitude": -79.052982
+        },
+        {
+          "latitude": 43.210833,
+          "longitude": -79.05286
+        },
+        {
+          "latitude": 43.210536,
+          "longitude": -79.052716
+        },
+        {
+          "latitude": 43.209644,
+          "longitude": -79.052153
+        },
+        {
+          "latitude": 43.209346,
+          "longitude": -79.051941
+        },
+        {
+          "latitude": 43.208454,
+          "longitude": -79.051182
+        },
+        {
+          "latitude": 43.207859,
+          "longitude": -79.050612
+        },
+        {
+          "latitude": 43.207562,
+          "longitude": -79.050346
+        },
+        {
+          "latitude": 43.207265,
+          "longitude": -79.050178
+        },
+        {
+          "latitude": 43.20667,
+          "longitude": -79.049938
+        },
+        {
+          "latitude": 43.207265,
+          "longitude": -79.050699
+        },
+        {
+          "latitude": 43.207562,
+          "longitude": -79.051128
+        },
+        {
+          "latitude": 43.207859,
+          "longitude": -79.051474
+        },
+        {
+          "latitude": 43.208454,
+          "longitude": -79.052129
+        },
+        {
+          "latitude": 43.208752,
+          "longitude": -79.052371
+        },
+        {
+          "latitude": 43.209346,
+          "longitude": -79.052767
+        },
+        {
+          "latitude": 43.209644,
+          "longitude": -79.052933
+        },
+        {
+          "latitude": 43.210536,
+          "longitude": -79.053369
+        },
+        {
+          "latitude": 43.210833,
+          "longitude": -79.053474
+        },
+        {
+          "latitude": 43.211131,
+          "longitude": -79.053556
+        },
+        {
+          "latitude": 43.211428,
+          "longitude": -79.053575
+        },
+        {
+          "latitude": 43.211725,
+          "longitude": -79.053499
+        },
+        {
+          "latitude": 43.212023,
+          "longitude": -79.053359
         }
       ]
     },
@@ -874,20 +2122,132 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.198,
-          "longitude": -79.0465
+          "latitude": 43.20083,
+          "longitude": -79.046613
         },
         {
-          "latitude": 43.198,
-          "longitude": -79.0435
+          "latitude": 43.200221,
+          "longitude": -79.046402
         },
         {
-          "latitude": 43.187,
-          "longitude": -79.0445
+          "latitude": 43.199917,
+          "longitude": -79.046274
         },
         {
-          "latitude": 43.187,
-          "longitude": -79.0475
+          "latitude": 43.199308,
+          "longitude": -79.046062
+        },
+        {
+          "latitude": 43.198699,
+          "longitude": -79.045907
+        },
+        {
+          "latitude": 43.198394,
+          "longitude": -79.045852
+        },
+        {
+          "latitude": 43.19809,
+          "longitude": -79.045847
+        },
+        {
+          "latitude": 43.197786,
+          "longitude": -79.045861
+        },
+        {
+          "latitude": 43.197481,
+          "longitude": -79.045921
+        },
+        {
+          "latitude": 43.196263,
+          "longitude": -79.046305
+        },
+        {
+          "latitude": 43.194741,
+          "longitude": -79.046749
+        },
+        {
+          "latitude": 43.194437,
+          "longitude": -79.046825
+        },
+        {
+          "latitude": 43.193219,
+          "longitude": -79.047055
+        },
+        {
+          "latitude": 43.192914,
+          "longitude": -79.047079
+        },
+        {
+          "latitude": 43.191392,
+          "longitude": -79.047107
+        },
+        {
+          "latitude": 43.18987,
+          "longitude": -79.047426
+        },
+        {
+          "latitude": 43.191392,
+          "longitude": -79.047634
+        },
+        {
+          "latitude": 43.192306,
+          "longitude": -79.047684
+        },
+        {
+          "latitude": 43.192914,
+          "longitude": -79.047703
+        },
+        {
+          "latitude": 43.193219,
+          "longitude": -79.047696
+        },
+        {
+          "latitude": 43.194437,
+          "longitude": -79.047532
+        },
+        {
+          "latitude": 43.194741,
+          "longitude": -79.04747
+        },
+        {
+          "latitude": 43.195959,
+          "longitude": -79.047153
+        },
+        {
+          "latitude": 43.196263,
+          "longitude": -79.047062
+        },
+        {
+          "latitude": 43.197481,
+          "longitude": -79.046611
+        },
+        {
+          "latitude": 43.197786,
+          "longitude": -79.046527
+        },
+        {
+          "latitude": 43.19809,
+          "longitude": -79.04647
+        },
+        {
+          "latitude": 43.198394,
+          "longitude": -79.046432
+        },
+        {
+          "latitude": 43.198699,
+          "longitude": -79.046443
+        },
+        {
+          "latitude": 43.199308,
+          "longitude": -79.046505
+        },
+        {
+          "latitude": 43.199917,
+          "longitude": -79.04654
+        },
+        {
+          "latitude": 43.200221,
+          "longitude": -79.046579
         }
       ]
     },
@@ -897,20 +2257,80 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.181,
-          "longitude": -79.0475
+          "latitude": 43.18384,
+          "longitude": -79.048561
         },
         {
-          "latitude": 43.181,
-          "longitude": -79.0445
+          "latitude": 43.183295,
+          "longitude": -79.048542
         },
         {
-          "latitude": 43.174,
-          "longitude": -79.046
+          "latitude": 43.183022,
+          "longitude": -79.048558
         },
         {
-          "latitude": 43.174,
-          "longitude": -79.049
+          "latitude": 43.182477,
+          "longitude": -79.048741
+        },
+        {
+          "latitude": 43.18166,
+          "longitude": -79.049086
+        },
+        {
+          "latitude": 43.180297,
+          "longitude": -79.049166
+        },
+        {
+          "latitude": 43.180025,
+          "longitude": -79.049208
+        },
+        {
+          "latitude": 43.179752,
+          "longitude": -79.049386
+        },
+        {
+          "latitude": 43.17948,
+          "longitude": -79.0495
+        },
+        {
+          "latitude": 43.179752,
+          "longitude": -79.049635
+        },
+        {
+          "latitude": 43.180025,
+          "longitude": -79.049707
+        },
+        {
+          "latitude": 43.180297,
+          "longitude": -79.04985
+        },
+        {
+          "latitude": 43.180842,
+          "longitude": -79.049931
+        },
+        {
+          "latitude": 43.181115,
+          "longitude": -79.049923
+        },
+        {
+          "latitude": 43.18166,
+          "longitude": -79.049862
+        },
+        {
+          "latitude": 43.181932,
+          "longitude": -79.049755
+        },
+        {
+          "latitude": 43.182477,
+          "longitude": -79.049498
+        },
+        {
+          "latitude": 43.183022,
+          "longitude": -79.049195
+        },
+        {
+          "latitude": 43.183295,
+          "longitude": -79.049005
         }
       ]
     },
@@ -920,20 +2340,96 @@ export const defaultLogbook = {
       "waterbody": "Niagara River",
       "polygon": [
         {
-          "latitude": 43.17,
-          "longitude": -79.0485
+          "latitude": 43.17025,
+          "longitude": -79.050137
         },
         {
-          "latitude": 43.17,
-          "longitude": -79.0455
+          "latitude": 43.169783,
+          "longitude": -79.049789
         },
         {
-          "latitude": 43.163,
-          "longitude": -79.0485
+          "latitude": 43.169549,
+          "longitude": -79.049742
         },
         {
-          "latitude": 43.163,
-          "longitude": -79.0515
+          "latitude": 43.169081,
+          "longitude": -79.049825
+        },
+        {
+          "latitude": 43.168848,
+          "longitude": -79.049789
+        },
+        {
+          "latitude": 43.168614,
+          "longitude": -79.049722
+        },
+        {
+          "latitude": 43.16838,
+          "longitude": -79.049617
+        },
+        {
+          "latitude": 43.167912,
+          "longitude": -79.049375
+        },
+        {
+          "latitude": 43.167445,
+          "longitude": -79.049016
+        },
+        {
+          "latitude": 43.167211,
+          "longitude": -79.048799
+        },
+        {
+          "latitude": 43.166978,
+          "longitude": -79.048635
+        },
+        {
+          "latitude": 43.166744,
+          "longitude": -79.048524
+        },
+        {
+          "latitude": 43.16651,
+          "longitude": -79.048432
+        },
+        {
+          "latitude": 43.167211,
+          "longitude": -79.049646
+        },
+        {
+          "latitude": 43.167445,
+          "longitude": -79.049928
+        },
+        {
+          "latitude": 43.167679,
+          "longitude": -79.050179
+        },
+        {
+          "latitude": 43.167912,
+          "longitude": -79.050327
+        },
+        {
+          "latitude": 43.16838,
+          "longitude": -79.05043
+        },
+        {
+          "latitude": 43.168614,
+          "longitude": -79.050503
+        },
+        {
+          "latitude": 43.168848,
+          "longitude": -79.050538
+        },
+        {
+          "latitude": 43.169081,
+          "longitude": -79.050533
+        },
+        {
+          "latitude": 43.169315,
+          "longitude": -79.050437
+        },
+        {
+          "latitude": 43.169783,
+          "longitude": -79.050214
         }
       ]
     }

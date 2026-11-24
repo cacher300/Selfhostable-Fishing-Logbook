@@ -268,6 +268,10 @@ export function updateCheaterDepth(row) {
   updateTripRow(draftCollectionForFishRow(row), draftIdForRow(row), { estimatedLureDepth: value });
 }
 
+let trimNumberFormat = null;
+
+// Number#toLocaleString builds a new Intl.NumberFormat on every call, which is very slow in render loops.
 export function trimNumber(value) {
-  return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  trimNumberFormat ||= new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+  return trimNumberFormat.format(Number(value));
 }
