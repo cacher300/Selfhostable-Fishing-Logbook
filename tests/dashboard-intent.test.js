@@ -16,6 +16,7 @@ const { renderTrips } = await import("../static/js/dashboard.js");
 
 ui.activeTripSort = { key: "date", direction: "desc" };
 setState({
+  locations: [],
   trips: [
     { id: "serious", date: "2026-09-22", location: "Lake", targetSpecies: "Chinook Salmon", method: "Trolling", intent: "serious", tripRating: 3, catches: [], lostFish: [] },
     { id: "experimental", date: "2026-09-21", location: "Lake", targetSpecies: "Lake Trout", method: "Trolling", intent: "experimental", tripRating: 3, catches: [], lostFish: [] },

@@ -61,7 +61,7 @@ const allowedReadPatterns = [
   /select\.value !== "__new__"/,
 
   // Row/card identity and UI state only; domain values come from drafts.
-  /dataset\.(catchId|rowId|gearId|lineId|checklistId|checklistItemId|savedSetup|trollingSpread|sourceIndex|settingsPanel|unitSetting|bathymetry|selectedSetupLine|selectedRodId|autoAddedSpread|disclosureReady)/,
+  /dataset\.(catchId|rowId|gearId|lineId|checklistId|checklistItemId|savedSetup|trollingSpread|sourceIndex|settingsPanel|unitSetting|bathymetry|selectedSetupLine|selectedRodId|autoAddedSpread|disclosureReady|optionIndex|predefinedKey|fishingSpotId)/,
   /dataset\?\.lineId/,
   /dataset\?\.gearId/,
   /dataset\?\.catchId/,
@@ -79,6 +79,7 @@ const allowedReadPatterns = [
   /const color = input\.value/,
   /privateLocationRadiusProgress\(input\.value\)/,
   /fishingSpotRadiusProgress\(input\.value\)/,
+  /\.fishing-spot-(name|lake)"\)\?\.value/,
   /label\.dataset\.unitLabel/,
   /input\.checked = input\.value ===/,
 

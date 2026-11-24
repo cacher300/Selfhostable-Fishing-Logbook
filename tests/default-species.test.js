@@ -8,4 +8,6 @@ const species = defaults.species;
 assert(species.includes("Atlantic Salmon"));
 assert.equal(new Set(species).size, species.length);
 assert(species.includes("Walleye"));
-assert.deepEqual(species, [...species].sort((a, b) => a.localeCompare(b)));
+const named = species.filter((item) => item !== "Anything");
+assert.deepEqual(named, [...named].sort((a, b) => a.localeCompare(b)));
+assert.equal(species.at(-1), "Anything");

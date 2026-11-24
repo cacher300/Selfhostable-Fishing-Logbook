@@ -41,26 +41,31 @@ test("missing, calm, malformed, and short weather never masquerade as a detected
   assert.equal(weatherFrontDateRange({ date: "bad" }), null);
 });
 
-test("automatic estimates preserve explicit manual and old unmarked selections", () => {
+test("automatic estimates always replace saved selections, including older manual ones", () => {
   const estimate = { value: "post-front" };
-  assert.deepEqual(automaticWeatherFrontPatch({}, estimate), { weatherFront: "post-front", weatherFrontSource: "automatic" });
-  assert.deepEqual(automaticWeatherFrontPatch({ weatherFront: "pre-front" }, estimate), {});
-  assert.deepEqual(automaticWeatherFrontPatch({ weatherFront: "", weatherFrontSource: "manual" }, estimate), {});
-  assert.deepEqual(automaticWeatherFrontPatch({ weatherFront: "pre-front", weatherFrontSource: "automatic" }, estimate), { weatherFront: "post-front", weatherFrontSource: "automatic" });
-  assert.deepEqual(automaticWeatherFrontPatch({}, { value: "" }), {});
-  assert.deepEqual(automaticWeatherFrontPatch({}, { value: "cold" }), {});
-  assert.deepEqual(automaticWeatherFrontPatch({ weatherFront: "pre-front", weatherFrontSource: "automatic" }, { value: "" }), { weatherFront: "", weatherFrontSource: "automatic" });
+  const expected = { weatherFront: "post-front", weatherFrontSource: "automatic" };
+  const unclassified = { weatherFront: "", weatherFrontSource: "automatic" };
+  assert.deepEqual(automaticWeatherFrontPatch({}, estimate), expected);
+  assert.deepEqual(automaticWeatherFrontPatch({ weatherFront: "pre-front" }, estimate), expected);
+  assert.deepEqual(automaticWeatherFrontPatch({ weatherFront: "", weatherFrontSource: "manual" }, estimate), expected);
+  assert.deepEqual(automaticWeatherFrontPatch({ weatherFront: "pre-front", weatherFrontSource: "automatic" }, estimate), expected);
+  assert.deepEqual(automaticWeatherFrontPatch({ weatherData: { frontAssessment: { value: "no-front" } } }), { weatherFront: "no-front", weatherFrontSource: "automatic" });
+  assert.deepEqual(automaticWeatherFrontPatch({}, { value: "" }), unclassified);
+  assert.deepEqual(automaticWeatherFrontPatch({}, { value: "cold" }), unclassified);
+  assert.deepEqual(automaticWeatherFrontPatch({ weatherFront: "pre-front", weatherFrontSource: "manual" }, { value: "" }), unclassified);
   assert.deepEqual(weatherFrontDateRange({ date: "2026-11-01", launchTime: "23:00", linesPulledTime: "02:00" }), { startDate: "2026-10-31", endDate: "2026-11-03" });
 });
 
-test("changing trip context invalidates an estimate while preserving manual choices and other weather", () => {
+test("changing trip context invalidates any saved front while preserving other weather", () => {
   const trip = { weatherFront: "pre-front", weatherFrontSource: "automatic", custom: true, weatherData: { frontAssessment: { value: "pre-front" }, frontTag: "Stable" } };
-  const reset = resetAutomaticWeatherFront(trip);
-  assert.equal(reset.weatherFront, "");
-  assert.equal(reset.weatherData.frontAssessment, undefined);
-  assert.equal(reset.weatherData.frontTag, "Stable");
-  assert.equal(reset.custom, true);
-  assert.equal(trip.weatherFront, "pre-front");
-  const manual = { ...trip, weatherFrontSource: "manual" };
-  assert.equal(resetAutomaticWeatherFront(manual), manual);
+  for (const source of [trip, { ...trip, weatherFrontSource: "manual" }]) {
+    const reset = resetAutomaticWeatherFront(source);
+    assert.equal(reset.weatherFront, "");
+    assert.equal(reset.weatherFrontSource, "automatic");
+    assert.equal(reset.weatherData.frontAssessment, undefined);
+    assert.equal(reset.weatherData.frontTag, "Stable");
+    assert.equal(reset.custom, true);
+    assert.equal(source.weatherFront, "pre-front");
+    assert.deepEqual(source.weatherData.frontAssessment, { value: "pre-front" });
+  }
 });

@@ -609,14 +609,25 @@ export async function saveCombo(event) {
   }
 }
 
-export async function saveLure(event) {
-  event.preventDefault();
-  const form = els.lureForm;
-  if (form.dataset.saving === "true") return;
-  form.dataset.saving = "true";
+const savingForms = new WeakSet();
+
+// Blocks double submission while a save is in flight; returns null if one already is.
+function lockFormSubmission(form) {
+  if (savingForms.has(form)) return null;
+  savingForms.add(form);
   const submitButton = form.querySelector('[type="submit"]');
   const submitButtonWasDisabled = submitButton?.disabled ?? false;
   if (submitButton) submitButton.disabled = true;
+  return () => {
+    savingForms.delete(form);
+    if (submitButton) submitButton.disabled = submitButtonWasDisabled;
+  };
+}
+
+export async function saveLure(event) {
+  event.preventDefault();
+  const releaseForm = lockFormSubmission(els.lureForm);
+  if (!releaseForm) return;
   try {
     const context = gearDraftContext();
     const editingId = context.editingId || "";
@@ -646,8 +657,7 @@ export async function saveLure(event) {
     console.error("Could not save lure.", error);
     alert(error.message || "The lure could not be saved.");
   } finally {
-    delete form.dataset.saving;
-    if (submitButton) submitButton.disabled = submitButtonWasDisabled;
+    releaseForm();
   }
 }
 
