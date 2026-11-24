@@ -1014,6 +1014,11 @@
   max-width: 340px;
 }
 
+.catch-identity-row .catch-drift-field {
+  flex: 1 1 260px;
+  max-width: 340px;
+}
+
 .catch-identity-row .catch-structure-field {
   flex: 1 1 260px;
   max-width: 340px;
@@ -2266,6 +2271,7 @@
 #tripDialog .catch-identity-row .catch-species-field,
 #tripDialog .catch-identity-row .possible-species-field,
 #tripDialog .catch-identity-row .catch-spot-field,
+#tripDialog .catch-identity-row .catch-drift-field,
 #tripDialog .catch-identity-row .catch-structure-field {
   grid-column: span 6;
   width: 100%;

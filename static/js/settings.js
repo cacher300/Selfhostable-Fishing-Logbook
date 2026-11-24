@@ -10,7 +10,6 @@ import { marineRequestCache, setWeatherStatus, updateMarineWaveHeightPlaceholder
 import { runSettingsSave, scheduleSettingsAutosave, cancelSettingsAutosave, settingsUi } from "./settings-core.js";
 import { renderSavedSetupSettings } from "./saved-setups.js";
 import { renderChopRangeSettings, renderPredefinedFieldSettings } from "./settings-fields.js";
-import { renderPrivatePhotoLocationSettings } from "./settings-locations.js";
 import { renderFishingAreas } from "./fishing-areas.js";
 import { renderAll } from "./dashboard.js";
 import { mergePeople } from "./trip-editor.js";
@@ -42,7 +41,6 @@ export function renderSettings() {
   syncUnitLabels();
   renderChopRangeSettings();
   renderFishingAreas();
-  renderPrivatePhotoLocationSettings();
   renderLocationManager();
 }
 
@@ -524,8 +522,8 @@ export function setSettingsTab(tab = "general") {
   settingsUi.activeSettingsTab = tab;
   syncSettingsTabs();
   if (tab === "waterbodies") {
-    setTimeout(() => ui.privatePhotoLocationMap?.invalidateSize(), 80);
     setTimeout(() => ui.fishingSpotMap?.invalidateSize(), 80);
+    setTimeout(() => renderFishingAreas({ fitMap: true }), 80);
   }
 }
 

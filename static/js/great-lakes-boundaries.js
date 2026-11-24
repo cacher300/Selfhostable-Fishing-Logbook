@@ -33,12 +33,20 @@ function pointInPolygon(longitude, latitude, polygon) {
   return inside;
 }
 
-export function isPointInsideGreatLake(coordinates) {
+// Georgian Bay is the second polygon used for Lake Huron.
+const GREAT_LAKE_NAMES = ["Lake Superior", "Lake Michigan", "Lake Huron", "Lake Huron", "Lake Erie", "Lake Ontario"];
+
+export function greatLakeNameAt(coordinates) {
   const latitude = Number(coordinates?.latitude);
   const longitude = Number(coordinates?.longitude);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)
-    || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return false;
-  return GREAT_LAKES.some(polygon => pointInPolygon(longitude, latitude, polygon));
+    || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return "";
+  const index = GREAT_LAKES.findIndex(polygon => pointInPolygon(longitude, latitude, polygon));
+  return GREAT_LAKE_NAMES[index] || "";
+}
+
+export function isPointInsideGreatLake(coordinates) {
+  return Boolean(greatLakeNameAt(coordinates));
 }
 
 export function checkGreatLakesHomePort(coordinates) {

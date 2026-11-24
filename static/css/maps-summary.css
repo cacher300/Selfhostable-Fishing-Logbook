@@ -418,10 +418,6 @@
   box-shadow: none;
 }
 
-.private-location-map-panel .private-location-map {
-  margin-top: 0;
-}
-
 .map-pin-instruction {
   margin: 14px 0 0;
   color: var(--muted);

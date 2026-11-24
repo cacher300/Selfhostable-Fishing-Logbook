@@ -178,6 +178,7 @@
   grid-column: 2;
 }
 
+.settings-section.fishing-area-overview-section > :is(.fishing-area-overview-map, .fishing-area-map-legend, .fishing-area-overview-empty),
 .settings-section.trolling-spread-settings-section > .trolling-spread-settings-controls,
 .settings-section.trolling-spread-settings-section > .form-message,
 .settings-section.trolling-spread-settings-section > .trolling-spread-settings-list {
@@ -647,14 +648,6 @@
   }
 }
 
-.settings-section--home-location {
-  row-gap: 10px;
-}
-
-.settings-section--home-location .private-location-layout {
-  margin-top: 0;
-}
-
 .settings-section-header {
   display: contents;
 }
@@ -1015,7 +1008,6 @@
 }
 
 #settingsAddLocationButton,
-#addPrivatePhotoLocationButton,
 #addFishingSpotButton {
   justify-self: end;
 }

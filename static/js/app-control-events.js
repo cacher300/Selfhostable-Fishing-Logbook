@@ -9,7 +9,7 @@ import { exportArchive, importArchive, scheduleSettingsAutosave, setSettingsSave
 import { addTrollingSpread, addTrollingSpreadRowToCard, cancelTrollingSpreadDraft, deleteTrollingSpread, editTrollingSpread, finishTrollingSpreadEdit, refreshTrollingSpreadCardPreview, saveDefaultHomeLake, saveDefaultPeople, saveDefaultTrollingSpreadId, saveFishHawkPreference, saveSpeciesMapColors, saveThemePreference, saveTimeFormatPreference, saveUnitSettings, scheduleTrollingSpreadAutosave, setSettingsTab, setTrollingSpreadSettingsMessage, syncSpeciesMapColorPreview, syncTrollingSpreadRowFields } from "./settings.js";
 import { openSavedSetupPicker } from "./saved-setups.js";
 import { cancelChopRangeEditing, filterPredefinedFieldSettings, savePredefinedFieldSettings, syncPredefinedDeleteControls, syncPredefinedFieldSummary, toggleChopRangeEditing } from "./settings-fields.js";
-import { collectFishingSpotSettings, collectPrivatePhotoLocationSettings, fishingSpotDefaultCoordinates, fishingSpotRadiusMeters, fishingSpotRadiusText, nextFishingSpotName, privateLocationDefaultCoordinates, privateLocationRadiusMeters, privateLocationRadiusText, privatePhotoLocations, saveFishingSpots, savePrivatePhotoLocations, updateFishingSpotRadiusControl, updateFishingSpotSummary, updatePrivateLocationRadiusControl } from "./settings-locations.js";
+import { collectFishingSpotSettings, fishingSpotDefaultCoordinates, fishingSpotRadiusMeters, fishingSpotRadiusText, nextFishingSpotName, saveFishingSpots, updateFishingSpotRadiusControl, updateFishingSpotSummary } from "./settings-locations.js";
 import { populateOptionSelect, renderTrips, tripSortFromSelect } from "./dashboard.js";
 import { addNotePhotos, addPhotosToQueue, openPhotoQueue, restoreDialogAfterPhotoQueue, uploadImageFile } from "./photos.js";
 import { addPersonRow, closeTripDialog, focusTripValidationField, getValue, isTripFormDirty, isTripSaveInProgress, markTripFormChanged, openTripDialog, setPersonPhotoForRow, syncTripContinuationGate, updateTripRatingLabel } from "./trip-editor.js";
@@ -590,18 +590,6 @@ export function setup() {
     }
   });
 
-  els.privatePhotoLocationList?.addEventListener("input", (event) => {
-    if (!event.target.matches(".private-location-name, .private-location-radius")) return;
-    const card = event.target.closest("[data-private-location-id]");
-    if (card) ui.activePrivatePhotoLocationId = card.dataset.privateLocationId;
-    if (event.target.matches(".private-location-radius")) {
-      updatePrivateLocationRadiusControl(event.target);
-      const output = card?.querySelector(".private-location-radius-value");
-      if (output) output.textContent = privateLocationRadiusText(privateLocationRadiusMeters(event.target.value));
-    }
-    scheduleSettingsAutosave((options) => savePrivatePhotoLocations(collectPrivatePhotoLocationSettings(), { ...options, rerender: false }));
-  });
-
   els.fishingSpotList?.addEventListener("input", (event) => {
     if (!event.target.matches(".fishing-spot-name, .fishing-spot-lake, .fishing-spot-radius")) return;
     const card = event.target.closest("[data-fishing-spot-id]");
@@ -616,21 +604,6 @@ export function setup() {
   });
 
   els.settingsAddLocationButton.addEventListener("click", () => openLocationDialog("location"));
-
-  els.addPrivatePhotoLocationButton?.addEventListener("click", async () => {
-    const coordinates = privateLocationDefaultCoordinates();
-    const id = createId();
-    ui.activePrivatePhotoLocationId = id;
-    await savePrivatePhotoLocations([
-      ...collectPrivatePhotoLocationSettings(),
-      {
-        id,
-        name: `Home ${privatePhotoLocations().length + 1}`,
-        radiusMeters: 400,
-        coordinates
-      }
-    ]);
-  });
 
   els.addFishingSpotButton?.addEventListener("click", async () => {
     const id = createId();
@@ -856,7 +829,7 @@ export function setup() {
     setGallerySelectionMode(false);
   });
 
-  [els.searchInput, els.targetFilter, els.methodFilter, els.weatherFrontFilter, els.yearFilter, els.monthFilter].filter(Boolean).forEach((control) => {
+  [els.searchInput, els.locationFilter, els.launchFilter, els.targetFilter, els.methodFilter, els.weatherFrontFilter, els.yearFilter, els.monthFilter].filter(Boolean).forEach((control) => {
     control.addEventListener("input", () => {
       renderTrips();
     });

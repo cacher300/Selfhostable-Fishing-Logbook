@@ -5,7 +5,7 @@ import { convertUnitValue, unitPreference } from "./app-units.js";
 import { replaceFishingSpots, updateSettings } from "./actions.js";
 import { els } from "./app-elements.js";
 import { isUsableCoordinates } from "./app-media.js";
-import { coordinateText, selectedTripLocationCoordinates } from "./locations.js";
+import { selectedTripLocationCoordinates } from "./locations.js";
 import { runSettingsSave, settingsUi } from "./settings-core.js";
 import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
 import { trimNumber } from "./form-utils.js";
@@ -247,10 +247,6 @@ export function renderFishingSpotMap() {
   if (active) ui.fishingSpotMap.setView([active.coordinates.latitude, active.coordinates.longitude], ui.fishingSpotMap.getZoom());
 }
 
-export function privateLocationSummary(location) {
-  return `${coordinateText(location.coordinates)} / ${privateLocationRadiusText(location.radiusMeters)}`;
-}
-
 export function privateLocationRadiusUnit() {
   return unitPreference("distance") === "mi" ? "ft" : "m";
 }
@@ -321,70 +317,8 @@ export function privateLocationRadiusText(radiusMeters) {
   return `${trimNumber(privateLocationRadiusDisplayValue(radiusMeters))} ${unit}`;
 }
 
-export function privateLocationRadiusProgress(displayValue) {
-  const { min, max } = privateLocationRadiusSliderConfig();
-  const radius = Math.max(min, Math.min(max, Number(displayValue) || privateLocationRadiusDisplayValue(400)));
-  return Math.round(((radius - min) / (max - min)) * 10000) / 100;
-}
-
-export function privateLocationRadiusStyle(radiusMeters) {
-  return `--private-location-radius-progress: ${privateLocationRadiusProgress(privateLocationRadiusDisplayValue(radiusMeters))}%;`;
-}
-
-export function updatePrivateLocationRadiusControl(input) {
-  input.style.setProperty("--private-location-radius-progress", `${privateLocationRadiusProgress(input.value)}%`);
-}
-
 export function updateFishingSpotRadiusControl(input) {
   input.style.setProperty("--private-location-radius-progress", `${fishingSpotRadiusProgress(input.value)}%`);
-}
-
-export function ensureActivePrivatePhotoLocation(locations = privatePhotoLocations()) {
-  if (!locations.length) {
-    ui.activePrivatePhotoLocationId = "";
-    ui.editingPrivatePhotoLocationId = "";
-    return "";
-  }
-  if (!locations.some((location) => location.id === ui.activePrivatePhotoLocationId)) {
-    ui.activePrivatePhotoLocationId = "";
-  }
-  if (!locations.some((location) => location.id === ui.editingPrivatePhotoLocationId)) {
-    ui.editingPrivatePhotoLocationId = "";
-  }
-  return ui.activePrivatePhotoLocationId;
-}
-
-export function renderPrivatePhotoLocationSettings() {
-  if (!els.privatePhotoLocationList) return;
-  const locations = privatePhotoLocations();
-  settingsUi.privatePhotoLocationsDraft = locations.map((location) => ({ ...structuredClone(location), radiusDisplay: privateLocationRadiusDisplayValue(location.radiusMeters) }));
-  const activeLocationId = ensureActivePrivatePhotoLocation(locations);
-  const orderedLocations = activeLocationId
-    ? [locations.find((location) => location.id === activeLocationId), ...locations.filter((location) => location.id !== activeLocationId)].filter(Boolean)
-    : locations;
-  const radiusConfig = privateLocationRadiusSliderConfig();
-  setHtml(els.privatePhotoLocationList, orderedLocations.length ? joinHtml(orderedLocations.map((location) => {
-    const isEditing = location.id === ui.editingPrivatePhotoLocationId;
-    return html`
-    <article class="private-location-card${location.id === activeLocationId ? " is-selected" : ""}" data-private-location-id="${location.id}" aria-current="${location.id === activeLocationId ? "true" : "false"}">
-      <div class="private-location-card-head">
-          <div class="private-location-name-row">
-            ${settingsUi.privateLocationNameEditId === location.id
-              ? html`<input class="private-location-name" type="text" value="${location.name}" data-settings-draft="privatePhotoLocationsDraft" data-settings-bind="${settingsUi.privatePhotoLocationsDraft.findIndex((item) => item.id === location.id)}.name" aria-label="Home location name" />`
-              : html`<button class="private-location-name-display" type="button" data-edit-private-location-name="${location.id}" data-private-location-name="${location.name}">${location.name}</button>`}
-          </div>
-          <button class="button secondary private-location-edit-pin" type="button" data-edit-private-location-pin="${location.id}" aria-label="Edit map pin for ${location.name}">Edit pin</button>
-          <button class="button danger${isEditing ? "" : " hidden"}" type="button" data-delete-private-location="${location.id}">Delete</button>
-      </div>
-      <label class="settings-control private-location-radius-control">
-        <span>Radius <output class="private-location-radius-value">${privateLocationRadiusText(location.radiusMeters)}</output></span>
-        <input class="private-location-radius" type="range" min="${radiusConfig.min}" max="${radiusConfig.max}" step="${radiusConfig.step}" value="${privateLocationRadiusDisplayValue(location.radiusMeters)}" data-settings-draft="privatePhotoLocationsDraft" data-settings-bind="${settingsUi.privatePhotoLocationsDraft.findIndex((item) => item.id === location.id)}.radiusDisplay" aria-label="Home location radius in ${radiusConfig.unit}" style="${privateLocationRadiusStyle(location.radiusMeters)}" />
-      </label>
-    </article>
-  `;
-  }), "") : html`<div class="empty-state compact-empty"><p>No home locations saved.</p></div>`);
-  ensurePrivatePhotoLocationMap();
-  renderPrivatePhotoLocationMap();
 }
 
 export function privateLocationDefaultCoordinates() {
@@ -395,103 +329,9 @@ export function privateLocationDefaultCoordinates() {
   return { latitude: 43.7, longitude: -79.4 };
 }
 
-export async function savePrivatePhotoLocations(nextLocations, options = {}) {
-  try {
-    await runSettingsSave(
-      async () => {
-        validatePrivatePhotoLocations(nextLocations);
-        await updateSettings((settings) => {
-          settings.privatePhotoLocations = nextLocations;
-        });
-        ensureActivePrivatePhotoLocation(nextLocations);
-        if (options.rerender !== false) {
-          renderPrivatePhotoLocationSettings();
-        } else {
-          renderPrivatePhotoLocationMap();
-        }
-      },
-      "The private photo locations could not be saved.",
-      options
-    );
-  } catch (error) {
-  }
-}
-
-export function collectPrivatePhotoLocationSettings() {
-  const current = new Map(privatePhotoLocations().map((location) => [location.id, location]));
-  return (settingsUi.privatePhotoLocationsDraft || privatePhotoLocations().map((location) => ({ ...location, radiusDisplay: privateLocationRadiusDisplayValue(location.radiusMeters) }))).map((location) => ({
-    ...(current.get(location.id) || {}),
-    ...location,
-    name: String(location.name || "").trim() || "Home",
-    radiusMeters: String(location.radiusDisplay ?? "") === String(privateLocationRadiusDisplayValue((current.get(location.id) || location).radiusMeters || 400))
-      ? (current.get(location.id) || location).radiusMeters
-      : privateLocationRadiusMeters(location.radiusDisplay ?? privateLocationRadiusDisplayValue(location.radiusMeters || 400))
-  })).map(({ radiusDisplay, ...location }) => location);
-}
-
-export function ensurePrivatePhotoLocationMap() {
-  if (!window.L || !els.privatePhotoLocationMap) return;
-  const shouldInitializeView = !ui.privatePhotoLocationMap;
-  if (!ui.privatePhotoLocationMap) {
-    ui.privatePhotoLocationMap = L.map(els.privatePhotoLocationMap, seamlessMapOptions());
-    addSeamlessTileLayer(ui.privatePhotoLocationMap);
-    ui.privatePhotoLocationLayer = L.featureGroup().addTo(ui.privatePhotoLocationMap);
-    ui.privatePhotoLocationMap.on("click", async (event) => {
-      const locations = collectPrivatePhotoLocationSettings();
-      const activeLocationId = ensureActivePrivatePhotoLocation(locations);
-      if (!activeLocationId) return;
-      const next = locations.map((location) => (
-        location.id === activeLocationId
-          ? { ...location, coordinates: { latitude: event.latlng.lat, longitude: event.latlng.lng } }
-          : location
-      ));
-      await savePrivatePhotoLocations(next);
-    });
-  }
-  if (shouldInitializeView || !ui.privatePhotoLocationMap._loaded) {
-    const center = privateLocationDefaultCoordinates();
-    ui.privatePhotoLocationMap.setView([center.latitude, center.longitude], privatePhotoLocations().length ? 11 : 7);
-  }
-  setTimeout(() => ui.privatePhotoLocationMap.invalidateSize(), 50);
-}
-
-export function renderPrivatePhotoLocationMap() {
-  if (!window.L || !ui.privatePhotoLocationMap || !ui.privatePhotoLocationLayer) return;
-  ui.privatePhotoLocationLayer.clearLayers();
-  const locations = privatePhotoLocations();
-  locations.forEach((location) => {
-    const isActive = location.id === ui.activePrivatePhotoLocationId;
-    const point = [location.coordinates.latitude, location.coordinates.longitude];
-    const circle = L.circle(point, {
-      radius: Number(location.radiusMeters) || 400,
-      color: isActive ? "#118753" : "#65718a",
-      weight: isActive ? 3 : 2,
-      fillColor: "#2fb875",
-      fillOpacity: isActive ? 0.18 : 0.08
-    }).addTo(ui.privatePhotoLocationLayer);
-    circle.bindPopup(html`${location.name}<br>${privateLocationSummary(location)}`);
-    const marker = L.marker(point, { draggable: true }).addTo(ui.privatePhotoLocationLayer);
-    marker.on("click", () => {
-      ui.activePrivatePhotoLocationId = location.id;
-      if (ui.editingPrivatePhotoLocationId !== ui.activePrivatePhotoLocationId) ui.editingPrivatePhotoLocationId = "";
-      renderPrivatePhotoLocationSettings();
-    });
-    marker.on("dragend", async () => {
-      ui.activePrivatePhotoLocationId = location.id;
-      const latLng = marker.getLatLng();
-      const next = collectPrivatePhotoLocationSettings().map((item) => (
-        item.id === location.id
-          ? { ...item, coordinates: { latitude: latLng.lat, longitude: latLng.lng } }
-          : item
-      ));
-      await savePrivatePhotoLocations(next);
-    });
+export async function savePrivatePhotoLocations(locations) {
+  validatePrivatePhotoLocations(locations);
+  await updateSettings((settings) => {
+    settings.privatePhotoLocations = locations;
   });
-  const activeLocation = locations.find((location) => location.id === ui.activePrivatePhotoLocationId);
-  if (activeLocation) {
-    ui.privatePhotoLocationMap.setView(
-      [activeLocation.coordinates.latitude, activeLocation.coordinates.longitude],
-      ui.privatePhotoLocationMap.getZoom()
-    );
-  }
 }

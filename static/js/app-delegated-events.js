@@ -2,9 +2,9 @@ import { activeStatsChartMetric, activeStatsTableSort, state, ui } from "./app-s
 import { els } from "./app-elements.js";
 import { deleteManagedLaunch, deleteManagedLocation, locationFormCoordinates, openCatchLocationDialog, openLocationDialog, populateLaunchSelect, setLocationFormCoordinates, toggleHomeLaunch, updateCatchFowFromLocation, updateCatchLocationSummary, updateLocationControls } from "./locations.js";
 import { refreshTripWaterConditions, scheduleTripWeatherPreview } from "./location-weather.js";
-import { scheduleSettingsAutosave, settingsUi } from "./settings-core.js";
+import { scheduleSettingsAutosave } from "./settings-core.js";
 import { addPredefinedOption as addPredefinedOptionDraft, cancelPredefinedEntryDeletion, handlePredefinedEntryDeleteClick, savePredefinedFieldSettings } from "./settings-fields.js";
-import { collectFishingSpotSettings, collectPrivatePhotoLocationSettings, renderFishingSpotMap, renderFishingSpotSettings, renderPrivatePhotoLocationSettings, saveFishingSpots, savePrivatePhotoLocations } from "./settings-locations.js";
+import { collectFishingSpotSettings, renderFishingSpotMap, renderFishingSpotSettings, saveFishingSpots } from "./settings-locations.js";
 import { renderTrips } from "./dashboard.js";
 import { addCatchPhotos, applyPhotoCaptureTimeToCatch, applyPhotoLocationToCatch, catchPhotoById, claimQueuedPhoto, deleteQueuedPhoto, isCatchMetadataLocked, openPhotoQueue, renderCatchPhotos, renderNotePhotos, setCatchMetadataLock } from "./photos.js";
 import { addProbeProfileDepth, clearProbeProfileLocation, clearTripFormMessage, closeTripDialog, collectProbeTemperatureProfile, importNoaaProbeTemperatureProfile, isTripFormDirty, markTripFormChanged, openProbeProfileLocationDialog, openTripDialog, populatePersonSelects, refreshTripEnvironmentalConditions, renderProbeTemperatureProfileChart, saveProbeProfileLocation, setProbeProfileImportStatus, setValue, syncTripFormChrome } from "./trip-editor.js";
@@ -480,15 +480,6 @@ export function setup() {
       openLocationDialog("launch", editManagedLaunch.dataset.locationId, editManagedLaunch.dataset.editManagedLaunch);
     }
   
-    const editPrivateLocationPin = event.target.closest("[data-edit-private-location-pin]");
-    if (editPrivateLocationPin) {
-      event.preventDefault();
-      event.stopPropagation();
-      ui.activePrivatePhotoLocationId = editPrivateLocationPin.dataset.editPrivateLocationPin;
-      ui.editingPrivatePhotoLocationId = ui.activePrivatePhotoLocationId;
-      renderPrivatePhotoLocationSettings();
-    }
-  
     const toggleFishingSpot = event.target.closest("[data-toggle-fishing-spot]");
     if (toggleFishingSpot) {
       event.preventDefault();
@@ -532,15 +523,6 @@ export function setup() {
         .catch((error) => alert(error.message || "The launch could not be deleted."));
     }
   
-    const deletePrivateLocationButton = event.target.closest("[data-delete-private-location]");
-    if (deletePrivateLocationButton) {
-      const next = collectPrivatePhotoLocationSettings().filter((location) => location.id !== deletePrivateLocationButton.dataset.deletePrivateLocation);
-      ui.activePrivatePhotoLocationId = "";
-      ui.editingPrivatePhotoLocationId = "";
-      if (settingsUi.privateLocationNameEditId === deletePrivateLocationButton.dataset.deletePrivateLocation) settingsUi.privateLocationNameEditId = "";
-      savePrivatePhotoLocations(next);
-    }
-  
     const deleteFishingSpotButton = event.target.closest("[data-delete-fishing-spot]");
     if (deleteFishingSpotButton) {
       const spotId = deleteFishingSpotButton.dataset.deleteFishingSpot;
@@ -577,24 +559,6 @@ export function setup() {
         ui.editingFishingSpotId = "";
         els.fishingSpotList?.querySelectorAll("[data-delete-fishing-spot]").forEach((button) => button.classList.add("hidden"));
       }
-    }
-  
-    const editPrivateLocationName = event.target.closest("[data-edit-private-location-name]");
-    if (editPrivateLocationName) {
-      ui.activePrivatePhotoLocationId = editPrivateLocationName.dataset.editPrivateLocationName;
-      ui.editingPrivatePhotoLocationId = ui.activePrivatePhotoLocationId;
-      settingsUi.privateLocationNameEditId = ui.activePrivatePhotoLocationId;
-      renderPrivatePhotoLocationSettings();
-      const input = els.privatePhotoLocationList?.querySelector(`[data-private-location-id="${CSS.escape(settingsUi.privateLocationNameEditId)}"] .private-location-name`);
-      input?.focus();
-      input?.select();
-    }
-  
-    const privateLocationCard = event.target.closest("[data-private-location-id]");
-    if (privateLocationCard && !event.target.closest("[data-edit-private-location-name], button, input, select, textarea")) {
-      ui.activePrivatePhotoLocationId = privateLocationCard.dataset.privateLocationId;
-      if (ui.editingPrivatePhotoLocationId !== ui.activePrivatePhotoLocationId) ui.editingPrivatePhotoLocationId = "";
-      renderPrivatePhotoLocationSettings();
     }
   
     const addRiggingButton = event.target.closest(".add-rigging-inline");

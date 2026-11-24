@@ -162,10 +162,6 @@
     display: none;
   }
 
-  .private-location-layout {
-    grid-template-columns: 1fr;
-  }
-
   .settings-page {
     gap: 18px;
   }
@@ -215,9 +211,6 @@
     width: 100%;
   }
 
-  .private-location-map {
-    min-height: 300px;
-  }
 }
 
 @media (max-width: 640px) {
@@ -577,6 +570,7 @@
   #tripDialog .catch-identity-row .catch-species-field,
   #tripDialog .catch-identity-row .possible-species-field,
   #tripDialog .catch-identity-row .catch-spot-field,
+  #tripDialog .catch-identity-row .catch-drift-field,
   #tripDialog .catch-identity-row .catch-structure-field {
     width: fit-content;
     max-width: 100%;
@@ -1047,6 +1041,7 @@
   #tripDialog .catch-identity-row .catch-species-field,
   #tripDialog .catch-identity-row .possible-species-field,
   #tripDialog .catch-identity-row .catch-spot-field,
+  #tripDialog .catch-identity-row .catch-drift-field,
   #tripDialog .catch-identity-row .catch-structure-field {
     grid-column: 1 / -1;
     width: 100%;

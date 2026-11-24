@@ -29,7 +29,6 @@ export function chopLabelForWaveHeight(value) {
 
 let settingsAutosaveTimer = null;
 export let settingsStatusTimer = null;
-settingsUi.privateLocationNameEditId = "";
 settingsUi.activeSettingsTab = "general";
 settingsUi.chopRangesEditing = false;
 settingsUi.chopRangesEditSnapshot = null;

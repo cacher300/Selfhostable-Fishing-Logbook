@@ -193,6 +193,30 @@
               </section>
             </div>
             <div class="settings-tab-panel" data-settings-panel="waterbodies" hidden>
+              <section class="settings-section fishing-area-overview-section" aria-labelledby="fishingAreaOverviewHeading">
+                <div class="settings-section-header">
+                  <div class="settings-section-copy">
+                    <h4 id="fishingAreaOverviewHeading">Spots and drifts map</h4>
+                  </div>
+                  <div class="fishing-area-overview-controls">
+                    <label class="settings-control">
+                      <span>Show on map</span>
+                      <select id="fishingAreaOverviewFilter" aria-controls="fishingAreaOverviewMap">
+                        <option value="all">Spots and drifts</option>
+                        <option value="spot">Fishing spots</option>
+                        <option value="drift">Drifts</option>
+                      </select>
+                    </label>
+                    <button class="button secondary" type="button" data-fit-fishing-area-overview>Fit map</button>
+                  </div>
+                </div>
+                <div id="fishingAreaOverviewMap" class="fish-map fishing-area-overview-map" role="application" aria-label="Map of saved fishing spots and drift areas"></div>
+                <ul class="fishing-area-map-legend" aria-label="Map legend">
+                  <li><span class="fishing-area-map-swatch fishing-area-map-swatch--spot" aria-hidden="true"></span>Fishing spots</li>
+                  <li><span class="fishing-area-map-swatch fishing-area-map-swatch--drift" aria-hidden="true"></span>Drifts</li>
+                </ul>
+                <p class="fishing-area-overview-empty" id="fishingAreaOverviewEmpty" role="status" hidden>No spots or drifts saved yet.</p>
+              </section>
               <section class="settings-section settings-section--waterbodies" aria-labelledby="waterbodySettingsHeading">
                 <div class="settings-section-header">
                   <div class="settings-section-copy">
@@ -241,27 +265,23 @@
                 <p id="fishingAreaMessage" role="status" aria-live="polite"></p>
                 <div class="fishing-area-dialog-layout">
                   <div id="fishingAreaFields" class="fishing-area-fields"></div>
-                  <div class="fishing-area-map-wrap"><div id="fishingAreaMap" class="fish-map fishing-area-map"></div><p id="fishingAreaMapHint" class="fishing-area-hint"></p></div>
+                  <div class="fishing-area-map-wrap"><div id="fishingAreaMap" class="fish-map fishing-area-map" role="region" aria-label="Area editor map" aria-describedby="fishingAreaMapHint"></div><p id="fishingAreaMapHint" class="fishing-area-hint"></p></div>
                 </div>
                 <div class="fishing-area-actions"><button type="button" class="button danger" data-delete-fishing-area>Delete</button><button type="button" class="button secondary" data-close-fishing-area>Cancel</button><button type="button" class="button primary" data-save-fishing-area>Save area</button></div>
               </dialog>
-              <section class="settings-section settings-section--home-location" aria-labelledby="homeLocationSettingsHeading">
+              <section class="settings-section" aria-labelledby="homeLocationSettingsHeading">
                 <div class="settings-section-header">
                   <div class="settings-section-copy">
                     <h4 id="homeLocationSettingsHeading">Home Location</h4>
-                    <p>By setting a home location, any photos taken at home will not be mapped to home on the fish map. Click a card or its Edit pin button to move the marker on the map.</p>
+                    <p>Photos taken within a home location’s privacy radius stay off the fish map.</p>
                   </div>
-                  <button class="button primary settings-button-with-icon" id="addPrivatePhotoLocationButton" type="button">
+                  <button class="button primary settings-button-with-icon" id="addPrivatePhotoLocationButton" data-add-fishing-area="home" type="button">
                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" /></svg>
                     Add Home Location
                   </button>
                 </div>
-                <div class="private-location-layout">
-                  <div class="private-location-list" id="privatePhotoLocationList"></div>
-                  <div class="private-location-map-panel">
-                    <div id="privatePhotoLocationMap" class="fish-map location-picker-map private-location-map"></div>
-                  </div>
-                </div>
+                <label class="fishing-area-search-label"><span>Find a home location</span><input id="homeLocationSearch" type="search" placeholder="Search home locations" /></label>
+                <div class="fishing-area-list" id="privatePhotoLocationList"></div>
               </section>
             </div>
             <span class="visually-hidden" id="settingsSaveStatus" aria-live="polite">Autosave on</span>

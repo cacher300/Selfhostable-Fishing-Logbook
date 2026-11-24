@@ -238,14 +238,16 @@ label > small,
   }
 }
 
-.private-location-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  margin-top: 0;
-}
-
 .fishing-area-search-label { display: grid; gap: 5px; max-width: 360px; margin: 12px 0; color: var(--muted); font-size: 13px; font-weight: 700; }
+.fishing-area-overview-section { row-gap: 12px; }
+.fishing-area-overview-controls { display: flex; align-items: end; justify-content: flex-end; flex-wrap: wrap; gap: 8px 12px; }
+.fishing-area-overview-map { height: min(58vh, 560px); min-height: 320px; border: 1px solid var(--line); border-radius: 10px; }
+.fishing-area-map-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0; padding: 0; color: var(--muted); list-style: none; font-size: 13px; }
+.fishing-area-map-legend li { display: inline-flex; align-items: center; gap: 7px; }
+.fishing-area-map-swatch { width: 14px; height: 14px; box-sizing: border-box; flex: 0 0 14px; }
+.fishing-area-map-swatch--spot { border: 2px solid #188457; border-radius: 50%; background: rgb(47 184 117 / 24%); }
+.fishing-area-map-swatch--drift { border: 2px solid #287fa2; border-radius: 3px; background: rgb(68 169 211 / 32%); }
+.fishing-area-overview-empty { margin: 0; color: var(--muted); font-size: 13px; }
 .fishing-area-list { display: grid; gap: 5px; max-height: 360px; overflow: auto; align-content: start; }
 .fishing-area-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--text); text-align: left; cursor: pointer; }
 .fishing-area-row:hover, .fishing-area-row.is-selected { border-color: var(--green); }
@@ -261,39 +263,25 @@ label > small,
 .fishing-area-fields { display: grid; align-content: start; gap: 12px; }
 .fishing-area-fields label { display: grid; gap: 5px; min-width: 0; }
 .fishing-area-fields label > span { color: var(--muted); font-weight: 700; }
-.fishing-area-fields input[type="text"], .fishing-area-fields input[type="number"] { width: 100%; min-width: 0; }
+.fishing-area-waterbody-controls { display: grid; gap: 6px; min-width: 0; }
+.fishing-area-waterbody-controls select { width: 100%; min-width: 0; }
+.fishing-area-fields input[type="text"] { width: 100%; min-width: 0; }
 .fishing-area-fields input[type="range"] { width: 100%; }
-.fishing-area-coordinate-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .fishing-area-map { height: min(55vh, 510px); min-height: 320px; border-radius: 8px; }
 .fishing-area-hint { margin: 6px 0; color: var(--muted); font-size: 13px; }
 .fishing-area-vertices { display: grid; max-height: 265px; overflow: auto; gap: 5px; }
-.fishing-area-vertex { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr) auto; gap: 5px; align-items: center; }
+.fishing-area-vertex { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .fishing-area-vertex .button { padding: 5px 8px; }
 .fishing-area-vertex-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .fishing-area-actions { justify-content: flex-end; margin-top: 16px; }
 .fishing-area-actions [data-delete-fishing-area] { margin-right: auto; }
 #fishingAreaMessage:not(:empty) { color: var(--danger); }
 @media (max-width: 700px) {
+  .fishing-area-overview-controls { justify-content: flex-start; }
+  .fishing-area-overview-map { height: 360px; min-height: 280px; }
   .fishing-area-dialog-layout { grid-template-columns: 1fr; }
   .fishing-area-map { height: 310px; min-height: 260px; }
   .fishing-area-dialog { padding: 12px; }
-  .fishing-area-vertex { grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr); }
-  .fishing-area-vertex .button { grid-column: 2 / -1; justify-self: start; }
-}
-
-.private-location-list {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-}
-
-.private-location-map-panel {
-  display: grid;
-  order: -1;
-}
-
-.private-location-map-panel .map-pin-instruction {
-  margin-top: 0;
 }
 
 .private-location-card {
@@ -415,44 +403,6 @@ label > small,
   justify-content: center;
   white-space: nowrap;
   text-align: center;
-}
-
-.private-location-name-row {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-width: 0;
-}
-
-.private-location-name-display {
-  min-width: 0;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-weight: 900;
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-
-.private-location-name-display:hover,
-.private-location-name-display:focus-visible {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.private-location-name-row .private-location-name {
-  width: min(220px, 100%);
-  min-height: 34px;
-  padding: 0 9px;
-  font-weight: 900;
-}
-
-.private-location-map {
-  min-height: 360px;
-  margin-top: 0;
-  border-radius: 8px;
 }
 
 .private-location-radius-control > span {

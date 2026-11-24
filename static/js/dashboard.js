@@ -287,6 +287,30 @@ export function renderFilters() {
   const selectedTarget = els.targetFilter.value || "All targets";
   setHtml(els.targetFilter, joinHtml(targets.map((target) => html`<option ${target === selectedTarget ? "selected" : ""}>${target}</option>`), ""));
 
+  const uniqueNames = (values) => [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))]
+    .sort((first, second) => first.localeCompare(second, undefined, { sensitivity: "base" }));
+  const locationOptions = uniqueNames([
+    ...state.locations.map((location) => location.name),
+    ...state.trips.map((trip) => trip.location)
+  ]);
+  const selectedLocation = els.locationFilter?.value || "";
+  if (els.locationFilter) {
+    setHtml(els.locationFilter, html`<option value="">All locations</option>${joinHtml(locationOptions.map((location) => (
+      html`<option value="${location}" ${location === selectedLocation ? "selected" : ""}>${location}</option>`
+    )), "")}`);
+  }
+
+  const launchOptions = uniqueNames([
+    ...state.locations.flatMap((location) => (location.launches || []).map((launch) => launch.name)),
+    ...state.trips.map((trip) => trip.launch)
+  ]);
+  const selectedLaunch = els.launchFilter?.value || "";
+  if (els.launchFilter) {
+    setHtml(els.launchFilter, html`<option value="">All launches</option>${joinHtml(launchOptions.map((launch) => (
+      html`<option value="${launch}" ${launch === selectedLaunch ? "selected" : ""}>${launch}</option>`
+    )), "")}`);
+  }
+
   const methods = ["All methods", ...new Set([...state.methods, ...state.trips.map((trip) => trip.method)].filter(Boolean))];
   const selectedMethod = methods.includes(els.methodFilter.value) ? els.methodFilter.value : "All methods";
   setHtml(els.methodFilter, joinHtml(methods.map((method) => html`<option ${method === selectedMethod ? "selected" : ""}>${method}</option>`), ""));
@@ -410,6 +434,8 @@ export function renderStatsMethodFilter() {
 
 export function filteredTrips() {
   const query = els.searchInput.value.trim().toLowerCase();
+  const locationFilter = els.locationFilter?.value || "";
+  const launchFilter = els.launchFilter?.value || "";
   const target = els.targetFilter.value;
   const method = els.methodFilter.value;
   const year = els.yearFilter.value;
@@ -443,13 +469,21 @@ export function filteredTrips() {
     ].join(" ").toLowerCase();
 
     const matchesQuery = !query || haystack.includes(query);
+    const locationRecord = state.locations.find((location) => location.id === trip.locationId)
+      || state.locations.find((location) => String(location.name || "").toLocaleLowerCase() === String(trip.location || "").trim().toLocaleLowerCase());
+    const launchRecord = (locationRecord?.launches || []).find((launch) => launch.id === trip.launchId)
+      || (locationRecord?.launches || []).find((launch) => String(launch.name || "").toLocaleLowerCase() === String(trip.launch || "").trim().toLocaleLowerCase());
+    const tripLocation = String(trip.location || locationRecord?.name || "").trim();
+    const tripLaunch = String(trip.launch || launchRecord?.name || "").trim();
+    const matchesLocation = !locationFilter || tripLocation.toLocaleLowerCase() === locationFilter.toLocaleLowerCase();
+    const matchesLaunch = !launchFilter || tripLaunch.toLocaleLowerCase() === launchFilter.toLocaleLowerCase();
     const matchesTarget = target === "All targets" || trip.targetSpecies === target;
     const matchesMethod = method === "All methods" || trip.method === method;
     const tripDate = new Date(`${trip.date}T12:00:00`);
     const matchesYear = year === "All years" || String(tripDate.getFullYear()) === year;
     const matchesMonth = month === "All months" || String(tripDate.getMonth() + 1) === month;
     const matchesFront = front === "all" || (front === "unclassified" ? !trip.weatherFront : trip.weatherFront === front);
-    return matchesQuery && matchesTarget && matchesMethod && matchesYear && matchesMonth && matchesFront;
+    return matchesQuery && matchesLocation && matchesLaunch && matchesTarget && matchesMethod && matchesYear && matchesMonth && matchesFront;
   });
 
   return trips.sort(compareTripsByActiveSort);
