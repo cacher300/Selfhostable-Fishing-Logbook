@@ -19,6 +19,10 @@ variables:
 test_python_app:
   stage: validate
   image: python:3.13-slim
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates gnupg
+    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    - apt-get install -y --no-install-recommends nodejs
   script:
     - python --version
     - pip install -r requirements-dev.txt
