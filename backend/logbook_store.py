@@ -277,10 +277,30 @@ def _validate_settings_semantics(settings: dict) -> tuple[bool, str | None]:
 def _validate_spot_names(payload: dict) -> tuple[bool, str | None]:
     names: set[str] = set()
     for index, spot in enumerate(payload.get("spots", [])):
+        path = f"spots[{index}]"
         name_key = spot["name"].strip().casefold()
         if name_key in names:
-            return _error(f"spots[{index}].name", "must be unique ignoring case")
+            return _error(f"{path}.name", "must be unique ignoring case")
         names.add(name_key)
+        if spot.get("boundaryType", "circle") != "polygon":
+            continue
+        vertices = spot["polygon"]
+        points = [(point["longitude"], point["latitude"]) for point in vertices]
+        if len(set(points)) != len(points):
+            return _error(f"{path}.polygon", "must have distinct vertices")
+        area = sum(points[i][0] * points[(i + 1) % len(points)][1] - points[(i + 1) % len(points)][0] * points[i][1] for i in range(len(points)))
+        if abs(area) < 1e-10:
+            return _error(f"{path}.polygon", "must have a nonzero area")
+        def crosses(a, b, c, d):
+            def side(p, q, r):
+                return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+            return side(a, b, c) * side(a, b, d) < 0 and side(c, d, a) * side(c, d, b) < 0
+        for first in range(len(points)):
+            for second in range(first + 2, len(points)):
+                if first == 0 and second == len(points) - 1:
+                    continue
+                if crosses(points[first], points[(first + 1) % len(points)], points[second], points[(second + 1) % len(points)]):
+                    return _error(f"{path}.polygon", "must not cross itself")
     return True, None
 
 

@@ -1,13 +1,14 @@
 import { isUsableCoordinates } from "./app-media.js";
 import { coordinateDistanceMeters } from "./app-normalization.js";
 import { pointInPolygon } from "./drifts.js";
+import { spotContainsCoordinates } from "./spot-geometry.js";
 import { greatLakeNameAt } from "./great-lakes-boundaries.js";
 
 const WATERBODY_PIN_RANGE_METERS = 500;
 
 function nearbyNames(point, { spots, drifts, locations }) {
   const names = [
-    ...spots.filter(spot => coordinateDistanceMeters(point, spot.coordinates) <= spot.radiusMeters)
+    ...spots.filter(spot => spotContainsCoordinates(spot, point))
       .map(spot => spot.lake || spot.waterbody),
     ...drifts.filter(drift => pointInPolygon(point, drift.polygon))
       .map(drift => drift.waterbody)

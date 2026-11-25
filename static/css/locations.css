@@ -267,12 +267,17 @@ label > small,
 .fishing-area-fields { display: grid; align-content: start; gap: 12px; }
 .fishing-area-fields label { display: grid; gap: 5px; min-width: 0; }
 .fishing-area-fields label > span { color: var(--muted); font-weight: 700; }
+.fishing-area-fields select { width: 100%; min-width: 0; }
 .fishing-area-waterbody-controls { display: grid; gap: 6px; min-width: 0; }
 .fishing-area-waterbody-controls select { width: 100%; min-width: 0; }
 .fishing-area-fields input[type="text"] { width: 100%; min-width: 0; }
 .fishing-area-fields input[type="range"] { width: 100%; }
 .fishing-area-map { height: min(55vh, 510px); min-height: 320px; border-radius: 8px; }
 .fishing-area-hint { margin: 6px 0; color: var(--muted); font-size: 13px; }
+.fishing-area-point-icon { border: 0; background: transparent; }
+.fishing-area-point-icon:focus-visible { outline: 3px solid #f3d35e; outline-offset: 2px; border-radius: 50%; }
+.fishing-area-point-number { display: grid; place-items: center; width: 32px; height: 32px; box-sizing: border-box; border: 2px solid #fff; border-radius: 50%; background: #145d7a; color: #fff; font-size: 13px; font-weight: 800; line-height: 1; box-shadow: 0 2px 6px rgb(3 10 24 / 40%); cursor: grab; user-select: none; }
+.fishing-area-point-icon:active .fishing-area-point-number { cursor: grabbing; }
 .fishing-area-vertices { display: grid; max-height: 265px; overflow: auto; gap: 5px; }
 .fishing-area-vertex { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .fishing-area-vertex .button { padding: 5px 8px; }

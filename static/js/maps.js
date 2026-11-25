@@ -10,6 +10,7 @@ import { els } from "./app-elements.js";
 import { isUsableCoordinates, isVideoMedia, mediaMarkup, previewImage } from "./app-media.js";
 import { coordinateText } from "./locations.js";
 import { fishingSpotRadiusText } from "./settings-locations.js";
+import { isPolygonSpot } from "./spot-geometry.js";
 import { ensureGreatLakesConditions, greatLakesLayerLabel, GREAT_LAKES_MODEL_BOUNDS } from "./great-lakes-conditions.js";
 import { pauseGreatLakesAnimation } from "./great-lakes-animation.js";
 import { positionLabel } from "./cards.js";
@@ -598,6 +599,13 @@ export function visibleMapSpots() {
 }
 
 export function mapSpotPopupHtml(spot) {
+  if (isPolygonSpot(spot)) return html`
+    <div class="map-popup map-spot-popup">
+      <strong>${spot.name || "Fishing spot"}</strong>
+      <span>Polygon boundary</span>
+      <small>${coordinateText(spot.coordinates)}</small>
+    </div>
+  `;
   const radius = Number(spot.radiusMeters);
   const radiusText = Number.isFinite(radius) && radius > 0
     ? `${typeof fishingSpotRadiusText === "function" ? fishingSpotRadiusText(radius) : `${Math.round(radius)} m`} radius`
@@ -615,7 +623,16 @@ export function addMapSpotMarker(layerGroup, spot) {
   const point = [spot.coordinates.latitude, spot.coordinates.longitude];
   const popupHtml = mapSpotPopupHtml(spot);
   const radius = Number(spot.radiusMeters);
-  if (Number.isFinite(radius) && radius > 0) {
+  if (isPolygonSpot(spot) && Array.isArray(spot.polygon) && spot.polygon.length >= 3) {
+    L.polygon(spot.polygon.map((vertex) => [vertex.latitude, vertex.longitude]), {
+      color: "#118753",
+      weight: 2,
+      fillColor: "#2fb875",
+      fillOpacity: 0.12,
+      interactive: false,
+      pane: "spotMarkers"
+    }).addTo(layerGroup);
+  } else if (Number.isFinite(radius) && radius > 0) {
     L.circle(point, {
       radius,
       color: "#118753",
@@ -1015,6 +1032,7 @@ export function renderFishMap() {
   });
   spots.forEach((spot) => {
     bounds.push([spot.coordinates.latitude, spot.coordinates.longitude]);
+    if (isPolygonSpot(spot)) (spot.polygon || []).forEach((vertex) => bounds.push([vertex.latitude, vertex.longitude]));
     addMapSpotMarker(ui.fishMapSpotMarkers, spot);
   });
   drifts.forEach((drift) => {

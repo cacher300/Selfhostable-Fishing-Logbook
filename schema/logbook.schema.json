@@ -478,10 +478,21 @@
         "coordinates": {
           "$ref": "#/$defs/coordinates"
         },
+        "boundaryType": {
+          "type": "string",
+          "enum": ["circle", "polygon"],
+          "description": "Optional active spot boundary. Missing means the legacy radius circle."
+        },
         "radiusMeters": {
           "type": "number",
           "minimum": 25,
           "maximum": 500
+        },
+        "polygon": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/coordinates" },
+          "description": "Boundary vertices used when a spot has a polygon boundary."
         }
       },
       "required": [
@@ -489,6 +500,15 @@
         "name",
         "coordinates",
         "radiusMeters"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": { "boundaryType": { "const": "polygon" } },
+            "required": ["boundaryType"]
+          },
+          "then": { "required": ["polygon"] }
+        }
       ]
     },
     "drift": {

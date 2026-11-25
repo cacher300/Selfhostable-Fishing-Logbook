@@ -58,7 +58,7 @@ Required top-level JSON types:
 - `schemaVersion` must be `2`.
 - Every v2 collection listed in `DATA_MODEL.md` must be present as an array, including option lists, gear libraries, people, locations, spots, drifts, expeditions, and trips.
 - `settings` must be an object.
-- `spots` must contain uniquely identified/named records with valid coordinates and a radius from 25 through 500 meters.
+- `spots` must contain uniquely identified/named records with valid anchor coordinates and a radius from 25 through 500 meters. `boundaryType` may be `circle` or `polygon` (missing means legacy circle); polygon spots also require at least three valid, distinct vertices forming a nonzero, non-self-crossing boundary.
 - `drifts` must contain uniquely identified/named polygons with at least three vertices, nonzero area, and no self-intersections. A fish record's `driftId` references a saved drift; `driftAssignmentMode` is `automatic` or `manual`.
 - `expeditions` must contain uniquely identified records with a name and ordered ISO start/end dates.
 

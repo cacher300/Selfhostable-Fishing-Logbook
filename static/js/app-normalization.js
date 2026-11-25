@@ -2,6 +2,7 @@ import { validateLogbook } from "./generated/logbook-schema-rules.js";
 import { createId, defaults } from "./app-defaults.js";
 import { state } from "./app-state.js";
 import { isUsableCoordinates } from "./app-media.js";
+import { spotContainsCoordinates } from "./spot-geometry.js";
 
 export function normalizeCoordinates(coordinates) {
   if (!coordinates || typeof coordinates !== "object") return null;
@@ -30,7 +31,7 @@ export function automaticSpotId(catchItem, spots = state.spots || []) {
   if (!coordinates) return "";
   const matches = spots.flatMap((spot) => {
     const distance = coordinateDistanceMeters(coordinates, spot.coordinates);
-    return distance <= Number(spot.radiusMeters) ? [{ id: spot.id, distance }] : [];
+    return spotContainsCoordinates(spot, coordinates) ? [{ id: spot.id, distance }] : [];
   });
   matches.sort((first, second) => first.distance - second.distance || first.id.localeCompare(second.id));
   return matches[0]?.id || "";
