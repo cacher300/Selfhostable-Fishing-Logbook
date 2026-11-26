@@ -240,11 +240,20 @@ test.describe("stats comparisons", () => {
 
   test("All time combines month and day; the top date filter alone switches to a weekday calendar", async ({page}) => {
     await seedComparisons(page);
-    await page.setViewportSize({width:390,height:844});
+    await page.setViewportSize({width:1920,height:1080});
     await page.clock.setFixedTime(new Date("2026-11-25T12:00:00"));
     await page.goto("/stats");
-    await page.locator("#workHeatModes").getByRole("button",{name:"Trips",exact:true}).click();
     const card = page.locator(".stats-activity-card"), grid = card.getByRole("table",{name:"All time by month and day"});
+    await expect(grid).toBeVisible();
+    const unusedWidth = await grid.evaluate(table => {
+      const scroller = table.parentElement;
+      const {paddingLeft, paddingRight} = getComputedStyle(scroller);
+      return scroller.clientWidth - parseFloat(paddingLeft) - parseFloat(paddingRight) - table.getBoundingClientRect().width;
+    });
+    expect(Math.abs(unusedWidth)).toBeLessThanOrEqual(1);
+
+    await page.setViewportSize({width:390,height:844});
+    await page.locator("#workHeatModes").getByRole("button",{name:"Trips",exact:true}).click();
     await expect(card.getByRole("button",{name:/^(previous|next) year$/i,includeHidden:true})).toHaveCount(0);
     await expect(grid.getByRole("columnheader")).toHaveText(["Month",...Array.from({length:31},(_,i)=>String(i+1))]);
     await expect(grid.getByRole("rowheader")).toHaveCount(12);
@@ -299,11 +308,10 @@ test.describe("stats comparisons", () => {
     await page.setViewportSize({width:320,height:800});
     await page.goto("/stats?month=July");
     const pie = page.getByRole("button",{name:"Pie chart",exact:true}), result = page.locator("#comparisonBuilderTable");
+    await expect(pie).toHaveCount(0);
+    await page.locator("#statsCompareMetricSelect").selectOption("fish");
+    await expect(pie).toBeVisible();
     await pie.click();
-    await expect(result.locator("svg")).toHaveCount(0);
-    await result.getByRole("button",{name:"Use Landed",exact:true}).click();
-    await expect(pie).toBeFocused();
-    await expect(page.locator("#statsCompareMetricSelect")).toHaveValue("fish");
     await expect(result.getByRole("img",{name:"Pie chart. Landed: 5 total in these groups"})).toBeVisible();
     await expect(result.locator("path")).toHaveCount(2);
     const top = result.getByRole("button",{name:/Chartreuse.*4 · 80%/});

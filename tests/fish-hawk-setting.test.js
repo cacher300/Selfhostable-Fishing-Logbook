@@ -17,7 +17,7 @@ assert.equal(hasFishHawk(), true, "Fish Hawk can be enabled");
 const editorTemplate = await readFile(new URL("../templates/partials/dialogs/trip-editor.html", import.meta.url), "utf8");
 const reportSource = await readFile(new URL("../static/js/trip-report.js", import.meta.url), "utf8");
 assert.match(editorTemplate, /trip-probe-temperature-section fish-hawk-field/, "the editor probe section follows the Fish Hawk setting");
-assert.match(reportSource, /hasFishHawk\(\) \? html`<section class="report-fact-section report-probe-section">/, "the trip viewer probe section follows the Fish Hawk setting");
+assert.match(reportSource, /hasFishHawk\(\) && probeTemperatureReadings\(trip\.probeTemperatureProfile\)\.length > 0 \? html`<section class="report-fact-section report-probe-section">/, "the trip viewer probe section requires Fish Hawk and a logged profile");
 
 const markers = probeCatchMarkers([
   { lineOut: "120", lineBehindBoard: "80" },

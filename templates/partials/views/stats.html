@@ -35,13 +35,25 @@
     <div id="statsActivityHeatmap"></div>
   </section>
   <section class="work-comparison" aria-labelledby="workTitle">
-    <header><h3 id="workTitle">Compare your fishing</h3><p>Choose a question, then compare its results against the time and trips behind them.</p></header>
+    <header><h3 id="workTitle">Advanced Statistics</h3></header>
     <div class="work-tools">
       <div class="work-topics" id="workTopics" aria-label="Report topics"></div>
       <div class="work-fields">
-        <label>Compare<select id="statsCompareBySelect"></select></label>
-        <label id="workSplitField">Split by<select id="statsCompareSplitSelect"></select></label>
-        <label>Measure<select id="statsCompareMetricSelect"></select></label>
+        <div class="work-parameter-field">
+          <label for="statsCompareBySelect">Compare</label>
+          <select id="statsCompareBySelect" aria-describedby="statsCompareByHelp"></select>
+          <small class="work-parameter-help" id="statsCompareByHelp">Choose the item or category to compare.</small>
+        </div>
+        <div class="work-parameter-field" id="workSplitField">
+          <label for="statsCompareSplitSelect">Split by</label>
+          <select id="statsCompareSplitSelect" aria-describedby="statsCompareSplitHelp"></select>
+          <small class="work-parameter-help" id="statsCompareSplitHelp">Optionally break results into subgroups.</small>
+        </div>
+        <div class="work-parameter-field">
+          <label for="statsCompareMetricSelect">Measure</label>
+          <select id="statsCompareMetricSelect" aria-describedby="statsCompareMetricHelp"></select>
+          <small class="work-parameter-help" id="statsCompareMetricHelp">Choose the statistic shown for each group.</small>
+        </div>
         <label id="workSizeField">Minimum fish length <span id="workSizeUnit"></span><input id="workSize" type="number" min="0" step="any" placeholder="Enter size"></label>
       </div>
       <details id="workOptions"><summary>Head-to-head &amp; sample limits</summary><div class="work-fields">

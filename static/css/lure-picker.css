@@ -77,6 +77,11 @@
   gap: 10px;
 }
 
+.lure-picker-grid[data-lure-library] {
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 14px;
+}
+
 .lure-picker-common .lure-picker-grid {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
@@ -113,6 +118,16 @@
   border-radius: 5px;
   background: var(--panel-soft);
   object-fit: contain;
+}
+
+.lure-picker-grid[data-lure-library] .lure-picker-card {
+  gap: 14px;
+  padding: 12px;
+}
+
+.lure-picker-grid[data-lure-library] .lure-picker-card img {
+  width: 112px;
+  height: 108px;
 }
 
 .lure-picker-card-copy {

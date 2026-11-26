@@ -321,7 +321,7 @@ function reportRows(facts, d, split, c, opts) {
     }
   }
   return { rows, columns: columns.map(id => ({ id, label: columnLabel(id) })), metric, names: options([...names]), pairEnabled, overlappingGroups,
-    note: missingEffort ? `${note} No attributable hours in this selection; showing counts instead.` : note, highlight };
+    note: isLine ? "" : missingEffort ? `${note} No attributable hours in this selection; showing counts instead.` : note, highlight };
 }
 
 export function buildStats(book, scope = {}, opts = {}, today = new Date()) {
@@ -386,7 +386,7 @@ function piePath(start,end) {
 
 export function piePlot(m) {
   const column = id => m.columns.find(c => c.id === id);
-  const unavailable = (message,suggestion) => ({slices:[],caption:"",message,suggestion});
+  const unavailable = (message,suggestion,suitable = false) => ({slices:[],caption:"",message,suggestion,suitable});
   if (m.overlappingGroups) return unavailable("The same record can appear in more than one group here. Use a bar chart or table to compare them.");
   const id = shareBase[m.metric] || m.metric;
   const tripCount = id === "trips" || id === "timedTrips";
@@ -402,7 +402,7 @@ export function piePlot(m) {
   const groups = m.rows.filter(r => Number.isFinite(r.values[id]) && r.values[id] > 0).map(r => ({
     key:r.key,name:r.secondary ? `${r.name} · ${r.secondary}` : r.name,value:r.values[id],tripIds:r.tripIds
   })).sort((a,b) => b.value-a.value || a.name.localeCompare(b.name));
-  if (!groups.length) return unavailable(`No positive values for ${label} in this comparison.`);
+  if (!groups.length) return unavailable(`No positive values for ${label} in this comparison.`,undefined,true);
   const sum = rows => rows.reduce((n,r) => n+r.value,0), total = sum(groups);
   if (groups.length > pieColors.length) {
     const rest = groups.splice(pieColors.length-1);
@@ -414,7 +414,7 @@ export function piePlot(m) {
     cumulative += r.value;
     return {...r,share:percent < .01 ? "<0.01%" : formatStat(percent,"%"),color:pieColors[i],path:piePath(start,i === groups.length-1 ? 1 : cumulative/total)};
   });
-  return {slices,caption:`${label}: ${formatStat(total)} total in these groups`};
+  return {slices,caption:`${label}: ${formatStat(total)} total in these groups`,suitable:true};
 }
 
 const nonzero = value => Number.isFinite(value) && value !== 0;

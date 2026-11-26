@@ -718,6 +718,39 @@ export function setup() {
     renderAdvancedStats();
   });
 
+  els.leaderboardDateFilter?.addEventListener("change", () => {
+    ui.activeStatsDateRange = els.leaderboardDateFilter.value;
+    syncStatsUrl();
+    renderAdvancedStats();
+  });
+
+  els.leaderboardMethodFilter?.addEventListener("change", () => {
+    ui.activeStatsMethod = els.leaderboardMethodFilter.value;
+    if (els.statsMethodFilter) els.statsMethodFilter.value = ui.activeStatsMethod;
+    syncStatsUrl();
+    renderAdvancedStats();
+  });
+
+  [
+    ["location", els.leaderboardLocationFilter, els.statsLocationFilter],
+    ["species", els.leaderboardSpeciesFilter, els.statsSpeciesFilter]
+  ].forEach(([key, control, statsControl]) => {
+    control?.addEventListener("change", () => {
+      activeStatsFilters[key] = control.value;
+      if (statsControl) statsControl.value = control.value;
+      syncStatsUrl();
+      renderAdvancedStats();
+    });
+  });
+
+  [els.leaderboardDateFrom, els.leaderboardDateTo].forEach((control) => {
+    control?.addEventListener("change", () => {
+      ui[control.id === "leaderboardDateFrom" ? "statsDateFrom" : "statsDateTo"] = control.value;
+      syncStatsUrl();
+      renderAdvancedStats();
+    });
+  });
+
   els.mapSpeciesFilter.addEventListener("change", () => {
     ui.activeMapSpecies = els.mapSpeciesFilter.value;
     renderFishMap();

@@ -164,19 +164,24 @@
 
 .leaderboard-filters {
   display: flex;
+  flex-wrap: wrap;
+  align-items: end;
   justify-content: flex-end;
+  gap: 10px;
 }
 
-.leaderboard-person-filter {
+.leaderboard-filter {
   display: grid;
-  width: min(280px, 100%);
+  flex: 0 1 190px;
+  min-width: 0;
   gap: 6px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 800;
 }
 
-.leaderboard-person-filter select {
+.leaderboard-filter :is(select, input) {
+  width: 100%;
   min-height: 40px;
   padding: 0 12px;
   border: 1px solid var(--line);
@@ -184,17 +189,44 @@
   background: var(--panel-soft);
   color: var(--text);
   font: inherit;
+  font-size: 13px;
+  font-weight: 650;
 }
 
-.leaderboard-person-filter select:focus-visible {
+.leaderboard-filter :is(select, input):focus-visible {
   outline: 2px solid var(--green);
   outline-offset: 2px;
 }
 
+.leaderboard-custom-dates {
+  display: flex;
+  flex: 0 1 390px;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+
+.leaderboard-custom-dates[hidden] {
+  display: none;
+}
+
+.leaderboard-custom-dates .leaderboard-filter {
+  flex: 1 1 0;
+}
+
+.leaderboard-custom-dates p {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+}
+
 .stats-leaderboard {
   display: grid;
-  gap: 14px;
-  padding: 18px;
+  gap: 10px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--panel);
@@ -341,15 +373,27 @@
   }
 
   .leaderboard-filters {
-    justify-content: stretch;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .leaderboard-person-filter {
-    width: 100%;
+  .leaderboard-filter {
+    width: auto;
+    max-width: none;
+  }
+
+  .leaderboard-custom-dates {
+    grid-column: 1 / -1;
   }
 
   .stats-leaderboard-board .leaderboard-metrics > div:last-child {
     grid-column: auto;
+  }
+}
+
+@media (max-width: 390px) {
+  .leaderboard-filters {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

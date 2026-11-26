@@ -297,7 +297,7 @@ export function renderTripReport(trip) {
     <section class="report-stat-strip">${joinHtml(statCards.map(([label, value]) => html`<div><span>${label}</span><strong>${String(value)}</strong></div>`), "")}</section>
     <section class="report-notes"><h3>Trip notes</h3><p>${trip.notes || "Not logged"}</p></section>
     ${renderReportOverview(trip)}
-    ${hasFishHawk() ? html`<section class="report-fact-section report-probe-section"><h3>Probe temperature profile</h3>${renderProbeTemperatureProfileReport(trip.probeTemperatureProfile, trip.catches)}</section>` : ""}
+    ${hasFishHawk() && probeTemperatureReadings(trip.probeTemperatureProfile).length > 0 ? html`<section class="report-fact-section report-probe-section"><h3>Probe temperature profile</h3>${renderProbeTemperatureProfileReport(trip.probeTemperatureProfile, trip.catches)}</section>` : ""}
     ${isTrollingTripRecord(trip) ? html`<section class="report-spread"><div class="report-section-title"><h3>Trolling spread</h3></div>${renderTrollingSpread(trip)}</section>` : ""}
     ${renderReportSetupTable(trip)}
     ${renderReportTimeline(trip)}

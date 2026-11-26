@@ -3,7 +3,7 @@ import { els } from "./app-elements.js";
 import { html, joinHtml, setHtml } from "./html.js";
 import { StatsActivityHeatmap } from "./stats-heatmap.js";
 import { buildStats, comparisonCount, comparisonRows, comparisonTable, formatStat, nextTableSort, overviewStats, piePlot, statsDateOptions, statsFilterOptions, trendPlot } from "./stats-workbench-model.js";
-import { activityModes, dateKey } from "./stats-calendar.js";
+import { activityModes, dateKey, statsDateWindow } from "./stats-calendar.js";
 import { syncStatsUrl } from "./app-control-events.js";
 import { renderStatsLeaderboard } from "./leaderboard.js";
 import { scopedTrips, recordMatchesStatsFilters } from "./stats-scope.js";
@@ -74,6 +74,30 @@ function resetScope() {
   ui.activeStatsCompareBy = "lureColor"; ui.activeStatsCompareSplit = ""; ui.activeStatsCompareMetric = "";
   clearPair(); syncStatsUrl();
 }
+
+function renderLeaderboardFilters() {
+  const filters = statsFilterOptions(state);
+  const dates = statsDateOptions(state.trips);
+  const methods = ["All methods", ...filters.method];
+  if (!dates.some((option) => option.id === ui.activeStatsDateRange)) ui.activeStatsDateRange = "all";
+  if (!methods.includes(ui.activeStatsMethod)) ui.activeStatsMethod = "All methods";
+  menu("leaderboardDateFilter", dates, ui.activeStatsDateRange);
+  menu("leaderboardMethodFilter", methods, ui.activeStatsMethod);
+  menu("leaderboardLocationFilter", ["All locations", ...filters.location], activeStatsFilters.location);
+  menu("leaderboardSpeciesFilter", ["All species", ...filters.species], activeStatsFilters.species);
+  menu("leaderboardPersonFilter", ["All people", ...filters.person], activeStatsFilters.person);
+
+  const customDates = ui.activeStatsDateRange === "custom";
+  byId("leaderboardCustomDates").hidden = !customDates;
+  byId("leaderboardDateFrom").value = ui.statsDateFrom;
+  byId("leaderboardDateTo").value = ui.statsDateTo;
+  byId("leaderboardDateHint").textContent = statsDateWindow({
+    date: ui.activeStatsDateRange,
+    from: ui.statsDateFrom,
+    to: ui.statsDateTo
+  }).error || "Includes both dates.";
+}
+
 function bind(root) {
   if (root.dataset.workBound) return;
   root.dataset.workBound = "true";
@@ -169,6 +193,7 @@ function syncHeatmap(m, scopeKey, month) {
 export function renderAdvancedStats() {
   const root = els.advancedStatsPanel || byId("advancedStatsPanel");
   if (ui.activeView === "leaderboard" || document.body.dataset.activeView === "leaderboard") {
+    renderLeaderboardFilters();
     renderStatsLeaderboard(scopedTrips(), (record,trip) => {
       const r = resolveTripLineRecord({ ...record,trip });
       return recordMatchesStatsFilters({ ...r, personId:r.personId || r.setupLine?.personId || "" });
@@ -219,12 +244,15 @@ export function renderAdvancedStats() {
   byId("workMatched").checked = matched; byId("workMatched").disabled = !(a && b);
   byId("workMatchField").hidden = !m.pairEnabled; byId("workSizeField").hidden = m.active.id !== "sizes"; byId("workSizeUnit").textContent = `(${m.units.fishLength})`;
   byId("workMinHoursField").hidden = !m.columns.some(c => c.id === "hours");
-  const selectedView = view || (a && b ? "table" : m.chart), chart = m.active.chart === "line" && !m.split ? "line" : "bar";
-  currentPie = selectedView === "pie" ? piePlot(m) : null;
+  const chart = m.active.chart === "line" && !m.split ? "line" : "bar", pieData = piePlot(m);
+  if (!pieData.suitable && view === "pie") view = "";
+  const selectedView = view || (a && b ? "table" : m.chart);
+  currentPie = selectedView === "pie" ? pieData : null;
   const formats = {table:"Table",bar:"Bar chart",line:"Trend line",pie:"Pie chart"};
-  setHtml(byId("workViews"),joinHtml(["table",chart,"pie"].map(v => tab(formats[v],v,selectedView === v,"view"))));
+  setHtml(byId("workViews"),joinHtml(["table",chart,...(pieData.suitable ? ["pie"] : [])].map(v => tab(formats[v],v,selectedView === v,"view"))));
   byId("workReportTitle").textContent = m.active.label;
   byId("statsCompareNote").textContent = m.note;
+  byId("statsCompareNote").hidden = !m.note;
   byId("workHighlight").textContent = m.highlight;
   const rows = comparisonRows(m,hideEmpty);
   byId("workHighlight").hidden = !m.highlight || rows.length !== m.rows.length;

@@ -453,10 +453,14 @@ export function catchSizePopupValue(catchItem = {}) {
 }
 
 export function mapDepthPopupHtml(coordinates, payload = null, status = "loading", overlayHtml = "") {
-  const heading = status === "loading" ? "Looking up…" : status === "error" ? "Depth unavailable" : (mapDepthText(payload) || "No depth found");
+  const depth = mapDepthText(payload);
+  const air = document.querySelector("[data-gl-layer]")?.value === "air-temperature";
+  const offWater = status === "ready" && !depth;
+  const heading = status === "loading" ? "Looking up…" : air ? "Air temperature" : depth || (status === "error" ? "Depth unavailable" : offWater ? "Not on the water" : "No depth found");
+  const reading = offWater && !air ? "" : overlayHtml;
   return html`<article class="gl-card${status === "loading" ? " is-loading" : ""}">
     <header class="gl-card-head"><strong class="gl-card-title">${heading}</strong><span class="gl-card-sub">${positionLabel(coordinates.latitude, coordinates.longitude)}</span></header>
-    ${overlayHtml}
+    ${reading}
   </article>`;
 }
 
