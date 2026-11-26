@@ -1,415 +1,62 @@
-<section class="stats-page hidden" id="advancedStatsPanel" aria-label="Fishing performance statistics">
-          <header class="stats-page-header">
-            <div class="stats-scope" id="statsActiveScope" aria-live="polite">All time · All methods</div>
-            <div>
-              <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
-              <button class="button secondary" id="leaderboardViewButton" type="button">Leaderboard</button>
-            </div>
-          </header>
-          <div class="stats-toolbar">
-            <label>
-              <span>Date range</span>
-              <select id="statsDateFilter">
-                <option value="all">All time</option>
-                <option value="season">This season</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
-              </select>
-            </label>
-            <label>
-              <span>Method</span>
-              <select id="statsMethodFilter"></select>
-            </label>
-            <label>
-              <span>Species</span>
-              <select id="statsSpeciesFilter"></select>
-            </label>
-            <label>
-              <span>Person</span>
-              <select id="statsPersonFilter"></select>
-            </label>
-            <label>
-              <span>Location</span>
-              <select id="statsLocationFilter"></select>
-            </label>
-            <label>
-              <span>Launch</span>
-              <select id="statsLaunchFilter"></select>
-            </label>
-            <label>
-              <span>Lure</span>
-              <select id="statsLureFilter"></select>
-            </label>
-            <details class="stats-more-filters">
-              <summary>More filters</summary>
-              <div>
-                <label>
-                  <span>Sort performance</span>
-                  <select id="statsSortFilter">
-                    <option value="fishPerHour">Fish / hour</option>
-                    <option value="fish">Fish caught</option>
-                    <option value="hours">Hours used</option>
-                    <option value="fishPerTrip">Fish / trip</option>
-                    <option value="efficiencyIndex">Efficiency index</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Min trips</span>
-                  <input id="statsMinTripsInput" type="number" min="0" step="1" value="0" />
-                </label>
-                <label>
-                  <span>Min hours</span>
-                  <input id="statsMinHoursInput" type="number" min="0" step="0.25" value="0" />
-                </label>
-                <label class="inline-toggle">
-                  <input id="statsIncludeLostToggle" type="checkbox" />
-                  <span>Rank by strike opportunities</span>
-                </label>
-                <label>
-                  <span>Flasher</span>
-                  <select id="statsFlasherFilter"></select>
-                </label>
-                <label>
-                  <span>Water clarity</span>
-                  <select id="statsWaterClarityFilter"></select>
-                </label>
-                <label>
-                  <span>Weather</span>
-                  <select id="statsWeatherFilter"></select>
-                </label>
-                <label>
-                  <span>Month</span>
-                  <select id="statsMonthFilter"></select>
-                </label>
-                <label>
-                  <span>Rating</span>
-                  <select id="statsRatingFilter"></select>
-                </label>
-              </div>
-            </details>
-          </div>
-          <div class="metric-grid" id="advancedMetricGrid"></div>
-          <section class="stats-activity-card" aria-labelledby="statsActivityTitle">
-            <div class="stats-activity-card-header">
-              <div>
-                <h3 id="statsActivityTitle">Fishing heatmap</h3>
-                <p id="statsActivitySummary">Your last 12 months on the water</p>
-              </div>
-            </div>
-            <div id="statsActivityHeatmap"></div>
-          </section>
-          <section class="stats-overview-grid" aria-label="Stats overview">
-            <article class="analytics-card show-chart" data-default-view="chart">
-              <h3>Top Species</h3>
-              <div class="analytics-table" id="speciesOverviewStatsTable"></div>
-            </article>
-          </section>
-          <div class="analytics-groups">
-            <details class="stats-group stats-group-compare" open>
-              <summary>
-                <span>Compare what's working</span>
-                <small>Catch rates by lure color, size, and glow, plus dipsey diver color, flasher color, and any comparison you build</small>
-              </summary>
-              <div class="analytics-grid">
-                <article class="analytics-card wide-card">
-                  <h3>What's Working</h3>
-                  <div class="analytics-table" id="comparisonHighlightsTable"></div>
-                </article>
-                <article class="analytics-card wide-card show-chart stats-compare-card" data-default-view="chart">
-                  <h3>Comparison Builder</h3>
-                  <div class="stats-compare-controls">
-                    <label>
-                      <span>Compare</span>
-                      <select id="statsCompareBySelect"></select>
-                    </label>
-                    <label>
-                      <span>Split by</span>
-                      <select id="statsCompareSplitSelect"></select>
-                    </label>
-                    <label id="statsCompareMetricField">
-                      <span>Show</span>
-                      <select id="statsCompareMetricSelect"></select>
-                    </label>
-                  </div>
-                  <p class="stats-compare-note" id="statsCompareNote"></p>
-                  <div class="analytics-table" id="comparisonBuilderTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Lure Color Performance</h3>
-                  <div class="analytics-table" id="lureColorStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Lure Color Family</h3>
-                  <div class="analytics-table" id="lureColorFamilyStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Lure Size Performance</h3>
-                  <div class="analytics-table" id="lureSizeStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Lure Type Performance</h3>
-                  <div class="analytics-table" id="lureTypeStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Glow vs Non-Glow</h3>
-                  <div class="analytics-table" id="lureGlowStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Blade Type Performance</h3>
-                  <div class="analytics-table" id="bladeTypeStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
-                  <h3>Dipsey Diver Color</h3>
-                  <div class="analytics-table" id="dipseyColorStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
-                  <h3>Dipsey Setting</h3>
-                  <div class="analytics-table" id="dipseySettingStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
-                  <h3>Flasher Color Performance</h3>
-                  <div class="analytics-table" id="flasherColorStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
-                  <h3>Lure + Flasher Color</h3>
-                  <div class="analytics-table" id="lureFlasherColorStatsTable"></div>
-                </article>
-              </div>
-            </details>
-
-            <details class="stats-group">
-              <summary>
-                <span>Catch results &amp; patterns</span>
-                <small>Outcome, species mix, release rate, target success, and bite timing</small>
-              </summary>
-              <div class="analytics-grid">
-                <article class="analytics-card wide-card">
-                  <h3>Outcome Breakdown</h3>
-                  <div class="analytics-table" id="outcomeStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Species Breakdown</h3>
-                  <div class="analytics-table" id="speciesStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Lost Fish</h3>
-                  <div class="analytics-table" id="lostFishStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Time Of Day</h3>
-                  <div class="analytics-table" id="timeOfDayStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Release Patterns</h3>
-                  <div class="analytics-table" id="releaseStatsTable"></div>
-                </article>
-              </div>
-            </details>
-
-            <details class="stats-group">
-              <summary>
-                <span>Lure performance</span>
-                <small>Time-adjusted lure return, plus trolling flashers and combinations when trolling is selected</small>
-              </summary>
-              <div class="analytics-grid">
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Lure Performance</h3>
-                  <div class="analytics-table" id="lureStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Lure Usage Vs Fish Share</h3>
-                  <div class="analytics-table" id="lureShareStatsTable"></div>
-                </article>
-                <article class="analytics-card wide-card">
-                  <h3>Lure Spread Context</h3>
-                  <div class="analytics-table" id="lureSpreadStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart" data-trolling-card>
-                  <h3>Flasher Performance</h3>
-                  <div class="analytics-table" id="flasherStatsTable"></div>
-                </article>
-                <article class="analytics-card wide-card show-chart" data-default-view="chart" data-trolling-card>
-                  <h3>Lure + Flasher Combos</h3>
-                  <div class="analytics-table" id="comboStatsTable"></div>
-                </article>
-                <article class="analytics-card wide-card" data-trolling-card>
-                  <h3>Trolling Highlights</h3>
-                  <div class="analytics-table" id="trollingHighlightsTable"></div>
-                </article>
-              </div>
-            </details>
-
-            <details class="stats-group" data-trolling-group>
-              <summary>
-                <span>Trolling stats</span>
-                <small>Port vs starboard, method, direction, flasher, combination, FOW, and depth</small>
-              </summary>
-              <div class="analytics-grid">
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Trolling Direction Performance</h3>
-                  <div class="analytics-table" id="directionStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Best GPS Speed by Direction</h3>
-                  <div class="analytics-table" id="directionSpeedStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Line Side Performance</h3>
-                  <div class="analytics-table" id="lineSideStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Trolling Method Performance</h3>
-                  <div class="analytics-table" id="trollingSetupStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Deepest Rigger Performance</h3>
-                  <div class="analytics-table" id="downriggerStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>FOW Fish Distribution</h3>
-                  <div class="analytics-table" id="fowRangeStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Exact FOW Caught</h3>
-                  <div class="analytics-table" id="fowStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Depth Down</h3>
-                  <div class="analytics-table" id="depthDownStatsTable"></div>
-                </article>
-              </div>
-            </details>
-
-            <details class="stats-group stats-group-new-data" data-trolling-group>
-              <summary>
-                <span>Speed, spread &amp; water column</span>
-                <small>Ball speed, GPS speed, shaker, spread distance, and probe temperature analytics</small>
-              </summary>
-              <div class="analytics-grid">
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>GPS Speed Performance</h3>
-                  <div class="analytics-table" id="gpsSpeedStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Ball Speed Performance</h3>
-                  <div class="analytics-table" id="ballSpeedStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Ball vs GPS Speed</h3>
-                  <div class="analytics-table" id="speedDeltaStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Shaker Rate</h3>
-                  <div class="analytics-table" id="shakerStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Distance Behind Performance</h3>
-                  <div class="analytics-table" id="distanceBehindStatsTable"></div>
-                </article>
-                <article class="analytics-card wide-card">
-                  <h3>Probe Temperature Profile</h3>
-                  <div class="analytics-table" id="probeTemperatureStatsTable"></div>
-                </article>
-                <article class="analytics-card wide-card show-chart" data-default-view="chart">
-                  <h3>Fish Position vs Thermocline</h3>
-                  <div class="analytics-table" id="thermoclineStatsTable"></div>
-                </article>
-              </div>
-            </details>
-
-            <details class="stats-group">
-              <summary>
-                <span>Trip patterns</span>
-                <small>Method, location, angler, month, fishing confidence, and trip rating</small>
-              </summary>
-              <div class="analytics-grid">
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Location Breakdown</h3>
-                  <div class="analytics-table" id="locationStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Method Breakdown</h3>
-                  <div class="analytics-table" id="methodStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Person Breakdown</h3>
-                  <div class="analytics-table" id="personStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Month Patterns</h3>
-                  <div class="analytics-table" id="monthStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Fishing Confidence</h3>
-                  <div class="analytics-table" id="intentStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Trip Rating Breakdown</h3>
-                  <div class="analytics-table" id="ratingStatsTable"></div>
-                </article>
-              </div>
-            </details>
-
-            <details class="stats-group">
-              <summary>
-                <span>Conditions</span>
-                <small>Water clarity, weather tag, wind, pressure, cloud cover, fronts, and moon windows</small>
-              </summary>
-              <div class="analytics-grid">
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Water Clarity Breakdown</h3>
-                  <div class="analytics-table" id="waterClarityStatsTable"></div>
-                </article>
-                <article class="analytics-card show-chart" data-default-view="chart">
-                  <h3>Weather Breakdown</h3>
-                  <div class="analytics-table" id="weatherStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Wind Direction</h3>
-                  <div class="analytics-table" id="windDirectionStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Wind Speed</h3>
-                  <div class="analytics-table" id="windSpeedStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Pressure</h3>
-                  <div class="analytics-table" id="pressureStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Cloud Cover</h3>
-                  <div class="analytics-table" id="cloudCoverStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Air Temperature</h3>
-                  <div class="analytics-table" id="airTempStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Sunshine</h3>
-                  <div class="analytics-table" id="sunshineStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Front Tag</h3>
-                  <div class="analytics-table" id="frontTagStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Weather Front</h3>
-                  <div class="analytics-table" id="weatherFrontStatsTable"></div>
-                </article>
-                <article class="analytics-card wide-card">
-                  <h3>Best Bite Windows</h3>
-                  <div class="analytics-table" id="biteWindowStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Moon Phase</h3>
-                  <div class="analytics-table" id="moonPhaseStatsTable"></div>
-                </article>
-                <article class="analytics-card">
-                  <h3>Moon Window</h3>
-                  <div class="analytics-table" id="moonWindowStatsTable"></div>
-                </article>
-              </div>
-            </details>
-
-          </div>
-        </section>
+<section class="stats-page hidden workbench" id="advancedStatsPanel" aria-label="Fishing performance statistics">
+  <header class="work-heading">
+    <div><h2>Fishing performance</h2><p id="statsActiveScope" aria-live="polite">All time · All methods</p></div>
+    <div class="work-actions">
+      <button class="button secondary" id="bestsViewButton" type="button">Personal Bests</button>
+      <button class="button secondary" id="leaderboardViewButton" type="button">Leaderboard</button>
+    </div>
+  </header>
+  <section class="work-scope" aria-label="Scope of statistics">
+    <div class="work-fields">
+      <label>Date range<select id="statsDateFilter"></select></label>
+      <label>Fishing method<select id="statsMethodFilter"></select></label>
+      <label>Waterbody<select id="statsLocationFilter"></select></label>
+      <button type="button" class="button secondary" id="workReset">Reset filters</button>
+    </div>
+    <label class="work-check"><input type="checkbox" id="workHideEmpty">Hide zero &amp; empty results</label>
+    <div id="workCustomDates" hidden>
+      <div class="work-fields"><label>Start date<input id="workDateFrom" type="date" aria-describedby="workDateHint"></label>
+        <label>End date<input id="workDateTo" type="date" aria-describedby="workDateHint"></label></div>
+      <p id="workDateHint" aria-live="polite"></p>
+    </div>
+    <details><summary>More filters</summary><div class="work-fields">
+      <label>Trip target<select id="workTarget"></select></label><label>Catch species<select id="statsSpeciesFilter"></select></label>
+      <label>Angler<select id="statsPersonFilter"></select></label><label>Launch<select id="statsLaunchFilter"></select></label>
+      <label>Lure<select id="statsLureFilter"></select></label><label>Flasher<select id="statsFlasherFilter"></select></label>
+      <label>Water clarity<select id="statsWaterClarityFilter"></select></label><label>Weather tag<select id="statsWeatherFilter"></select></label>
+      <label>Month<select id="statsMonthFilter"></select></label><label>Trip rating<select id="statsRatingFilter"></select></label>
+    </div></details>
+  </section>
+  <div class="metric-grid" id="advancedMetricGrid"></div>
+  <section class="stats-activity-card" aria-labelledby="statsActivityTitle">
+    <div class="stats-activity-card-header"><div><h3 id="statsActivityTitle">Fishing heatmap</h3><p id="statsActivitySummary" aria-live="polite"></p></div>
+      <div class="work-actions" id="workHeatModes" role="group" aria-label="Heatmap measure"></div>
+    </div>
+    <div id="statsActivityHeatmap"></div>
+  </section>
+  <section class="work-comparison" aria-labelledby="workTitle">
+    <header><h3 id="workTitle">Compare your fishing</h3><p>Choose a question, then compare its results against the time and trips behind them.</p></header>
+    <div class="work-tools">
+      <div class="work-topics" id="workTopics" aria-label="Report topics"></div>
+      <div class="work-fields">
+        <label>Compare<select id="statsCompareBySelect"></select></label>
+        <label id="workSplitField">Split by<select id="statsCompareSplitSelect"></select></label>
+        <label>Measure<select id="statsCompareMetricSelect"></select></label>
+        <label id="workSizeField">Minimum fish length <span id="workSizeUnit"></span><input id="workSize" type="number" min="0" step="any" placeholder="Enter size"></label>
+      </div>
+      <details id="workOptions"><summary>Head-to-head &amp; sample limits</summary><div class="work-fields">
+        <label>First group<select id="workA"></select></label><label>Second group<select id="workB"></select></label>
+        <label>Min trips<input id="statsMinTripsInput" type="number" min="0" step="1" value="0"></label>
+        <label id="workMinHoursField">Min hours<input id="statsMinHoursInput" type="number" min="0" step="0.25" value="0"></label>
+        <label class="work-check" id="workMatchField"><input type="checkbox" id="workMatched">Only when both setups were fishing</label>
+      </div></details>
+    </div>
+    <div class="work-result" aria-labelledby="workReportTitle">
+      <div class="work-heading"><div><h4 id="workReportTitle"></h4><p id="workReportCount" aria-live="polite"></p></div><div class="work-actions" id="workViews"></div></div>
+      <p class="work-note" id="statsCompareNote"></p>
+      <p class="work-highlight" id="workHighlight" hidden></p>
+      <div id="comparisonBuilderTable"></div>
+      <div id="workSources" aria-live="polite"></div>
+    </div>
+  </section>
+</section>

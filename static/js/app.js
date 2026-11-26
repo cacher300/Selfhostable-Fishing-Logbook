@@ -4,7 +4,7 @@ import { replaceState } from "./store.js";
 import { els } from "./app-elements.js";
 import { applyThemePreference, renderSettings } from "./settings.js";
 import { applyStartupSavedSetup } from "./saved-setups.js";
-import { renderAll } from "./dashboard.js";
+import { renderAll, restoreStatsFilters } from "./dashboard.js";
 import { renderExpeditions } from "./expeditions.js";
 import { populatePersonSelects, setPersonPhotoForRow } from "./trip-editor.js";
 import { applyStartupTrollingSpread, refreshTripRodChoices, updateAllRowSummaries, updateCatchDetailsUnknown } from "./trip-rows.js";
@@ -100,6 +100,7 @@ export function setView(view) {
   if (showingBests) renderPersonalBests();
   if (showingExpeditions) renderExpeditions();
   // The leaderboard panel is rendered as part of the advanced stats pass.
+  if (showingStats) restoreStatsFilters();
   if (showingStats || showingLeaderboard) renderAdvancedStats();
   if (showingMap) renderFishMap();
   if (showingGallery) renderGallery();

@@ -9,6 +9,8 @@ const root = process.cwd();
 const mobileRoot = path.resolve(root, "..", "Mobile");
 const check = process.argv.includes("--check");
 const desktopOnly = process.argv.includes("--desktop-only");
+const sharedOnly = process.argv.includes("--shared-only") || process.argv.includes("--stats-only");
+const sharedFiles = new Set();
 const schemaPath = path.join(root, "schema", "logbook.schema.json");
 const constantsPath = path.join(root, "schema", "constants.json");
 const defaultsPath = path.join(root, "schema", "default-logbook.json");
@@ -226,6 +228,12 @@ emit(path.join(desktopGenerated, "logbook-validator.js"), validatorCode);
 emit(path.join(desktopGenerated, "logbook-schema-rules.js"), rulesCode());
 emit(path.join(desktopGenerated, "package.json"), "{\n  \"type\": \"module\"\n}\n");
 if (!desktopOnly) {
+  for (const name of ["measurement-conversion.js", "probe-catch-depths.js", "probe-catch-depths.d.ts", "stats-dimensions.js", "stats-calendar.js", "stats-calendar.d.ts", "stats-workbench-model.js", "stats-workbench-model.d.ts"]) {
+    const source = await fs.readFile(path.join(root, "static", "js", name), "utf8");
+    const file = path.join(mobileGenerated, name);
+    sharedFiles.add(file);
+    emit(file, `/* Generated from desktop/static/js/${name}. Do not edit by hand. */\n` + source.replaceAll("\r\n", "\n"));
+  }
   emit(path.join(mobileGenerated, "weather-front-rules.js"), frontRules);
   emit(path.join(mobileGenerated, "weather-front-rules.d.ts"), 'export interface FrontAssessment { value: "" | "pre-front" | "during-front" | "post-front" | "no-front"; reason: string; method: string; frontTime?: string; [key: string]: unknown; }\nexport function weatherFrontDateRange(trip: unknown): { startDate: string; endDate: string } | null;\nexport function classifyWeatherFront(trip: unknown, bundle: unknown): FrontAssessment;\nexport function resetAutomaticWeatherFront<T>(trip: T): T;\nexport function automaticWeatherFrontPatch(trip: unknown, assessment?: FrontAssessment): { weatherFront?: FrontAssessment["value"]; weatherFrontSource?: "automatic" };\n');
   emit(path.join(mobileGenerated, "logbook-validator.js"), validatorCode);
@@ -242,6 +250,7 @@ if (!desktopOnly) {
 
 const stale = [];
 for (const [file, content] of outputs) {
+  if (sharedOnly && !sharedFiles.has(file)) continue;
   let current = null;
   try { current = await fs.readFile(file, "utf8"); } catch { current = null; }
   if (current !== content) stale.push(file);
@@ -251,4 +260,4 @@ if (check && stale.length) {
   console.error("Generated schema artifacts are stale:\n" + stale.map((file) => path.relative(root, file)).join("\n"));
   process.exit(1);
 }
-console.log(check ? "Generated schema artifacts are fresh." : "Wrote " + outputs.size + " schema artifacts.");
+console.log(check ? "Generated artifacts are fresh." : `Wrote ${sharedOnly ? sharedFiles.size : outputs.size} artifacts.`);

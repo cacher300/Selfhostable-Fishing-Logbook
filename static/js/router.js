@@ -20,6 +20,13 @@ viewRoutes.trips = "/trips";
 
 let renderView = () => {};
 let initialized = false;
+let statsSearch = "";
+
+export function replaceStatsSearch(query) {
+  if (window.location.pathname !== "/stats") return;
+  statsSearch = query ? `?${query}` : "";
+  window.history.replaceState(window.history.state, "", `/stats${statsSearch}`);
+}
 
 function viewFromPath(pathname = window.location.pathname) {
   const path = String(pathname || "/").replace(/\/$/, "") || "/";
@@ -40,6 +47,7 @@ function canUseHistoryRoutes() {
 
 export function replaceInitialRoute() {
   const view = viewFromCurrentRoute();
+  if (view === "stats") statsSearch = window.location.search;
   if (canUseHistoryRoutes()) {
     window.history.replaceState({ view }, "", `${window.location.pathname}${window.location.search}${window.location.hash}`);
   } else {
@@ -57,14 +65,17 @@ export function navigate(view, { replace = false } = {}) {
   const nextPath = routeForView(nextView);
   const currentView = viewFromCurrentRoute();
   const sameView = currentView === nextView;
-  renderView(nextView);
-  if (sameView && window.location.pathname === nextPath) return;
+  if (sameView && window.location.pathname === nextPath) {
+    renderView(nextView);
+    return;
+  }
   const url = sameView
     ? `${nextPath}${window.location.search}${window.location.hash}`
-    : nextPath;
+    : nextView === "stats" ? `${nextPath}${statsSearch}` : nextPath;
   const state = { view: nextView };
   if (replace) window.history.replaceState(state, "", url);
   else window.history.pushState(state, "", url);
+  renderView(nextView);
 }
 
 export function initRouter(onRenderView) {
@@ -72,6 +83,8 @@ export function initRouter(onRenderView) {
   if (initialized) return;
   initialized = true;
   window.addEventListener("popstate", () => {
-    renderView(viewFromCurrentRoute());
+    const view = viewFromCurrentRoute();
+    if (view === "stats") statsSearch = window.location.search;
+    renderView(view);
   });
 }

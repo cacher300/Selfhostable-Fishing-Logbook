@@ -209,6 +209,7 @@
 }
 
 .stats-leaderboard-board {
+  container: ranking / inline-size;
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -252,7 +253,7 @@
 }
 
 .stats-leaderboard-board .leaderboard-row {
-  grid-template-columns: 28px minmax(120px, 1fr) minmax(264px, 0.9fr);
+  grid-template-columns: 28px minmax(120px, 1fr) minmax(0, 1.8fr);
   gap: 9px;
   padding: 8px 14px;
 }
@@ -267,8 +268,10 @@
   gap: 12px;
 }
 
-.stats-leaderboard-board .leaderboard-metrics > div:nth-child(n + 7) {
-  display: none;
+.stats-leaderboard-board .leaderboard-identity strong,
+.stats-leaderboard-board .leaderboard-metrics span {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .stats-leaderboard-board .leaderboard-empty {
@@ -345,13 +348,18 @@
     width: 100%;
   }
 
-  .stats-leaderboard-board .leaderboard-metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .stats-leaderboard-board .leaderboard-metrics > div:last-child {
     grid-column: auto;
   }
+}
+
+@container ranking (max-width: 620px) {
+  .stats-leaderboard-board .leaderboard-row { grid-template-columns: 28px minmax(0, 1fr); }
+  .stats-leaderboard-board .leaderboard-performance { grid-column: 1 / -1; }
+}
+
+@container ranking (max-width: 450px) {
+  .stats-leaderboard-board .leaderboard-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -930,7 +930,6 @@
   display: block;
   border: 1px solid rgba(7, 21, 46, 0.04);
   border-radius: 2px;
-  background: #ebeff3;
 }
 
 .activity-heatmap-day {
@@ -952,6 +951,7 @@
   outline: 2px solid var(--blue);
 }
 
+.activity-heatmap-level-0 { background: #ebeff3; }
 .activity-heatmap-level-1 { background: #bce4d0; }
 .activity-heatmap-level-2 { background: #82ce9f; }
 .activity-heatmap-level-3 { background: #42ad70; }

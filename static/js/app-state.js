@@ -18,16 +18,20 @@ ui.activeNotePhotos = [];
 ui.activeTripSort = { key: "date", direction: "desc" };
 ui.activeStatsMethod = "All methods";
 ui.activeStatsDateRange = "all";
+ui.statsDateFrom = "";
+ui.statsDateTo = "";
 ui.activeStatsSort = "fishPerHour";
 ui.activeStatsMinTrips = 0;
 ui.activeStatsMinHours = 0;
+ui.activeStatsHideEmpty = false;
 ui.activeStatsIncludeLost = false;
 ui.activeStatsCompareBy = "lureColor";
 ui.activeStatsCompareSplit = "";
-ui.activeStatsCompareMetric = "fishPerHour";
+ui.activeStatsCompareMetric = "";
 export const activeStatsTableSort = {};
 export const activeStatsChartMetric = {};
-export const activeStatsFilters = {
+export const defaultStatsFilters = {
+  targetSpecies: "",
   species: "All species",
   person: "All people",
   location: "All locations",
@@ -39,6 +43,7 @@ export const activeStatsFilters = {
   month: "All months",
   rating: "All ratings"
 };
+export const activeStatsFilters = { ...defaultStatsFilters };
 export const activePersonalBestsFilters = {
   year: "All years",
   month: "All months",

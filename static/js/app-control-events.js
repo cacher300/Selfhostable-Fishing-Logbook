@@ -23,6 +23,7 @@ import { clearGearFilter, closeGearFilterSuggestions, openGearFilterSuggestions,
 import { renderFishMap, renderTripSummaryMap, saveMapBathymetryPreference, syncMapPageBathymetryOverlay, syncMapPageChartOverlay } from "./maps.js";
 import { openTripShareStudio } from "./trip-sharing.js";
 import { renderAdvancedStats } from "./stats.js";
+import { reportForMethod } from "./stats-workbench-model.js";
 import { renderPersonalBests } from "./personal-bests.js";
 import { populateStructureSelect } from "./form-utils.js";
 
@@ -30,7 +31,7 @@ import { deleteGalleryItems, downloadGalleryItems, gallerySelectionMode, gallery
 import { bindChecklistEvents } from "./checklists.js";
 import { openTrollingSpreadPicker } from "./trolling-spread-picker.js";
 import { openPersonPhotoPicker } from "./person-photo-picker.js";
-import { navigate } from "./router.js";
+import { navigate, replaceStatsSearch } from "./router.js";
 import { handleGearDraftControlEvent, handleSettingsDraftControlEvent, handleTripDraftControlEvent } from "./draft-binding.js";
 
 let activeListOption = null;
@@ -155,19 +156,23 @@ export function syncStatsUrl() {
   if (window.location.pathname !== "/stats") return;
   const params = new URLSearchParams();
   if (ui.activeStatsDateRange !== "all") params.set("range", ui.activeStatsDateRange);
+  if (ui.activeStatsDateRange === "custom") {
+    if (ui.statsDateFrom) params.set("from", ui.statsDateFrom);
+    if (ui.statsDateTo) params.set("to", ui.statsDateTo);
+  }
   if (ui.activeStatsMethod !== "All methods") params.set("method", ui.activeStatsMethod);
   if (ui.activeStatsSort !== "fishPerHour") params.set("sort", ui.activeStatsSort);
   if (ui.activeStatsMinTrips) params.set("minTrips", String(ui.activeStatsMinTrips));
   if (ui.activeStatsMinHours) params.set("minHours", String(ui.activeStatsMinHours));
+  if (ui.activeStatsHideEmpty) params.set("nonzero", "1");
   if (ui.activeStatsIncludeLost) params.set("outcome", "strikes");
-  if (ui.activeStatsCompareBy && ui.activeStatsCompareBy !== "lureColor") params.set("compare", ui.activeStatsCompareBy);
+  if (ui.activeStatsCompareBy && ui.activeStatsCompareBy !== reportForMethod(ui.activeStatsMethod)) params.set("compare", ui.activeStatsCompareBy);
   if (ui.activeStatsCompareSplit) params.set("split", ui.activeStatsCompareSplit);
-  if (ui.activeStatsCompareSplit && ui.activeStatsCompareMetric !== "fishPerHour") params.set("show", ui.activeStatsCompareMetric);
+  if (ui.activeStatsCompareMetric) params.set("show", ui.activeStatsCompareMetric);
   Object.entries(activeStatsFilters).forEach(([key, value]) => {
     if (value && !value.startsWith("All ")) params.set(key, value);
   });
-  const query = params.toString();
-  history.replaceState(null, "", `/stats${query ? `?${query}` : ""}`);
+  replaceStatsSearch(params.toString());
 }
 
 export function setup() {
@@ -617,6 +622,9 @@ export function setup() {
 
   els.statsMethodFilter.addEventListener("change", () => {
     ui.activeStatsMethod = els.statsMethodFilter.value;
+    ui.activeStatsCompareBy = reportForMethod(ui.activeStatsMethod);
+    ui.activeStatsCompareMetric = "";
+    ui.activeStatsCompareSplit = "";
     syncStatsUrl();
     renderAdvancedStats();
   });
@@ -674,6 +682,10 @@ export function setup() {
   ].forEach(([control, key]) => {
     control?.addEventListener("change", () => {
       ui[key] = control.value;
+      if (key === "activeStatsCompareBy") {
+        ui.activeStatsCompareSplit = "";
+        ui.activeStatsCompareMetric = "";
+      }
       syncStatsUrl();
       renderAdvancedStats();
     });

@@ -135,7 +135,7 @@ the only surface edited.
 - Test mapped/unmapped trips and weather-service failure; trip save must still complete.
 - Change unit/time/predefined/chop settings and inspect forms and reports.
 - Export/import into a disposable copy; verify schema v2, integrity, and that valid records are not reshaped.
-- Exercise narrow-screen navigation/dialog/table behavior.
+- Exercise narrow-screen navigation/dialog/table behavior. Resize the header on Checklists and Expeditions: the full title and any New Expedition button should stay clear of the primary navigation.
 
 Useful static checks:
 

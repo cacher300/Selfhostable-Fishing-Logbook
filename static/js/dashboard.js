@@ -1,6 +1,6 @@
 import { html, joinHtml, setHtml } from "./html.js";
 import { weatherFrontLabel, weatherFrontOptions, weatherFrontValue } from "./weather-front.js";
-import { activeStatsFilters, state, ui } from "./app-state.js";
+import { activeStatsFilters, defaultStatsFilters, state, ui } from "./app-state.js";
 import { locationNames, optionChoices, optionLabels } from "./app-normalization.js";
 import { unitSymbol } from "./app-units.js";
 import { els } from "./app-elements.js";
@@ -13,7 +13,8 @@ import { updateAllRowSummaries } from "./trip-rows.js";
 import { flasherName, lureName } from "./gear-core.js";
 import { renderGearLibrary } from "./gear-inventory.js";
 import { resolveTripLineRecord } from "./trolling-spread.js";
-import { tripMonthName } from "./stats-scope.js";
+import { statsMonthNames } from "./stats-calendar.js";
+import { reportForMethod, statsDateOptions, usedStatsMethods } from "./stats-workbench-model.js";
 import { calculateHours, parseFirstNumber, renderAdvancedStats } from "./stats.js";
 import { renderPersonalBests } from "./personal-bests.js";
 import { trimNumber } from "./form-utils.js";
@@ -336,28 +337,34 @@ export function renderFilters() {
   }
 }
 
+export function restoreStatsFilters(methods = ["All methods", ...usedStatsMethods(state.trips)]) {
+  if (window.location.pathname !== "/stats") return;
+  const params = new URLSearchParams(window.location.search);
+  const range = params.get("range"), method = params.get("method");
+  ui.activeStatsDateRange = statsDateOptions(state.trips).some(o => o.id === range) ? range : "all";
+  ui.statsDateFrom = ui.activeStatsDateRange === "custom" ? params.get("from") || "" : "";
+  ui.statsDateTo = ui.activeStatsDateRange === "custom" ? params.get("to") || "" : "";
+  ui.activeStatsMethod = methods.includes(method) ? method : "All methods";
+  ui.activeStatsSort = params.get("sort") || "fishPerHour";
+  ui.activeStatsMinTrips = Math.max(0, Math.floor(Number(params.get("minTrips")) || 0));
+  ui.activeStatsMinHours = Math.max(0, Number(params.get("minHours")) || 0);
+  ui.activeStatsHideEmpty = params.get("nonzero") === "1";
+  ui.activeStatsIncludeLost = params.get("outcome") === "strikes";
+  ui.activeStatsCompareBy = params.get("compare") || reportForMethod(ui.activeStatsMethod);
+  ui.activeStatsCompareSplit = params.get("split") || "";
+  ui.activeStatsCompareMetric = params.get("show") || (params.get("outcome") === "strikes" ? "strikesPerHour" : params.get("sort") || "");
+  Object.keys(activeStatsFilters).forEach((key) => {
+    activeStatsFilters[key] = params.get(key) || defaultStatsFilters[key];
+  });
+  if (els.statsSortFilter) els.statsSortFilter.value = ui.activeStatsSort;
+  if (els.statsMinTripsInput) els.statsMinTripsInput.value = ui.activeStatsMinTrips;
+  if (els.statsMinHoursInput) els.statsMinHoursInput.value = ui.activeStatsMinHours;
+  if (els.statsIncludeLostToggle) els.statsIncludeLostToggle.checked = ui.activeStatsIncludeLost;
+}
+
 export function renderStatsMethodFilter() {
-  if (window.location.pathname === "/stats") {
-    const params = new URLSearchParams(window.location.search);
-    ui.activeStatsDateRange = ["all", "season", "30", "90"].includes(params.get("range")) ? params.get("range") : "all";
-    ui.activeStatsMethod = params.get("method") || ui.activeStatsMethod;
-    ui.activeStatsSort = params.get("sort") || ui.activeStatsSort;
-    ui.activeStatsMinTrips = Math.max(0, Math.floor(Number(params.get("minTrips")) || 0));
-    ui.activeStatsMinHours = Math.max(0, Number(params.get("minHours")) || 0);
-    ui.activeStatsIncludeLost = params.get("outcome") === "strikes";
-    ui.activeStatsCompareBy = params.get("compare") || "lureColor";
-    ui.activeStatsCompareSplit = params.get("split") || "";
-    ui.activeStatsCompareMetric = params.get("show") || "fishPerHour";
-    Object.keys(activeStatsFilters).forEach((key) => {
-      if (params.has(key)) activeStatsFilters[key] = params.get(key);
-    });
-    if (els.statsDateFilter) els.statsDateFilter.value = ui.activeStatsDateRange;
-    if (els.statsSortFilter) els.statsSortFilter.value = ui.activeStatsSort;
-    if (els.statsMinTripsInput) els.statsMinTripsInput.value = ui.activeStatsMinTrips;
-    if (els.statsMinHoursInput) els.statsMinHoursInput.value = ui.activeStatsMinHours;
-    if (els.statsIncludeLostToggle) els.statsIncludeLostToggle.checked = ui.activeStatsIncludeLost;
-  }
-  const methods = ["All methods", ...new Set([...state.methods, ...state.trips.map((trip) => trip.method)].filter(Boolean))];
+  const methods = ["All methods", ...usedStatsMethods(state.trips)];
+  restoreStatsFilters(methods);
   if (!methods.includes(ui.activeStatsMethod)) ui.activeStatsMethod = "All methods";
   setHtml(els.statsMethodFilter, joinHtml(methods.map((method) => (
     html`<option value="${method}" ${method === ui.activeStatsMethod ? "selected" : ""}>${method}</option>`
@@ -420,7 +427,7 @@ export function renderStatsMethodFilter() {
     html`<option value="${item}" ${item === activeStatsFilters.weather ? "selected" : ""}>${item}</option>`
   )), ""));
 
-  const months = ["All months", ...new Set(state.trips.map((trip) => tripMonthName(trip)).filter(Boolean))];
+  const months = ["All months", ...statsMonthNames];
   if (!months.includes(activeStatsFilters.month)) activeStatsFilters.month = "All months";
   setHtml(els.statsMonthFilter, joinHtml(months.map((item) => (
     html`<option value="${item}" ${item === activeStatsFilters.month ? "selected" : ""}>${item}</option>`

@@ -9,7 +9,7 @@ import { els } from "./app-elements.js";
 import { isVideoMedia, mediaMarkup, originalMediaUrl, previewImage } from "./app-media.js";
 import { catchWeatherSummary, formatWaveHeightChopLine } from "./location-weather.js";
 import { fishCount, formatDate, tripHours } from "./dashboard.js";
-import { displayProbeTemperatureMeasurement, probeCatchDepths, probeTemperatureChartLegendMarkup, probeTemperatureReadings, renderProbeTemperatureProfileChartMarkup } from "./trip-editor.js";
+import { displayProbeTemperatureMeasurement, probeCatchDepths, probeTemperatureChartLegendMarkup, probeTemperatureReadings, renderProbeTemperatureProfileChartMarkup, tripRatingClass, tripRatingLabel } from "./trip-editor.js";
 import { comboName, flasherName, lureName, reelName, rodName } from "./gear-core.js";
 import { isTrollingTripRecord, renderTrollingSpread, resolveTripLineRecord, setupLineSideLabel } from "./trolling-spread.js";
 import { catchMapRecordsForTrip } from "./maps.js";
@@ -145,10 +145,40 @@ export function reportTimelineRecords(trip) {
   ];
 }
 
-export function renderReportKeyValue(title, rows) {
-  const values = rows.filter(([, value]) => value);
+function renderReportFacts(rows) {
+  const values = rows.filter(([, value]) =>
+    String(value ?? "").trim() && value !== "Not logged" && value !== "No marine data");
   if (!values.length) return "";
-  return html`<section class="report-fact-section"><h3>${title}</h3><dl>${joinHtml(values.map(([label, value]) => html`<div><dt>${label}</dt><dd>${value}</dd></div>`), "")}</dl></section>`;
+  return html`<dl class="report-facts">${values.map(([label, value]) => html`<div><dt>${label}</dt><dd>${value}</dd></div>`)}</dl>`;
+}
+
+function renderReportOverview(trip) {
+  const overview = renderReportFacts([
+    ["Launch / area", displayTitleText(trip.launch)],
+    ["Target species", displayTitleText(trip.targetSpecies)],
+    ["Method", displayTitleText(trip.method)],
+    ["People", (trip.people || []).map((person) => displayTitleText(person.name)).filter(Boolean).join(", ")],
+    ["Intent", displayTitleText(trip.intent)],
+    ["Rating", trip.tripRating ? html`<span class="rating-pill ${tripRatingClass(trip.tripRating)}">${tripRatingLabel(trip.tripRating)}</span>` : ""]
+  ]);
+  const conditions = renderReportFacts([
+    ["Weather", displayTitleText(trip.weather)],
+    ["Wind", trip.wind],
+    ["Waves / chop", formatWaveHeightChopLine(trip, trip.weatherData)],
+    ["Water temperature", displayStoredMeasurement(trip.waterTemp, "waterTemperature")],
+    ["Water clarity", displayTitleText(trip.waterClarity)],
+    ["FOW range", displayStoredMeasurement(trip.structure, "depth")],
+    ["Structure", displayTitleText(trip.structureType)]
+  ]);
+  const weather = renderReportFacts(reportAdditionalConditionRows(trip));
+  if (!overview && !conditions && !weather) return "";
+  return html`<div class="report-overview-grid">
+    ${overview ? html`<section class="report-overview-row"><h3>Trip details</h3>${overview}</section>` : ""}
+    ${conditions || weather ? html`<section class="report-overview-row"><h3>Conditions</h3>
+      <div class="report-conditions">${conditions}
+        ${weather ? html`<details class="report-weather-details"><summary>Weather details</summary>${weather}</details>` : ""}
+      </div></section>` : ""}
+  </div>`;
 }
 
 export function renderReportTimeline(trip) {
@@ -183,15 +213,11 @@ export function refreshReportTimeline() {
   if (trip && section) section.replaceWith(document.createRange().createContextualFragment(renderReportTimeline(trip)));
 }
 
-export function reportRatingLabel(value) {
-  return ["", "Bad", "Mediocre", "Good", "Outstanding"][Math.min(4, Math.max(1, Number(value) || 1))];
-}
-
 export function renderProbeTemperatureProfileReport(profile = [], catches = []) {
   const readings = probeTemperatureReadings(profile);
   if (!readings.length) return "Not logged";
   const catchDepthEntries = probeCatchDepths(catches);
-  return html`<div class="report-probe-chart-wrap"><div class="report-probe-chart">${renderProbeTemperatureProfileChartMarkup(readings, { compact: true, idPrefix: "reportProbeTemperature", catchDepths: catchDepthEntries, catchDetails: true })}</div>${probeTemperatureChartLegendMarkup(catchDepthEntries)}<div class="report-probe-values" aria-label="Recorded probe readings">${joinHtml(readings.map((entry) => html`<span><b>${formatUnitValue(Number(entry.depthFeet), "depth", "ft", { decimals: 0 })}</b><em>${displayProbeTemperatureMeasurement(entry.temperature)}</em></span>`), "")}</div></div>`;
+  return html`<div class="report-probe-chart-wrap"><div class="report-probe-chart">${renderProbeTemperatureProfileChartMarkup(readings, { compact: true, idPrefix: "reportProbeTemperature", catchDepths: catchDepthEntries, catchDetails: true })}</div>${probeTemperatureChartLegendMarkup(catchDepthEntries, catches.length - catchDepthEntries.length)}<div class="report-probe-values" aria-label="Recorded probe readings">${joinHtml(readings.map((entry) => html`<span><b>${formatUnitValue(Number(entry.depthFeet), "depth", "ft", { decimals: 0 })}</b><em>${displayProbeTemperatureMeasurement(entry.temperature)}</em></span>`), "")}</div></div>`;
 }
 
 export function biggestCatchMeasurement(catches = []) {
@@ -261,15 +287,17 @@ export function renderTripReport(trip) {
   const tripPhotos = trip.notePhotos || [];
   const catchPhotos = catchPhotosByPriority(trip);
   const hero = [...tripPhotos, ...catchPhotos].find((photo) => !isVideoMedia(photo) && previewImage(photo));
-  const reportMeta = [formatDate(trip.date), trip.launchTime ? formatTimelineDisplayTime(trip.launchTime) : ""].filter(Boolean).join(" · ");
-  const overview = [["Date", formatDate(trip.date)], ["Location", displayTitleText(trip.location)], ["Launch / area", displayTitleText(trip.launch)], ["Start time", trip.launchTime ? formatTimelineDisplayTime(trip.launchTime) : ""], ["End time", trip.linesPulledTime ? formatTimelineDisplayTime(trip.linesPulledTime) : ""], ["Duration", tripHours(trip) ? `${trimNumber(tripHours(trip))} hours` : ""], ["People", (trip.people || []).map((person) => displayTitleText(person.name)).filter(Boolean).join(", ")], ["Target species", displayTitleText(trip.targetSpecies)], ["Method", displayTitleText(trip.method)], ["Intent", displayTitleText(trip.intent)], ["Rating", reportRatingLabel(trip.tripRating)]];
-  const conditions = [["Weather", displayTitleText(trip.weather)], ["Water temperature", displayStoredMeasurement(trip.waterTemp, "waterTemperature")], ["Water clarity", displayTitleText(trip.waterClarity)], ["Structure", displayTitleText(trip.structureType)], ["FOW range", displayStoredMeasurement(trip.structure, "depth")], ["Wind", trip.wind], ["Waves / chop", formatWaveHeightChopLine(trip, trip.weatherData)], ...reportAdditionalConditionRows(trip)];
+  const start = trip.launchTime ? formatTimelineDisplayTime(trip.launchTime) : "";
+  const end = trip.linesPulledTime ? formatTimelineDisplayTime(trip.linesPulledTime) : "";
+  const timeRange = start && end ? `${start} – ${end}` : start || (end && `Ended ${end}`);
+  const reportMeta = [formatDate(trip.date), timeRange, displayTitleText(trip.location)].filter(Boolean).join(" · ");
   const mapRecords = catchMapRecordsForTrip(trip);
   return html`<article class="trip-report">
-    <header class="report-header${hero ? " has-hero" : ""}">${hero ? html`<div class="report-header-media" aria-hidden="true">${mediaMarkup(hero, "report-hero-asset", { download: false })}</div>` : ""}<div class="report-header-copy"><p class="report-date">${reportMeta}${trip.location ? ` · ${displayTitleText(trip.location)}` : ""}</p><h3>${displayTitleText(trip.title || trip.location || "Trip report")}</h3><p class="report-subtitle">${[trip.targetSpecies, trip.method].filter(Boolean).map(displayTitleText).join(" · ") || "Fishing trip report"}</p><div class="report-actions"><button class="button primary" type="button" data-report-action="edit">Edit trip</button><button class="button secondary" type="button" data-report-action="share">Share trip</button></div></div></header>
+    <header class="report-header${hero ? " has-hero" : ""}">${hero ? html`<div class="report-header-media" aria-hidden="true">${mediaMarkup(hero, "report-hero-asset", { download: false })}</div>` : ""}<div class="report-header-copy"><p class="report-date">${reportMeta}</p><h3>${displayTitleText(trip.title || trip.location || "Trip report")}</h3><p class="report-subtitle">${[trip.targetSpecies, trip.method].filter(Boolean).map(displayTitleText).join(" · ") || "Fishing trip report"}</p><div class="report-actions"><button class="button primary" type="button" data-report-action="edit">Edit trip</button><button class="button secondary" type="button" data-report-action="share">Share trip</button></div></div></header>
     <section class="report-stat-strip">${joinHtml(statCards.map(([label, value]) => html`<div><span>${label}</span><strong>${String(value)}</strong></div>`), "")}</section>
     <section class="report-notes"><h3>Trip notes</h3><p>${trip.notes || "Not logged"}</p></section>
-    <div class="report-fact-grid report-overview-grid">${renderReportKeyValue("Trip details", overview)}${renderReportKeyValue("Conditions", conditions)}${hasFishHawk() ? html`<section class="report-fact-section report-probe-section"><h3>Probe temperature profile</h3>${renderProbeTemperatureProfileReport(trip.probeTemperatureProfile, trip.catches)}</section>` : ""}</div>
+    ${renderReportOverview(trip)}
+    ${hasFishHawk() ? html`<section class="report-fact-section report-probe-section"><h3>Probe temperature profile</h3>${renderProbeTemperatureProfileReport(trip.probeTemperatureProfile, trip.catches)}</section>` : ""}
     ${isTrollingTripRecord(trip) ? html`<section class="report-spread"><div class="report-section-title"><h3>Trolling spread</h3></div>${renderTrollingSpread(trip)}</section>` : ""}
     ${renderReportSetupTable(trip)}
     ${renderReportTimeline(trip)}

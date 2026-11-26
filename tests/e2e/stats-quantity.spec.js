@@ -19,10 +19,15 @@ test("stats count released and shaker quantities and display metric speed", asyn
     await page.goto("/stats");
     await expect(page).toHaveTitle("Fishing Logbook");
     await expect(page.locator("#advancedMetricGrid")).toContainText("5 released · 1 kept");
-    await expect(page.locator("#shakerStatsTable")).toContainText("83.33%");
-    await expect(page.locator("#directionSpeedStatsTable")).toContainText("4.8 kph");
-    await expect(page.locator("#gpsSpeedStatsTable")).toContainText("kph");
-    await expect(page.locator("#gpsSpeedStatsTable")).not.toContainText("mph");
+    await page.getByRole("button",{name:"At the bite",exact:true}).click();
+    const result = page.locator("#comparisonBuilderTable");
+    await page.locator("#statsCompareBySelect").selectOption("shaker");
+    await expect(result).toContainText("83.33%");
+    await page.locator("#statsCompareBySelect").selectOption("directionSpeed");
+    await expect(result).toContainText("4.8 kph");
+    await page.locator("#statsCompareBySelect").selectOption("gpsSpeed");
+    await expect(result).toContainText("kph");
+    await expect(result).not.toContainText("mph");
     expect(errors).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath("stats-quantity-units.png") });
   } finally {

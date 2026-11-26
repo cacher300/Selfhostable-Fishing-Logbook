@@ -1,4 +1,6 @@
 import { html } from "./html.js";
+import { colorFamilies } from "./stats-dimensions.js";
+export { colorFamilies };
 import { state } from "./app-state.js";
 import { unitSymbol } from "./app-units.js";
 import { fishCount, number } from "./dashboard.js";
@@ -22,28 +24,6 @@ import {
 const TIME_OF_DAY_ORDER = ["Morning", "Midday", "Afternoon", "Evening", "Night"];
 const MONTH_ORDER = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-// Free-text colors are grouped into families so "Blue/Silver" and "Silver Blue
-// Glow" both contribute to Blue and Silver. A lure can belong to several.
-const COLOR_FAMILIES = [
-  ["Chartreuse", /chartreuse|\bchart\b|fire ?tiger/],
-  ["Green", /green|lime|olive|\bmoss|fire ?tiger/],
-  ["Blue", /blue|navy|cobalt/],
-  ["Purple", /purple|violet|grape|plum|\bkiwi\b/],
-  ["Pink", /pink|magenta|bubble ?gum|salmon/],
-  ["Orange", /orange|fire ?tiger|tangerine/],
-  ["Red", /\bred\b|crimson|blood/],
-  ["Yellow", /yellow|lemon/],
-  ["White", /white|pearl|\bbone\b/],
-  ["Black", /black/],
-  ["Silver", /silver|chrome|nickel|mirror/],
-  ["Gold", /gold|brass/],
-  ["Copper", /copper/],
-  ["Brown", /brown|\btan\b|bronze|pumpkin|rootbeer|root beer/],
-  ["Gray", /gr[ae]y|smoke/],
-  ["Glow", /glow|lumi/],
-  ["UV", /\buv\b/]
-];
-
 export const COMPARISON_METRICS = [
   { id: "fishPerHour", label: "Fish / hr" },
   { id: "strikesPerHour", label: "Strikes / hr" },
@@ -63,14 +43,6 @@ function lineValue(record, key) {
 function tripWeatherNumber(trip, key) {
   const value = Number(trip?.weatherData?.tripWindow?.[key]);
   return Number.isFinite(value) ? value : null;
-}
-
-export function colorFamilies(color, { glow = false } = {}) {
-  const text = cleanText(color).toLowerCase();
-  const families = COLOR_FAMILIES.filter(([, pattern]) => pattern.test(text)).map(([name]) => name);
-  if (glow && !families.includes("Glow")) families.push("Glow");
-  if (!families.length && text) families.push("Other");
-  return families;
 }
 
 export function lureSizeLabel(lure) {

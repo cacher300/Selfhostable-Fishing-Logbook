@@ -225,20 +225,38 @@ export function renderPersonalBestMetrics(items, records) {
   const heaviest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best, "weight") > 0 ? item : best), null);
   const longest = items.reduce((best, item) => (!best || comparePersonalBestCatches(item, best, "length") > 0 ? item : best), null);
   const newest = items.reduce((best, item) => (!best || personalBestDateValue(item) > personalBestDateValue(best) ? item : best), null);
+  const measuredCatches = records.length;
   setHtml(els.personalBestsMetricGrid, joinHtml([
-    ["Species With PBs", items.length],
-    ["Heaviest PB", heaviest ? `${heaviest.species} ${catchMeasurementText(heaviest, "weight") || catchMeasurementText(heaviest, "length")}` : "-"],
-    ["Longest PB", longest ? `${longest.species} ${catchMeasurementText(longest, "length") || catchMeasurementText(longest, "weight")}` : "-"],
-    ["Newest PB", newest ? `${newest.species} ${formatDate(newest.trip?.date) || "Date not logged"}` : "-"]
-  ].map(([label, value]) => html`
+    {
+      label: "Species With PBs",
+      value: items.length,
+      detail: measuredCatches ? `${measuredCatches} measured ${measuredCatches === 1 ? "catch" : "catches"}` : "No measured catches"
+    },
+    {
+      label: "Heaviest PB",
+      value: heaviest ? catchMeasurementText(heaviest, "weight") || catchMeasurementText(heaviest, "length") : "-",
+      detail: heaviest?.species || ""
+    },
+    {
+      label: "Longest PB",
+      value: longest ? catchMeasurementText(longest, "length") || catchMeasurementText(longest, "weight") : "-",
+      detail: longest?.species || ""
+    },
+    {
+      label: "Newest PB",
+      value: newest ? formatDate(newest.trip?.date) || "Date not logged" : "-",
+      detail: newest?.species || ""
+    }
+  ].map(({ label, value, detail }) => html`
     <article class="metric-card">
       <span>${label}</span>
       <strong>${value}</strong>
+      <small>${detail}</small>
     </article>
   `), ""));
 }
 
-export function renderPersonalBestCard(record) {
+export function renderPersonalBestCard(record, { featured = false } = {}) {
   const photo = (record.photos || []).find((item) => previewImage(item) && !isVideoMedia(item));
   const lengthText = catchMeasurementText(record, "length") || "Not logged";
   const weightText = catchMeasurementText(record, "weight") || "Not logged";
@@ -246,20 +264,21 @@ export function renderPersonalBestCard(record) {
   const media = photo
     ? html`<div class="personal-best-media">${mediaMarkup(photo, "personal-best-photo")}</div>`
     : "";
+  const cardClass = `personal-best-card ${featured ? "is-featured" : "is-compact"}${photo ? " has-photo" : ""}`;
   return html`
-    <article class="personal-best-card">
+    <article class="${cardClass}">
       ${media}
       <div class="personal-best-body">
         <div class="personal-best-title-row">
           <div>
-            <span class="pattern-rank">Personal best</span>
+            <span class="pattern-rank">${featured ? "Top personal best" : "Personal best"}</span>
             <h4>${record.species}</h4>
           </div>
         </div>
         <dl class="personal-best-details">
-          <div><dt>Weight</dt><dd>${weightText}</dd></div>
-          <div><dt>Length</dt><dd>${lengthText}</dd></div>
-          <div><dt>Date</dt><dd>${formatDate(record.trip?.date)}</dd></div>
+          <div class="personal-best-stat is-hero"><dt>Weight</dt><dd>${weightText}</dd></div>
+          <div class="personal-best-stat is-hero"><dt>Length</dt><dd>${lengthText}</dd></div>
+          <div class="personal-best-stat"><dt>Date</dt><dd>${formatDate(record.trip?.date)}</dd></div>
           <div><dt>Trip</dt><dd>${tripTitle}</dd></div>
           <div><dt>Location</dt><dd>${record.trip?.location || "Not logged"}</dd></div>
           <div><dt>Lure</dt><dd>${lureName(record.lureId) || "Not logged"}</dd></div>
@@ -280,11 +299,13 @@ export function renderPersonalBestProgression(records) {
     return;
   }
 
+  const stepCount = progressions.reduce((total, { milestones }) => total + milestones.length, 0);
   setHtml(els.personalBestProgression, html`
     <div class="personal-best-progression-header">
       <div>
         <h4>Progression of Personal Bests</h4>
       </div>
+      <span>${progressions.length} species / ${stepCount} ${stepCount === 1 ? "step" : "steps"}</span>
     </div>
     <div class="personal-best-progression-grid">
       ${joinHtml(progressions.map(({ species, milestones }) => html`
@@ -294,10 +315,10 @@ export function renderPersonalBestProgression(records) {
             <span>${milestones.length} ${milestones.length === 1 ? "step" : "steps"}</span>
           </div>
           <ol class="personal-best-timeline">
-            ${joinHtml(milestones.map(({ record, previous }) => {
+            ${joinHtml(milestones.map(({ record, previous }, index) => {
               const tripTitle = record.trip?.title || record.trip?.location || "Saved trip";
               return html`
-                <li>
+                <li class="${index === milestones.length - 1 ? "is-current" : ""}">
                   <div class="personal-best-timeline-point" aria-hidden="true"></div>
                   <div class="personal-best-timeline-body">
                     <div class="personal-best-timeline-topline">
@@ -335,5 +356,5 @@ export function renderPersonalBests() {
     `);
     return;
   }
-  setHtml(els.personalBestsGrid, joinHtml(items.map(renderPersonalBestCard)));
+  setHtml(els.personalBestsGrid, joinHtml(items.map((record, index) => renderPersonalBestCard(record, { featured: index === 0 }))));
 }

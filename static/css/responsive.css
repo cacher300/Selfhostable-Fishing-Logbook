@@ -88,10 +88,6 @@
   .settings-section > :not(.settings-section-copy):not(.settings-section-header) {
     grid-column: 1;
   }
-
-  #personalBestsMetricGrid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 760px) {
@@ -768,15 +764,9 @@
   }
 
   .photo-queue-actions,
-  .photo-queue-card .photo-queue-card-actions,
-  .personal-bests-header {
+  .photo-queue-card .photo-queue-card-actions {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .personal-bests-tools {
-    grid-template-columns: 1fr;
-    min-width: 0;
   }
 
   .photo-queue-grid {
@@ -786,9 +776,6 @@
   .report-header { grid-template-columns: 1fr; gap: 18px; }
   .report-stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .report-stat-strip div:nth-child(2n) { border-right: 0; }
-  .report-fact-grid { grid-template-columns: 1fr; }
-  .report-fact-section { border-right: 0; border-bottom: 1px solid #d7e2eb; }
-  .report-fact-section:last-child { border-bottom: 0; }
   .report-timeline-heading { align-items: start; flex-direction: column; }
   .report-timeline-tools { justify-content: flex-start; }
   .trip-summary-map {
@@ -861,16 +848,6 @@
   .stats-chart-value {
     text-align: left;
   }
-
-  .personal-best-title-row {
-    display: grid;
-  }
-
-  .personal-best-progression-header,
-  .personal-best-progression-card-head,
-  .personal-best-timeline-topline {
-    display: grid;
-  }
 }
 
 @media (max-width: 640px) {
@@ -941,6 +918,7 @@
   }
 
   .catch-media-gallery.is-scrollable .thumbnail-column {
+    height: auto;
     max-height: none;
     overflow: visible;
     padding-right: 0;

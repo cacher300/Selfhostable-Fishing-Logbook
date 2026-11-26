@@ -6,10 +6,12 @@
 .personal-bests-page {
   display: grid;
   gap: 18px;
+  container: bests / inline-size;
 }
 
 .personal-bests-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: end;
   justify-content: space-between;
   gap: 12px;
@@ -22,33 +24,72 @@
 
 .personal-bests-tools {
   display: grid;
-  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
   gap: 12px;
-  min-width: min(420px, 100%);
+  width: min(100%, 460px);
+  min-width: 0;
+}
+
+.personal-bests-tools :is(label, select) {
+  min-width: 0;
 }
 
 .personal-bests-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: 14px;
 }
 
+.personal-bests-grid > .empty-state {
+  grid-column: 1 / -1;
+  padding: 30px 18px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
 #personalBestsMetricGrid {
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--line);
+}
+
+#personalBestsMetricGrid .metric-card {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  padding: 14px 18px;
+  border: 0;
+  background: var(--panel);
+}
+
+#personalBestsMetricGrid .metric-card strong {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+#personalBestsMetricGrid .metric-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .personal-best-card {
-  display: grid;
-  grid-template-rows: auto 1fr;
+  min-width: 0;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: var(--shadow);
+  border-radius: 10px;
+  background: var(--panel);
 }
 
 .personal-best-media {
-  min-height: 176px;
+  overflow: hidden;
   background: #edf2f5;
 }
 
@@ -56,36 +97,23 @@
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 176px;
-}
-
-.personal-best-photo {
   object-fit: cover;
 }
 
-.personal-best-body {
-  display: grid;
-  align-content: start;
-  gap: 14px;
-  padding: 16px 18px 14px;
-}
-
 .personal-best-title-row {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
+  min-width: 0;
 }
 
 .personal-best-title-row h4 {
   margin: 0;
-  font-size: 21px;
-  line-height: 1.15;
+  font-size: 18px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .pattern-rank {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 900;
@@ -94,15 +122,11 @@
 }
 
 .personal-best-details {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
   margin: 0;
 }
 
-.personal-best-details div {
+.personal-best-details > div {
   min-width: 0;
-  padding-bottom: 8px;
 }
 
 .personal-best-details dt {
@@ -113,37 +137,158 @@
 }
 
 .personal-best-details dd {
-  margin: 3px 0 0;
+  margin: 2px 0 0;
   color: var(--text);
   font-size: 14px;
   font-weight: 800;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
 .personal-best-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  margin-top: 2px;
-  padding-top: 12px;
 }
 
 .personal-best-actions .compact-action {
   width: auto;
   min-width: 0;
   border-radius: 8px;
+  white-space: nowrap;
+}
+
+.personal-best-card.is-compact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title actions"
+    "details details";
+  align-content: start;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.personal-best-card.is-compact.has-photo {
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "photo title actions"
+    "details details details";
+}
+
+.is-compact > .personal-best-body {
+  display: contents;
+}
+
+.is-compact > .personal-best-media {
+  grid-area: photo;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+}
+
+.is-compact .personal-best-title-row {
+  grid-area: title;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+}
+
+.is-compact .personal-best-details {
+  grid-area: details;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+/* Headline stats share one row in equal columns; trip, location and lure flow by content width. */
+.is-compact .personal-best-details > div {
+  flex: 0 1 auto;
+}
+
+.is-compact .personal-best-details > .personal-best-stat {
+  flex: 1 1 28%;
+}
+
+.is-compact .personal-best-actions {
+  grid-area: actions;
+}
+
+.personal-best-card.is-featured {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.personal-best-card.is-featured.has-photo {
+  grid-template-columns: minmax(220px, 34%) minmax(0, 1fr);
+}
+
+.is-featured > .personal-best-media {
+  position: relative;
+  min-height: 220px;
+}
+
+.is-featured > .personal-best-media .personal-best-photo {
+  position: absolute;
+  inset: 0;
+}
+
+.is-featured > .personal-best-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title actions"
+    "details details";
+  align-content: center;
+  align-items: start;
+  gap: 18px 20px;
+  padding: 22px 26px;
+}
+
+.is-featured .personal-best-title-row {
+  grid-area: title;
+}
+
+.is-featured .personal-best-title-row h4 {
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.is-featured .personal-best-details {
+  grid-area: details;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 16px 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.is-featured .is-hero dd {
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.is-featured .personal-best-actions {
+  grid-area: actions;
 }
 
 .personal-best-progression {
   display: grid;
-  gap: 18px;
+  gap: 14px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.personal-best-progression:empty {
+  display: none;
 }
 
 .personal-best-progression-header {
   display: flex;
-  align-items: end;
+  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4px 12px;
 }
 
 .personal-best-progression-header h4 {
@@ -159,49 +304,42 @@
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .personal-best-progression-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 360px));
-  align-items: start;
-  justify-content: start;
-  gap: 16px;
+  columns: 300px;
+  column-gap: 14px;
 }
 
 .personal-best-progression-card {
-  display: grid;
-  align-self: start;
-  align-content: start;
-  gap: 16px;
-  min-width: 0;
-  padding: 18px;
+  break-inside: avoid;
+  margin: 0 0 14px;
+  padding: 14px 16px;
   border: 1px solid var(--line);
-  border-top: 3px solid var(--green);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: var(--shadow);
+  border-radius: 10px;
+  background: var(--panel);
 }
 
 .personal-best-progression-card-head {
   display: flex;
-  align-items: start;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 14px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
 }
 
 .personal-best-progression-card-head h5 {
   margin: 0;
   color: var(--text);
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.2;
 }
 
 .personal-best-timeline {
   display: grid;
-  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -210,18 +348,18 @@
 .personal-best-timeline li {
   position: relative;
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: 12px minmax(0, 1fr);
   gap: 12px;
   min-width: 0;
-  padding-bottom: 16px;
+  padding-bottom: 12px;
 }
 
 .personal-best-timeline li::before {
   content: "";
   position: absolute;
-  top: 10px;
-  bottom: 0;
-  left: 8px;
+  top: 16px;
+  bottom: -4px;
+  left: 5px;
   width: 2px;
   background: var(--line);
 }
@@ -237,32 +375,47 @@
 .personal-best-timeline-point {
   position: relative;
   z-index: 1;
-  width: 18px;
-  height: 18px;
-  border: 3px solid #fff;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border: 2px solid var(--green);
   border-radius: 999px;
+  background: var(--panel);
+}
+
+.personal-best-timeline li.is-current .personal-best-timeline-point {
   background: var(--green);
-  box-shadow: 0 0 0 1px rgba(17, 135, 83, 0.32);
+  box-shadow: 0 0 0 3px var(--chip-line);
 }
 
 .personal-best-timeline-body {
   display: grid;
-  align-content: start;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "topline topline"
+    "meta action";
+  align-items: center;
+  gap: 2px 10px;
   min-width: 0;
 }
 
 .personal-best-timeline-body .compact-action {
-  justify-self: start;
+  grid-area: action;
   width: auto;
-  min-width: 86px;
+  min-width: 0;
+  min-height: 26px;
+  padding: 3px 9px;
+  white-space: nowrap;
 }
 
 .personal-best-timeline-topline {
+  grid-area: topline;
   display: flex;
-  align-items: start;
+  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 0 10px;
 }
 
 .personal-best-timeline-topline strong {
@@ -279,10 +432,75 @@
 }
 
 .personal-best-timeline-meta {
+  grid-area: meta;
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+@container bests (min-width: 761px) and (max-width: 900px) {
+  #personalBestsMetricGrid .metric-card strong {
+    font-size: 21px;
+  }
+}
+
+@container bests (max-width: 760px) {
+  #personalBestsMetricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .personal-best-card.is-featured.has-photo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .is-featured > .personal-best-media {
+    height: 200px;
+    min-height: 0;
+  }
+}
+
+@container bests (max-width: 560px) {
+  .personal-bests-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .personal-bests-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .personal-bests-tools > label:last-child {
+    grid-column: 1 / -1;
+  }
+
+  #personalBestsMetricGrid .metric-card {
+    padding: 12px 14px;
+  }
+
+  #personalBestsMetricGrid .metric-card strong {
+    font-size: 20px;
+  }
+
+  .is-featured > .personal-best-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "title"
+      "details"
+      "actions";
+    padding: 16px;
+  }
+}
+
+@container bests (max-width: 340px) {
+  .is-compact .personal-best-details > .personal-best-stat {
+    flex-basis: 42%;
+  }
+
+  .is-featured .personal-best-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 

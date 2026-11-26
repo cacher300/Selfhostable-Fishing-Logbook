@@ -47,9 +47,17 @@ export function refreshCatchMediaGallery(gallery, selectedIndex = 0) {
     heroPhotoId: catchItem.heroPhotoId,
     context: gallery.dataset.galleryContext || "summary",
     showAllThumbnails: gallery.dataset.showAllThumbnails === "true"
-  }).trim());
+  }));
   const nextGallery = wrapper.firstElementChild;
-  if (nextGallery) gallery.replaceWith(nextGallery);
+  if (!nextGallery) return;
+  // Keep the thumbnail strip in place so selection preserves scroll and keyboard focus.
+  gallery.querySelector(".featured-image-shell").replaceWith(nextGallery.querySelector(".featured-image-shell"));
+  gallery.dataset.selectedIndex = nextGallery.dataset.selectedIndex;
+  gallery.querySelectorAll(".thumbnail-button").forEach(button => {
+    const active = button.dataset.photoIndex === gallery.dataset.selectedIndex;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
 }
 
 export function openSummaryCatchDetail(catchIndex, selectedIndex, catchType = "catch") {

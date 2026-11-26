@@ -25,6 +25,27 @@ test.describe("application smoke", () => {
     }
   });
 
+  test("keeps page titles and actions clear of the primary navigation when resizing", async ({ page }) => {
+    const header = page.locator(".topbar");
+    for (const [route, title] of [["/checklists", "Checklists"], ["/expeditions", "Expeditions"], ["/bests", "Personal Bests"]]) {
+      await page.goto(route);
+      await expect(header.getByRole("heading")).toHaveText(title);
+      for (const width of [1307, 1181, 1180, 768, 320, 1440, 1920]) {
+        await page.setViewportSize({ width, height: 840 });
+        const clear = await header.evaluate(el => {
+          const nav = el.querySelector("nav").getBoundingClientRect();
+          // A shrinking grid cell can look clear while the title's text paints over a button.
+          const titleText = document.createRange();
+          titleText.selectNodeContents(el.querySelector("h2"));
+          const sides = [...titleText.getClientRects(), ...Array.from(el.querySelectorAll(".utility-actions button")).flatMap(b => [...b.getClientRects()])];
+          const fits = r => r.left >= -1 && r.right <= document.documentElement.clientWidth + 1;
+          return fits(nav) && sides.every(r => fits(r) && (r.right < nav.left || nav.right < r.left || r.bottom < nav.top || nav.bottom < r.top));
+        });
+        expect(clear, `${title} at ${width}px`).toBe(true);
+      }
+    }
+  });
+
   test("keeps the stats more filters panel inside the viewport", async ({ page }) => {
     for (const viewport of [
       { width: 1280, height: 900 },
@@ -33,8 +54,8 @@ test.describe("application smoke", () => {
     ]) {
       await page.setViewportSize(viewport);
       await page.goto("/stats");
-      await page.locator("#advancedStatsPanel .stats-more-filters > summary").click();
-      const panel = await page.locator("#advancedStatsPanel .stats-more-filters > div").boundingBox();
+      await page.locator(".work-scope summary").click();
+      const panel = await page.locator(".work-scope details > div").boundingBox();
       expect(panel).not.toBeNull();
       expect(panel.x).toBeGreaterThanOrEqual(0);
       expect(panel.x + panel.width).toBeLessThanOrEqual(viewport.width);

@@ -4,6 +4,7 @@ import { tripRatingLabel, tripRatingValue } from "./trip-editor.js";
 import { flasherName, lureName } from "./gear-core.js";
 import { resolveTripLineRecord } from "./trolling-spread.js";
 import { personName } from "./stats.js";
+import { inDateRange, statsDateWindow } from "./stats-calendar.js";
 
 const MONTH_NAME_FORMATTER = new Intl.DateTimeFormat(undefined, { month: "long" });
 
@@ -51,8 +52,9 @@ export function tripHasFlasher(trip, flasher) {
 }
 
 export function scopedTrips() {
+  const window = statsDateWindow({date:ui.activeStatsDateRange,from:ui.statsDateFrom,to:ui.statsDateTo});
   return state.trips.filter((trip) => (
-    tripMatchesStatsDate(trip)
+    !window.error && inDateRange(trip.date,window.bounds)
     && (ui.activeStatsMethod === "All methods" || trip.method === ui.activeStatsMethod)
     && (activeStatsFilters.location === "All locations" || trip.location === activeStatsFilters.location)
     && (activeStatsFilters.launch === "All launches" || trip.launch === activeStatsFilters.launch)
@@ -65,18 +67,6 @@ export function scopedTrips() {
     && tripHasLure(trip, activeStatsFilters.lure)
     && tripHasFlasher(trip, activeStatsFilters.flasher)
   ));
-}
-
-export function tripMatchesStatsDate(trip) {
-  if (ui.activeStatsDateRange === "all") return true;
-  const tripDate = new Date(`${trip.date || ""}T12:00:00`);
-  if (Number.isNaN(tripDate.getTime())) return false;
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
-  if (ui.activeStatsDateRange === "season") return tripDate.getFullYear() === today.getFullYear();
-  const cutoff = new Date(today);
-  cutoff.setDate(cutoff.getDate() - Number(ui.activeStatsDateRange));
-  return tripDate >= cutoff && tripDate <= today;
 }
 
 export function catchRecords(trips = state.trips) {

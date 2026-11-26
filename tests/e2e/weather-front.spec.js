@@ -81,7 +81,7 @@ test("front stats count skunk trips and keep unclassified separate from no front
   const fronts = ["pre-front", "pre-front", "during-front", "post-front", "no-front", undefined];
   const trips = fronts.map((front, index) => ({
     id: `front-${index}`, title: `Front ${index}`, date: "2026-11-01", method: "Casting", targetSpecies: "Walleye", location: "Lake Erie", locationId: "loc-lake-erie", hours: 2, launchTime: "06:00", linesPulledTime: "08:00", people: [], gearUsed: [],
-    ...(front ? { weatherFront: front } : {}),
+    ...(front ? { weatherFront: front, weatherFrontSource: "automatic" } : {}),
     catches: index === 0 ? [{ id: "landed", species: "Walleye", quantity: 3 }] : [],
     lostFish: [{ id: `lost-${index}`, possibleSpecies: "Walleye" }],
     weatherData: { frontTag: "Stable" }
@@ -89,14 +89,20 @@ test("front stats count skunk trips and keep unclassified separate from no front
   await resetLogbook(page, await freshLogbook(page, { locations: [seededLocation()], trips }));
   await stubExternalApis(page);
   await page.goto("/stats");
-  await page.locator(".stats-group > summary").filter({ hasText: "Conditions" }).click();
-  const table = page.locator("#weatherFrontStatsTable");
+  await page.getByRole("button",{name:"Conditions",exact:true}).click();
+  await page.locator("#statsCompareBySelect").selectOption("weatherFront");
+  await page.locator("#statsCompareMetricSelect").selectOption("skunk");
+  await page.getByRole("button",{name:"Table",exact:true}).click();
+  const table = page.locator("#comparisonBuilderTable table");
   await expect(table.locator("tbody tr")).toHaveCount(5);
-  await expect(table.locator("tbody tr").filter({ hasText: "Pre-front" }).locator("td")).toHaveText(["Pre-front", "2", "4", "3", "0.75", "1.5", "50%"]);
+  const pre = table.locator("tbody tr").filter({hasText:"Pre-front"});
+  await expect(pre.locator("td").first()).toHaveText("50%");
+  await expect(pre.locator("td").nth(1)).toHaveText("0.75");
   for (const label of ["During front", "Post-front", "No front", "Unclassified"]) {
-    await expect(table.locator("tbody tr").filter({ hasText: label }).locator("td")).toHaveText([label, "1", "2", "0", "0", "0", "100%"]);
+    await expect(table.locator("tbody tr").filter({ hasText: label }).locator("td").first()).toHaveText("100%");
   }
-  await expect(page.locator("#frontTagStatsTable")).toContainText("Stable");
+  await page.locator("#statsCompareBySelect").selectOption("frontTag");
+  await expect(page.locator("#comparisonBuilderTable")).toContainText("Stable");
   expect(errors).toEqual([]);
 });
 

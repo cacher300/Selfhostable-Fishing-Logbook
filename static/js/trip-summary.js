@@ -245,7 +245,6 @@ export function catchDetailRows(trip, catchItem, catchIndex, catchType = "catch"
   };
   const rows = [
     { key: "species", group: "overview", label: "Species", value: displayTitleText(record.species || catchItem.species || catchItem.possibleSpecies) },
-    { key: "status", group: "overview", label: "Status", value: isLost ? "Lost" : (record.released ? "Released" : "Kept"), kind: "status" },
     { key: "time", group: "overview", label: "Time", value: catchItem.time ? formatDisplayTime(catchItem.time) : "" },
     { key: "angler", group: "overview", label: "Angler", value: reportPersonName(trip, catchItem.personId) },
     { key: "length", group: "overview", label: "Length", value: displayStoredMeasurement(record.length, "fishLength") },
@@ -314,10 +313,11 @@ export function reportAdditionalConditionRows(trip) {
     barometricTrend,
     moonText
   } = tripWeatherSummaryData(trip);
-  const manualRows = [["Weather front", weatherFrontLabel(weatherFrontValue(trip))]];
-  if (noApiWeather) return [...manualRows, ...(weatherData.message ? [["API weather", weatherData.message]] : [])];
+  const front = weatherFrontValue(trip);
+  const frontRows = front || trip.weatherFront ? [["Weather front", weatherFrontLabel(front)]] : [];
+  if (noApiWeather) return [...frontRows, ...(weatherData.message ? [["API weather", weatherData.message]] : [])];
   return [
-    ...manualRows,
+    ...frontRows,
     ["Air temperature", formatUnitValue(window.temperatureC, "airTemperature", "C")],
     ["Pressure", weatherValueWithTrend(formatUnitValue(window.pressureHpa, "pressure", "hPa", { decimals: 1 }), trend.pressureTrend)],
     ["Barometric trend", barometricTrend],
@@ -330,13 +330,21 @@ export function reportAdditionalConditionRows(trip) {
 }
 
 export function renderCatchDetailPopout(trip, catchItem, index, selectedIndex, catchType = "catch") {
+  const species = displayTitleText(catchItem.species || catchItem.possibleSpecies)
+    || `${catchType === "lost" ? "Lost fish" : "Catch"} ${index + 1}`;
+  const status = catchType === "lost" ? "Lost" : catchItem.released ? "Released" : "Kept";
   return html`
-    <div class="catch-detail-popout" id="catchDetailPopout" role="dialog" aria-modal="true" aria-label="Catch details">
-      <div class="catch-detail-panel">
-        <div class="catch-detail-controls">
+    <div class="catch-detail-popout" id="catchDetailPopout" role="dialog" aria-modal="true" aria-labelledby="catchDetailTitle">
+      <div class="catch-detail-panel${(catchItem.photos || []).length ? " has-catch-media" : ""}">
+        <div class="catch-detail-controls catch-detail-header">
+          <div class="catch-detail-heading">
+            <p class="eyebrow">Catch details</p>
+            <h2 id="catchDetailTitle">${species}</h2>
+          </div>
+          <span class="report-result result-${status.toLowerCase()}">${status}</span>
           <button class="icon-button catch-detail-close" type="button" data-close-catch-detail aria-label="Close catch details"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
-        ${renderCatchMediaGallery(catchItem.photos || [], catchItem.species || catchItem.possibleSpecies || `${catchType === "lost" ? "Lost fish" : "Catch"} ${index + 1}`, {
+        ${renderCatchMediaGallery(catchItem.photos || [], species, {
           catchIndex: index,
           catchType,
           selectedIndex,
