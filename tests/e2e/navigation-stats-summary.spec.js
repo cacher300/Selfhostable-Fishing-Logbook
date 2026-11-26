@@ -6,10 +6,10 @@ const {
   stubExternalApis
 } = require("./helpers");
 
-async function statsSeed(page, summaryFields = {}) {
+async function statsSeed(page, summaryFields = {}, { lureName = "Gold Spoon" } = {}) {
   const document = await freshLogbook(page, {
     locations: [seededLocation()],
-    lures: [{ id: "lure-gold", name: "Gold Spoon", type: "Spoon", color: "Gold", media: [] }],
+    lures: [{ id: "lure-gold", name: lureName, type: "Spoon", color: "Gold", media: [] }],
     people: [{ id: "person-avery", name: "Avery" }],
     trips: [
       {
@@ -211,6 +211,26 @@ test.describe("navigation, stats, and summary characterization", () => {
     await expect(page.locator("#tripSummaryBody")).toContainText("1");
     await expect(page.locator("#tripSummaryBody")).toContainText("Walleye");
     await expect(page.locator("#tripSummaryBody")).toContainText("Perch");
+  });
+
+  test("wrapped timeline gear links underline every line instead of drawing one box border", async ({ page }) => {
+    await statsSeed(page, {}, { lureName: "Whitr 3/4 Ounce Paddle Tail" });
+    await page.goto("/trips");
+    await page.locator('.table-row[data-view-trip="trip-summary"]').click();
+    const link = page.locator("#tripSummaryBody .report-gear-link[data-report-lure-id]").first();
+    await expect(link).toHaveText("Whitr 3/4 Ounce Paddle Tail");
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(theme => { document.documentElement.dataset.theme = theme; }, theme);
+      const style = await link.evaluate(element => {
+        const computed = getComputedStyle(element);
+        return {
+          lines: Math.round(element.getBoundingClientRect().height / parseFloat(computed.lineHeight)),
+          borderBottom: computed.borderBottomStyle,
+          decoration: computed.textDecorationLine
+        };
+      });
+      expect(style, `${theme} theme`).toEqual({ lines: 2, borderBottom: "none", decoration: "underline" });
+    }
   });
 
   test("the selected catch thumbnail has a visible green ring on all four sides", async ({ page }) => {
