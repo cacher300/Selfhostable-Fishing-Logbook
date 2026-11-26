@@ -27,7 +27,7 @@ function monthDayGrid(m) {
     return html`<td>${d.trips ? html`<button type="button" class="${color}" data-work-day="${d.key}" aria-label="${label}" title="${label}">${d.value}</button>`
       : html`<span class="${color}" role="img" aria-label="${label}" title="${label}"></span>`}</td>`;
   };
-  return html`<p class="month-day-hint">${m.hint}</p><div class="activity-heatmap-scroll">
+  return html`${m.hint ? html`<p class="month-day-hint">${m.hint}</p>` : ""}<div class="activity-heatmap-scroll">
     <table class="month-day-grid" aria-label="${m.description}"><thead><tr><th scope="col">Month</th>${Array.from({length:m.dayCount},(_,i) => html`<th scope="col">${i+1}</th>`)}</tr></thead>
     <tbody>${m.rows.map(r => html`<tr><th scope="row">${r.label}</th>${r.cells.map(cell)}</tr>`)}</tbody></table></div>
     <p class="month-day-detail" id="workDayDetail" aria-live="polite"></p>`;

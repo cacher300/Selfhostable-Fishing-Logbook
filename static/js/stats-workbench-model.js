@@ -283,7 +283,7 @@ function reportRows(facts, d, split, c, opts) {
     values.timeShare = g.timedIds.size ? pct(g.hours,total.hours) : null;
     values.timedCatchShare = g.timedIds.size ? pct(g.timedFish,total.timedFish) : null;
     values.efficiencyIndex = values.timedCatchShare === null ? null : ratio(values.timedCatchShare, values.timeShare);
-    return { key: g.key, name: g.name, secondary: g.secondary, values, tripIds: [...g.ids], small: g.ids.size < 3 };
+    return { key: g.key, name: g.name, secondary: g.secondary, values, tripIds: [...g.ids] };
   }).filter(r => r.values.trips >= (opts.minTrips || 0) && (isFish || d.kind === "profile" || (r.values.hours || 0) >= (opts.minHours || 0)));
   const columns = d.kind === "profile" ? ["temperature","minTemp","maxTemp","readings","trips"]
     : d.id === "sizes" ? ["medianLength","maxLength","measured","over","medianWeight","maxWeight","weighed","fish","trips"]
@@ -298,40 +298,43 @@ function reportRows(facts, d, split, c, opts) {
     strikeShare: "Strike share %", temperature: `Mean (°${c.units.waterTemperature})`, minTemp: `Min (°${c.units.waterTemperature})`, maxTemp: `Max (°${c.units.waterTemperature})`
   }[id] || metricLabels[id]);
   const preferred = { lostSpecies:"lost", outcome:"strikes", shaker:"catchShare", hour:"strikesPerHour", timeOfDay:"strikesPerHour", sunWindow:"strikesPerHour", moonWindow:"strikesPerHour" }[d.id];
-  let metric = columns.includes(opts.metric) ? opts.metric : columns.includes(preferred) ? preferred : columns[0];
-  const countMetric = {fishPerHour:"fish", strikesPerHour:"strikes"}[metric];
-  const missingEffort = !columns.includes(opts.metric) && countMetric && rows.length && rows.every(r => r.values[metric] === null);
-  if (missingEffort) metric = countMetric;
+  const availableColumns = columns.filter(id => rows.some(r => Number.isFinite(r.values[id])));
+  const requestedMetric = columns.includes(opts.metric) ? opts.metric : columns.includes(preferred) ? preferred : columns[0] || "";
+  const countMetric = {fishPerHour:"fish", strikesPerHour:"strikes"}[requestedMetric];
+  const missingEffort = Boolean(countMetric && rows.length && rows.every(r => r.values[requestedMetric] === null));
+  const metric = missingEffort && availableColumns.includes(countMetric) ? countMetric
+    : availableColumns.includes(requestedMetric) ? requestedMetric
+      : availableColumns.includes(preferred) ? preferred : availableColumns[0] || "";
   rows.sort((a,b) => d.chart === "line" ? a.name.localeCompare(b.name, undefined, { numeric: true }) : (b.values[metric] ?? -Infinity) - (a.values[metric] ?? -Infinity) || a.name.localeCompare(b.name, undefined, { numeric: true }) || a.secondary.localeCompare(b.secondary));
   const note = d.kind === "profile" ? "Saved probe readings, grouped by depth. Model-imported and manual profiles are included."
     : d.id === "sizes" ? "Each recorded measurement counts once. Missing lengths and weights are excluded, not treated as zero."
     : d.id === "angler" ? "Attributed fish on trips with at least two known anglers. Select two people to use only their shared trips."
     : matched ? "Only overlapping, explicitly timed deployments and timed bites count. Trips with unallocated idle time are excluded."
-    : isFish ? "Observations at the bite. Time spent at each value is not recorded, so these are counts and shares, not hourly rates."
+    : isFish ? ""
     : isLine ? "One line-hour is one setup fishing for one hour. Rates use attributable fish on timed setups, including setups that caught nothing."
     : win ? "Rates use only clock windows with fully accounted fishing time. Unknown catch times and unallocated idle time cannot be assigned to a window."
     : "Rates use landed fish on timed trips divided by their net fishing hours. Trips with no landed fish still count.";
-  let highlight = "";
-  if (!split && ["fishPerHour","strikesPerHour"].includes(metric) && !win && d.id !== "season") {
-    const timed = rows.filter(r => r.values[metric] !== null).sort((a,b) => b.values[metric]-a.values[metric]);
-    if (timed.length >= 2 && timed[0].values[metric] > timed.at(-1).values[metric]) {
-      const top = timed[0], low = timed.at(-1);
-      const rate = r => `${r.name}: ${rounded(r.values[metric])} (${rounded(r.values.hours)} h, ${r.values.trips} ${r.values.trips === 1 ? "trip" : "trips"})`;
-      highlight = `${columnLabel(metric)} — ${rate(top)} vs. ${rate(low)}.${top.small || low.small ? " Small sample; treat this as a lead, not a verdict." : ""}`;
-    }
+  return { rows, columns: availableColumns.map(id => ({ id, label: columnLabel(id) })), metric, names: options([...names]), pairEnabled, overlappingGroups,
+    note: isLine ? "" : missingEffort ? `${note} No attributable hours in this selection; showing counts instead.` : note };
+}
+
+function splitAddsInformation(rows) {
+  const allSecondary = new Set(), byPrimary = new Map();
+  for (const row of rows) {
+    const secondary = text(row.secondary);
+    if (!secondary) continue;
+    allSecondary.add(secondary);
+    if (!byPrimary.has(row.name)) byPrimary.set(row.name, new Set());
+    byPrimary.get(row.name).add(secondary);
   }
-  return { rows, columns: columns.map(id => ({ id, label: columnLabel(id) })), metric, names: options([...names]), pairEnabled, overlappingGroups,
-    note: isLine ? "" : missingEffort ? `${note} No attributable hours in this selection; showing counts instead.` : note, highlight };
+  return allSecondary.size > 1 && [...byPrimary.values()].some(values => values.size > 1);
 }
 
 export function buildStats(book, scope = {}, opts = {}, today = new Date()) {
   const c = { ...contextFor(book),colorLabels:new Map() }, all = book.trips || [];
   const methods = valueOf(scope.method) ? [scope.method] : [...new Set(all.filter(completed).map(t => t.method))];
   const reports = catalog.filter(d => !d.modes || methods.some(m => supports(d,m)));
-  const d = reports.find(x => x.id === (opts.report || reportForMethod(scope.method))) || reports[0];
-  const special = ["target","season","sizes","angler","probe"];
-  const splits = special.includes(d.id) ? [] : reports.filter(x => x !== d && !special.includes(x.id) && !(d.kind === "window" && x.kind === "window") && (!d.modes || !x.modes || d.modes.some(m => x.modes.includes(m))));
-  const split = splits.find(x => x.id === opts.split);
+  const requestedReport = reports.find(x => x.id === (opts.report || reportForMethod(scope.method))) || reports[0];
   const dateWindow = statsDateWindow(scope,today), range = dateWindow.bounds;
   const seasonRange = range || [`${today.getFullYear()}-01-01`, dateKey(today)];
   const periods = [seasonRange,seasonRange.map(lastYear)];
@@ -340,7 +343,7 @@ export function buildStats(book, scope = {}, opts = {}, today = new Date()) {
   for (const t of all) {
     if (dateWindow.error) break;
     const current = inDateRange(t.date,range);
-    const labels = d.id === "season" ? periods.filter(p => inDateRange(t.date,p)).map(p => p.join(" to ")) : [];
+    const labels = periods.filter(p => inDateRange(t.date,p)).map(p => p.join(" to "));
     const compare = labels.length > 0;
     if ((!current && !compare) || !completed(t) || !matches(scope.method,t.method) || !matches(scope.targetSpecies,t.targetSpecies)
       || !matches(scope.location,waterbody(t,c)) || !matches(scope.launch,launch(t,c)) || !matches(scope.waterClarity,t.waterClarity)
@@ -355,10 +358,26 @@ export function buildStats(book, scope = {}, opts = {}, today = new Date()) {
     for (const e of f.events) addEvent(summary,e,t,c,!!f.hours);
     fishByTrip.set(t.id,summary.fish - before);
   }
+  const reportFactsFor = report => report.id === "season" ? seasonFacts : facts;
+  const reportDimension = report => report.id === "season" ? { ...report, read: t => seasonLabels.get(t) } : report;
+  const evaluate = (report, split = null, reportOptions = opts) => reportRows(reportFactsFor(report),reportDimension(report),split,c,reportOptions);
+  const independentOptions = { ...opts, a:"", b:"", matched:false };
+  const compareOptions = reports.filter(report => evaluate(report,null,independentOptions).rows.length > 1);
+  const requestedId = requestedReport?.id;
+  const d = compareOptions.find(report => report.id === requestedId)
+    || compareOptions.find(report => report.group === requestedReport?.group)
+    || compareOptions.find(report => report.id === reportForMethod(scope.method))
+    || compareOptions[0]
+    || requestedReport;
+  const special = ["target","season","sizes","angler","probe"];
+  const splitCandidates = special.includes(d.id) ? [] : reports.filter(report => report !== d && !special.includes(report.id)
+    && !(d.kind === "window" && report.kind === "window")
+    && (!d.modes || !report.modes || d.modes.some(method => report.modes.includes(method))));
+  const splits = compareOptions.includes(d) ? splitCandidates.filter(report => splitAddsInformation(evaluate(d,report).rows)) : [];
+  const split = splits.find(report => report.id === opts.split) || null;
   // A multi-year custom range can overlap its own comparison period.
-  const period = d.id === "season" ? { ...d, read: t => seasonLabels.get(t) } : d;
-  const reportFacts = d.id === "season" ? seasonFacts : facts;
-  const report = reportRows(reportFacts,period,split,c,opts);
+  const reportFacts = reportFactsFor(d);
+  const report = evaluate(d,split,opts);
   if (d.id === "season") report.note = "Same calendar dates, one year apart. " + report.note;
   if (d.id === "lureColorFamily" || split?.id === "lureColorFamily") report.note += " Multicolor lures contribute to each family; shares are of category credits, not distinct fish.";
   if (valueOf(scope.species)) report.note += " Catch species filters outcomes, not trips or fishing hours; use Trip target to restrict effort.";
@@ -366,7 +385,7 @@ export function buildStats(book, scope = {}, opts = {}, today = new Date()) {
   if (personal) report.note += " Summary hours are whole-trip hours, not individual angler or gear time.";
   const totals = finish(summary, 0), best = [...fishByTrip].sort((a,b) => b[1]-a[1])[0];
   return { dateWindow, trips: facts.map(f => f.t), evidence: reportFacts.map(f => f.t), fishByTrip, totals, bestTripId: best?.[0] || "", bestFish: best?.[1] ?? null,
-    reports, splits, active: d, split: split?.id || "", chart: split ? "table" : d.chart, units: c.units, ...report };
+    reports, compareOptions, splits, active: d, split: split?.id || "", chart: split ? "table" : d.chart, units: c.units, ...report };
 }
 export function formatStat(value, label = "") {
   if (!Number.isFinite(value)) return "—";
@@ -377,6 +396,7 @@ export function formatStat(value, label = "") {
 const pieMeasures = new Set(["fish","lost","strikes","hours","trips","timedTrips","timedFish","timedStrikes","kept","released","measured","weighed","readings"]);
 const shareBase = {catchShare:"fish",strikeShare:"strikes",timeShare:"hours",timedCatchShare:"timedFish"};
 const pieColors = ["#36a985","#5595da","#e4a84f","#b08cce","#db7772","#60bfc9","#8995a6"];
+const pieColor = (index, count) => count <= pieColors.length ? pieColors[index] : `hsl(${Math.round(index * 360 / count)} 62% 58%)`;
 
 function piePath(start,end) {
   if (start === 0 && end === 1) return "M50 2a48 48 0 1 1 0 96a48 48 0 1 1 0 -96Z";
@@ -388,6 +408,7 @@ export function piePlot(m) {
   const column = id => m.columns.find(c => c.id === id);
   const unavailable = (message,suggestion,suitable = false) => ({slices:[],caption:"",message,suggestion,suitable});
   if (m.overlappingGroups) return unavailable("The same record can appear in more than one group here. Use a bar chart or table to compare them.");
+  if (!column(m.metric)) return unavailable("There are no compatible values for a pie chart in this comparison.");
   const id = shareBase[m.metric] || m.metric;
   const tripCount = id === "trips" || id === "timedTrips";
   const tripGroups = m.active.kind === "trip" && (!m.split || m.splits.find(d => d.id === m.split)?.kind === "trip");
@@ -403,16 +424,12 @@ export function piePlot(m) {
     key:r.key,name:r.secondary ? `${r.name} · ${r.secondary}` : r.name,value:r.values[id],tripIds:r.tripIds
   })).sort((a,b) => b.value-a.value || a.name.localeCompare(b.name));
   if (!groups.length) return unavailable(`No positive values for ${label} in this comparison.`,undefined,true);
-  const sum = rows => rows.reduce((n,r) => n+r.value,0), total = sum(groups);
-  if (groups.length > pieColors.length) {
-    const rest = groups.splice(pieColors.length-1);
-    groups.push({key:"pie:other",name:`Other (${rest.length} groups)`,value:sum(rest),tripIds:[...new Set(rest.flatMap(r => r.tripIds))]});
-  }
+  const total = groups.reduce((n,r) => n+r.value,0);
   let cumulative = 0;
   const slices = groups.map((r,i) => {
     const start = cumulative / total, percent = r.value / total * 100;
     cumulative += r.value;
-    return {...r,share:percent < .01 ? "<0.01%" : formatStat(percent,"%"),color:pieColors[i],path:piePath(start,i === groups.length-1 ? 1 : cumulative/total)};
+    return {...r,share:percent < .01 ? "<0.01%" : formatStat(percent,"%"),color:pieColor(i,groups.length),path:piePath(start,i === groups.length-1 ? 1 : cumulative/total)};
   });
   return {slices,caption:`${label}: ${formatStat(total)} total in these groups`,suitable:true};
 }
@@ -437,7 +454,7 @@ export function comparisonGrid(m, a, b, hideEmpty = false) {
   const byKey = new Map(m.rows.map(r => [r.key,r]));
   return { heading:m.active.label, columns, available:hideEmpty ? new Set(m.rows.map(r => r.name)).size : names.length, rows:names.map(label => ({ label, cells:columns.map(col => {
     const r = byKey.get(pairKey(label,col));
-    return r ? cell(r, metric, `${r.values.trips} ${r.values.trips === 1 ? "trip" : "trips"}${r.values.hours === null ? "" : ` · ${rounded(r.values.hours)} h`}${r.small ? " · Small sample" : ""}`) : null;
+    return r ? cell(r, metric, `${r.values.trips} ${r.values.trips === 1 ? "trip" : "trips"}${r.values.hours === null ? "" : ` · ${rounded(r.values.hours)} h`}`) : null;
   }) })) };
 }
 
@@ -475,7 +492,7 @@ export function comparisonTable(m, a, b, requested, limit = Infinity, hideEmpty 
   const rows = orderedTableRows(groups,order,r => sort.key === "group" ? r.name : r.values[sort.key === "sample" ? "trips" : sort.key]);
   return {matrix:false,columns,sort,available:m.rows.length,total:rows.length,rows:rows.slice(0,limit).map(r => ({
     key:r.key,label:r.name,cells:fields.map(c => ({text:c.id === "sample"
-      ? `${r.values.trips} ${r.values.trips === 1 ? "trip" : "trips"}${r.small ? " · Small sample" : ""}` : formatStat(r.values[c.id],c.label)}))
+      ? `${r.values.trips} ${r.values.trips === 1 ? "trip" : "trips"}` : formatStat(r.values[c.id],c.label)}))
   }))};
 }
 

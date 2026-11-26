@@ -37,7 +37,7 @@ function bars(m, rows) {
   const max = Math.max(0,...m.rows.map(r => r.values[m.metric] ?? 0)), label = lineMetric(m,m.metric);
   return html`<div class="work-bars" aria-label="${label}">${rows.map(r => html`
     <button type="button" class="work-bar" data-work-source="${r.key}">
-      <span class="work-bar-name">${title(r)}<small>${r.values.trips} ${r.values.trips === 1 ? "trip" : "trips"}${r.values.hours !== null ? ` · ${formatStat(r.values.hours)} h` : ""}${r.small ? " · Small sample" : ""}</small></span>
+      <span class="work-bar-name">${title(r)}<small>${r.values.trips} ${r.values.trips === 1 ? "trip" : "trips"}${r.values.hours !== null ? ` · ${formatStat(r.values.hours)} h` : ""}</small></span>
       <span class="work-track" aria-hidden="true"><i style="width:${max ? (r.values[m.metric] || 0) / max * 100 : 0}%"></i></span><strong>${formatStat(r.values[m.metric],label)}</strong>
     </button>`)}</div>`;
 }
@@ -208,6 +208,16 @@ export function renderAdvancedStats() {
   if (signature !== lastScope) { clearPair(true); lastScope = signature; }
   const m = buildStats(state,scope,{ report:ui.activeStatsCompareBy, split:ui.activeStatsCompareSplit, metric:ui.activeStatsCompareMetric,
     a,b,matched,threshold,minTrips:ui.activeStatsMinTrips,minHours:ui.activeStatsMinHours });
+  const compare = ui.activeStatsCompareBy && m.compareOptions.some(report => report.id === ui.activeStatsCompareBy)
+    ? ui.activeStatsCompareBy : ui.activeStatsCompareBy && m.compareOptions.some(report => report.id === m.active.id) ? m.active.id : "";
+  const split = m.split;
+  const metric = ui.activeStatsCompareMetric && m.columns.some(column => column.id === ui.activeStatsCompareMetric) ? ui.activeStatsCompareMetric : "";
+  if (compare !== ui.activeStatsCompareBy || split !== ui.activeStatsCompareSplit || metric !== ui.activeStatsCompareMetric) {
+    ui.activeStatsCompareBy = compare;
+    ui.activeStatsCompareSplit = split;
+    ui.activeStatsCompareMetric = metric;
+    syncStatsUrl();
+  }
   if (currentReport?.metric !== m.metric) tableSort = null;
   currentReport = m;
   const filterOptions = statsFilterOptions(state);
@@ -235,31 +245,36 @@ export function renderAdvancedStats() {
   els.advancedMetricGrid.hidden = !metrics.length;
   setHtml(els.advancedMetricGrid,joinHtml(metrics.map(s => html`<article class="metric-card"><span>${s.label}</span><strong>${s.value}</strong><small>${s.detail}</small></article>`)));
   syncHeatmap(m,scopeKey,scope.month);
-  const groups = [...new Set(m.reports.map(d => d.group))];
-  setHtml(byId("workTopics"),joinHtml(groups.map(g => tab(g,m.reports.find(d => d.group === g).id,g === m.active.group,"topic"))));
-  menu("statsCompareBySelect",m.reports.filter(x => x.group === m.active.group),m.active.id);
-  menu("statsCompareSplitSelect",m.splits,m.split,"No split"); byId("workSplitField").hidden = !m.splits.length;
-  menu("statsCompareMetricSelect",m.columns,m.metric);
+  const groups = [...new Set(m.compareOptions.map(d => d.group))];
+  setHtml(byId("workTopics"),groups.length ? joinHtml(groups.map(g => tab(g,m.compareOptions.find(d => d.group === g).id,g === m.active.group,"topic")))
+    : html`<span class="work-no-options" role="status">No categories have enough data to compare.</span>`);
+  const compareOptions = m.compareOptions.filter(report => report.group === m.active.group);
+  menu("statsCompareBySelect",compareOptions,m.active.id,compareOptions.length ? undefined : "No comparable categories");
+  byId("statsCompareBySelect").disabled = !compareOptions.length;
+  menu("statsCompareSplitSelect",m.splits,m.split,m.splits.length ? "No split" : "No useful split");
+  byId("workSplitField").hidden = !m.splits.length;
+  menu("statsCompareMetricSelect",m.columns,m.metric,m.columns.length ? undefined : "No compatible measures");
+  byId("statsCompareMetricSelect").disabled = !m.columns.length;
   menu("workA",m.names.filter(n => n !== b),a,"All groups"); menu("workB",m.names.filter(n => n !== a),b,"All groups");
   byId("workMatched").checked = matched; byId("workMatched").disabled = !(a && b);
-  byId("workMatchField").hidden = !m.pairEnabled; byId("workSizeField").hidden = m.active.id !== "sizes"; byId("workSizeUnit").textContent = `(${m.units.fishLength})`;
+  byId("workMatchField").hidden = !m.pairEnabled || !m.compareOptions.length; byId("workSizeField").hidden = m.active.id !== "sizes" || !m.compareOptions.length; byId("workSizeUnit").textContent = `(${m.units.fishLength})`;
   byId("workMinHoursField").hidden = !m.columns.some(c => c.id === "hours");
   const chart = m.active.chart === "line" && !m.split ? "line" : "bar", pieData = piePlot(m);
-  if (!pieData.suitable && view === "pie") view = "";
+  if ((!m.compareOptions.length || !pieData.suitable) && view === "pie") view = "";
   const selectedView = view || (a && b ? "table" : m.chart);
-  currentPie = selectedView === "pie" ? pieData : null;
+  currentPie = selectedView === "pie" && m.compareOptions.length ? pieData : null;
   const formats = {table:"Table",bar:"Bar chart",line:"Trend line",pie:"Pie chart"};
-  setHtml(byId("workViews"),joinHtml(["table",chart,...(pieData.suitable ? ["pie"] : [])].map(v => tab(formats[v],v,selectedView === v,"view"))));
+  const views = m.compareOptions.length ? ["table",chart,...(pieData.suitable ? ["pie"] : [])] : [];
+  setHtml(byId("workViews"),joinHtml(views.map(v => tab(formats[v],v,selectedView === v,"view"))));
   byId("workReportTitle").textContent = m.active.label;
   byId("statsCompareNote").textContent = m.note;
   byId("statsCompareNote").hidden = !m.note;
-  byId("workHighlight").textContent = m.highlight;
   const rows = comparisonRows(m,hideEmpty);
-  byId("workHighlight").hidden = !m.highlight || rows.length !== m.rows.length;
-  currentTable = selectedView === "table" ? comparisonTable(m,a,b,tableSort,limit,hideEmpty) : null;
-  byId("workReportCount").textContent = `${comparisonCount(m,rows,currentTable)} · ${lineMetric(m,m.metric)} · Small sample: fewer than 3 trips`;
+  currentTable = selectedView === "table" && m.compareOptions.length ? comparisonTable(m,a,b,tableSort,limit,hideEmpty) : null;
+  byId("workReportCount").textContent = m.compareOptions.length ? `${comparisonCount(m,rows,currentTable)} · ${lineMetric(m,m.metric)}` : "No comparable groups";
   const total = currentTable?.total ?? rows.length;
-  const output = !m.rows.length ? html`<p class="work-empty"><strong>No comparable records</strong><br>Try another report or widen your filters. A missing measurement is not zero.</p>`
+  const output = !m.compareOptions.length ? html`<p class="work-empty"><strong>No comparable groups</strong><br>Choose filters that leave at least two groups with recorded data.</p>`
+    : !m.rows.length ? html`<p class="work-empty"><strong>No comparable records</strong><br>Try another report or widen your filters. A missing measurement is not zero.</p>`
     : currentPie ? pie(currentPie) : hideEmpty && !total ? html`<p class="work-empty"><strong>All results are hidden</strong><br>No recorded nonzero values in this comparison.</p><button class="button secondary" type="button" data-work-action="show-empty">Show all results</button>`
     : currentTable ? table(currentTable) : selectedView === "line" ? line(m,hideEmpty) : bars(m,rows.slice(0,limit));
   setHtml(byId("comparisonBuilderTable"),html`${output}${m.rows.length > 0 && total > limit && (selectedView === "table" || selectedView === "bar") ? html`<button class="button secondary" type="button" data-work-action="more">Show more (${total - limit} remaining)</button>` : ""}`);

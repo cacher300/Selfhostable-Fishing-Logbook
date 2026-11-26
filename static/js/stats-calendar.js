@@ -101,7 +101,7 @@ export function buildActivityCalendar(trips, fishForTrip, {bounds, month, mode =
     const legend = maxValue ? [valueLabel(0),valueLabel(maxValue)] : [tripCount ? "No fish landed in this selection" : "No trips in this selection"];
     return {...totals,layout:"month-day",rows,dayCount,maxValue,legend,period,
       description:selectedMonth < 0 ? `${period} by month and day` : `${month} by day (${period})`,
-      hint:bounds === null ? "Each cell combines the same month and day across all years." : "Each cell combines the same month and day within the selected dates."};
+      hint:bounds === null ? "" : "Each cell combines the same month and day within the selected dates."};
   }
   const maxValue = mode === "days" ? 1 : mode === "trips" ? maxTrips : maxFish;
   const weeks = [], months = [];

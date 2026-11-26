@@ -3,6 +3,7 @@
 .workbench [hidden] { display: none !important; }
 .workbench :is(h2,h3,h4,h5,p,figure) { margin: 0; }
 .work-heading, .work-actions, .work-fields, .work-topics { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.work-no-options { color: var(--muted); font-size: 12px; }
 .work-heading { justify-content: space-between; gap: 12px; }
 .work-heading h2 { font-size: clamp(22px,3vw,32px); letter-spacing: -.035em; }
 .workbench #statsActiveScope, .work-heading p, .work-comparison > header p { display: block; color: var(--muted); font-size: 13px; margin-top: 4px; }
@@ -44,7 +45,6 @@
 .work-result { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .work-result h4 { font-size: 18px; }
 .work-note { border-left: 3px solid var(--line); padding: 4px 10px; color: var(--muted); font-size: 13px; max-width: 85ch; }
-.work-highlight { border-radius: 6px; padding: 9px 12px; background: var(--active-bg); color: var(--active-text); font-weight: 600; font-size: 13px; }
 .work-empty { color: var(--muted); padding: 15px 0; line-height: 1.6; }
 .work-bars { display: grid; }
 .work-bar { display: grid; grid-template-columns: minmax(120px,1.1fr) minmax(60px,2fr) minmax(50px,auto); gap: 12px; text-align: left; align-items: center; margin: 0; padding: 10px 6px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; color: var(--text); background: transparent; }
@@ -67,8 +67,9 @@
 .work-table th[aria-sort="descending"] .work-sort span::before { content: "↓"; }
 .work-table td small { display: block; color: var(--muted); font-size: 11px; }
 .work-table tr > :first-child { text-align: left; position: sticky; left: 0; z-index: 1; background: var(--panel); min-width: min(8rem, 40cqi); max-width: min(220px, 40cqi); white-space: normal; overflow-wrap: anywhere; }
+.work-table tbody tr:is(:hover, :focus-within) > :first-child { background: var(--panel-soft); }
 .work-table tr > :first-child button { max-width: 100%; overflow-wrap: anywhere; }
-.work-result aside, .work-highlight, .work-heading p { overflow-wrap: anywhere; }
+.work-result aside, .work-heading p { overflow-wrap: anywhere; }
 .work-link { text-align: left; border: 0; background: transparent; color: var(--blue); font: inherit; font-weight: 650; padding: 4px; }
 .work-result aside { border: 1px solid var(--line); border-radius: 6px; background: var(--panel-soft); padding: 12px; display: grid; gap: 4px; }
 .work-result h5 { font-size: 15px; }

@@ -35,6 +35,93 @@ export const galleryQuickFilters = [
   { value: "rods", label: "Rods" }
 ];
 
+const gallerySearchableFields = new Set([
+  "name", "title", "species", "possiblespecies", "customspecies", "date", "catchdate", "time", "catchtime", "localtime",
+  "capturedate", "capturetime", "caption", "captions", "description", "notes", "comment", "tags", "keywords", "category",
+  "mediatype", "mimetype", "location", "locationname", "waterbody", "lake", "launch", "launchname", "spot", "spotname",
+  "drift", "driftname", "destination", "method", "people", "angler", "person", "personname", "gearused", "gear",
+  "lure", "lurecolor", "flasher", "rod", "reel", "rigging", "presentation", "depth", "depthdown", "depthfow", "waterdepth",
+  "length", "weight", "quantity", "color", "brand", "type", "model", "manufacturer", "camera", "lens", "alt", "alttext",
+  "coordinates", "latitude", "longitude", "exif", "metadata", "weather", "wind", "temperature", "clarity", "visibility",
+  "conditions", "speed", "takenat", "recordedat"
+]);
+
+const galleryReferenceSources = {
+  personid: "people",
+  locationid: "locations",
+  launchid: "locations",
+  spotid: "spots",
+  driftid: "drifts",
+  lureid: "lures",
+  flasherid: "flashers",
+  rodid: "rods",
+  reelid: "reels"
+};
+
+const gallerySearchIgnoredFields = new Set(["id", "previewfilename", "preview", "previewurl", "downloadurl", "originalurl", "url", "path", "modified"]);
+
+function gallerySearchFieldName(field) {
+  return String(field || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function gallerySearchTextValues(value) {
+  if (typeof value === "string") return value.trim() ? [value.trim()] : [];
+  if (typeof value === "number" && Number.isFinite(value)) return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(gallerySearchTextValues);
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value).flatMap(([field, child]) => {
+    const name = gallerySearchFieldName(field);
+    return field.startsWith("_") || gallerySearchIgnoredFields.has(name) || name.endsWith("id")
+      ? []
+      : gallerySearchTextValues(child);
+  });
+}
+
+function galleryReferencedSearchText(field, value) {
+  const name = gallerySearchFieldName(field);
+  const referenceField = Object.keys(galleryReferenceSources).find((idField) => name === idField || name.endsWith(idField));
+  const source = referenceField ? state[galleryReferenceSources[referenceField]] : null;
+  if (!Array.isArray(source)) return [];
+  const ids = Array.isArray(value) ? value : [value];
+  return ids.flatMap((id) => {
+    if (id === null || id === undefined) return [];
+    const entity = source.find((candidate) => String(candidate?.id || "") === String(id));
+    return entity ? gallerySearchTextValues(entity) : [];
+  });
+}
+
+function galleryStateSearchIndex(items) {
+  const wantedKeys = new Set(items.map(galleryMediaKey).filter(Boolean));
+  const index = new Map();
+  const addOwnerText = (terms, owner) => {
+    if (owner === state) return;
+    for (const [field, value] of Object.entries(owner)) {
+      if (gallerySearchableFields.has(gallerySearchFieldName(field))) {
+        gallerySearchTextValues(value).forEach((text) => terms.add(text));
+      }
+      galleryReferencedSearchText(field, value).forEach((text) => terms.add(text));
+    }
+  };
+  const visit = (value, ancestors = []) => {
+    if (Array.isArray(value)) {
+      value.forEach((child) => visit(child, ancestors));
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    const key = galleryMediaKey(value);
+    if (wantedKeys.has(key)) {
+      const terms = new Set(index.get(key) || []);
+      ancestors.forEach((owner) => addOwnerText(terms, owner));
+      addOwnerText(terms, value);
+      index.set(key, [...terms]);
+    }
+    const nestedAncestors = [...ancestors, value];
+    Object.values(value).forEach((child) => visit(child, nestedAncestors));
+  };
+  visit(state);
+  return index;
+}
+
 export let galleryItems = [];
 export let galleryVisibleItems = [];
 galleryUi.activeGalleryQuickFilter = "all";
@@ -121,8 +208,7 @@ export function galleryStateCaptions(item) {
     if (galleryMediaKey(value) === key) addCaption(value.caption);
     Object.values(value).forEach(visit);
   };
-  visit(state?.trips || []);
-  visit(state?.people || []);
+  visit(state);
   return captions;
 }
 
@@ -150,6 +236,7 @@ export function renderGalleryFilters() {
 
 export function galleryFilteredItems(items) {
   const query = activeGallerySearch.trim().toLowerCase();
+  const stateSearchIndex = query ? galleryStateSearchIndex(items) : new Map();
   return items.filter((item) => {
     const quickMatch = galleryUi.activeGalleryQuickFilter === "all"
       || (galleryUi.activeGalleryQuickFilter === "photos" && !isVideoMedia(item))
@@ -158,16 +245,11 @@ export function galleryFilteredItems(items) {
     if (!quickMatch) return false;
     if (!query) return true;
     return [
-      item.name,
-      item.filename,
-      item.mediaType,
-      item.mimeType,
-      item.caption,
-      ...(Array.isArray(item.captions) ? item.captions : []),
-      ...galleryStateCaptions(item),
-      gallerySourceLabel(item),
-      galleryCaptureText(item, "")
-    ].filter(Boolean).join(" ").toLowerCase().includes(query);
+      ...gallerySearchTextValues(item),
+      ...gallerySearchTextValues(gallerySourceLabel(item)),
+      ...gallerySearchTextValues(galleryCaptureText(item, "")),
+      ...(stateSearchIndex.get(galleryMediaKey(item)) || [])
+    ].join(" ").toLowerCase().includes(query);
   }).sort((a, b) => {
     if (activeGallerySort === "oldest") return gallerySortValue(a) - gallerySortValue(b);
     if (activeGallerySort === "mediaType") return galleryMediaTypeLabel(a).localeCompare(galleryMediaTypeLabel(b)) || gallerySortValue(b) - gallerySortValue(a);

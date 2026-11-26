@@ -82,17 +82,19 @@ test("split and head-to-head column headers use underlying measurements, not for
   assert.deepEqual(west,[...west].sort((a,b) => a-b));
 });
 
-test("pie shares use all filtered quantities and keep the trips behind grouped small slices", () => {
+test("pie shares keep every filtered group and its supporting trips separate", () => {
   const catches = Array.from({length:14},(_,i) => ({species:`Species ${i+1}`,quantity:i+1}));
   const b = book(trip("first",{catches:catches.slice(0,4)}),trip("second",{catches:catches.slice(4)}),
     trip("august",{date:"2026-08-01",catches:[{species:"Salmon",quantity:40}]}));
   const m = run(b,"species",{metric:"catchShare"},{month:"July"});
   const {slices} = piePlot(m);
   assert.equal(m.rows.length,14);
+  assert.equal(slices.length,14);
+  assert.ok(slices.every(slice => !slice.name.startsWith("Other")));
   assert.equal(slices.reduce((n,s)=>n+s.value,0),105);
   assert.deepEqual([slices[0].name,slices[0].value,slices[0].share],["Species 14",14,"13.33%"]);
-  assert.equal(slices.at(-1).value,36);
-  assert.deepEqual(new Set(slices.at(-1).tripIds),new Set(["first","second"]));
+  assert.deepEqual([slices.at(-1).name,slices.at(-1).value], ["Species 1",1]);
+  assert.deepEqual(slices.at(-1).tripIds,["first"]);
   assert.equal(piePlot(run(b,"species",{metric:"lost"})).slices.length,0);
 });
 
