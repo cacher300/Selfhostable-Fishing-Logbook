@@ -181,6 +181,50 @@ def _validate_with_json_schema(payload: dict) -> tuple[bool, str | None]:
     return _error(_json_path(error), _schema_error_message(error))
 
 
+def _validate_experiments(payload: dict) -> tuple[bool, str | None]:
+    def unique(records, path):
+        for key in ("id", "name"):
+            seen = set()
+            for index, item in enumerate(records):
+                value = item[key].strip().lower() if key == "name" else item[key]
+                if value in seen:
+                    return _error(f"{path}[{index}].{key}", "must be unique")
+                seen.add(value)
+        return None
+
+    experiments = payload.get("experiments", [])
+    duplicate = unique(experiments, "experiments")
+    if duplicate:
+        return duplicate
+    definitions = {}
+    for index, experiment in enumerate(experiments):
+        path = f"experiments[{index}]"
+        duplicate = unique(experiment["variants"], f"{path}.variants")
+        if duplicate:
+            return duplicate
+        definitions[experiment["id"]] = {variant["id"] for variant in experiment["variants"]}
+    for trip_index, trip in enumerate(payload["trips"]):
+        trip_experiment_ids = set()
+        for index, experiment_id in enumerate(trip.get("experimentIds", [])):
+            path = f"trips[{trip_index}].experimentIds[{index}]"
+            if experiment_id not in definitions:
+                return _error(path, "must reference an experiment")
+            if experiment_id in trip_experiment_ids:
+                return _error(path, "must be unique")
+            trip_experiment_ids.add(experiment_id)
+        for line_index, line in enumerate(trip.get("gearUsed", [])):
+            seen = set()
+            for index, assignment in enumerate(line.get("experimentAssignments", [])):
+                path = f"trips[{trip_index}].gearUsed[{line_index}].experimentAssignments[{index}]"
+                experiment_id = assignment["experimentId"]
+                if experiment_id not in definitions or experiment_id in seen:
+                    return _error(f"{path}.experimentId", "must reference a unique experiment on this setup")
+                seen.add(experiment_id)
+                if assignment["variantId"] not in definitions[experiment_id]:
+                    return _error(f"{path}.variantId", "must reference a variant in the experiment")
+    return True, None
+
+
 def _validate_unique_ids(payload: dict) -> tuple[bool, str | None]:
     for key in OBJECT_COLLECTION_KEYS:
         seen: set[str] = set()
@@ -364,6 +408,7 @@ def validate_logbook(payload: object) -> tuple[bool, str | None]:
     if not valid:
         return valid, error
     semantic_rules = (
+        _validate_experiments,
         _validate_unique_ids,
         lambda data: _validate_settings_semantics(data["settings"]),
         _validate_spot_names,

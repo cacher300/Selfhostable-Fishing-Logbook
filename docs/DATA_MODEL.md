@@ -136,7 +136,7 @@ An expedition represents one multi-day fishing vacation and contains `id`, requi
 
 | Group | Verified fields |
 |---|---|
-| Identity/location | `id`, `title`, `date`, `expeditionId`, `location`, `locationId`, `launch`, `launchId` |
+| Identity/location | `id`, `title`, `date`, `expeditionId`, `experimentIds[]`, `location`, `locationId`, `launch`, `launchId` |
 | Time | `launchTime`, `linesPulledTime`, `idleHours`, `hours`, `pausedAt` |
 | Classification | `targetSpecies`, `method`, `intent`, `tripRating` |
 | Conditions | `waterTemp`, `waterClarity`, `weather`, `waveHeight`, `waveChop`, `wind`, `structure`, `flyHatch`, `waterLevel`, `probeTemperatureProfile[]` |
@@ -155,6 +155,14 @@ The trip start time is stored in `launchTime`; the end of fishing is stored in `
 `id`, optional `personId`, `startTime`, `endTime`, `changeNote`, `side`, `lineLabel`, `comboId`, `rodId`, `reelId`, `lureId`, `flasherId`, `presentation`, `dipseyDiverColor`, `hasLeadcore`, `hasCheater`, `cheaterLureId`, `distanceBehind`, `attachedWeightOz`, `lureMinutes`, `flasherMinutes`, `rigging`, and `riggingDetails`. `dipseyDiverColor` is a free-form string used by High Diver and Low Diver setup lines. `attachedWeightOz` is used for Outside Board, Inside Board, and Chute Rod setup lines.
 
 Setup rows intentionally do not collect fish-specific speed/depth parameters.
+
+## Experiments
+
+Optional `experiments[]` records hold a stable ID, name, notes, archive status, and at least two named variants.
+
+Optional `trip.experimentIds[]` lists the experiments selected for the trip. Each setup can carry one `experimentAssignments[]` entry per experiment, with an `experimentId` and a `variantId`. A setup can contribute to several experiments, with its results counted separately in each. Linked landed and missed fish follow `setupLineId`. Rod-hours sum closed setup intervals, including overnight deployments and setups with zero recorded fish. Incomplete intervals contribute fish counts and are excluded from hourly rates.
+
+Full logbook backups carry the definitions and assignments. Shared Trip ZIPs omit them on export and import.
 
 ## Catch and Lost Fish
 
@@ -220,12 +228,10 @@ Selecting a setup copies its bead rig onto the fish as an editable snapshot. Ope
 
 Trip `weatherFront` is automatically estimated as `pre-front`, `during-front`, `post-front`, or `no-front`. Empty or absent means Unclassified, never No front. Neither client offers manual selection. The displayed value comes from `weatherData.frontAssessment`, or from the saved `weatherFront` when its source is automatic. Older saved classifications without an automatic assessment appear as Unclassified until weather data is refreshed. The one-time historical reclassification replaces all saved values with an estimate, or Unclassified when weather is unavailable. `weatherData.frontTag` remains independent. Optional `weatherFrontSource` retains `automatic` and `manual` as schema-compatible values for older archives; no schema-version bump is required.
 
-Desktop trip filters/search and the Weather Front stats table use the automatic classification. Desktop stats count all scoped trips (including skunks), landed catch quantities, hours and catch rates, with Unclassified separate. Mobile Conditions stats include the same classification using their existing trip/fish breakdown. Map popups retain the source-trip action and show an automatic classification when available.
+Desktop trip filters and search use the automatic classification. In both clients, Basic Stats summarizes landed quantities, trips, and fish per hour by weather front. Advanced Stats includes the same groups under Conditions, with additional measures such as fishing hours and skunk rate. Skunk trips count in both sections, and Unclassified is separate from No front. Map popups retain the source-trip action and show an automatic classification when available.
 
 ### Automatic weather-front estimates
 
 `schema/weather-front-rules.js` is the editable classifier shared through generated desktop/mobile copies. Clients fetch Open-Meteo hourly context for the day before through the day after fishing (including overnight end dates). Passage candidates require a 6-hour temperature change of at least 3 C, wind shift of at least 45 degrees with winds at least 5 km/h on both sides, and either a pressure trough (at least 1 hPa on each side) or a supporting 2 hPa pressure change. Neighboring candidates collapse to their strongest signal. During front covers the fishing window plus 2 hours of timing uncertainty; pre/post covers 24 hours on either side. No front means no detected pattern with at least 90% valid hourly coverage and both window edges present. Incomplete data remains unclassified. Thresholds are application heuristics, not provider-issued front analyses. Weak, stationary or occluded fronts may be missed, and local wind/temperature changes may resemble a passage.
 
 Sources: [Open-Meteo historical hourly API](https://open-meteo.com/en/docs/historical-weather-api), [NOAA surface fronts](https://www.noaa.gov/jetstream/wxmaps). Point weather is evidence for an estimate, not a verified synoptic front position. Requests can fail without blocking trip saves.
-
-The disposable one-time script `scripts/classify_old_trip_fronts.py` reclassifies every historical trip. Dry-run is default; `--apply` requires the local app to be stopped, backs up SQLite plus uploads together, replaces prior values with the automatic estimate (or Unclassified when assessment is not possible), checks the database revision, validates, writes, and reads back the result. It is never invoked at startup. The script can be deleted after use; runtime automatic classification uses the shared rules.

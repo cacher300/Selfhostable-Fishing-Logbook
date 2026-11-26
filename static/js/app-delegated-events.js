@@ -21,6 +21,7 @@ import { openTripShareStudio } from "./trip-sharing.js";
 import { renderAdvancedStats } from "./stats.js";
 import { updateCheaterDepth, updateLeadcoreEstimatedDepth, updatePresentationFields } from "./form-utils.js";
 import { draftRecordForRow, handleGearDraftControlEvent, handleTripDraftControlEvent, removeDraftRecord } from "./draft-binding.js";
+import { renderTripExperimentPicker, renderTripSetupExperiments } from "./experiment-trip.js";
 
 import { closeGalleryLightbox, deleteGalleryItems, findGalleryItem, galleryCategoryLabels, gallerySelectionMode, galleryUi, openGalleryLightbox, renderGallery, selectGalleryRange, stepGalleryLightbox, toggleGallerySelection } from "./gallery.js";
 import { openRiggingDialog, openStructureDialog } from "./app-control-events.js";
@@ -279,6 +280,8 @@ export function setup() {
       const row = removeTripGear.closest(".gear-used-row");
       if (row?.dataset.gearId) removeDraftRecord("gearUsed", row.dataset.gearId);
       row?.remove();
+      renderTripExperimentPicker();
+      renderTripSetupExperiments();
       populateSetupLineSelects();
       updateAllRowSummaries();
       renderLiveTrollingSpread();

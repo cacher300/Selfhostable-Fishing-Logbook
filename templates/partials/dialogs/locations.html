@@ -66,9 +66,13 @@
           </div>
           <button class="icon-button" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
         </div>
-        <p class="map-pin-instruction">Press the map to drop a temporary pin for this NOAA import. It does not change the trip launch or waterbody pin.</p>
+        <p class="map-pin-instruction">Click the map to drop a temporary pin for this NOAA import. Catch markers show past catches and catches from this trip; click a marker to use its exact point. This does not change the trip launch or waterbody pin.</p>
         <p id="probeProfileLocationCoordinates" class="map-pin-instruction probe-profile-location-coordinates" role="status" aria-live="polite"></p>
         <div id="probeProfileLocationMap" class="fish-map location-picker-map" aria-label="Map for selecting a NOAA profile source"></div>
+        <div class="probe-profile-map-legend" role="group" aria-label="Catch marker legend">
+          <span class="probe-profile-map-legend-item"><i class="probe-profile-map-legend-past" aria-hidden="true"></i><span>Past catches (<span id="probeProfilePastCatchCount">0</span>)</span></span>
+          <span class="probe-profile-map-legend-item"><i class="probe-profile-map-legend-current" aria-hidden="true"></i><span>This trip (<span id="probeProfileCurrentCatchCount">0</span>)</span></span>
+        </div>
         <div class="dialog-actions">
           <button class="button secondary" type="button" data-close-dialog>Cancel</button>
           <button class="button primary" id="saveProbeProfileLocationButton" type="button" disabled>Use map point</button>

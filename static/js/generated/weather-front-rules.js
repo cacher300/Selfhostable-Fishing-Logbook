@@ -1,6 +1,6 @@
 /* Generated from schema/weather-front-rules.js. Do not edit by hand. */
 // Point-weather estimates, not analysed surface-front observations.
-// Use the same rules for desktop, mobile, and the explicit one-time backfill.
+// Use the same rules for desktop and mobile.
 const HOUR = 3600000;
 const METHOD = "open-meteo-pattern-v1";
 const finite = value => typeof value === "number" && Number.isFinite(value);

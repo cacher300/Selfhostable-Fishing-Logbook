@@ -16,9 +16,10 @@ import { ExpeditionAnalytics } from "./expedition-analytics.js";
 import { displayDateForCalendar, expeditionDateRange, populateTripExpeditionSelect, syncCalendarDate } from "./expeditions.js";
 import { renderNotePhotos } from "./photos.js";
 import { addCatchRow, addLostFishRow, addTripGearRow, populateSetupLineSelects, refreshAllCatchFishingConditions, setupLineLabel } from "./trip-rows.js";
+import { renderTripExperimentPicker } from "./experiment-trip.js";
 import { renderLiveTrollingSpread } from "./trolling-spread.js";
 import { tripConditionsTime } from "./trip-condition-time.js";
-import { addSeamlessTileLayer, seamlessMapOptions } from "./maps.js";
+import { addSeamlessTileLayer, catchMapRecordForTrip, seamlessMapOptions } from "./maps.js";
 import { calculateMinutes } from "./stats.js";
 import { isTrollingTrip, syncFishHawkVisibility, trimNumber } from "./form-utils.js";
 import { updateMethodVisibility } from "./app.js";
@@ -435,6 +436,8 @@ export function openTripDialog(trip = null) {
   setValue("tripDate", displayDateForCalendar(tripDraft.date || ""));
   document.querySelector("#tripDateTodayButton")?.classList.remove("hidden");
   populateTripExpeditionSelect(tripDraft.expeditionId || "");
+  document.querySelector("#tripExperiment")?.removeAttribute("open");
+  renderTripExperimentPicker();
   const location = findLocationByIdOrName(tripDraft.locationId, tripDraft.location);
   populateLocationSelect(location?.id || "");
   const launch = findLaunchByIdOrName(location, tripDraft.launchId, tripDraft.launch);
@@ -627,6 +630,63 @@ export function syncProbeProfileImportSourceNote() {
   resetButton?.classList.toggle("hidden", !hasMapPoint);
 }
 
+function probeProfileCatchCoordinates(catchItem) {
+  if (isUsableCoordinates(catchItem.manualCoordinates)) return catchItem.manualCoordinates;
+  const latitudeText = String(catchItem.manualLatitude ?? "").trim();
+  const longitudeText = String(catchItem.manualLongitude ?? "").trim();
+  if (latitudeText && longitudeText) {
+    const manualCoordinates = {
+      latitude: Number(latitudeText),
+      longitude: Number(longitudeText),
+      manual: true
+    };
+    if (isUsableCoordinates(manualCoordinates)) return manualCoordinates;
+  }
+  return catchItem.coordinates;
+}
+
+function probeProfileCatchMapRecords() {
+  const past = state.trips
+    .filter((trip) => String(trip.id) !== String(ui.activeTripId))
+    .flatMap((trip) => (trip.catches || []).map((catchItem, index) => catchMapRecordForTrip(trip, catchItem, index)))
+    .filter(Boolean);
+  const currentTrip = ui.tripDraft;
+  const current = currentTrip
+    ? (currentTrip.catches || []).map((catchItem, index) => {
+      const trip = { ...currentTrip, id: ui.activeTripId || currentTrip.id || "draft-trip" };
+      return catchMapRecordForTrip(trip, { ...catchItem, coordinates: probeProfileCatchCoordinates(catchItem) }, index);
+    }).filter(Boolean)
+    : [];
+  return { past, current };
+}
+
+function renderProbeProfileCatchMarkers() {
+  if (!ui.probeProfileLocationCatchMarkers) return [];
+  const { past, current } = probeProfileCatchMapRecords();
+  ui.probeProfileLocationCatchMarkers.clearLayers();
+  const addCatchMarker = (record, currentTripCatch) => {
+    const species = record.catchItem?.species || "Unknown species";
+    const tripDate = record.trip?.date || "Unknown date";
+    const marker = L.circleMarker([record.coordinates.latitude, record.coordinates.longitude], {
+      radius: 7,
+      color: currentTripCatch ? "#17633e" : "#245785",
+      fillColor: currentTripCatch ? "#52d69a" : "#76b9f5",
+      fillOpacity: 0.92,
+      weight: 2,
+      bubblingMouseEvents: false
+    }).addTo(ui.probeProfileLocationCatchMarkers);
+    marker.bindTooltip(String(html`${currentTripCatch ? "This trip" : "Past catch"}: ${species} · ${tripDate}`), { direction: "top" });
+    marker.on("click", () => setPendingProbeProfileImportCoordinates(record.coordinates));
+  };
+  past.forEach((record) => addCatchMarker(record, false));
+  current.forEach((record) => addCatchMarker(record, true));
+  const pastCount = document.querySelector("#probeProfilePastCatchCount");
+  const currentCount = document.querySelector("#probeProfileCurrentCatchCount");
+  if (pastCount) pastCount.textContent = String(past.length);
+  if (currentCount) currentCount.textContent = String(current.length);
+  return [...past, ...current];
+}
+
 export function setPendingProbeProfileImportCoordinates(coordinates) {
   ui.pendingProbeProfileImportCoordinates = isUsableCoordinates(coordinates) ? coordinates : null;
   if (els.probeProfileLocationCoordinates) {
@@ -656,13 +716,24 @@ export function ensureProbeProfileLocationMap(coordinates) {
   if (!ui.probeProfileLocationMap) {
     ui.probeProfileLocationMap = L.map(els.probeProfileLocationMap, seamlessMapOptions());
     addSeamlessTileLayer(ui.probeProfileLocationMap);
+    ui.probeProfileLocationCatchMarkers = L.layerGroup().addTo(ui.probeProfileLocationMap);
     ui.probeProfileLocationMap.on("click", (event) => {
       setPendingProbeProfileImportCoordinates({ latitude: event.latlng.lat, longitude: event.latlng.lng });
     });
   }
+  const catchRecords = renderProbeProfileCatchMarkers();
   const hasCoordinates = isUsableCoordinates(coordinates);
-  const center = hasCoordinates ? [coordinates.latitude, coordinates.longitude] : [43.7, -79.4];
-  ui.probeProfileLocationMap.setView(center, hasCoordinates ? LOCATION_FOCUS_ZOOM : 7);
+  if (hasCoordinates) {
+    ui.probeProfileLocationMap.setView([coordinates.latitude, coordinates.longitude], LOCATION_FOCUS_ZOOM);
+  } else if (catchRecords.length === 1) {
+    const point = catchRecords[0].coordinates;
+    ui.probeProfileLocationMap.setView([point.latitude, point.longitude], LOCATION_FOCUS_ZOOM);
+  } else if (catchRecords.length > 1) {
+    const points = catchRecords.map((record) => [record.coordinates.latitude, record.coordinates.longitude]);
+    ui.probeProfileLocationMap.fitBounds(L.latLngBounds(points), { padding: [28, 28], maxZoom: LOCATION_FOCUS_ZOOM });
+  } else {
+    ui.probeProfileLocationMap.setView([43.7, -79.4], 7);
+  }
   setTimeout(() => ui.probeProfileLocationMap.invalidateSize(), 50);
   if (hasCoordinates) setPendingProbeProfileImportCoordinates(coordinates);
   else {

@@ -1903,6 +1903,39 @@
   font-weight: 700;
 }
 
+.probe-profile-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.probe-profile-map-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.probe-profile-map-legend-item > span {
+  display: inline;
+}
+
+.probe-profile-map-legend i {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+  border: 2px solid #245785;
+  border-radius: 50%;
+  background: #76b9f5;
+}
+
+.probe-profile-map-legend .probe-profile-map-legend-current {
+  border-color: #17633e;
+  background: #52d69a;
+}
+
 .probe-temperature-import-status {
   display: none;
   max-width: 420px;

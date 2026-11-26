@@ -12,7 +12,7 @@ from . import read_document
 blueprint = Blueprint("pages", __name__)
 
 APP_ROUTES = (
-    "/", "/trips", "/expeditions", "/bests", "/stats", "/leaderboard",
+    "/", "/trips", "/expeditions", "/bests", "/stats", "/experiments", "/leaderboard",
     "/map", "/gear", "/gallery", "/checklists", "/wiki", "/settings",
 )
 STATIC_SUFFIXES = {".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".webp", ".woff", ".woff2", ".map"}

@@ -13,7 +13,7 @@ import { fishingSpotRadiusText } from "./settings-locations.js";
 import { isPolygonSpot } from "./spot-geometry.js";
 import { ensureGreatLakesConditions, greatLakesLayerLabel, GREAT_LAKES_MODEL_BOUNDS } from "./great-lakes-conditions.js";
 import { pauseGreatLakesAnimation } from "./great-lakes-animation.js";
-import { positionLabel } from "./cards.js";
+import { positionLabel, profileActionHtml } from "./cards.js";
 import { addMeasureControl, isMeasuring } from "./measure.js";
 import { formatDate } from "./dashboard.js";
 import { displayFowValue } from "./trip-summary.js";
@@ -458,9 +458,11 @@ export function mapDepthPopupHtml(coordinates, payload = null, status = "loading
   const offWater = status === "ready" && !depth;
   const heading = status === "loading" ? "Looking up…" : air ? "Air temperature" : depth || (status === "error" ? "Depth unavailable" : offWater ? "Not on the water" : "No depth found");
   const reading = offWater && !air ? "" : overlayHtml;
+  const hasWaterColumnAction = String(reading).includes("data-gl-profile-lat");
   return html`<article class="gl-card${status === "loading" ? " is-loading" : ""}">
     <header class="gl-card-head"><strong class="gl-card-title">${heading}</strong><span class="gl-card-sub">${positionLabel(coordinates.latitude, coordinates.longitude)}</span></header>
     ${reading}
+    ${!offWater && !hasWaterColumnAction ? profileActionHtml(coordinates.latitude, coordinates.longitude) : ""}
   </article>`;
 }
 

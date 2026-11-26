@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildStats, comparisonCount, comparisonRows, comparisonTable, formatStat, nextTableSort, overviewStats, piePlot, reportForMethod, statsDateOptions, statsFilterOptions, trendPlot } from "../static/js/stats-workbench-model.js";
+import { basicSizeStats, basicStatsTables, buildBasicStats, buildStats, comparisonCount, comparisonRows, comparisonTable, formatStat, nextTableSort, overviewStats, piePlot, reportForMethod, statsDateOptions, statsFilterOptions, trendPlot } from "../static/js/stats-workbench-model.js";
 
 const today = new Date(2026, 6, 15);
 const trip = (id, patch = {}) => ({id, date:"2026-07-01", location:"Lake", method:"Trolling", targetSpecies:"Walleye", catches:[], lostFish:[], gearUsed:[], ...patch});
@@ -8,6 +8,76 @@ const book = (...trips) => ({trips, lures:[{id:"a",name:"Spoon A",color:"Blue"},
 const line = (id,lureId,startTime,endTime,extra = {}) => ({id,lureId,startTime,endTime,...extra});
 const run = (b, report, opts = {}, scope = {}) => buildStats(b,scope,{report,...opts},today);
 const group = (m,name) => m.rows.find(r => r.name === name).values;
+
+test("Basic uses the same scope and effort for trip rankings and measured fish records", () => {
+  const setup = line("rod","a","23:30","02:30",{hasCheater:true,cheaterLureId:"b"});
+  const b = book(trip("night",{launchTime:"23:00",linesPulledTime:"03:00",idleHours:1,gearUsed:[setup],
+    waterClarity:"Clear",weather:"Rain",waveChop:"Light",
+    catches:[{species:"Walleye",setupLineId:"rod",setupLineTarget:"cheater",quantity:3,released:true,length:"50 cm",weight:"3 lb"},
+      {species:"Perch",setupLineId:"rod",length:"unknown",weight:"1 kg"}],
+    lostFish:[{possibleSpecies:"Trout",quantity:2}]}),
+  trip("skunk",{hours:1,waterClarity:"Clear"}),trip("untimed",{date:"2026-07-02",catches:[{species:"Perch",quantity:2,length:"26 in"}]}),
+  trip("active",{liveStatus:"active",catches:[{quantity:12}]}),trip("paused",{liveStatus:"paused"}),trip("draft",{isDraft:true}));
+  const basic = buildBasicStats(b,{},today);
+  assert.equal(basic.daysFished,2);
+  assert.deepEqual(basic.totals,run(b,"location").totals);
+  const { trips,hours,fish,lost,released,fishPerHour,measured } = basic.totals;
+  assert.deepEqual([trips,hours,fish,lost,released,fishPerHour,measured],[3,4,6,2,3,1,2]);
+  assert.deepEqual(basic.longest,{species:"Perch",value:26});
+  assert.deepEqual(basic.heaviest,{species:"Walleye",value:3});
+  const sizeStats = basicSizeStats(basic);
+  assert.equal(sizeStats.find(r => r.label === "Shortest fish").value,"19.69 in");
+  assert.equal(sizeStats.find(r => r.label === "Lightest fish").value,"2.2 lb");
+  assert.deepEqual(basic.mostProductiveTrips.map(r => [r.fish,r.hours,r.rate]),[[4,3,4/3],[2,null,null]]);
+  assert.deepEqual(basic.breakdowns.find(g => g.id === "species").rows.map(r => [r.name,r.fish,r.trips]),
+    [["Perch",3,2],["Walleye",3,1]]);
+  assert.deepEqual(basic.lureStats.find(r => r.name === "Spoon B"),{name:"Spoon B",fish:3,timedFish:3,hours:3,rate:1});
+  assert.deepEqual(basic.breakdowns.find(g => g.id === "clarity").rows,[{name:"Clear",fish:4,trips:2,hours:4,rate:1}]);
+  const scoped = buildBasicStats(b,{date:"custom",from:"2026-07-01",to:"2026-07-01",waterClarity:"Clear",species:"Walleye",lure:"Spoon B"},today);
+  assert.deepEqual([scoped.totals.trips,scoped.totals.fish,scoped.totals.lost,scoped.totals.hours],[1,3,0,3]);
+});
+
+test("Basic caps rankings at five and separates total lure catches from timed effort", () => {
+  const lures = Array.from({length:7}, (_, i) => ({id:`lure-${i}`,name:`Lure ${i}`}));
+  const trips = lures.map((lure, i) => trip(`trip-${i}`,{
+    title:`Trip ${i}`, launchTime:"07:00", linesPulledTime:"10:00",
+    gearUsed:i ? [line(`line-${i}`,lure.id,"07:00",i === 1 ? "07:30" : "09:00")] : [],
+    catches:[{species:"Walleye",lureId:lure.id,setupLineId:i ? `line-${i}` : undefined,time:"07:15",quantity:8-i}]
+  }));
+  trips.push(trip("unused",{gearUsed:[line("unused","lure-1","09:00","11:00")]}));
+  const tables = basicStatsTables(buildBasicStats({ lures, trips },{},today));
+  const rows = id => tables.find(table => table.id === id).rows;
+  assert.deepEqual(rows("trips").map(row => row.name),["Trip 0","Trip 1","Trip 2","Trip 3","Trip 4"]);
+  assert.equal(rows("lures").length,5);
+  assert.deepEqual(rows("lures")[0],{name:"Lure 0",detail:undefined,values:["8","—","—"]});
+  assert.equal(rows("lureRates").length,5);
+  assert.equal(rows("lureRates")[0].name,"Lure 2");
+  assert.deepEqual(rows("lureRates").find(row => row.name === "Lure 1").values,["2.8","7","2.5"]);
+});
+
+test("new reports retain sparse observations and keep bite facts apart from timed gear", () => {
+  const b = book(trip("rod-trip",{ waveHeight:"2 ft",weatherData:{marine:{waveHeightM:3},tripWindow:{precipitationIn:0}},
+    gearUsed:[line("rod","a","07:00","09:00",{comboId:"combo",hasCheater:true,cheaterLureId:"b",lineOut:"90 ft"})],
+    catches:[{setupLineId:"rod",setupLineTarget:"cheater",time:"08:00",quantity:2,lineOut:"12 m"}]}),
+  trip("without-observations"));
+  b.settings = {units:{waveHeight:"m",depth:"m"}};
+  b.rods = [{id:"r",power:"Medium"}];
+  b.reels = [{id:"e",style:"Line counter"}];
+  b.rodReelCombos = [{id:"combo",rodId:"r",reelId:"e"}];
+  const gear = run(b,"reelStyle");
+  assert.equal(gear.chart,"table");
+  assert.equal(gear.active.id,"reelStyle");
+  assert.ok(gear.compareOptions.some(report => report.id === "reelStyle"));
+  assert.deepEqual([group(gear,"Line counter").hours,group(gear,"Line counter").fish],[2,2]);
+  const bite = run(b,"lineOut");
+  assert.deepEqual(bite.rows.map(r => [r.name,r.values.fish,r.tripIds]),[["12–15 m",2,["rod-trip"]]]);
+  assert.ok(!bite.columns.some(c => c.id === "hours"));
+  assert.deepEqual(run(b,"waveHeight").rows.map(r => r.name),["0.5–1 m"]);
+  assert.deepEqual(run(b,"precipitation").rows.map(r => r.name),["Dry"]);
+  const empty = run(b,"waveDirection");
+  assert.equal(empty.active.id,"waveDirection");
+  assert.deepEqual(empty.rows,[]);
+});
 
 test("hiding zero results filters groups and statistics before pagination without removing catchless effort from rates", () => {
   const m = run(book(trip("active",{location:"A",hours:2,catches:[{quantity:4}]}),trip("active2",{location:"B",hours:2,catches:[{}],lostFish:[{}]}),

@@ -130,10 +130,9 @@
                       </label>
                     </div>
                   </div>
-                  <fieldset class="great-lakes-points-options">
-                    <legend>Data points</legend>
-                    <label><input type="checkbox" data-gl-stations /> <span>Buoys</span></label>
-                    <label><input type="checkbox" data-gl-model-points /> <span>NOAA Model calculation points</span></label>
+                  <fieldset class="great-lakes-points-options" aria-label="Data point layers">
+                    <label class="inline-toggle map-chart-toggle"><input type="checkbox" data-gl-stations /> <span>Buoys</span></label>
+                    <label class="inline-toggle map-chart-toggle"><input type="checkbox" data-gl-model-points /> <span>NOAA Model calculation points</span></label>
                     <p data-gl-points-status role="status" aria-live="polite"></p>
                   </fieldset>
                 </div>

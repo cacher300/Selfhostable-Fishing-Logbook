@@ -1,0 +1,24 @@
+<dialog id="experimentQuickCreateDialog" class="dialog experiment-quick-create-dialog" aria-labelledby="experimentQuickCreateTitle">
+  <form id="experimentQuickCreateForm" novalidate>
+    <div class="dialog-header">
+      <div>
+        <h2 id="experimentQuickCreateTitle">New experiment</h2>
+      </div>
+      <button class="icon-button" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
+    </div>
+    <div id="experimentQuickCreateMessage" class="form-message hidden" role="alert"></div>
+    <label>
+      <span>Experiment name</span>
+      <input id="experimentQuickCreateName" type="text" required maxlength="120" autocomplete="off" />
+    </label>
+    <fieldset class="experiment-quick-variants">
+      <legend>Variants</legend>
+      <div id="experimentQuickCreateVariants"></div>
+      <button class="button secondary" id="experimentQuickAddVariant" type="button">Add variant</button>
+    </fieldset>
+    <div class="dialog-actions">
+      <button class="button secondary" type="button" data-close-dialog>Cancel</button>
+      <button class="button primary" id="experimentQuickCreateSave" type="submit">Create experiment</button>
+    </div>
+  </form>
+</dialog>

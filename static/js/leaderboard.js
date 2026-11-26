@@ -7,6 +7,8 @@ import { openFlasherInfoDialog, openLureInfoDialog } from "./gear-dialogs.js";
 import { openInventoryItemInfo } from "./gear-inventory.js";
 import { resolveTripLineRecord } from "./trolling-spread.js";
 
+const leaderboardSorts = new Map();
+const defaultLeaderboardSort = { key: "rank", direction: "asc" };
 
 export function leaderboardRate(landed, lost) {
   const opportunities = landed + lost;
@@ -213,6 +215,23 @@ export function leaderboardEmpty(message, detail) {
 
 export function bindLeaderboardPreviews() {
   document.addEventListener("click", (event) => {
+    const sortButton = event.target.closest("[data-leaderboard-sort]");
+    if (sortButton) {
+      const listId = sortButton.dataset.leaderboardList;
+      const container = document.getElementById(listId);
+      if (!container) return;
+      const key = sortButton.dataset.leaderboardSort;
+      const current = leaderboardSorts.get(listId) || defaultLeaderboardSort;
+      const next = key === "rank"
+        ? { key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }
+        : {
+          key,
+          direction: current.key === key ? (current.direction === "asc" ? "desc" : "asc") : key === "name" ? "asc" : "desc"
+        };
+      leaderboardSorts.set(listId, next);
+      sortLeaderboardList(container, next);
+      return;
+    }
     const previewButton = event.target.closest("[data-leaderboard-preview-type]");
     if (!previewButton) return;
     const { leaderboardPreviewType: type, leaderboardPreviewId: id } = previewButton.dataset;
@@ -237,7 +256,16 @@ export function leaderboardRowMarkup(row, rank, kind) {
   const avatar = kind === "gear" ? leaderboardGearAvatar(row) : kind === "angler" ? leaderboardPersonAvatar(row) : "";
 
   return html`
-    <article class="leaderboard-row" style="--leaderboard-delay: ${Math.min(rank, 8) * 35}ms">
+    <article class="leaderboard-row"
+      data-sort-name="${row.name}"
+      data-sort-landed="${row.landed}"
+      data-sort-lost="${row.lost}"
+      data-sort-landing-rate="${row.landingRate}"
+      data-sort-fish-per-hour="${row.gearType ? row.fishPerHour ?? "" : ""}"
+      data-sort-catch-share="${row.catchShare}"
+      data-sort-catches-per-trip="${row.catchesPerTrip}"
+      data-sort-trips="${row.trips}"
+      style="--leaderboard-delay: ${Math.min(rank, 8) * 35}ms">
       <span class="leaderboard-rank" aria-label="Rank ${rank}">${String(rank).padStart(2, "0")}</span>
       <div class="leaderboard-identity${avatar ? "" : " leaderboard-identity--text-only"}">
         ${avatar}
@@ -247,17 +275,118 @@ export function leaderboardRowMarkup(row, rank, kind) {
         </div>
       </div>
       <div class="leaderboard-performance">
-        <div class="leaderboard-metrics">
-          <div><strong>${row.landed}</strong><span>Landed</span></div>
-          <div><strong>${row.lost}</strong><span>Lost</span></div>
-          <div><strong>${leaderboardPercent(row.landingRate)}</strong><span>Landing rate</span></div>
-          ${row.gearType ? html`<div><strong>${row.fishPerHour === null ? "—" : leaderboardDecimal(row.fishPerHour)}</strong><span>Fish / hr</span></div>` : ""}
-          <div><strong>${leaderboardPercent(row.catchShare)}</strong><span>Catch share</span></div>
-          <div><strong>${leaderboardDecimal(row.catchesPerTrip)}</strong><span>Catches / trip</span></div>
+        <div class="leaderboard-metrics${row.gearType ? "" : " leaderboard-metrics--angler"}">
+          <div><strong>${row.landed}</strong></div>
+          <div><strong>${row.lost}</strong></div>
+          <div><strong>${leaderboardPercent(row.landingRate)}</strong></div>
+          ${row.gearType ? html`<div><strong>${row.fishPerHour === null ? "—" : leaderboardDecimal(row.fishPerHour)}</strong></div>` : ""}
+          <div><strong>${leaderboardPercent(row.catchShare)}</strong></div>
+          <div><strong>${leaderboardDecimal(row.catchesPerTrip)}</strong></div>
         </div>
       </div>
     </article>
   `;
+}
+
+function leaderboardSortButton(listId, key, label, sort) {
+  const active = sort.key === key;
+  const direction = active ? sort.direction : "";
+  const indicator = active ? (direction === "asc" ? "↑" : "↓") : "↕";
+  const ariaLabel = active ? `${label}, sorted ${direction === "asc" ? "ascending" : "descending"}` : `Sort by ${label}`;
+  return html`
+    <button type="button" class="leaderboard-sort" data-leaderboard-list="${listId}" data-leaderboard-sort="${key}"
+      aria-label="${ariaLabel}" aria-pressed="${active}">
+      <span>${label}</span><span class="leaderboard-sort-indicator" aria-hidden="true">${indicator}</span>
+    </button>
+  `;
+}
+
+function leaderboardColumnsMarkup(listId, itemLabel, gear, sort) {
+  const metrics = [
+    ["landed", "Landed"],
+    ["lost", "Lost"],
+    ["landingRate", "Landing rate"]
+  ];
+  if (gear) metrics.push(["fishPerHour", "Fish / hr"]);
+  metrics.push(["catchShare", "Catch share"], ["catchesPerTrip", "Catches / trip"]);
+
+  return html`
+    <div class="leaderboard-columns" role="group" aria-label="Sortable ${itemLabel} leaderboard columns">
+      ${leaderboardSortButton(listId, "rank", "Rank", sort)}
+      ${leaderboardSortButton(listId, "name", itemLabel, sort)}
+      <div class="leaderboard-column-metrics${gear ? "" : " leaderboard-column-metrics--angler"}" role="group" aria-label="Sort by statistics">
+        ${joinHtml(metrics.map(([key, label]) => leaderboardSortButton(listId, key, label, sort)))}
+      </div>
+    </div>
+  `;
+}
+
+function leaderboardSortNumber(row, key) {
+  const value = row.dataset[`sort${key[0].toUpperCase()}${key.slice(1)}`];
+  if (value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function compareLeaderboardRows(first, second, sort) {
+  const firstName = first.dataset.sortName || "";
+  const secondName = second.dataset.sortName || "";
+  if (sort.key === "rank") {
+    const comparison = leaderboardSortNumber(second, "landed") - leaderboardSortNumber(first, "landed")
+      || leaderboardSortNumber(second, "landingRate") - leaderboardSortNumber(first, "landingRate")
+      || leaderboardSortNumber(second, "catchesPerTrip") - leaderboardSortNumber(first, "catchesPerTrip")
+      || leaderboardSortNumber(second, "trips") - leaderboardSortNumber(first, "trips")
+      || firstName.localeCompare(secondName);
+    return sort.direction === "asc" ? comparison : -comparison;
+  }
+  if (sort.key === "name") {
+    const comparison = firstName.localeCompare(secondName);
+    return (sort.direction === "asc" ? comparison : -comparison) || firstName.localeCompare(secondName);
+  }
+
+  const firstValue = leaderboardSortNumber(first, sort.key);
+  const secondValue = leaderboardSortNumber(second, sort.key);
+  if (firstValue === null && secondValue !== null) return 1;
+  if (secondValue === null && firstValue !== null) return -1;
+  if (firstValue === null && secondValue === null) return firstName.localeCompare(secondName);
+  const comparison = firstValue - secondValue;
+  return (sort.direction === "asc" ? comparison : -comparison) || firstName.localeCompare(secondName);
+}
+
+function sortLeaderboardList(container, sort) {
+  const rows = [...container.querySelectorAll(":scope > .leaderboard-row")];
+  rows.sort((first, second) => compareLeaderboardRows(first, second, sort));
+  rows.forEach((row, index) => {
+    container.append(row);
+    const rank = row.querySelector(".leaderboard-rank");
+    if (rank) {
+      rank.textContent = String(index + 1).padStart(2, "0");
+      rank.setAttribute("aria-label", `Rank ${index + 1}`);
+    }
+  });
+  container.querySelectorAll("[data-leaderboard-sort]").forEach((button) => {
+    const active = button.dataset.leaderboardSort === sort.key;
+    const label = button.querySelector("span")?.textContent || "leaderboard column";
+    const indicator = button.querySelector(".leaderboard-sort-indicator");
+    button.setAttribute("aria-pressed", String(active));
+    button.setAttribute("aria-label", active
+      ? `${label}, sorted ${sort.direction === "asc" ? "ascending" : "descending"}`
+      : `Sort by ${label}`);
+    if (indicator) indicator.textContent = active ? (sort.direction === "asc" ? "↑" : "↓") : "↕";
+  });
+}
+
+function renderLeaderboardList(container, rows, kind, itemLabel, emptyMessage, emptyDetail) {
+  if (!rows.length) {
+    setHtml(container, leaderboardEmpty(emptyMessage, emptyDetail));
+    return;
+  }
+  const sort = leaderboardSorts.get(container.id) || defaultLeaderboardSort;
+  setHtml(container, html`
+    ${leaderboardColumnsMarkup(container.id, itemLabel, kind === "gear", sort)}
+    ${joinHtml(rows.map((row, index) => leaderboardRowMarkup(row, index + 1, kind)))}
+  `);
+  sortLeaderboardList(container, sort);
 }
 
 export function gearPerformanceStats(type, id, trips = state.trips) {
@@ -350,24 +479,12 @@ export function renderStatsLeaderboard(trips = state.trips, recordFilter = () =>
   const flasherRows = visibleGearRows.filter((row) => row.gearType === "flasher");
   const anglerRows = anglerLeaderboardRows(trips, state.people, { recordFilter })
     .filter((row) => selectedPerson === "All people" || row.name === selectedPerson);
-  setHtml(rodContainer, rodRows.length
-    ? joinHtml(rodRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")))
-    : leaderboardEmpty("No rods in this scope", "Add rods to your setup lines to rank them here."));
-  setHtml(reelContainer, reelRows.length
-    ? joinHtml(reelRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")))
-    : leaderboardEmpty("No reels in this scope", "Add reels to your setup lines to rank them here."));
-  setHtml(comboContainer, comboRows.length
-    ? joinHtml(comboRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")))
-    : leaderboardEmpty("No combos in this scope", "Add rod and reel combos to rank them here."));
-  setHtml(lureContainer, lureRows.length
-    ? joinHtml(lureRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")))
-    : leaderboardEmpty("No lures in this scope", "Add lures to your setup lines to rank them here."));
-  setHtml(flasherContainer, flasherRows.length
-    ? joinHtml(flasherRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "gear")))
-    : leaderboardEmpty("No flashers in this scope", "Add flashers to your setup lines to rank them here."));
-  setHtml(anglerContainer, anglerRows.length
-    ? joinHtml(anglerRows.map((row, index) => leaderboardRowMarkup(row, index + 1, "angler")))
-    : leaderboardEmpty("No attributed anglers in this scope", "Choose an angler on catches and missed fish."));
+  renderLeaderboardList(rodContainer, rodRows, "gear", "Rod", "No rods in this scope", "Add rods to your setup lines to rank them here.");
+  renderLeaderboardList(reelContainer, reelRows, "gear", "Reel", "No reels in this scope", "Add reels to your setup lines to rank them here.");
+  renderLeaderboardList(comboContainer, comboRows, "gear", "Rod + reel combo", "No combos in this scope", "Add rod and reel combos to rank them here.");
+  renderLeaderboardList(lureContainer, lureRows, "gear", "Lure", "No lures in this scope", "Add lures to your setup lines to rank them here.");
+  renderLeaderboardList(flasherContainer, flasherRows, "gear", "Flasher", "No flashers in this scope", "Add flashers to your setup lines to rank them here.");
+  renderLeaderboardList(anglerContainer, anglerRows, "angler", "Angler", "No attributed anglers in this scope", "Choose an angler on catches and missed fish.");
 }
 
 function leaderboardPersonName(trip, personId) {

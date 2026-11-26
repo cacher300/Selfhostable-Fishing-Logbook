@@ -1,15 +1,15 @@
 import { convertUnitValue } from "./measurement-conversion.js";
 
 export const text = value => String(value ?? "").trim();
-export const numeric = value => text(value) !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
+export const numeric = value => (typeof value === "number" || typeof value === "string") && text(value) !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
 export const rounded = value => String(Math.round(value * 100) / 100);
 export const clock = value => {
   const m = text(value).match(/(?:^|T)(\d{1,2}):(\d{2})(?:$|:|\s|Z|[+-])/);
   return m && +m[1] < 24 && +m[2] < 60 ? +m[1] * 60 + +m[2] : null;
 };
 export const ratio = (a, b) => b > 0 ? a / b : null;
-const defaultUnits = { depth: "ft", fishLength: "in", fishWeight: "lb", waterTemperature: "F", airTemperature: "C", speed: "mph", windSpeed: "kph", pressure: "hPa", waveHeight: "ft" };
-const allowed = { depth: ["ft", "m"], fishLength: ["in", "cm", "m", "ft"], fishWeight: ["lb", "kg"], waterTemperature: ["F", "C"], speed: ["mph", "kph", "kn"], waveHeight: ["ft", "m"] };
+const defaultUnits = { depth: "ft", fishLength: "in", fishWeight: "lb", waterTemperature: "F", airTemperature: "C", speed: "mph", windSpeed: "kph", pressure: "hPa", waveHeight: "ft", precipitation: "mm" };
+const allowed = { depth: ["ft", "m", "fm"], fishLength: ["in", "mm", "cm", "m", "ft"], fishWeight: ["lb", "kg"], waterTemperature: ["F", "C"], speed: ["mph", "kph", "kn"], waveHeight: ["ft", "m"] };
 const aliases = { feet: "ft", foot: "ft", inches: "in", inch: "in", lbs: "lb", pounds: "lb", knots: "kn", knot: "kn", kts: "kn", "km/h": "kph", kmh: "kph", c: "C", f: "F" };
 export function measurement(raw, key, units, from) {
   const m = text(raw).match(/^(-?(?:\d+(?:\.\d+)?|\.\d+))\s*°?([a-z/]*)$/i);
@@ -28,6 +28,10 @@ function band(value, step, unit) {
   return `${rounded(start)}–${rounded(start + step)} ${unit}`;
 }
 const both = (a, b, join = " + ") => a && b ? `${a}${join}${b}` : "";
+const lureSubtype = lure => {
+  const subtype = text(lure.softPlasticType || lure.meatRigType || lure.bladeType);
+  return subtype ? both(text(lure.type), subtype, " · ") || subtype : "";
+};
 export const ratingName = value => ["", "Bad", "Mediocre", "Good", "Outstanding"][Number(value)] || "";
 export const contextFor = book => {
   const byId = items => new Map((items || []).map(item => [item.id, item]));
@@ -36,7 +40,7 @@ export const contextFor = book => {
   const label = (key,id) => {
     const item = maps[key]?.get(id);
     if (!item) return "";
-    if (key === "rods") return equipment(item);
+    if (key === "rods" || key === "reels") return equipment(item);
     if (key === "rodReelCombos") {
       const reel = maps.reels.get(item.reelId);
       return item.shortName || [equipment(maps.rods.get(item.rodId)), reel?.shortName || equipment(reel)].filter(Boolean).join(" + ");
@@ -50,6 +54,9 @@ export const launch = (t, c) => text(t.launch) || c.maps.locations.get(t.locatio
 export const person = (t, id, c) => (t.people || []).find(p => p.id === id)?.name || c.label("people", id);
 const gear = (r, c) => c.maps.lures.get(r.lureId) || {};
 const paddle = (r, c) => c.maps.flashers.get(r.flasherId) || {};
+const tackleId = (r, c, key) => r[key] || c.maps.rodReelCombos.get(r.comboId)?.[key];
+const rod = (r, c) => c.maps.rods.get(tackleId(r, c, "rodId"));
+const reel = (r, c) => c.maps.reels.get(tackleId(r, c, "reelId"));
 const wc = (t, k) => numeric(t.weatherData?.tripWindow?.[k]);
 const weatherBand = (t, c, key, pref, from, step) => {
   const v = wc(t, key);
@@ -61,7 +68,26 @@ const depth = (r, c) => {
   return values.map(v => measurement(v, "depth", c.units)).find(v => v !== null) ?? null;
 };
 const fow = (r, c) => measurement(r.fowCaught, "depth", c.units) ?? measurement(r.waterDepth, "depth", c.units);
-const depthBand = (v, c) => band(v, c.units.depth === "m" ? 3 : 10, c.units.depth);
+const depthBand = (v, c) => band(v, {m:3,fm:2}[c.units.depth] || 10, c.units.depth);
+const fieldDepth = (raw, c) => depthBand(measurement(raw, "depth", c.units), c);
+const directionLabel = value => value === null ? "" : ["N","NE","E","SE","S","SW","W","NW"][Math.round(((value % 360 + 360) % 360) / 45) % 8];
+const nonnegative = raw => { const value = numeric(raw); return value !== null && value >= 0 ? value : null; };
+const percentBand = (raw, step) => {
+  const value = nonnegative(raw);
+  return value === null || value > 100 ? "" : band(Math.min(value, 99.99), step, "%");
+};
+const ounces = value => nonnegative(value) === null ? "" : `${rounded(numeric(value))} oz`;
+const beads = (r, c) => Number(r.beadCount) || (gear(r, c).type === "Bead" ? 1 : 0);
+const beadDistance = (value, c) => {
+  if (!/[a-z]/i.test(text(value))) return "";
+  const length = measurement(value, "fishLength", c.units);
+  return length === null ? "" : `${rounded(length)} ${c.units.fishLength}`;
+};
+const waveHeight = (t, c) => {
+  const saved = measurement(t.waveHeight, "waveHeight", c.units);
+  const marine = nonnegative(t.weatherData?.marine?.waveHeightM);
+  return band(saved ?? (marine === null ? null : convertUnitValue(marine, "m", c.units.waveHeight)), c.units.waveHeight === "m" ? 0.5 : 1, c.units.waveHeight);
+};
 const speedBand = (r, c, k) => band(measurement(r[k], "speed", c.units), 0.5, c.units.speed);
 export function sunWindow(t, minutes, lunar = false) {
   if (minutes === null) return "";
@@ -117,16 +143,22 @@ function add(group, kind, specs, modes) {
   for (const [id, label, read, chart = "bar"] of specs) catalog.push({ id, label, group, kind, read, chart, modes });
 }
 const trolling = ["Trolling"], depthMethods = ["Trolling", "Jigging", "Drifting", "Ice Fishing", "Casting", "Bait Fishing", "Shore Fishing", "Fly Fishing"];
+const leadcorePresentations = new Set(["outside board", "inside board", "chute rod", "flatline-leadcore", "flatline"]);
 add("Gear & rigs", "line", [
   ["lure", "Lure head-to-head", (t, r, c) => gear(r, c).name],
   ["lureColor", "Lure color", (t, r, c) => gear(r, c).color],
   ["lureColorFamily", "Color family", (t, r, c) => colorFamilies(gear(r, c).color, gear(r, c))],
   ["lureType", "Lure type", (t, r, c) => gear(r, c).type],
+  ["lureSubtype", "Lure subtype", (t, r, c) => lureSubtype(gear(r, c))],
   ["lureSize", "Lure size", (t, r, c) => { const l = gear(r, c); return both(l.spoonSize || l.beadSize || l.weight, l.type || "lure", " "); }],
   ["lureWeight", "Lure weight", (t, r, c) => gear(r, c).weight],
   ["lureGlow", "Glow vs. non-glow", (t, r, c) => { const l = gear(r, c); return !l.id ? "" : l.glow || /glow|lumi/i.test(l.color) ? "Glow" : "Non-glow"; }],
   ["lureBrand", "Brand", (t, r, c) => gear(r, c).brand], ["bladeType", "Blade type", (t, r, c) => gear(r, c).bladeType],
-  ["rigging", "Rigging", (t, r) => r.rigging], ["rod", "Rod / combo", (t, r, c) => c.label("rodReelCombos", r.comboId) || c.label("rods", r.rodId)]
+  ["rigging", "Rigging", (t, r) => r.rigging], ["rod", "Rod / combo", (t, r, c) => c.label("rodReelCombos", r.comboId) || c.label("rods", r.rodId)],
+  ["rodType", "Rod type", (t, r, c) => rod(r, c)?.type], ["rodPower", "Rod power", (t, r, c) => rod(r, c)?.power],
+  ["rodAction", "Rod action", (t, r, c) => rod(r, c)?.action],
+  ["reel", "Reel", (t, r, c) => c.label("reels", tackleId(r, c, "reelId"))],
+  ["reelStyle", "Reel style", (t, r, c) => reel(r, c)?.style]
 ]);
 add("Fish & size", "fish", [
   ["species", "Confirmed species", (t, r) => r.lost ? "" : r.species || "Unidentified"],
@@ -153,18 +185,36 @@ add("Timing", "trip", [
   ["month", "Month by month", t => /^\d{4}-\d{2}/.test(t.date) ? t.date.slice(0, 7) : "", "line"],
   ["season", "Season vs. last season", t => text(t.date).slice(0, 4), "table"]
 ]);
+add("Year over year", "trip", [["year", "Year over year", t => /^\d{4}-\d{2}-\d{2}$/.test(t.date) ? t.date.slice(0, 4) : "", "line"]]);
 add("Conditions", "trip", [
   ["waterClarity", "Water clarity", t => t.waterClarity], ["waterTemp", "Surface temperature", (t, r, c) => tempBand(t.waterTemp, c)],
   ["waveChop", "Wave / chop", t => t.waveChop], ["weather", "Weather tag", t => t.weather],
   ["weatherFront", "Weather front", t => FRONT[t.weatherData?.frontAssessment?.value ?? (t.weatherFrontSource === "automatic" && t.weatherFront)] || "Unclassified"],
   ["frontTag", "Weather pattern tag", t => t.weatherData?.frontTag], ["pressureTrend", "Pressure trend", t => t.weatherData?.trend?.pressureTrend || t.weatherData?.tripWindow?.pressureTrendRateLabel],
-  ["windDirection", "Wind direction", t => { const d = wc(t, "windDirectionDegrees"); return d === null ? t.wind : ["N","NE","E","SE","S","SW","W","NW"][Math.round(((d % 360 + 360) % 360) / 45) % 8]; }],
+  ["windDirection", "Wind direction", t => directionLabel(wc(t, "windDirectionDegrees")) || t.wind],
   ["windSpeed", "Wind speed", (t, r, c) => weatherBand(t, c, "windSpeedMph", "windSpeed", "mph", 5)],
   ["pressure", "Barometric pressure", (t, r, c) => weatherBand(t, c, "pressureHpa", "pressure", "hPa", c.units.pressure === "inHg" ? 0.1 : c.units.pressure === "kPa" ? 1 : 10)],
   ["airTemp", "Air temperature", (t, r, c) => weatherBand(t, c, "temperatureC", "airTemperature", "C", 5)],
   ["cloudCover", "Cloud cover", t => { const n = wc(t, "cloudCoverPercent"); return n === null ? "" : n < 25 ? "Clear" : n < 60 ? "Broken cloud" : n < 90 ? "Cloudy" : "Overcast"; }],
   ["sunshine", "Sunshine", t => { const s = numeric(t.weatherData?.daily?.sunshineDurationSeconds); return s === null ? "" : s < 7200 ? "Under 2 h" : s < 21600 ? "2–6 h" : "6 h or more"; }],
-  ["moonPhase", "Moon phase", t => t.weatherData?.sunMoon?.phase]
+  ["moonPhase", "Moon phase", t => t.weatherData?.sunMoon?.phase],
+  ["waveHeight", "Wave height", (t, r, c) => waveHeight(t, c)],
+  ["wavePeriod", "Wave period", t => band(nonnegative(t.weatherData?.marine?.wavePeriodSeconds), 2, "s")],
+  ["waveDirection", "Wave direction", t => directionLabel(numeric(t.weatherData?.marine?.waveDirectionDegrees))],
+  ["windGust", "Wind gusts", (t, r, c) => weatherBand(t, c, "windGustMph", "windSpeed", "mph", 5)],
+  ["precipitation", "Precipitation during fishing", (t, r, c) => {
+    const inches = nonnegative(t.weatherData?.tripWindow?.precipitationIn);
+    if (inches === null) return "";
+    if (inches === 0) return "Dry";
+    return band(convertUnitValue(inches, "in", c.units.precipitation), c.units.precipitation === "in" ? 0.1 : 2.5, c.units.precipitation);
+  }],
+  ["humidity", "Humidity", t => percentBand(t.weatherData?.tripWindow?.humidityPercent, 20)],
+  ["moonIllumination", "Moon illumination", t => percentBand(t.weatherData?.sunMoon?.illuminationPercent, 25)],
+  ["daylightDuration", "Daylight duration", t => {
+    const seconds = nonnegative(t.weatherData?.daily?.daylightDurationSeconds);
+    return seconds === null ? "" : band(seconds / 3600, 2, "h");
+  }],
+  ["thermoclineDepth", "Recorded thermocline depth", (t, r, c) => fieldDepth(t.thermoclineDepth, c)]
 ]);
 add("Conditions", "fish", [
   ["biteWeather", "Weather at the bite", (t,r,c) => {
@@ -185,7 +235,15 @@ add("Trolling spread", "line", [
   ["lureFlasherColor", "Lure + flasher color", (t, r, c) => both(gear(r, c).color, paddle(r, c).color)],
   ["dipseyColor", "Dipsey diver color", (t, r) => r.dipseyDiverColor],
   ["distanceBehind", "Distance behind", (t, r, c) => depthBand(measurement(r.distanceBehind, "depth", c.units), c)],
-  ["attachedWeight", "Attached weight", (t, r) => numeric(r.attachedWeightOz) !== null ? `${r.attachedWeightOz} oz` : ""]
+  ["attachedWeight", "Attached weight", (t, r) => ounces(r.attachedWeightOz)],
+  ["leadcoreUse", "Leadcore use", (t, r) => typeof r.hasLeadcore === "boolean" && leadcorePresentations.has(text(r.presentation).toLowerCase()) ? r.hasLeadcore ? "Leadcore" : "No leadcore" : ""]
+], trolling);
+add("Trolling production", "fish", [
+  ["gpsSpeed", "Production by GPS speed", (t, r, c) => speedBand(r, c, "gpsSpeed")],
+  ["ballSpeed", "Production by ball speed", (t, r, c) => speedBand(r, c, "ballSpeed")],
+  ["deepestRigger", "Deepest rigger vs. other downriggers", (t, r) => /^downrigger$/i.test(r.presentation) && r.setupLineTarget !== "cheater" ? r.deepestRigger ? "Marked deepest" : "Other main rigger" : ""],
+  ["directionSpeed", "Production by GPS speed and direction", (t, r, c) => { const v = measurement(r.gpsSpeed, "speed", c.units); return both(r.direction, v === null ? "" : `${rounded(v)} ${c.units.speed}`, " · "); }],
+  ["speedDelta", "Production by ball vs. GPS speed", (t, r, c) => { const a = measurement(r.ballSpeed, "speed", c.units), b = measurement(r.gpsSpeed, "speed", c.units); if (a === null || b === null) return ""; const d = convertUnitValue(a - b, c.units.speed, "mph"); return Math.abs(d) <= 0.2 ? "Matched" : d < 0 ? "Ball slower" : "Ball faster"; }]
 ], trolling);
 add("At the bite", "fish", [
   ["waterColumn", "Depth down over water depth", (t, r, c) => both(depthBand(depth(r, c), c), depthBand(fow(r, c), c), " down over "), "table"],
@@ -194,20 +252,32 @@ add("At the bite", "fish", [
   ["exactFow", "Exact water depth", (t, r, c) => { const v = fow(r, c); return v === null ? "" : `${rounded(v)} ${c.units.depth}`; }]
 ], depthMethods);
 add("At the bite", "fish", [
-  ["gpsSpeed", "GPS speed", (t, r, c) => speedBand(r, c, "gpsSpeed")],
-  ["ballSpeed", "Speed at the ball", (t, r, c) => speedBand(r, c, "ballSpeed")],
   ["ballTemp", "Temperature at the ball", (t, r, c) => tempBand(r.ballTemp, c)],
   ["direction", "Trolling direction", (t, r) => r.direction],
-  ["directionSpeed", "GPS speed by direction", (t, r, c) => { const v = measurement(r.gpsSpeed, "speed", c.units); return both(r.direction, v === null ? "" : `${rounded(v)} ${c.units.speed}`, " · "); }],
-  ["speedDelta", "Ball vs. GPS speed", (t, r, c) => { const a = measurement(r.ballSpeed, "speed", c.units), b = measurement(r.gpsSpeed, "speed", c.units); if (a === null || b === null) return ""; const d = convertUnitValue(a - b, c.units.speed, "mph"); return Math.abs(d) <= 0.2 ? "Matched" : d < 0 ? "Ball slower" : "Ball faster"; }],
   ["dipseySetting", "Dipsey setting", (t, r) => r.dipseySetting],
-  ["deepestRigger", "Deepest rigger", (t, r) => /^downrigger$/i.test(r.presentation) && r.setupLineTarget !== "cheater" ? r.deepestRigger ? "Marked deepest" : "Other main rigger" : ""],
+  ["lineBehindBoard", "Line behind the board", (t, r, c) => fieldDepth(r.lineBehindBoard, c)],
+  ["lineOut", "Line out", (t, r, c) => fieldDepth(r.lineOut, c)],
+  ["leadcoreColors", "Leadcore colors", (t, r) => r.leadcoreColors],
+  ["flatlineWeight", "Flatline weight", (t, r) => ounces(r.flatlineWeightOz)],
+  ["ballDepth", "Ball depth", (t, r, c) => fieldDepth(r.ballDepth, c)],
+  ["cheaterDepth", "Cheater depth", (t, r, c) => fieldDepth(r.cheaterDepth, c)],
+  ["estimatedLureDepth", "Estimated lure depth", (t, r, c) => fieldDepth(r.estimatedLureDepth || r.estimatedDepth, c)],
   ["shaker", "Shaker share", (t, r) => !r.lost ? r.shaker ? "Shaker" : "Not marked shaker" : ""]
 ], trolling);
 add("At the bite", "fish", [["thermocline", "Position vs. estimated thermocline", thermocline]], ["Trolling", "Jigging"]);
 add("At the bite", "profile", [["probe", "Probe temperature profile", (t, r) => r.label, "line"]], ["Trolling", "Jigging"]);
 add("Technique", "fish", [["drift", "Named drift", (t, r, c) => c.label("drifts", r.driftId)]], ["Drifting"]);
-add("Technique", "line", [["beadRig", "Bead rig", (t, r, c) => { const n = Number(r.beadCount) || (gear(r, c).type === "Bead" ? 1 : 0); return n ? [c.label("lures", r.lureId), c.label("lures", r.secondBeadLureId), c.label("lures", r.thirdBeadLureId)].slice(0, n).map(x => x || "?").join(" + ") : ""; }]], ["Drifting","Casting","Fly Fishing","Bait Fishing","Shore Fishing","Ice Fishing","Jigging"]);
+add("Technique", "line", [
+  ["beadRig", "Bead rig", (t, r, c) => { const n = beads(r, c); return n ? [c.label("lures", r.lureId), c.label("lures", r.secondBeadLureId), c.label("lures", r.thirdBeadLureId)].slice(0, n).map(x => x || "?").join(" + ") : ""; }],
+  ["beadMaterial", "Primary bead material", (t, r, c) => gear(r, c).beadMaterial],
+  ["beadFinish", "Primary bead finish", (t, r, c) => gear(r, c).beadFinish],
+  ["beadCount", "Bead count", (t, r, c) => beads(r, c) || ""],
+  ["beadAttachment", "Bead attachment", (t, r) => r.beadAttachment],
+  ["beadSpacing", "Spacing between beads 1 and 2", (t, r, c) => beads(r, c) >= 2 ? beadDistance(r.beadSpacing, c) : ""],
+  ["thirdBeadSpacing", "Spacing between beads 2 and 3", (t, r, c) => beads(r, c) >= 3 ? beadDistance(r.thirdBeadSpacing, c) : ""],
+  ["beadToHookDistance", "Bead-to-hook distance", (t, r, c) => beads(r, c) ? beadDistance(r.beadToHookDistance, c) : ""]
+], ["Drifting","Casting","Fly Fishing","Bait Fishing","Shore Fishing","Ice Fishing","Jigging"]);
+add("Technique", "line", [["flyCategory", "Fly category", (t, r, c) => gear(r, c).flyCategory]], ["Fly Fishing"]);
 add("Technique", "fish", [["retrieve", "Retrieve at the bite", (t, r) => r.retrieve]], ["Casting"]);
 add("Technique", "fish", [["flyPresentation", "Fly presentation", (t, r) => r.flyPresentation]], ["Fly Fishing"]);
 add("Technique", "trip", [["flyHatch", "Hatch / food activity", t => t.flyHatch], ["waterLevel", "Water level", t => t.waterLevel]], ["Fly Fishing"]);

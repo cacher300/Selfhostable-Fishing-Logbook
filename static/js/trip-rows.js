@@ -1,4 +1,5 @@
 import { html, joinHtml, setHtml } from "./html.js";
+import { renderFishExperiments, renderSetupExperiments } from "./experiment-trip.js";
 import { createId, defaultTimeValue } from "./app-defaults.js";
 import { state, ui } from "./app-state.js";
 import { automaticSpotId, choiceLabel, optionChoices, optionLabels, spotName, trollingSpreadById } from "./app-normalization.js";
@@ -549,6 +550,7 @@ export function addTripGearRow(gearItem = {}) {
     rowIndex: els.tripGearRows.querySelectorAll(".gear-used-row").length
   });
   if (ui.tripDraft && !existingDraft) replaceDraftRecord("gearUsed", draftRecord);
+  renderSetupExperiments(node, draftRecord);
   node.querySelector(".trip-gear-start-time").value = draftRecord.startTime;
   node.querySelector(".trip-gear-end-time").value = draftRecord.endTime;
   node.querySelector(".trip-gear-change-note").value = draftRecord.changeNote || "";
@@ -942,8 +944,10 @@ export function rodOptionFromGearRecord(record = {}, index = 0) {
 
 export function catchRodOptions(draft = ui.tripDraft) {
   return (Array.isArray(draft?.gearUsed) ? draft.gearUsed : [])
-    .map((record, index) => rodOptionFromGearRecord(record, index))
-    .filter((item) => item.rodId);
+    .flatMap((record, index) => {
+      const option = rodOptionFromGearRecord(record, index);
+      return option.rodId || record.experimentAssignments?.length ? [option] : [];
+    });
 }
 
 export function populateCatchRodSelect(select, selectedRodId = "", selectedOptionId = "") {
@@ -957,7 +961,7 @@ export function populateCatchRodSelect(select, selectedRodId = "", selectedOptio
     || "";
   select.dataset.selectedRodId = "";
   setHtml(select, html`<option value="">Select rod</option>${joinHtml(options.flatMap((item) => {
-    const available = tripRodIsAvailable(item.rodId, ui.tripDraft?.method);
+    const available = !item.rodId || tripRodIsAvailable(item.rodId, ui.tripDraft?.method);
     const selected = item.id === selectedOption;
     if (!available && !selected) return [];
     return [html`<option value="${item.id}" data-rod-id="${item.rodId}" data-lure-id="${item.lureId}" ${selected ? "selected" : ""} ${available ? "" : "disabled"}>${item.label}</option>`];
@@ -1108,6 +1112,7 @@ export function updateRowSummary(row) {
 
   if (row.classList.contains("catch-row")) {
     const record = fishRecordForRow(row);
+    renderFishExperiments(row, record);
     const released = !record.kept && !row.classList.contains("lost-fish-row");
     const trolling = isTrollingTrip();
     const pieces = [

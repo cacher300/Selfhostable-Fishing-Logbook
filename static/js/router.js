@@ -4,6 +4,7 @@ const routeViews = {
   "/expeditions": "expeditions",
   "/bests": "bests",
   "/stats": "stats",
+  "/experiments": "experiments",
   "/leaderboard": "leaderboard",
   "/map": "map",
   "/gear": "gear",
@@ -23,9 +24,10 @@ let initialized = false;
 let statsSearch = "";
 
 export function replaceStatsSearch(query) {
-  if (window.location.pathname !== "/stats") return;
+  if (viewFromCurrentRoute() !== "stats") return;
   statsSearch = query ? `?${query}` : "";
-  window.history.replaceState(window.history.state, "", `/stats${statsSearch}`);
+  const url = `/stats${statsSearch}${window.location.hash}`;
+  window.history.replaceState(window.history.state, "", url);
 }
 
 function viewFromPath(pathname = window.location.pathname) {

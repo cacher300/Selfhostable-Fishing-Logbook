@@ -75,7 +75,7 @@ Imports a `.logbook` file containing an archiveVersion 2 ZIP and replaces the cu
 
 ### `GET /api/trips/<trip_id>/shared-archive`
 
-Downloads a `.trip` file containing a versioned `fishing-logbook-shared-trip` ZIP for one trip. It includes only that trip, its required people, locations, spots, drifts, used gear, and referenced media; unrelated history, preferences, and expeditions are excluded.
+Downloads a `.trip` file containing a versioned `fishing-logbook-shared-trip` ZIP for one trip. It includes the trip and its required people, locations, spots, drifts, used gear, and referenced media. Experiment definitions and assignments are private to the full logbook archive.
 
 ### `POST /api/shared-trip-archive/preview`
 

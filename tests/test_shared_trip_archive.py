@@ -8,6 +8,8 @@ from copy import deepcopy
 from pathlib import Path
 
 from backend.backend_config import DEFAULT_LOGBOOK
+from backend.logbook_store import validate_logbook
+from backend.shared_trip_archive import build_shared_logbook, read_shared_archive
 from conftest import make_app
 
 
@@ -59,6 +61,49 @@ def shared_source() -> dict:
         "reels": [{"id": "reel-source", "name": "Downrigger Reel"}],
         "rodReelCombos": [{"id": "combo-source", "rodId": "rod-source", "reelId": "reel-source", "shortName": "Downrigger"}],
     }
+
+
+def test_experiment_assignments_are_validated_and_private_to_the_logbook(tmp_path):
+    book = shared_source()
+    book["experiments"] = [{
+        "id": "experiment", "name": "Private trial",
+        "variants": [{"id": "control", "name": "Control"}, {"id": "test", "name": "Test"}],
+    }]
+    book["trips"][0]["experimentIds"] = ["experiment"]
+    line = book["trips"][0]["gearUsed"][0]
+    line["experimentAssignments"] = [{"experimentId": "experiment", "variantId": "control"}]
+    assert validate_logbook(book) == (True, None)
+    shared = build_shared_logbook(book, "shared-source")
+    assert "experiments" not in shared
+    assert "experimentIds" not in shared["trips"][0]
+    assert "experimentAssignments" not in shared["trips"][0]["gearUsed"][0]
+    assert line["experimentAssignments"][0]["variantId"] == "control"
+    book["trips"][0]["catches"][0]["photos"] = []
+    book["trips"][0]["notePhotos"] = []
+    fish = make_app(tmp_path, SECRET_KEY="experiment-archive")
+    fish.logbook.write(book, None)
+    response = fish.client.get("/api/archive")
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.data)) as bundle:
+        exported = json.loads(bundle.read("logbook.json"))
+    assert exported["experiments"] == book["experiments"]
+    assert exported["trips"][0]["experimentIds"] == ["experiment"]
+    assert exported["trips"][0]["gearUsed"][0]["experimentAssignments"] == line["experimentAssignments"]
+
+    incoming = io.BytesIO()
+    with zipfile.ZipFile(incoming, "w") as bundle:
+        bundle.writestr("manifest.json", json.dumps({
+            "format": "fishing-logbook-shared-trip", "sharedTripArchiveVersion": 2, "schemaVersion": 2,
+        }))
+        bundle.writestr("logbook.json", json.dumps({**book, "trips": book["trips"][:1]}))
+    imported = read_shared_archive(io.BytesIO(incoming.getvalue()))
+    assert "experiments" not in imported.logbook
+    assert "experimentIds" not in imported.logbook["trips"][0]
+    assert "experimentAssignments" not in imported.logbook["trips"][0]["gearUsed"][0]
+    line["experimentAssignments"][0]["variantId"] = "missing"
+    valid, error = validate_logbook(book)
+    assert not valid
+    assert "variantId" in error
 
 
 def target_logbook(with_overlap: bool = False) -> dict:

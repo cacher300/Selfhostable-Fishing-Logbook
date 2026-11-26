@@ -738,14 +738,13 @@
   .map-layers-menu-panel .great-lakes-control .gl-forecast-slider input[type="range"] { margin-top: 0; }
   .map-layers-menu-panel .great-lakes-control .great-lakes-timeline { margin-top: 5px; }
   .map-layers-menu-panel .great-lakes-depth-control { margin-top: 0; }
-  .map-layers-menu-panel .great-lakes-points-options { margin: 5px 0 24px; padding-top: 2px; }
-  .map-layers-menu-panel .great-lakes-points-options label { margin-top: 3px; }
+  .map-layers-menu-panel .great-lakes-points-options { margin: 5px 0 24px; padding-top: 0; }
   .fish-map {
     min-height: 360px;
   }
 
   #mapPanel .great-lakes-map-loading {
-    place-content: end center;
+    place-content: center;
   }
 
   #mapPanel .great-lakes-map-loading-card {

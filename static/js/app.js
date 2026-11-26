@@ -12,6 +12,7 @@ import { renderGearLibrary } from "./gear-inventory.js";
 import { renderFishMap } from "./maps.js";
 import { renderAdvancedStats } from "./stats.js";
 import { renderPersonalBests } from "./personal-bests.js";
+import { renderExperiments, setupExperiments } from "./experiments.js";
 import { isTrollingTrip, updateTrollingVisibility } from "./form-utils.js";
 import { renderGallery } from "./gallery.js";
 import { renderChecklists } from "./checklists.js";
@@ -32,6 +33,7 @@ export function setView(view) {
   const showingExpeditions = view === "expeditions";
   const showingBests = view === "bests";
   const showingStats = view === "stats";
+  const showingExperiments = view === "experiments";
   const showingLeaderboard = view === "leaderboard";
   const showingMap = view === "map";
   const showingGear = view === "gear";
@@ -44,6 +46,7 @@ export function setView(view) {
     expeditions: els.expeditionsViewButton,
     bests: els.bestsViewButton,
     stats: els.statsViewButton,
+    experiments: document.querySelector("#experimentsViewButton"),
     map: els.mapViewButton,
     gear: els.gearViewButton,
     gallery: els.galleryViewButton,
@@ -55,6 +58,7 @@ export function setView(view) {
     expeditions: "Expeditions",
     bests: "Personal Bests",
     stats: "Stats",
+    experiments: "Experiments",
     leaderboard: "Leaderboard",
     map: "Map",
     gear: "Gear",
@@ -66,12 +70,13 @@ export function setView(view) {
   const activeNavigationView = showingWiki ? "settings" : view;
   document.body.dataset.activeView = view;
   if (showingSettings) window.scrollTo(0, 0);
-  const panelsToHide = showingExpeditions || showingBests || showingStats || showingLeaderboard || showingMap || showingGear || showingGallery || showingChecklists || showingWiki || showingSettings;
+  const panelsToHide = showingExpeditions || showingBests || showingStats || showingExperiments || showingLeaderboard || showingMap || showingGear || showingGallery || showingChecklists || showingWiki || showingSettings;
   els.tripControls?.classList.toggle("hidden", panelsToHide);
   els.tripListPanel?.classList.toggle("hidden", panelsToHide);
   els.expeditionsPanel?.classList.toggle("hidden", !showingExpeditions);
   els.personalBestsPanel?.classList.toggle("hidden", !showingBests);
-  els.advancedStatsPanel?.classList.toggle("hidden", !showingStats);
+  els.statsPanel?.classList.toggle("hidden", !showingStats);
+  document.querySelector("#experimentsPanel")?.classList.toggle("hidden", !showingExperiments);
   els.leaderboardPanel?.classList.toggle("hidden", !showingLeaderboard);
   els.mapPanel?.classList.toggle("hidden", !showingMap);
   els.gearPanel?.classList.toggle("hidden", !showingGear);
@@ -85,7 +90,7 @@ export function setView(view) {
     button?.setAttribute("aria-current", active ? "page" : "false");
   });
   document.querySelector(".topbar h2").textContent = viewTitles[view] || "Trips";
-  els.newTripButton?.classList.toggle("hidden", showingExpeditions || showingChecklists);
+  els.newTripButton?.classList.toggle("hidden", showingExpeditions || showingChecklists || showingExperiments);
   els.newExpeditionButton?.classList.toggle("hidden", !showingExpeditions);
   if (window.matchMedia("(max-width: 640px)").matches) {
     const activeButton = viewButtons[activeNavigationView];
@@ -102,6 +107,7 @@ export function setView(view) {
   // The leaderboard panel is rendered as part of the advanced stats pass.
   if (showingStats) restoreStatsFilters();
   if (showingStats || showingLeaderboard) renderAdvancedStats();
+  if (showingExperiments) renderExperiments();
   if (showingMap) renderFishMap();
   if (showingGallery) renderGallery();
   if (showingChecklists) renderChecklists();
@@ -171,5 +177,6 @@ export function setup() {
 
   window.addEventListener("resize", syncMobileSummaryPanel);
 
+  setupExperiments();
   init();
 }

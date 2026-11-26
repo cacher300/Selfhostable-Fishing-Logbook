@@ -1,0 +1,129 @@
+.experiments-panel, .experiments-list, .experiments-editor, .experiment-assignment-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.experiments-editor[hidden], .experiment-assignment-list[hidden] { display: none; }
+
+.experiments-toolbar { display: flex; justify-content: flex-end; }
+.experiment-intro { max-width: 70ch; margin: 0; color: var(--muted); line-height: 1.5; }
+
+#tripDialog .form-grid .trip-expedition-field, #tripDialog .form-grid .trip-experiment-field {
+  grid-column: auto;
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  #tripDialog .form-grid .trip-expedition-field, #tripDialog .form-grid .trip-experiment-field {
+    flex: 1 1 calc(50% - 9px);
+    width: auto;
+    min-width: min(280px, 100%);
+  }
+}
+
+@media (max-width: 600px) {
+  #tripDialog .form-grid .trip-expedition-field, #tripDialog .form-grid .trip-experiment-field {
+    flex-basis: 100%;
+  }
+}
+
+.trip-experiment-field { display: grid; align-content: start; gap: 5px; }
+.trip-experiment-field > span { color: var(--muted); font-size: .85rem; font-weight: 700; }
+.trip-experiment-field small { color: var(--muted); line-height: 1.35; }
+#tripExperiment { flex: 1 1 0; min-width: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+#tripExperiment summary { min-height: 38px; padding: .55rem .75rem; cursor: pointer; overflow-wrap: anywhere; }
+#tripExperimentChoices { display: grid; gap: .35rem; padding: .5rem .75rem; border-top: 1px solid var(--line); }
+#tripDialog #tripExperimentChoices label { display: flex; align-items: center; gap: .5rem; color: var(--text); overflow-wrap: anywhere; }
+#tripExperimentChoices input[type="checkbox"] {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--green);
+}
+#tripExperimentChoices label > span { min-width: 0; }
+#tripDialog .trip-experiment-field .inline-control-row { align-items: start; }
+
+#experimentQuickCreateDialog { width: min(560px, calc(100vw - 32px)); }
+#experimentQuickCreateForm { display: grid; gap: 1rem; }
+.experiment-quick-variants { display: grid; gap: .75rem; min-width: 0; margin: 0; }
+.experiment-quick-variants legend { font-weight: 700; }
+.experiment-quick-variants > button { justify-self: start; }
+#experimentQuickCreateVariants {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .75rem;
+  min-width: 0;
+  margin: 0;
+}
+#experimentQuickCreateVariants label { display: grid; gap: .4rem; min-width: 0; }
+
+@media (max-width: 520px) {
+  #experimentQuickCreateVariants { grid-template-columns: minmax(0, 1fr); }
+}
+
+.experiment-card, .experiments-editor {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.experiment-heading, .experiment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.experiment-heading h3, .experiments-editor h3, .experiment-variant h4 { margin: 0; }
+.experiment-heading small, .experiment-variant small { font-weight: normal; color: var(--muted); }
+.experiment-assignment-list legend, .experiment-variant summary { font-weight: 700; }
+
+.experiments-editor fieldset, .experiment-assignment-list fieldset {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .75rem;
+}
+
+.experiments-editor fieldset {
+  display: grid;
+  align-content: start;
+  gap: .75rem;
+}
+
+.experiments-editor fieldset > button { justify-self: start; }
+.experiments-editor .experiment-actions { justify-content: flex-start; }
+
+.experiment-variant-editor { display: flex; flex-wrap: wrap; align-items: end; gap: .5rem; }
+.experiment-variant-editor label { min-width: 0; }
+.experiments-editor input:not([type="checkbox"]) {
+  width: fit-content;
+  min-width: min(14ch, 100%);
+  max-width: 100%;
+  field-sizing: content;
+}
+.experiment-variant {
+  border-top: 1px solid var(--line);
+  margin-top: 1rem;
+  padding-top: .75rem;
+}
+
+.experiment-variant summary { cursor: pointer; }
+.experiment-variant summary small { margin-inline-start: .5rem; }
+
+.experiment-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  gap: .75rem;
+}
+.experiment-metrics dd { margin: .3rem 0 0; overflow-wrap: anywhere; }
+.experiment-metrics dd { font-size: 1.125rem; font-weight: 700; }
+.experiment-deployments { padding: 0; list-style: none; }
+.experiment-deployment { border-top: 1px solid var(--line); padding: .75rem 0; }
+.experiment-fish-assignment { color: var(--muted); grid-column: 1 / -1; }

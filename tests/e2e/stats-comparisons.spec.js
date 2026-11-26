@@ -58,10 +58,9 @@ test.describe("stats comparisons", () => {
     const pageErrors = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await seedComparisons(page);
-    await page.goto("/stats", { waitUntil: "domcontentloaded" });
+    await page.goto("/stats?tab=advanced", { waitUntil: "domcontentloaded" });
 
     const result = page.locator("#comparisonBuilderTable");
-    await expect(page.locator("#workHighlight")).toContainText("Chartreuse: 0.5 (8 h, 2 trips)");
     await page.getByRole("button",{name:"Table",exact:true}).click();
     const chartreuseRow = result.getByRole("row").filter({ hasText:"Chartreuse" });
     await expect(chartreuseRow.locator("td").nth(0)).toHaveText("0.5");
@@ -133,7 +132,7 @@ test.describe("stats comparisons", () => {
 
   test("wide comparisons scroll within the result and keep the format controls reachable", async ({page}) => {
     await seedComparisons(page);
-    await page.goto("/stats");
+    await page.goto("/stats?tab=advanced");
     await page.getByRole("button",{name:"Table",exact:true}).click();
     const rail = page.getByRole("region",{name:"Comparison data, horizontally scrollable"});
     for (const width of [1440,768,390]) {
@@ -202,7 +201,7 @@ test.describe("stats comparisons", () => {
     await page.goto("/stats?month=July&show=lost");
     const hide = page.getByRole("checkbox",{name:"Hide zero & empty results"}), result = page.locator("#comparisonBuilderTable");
     const table = page.locator("#workViews").getByRole("button",{name:"Table",exact:true});
-    const cards = page.locator("#advancedMetricGrid .metric-card"), landed = cards.filter({has:page.getByText("Landed fish",{exact:true})}).locator("strong");
+    const cards = page.locator("#statsMetricGrid .metric-card"), landed = cards.filter({has:page.getByText("Landed fish",{exact:true})}).locator("strong");
     const heat = page.locator("#statsActivitySummary"), count = page.locator("#workReportCount");
     await expect(hide).not.toBeChecked();
     await expect(heat).toHaveText("2 days fished");
@@ -235,14 +234,14 @@ test.describe("stats comparisons", () => {
     await hide.check();
     await page.getByRole("button",{name:"Reset filters"}).click();
     await expect(hide).not.toBeChecked();
-    await expect(page).toHaveURL(/\/stats$/);
+    await expect(page).toHaveURL(/\/stats\?advanced=1$/);
   });
 
   test("All time combines month and day; the top date filter alone switches to a weekday calendar", async ({page}) => {
     await seedComparisons(page);
     await page.setViewportSize({width:1920,height:1080});
     await page.clock.setFixedTime(new Date("2026-11-25T12:00:00"));
-    await page.goto("/stats");
+    await page.goto("/stats?tab=advanced");
     const card = page.locator(".stats-activity-card"), grid = card.getByRole("table",{name:"All time by month and day"});
     await expect(grid).toBeVisible();
     const unusedWidth = await grid.evaluate(table => {
@@ -319,13 +318,13 @@ test.describe("stats comparisons", () => {
     await expect(page.locator("#workSources [data-view-trip]")).toHaveCount(2);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.getByRole("button",{name:"Fish & size",exact:true}).click();
-    await expect(pie).toHaveAttribute("aria-pressed","true");
-    await expect(result.getByRole("button",{name:/Walleye.*5 · 100%/})).toBeVisible();
+    await expect(pie).toHaveCount(0);
+    const species = result.getByRole("row").filter({hasText:"Walleye"});
+    await expect(species.locator("td").first()).toHaveText("5");
     await page.locator("#statsCompareMetricSelect").selectOption("lost");
-    await expect(result).toContainText("No positive values for Lost");
-    await expect(result.locator("svg")).toHaveCount(0);
-    await page.getByRole("button",{name:"Table",exact:true}).click();
-    await expect(result.getByRole("table")).toBeVisible();
+    await expect(species.locator("td").first()).toHaveText("0");
+    await species.getByRole("button",{name:"Walleye",exact:true}).click();
+    await expect(page.locator("#workSources [data-view-trip]")).toHaveCount(2);
   });
 
   test("Personal Bests filters and Leaderboard metrics fit beside and below the sidebar", async ({page}) => {

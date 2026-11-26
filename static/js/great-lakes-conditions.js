@@ -1,6 +1,7 @@
 import { setupWind, refreshWind, windReading, windSpeedLabel } from "./wind.js";
 import { html, insertHtml, joinHtml, setHtml } from "./html.js";
 import { L } from "./vendor.js";
+import { createWebGLParticleRenderer } from "./webgl-particle-renderer.js";
 import { state, ui } from "./app-state.js";
 import { convertUnitValue, currentChopRanges, formatMapUnitValue as formatUnitValue, mapUnitPreference as unitPreference } from "./app-units.js";
 import { depthRangeLabel, showWaterColumnDialog, thermoclineBand, thicknessLabel } from "./water-column.js";
@@ -1695,11 +1696,21 @@ export function blendCurrentVectors(from, to, fraction) {
 }
 
 export function createParticleLayer(map, fields, { clipToGreatLakesWater = false, particleColor = null } = {}) {
-  const canvas = L.DomUtil.create("canvas", "great-lakes-current-flow leaflet-layer");
-  const ctx = canvas.getContext("2d");
+  const createCanvas = () => {
+    const layerCanvas = L.DomUtil.create("canvas", "great-lakes-current-flow leaflet-layer");
+    layerCanvas.style.pointerEvents = "none";
+    return layerCanvas;
+  };
+  let canvas = createCanvas();
+  let webglRenderer = createWebGLParticleRenderer(canvas);
+  let ctx = null;
+  if (!webglRenderer) {
+    canvas = createCanvas();
+    ctx = canvas.getContext("2d");
+  }
   const waterMaskCanvas = clipToGreatLakesWater ? document.createElement("canvas") : null;
   const waterMaskCtx = waterMaskCanvas?.getContext("2d", { willReadFrequently: true });
-  let waterMaskPixels = null, waterMaskWidth = 0, waterMaskHeight = 0, waterMaskFailed = false;
+  let waterMaskPixels = null, waterMaskAlpha = null, waterMaskWidth = 0, waterMaskHeight = 0, waterMaskFailed = false;
   // Replaced when an animation moves to the next frame; particles keep flowing.
   let sample;
   const speedColors = speedBinColors();
@@ -1714,7 +1725,7 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
     loadParticleWaterMasks().then((masks) => {
       particleWaterMasks = masks;
       if (active) refresh();
-    }).catch(() => { waterMaskFailed = true; waterMaskPixels = null; });
+    }).catch(() => { waterMaskFailed = true; waterMaskPixels = null; waterMaskAlpha = null; webglRenderer?.setWaterMask(null); });
   }
   // Warm-up frames are excluded: image decoding makes the first second slow.
   let frameTime = 16.67, framesSinceTrim = -120, minimumCount = 0;
@@ -1730,6 +1741,8 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
     waterMaskWidth = waterMaskCanvas.width;
     waterMaskHeight = waterMaskCanvas.height;
     waterMaskPixels = null;
+    waterMaskAlpha = null;
+    webglRenderer?.setWaterMask(null);
     if (waterMaskFailed || !particleWaterMasks?.length) return;
     waterMaskCtx.clearRect(0, 0, waterMaskWidth, waterMaskHeight);
     waterMaskCtx.imageSmoothingEnabled = true;
@@ -1742,14 +1755,21 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
       const rgba = waterMaskCtx.getImageData(0, 0, waterMaskWidth, waterMaskHeight).data;
       const waterPixels = waterMaskWidth * waterMaskHeight;
       const packed = new Uint8Array(Math.ceil(waterPixels / 8));
+      const coverage = new Uint8Array(waterPixels);
       for (let index = 0; index < waterPixels; index += 1) {
-        if (rgba[index * 4 + 3] > 48) packed[index >> 3] |= 1 << (index & 7);
+        const alpha = rgba[index * 4 + 3];
+        coverage[index] = alpha;
+        if (alpha > 48) packed[index >> 3] |= 1 << (index & 7);
       }
       waterMaskPixels = packed;
+      waterMaskAlpha = coverage;
+      webglRenderer?.setWaterMask(coverage, waterMaskWidth, waterMaskHeight);
     } catch {
       // A failed native mask should hide flow instead of drawing it over land.
       waterMaskFailed = true;
       waterMaskPixels = null;
+      waterMaskAlpha = null;
+      webglRenderer?.setWaterMask(null);
     }
   }
 
@@ -1825,20 +1845,28 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
     canvas.height = Math.round(size.y * ratio);
     canvas.style.width = `${size.x}px`;
     canvas.style.height = `${size.y}px`;
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    if (webglRenderer) webglRenderer.resize(size.x, size.y);
+    else ctx?.setTransform(ratio, 0, 0, ratio, 0, 0);
     rebuildWaterMask();
   }
 
   function draw(steps) {
     // Fade the existing image by elapsed time, then paint only each head's new
     // movement. No discrete tail commits, shifting arrays or full trail redraws.
-    ctx.globalCompositeOperation = "destination-in";
-    ctx.fillStyle = `rgba(0, 0, 0, ${CURRENT_TRAIL_RETENTION ** steps})`;
-    ctx.fillRect(0, 0, size.x, size.y);
-    ctx.globalCompositeOperation = "source-over";
+    const fadeAlpha = 1 - CURRENT_TRAIL_RETENTION ** steps;
+    if (webglRenderer) {
+      webglRenderer.fade(fadeAlpha, size.x, size.y);
+      if (waterMaskAlpha) webglRenderer.applyWaterMask(size.x, size.y);
+    } else if (ctx) {
+      ctx.globalCompositeOperation = "destination-in";
+      ctx.fillStyle = `rgba(0, 0, 0, ${CURRENT_TRAIL_RETENTION ** steps})`;
+      ctx.fillRect(0, 0, size.x, size.y);
+      ctx.globalCompositeOperation = "source-over";
+    }
     if (clipToGreatLakesWater && !waterMaskPixels) return;
 
     const { rgb, halo, bySpeed } = explicitParticleColor ? { ...explicitParticleColor, bySpeed: false } : flowColorParts(greatLakesFlowColor);
+    if (!webglRenderer && !ctx) return;
     const paths = new Array(bySpeed ? SPEED_FLOW_COLOR_BINS : 3).fill(null);
     for (const particle of particles) {
       if (particle.wait > 0) { particle.wait = Math.max(0, particle.wait - steps); continue; }
@@ -1861,27 +1889,42 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
       particle.vector = vector;
       particle.age += steps;
       const bin = bySpeed ? speedColorBin(speed, greatLakesCurrentSpeedMax) : speed > 0.4 ? 2 : speed > 0.1 ? 1 : 0;
-      const path = paths[bin] || (paths[bin] = new Path2D());
-      path.moveTo(x - origin.x, y - origin.y);
-      path.lineTo(nextX - origin.x, nextY - origin.y);
+      if (webglRenderer) {
+        (paths[bin] || (paths[bin] = [])).push([x - origin.x, y - origin.y, nextX - origin.x, nextY - origin.y]);
+      } else {
+        const path = paths[bin] || (paths[bin] = new Path2D());
+        path.moveTo(x - origin.x, y - origin.y);
+        path.lineTo(nextX - origin.x, nextY - origin.y);
+      }
     }
-    ctx.lineCap = "round";
-    paths.forEach((path, bin) => {
-      if (!path) return;
-      // A restrained outline keeps coloured/black flow readable on any basemap.
-      ctx.lineWidth = bySpeed ? 2.2 : 1.8;
-      ctx.strokeStyle = `rgba(${halo}, ${1 - 0.88 ** steps})`;
-      ctx.stroke(path);
-      ctx.lineWidth = bySpeed ? 1.3 : 1.05;
-      const opacity = bySpeed ? 0.55 : [0.3, 0.46, 0.5][bin];
-      ctx.strokeStyle = `rgba(${bySpeed ? speedColors[bin] : rgb}, ${1 - (1 - opacity) ** steps})`;
-      ctx.stroke(path);
-    });
-    if (waterMaskCanvas) {
-      ctx.save();
-      ctx.globalCompositeOperation = "destination-in";
-      ctx.drawImage(waterMaskCanvas, 0, 0, size.x, size.y);
-      ctx.restore();
+    if (webglRenderer) {
+      const haloGroups = [], flowGroups = [];
+      paths.forEach((segments, bin) => {
+        if (!segments?.length) return;
+        haloGroups.push({ segments, width: bySpeed ? 2.2 : 1.8, color: halo, alpha: 1 - 0.88 ** steps });
+        const opacity = bySpeed ? 0.55 : [0.3, 0.46, 0.5][bin];
+        flowGroups.push({ segments, width: bySpeed ? 1.3 : 1.05, color: bySpeed ? speedColors[bin] : rgb, alpha: 1 - (1 - opacity) ** steps });
+      });
+      webglRenderer.drawGroups([...haloGroups, ...flowGroups], size.x, size.y);
+    } else if (ctx) {
+      ctx.lineCap = "round";
+      paths.forEach((path, bin) => {
+        if (!path) return;
+        // A restrained outline keeps coloured/black flow readable on any basemap.
+        ctx.lineWidth = bySpeed ? 2.2 : 1.8;
+        ctx.strokeStyle = `rgba(${halo}, ${1 - 0.88 ** steps})`;
+        ctx.stroke(path);
+        ctx.lineWidth = bySpeed ? 1.3 : 1.05;
+        const opacity = bySpeed ? 0.55 : [0.3, 0.46, 0.5][bin];
+        ctx.strokeStyle = `rgba(${bySpeed ? speedColors[bin] : rgb}, ${1 - (1 - opacity) ** steps})`;
+        ctx.stroke(path);
+      });
+      if (waterMaskCanvas) {
+        ctx.save();
+        ctx.globalCompositeOperation = "destination-in";
+        ctx.drawImage(waterMaskCanvas, 0, 0, size.x, size.y);
+        ctx.restore();
+      }
     }
   }
 
@@ -1934,12 +1977,17 @@ export function createParticleLayer(map, fields, { clipToGreatLakesWater = false
         return blendCurrentVectors(previous(latitude, longitude), target(latitude, longitude), fraction);
       };
     },
-    setParticleColor(next) { explicitParticleColor = next; ctx.clearRect(0, 0, size.x, size.y); },
+    setParticleColor(next) {
+      explicitParticleColor = next;
+      if (webglRenderer) webglRenderer.clear();
+      else ctx?.clearRect(0, 0, size.x, size.y);
+    },
     remove() {
       active = false;
       cancelAnimationFrame(frame);
       map.off("zoomstart", hide);
       map.off("resize viewreset moveend", refresh);
+      webglRenderer?.dispose();
       canvas.remove();
     }
   };

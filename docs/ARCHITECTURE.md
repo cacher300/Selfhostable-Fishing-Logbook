@@ -45,7 +45,7 @@ HTML IDs/classes and `data-*` attributes remain internal APIs shared by template
 
 #### Global Map layers
 
-`maps.js` offers Standard (OpenStreetMap), Dark and Minimal (CARTO), and Satellite (Esri World Imagery) basemaps. Satellite tiles show Esri and data-provider credits in the Leaflet attribution control. The browser remembers the chosen style. The map also draws original NOAA NCEI Great Lakes shading from the bundled rasters described by `static/data/bathymetry/manifest.json`. The public manifest is explicitly allowlisted by `pages.static_files`. **Depth shading version 2** uses viewport tiles from the configured Great Lakes Trolling API. It loads their versioned URL from `/api/v1/bathymetry/tiles/manifest` and shows a depth scale in the selected map units. The API receives the visible tile coordinates while v2 is enabled. Only one shading style is displayed at a time. **Depth contours** separately loads view-relevant GeoJSON through `/api/bathymetry/contours/{lake}`. The depth-shading pane sits above NOAA charts and Great Lakes model overlays, with contour lines above the shading. Both shading styles depict static bottom depth.
+`maps.js` offers Standard (OpenStreetMap), Dark and Minimal (CARTO), and Satellite (Esri World Imagery) basemaps. Satellite tiles show Esri and data-provider credits in the Leaflet attribution control. The browser remembers the chosen style. The map also draws original NOAA NCEI Great Lakes shading from the bundled rasters described by `static/data/bathymetry/manifest.json`. The public manifest is explicitly allowlisted by `pages.static_files`. **Depth shading version 2** uses viewport tiles from the configured Great Lakes Trolling API. It loads their versioned URL from `/api/v1/bathymetry/tiles/manifest` and shows a depth scale in the selected map units. The API receives the visible tile coordinates while v2 is enabled. Only one shading style is displayed at a time. **Depth contours** separately loads view-relevant GeoJSON through `/api/bathymetry/contours/{lake}`. The depth-shading pane sits above NOAA charts and Great Lakes model overlays, with contour lines above the shading. Both shading styles depict static bottom depth. Animated current, wave, and wind particles use a WebGL2/WebGL canvas renderer with a 2D canvas fallback; its water-mask clipping stays in the GPU pass and the canvas does not intercept map clicks.
 
 ### Backend
 
@@ -99,9 +99,9 @@ The trip editor also fills an empty water-temperature field from a Great Lakes s
 
 ### Great Lakes current inspection
 
-1. The operator selects a lake, the Underwater currents layer, a forecast time, and a map depth. `great-lakes-conditions.js` renders the available flow overlay.
-2. A map press opens the depth popup in `maps.js`. Bathymetry fills in FOW when available; the popup also offers **View current profile** and omits the point's coordinates.
-3. That button requests `GET /api/v1/point` from the configured Great Lakes API host and reads the `currentProfile` result. The API chooses a nearby model point and returns available depths, velocity, speed, and flow direction.
+1. The operator selects a lake, a Great Lakes layer, a forecast time, and a map depth. `great-lakes-conditions.js` renders the available raster or particle overlay.
+2. A map click opens the depth popup in `maps.js`. Bathymetry fills in FOW when available; every wet point offers **Water column**, and the Underwater currents layer also offers **Current by depth**.
+3. The Water column button requests the temperature profile from the configured Great Lakes API host. Current by depth requests `/api/v1/point` and reads the `currentProfile` result, which returns available depths, velocity, speed, and flow direction.
 4. The dialog orders the readings from shallow to deep and shades the row nearest the selected map depth. The popup and profile are derived views; they do not change the logbook document.
 
 ### Media
@@ -158,7 +158,7 @@ Wind payloads carry GFS particle points plus asters[] that shade each lake by w
 
 ## Routing
 
-Flask serves the same SPA at `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, `/wiki`, and `/settings`. The initial view is selected from `window.location.pathname`; `/` selects Trips and is normalized into history state on load. `static/js/router.js` owns the client route table. Primary in-app navigation calls `navigate(view)`, which renders the panel and pushes the matching path when the path changes; `popstate` re-renders the matching panel without pushing. Stats filters continue to own the `/stats` query string, and same-view navigation preserves the current query. In `file://` standalone fallback mode, navigation renders panels without pushing absolute server paths. Static files are served only through the restricted `/static/<path>` route.
+Flask serves the same SPA at `/`, `/trips`, `/expeditions`, `/bests`, `/stats`, `/leaderboard`, `/map`, `/gear`, `/gallery`, `/checklists`, `/wiki`, and `/settings`. The initial view is selected from `window.location.pathname`; `/` selects Trips and is normalized into history state on load. `static/js/router.js` owns the client route table. Primary in-app navigation calls `navigate(view)`, which renders the panel and pushes the matching path when the path changes; `popstate` re-renders the matching panel without pushing. The `/stats` query string stores the shared scope, report selection, and whether Advanced Stats is expanded. Older Advanced Stats links expand the section on the same page. In `file://` standalone fallback mode, navigation renders panels without pushing absolute server paths. Static files are served only through the restricted `/static/<path>` route.
 
 ## Security and Trust Boundary
 

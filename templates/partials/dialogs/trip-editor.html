@@ -58,6 +58,17 @@
                 <button class="button secondary compact-action" id="addExpeditionFromTripButton" type="button" aria-label="Create new expedition">New</button>
               </div>
             </label>
+            <div class="trip-experiment-field">
+              <span id="tripExperimentLabel">Experiments</span>
+              <div class="inline-control-row">
+                <details id="tripExperiment">
+                  <summary aria-labelledby="tripExperimentLabel tripExperimentSelection" aria-describedby="tripExperimentHint"><span id="tripExperimentSelection">No experiments selected</span></summary>
+                  <div id="tripExperimentChoices"></div>
+                </details>
+                <button class="button secondary compact-action" id="addExperimentFromTripButton" type="button" aria-label="Create new experiment">New</button>
+              </div>
+              <small id="tripExperimentHint">Select experiments here, then choose variants on each setup line.</small>
+            </div>
             <div class="location-field">
               <span>Location / waterbody</span>
               <div class="inline-control-row">

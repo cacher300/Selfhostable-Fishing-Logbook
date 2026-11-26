@@ -1,4 +1,5 @@
 import { html, joinHtml, setHtml } from "./html.js";
+import { renderExperiments } from "./experiments.js";
 import { weatherFrontLabel, weatherFrontOptions, weatherFrontValue } from "./weather-front.js";
 import { activeStatsFilters, defaultStatsFilters, state, ui } from "./app-state.js";
 import { locationNames, optionChoices, optionLabels } from "./app-normalization.js";
@@ -14,7 +15,7 @@ import { flasherName, lureName } from "./gear-core.js";
 import { renderGearLibrary } from "./gear-inventory.js";
 import { resolveTripLineRecord } from "./trolling-spread.js";
 import { statsMonthNames } from "./stats-calendar.js";
-import { reportForMethod, statsDateOptions, usedStatsMethods } from "./stats-workbench-model.js";
+import { statsDateOptions, usedStatsMethods } from "./stats-workbench-model.js";
 import { calculateHours, parseFirstNumber, renderAdvancedStats } from "./stats.js";
 import { renderPersonalBests } from "./personal-bests.js";
 import { trimNumber } from "./form-utils.js";
@@ -338,8 +339,12 @@ export function renderFilters() {
 }
 
 export function restoreStatsFilters(methods = ["All methods", ...usedStatsMethods(state.trips)]) {
-  if (window.location.pathname !== "/stats") return;
+  if (window.location.pathname.replace(/\/$/, "").toLowerCase() !== "/stats") return;
   const params = new URLSearchParams(window.location.search);
+  const legacyKeys = ["range","from","to","method","sort","minTrips","minHours","nonzero","outcome","compare","split","show",...Object.keys(defaultStatsFilters)];
+  const tab = params.get("tab");
+  ui.statsAdvancedOpen = params.has("advanced") ? params.get("advanced") === "1"
+    : tab === "advanced" || (!tab && legacyKeys.some(key => params.has(key)));
   const range = params.get("range"), method = params.get("method");
   ui.activeStatsDateRange = statsDateOptions(state.trips).some(o => o.id === range) ? range : "all";
   ui.statsDateFrom = ui.activeStatsDateRange === "custom" ? params.get("from") || "" : "";
@@ -350,7 +355,7 @@ export function restoreStatsFilters(methods = ["All methods", ...usedStatsMethod
   ui.activeStatsMinHours = Math.max(0, Number(params.get("minHours")) || 0);
   ui.activeStatsHideEmpty = params.get("nonzero") === "1";
   ui.activeStatsIncludeLost = params.get("outcome") === "strikes";
-  ui.activeStatsCompareBy = params.get("compare") || reportForMethod(ui.activeStatsMethod);
+  ui.activeStatsCompareBy = params.get("compare") || "";
   ui.activeStatsCompareSplit = params.get("split") || "";
   ui.activeStatsCompareMetric = params.get("show") || (params.get("outcome") === "strikes" ? "strikesPerHour" : params.get("sort") || "");
   Object.keys(activeStatsFilters).forEach((key) => {
@@ -662,6 +667,7 @@ export function populateChoiceSelect(select, options, placeholder, selectedValue
 }
 
 export function renderAll() {
+  if (document.body.dataset.activeView === "experiments") renderExperiments();
   renderSelectOptions();
   renderFilters();
   renderStatsMethodFilter();

@@ -75,7 +75,7 @@ test("older trips can be classified and cleared while retaining unknown fields",
   }
 });
 
-test("front stats count skunk trips and keep unclassified separate from no front", async ({ page }) => {
+test("Basic and Advanced front stats count skunk trips and distinguish unclassified trips", async ({ page }) => {
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   const fronts = ["pre-front", "pre-front", "during-front", "post-front", "no-front", undefined];
@@ -88,7 +88,15 @@ test("front stats count skunk trips and keep unclassified separate from no front
   }));
   await resetLogbook(page, await freshLogbook(page, { locations: [seededLocation()], trips }));
   await stubExternalApis(page);
-  await page.goto("/stats");
+  await page.goto("/stats?tab=advanced");
+  await page.locator("#basicStatsPanel > summary").click();
+  const basic = page.getByRole("table", { name: "Weather fronts" });
+  await expect(basic.getByRole("rowheader")).toHaveCount(5);
+  const basicPre = basic.getByRole("row").filter({ has: page.getByRole("rowheader", { name: "Pre-front", exact: true }) });
+  await expect(basicPre.getByRole("cell")).toHaveText(["3", "2", "0.75"]);
+  await expect(basic.getByRole("rowheader", { name: "No front", exact: true })).toBeVisible();
+  await expect(basic.getByRole("rowheader", { name: "Unclassified", exact: true })).toBeVisible();
+  await page.locator("#basicStatsPanel > summary").click();
   await page.getByRole("button",{name:"Conditions",exact:true}).click();
   await page.locator("#statsCompareBySelect").selectOption("weatherFront");
   await page.locator("#statsCompareMetricSelect").selectOption("skunk");

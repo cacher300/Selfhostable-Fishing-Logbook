@@ -40,6 +40,10 @@
     "trips"
   ],
   "properties": {
+    "experiments": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/experiment" }
+    },
     "schemaVersion": {
       "const": 2,
       "description": "Document format version. Only version 2 is supported."
@@ -555,6 +559,34 @@
         "endDate"
       ]
     },
+    "experimentName": { "type": "string", "pattern": "\\S" },
+    "experimentVariant": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "$ref": "#/$defs/experimentName" },
+        "name": { "$ref": "#/$defs/experimentName" }
+      }
+    },
+    "experiment": {
+      "type": "object",
+      "required": ["id", "name", "variants"],
+      "properties": {
+        "id": { "$ref": "#/$defs/experimentName" },
+        "name": { "$ref": "#/$defs/experimentName" },
+        "notes": { "type": "string" },
+        "archived": { "type": "boolean" },
+        "variants": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/experimentVariant" } }
+      }
+    },
+    "experimentAssignment": {
+      "type": "object",
+      "required": ["experimentId", "variantId"],
+      "properties": {
+        "experimentId": { "$ref": "#/$defs/experimentName" },
+        "variantId": { "$ref": "#/$defs/experimentName" }
+      }
+    },
     "fishEvent": {
       "type": "object",
       "additionalProperties": true,
@@ -627,6 +659,11 @@
         "id": {
           "type": "string"
         },
+        "experimentIds": {
+          "description": "Experiments selected in Trip Basics. Setup lines pick a variant for each experiment.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/experimentName" }
+        },
         "people": {
           "type": "array",
           "items": {
@@ -640,6 +677,10 @@
             "type": "object",
             "additionalProperties": true,
             "properties": {
+              "experimentAssignments": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/experimentAssignment" }
+              },
               "dipseyDiverColor": {
                 "type": "string"
               },

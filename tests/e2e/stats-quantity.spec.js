@@ -16,13 +16,16 @@ test("stats count released and shaker quantities and display metric speed", asyn
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   try {
-    await page.goto("/stats");
+    await page.goto("/stats?tab=advanced");
     await expect(page).toHaveTitle("Fishing Logbook");
-    await expect(page.locator("#advancedMetricGrid")).toContainText("5 released · 1 kept");
+    const card = name => page.locator("#statsMetricGrid .metric-card").filter({has:page.getByText(name,{exact:true})}).locator("strong");
+    await expect(card("Released")).toHaveText("5");
+    await expect(card("Kept")).toHaveText("1");
     await page.getByRole("button",{name:"At the bite",exact:true}).click();
     const result = page.locator("#comparisonBuilderTable");
     await page.locator("#statsCompareBySelect").selectOption("shaker");
     await expect(result).toContainText("83.33%");
+    await page.getByRole("button",{name:"Trolling production",exact:true}).click();
     await page.locator("#statsCompareBySelect").selectOption("directionSpeed");
     await expect(result).toContainText("4.8 kph");
     await page.locator("#statsCompareBySelect").selectOption("gpsSpeed");

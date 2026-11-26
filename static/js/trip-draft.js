@@ -13,6 +13,7 @@ const draftSources = new WeakMap();
 const emptyDefaults = new Map([
   ["idleHours", 0],
   ["expeditionId", ""],
+  ["experimentIds", []],
   ["intent", "serious"],
   ["launch", ""],
   ["launchId", ""],
@@ -160,6 +161,7 @@ export function createTripDraft(trip = null) {
     title: "",
     date: "",
     expeditionId: "",
+    experimentIds: [],
     location: "",
     locationId: "",
     launch: "",
@@ -249,7 +251,7 @@ function normalizeSetupLine(line = {}, context = {}) {
 
 function setupLineIsNotEmpty(item) {
   return Boolean(
-    item.startTime || item.endTime || item.changeNote || item.lineLabel || item.hasLeadcore
+    item.startTime || item.endTime || item.changeNote || item.lineLabel || item.hasLeadcore || item.experimentAssignments?.length
     || item.comboId || item.rodId || item.reelId || item.lureId || item.rigging || item.riggingDetails
     || item.flasherId || item.lureMinutes || item.flasherMinutes || item.presentation || item.distanceBehind
     || item.dipseyDiverColor || item.attachedWeightOz || item.hasCheater || item.cheaterLureId
@@ -383,6 +385,7 @@ export function tripFromDraft(draft = {}, context = {}) {
     title: trimText(draft.title),
     date: trimText(draft.date),
     expeditionId: trimText(draft.expeditionId),
+    experimentIds: [...new Set(ensureArray(draft.experimentIds).map(trimText).filter(Boolean))],
     location: location?.name || trimText(draft.location),
     locationId: location?.id || trimText(draft.locationId),
     launch: launch?.name || trimText(draft.launch),

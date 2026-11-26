@@ -2,7 +2,7 @@ import { activeStatsFilters, defaultStatsFilters, state, ui } from "./app-state.
 import { els } from "./app-elements.js";
 import { html, joinHtml, setHtml } from "./html.js";
 import { StatsActivityHeatmap } from "./stats-heatmap.js";
-import { buildStats, comparisonCount, comparisonRows, comparisonTable, formatStat, nextTableSort, overviewStats, piePlot, statsDateOptions, statsFilterOptions, trendPlot } from "./stats-workbench-model.js";
+import { basicOverviewStats, basicSizeStats, basicStatsTables, buildBasicStats, buildStats, comparisonCount, comparisonRows, comparisonTable, formatStat, nextTableSort, piePlot, statsDateOptions, statsFilterOptions, trendPlot } from "./stats-workbench-model.js";
 import { activityModes, dateKey, statsDateWindow } from "./stats-calendar.js";
 import { syncStatsUrl } from "./app-control-events.js";
 import { renderStatsLeaderboard } from "./leaderboard.js";
@@ -12,6 +12,7 @@ import { resolveTripLineRecord } from "./trolling-spread.js";
 const byId = id => document.getElementById(id);
 let a = "", b = "", matched = false, view = "", sourceKey = "", limit = 12, lastScope = "", threshold = 0;
 let heatMode = "days", heatContext;
+let basicContext;
 let currentReport, currentPie, currentTable, tableSort = null;
 const menu = (id, entries, selected, first) => {
   const el = byId(id);
@@ -71,7 +72,7 @@ function resetScope() {
   ui.activeStatsDateRange = "all"; ui.activeStatsMethod = "All methods"; ui.activeStatsMinTrips = 0; ui.activeStatsMinHours = 0;
   ui.statsDateFrom = ""; ui.statsDateTo = ""; heatContext = undefined;
   ui.activeStatsSort = "fishPerHour"; ui.activeStatsIncludeLost = false; ui.activeStatsHideEmpty = false; threshold = 0; byId("workSize").value = "";
-  ui.activeStatsCompareBy = "lureColor"; ui.activeStatsCompareSplit = ""; ui.activeStatsCompareMetric = "";
+  ui.activeStatsCompareBy = ""; ui.activeStatsCompareSplit = ""; ui.activeStatsCompareMetric = "";
   clearPair(); syncStatsUrl();
 }
 
@@ -101,6 +102,13 @@ function renderLeaderboardFilters() {
 function bind(root) {
   if (root.dataset.workBound) return;
   root.dataset.workBound = "true";
+  const advanced = byId("advancedStatsPanel");
+  advanced.addEventListener("toggle", () => {
+    if (advanced.open === ui.statsAdvancedOpen || document.body.dataset.activeView !== "stats") return;
+    ui.statsAdvancedOpen = advanced.open;
+    syncStatsUrl();
+    if (advanced.open) renderAdvancedStats();
+  });
   root.addEventListener("click", e => {
     const source = e.target.closest("[data-work-source]");
     if (source) {
@@ -123,7 +131,7 @@ function bind(root) {
     if (btn.id === "workReset") resetScope();
     else if (btn.dataset.workAction === "show-empty") {
       setHideEmpty(false);
-      byId("workViews").querySelector('[aria-pressed="true"]').focus({preventScroll:true});
+      (byId("workViews").querySelector('[aria-pressed="true"]') || byId("statsCompareBySelect")).focus({preventScroll:true});
       return;
     }
     else if (btn.dataset.workAction === "heat-mode") {
@@ -190,9 +198,38 @@ function syncHeatmap(m, scopeKey, month) {
   drawHeatmap();
 }
 
+const metricCards = metrics => joinHtml(metrics.map(s => html`<article class="metric-card"><span>${s.label}</span><strong>${s.value}</strong>${s.detail ? html`<small>${s.detail}</small>` : ""}</article>`));
+const sourceTrip = t => html`<button class="work-link" type="button" data-view-trip="${t.id}">${t.date} · ${t.title || t.location || "View trip"}</button>`;
+
+function renderBasic(model, hideEmpty) {
+  if (!model.trips.length) {
+    setHtml(byId("basicStatsHighlights"), "");
+    setHtml(byId("basicStatsBreakdowns"), html`<p class="work-empty" role="status">No completed trips match these filters.</p>`);
+    return;
+  }
+  setHtml(byId("basicStatsHighlights"), metricCards(basicSizeStats(model, hideEmpty)));
+  setHtml(byId("basicStatsBreakdowns"), joinHtml(basicStatsTables(model, hideEmpty).map(table => html`
+    <section class="basic-breakdown" aria-labelledby="basic-${table.id}">
+      <h3 id="basic-${table.id}">${table.label}</h3>
+      ${table.rows.length ? html`
+        <div class="basic-table-scroll">
+          <table class="basic-table" aria-labelledby="basic-${table.id}">
+            <thead><tr>${table.columns.map(column => html`<th scope="col">${column}</th>`)}</tr></thead>
+            <tbody>${table.rows.map(row => html`
+              <tr><th scope="row">${row.name}${row.detail ? html`<small>${row.detail}</small>` : ""}</th>
+                ${row.values.map(value => html`<td>${value}</td>`)}
+              </tr>`)}</tbody>
+          </table>
+        </div>
+        ${table.note ? html`<p class="basic-table-note">${table.note}</p>` : ""}
+      ` : html`<p class="work-note">No recorded results.</p>`}
+    </section>`)));
+}
+
 export function renderAdvancedStats() {
-  const root = els.advancedStatsPanel || byId("advancedStatsPanel");
-  if (ui.activeView === "leaderboard" || document.body.dataset.activeView === "leaderboard") {
+  const root = els.statsPanel;
+  const activeView = document.body.dataset.activeView;
+  if (activeView === "leaderboard") {
     renderLeaderboardFilters();
     renderStatsLeaderboard(scopedTrips(), (record,trip) => {
       const r = resolveTripLineRecord({ ...record,trip });
@@ -200,26 +237,19 @@ export function renderAdvancedStats() {
     });
     return;
   }
-  if (!root || !byId("workTopics")) return;
+  if (!root || activeView !== "stats") return;
   bind(root);
   const scope = { ...activeStatsFilters, method:ui.activeStatsMethod, date:ui.activeStatsDateRange, from:ui.statsDateFrom, to:ui.statsDateTo };
   const scopeKey = JSON.stringify(scope);
-  const signature = JSON.stringify([scopeKey,ui.activeStatsCompareBy,ui.activeStatsCompareSplit]);
-  if (signature !== lastScope) { clearPair(true); lastScope = signature; }
-  const m = buildStats(state,scope,{ report:ui.activeStatsCompareBy, split:ui.activeStatsCompareSplit, metric:ui.activeStatsCompareMetric,
-    a,b,matched,threshold,minTrips:ui.activeStatsMinTrips,minHours:ui.activeStatsMinHours });
-  const compare = ui.activeStatsCompareBy && m.compareOptions.some(report => report.id === ui.activeStatsCompareBy)
-    ? ui.activeStatsCompareBy : ui.activeStatsCompareBy && m.compareOptions.some(report => report.id === m.active.id) ? m.active.id : "";
-  const split = m.split;
-  const metric = ui.activeStatsCompareMetric && m.columns.some(column => column.id === ui.activeStatsCompareMetric) ? ui.activeStatsCompareMetric : "";
-  if (compare !== ui.activeStatsCompareBy || split !== ui.activeStatsCompareSplit || metric !== ui.activeStatsCompareMetric) {
-    ui.activeStatsCompareBy = compare;
-    ui.activeStatsCompareSplit = split;
-    ui.activeStatsCompareMetric = metric;
-    syncStatsUrl();
-  }
-  if (currentReport?.metric !== m.metric) tableSort = null;
-  currentReport = m;
+  const basicPanel = byId("basicStatsPanel"), advancedPanel = byId("advancedStatsPanel");
+  advancedPanel.open = ui.statsAdvancedOpen;
+  const heatCard = els.statsActivityHeatmap.closest("section");
+  const hideEmpty = ui.activeStatsHideEmpty;
+  const today = new Date();
+  const basicKey = JSON.stringify([scopeKey, hideEmpty, dateKey(today)]);
+  const basicChanged = basicContext?.book !== state || basicContext?.key !== basicKey;
+  if (basicChanged) basicContext = { book:state, key:basicKey, model:buildBasicStats(state,scope,today) };
+  const basic = basicContext.model;
   const filterOptions = statsFilterOptions(state);
   for (const [key, id, empty] of [
     ["method","statsMethodFilter","All methods"],["location","statsLocationFilter","All locations"],["launch","statsLaunchFilter","All launches"],
@@ -228,26 +258,39 @@ export function renderAdvancedStats() {
     ["rating","statsRatingFilter","All ratings"],["month","statsMonthFilter","All months"]
   ]) menu(id,[empty,...filterOptions[key]],scope[key] || empty);
   menu("workTarget",filterOptions.targetSpecies,scope.targetSpecies,"Any target");
-  const hideEmpty = ui.activeStatsHideEmpty;
   byId("workHideEmpty").checked = hideEmpty;
   menu("statsDateFilter",statsDateOptions(state.trips),scope.date);
   byId("workCustomDates").hidden = scope.date !== "custom";
   byId("workDateFrom").value = scope.from;
   byId("workDateTo").value = scope.to;
-  byId("workDateHint").textContent = m.dateWindow.error || "Includes both dates.";
+  byId("workDateHint").textContent = basic.dateWindow.error || "Includes both dates.";
+  byId("statsActiveScope").textContent = [basic.dateWindow.label,scope.method,...Object.values(activeStatsFilters).filter(v => v && !/^All /.test(v))].join(" · ");
+  for (const section of [els.statsMetricGrid, heatCard, basicPanel, advancedPanel]) section.hidden = !!basic.dateWindow.error;
+  if (basic.dateWindow.error) return;
+  syncHeatmap(basic,scopeKey,scope.month);
+  if (basicChanged) {
+    setHtml(els.statsMetricGrid,metricCards(basicOverviewStats(basic,hideEmpty)));
+    renderBasic(basic, hideEmpty);
+  }
+  if (!advancedPanel.open) return;
+  const signature = JSON.stringify([scopeKey,ui.activeStatsCompareBy,ui.activeStatsCompareSplit]);
+  if (signature !== lastScope) { clearPair(true); lastScope = signature; }
+  const comparison = buildStats(state,scope,{
+    report:ui.activeStatsCompareBy, split:ui.activeStatsCompareSplit, metric:ui.activeStatsCompareMetric,
+    a,b,matched,threshold,minTrips:ui.activeStatsMinTrips,minHours:ui.activeStatsMinHours
+  },today);
+  renderComparison(comparison, hideEmpty);
+}
+
+function renderComparison(m, hideEmpty) {
   for (const [id,value] of [["statsMinHoursInput",ui.activeStatsMinHours],["statsMinTripsInput",ui.activeStatsMinTrips]]) {
     if (document.activeElement !== byId(id)) byId(id).value = value;
   }
-  byId("statsActiveScope").textContent = [m.dateWindow.label,scope.method,...Object.values(activeStatsFilters).filter(v => v && !/^All /.test(v))].join(" · ");
-  for (const section of [els.advancedMetricGrid,els.statsActivityHeatmap.closest("section"),root.querySelector(".work-comparison")]) section.hidden = !!m.dateWindow.error;
-  if (m.dateWindow.error) return;
-  const metrics = overviewStats(m,hideEmpty);
-  els.advancedMetricGrid.hidden = !metrics.length;
-  setHtml(els.advancedMetricGrid,joinHtml(metrics.map(s => html`<article class="metric-card"><span>${s.label}</span><strong>${s.value}</strong><small>${s.detail}</small></article>`)));
-  syncHeatmap(m,scopeKey,scope.month);
+  if (currentReport?.metric !== m.metric) tableSort = null;
+  currentReport = m;
   const groups = [...new Set(m.compareOptions.map(d => d.group))];
   setHtml(byId("workTopics"),groups.length ? joinHtml(groups.map(g => tab(g,m.compareOptions.find(d => d.group === g).id,g === m.active.group,"topic")))
-    : html`<span class="work-no-options" role="status">No categories have enough data to compare.</span>`);
+    : html`<span class="work-no-options" role="status">No categories have recorded data.</span>`);
   const compareOptions = m.compareOptions.filter(report => report.group === m.active.group);
   menu("statsCompareBySelect",compareOptions,m.active.id,compareOptions.length ? undefined : "No comparable categories");
   byId("statsCompareBySelect").disabled = !compareOptions.length;
@@ -256,25 +299,25 @@ export function renderAdvancedStats() {
   menu("statsCompareMetricSelect",m.columns,m.metric,m.columns.length ? undefined : "No compatible measures");
   byId("statsCompareMetricSelect").disabled = !m.columns.length;
   menu("workA",m.names.filter(n => n !== b),a,"All groups"); menu("workB",m.names.filter(n => n !== a),b,"All groups");
+  byId("workAField").hidden = byId("workBField").hidden = m.names.length < 2;
   byId("workMatched").checked = matched; byId("workMatched").disabled = !(a && b);
-  byId("workMatchField").hidden = !m.pairEnabled || !m.compareOptions.length; byId("workSizeField").hidden = m.active.id !== "sizes" || !m.compareOptions.length; byId("workSizeUnit").textContent = `(${m.units.fishLength})`;
-  byId("workMinHoursField").hidden = !m.columns.some(c => c.id === "hours");
+  byId("workMatchField").hidden = !m.pairEnabled || m.names.length < 2; byId("workSizeField").hidden = m.active.id !== "sizes" || !m.compareOptions.length; byId("workSizeUnit").textContent = `(${m.units.fishLength})`;
+  byId("workMinHoursField").hidden = !ui.activeStatsMinHours && !m.columns.some(c => c.id === "hours");
   const chart = m.active.chart === "line" && !m.split ? "line" : "bar", pieData = piePlot(m);
   if ((!m.compareOptions.length || !pieData.suitable) && view === "pie") view = "";
-  const selectedView = view || (a && b ? "table" : m.chart);
+  const selectedView = m.rows.length <= 1 ? "table" : view || (a && b ? "table" : m.chart);
   currentPie = selectedView === "pie" && m.compareOptions.length ? pieData : null;
   const formats = {table:"Table",bar:"Bar chart",line:"Trend line",pie:"Pie chart"};
-  const views = m.compareOptions.length ? ["table",chart,...(pieData.suitable ? ["pie"] : [])] : [];
+  const views = m.rows.length > 1 ? ["table",chart,...(pieData.suitable ? ["pie"] : [])] : [];
   setHtml(byId("workViews"),joinHtml(views.map(v => tab(formats[v],v,selectedView === v,"view"))));
   byId("workReportTitle").textContent = m.active.label;
   byId("statsCompareNote").textContent = m.note;
   byId("statsCompareNote").hidden = !m.note;
   const rows = comparisonRows(m,hideEmpty);
   currentTable = selectedView === "table" && m.compareOptions.length ? comparisonTable(m,a,b,tableSort,limit,hideEmpty) : null;
-  byId("workReportCount").textContent = m.compareOptions.length ? `${comparisonCount(m,rows,currentTable)} · ${lineMetric(m,m.metric)}` : "No comparable groups";
+  byId("workReportCount").textContent = m.rows.length ? `${comparisonCount(m,rows,currentTable)} · ${lineMetric(m,m.metric)}` : "";
   const total = currentTable?.total ?? rows.length;
-  const output = !m.compareOptions.length ? html`<p class="work-empty"><strong>No comparable groups</strong><br>Choose filters that leave at least two groups with recorded data.</p>`
-    : !m.rows.length ? html`<p class="work-empty"><strong>No comparable records</strong><br>Try another report or widen your filters. A missing measurement is not zero.</p>`
+  const output = !m.rows.length ? html`<p class="work-empty"><strong>No recorded results</strong><br>Try another report or widen your filters.</p>`
     : currentPie ? pie(currentPie) : hideEmpty && !total ? html`<p class="work-empty"><strong>All results are hidden</strong><br>No recorded nonzero values in this comparison.</p><button class="button secondary" type="button" data-work-action="show-empty">Show all results</button>`
     : currentTable ? table(currentTable) : selectedView === "line" ? line(m,hideEmpty) : bars(m,rows.slice(0,limit));
   setHtml(byId("comparisonBuilderTable"),html`${output}${m.rows.length > 0 && total > limit && (selectedView === "table" || selectedView === "bar") ? html`<button class="button secondary" type="button" data-work-action="more">Show more (${total - limit} remaining)</button>` : ""}`);
@@ -283,5 +326,5 @@ export function renderAdvancedStats() {
 
 function renderSources(m) {
   const row = (currentPie ? currentPie.slices : m.rows).find(r => r.key === sourceKey);
-  setHtml(byId("workSources"),row ? html`<aside><h5>Trips behind ${title(row)}</h5>${m.evidence.filter(t => row.tripIds.includes(t.id)).map(t => html`<button class="work-link" type="button" data-view-trip="${t.id}">${t.date} · ${t.title || t.location || "View trip"}</button>`)}</aside>` : "");
+  setHtml(byId("workSources"),row ? html`<aside><h5>Trips behind ${title(row)}</h5>${m.evidence.filter(t => row.tripIds.includes(t.id)).map(sourceTrip)}</aside>` : "");
 }

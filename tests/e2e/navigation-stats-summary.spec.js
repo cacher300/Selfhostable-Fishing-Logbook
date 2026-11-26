@@ -112,7 +112,7 @@ test.describe("navigation, stats, and summary characterization", () => {
     const navButtons = [
       ["Trips", "trips", "Trips", "#tripListPanel"],
       ["Expeditions", "expeditions", "Expeditions", "#expeditionsPanel"],
-      ["Stats", "stats", "Stats", "#advancedStatsPanel"],
+      ["Stats", "stats", "Stats", "#basicStatsPanel"],
       ["Map", "map", "Map", "#mapPanel"],
       ["Gear", "gear", "Gear", "#gearPanel"],
       ["Gallery", "gallery", "Gallery", "#galleryPanel"],
@@ -138,7 +138,7 @@ test.describe("navigation, stats, and summary characterization", () => {
 
     const routes = [
       ["/trips", "Trips", "#tripListPanel"],
-      ["/stats", "Stats", "#advancedStatsPanel"],
+      ["/stats", "Stats", "#basicStatsPanel"],
       ["/map", "Map", "#mapPanel"],
       ["/gear", "Gear", "#gearPanel"],
       ["/settings", "Settings", "#settingsPanel"],
@@ -160,7 +160,7 @@ test.describe("navigation, stats, and summary characterization", () => {
     await statsSeed(page);
     await page.goto("/stats", { waitUntil: "domcontentloaded" });
 
-    const metric = label => page.locator("#advancedMetricGrid .metric-card").filter({has:page.getByText(label,{exact:true})}).locator("strong");
+    const metric = label => page.locator("#statsMetricGrid .metric-card").filter({has:page.getByText(label,{exact:true})}).locator("strong");
     await expect(metric("Trips")).toHaveText("2");
     await expect(metric("Landed fish")).toHaveText("3");
     await expect(metric("Fish / hour")).toHaveText("0.5");
@@ -169,6 +169,57 @@ test.describe("navigation, stats, and summary characterization", () => {
     await expect(page.locator("#personalBestsGrid")).toContainText("Walleye");
     await expect(page.locator("#personalBestsGrid")).toContainText("7 lb");
     await expect(page.locator("#personalBestsGrid")).toContainText("27 in");
+  });
+
+  test("one Stats page keeps the overview above independently collapsible sections", async ({ page }) => {
+    await statsSeed(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/stats");
+    const basic = page.locator("#basicStatsPanel");
+    const advanced = page.locator("#advancedStatsPanel");
+    const basicHeading = basic.locator(":scope > summary");
+    const advancedHeading = advanced.locator(":scope > summary");
+    const heatmap = page.locator(".stats-activity-card");
+    await expect(page.locator(".work-scope + #statsMetricGrid + .stats-activity-card + #basicStatsPanel + #advancedStatsPanel")).toHaveCount(1);
+    await expect(basic).not.toHaveAttribute("open", "");
+    await expect(advanced).not.toHaveAttribute("open", "");
+    await page.locator("#statsMethodFilter").selectOption("Trolling");
+    const landed = page.locator("#statsMetricGrid .metric-card")
+      .filter({ has: page.getByText("Landed fish", { exact: true }) }).locator("strong");
+    await expect(landed).toHaveText("2");
+    await basicHeading.press("Enter");
+    await expect(basic).toHaveAttribute("open", "");
+    const species = basic.getByRole("table", { name: "Top species" });
+    await expect(species.getByRole("rowheader")).toHaveText(["Perch", "Walleye"]);
+    const productive = basic.getByRole("table", { name: "Most productive trips" });
+    await expect(productive.getByRole("rowheader")).toContainText("Summary Charter");
+    const luresByRate = basic.getByRole("table", { name: "Top 5 lures by rate" });
+    await expect(luresByRate.getByRole("cell")).toHaveText(["0.5", "2", "4"]);
+    const size = label => basic.locator(".metric-card").filter({has:page.getByText(label,{exact:true})}).locator("strong");
+    await expect(size("Longest fish")).toHaveText("27 in");
+    await expect(size("Shortest fish")).toHaveText("10 in");
+    await expect(basic.locator("[data-view-trip], a[href]")).toHaveCount(0);
+    await advancedHeading.click();
+    await expect(advanced).toHaveAttribute("open", "");
+    await expect(basic).toHaveAttribute("open", "");
+    await expect(page).toHaveURL(/advanced=1/);
+    await page.getByText("More filters", { exact: true }).click();
+    await page.locator("#statsSpeciesFilter").selectOption("Walleye");
+    await expect(landed).toHaveText("1");
+    await basicHeading.click();
+    await expect(species).toBeHidden();
+    await expect(advanced).toHaveAttribute("open", "");
+    await expect(heatmap).toBeVisible();
+    await advancedHeading.click();
+    await expect(advanced).not.toHaveAttribute("open", "");
+    await expect(page).toHaveURL(/advanced=0/);
+    await page.reload();
+    await expect(advanced).not.toHaveAttribute("open", "");
+    await expect(landed).toHaveText("1");
+    await page.getByRole("button", { name: "Reset filters" }).click();
+    await expect(page).toHaveURL(/\/stats$/);
+    await expect(landed).toHaveText("3");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 
   test("personal bests feature the top catch, keep timeline rows compact, and fit narrow screens", async ({ page }) => {

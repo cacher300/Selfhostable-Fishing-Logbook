@@ -2,6 +2,8 @@
 import { state, ui } from "./app-state.js";
 import { renderWeatherFrontChoice, resetAutomaticWeatherFront } from "./weather-front.js";
 import { settingsUi } from "./settings-core.js";
+import { renderFishExperiments, renderTripExperimentPicker, renderTripSetupExperiments } from "./experiment-trip.js";
+import { assignedExperimentIds, setExperimentVariant, tripExperimentIds } from "./experiments-model.js";
 
 const rootBindings = [
   ["#tripId", "id"],
@@ -328,9 +330,32 @@ function updateProbeProfile(control) {
 
 function updateTripDraftFromControl(control) {
   if (!control || !ui.tripDraft) return false;
+  const tripExperimentId = control.dataset.tripExperiment;
+  if (tripExperimentId) {
+    const ids = new Set(tripExperimentIds(ui.tripDraft));
+    if (control.checked) ids.add(tripExperimentId);
+    else if (!assignedExperimentIds(ui.tripDraft).has(tripExperimentId)) ids.delete(tripExperimentId);
+    ui.tripDraft.experimentIds = [...ids];
+    renderTripExperimentPicker();
+    renderTripSetupExperiments();
+    return true;
+  }
   if (updateProbeProfile(control)) return true;
   const bindingRow = control.closest(".person-row, .gear-used-row, .catch-row");
   if (bindingRow) setRowAttributes(bindingRow);
+  const experimentId = control.getAttribute("data-setup-experiment");
+  if (experimentId && bindingRow?.classList.contains("gear-used-row")) {
+    const line = findDraftRecord("gearUsed", rowId(bindingRow));
+    if (!line) return false;
+    ui.tripDraft.experimentIds = tripExperimentIds(ui.tripDraft);
+    line.experimentAssignments = setExperimentVariant(line.experimentAssignments || [], experimentId, control.value);
+    renderTripExperimentPicker();
+    for (const row of document.querySelectorAll("#tripDialog .catch-row")) {
+      const fish = findDraftRecord(rowCollection(row), rowId(row));
+      if (fish) renderFishExperiments(row, fish);
+    }
+    return true;
+  }
   const inferred = firstMatchingBinding(control, bindingRow?.classList.contains("person-row")
     ? personBindings
     : bindingRow?.classList.contains("gear-used-row")
@@ -371,6 +396,7 @@ export function handleTripDraftControlEvent(event) {
   // updateTripRow() instead of asking save to re-read the DOM.
   const control = event.target?.closest?.("input, select, textarea");
   if (!control?.closest?.("#tripDialog")) return;
+  if (event.type !== "change" && control.matches("[data-trip-experiment], [data-setup-experiment]")) return;
   updateTripDraftFromControl(control);
   ui.tripFormUserChanged = true;
 }

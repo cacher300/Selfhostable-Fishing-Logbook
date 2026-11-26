@@ -31,6 +31,16 @@ _GEAR_COLLECTIONS = ("lures", "flashers", "reels", "rods", "rodReelCombos")
 _ID_COLLECTIONS = ("lures", "flashers", "reels", "rods", "rodReelCombos")
 
 
+def _strip_trip_experiments(trip):
+    if isinstance(trip, dict):
+        trip.pop("experimentId", None)
+        trip.pop("experimentIds", None)
+    if isinstance(trip, dict) and isinstance(trip.get("gearUsed"), list):
+        for line in trip["gearUsed"]:
+            if isinstance(line, dict):
+                line.pop("experimentAssignments", None)
+
+
 class SharedTripArchiveError(ValueError):
     """A share archive is invalid or cannot be merged safely."""
 
@@ -95,6 +105,7 @@ def build_shared_logbook(logbook: dict, trip_id: str) -> dict:
         raise SharedTripArchiveError("Trip not found.")
 
     selected_trip = deepcopy(trip)
+    _strip_trip_experiments(selected_trip)
     # An expedition represents other trip history, so a single-trip share stands alone.
     selected_trip["expeditionId"] = ""
     referenced = _referenced_trip_ids(selected_trip)
@@ -129,6 +140,7 @@ def build_shared_logbook(logbook: dict, trip_id: str) -> dict:
         locations.append(selected_location)
 
     shared = deepcopy(DEFAULT_LOGBOOK)
+    shared.pop("experiments", None)
     shared.update({
         "schemaVersion": 2,
         "trips": [selected_trip],
@@ -212,6 +224,11 @@ def read_shared_archive(stream) -> SharedTripArchive:
             ):
                 raise SharedTripArchiveError("This is not a supported shared trip archive.")
             payload = json.loads(bundle.read("logbook.json"))
+            if isinstance(payload, dict):
+                payload.pop("experiments", None)
+                if isinstance(payload.get("trips"), list):
+                    for trip in payload["trips"]:
+                        _strip_trip_experiments(trip)
             normalized = _checked_logbook(payload)
             if len(normalized.get("trips", [])) != 1:
                 raise SharedTripArchiveError("A shared trip archive must contain exactly one trip.")
@@ -697,6 +714,7 @@ def merge_shared_archive(
     local = _checked_logbook(local_logbook)
     incoming = deepcopy(archive.logbook)
     trip = deepcopy(incoming["trips"][0])
+    _strip_trip_experiments(trip)
     source_trip_id = str(trip.get("id") or "")
     candidates = {item["id"] for item in likely_overlaps(trip, local)}
     discarded_media = (

@@ -160,7 +160,7 @@ test.describe("pushState router", () => {
     await page.locator("#tripSummaryDialog").evaluate((dialog) => dialog.close());
 
     for (const [route, panel] of [
-      ["/stats", "#advancedStatsPanel"],
+      ["/stats", "#basicStatsPanel"],
       ["/leaderboard", "#leaderboardPanel"],
       ["/bests", "#personalBestsPanel"],
       ["/expeditions", "#expeditionsPanel"],

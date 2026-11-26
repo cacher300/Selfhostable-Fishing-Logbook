@@ -153,7 +153,6 @@ export async function saveListOption(event) {
 }
 
 export function syncStatsUrl() {
-  if (window.location.pathname !== "/stats") return;
   const params = new URLSearchParams();
   if (ui.activeStatsDateRange !== "all") params.set("range", ui.activeStatsDateRange);
   if (ui.activeStatsDateRange === "custom") {
@@ -166,12 +165,13 @@ export function syncStatsUrl() {
   if (ui.activeStatsMinHours) params.set("minHours", String(ui.activeStatsMinHours));
   if (ui.activeStatsHideEmpty) params.set("nonzero", "1");
   if (ui.activeStatsIncludeLost) params.set("outcome", "strikes");
-  if (ui.activeStatsCompareBy && ui.activeStatsCompareBy !== reportForMethod(ui.activeStatsMethod)) params.set("compare", ui.activeStatsCompareBy);
+  if (ui.activeStatsCompareBy) params.set("compare", ui.activeStatsCompareBy);
   if (ui.activeStatsCompareSplit) params.set("split", ui.activeStatsCompareSplit);
   if (ui.activeStatsCompareMetric) params.set("show", ui.activeStatsCompareMetric);
   Object.entries(activeStatsFilters).forEach(([key, value]) => {
     if (value && !value.startsWith("All ")) params.set(key, value);
   });
+  if (ui.statsAdvancedOpen || params.size) params.set("advanced", ui.statsAdvancedOpen ? "1" : "0");
   replaceStatsSearch(params.toString());
 }
 
@@ -217,6 +217,7 @@ export function setup() {
   });
   els.tripDialog.addEventListener("change", (event) => {
     handleTripDraftControlEvent(event);
+    if (event.target.matches("[data-trip-experiment], [data-setup-experiment]")) markTripFormChanged();
     if (event.target.matches("#waterTemp")) markTripWaterTemperatureManual();
     if (event.target.matches("#waterClarity")) markTripWaterClarityManual();
     syncTripContinuationGate();
@@ -411,6 +412,7 @@ export function setup() {
   els.bestsViewButton.addEventListener("click", () => navigate("bests"));
 
   els.statsViewButton.addEventListener("click", () => navigate("stats"));
+  document.querySelector("#experimentsViewButton")?.addEventListener("click", () => navigate("experiments"));
 
   els.leaderboardViewButton.addEventListener("click", () => navigate("leaderboard"));
 
@@ -622,7 +624,7 @@ export function setup() {
 
   els.statsMethodFilter.addEventListener("change", () => {
     ui.activeStatsMethod = els.statsMethodFilter.value;
-    ui.activeStatsCompareBy = reportForMethod(ui.activeStatsMethod);
+    ui.activeStatsCompareBy = ui.activeStatsMethod === "All methods" ? "" : reportForMethod(ui.activeStatsMethod);
     ui.activeStatsCompareMetric = "";
     ui.activeStatsCompareSplit = "";
     syncStatsUrl();
